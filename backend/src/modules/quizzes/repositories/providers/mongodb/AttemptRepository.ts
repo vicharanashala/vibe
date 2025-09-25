@@ -1,4 +1,5 @@
 import {
+  Answer,
   IAttempt,
   IOrder,
   IQuestionAnswer,
@@ -9,7 +10,7 @@ import {injectable, inject} from 'inversify';
 import {Collection, ClientSession, ObjectId} from 'mongodb';
 import {InternalServerError} from 'routing-controllers';
 import {GLOBAL_TYPES} from '#root/types.js';
-import { ID } from '#root/shared/index.js';
+import {ID} from '#root/shared/index.js';
 @injectable()
 class AttemptRepository {
   private attemptCollection: Collection<IAttempt>;
@@ -185,6 +186,141 @@ class AttemptRepository {
       {session},
     );
     return distinctUsers.length;
+  }
+
+  async bulkConvertIds(): Promise<{updated: number}> {
+    try {
+      await this.init();
+
+      const attemptDocs = await this.attemptCollection
+        .find()
+        .project({
+          _id: 1,
+          quizId: 1,
+          userId: 1,
+          questionDetails: 1,
+          answers: 1,
+          isSkipped: 1,
+          createdAt: 1,
+          updatedAt: 1,
+        })
+        .toArray();
+
+      if (!attemptDocs.length) return {updated: 0};
+
+      const bulkOperations = attemptDocs
+        .map((attempt: IAttempt) => {
+          let needsUpdate = false;
+
+          // Convert quizId
+          let updatedQuizId = attempt.quizId;
+          if (attempt.quizId && typeof attempt.quizId === 'string') {
+            updatedQuizId = new ObjectId(attempt.quizId);
+            needsUpdate = true;
+          }
+
+          // Convert userId
+          let updatedUserId = attempt.userId;
+          if (attempt.userId && typeof attempt.userId === 'string') {
+            updatedUserId = new ObjectId(attempt.userId);
+            needsUpdate = true;
+          }
+
+          const updatedQuestionDetails = (attempt.questionDetails || []).map(
+            (qd: IQuestionDetails) => {
+              let newQD: IQuestionDetails = {...qd};
+              if (qd?.questionId && typeof qd.questionId === 'string') {
+                newQD.questionId = new ObjectId(qd.questionId);
+                needsUpdate = true;
+              }
+              return newQD;
+            },
+          );
+
+          const updatedAnswers = (attempt.answers || []).map(
+            (ans: IQuestionAnswer) => {
+              let newAnswer: Answer = {...ans.answer};
+
+              if ('lotItemId' in newAnswer && newAnswer.lotItemId) {
+                if (typeof newAnswer.lotItemId === 'string') {
+                  newAnswer = {
+                    ...newAnswer,
+                    lotItemId: new ObjectId(newAnswer.lotItemId),
+                  };
+                  needsUpdate = true;
+                }
+              } else if (
+                'lotItemIds' in newAnswer &&
+                Array.isArray(newAnswer.lotItemIds)
+              ) {
+                newAnswer = {
+                  ...newAnswer,
+                  lotItemIds: newAnswer.lotItemIds.map(id =>
+                    typeof id === 'string' ? new ObjectId(id) : id,
+                  ),
+                };
+                needsUpdate = true;
+              } else if (
+                'orders' in newAnswer &&
+                Array.isArray(newAnswer.orders)
+              ) {
+                newAnswer = {
+                  ...newAnswer,
+                  orders: newAnswer.orders.map(o => ({
+                    ...o,
+                    lotItemId:
+                      typeof o.lotItemId === 'string'
+                        ? new ObjectId(o.lotItemId)
+                        : o.lotItemId,
+                  })),
+                };
+                needsUpdate = true;
+              }
+
+              const updatedQId =
+                typeof ans.questionId === 'string'
+                  ? new ObjectId(ans.questionId)
+                  : ans.questionId;
+
+              if (typeof ans.questionId === 'string') needsUpdate = true;
+
+              return {
+                ...ans,
+                questionId: updatedQId,
+                answer: newAnswer,
+              };
+            },
+          );
+
+          if (needsUpdate) {
+            return {
+              updateOne: {
+                filter: {_id: attempt._id},
+                update: {
+                  $set: {
+                    quizId: updatedQuizId,
+                    userId: updatedUserId,
+                    questionDetails: updatedQuestionDetails,
+                    answers: updatedAnswers,
+                  },
+                },
+              },
+            };
+          }
+
+          return null;
+        })
+        .filter(Boolean);
+
+      if (!bulkOperations.length) return {updated: 0};
+
+      const result = await this.attemptCollection.bulkWrite(bulkOperations);
+      return {updated: result.modifiedCount};
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed attempts ID conversion. More/ ${error}`,
+      );
+    }
   }
 }
 

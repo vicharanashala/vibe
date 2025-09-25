@@ -235,6 +235,7 @@ class AttemptService extends BaseService {
       const {questionDetails, questionRenderViews} =
         await this._getQuestionsForAttempt(quiz);
 
+      console.log('questionDetails', questionDetails);
       //5. Create a new attempt
 
       const newAttempt = new Attempt(quizObjecId, userObjecId, questionDetails);
@@ -445,12 +446,15 @@ class AttemptService extends BaseService {
           answer: newAnswer,
         };
       });
+      const updatedQuestionDetails = attempt.questionDetails.map(qd => ({
+        ...qd,
+        questionId: new ObjectId(qd.questionId),
+      }));
 
-      console.log('updatedAnswers[0].answer', updatedAnswers[0].answer);
       //3. Update the attempt with the answers or isSkipped
       if (isSkipped) attempt.isSkipped = isSkipped;
       else attempt.answers = updatedAnswers;
-
+      attempt.questionDetails = updatedQuestionDetails;
       attempt.updatedAt = new Date();
       attempt.userId = new ObjectId(attempt.userId);
       attempt.quizId = new ObjectId(attempt.quizId);
