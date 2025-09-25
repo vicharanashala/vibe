@@ -4,6 +4,7 @@ import StudentDashboard from "@/app/pages/student/dashboard";
 import StudentCourses from "@/app/pages/student/courses";
 import StudentProfile from "@/app/pages/student/profile";
 import CoursePage from "@/app/pages/student/course-page";
+import CourseDetails from "../pages/student/CourseDetails";
 
 const studentRoutes: RouteObject = {
   path: "/student",
@@ -16,6 +17,10 @@ const studentRoutes: RouteObject = {
     {
       path: "courses",
       element: <StudentCourses />,
+    },
+    {
+      path:"courseDetails",
+      element:< CourseDetails/>
     },
     {
       path: "profile",
