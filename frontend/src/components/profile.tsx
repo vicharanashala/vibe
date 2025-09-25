@@ -16,7 +16,6 @@ import { useNavigate } from "@tanstack/react-router"
 import { LogOut } from "lucide-react"
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal"
 import { Skeleton } from "@/components/ui/skeleton"
-import { bufferToHex } from "@/utils/helpers"
 
 export default function UserProfile({ role = "student" }: { role?: "student" | "teacher" | "admin" }) {
   const { user, setUser } = useAuthStore()
