@@ -1,5 +1,5 @@
-import {ICourse, ID} from '#root/shared/interfaces/models.js';
-import {Transform} from 'class-transformer';
+import { ICourse, ID } from '#root/shared/interfaces/models.js';
+import { Transform } from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -11,8 +11,8 @@ import {
   IsEmpty,
   IsArray,
 } from 'class-validator';
-import {JSONSchema} from 'class-validator-jsonschema';
-import {ObjectId} from 'mongodb';
+import { JSONSchema } from 'class-validator-jsonschema';
+import { ObjectId } from 'mongodb';
 
 class EditCourseBody implements Partial<ICourse> {
   @JSONSchema({
@@ -83,18 +83,18 @@ class CourseBody implements Partial<ICourse> {
   @MaxLength(1000)
   versionDescription?: string;
 
-  @JSONSchema({
-    title: 'Course Versions',
-    description: 'Array of course version IDs to associate with this course',
-    example: ['64b7f1f9e4d2f91b7c9a1e23', '64b7f201e4d2f91b7c9a1e24'],
-    type: 'array',
-    items: {type: 'string', format: 'objectId'},
-  })
-  @IsArray()
-  @Transform(({value}) =>
-    Array.isArray(value) ? value.map(v => new ObjectId(v)) : value,
-  )
-  versions?: ID[];
+  // @JSONSchema({
+  //   title: 'Course Versions',
+  //   description: 'Array of course version IDs to associate with this course',
+  //   example: ['64b7f1f9e4d2f91b7c9a1e23', '64b7f201e4d2f91b7c9a1e24'],
+  //   type: 'array',
+  //   items: {type: 'string', format: 'objectId'},
+  // })
+  // @IsArray()
+  // @Transform(({value}) =>
+  //   Array.isArray(value) ? value.map(v => new ObjectId(v)) : value,
+  // )
+  // versions?: ID[];
 }
 
 class CourseIdParams {
