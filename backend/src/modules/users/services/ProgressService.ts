@@ -71,6 +71,53 @@ class ProgressService extends BaseService {
   }
 
   /**
+   * Check if a quiz item is blank (has no questions)
+   * A quiz is considered blank if it has no questionBankRefs or all banks have count = 0
+   */
+  private async _isQuizBlank(itemId: string, session?: ClientSession): Promise<boolean> {
+    try {
+      const quiz = await this.quizRepo.getById(itemId, session);
+      if (!quiz || !quiz.details) {
+        return true; // No quiz details means it's blank
+      }
+
+      const questionBankRefs = quiz.details.questionBankRefs;
+      if (!questionBankRefs || questionBankRefs.length === 0) {
+        return true; // No question banks means it's blank
+      }
+
+      // Check if all question banks have count = 0
+      const totalQuestions = questionBankRefs.reduce((sum, ref) => sum + (ref.count || 0), 0);
+      return totalQuestions === 0;
+    } catch (error) {
+      // If we can't fetch the quiz, consider it blank to be safe
+      return true;
+    }
+  }
+
+  /**
+   * Filter out blank quizzes from items array for students
+   * Only applies filtering for QUIZ type items
+   */
+  private async _filterBlankQuizzesForStudents(items: any[], session?: ClientSession): Promise<any[]> {
+    const filteredItems = [];
+    
+    for (const item of items) {
+      if (item.type === 'QUIZ') {
+        const isBlank = await this._isQuizBlank(item._id.toString(), session);
+        if (!isBlank) {
+          filteredItems.push(item); // Only include non-blank quizzes
+        }
+        // Skip blank quizzes entirely
+      } else {
+        filteredItems.push(item); // Include all non-quiz items
+      }
+    }
+    
+    return filteredItems;
+  }
+
+  /**
    * Initialize student progress tracking to the first item in the course.
    * Private helper method for the enrollment process.
    */
@@ -106,9 +153,15 @@ class ProgressService extends BaseService {
       return null; // No items to track progress for
     }
 
-    const firstItem = itemsGroup.items.sort((a, b) =>
+    const allItems = itemsGroup.items.sort((a, b) =>
       a.order.localeCompare(b.order),
-    )[0];
+    );
+    const filteredItems = await this._filterBlankQuizzesForStudents(allItems);
+    const firstItem = filteredItems[0];
+
+    if (!firstItem) {
+      return null; // No valid items to track progress for after filtering blank quizzes
+    }
 
     // Create progress record
     return new Progress(
@@ -160,9 +213,15 @@ class ProgressService extends BaseService {
       return null; // No items to track progress for
     }
 
-    const firstItem = itemsGroup.items.sort((a, b) =>
+    const allItems = itemsGroup.items.sort((a, b) =>
       a.order.localeCompare(b.order),
-    )[0];
+    );
+    const filteredItems = await this._filterBlankQuizzesForStudents(allItems);
+    const firstItem = filteredItems[0];
+
+    if (!firstItem) {
+      return null; // No valid items to track progress for after filtering blank quizzes
+    }
 
     // Create progress record
     return new Progress(
@@ -215,9 +274,15 @@ class ProgressService extends BaseService {
       return null; // No items to track progress for
     }
 
-    const firstItem = itemsGroup.items.sort((a, b) =>
+    const allItems = itemsGroup.items.sort((a, b) =>
       a.order.localeCompare(b.order),
-    )[0];
+    );
+    const filteredItems = await this._filterBlankQuizzesForStudents(allItems);
+    const firstItem = filteredItems[0];
+
+    if (!firstItem) {
+      return null; // No valid items to track progress for after filtering blank quizzes
+    }
 
     // Create progress record
     return new Progress(
@@ -512,11 +577,13 @@ class ProgressService extends BaseService {
       itemsGroupId?.toString(),
     );
     // 1.3 Sort items in itemsGroup by order
-    const sortedItems = itemsGroup.items.sort((a, b) =>
+    const allSortedItems = itemsGroup.items.sort((a, b) =>
       a.order.localeCompare(b.order),
     );
-    // 2. Check if the itemId is the last item in the section
-    const lastItem = sortedItems[sortedItems.length - 1]._id;
+    // 1.4 Filter out blank quizzes for students - keep original for position checking
+    const filteredSortedItems = await this._filterBlankQuizzesForStudents(allSortedItems);
+    // 2. Check if the itemId is the last item in the section (using filtered items)
+    const lastItem = filteredSortedItems[filteredSortedItems.length - 1]?._id;
     // 3. Set the isLastItem flag to true if it is the last item
     if (lastItem === itemId) {
       isLastItem = true;
@@ -546,10 +613,12 @@ class ProgressService extends BaseService {
       const itemsGroup = await this.itemRepo.readItemsGroup(
         firstSection?.itemsGroupId.toString(),
       );
-      const firstItem = itemsGroup.items.sort((a, b) =>
+      const allItems = itemsGroup.items.sort((a, b) =>
         a.order.localeCompare(b.order),
-      )[0];
-      currentItem = firstItem._id.toString();
+      );
+      const filteredItems = await this._filterBlankQuizzesForStudents(allItems);
+      const firstItem = filteredItems[0];
+      currentItem = firstItem?._id.toString();
     }
 
     // Handle when the item is the last item in the section but not the last section and not the last module
@@ -566,21 +635,23 @@ class ProgressService extends BaseService {
       const itemsGroup = await this.itemRepo.readItemsGroup(
         nextSection?.itemsGroupId.toString(),
       );
-      const firstItem = itemsGroup.items.sort((a, b) =>
+      const allItems = itemsGroup.items.sort((a, b) =>
         a.order.localeCompare(b.order),
-      )[0];
-      currentItem = firstItem._id.toString();
+      );
+      const filteredItems = await this._filterBlankQuizzesForStudents(allItems);
+      const firstItem = filteredItems[0];
+      currentItem = firstItem?._id.toString();
     }
 
     // Handle when none of the item, the section, or the module is last.
     if (!isLastItem && !isLastSection && !isLastModule) {
-      // Get index of the current item
-      const currentItemIndex = sortedItems.findIndex(
+      // Get index of the current item in filtered items
+      const currentItemIndex = filteredSortedItems.findIndex(
         item => item._id === itemId,
       );
-      // Get next itemId
-      const nextItem = sortedItems[currentItemIndex + 1];
-      currentItem = nextItem._id.toString();
+      // Get next itemId from filtered items
+      const nextItem = filteredSortedItems[currentItemIndex + 1];
+      currentItem = nextItem?._id.toString();
     }
 
     if (isLastItem && !isLastSection && isLastModule) {
@@ -596,40 +667,42 @@ class ProgressService extends BaseService {
       const itemsGroup = await this.itemRepo.readItemsGroup(
         nextSection?.itemsGroupId.toString(),
       );
-      const firstItem = itemsGroup.items.sort((a, b) =>
+      const allItems = itemsGroup.items.sort((a, b) =>
         a.order.localeCompare(b.order),
-      )[0];
-      currentItem = firstItem._id.toString();
+      );
+      const filteredItems = await this._filterBlankQuizzesForStudents(allItems);
+      const firstItem = filteredItems[0];
+      currentItem = firstItem?._id.toString();
     }
 
     if (!isLastItem && !isLastSection && isLastModule) {
-      // Get index of the current item
-      const currentItemIndex = sortedItems.findIndex(
+      // Get index of the current item in filtered items
+      const currentItemIndex = filteredSortedItems.findIndex(
         item => item._id === itemId,
       );
-      // Get next itemId
-      const nextItem = sortedItems[currentItemIndex + 1];
-      currentItem = nextItem._id.toString();
+      // Get next itemId from filtered items
+      const nextItem = filteredSortedItems[currentItemIndex + 1];
+      currentItem = nextItem?._id.toString();
     }
 
     if (!isLastItem && isLastSection && isLastModule) {
-      // Get index of the current item
-      const currentItemIndex = sortedItems.findIndex(
+      // Get index of the current item in filtered items
+      const currentItemIndex = filteredSortedItems.findIndex(
         item => item._id === itemId,
       );
-      // Get next itemId
-      const nextItem = sortedItems[currentItemIndex + 1];
-      currentItem = nextItem._id.toString();
+      // Get next itemId from filtered items
+      const nextItem = filteredSortedItems[currentItemIndex + 1];
+      currentItem = nextItem?._id.toString();
     }
 
     if (!isLastItem && isLastSection && !isLastModule) {
-      // Get index of the current item
-      const currentItemIndex = sortedItems.findIndex(
+      // Get index of the current item in filtered items
+      const currentItemIndex = filteredSortedItems.findIndex(
         item => item._id === itemId,
       );
-      // Get next itemId
-      const nextItem = sortedItems[currentItemIndex + 1];
-      currentItem = nextItem._id.toString();
+      // Get next itemId from filtered items
+      const nextItem = filteredSortedItems[currentItemIndex + 1];
+      currentItem = nextItem?._id.toString();
     }
     if (currentItem) {
       if (completedItems.includes(currentItem)) {
