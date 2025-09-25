@@ -36,17 +36,12 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
   
   const enrollments = enrollmentsData?.enrollments || [];
   
-  // Calculate progress exactly like the dashboard
+  // Calculate progress including all enrolled courses
   const totalProgress = React.useMemo(() => {
     if (enrollments.length === 0) return 0;
     
-    // Filter out the course that's being excluded in the dashboard
-    const filteredEnrollments = enrollments.filter(
-      enrollment => bufferToHex(enrollment.courseVersionId as string) !== '689b1075013a8bec5112625d'
-    );
-    
     // Calculate total completed items and total items across all enrollments
-    const { totalCompleted, totalItems } = filteredEnrollments.reduce((acc, enrollment) => {
+    const { totalCompleted, totalItems } = enrollments.reduce((acc, enrollment) => {
       const completed = typeof enrollment.completedItems === 'number' ? enrollment.completedItems : 0;
       const total = enrollment.contentCounts?.totalItems || 0;
       return {
