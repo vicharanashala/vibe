@@ -16,7 +16,13 @@ export const setTokenRefreshFunction = (refreshFn: () => Promise<void>) => {
 };
 
 const fetchClient = createFetchClient<paths>({
-  baseUrl: `${import.meta.env.VITE_BASE_URL}`
+  baseUrl: `${import.meta.env.VITE_BASE_URL}`,
+  fetch: (url, options) => {
+    return fetch(url, {
+      ...options,
+      credentials: "include",  
+    });
+  },
 });
 
 // Add middleware to automatically include Authorization header

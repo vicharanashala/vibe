@@ -12,6 +12,7 @@ import {
   VideoItem,
   QuizItem,
   BlogItem,
+  ProjectItem,
   Item,
 } from '#courses/classes/transformers/Item.js';
 import {UpdateItemBody} from '#root/modules/courses/classes/index.js';
@@ -22,6 +23,7 @@ export class ItemRepository implements IItemRepository {
   private videoCollection: Collection<VideoItem>;
   private quizCollection: Collection<QuizItem>;
   private blogCollection: Collection<BlogItem>;
+  private projectCollection: Collection<ProjectItem>;
 
   constructor(
     @inject(GLOBAL_TYPES.Database)
@@ -34,10 +36,12 @@ export class ItemRepository implements IItemRepository {
     this.itemsGroupCollection = await this.db.getCollection<ItemsGroup>(
       'itemsGroup',
     );
-
     this.videoCollection = await this.db.getCollection<VideoItem>('videos');
     this.quizCollection = await this.db.getCollection<QuizItem>('quizzes');
     this.blogCollection = await this.db.getCollection<BlogItem>('blogs');
+    this.projectCollection = await this.db.getCollection<ProjectItem>(
+      'projects',
+    );
   }
 
   // Methods for ItemsGroup operations
@@ -118,7 +122,7 @@ export class ItemRepository implements IItemRepository {
     session?: ClientSession,
   ): Promise<ItemsGroup | null> {
     await this.init();
-    
+
     const itemFilter =
       typeof itemId === 'string' && ObjectId.isValid(itemId)
         ? {$in: [itemId, new ObjectId(itemId)]}
@@ -156,6 +160,9 @@ export class ItemRepository implements IItemRepository {
       case ItemType.BLOG:
         collection = this.blogCollection;
         break;
+      case ItemType.PROJECT:
+        collection = this.projectCollection;
+        break;
       default:
         throw new Error(`Unsupported item type: ${(item as any).type}`);
     }
@@ -172,10 +179,53 @@ export class ItemRepository implements IItemRepository {
     return createdItem as Item;
   }
 
+  async createItems(items: Item[], session?: ClientSession): Promise<Item[]> {
+    await this.init();
+    const createdItems: Item[] = [];
+
+    for (const item of items) {
+      let collection: Collection<any> = null;
+
+      switch (item.type) {
+        case ItemType.VIDEO:
+          collection = this.videoCollection;
+          break;
+        case ItemType.QUIZ:
+          collection = this.quizCollection;
+          break;
+        case ItemType.BLOG:
+          collection = this.blogCollection;
+          break;
+        case ItemType.PROJECT:
+          collection = this.projectCollection;
+          break;
+        default:
+          throw new Error(`Unsupported item type: ${item.type}`);
+      }
+
+      const result = await collection.insertOne(item, {session});
+      if (!result.insertedId) {
+        throw new Error(`Failed to insert item of type ${item.type}`);
+      }
+
+      const createdItem = await collection.findOne(
+        {_id: result.insertedId},
+        {session},
+      );
+      if (!createdItem)
+        throw new Error(`Failed to fetch inserted item of type ${item.type}`);
+      createdItems.push(createdItem);
+    }
+    return createdItems;
+  }
+
   async readItem(
     courseVersionId: string,
     itemId: string,
+    session?: ClientSession,
   ): Promise<Item | null> {
+    await this.init();
+
     const courseVersion = await this.courseRepo.readVersion(courseVersionId);
     if (!courseVersion) {
       throw new InternalServerError(`Version ${courseVersionId} not found.`);
@@ -206,6 +256,11 @@ export class ItemRepository implements IItemRepository {
               item = (await this.blogCollection.findOne({
                 _id: new ObjectId(found._id),
               })) as BlogItem;
+              break;
+            case ItemType.PROJECT:
+              item = (await this.projectCollection.findOne({
+                _id: new ObjectId(found._id),
+              })) as ProjectItem;
               break;
             default:
               throw new InternalServerError(`Unknown item type: ${found.type}`);
@@ -240,6 +295,9 @@ export class ItemRepository implements IItemRepository {
       case ItemType.BLOG:
         collection = this.blogCollection;
         break;
+      case ItemType.PROJECT:
+        collection = this.projectCollection;
+        break;
       default:
         throw new InternalServerError(
           `Unsupported item type: ${(item as any).type}`,
@@ -252,7 +310,7 @@ export class ItemRepository implements IItemRepository {
         $set: {
           name: item.name,
           description: item.description,
-          details: item.details,
+          details: item?.details,
         },
       },
       {returnDocument: 'after', session},
@@ -284,7 +342,7 @@ export class ItemRepository implements IItemRepository {
         `Item ${itemId} not found in ItemsGroup ${itemGroupsId}.`,
       );
     }
-    // If the item is a video, delete it from the video collection
+    // Delete the item from the appropriate collection based on its type
     if (itemsGroup.items[itemIndex].type === ItemType.VIDEO) {
       await this.videoCollection.deleteOne(
         {_id: new ObjectId(itemId)},
@@ -297,6 +355,11 @@ export class ItemRepository implements IItemRepository {
       );
     } else if (itemsGroup.items[itemIndex].type === ItemType.BLOG) {
       await this.blogCollection.deleteOne(
+        {_id: new ObjectId(itemId)},
+        {session},
+      );
+    } else if (itemsGroup.items[itemIndex].type === ItemType.PROJECT) {
+      await this.projectCollection.deleteOne(
         {_id: new ObjectId(itemId)},
         {session},
       );
@@ -317,6 +380,8 @@ export class ItemRepository implements IItemRepository {
   async getFirstOrderItems(
     courseVersionId: string,
   ): Promise<{moduleId: ObjectId; sectionId: ObjectId; itemId: ObjectId}> {
+    await this.init();
+
     const version = await this.courseRepo.readVersion(courseVersionId);
     if (!version || version.modules.length === 0) {
       throw new InternalServerError('Course version has no modules');
@@ -355,6 +420,8 @@ export class ItemRepository implements IItemRepository {
     versionId: string,
     session?: ClientSession,
   ): Promise<number> {
+    await this.init();
+
     const version = await this.courseRepo.readVersion(versionId, session);
     if (!version) {
       throw new NotFoundError(`Course version ${versionId} not found.`);
@@ -398,6 +465,8 @@ export class ItemRepository implements IItemRepository {
     versionId: string,
     session?: ClientSession,
   ): Promise<number> {
+    await this.init();
+
     const version = await this.courseRepo.readVersion(versionId, session);
     if (!version) {
       throw new NotFoundError(`Course version ${versionId} not found.`);

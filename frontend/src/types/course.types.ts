@@ -23,6 +23,10 @@ export interface CourseCardProps {
       description: string;
       instructors?: Array<{ name: string }>;
     };
+    courseVersion?: {
+      name: string;
+      description: string;
+    };
     enrollmentDate?: string;
   };
   isLoading: boolean;

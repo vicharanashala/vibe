@@ -23,6 +23,10 @@ export class StudentQuizScoreDto {
     quizName: string;
     maxScore: number;
     attempts: number;
+    questionScores: Array<{
+      questionId: string;
+      score: number;
+    }>;
   }>;
 }
 

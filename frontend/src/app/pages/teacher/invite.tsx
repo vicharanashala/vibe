@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import {
   UserPlus,
@@ -51,17 +51,13 @@ export default function InvitePage() {
     return null
   }
 
-  // State for new invites
-  const [inviteEmails, setInviteEmails] = useState<EmailInvite[]>([
-    { email: "", role: "STUDENT" as EnrollmentRole }
-  ])
-
   // State to track which invite operations are in progress
   const [resendingInviteId, setResendingInviteId] = useState<string | null>(null);
   const [cancelingInviteId, setCancelingInviteId] = useState<string | null>(null);
 
   // filters
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [sort, setSort] = useState("");
   const [inviteStatus, setInviteStatus] = useState("");
@@ -78,7 +74,7 @@ export default function InvitePage() {
     isLoading: invitesLoading,
     error: invitesError,
     refetch: refetchInvites,
-  } = useCourseInvites(courseId || "", versionId || "", !!(courseId && versionId), searchQuery, 
+  } = useCourseInvites(courseId || "", versionId || "", !!(courseId && versionId), debouncedSearchQuery, 
       currentPage, 15, inviteStatus, sort);
 
   // Add course version data hook to check structure
@@ -87,6 +83,14 @@ export default function InvitePage() {
   const inviteUsers = useInviteUsers()
   const resendInvite = useResendInvite()
   const cancelInvite = useCancelInvite()
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Function to check if course has required structure for progress initialization
   const hasRequiredStructure = () => {
@@ -125,7 +129,7 @@ export default function InvitePage() {
     }
 
     if (!courseVersion.modules || courseVersion.modules.length === 0) {
-      return "Course must have at least one module to send invites"
+      return "Course must have at least one module to send invites to students"
     }
 
     const firstModule = courseVersion.modules.sort((a, b) => 
@@ -133,19 +137,65 @@ export default function InvitePage() {
     )[0]
 
     if (!firstModule.sections || firstModule.sections.length === 0) {
-      return "Course must have at least one section in the first module to send invites"
+      return "Course must have at least one section in the first module to send invites to students"
     }
 
-    return "Course must have at least one item in the first section to send invites"
+    return "Course must have at least one item in the first section to send invites to students"
   }
 
   // Check if course has required structure
   const canSendInvites = hasRequiredStructure()
 
-  // Handle adding new invite row
-  const addInviteRow = () => {
-    setInviteEmails([...inviteEmails, { email: "", role: "STUDENT" }])
-  }
+    // Default role based on course structure
+const defaultRole: EnrollmentRole = canSendInvites ? "STUDENT" : "INSTRUCTOR";
+
+// State for new invites
+const [inviteEmails, setInviteEmails] = useState<EmailInvite[]>([
+  { email: "", role: defaultRole }
+]);
+
+// Handle adding new invite row
+const addInviteRow = () => {
+  setInviteEmails([...inviteEmails, { email: "", role: defaultRole }]);
+};
+
+
+
+  const roles = [
+  {
+    label: "Student",
+    value: "STUDENT",
+    color: "bg-blue-500",
+    disabled: !canSendInvites,
+  },
+  {
+    label: "Teaching Assistant",
+    value: "TA",
+    color: "bg-green-500",
+    disabled: false,
+  },
+  {
+    label: "Instructor",
+    value: "INSTRUCTOR",
+    color: "bg-purple-500",
+    disabled: false,
+  },
+  {
+    label: "Manager",
+    value: "MANAGER",
+    color: "bg-red-500",
+    disabled: false,
+  },
+  {
+    label: "Staff",
+    value: "STAFF",
+    color: "bg-yellow-500",
+    disabled: false,
+  },
+];
+
+
+
 
   // Handle removing invite row
   const removeInviteRow = (index: number) => {
@@ -187,6 +237,7 @@ export default function InvitePage() {
 
   // Handle updating invite role
   const updateInviteRole = (index: number, role: EnrollmentRole) => {
+    
     const newInvites = [...inviteEmails]
     newInvites[index].role = role
     setInviteEmails(newInvites)
@@ -196,11 +247,6 @@ export default function InvitePage() {
   const handleSendInvites = async () => {
     if (!courseId || !versionId) {
       toast.error("Course ID and version ID are required")
-      return
-    }
-
-    if (!canSendInvites) {
-      toast.error(`Cannot send invites: ${getInviteBlockReason()}`)
       return
     }
 
@@ -378,45 +424,24 @@ export default function InvitePage() {
 
                 <div className="lg:w-40">
                   <Select
-                    value={invite.role}
-                    onValueChange={(value: EnrollmentRole) => updateInviteRole(index, value)}
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="STUDENT">
-                        <div className="flex items-center">
-                          <div className="w-2 h-2 rounded-full bg-blue-500 mr-2"></div>
-                          Student
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="TA">
-                        <div className="flex items-center">
-                          <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
-                          Teaching Assistant
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="INSTRUCTOR">
-                        <div className="flex items-center">
-                          <div className="w-2 h-2 rounded-full bg-purple-500 mr-2"></div>
-                          Instructor
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="MANAGER">
-                        <div className="flex items-center">
-                          <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
-                          Manager
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="STAFF">
-                        <div className="flex items-center">
-                          <div className="w-2 h-2 rounded-full bg-yellow-500 mr-2"></div>
-                          Staff
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+  value={invite.role}
+  onValueChange={(value: EnrollmentRole) => updateInviteRole(index, value)}
+>
+  <SelectTrigger className="h-9">
+    <SelectValue />
+  </SelectTrigger>
+  <SelectContent>
+    {roles.map(role => (
+      <SelectItem key={role.value} value={role.value} disabled={role.disabled}>
+        <div className="flex items-center">
+          <div className={`w-2 h-2 rounded-full mr-2 ${role.color}`}></div>
+          {role.label}
+        </div>
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
+
                 </div>
 
                 {inviteEmails.length > 1 && (
@@ -465,7 +490,7 @@ export default function InvitePage() {
               </Button>
               <Button
                 onClick={handleSendInvites}
-                disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0 || !canSendInvites}
+                disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0 }
                 className="min-w-[120px]"
               >
                 {inviteUsers.isPending ? (

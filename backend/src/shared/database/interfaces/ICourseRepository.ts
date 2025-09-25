@@ -1,4 +1,5 @@
-import { ICourse, ICourseVersion } from '#shared/interfaces/models.js';
+import {Module} from '#root/modules/courses/classes/index.js';
+import {ICourse, ICourseVersion, IModule} from '#shared/interfaces/models.js';
 import {
   MongoClient,
   ClientSession,
@@ -23,6 +24,13 @@ export interface ICourseRepository {
     courseVersion: ICourseVersion,
     session?: ClientSession,
   ): Promise<ICourseVersion | null>;
+
+  addModulesToVersion(
+    courseVersionId: string,
+    newModules: Module[],
+    session?: ClientSession,
+  ): Promise<void>;
+
   readVersion(
     versionId: string,
     session?: ClientSession,
@@ -38,6 +46,11 @@ export interface ICourseRepository {
     itemGroupsIds: ObjectId[],
     session?: ClientSession,
   ): Promise<DeleteResult | null>;
+  addNewCourseVersionToCourse(
+    courseId: string,
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<boolean>;
   deleteSection(
     versionId: string,
     moduleId: string,
@@ -53,12 +66,7 @@ export interface ICourseRepository {
   findVersionByItemGroupId(
     itemGroupId: string,
     session?: ClientSession,
-  ): Promise<ICourseVersion | null>
-  bulkUpdateVersions(
-    operations: any[],
-    session?: ClientSession,
-  ): Promise<void>;
-  getAllCourses(
-    session?: ClientSession,
-  ): Promise<ICourse[]>
+  ): Promise<ICourseVersion | null>;
+  bulkUpdateVersions(operations: any[], session?: ClientSession): Promise<void>;
+  getAllCourses(session?: ClientSession): Promise<ICourse[]>;
 }
