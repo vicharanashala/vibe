@@ -259,7 +259,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
 
         {/* Learning Stats */}
         
-        {role === "student" ? (
+        {role === "student" && (
           <Card>
             <CardHeader>
               <CardTitle>Learning Statistics</CardTitle>
@@ -311,8 +311,9 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
               </div>
             </CardContent>
           </Card>
-
-        ) : (
+        )
+       } 
+       {/* : (
           <Card>
             <CardHeader>
               <CardTitle>Teaching Statistics</CardTitle>
@@ -339,8 +340,8 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                 
               </div>
             </CardContent>
-          </Card>
-        )}
+          </Card> */}
+        
       </div>
     </div>
   )
