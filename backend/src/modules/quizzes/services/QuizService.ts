@@ -191,6 +191,12 @@ class QuizService extends BaseService {
       }
       metrics._id = metrics._id.toString();
       metrics.quizId = metrics.quizId.toString();
+      if (Array.isArray(metrics.attempts)) {
+        metrics.attempts = metrics.attempts.map(attempt => ({
+          ...attempt,
+          attemptId: attempt.attemptId.toString(),
+        }));
+      }
       return metrics;
     });
   }
@@ -232,11 +238,12 @@ class QuizService extends BaseService {
       return quiz;
     });
   }
-  getQuizAnalytics(quizId: string): Promise<{
+  async getQuizAnalytics(quizId: string): Promise<{
     totalAttempts: number;
     submissions: number;
     passRate: number;
     averageScore: number;
+    averagePercentage: number;
   }> {
     return this._withTransaction(async session => {
       const quiz = await this.quizRepo.getById(quizId, session);
@@ -244,38 +251,36 @@ class QuizService extends BaseService {
         throw new NotFoundError('Quiz does not exist.');
       }
 
-      const totalAttempts = await this.attemptRepo.countAttempts(
-        quizId,
-        session,
-      );
-      const submissions = await this.submissionRepo.countByQuizId(
-        quizId,
-        session,
-      );
-      const passedSubmissions = await this.submissionRepo.countPassedByQuizId(
-        quizId,
-        session,
-      );
-      const averageScore = await this.submissionRepo.getAverageScoreByQuizId(
-        quizId,
-        session,
-      );
-
-      const passRate =
-        totalAttempts > 0 ? (passedSubmissions / totalAttempts) * 100 : 0;
+      // Run all analytics queries in parallel
+      const [
+        totalAttempts,
+        submissions,
+        passedSubmissions,
+        averageScore,
+        averagePercentage,
+      ] = await Promise.all([
+        this.attemptRepo.countAttempts(quizId, session),
+        this.submissionRepo.countByQuizId(quizId, session),
+        this.submissionRepo.countPassedByQuizId(quizId, session),
+        this.submissionRepo.getAverageScoreByQuizId(quizId, session),
+        this.submissionRepo.getAveragePercentageByQuizId(quizId, session),
+      ]);
 
       return {
         totalAttempts,
         submissions,
-        passRate,
+        passRate:
+          totalAttempts > 0 ? (passedSubmissions / totalAttempts) * 100 : 0,
         averageScore,
+        averagePercentage,
       };
     });
   }
-  getQuestionPerformanceStats(quizId: string): Promise<
+
+  async getQuestionPerformanceStats(quizId: string): Promise<
     {
       questionId: string;
-      correctRate: number;
+      correctRate: number; 
       averageScore: number;
       message?: string;
     }[]
@@ -285,8 +290,7 @@ class QuizService extends BaseService {
         quizId,
         session,
       );
-      if (!submissions.data || submissions.data.length === 0) {
-        // throw new NotFoundError('No submissions found for quiz performance');
+      if (!submissions.data?.length) {
         return [
           {
             questionId: '',
@@ -296,40 +300,34 @@ class QuizService extends BaseService {
           },
         ];
       }
-      const statsMap = new Map<
+
+      const stats: Record<
         string,
         {correct: number; total: number; score: number}
-      >();
+      > = Object.create(null);
 
       for (const submission of submissions.data) {
-        const feedbacks: IQuestionAnswerFeedback[] =
-          submission.gradingResult?.overallFeedback ?? [];
+        for (const feedback of submission.gradingResult?.overallFeedback ??
+          []) {
+          const qid = feedback.questionId.toString();
+          if (!stats[qid]) stats[qid] = {correct: 0, total: 0, score: 0};
 
-        for (const feedback of feedbacks) {
-          const questionId = feedback.questionId.toString(); // normalize ObjectId to string
-          const stat = statsMap.get(questionId) || {
-            correct: 0,
-            total: 0,
-            score: 0,
-          };
-
-          stat.total += 1;
-          if (feedback.status === 'CORRECT') stat.correct += 1;
-          // You could also do partial credit for PARTIAL here if you want
-
-          stat.score += feedback.score ?? 0;
-
-          statsMap.set(questionId, stat);
+          stats[qid].total += 1;
+          if (feedback.status === 'CORRECT') stats[qid].correct += 1;
+          stats[qid].score += feedback.score ?? 0;
         }
       }
 
-      return Array.from(statsMap.entries()).map(([questionId, stat]) => ({
-        questionId,
-        correctRate: stat.total === 0 ? 0 : stat.correct / stat.total,
-        averageScore: stat.total === 0 ? 0 : stat.score / stat.total,
-      }));
+      return Object.entries(stats).map(
+        ([questionId, {correct, total, score}]) => ({
+          questionId,
+          correctRate: total ? correct / total : 0,
+          averageScore: total ? score / total : 0,
+        }),
+      );
     });
   }
+
   getQuizResults(quizId: string): Promise<
     Array<{
       studentId: string | ObjectId;

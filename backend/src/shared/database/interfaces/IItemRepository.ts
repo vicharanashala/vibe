@@ -19,7 +19,7 @@ export interface IItemRepository {
     itemsGroup: ItemsGroup,
     session?: ClientSession,
   ): Promise<ItemsGroup | null>;
-
+  createItems(items: Item[], session?: ClientSession): Promise<Item[]>;
   readItemsGroup(
     itemsGroupId: string,
     session?: ClientSession,

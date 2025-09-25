@@ -1,16 +1,15 @@
 import {
-  Answer,
-  IAttempt,
   IOrder,
   IQuestionAnswer,
   IQuestionDetails,
 } from '#quizzes/interfaces/grading.js';
+import {ID} from '#root/shared/index.js';
+import {IAttempt} from '#quizzes/interfaces/grading.js';
 import {MongoDatabase} from '#shared/database/providers/mongo/MongoDatabase.js';
 import {injectable, inject} from 'inversify';
 import {Collection, ClientSession, ObjectId} from 'mongodb';
 import {InternalServerError} from 'routing-controllers';
 import {GLOBAL_TYPES} from '#root/types.js';
-import {ID} from '#root/shared/index.js';
 @injectable()
 class AttemptRepository {
   private attemptCollection: Collection<IAttempt>;
@@ -114,6 +113,7 @@ class AttemptRepository {
     if (!result) {
       return null;
     }
+    console.log('total attempts: ', result);
     return result;
   }
 
@@ -137,7 +137,7 @@ class AttemptRepository {
       },
       {session},
     );
-
+    console.log(result);
     if (!result) {
       return null;
     }

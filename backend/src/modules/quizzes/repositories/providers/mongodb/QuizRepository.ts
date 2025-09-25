@@ -150,6 +150,28 @@ class QuizRepository {
       );
     }
   }
+  async findSkipAllowedQuizzes(
+    bankIds: string[],
+    session?: ClientSession,
+  ): Promise<QuizItem[] | null> {
+    await this.init();
+    const objectIds = bankIds.map(id => new ObjectId(id));
+    const quizzes = await this.quizCollection
+      .find(
+        {
+          'details.allowSkip': true,
+          'details.questionBankRefs.bankId': {$in: objectIds},
+        },
+        {session},
+      )
+      .toArray();
+
+    if (!quizzes.length) {
+      return null;
+    }
+
+    return quizzes;
+  }
 }
 
 export {QuizRepository};

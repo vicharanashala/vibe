@@ -9,13 +9,14 @@ import {
   EnrollmentRole,
   EnrollmentStatus,
   ICourseVersion,
+  IEnrollment,
 } from '#root/shared/interfaces/models.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
 import {Enrollment} from '#users/classes/transformers/Enrollment.js';
 import {EnrollmentStats, USERS_TYPES} from '#users/types.js';
 import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId} from 'mongodb';
+import {ClientSession, ObjectId, OptionalId} from 'mongodb';
 import {
   BadRequestError,
   InternalServerError,
@@ -24,6 +25,7 @@ import {
 import {ProgressService} from './ProgressService.js';
 import {InviteRepository, ProgressRepository} from '#root/shared/index.js';
 import {EnrollmentDataResponse} from '../classes/index.js';
+
 import {
   QuizScoresExportResponseDto,
   StudentQuizScoreDto,
@@ -113,15 +115,20 @@ export class EnrollmentService extends BaseService {
         session,
       );
 
+      // if (existingEnrollment && !throughInvite) {
+      //   throw new BadRequestError(
+      //     'User is already enrolled in this course version',
+      //   );
+      // }
+
+      if (existingEnrollment && throughInvite) {
+        return {status: 'ALREADY_ENROLLED' as InviteStatus};
+      }
+
       if (existingEnrollment && !throughInvite) {
         throw new BadRequestError(
           'User is already enrolled in this course version',
         );
-      }
-
-      if (existingEnrollment && throughInvite) {
-        let status: InviteStatus = 'ALREADY_ENROLLED';
-        return status;
       }
 
       const enrollmentData = {
@@ -150,6 +157,7 @@ export class EnrollmentService extends BaseService {
       }
 
       return {
+        status: 'ENROLLED' as const,
         enrollment: createdEnrollment,
         progress: initialProgress,
         role: role,
@@ -326,6 +334,7 @@ export class EnrollmentService extends BaseService {
     search: string,
     sortBy: 'name' | 'enrollmentDate' | 'progress',
     sortOrder: 'asc' | 'desc',
+    filter: string,
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       const courseVersion = await this.courseRepo.readVersion(
@@ -347,6 +356,7 @@ export class EnrollmentService extends BaseService {
           search,
           sortBy,
           sortOrder,
+          filter,
           session,
         );
 
@@ -422,6 +432,27 @@ export class EnrollmentService extends BaseService {
       const result = await this.enrollmentRepo.countEnrollments(userId, role);
       return result;
     });
+  }
+
+  async processBulkInvite(userId: string, inviteId: string): Promise<void> {
+    const invite = await this.inviteRepo.findInviteById(inviteId);
+    if (!invite) {
+      throw new Error('Bulk Invite Not Found');
+    }
+    const result = await this.enrollUser(
+      userId,
+      invite.courseId.toString(),
+      invite.courseVersionId.toString(),
+      invite.role,
+      true,
+    );
+    if (!result) {
+      throw new InternalServerError('Failed to enroll user from Bulk Invite');
+    }
+    if (result.status === 'ENROLLED') {
+      invite.usedCount = (invite.usedCount || 0) + 1;
+      await this.inviteRepo.updateInvite(inviteId, invite);
+    }
   }
 
   /**
@@ -648,6 +679,80 @@ export class EnrollmentService extends BaseService {
         `Failed to bulk update ${collection}. Error: ${error}`,
       );
     }
+  }
+  async getNonStudentEnrollmentsByCourseVersion(
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<IEnrollment[]> {
+    return this._withTransaction(async (session: ClientSession) => {
+      return await this.enrollmentRepo.getNonStudentEnrollmentsByCourseVersion(
+        courseId,
+        courseVersionId,
+        session,
+      );
+    });
+  }
+  async bulkEnrollUsers(
+    existingEnrolledUsersWithRoles: {userId: string; role: EnrollmentRole}[],
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ) {
+    const execute = async (session: ClientSession) => {
+      const course = await this.courseRepo.read(courseId, session);
+      if (!course) throw new NotFoundError('Course not found');
+
+      const courseVersion = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      console.log('Course version: ', courseVersion, courseId);
+      if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
+        throw new NotFoundError(
+          'Course version not found or does not belong to this course',
+        );
+      }
+
+      const enrollmentsToCreate: OptionalId<IEnrollment>[] = [];
+      const results: any[] = [];
+
+      for (const {userId, role} of existingEnrolledUsersWithRoles) {
+        const userExists = await this.userRepo.findById(userId, session);
+
+        if (!userExists) {
+          results.push({userId, error: 'User not found'});
+          continue;
+        }
+
+        enrollmentsToCreate.push({
+          userId: new ObjectId(userId),
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+          role,
+          status: 'ACTIVE' as EnrollmentStatus,
+          enrollmentDate: new Date(),
+          percentCompleted: 0,
+        });
+      }
+
+      if (enrollmentsToCreate.length > 0) {
+        const insertedIds = await this.enrollmentRepo.createEnrollments(
+          enrollmentsToCreate,
+          session,
+        );
+
+        enrollmentsToCreate.forEach((enrollment, index) => {
+          results.push({
+            userId: enrollment.userId.toString(),
+            enrollmentId: insertedIds[index],
+            role: enrollment.role,
+          });
+        });
+      }
+
+      return results;
+    };
+    return session ? execute(session) : this._withTransaction(execute);
   }
 
   async addIndex(): Promise<void> {

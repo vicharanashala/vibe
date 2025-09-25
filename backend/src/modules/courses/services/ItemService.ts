@@ -235,7 +235,7 @@ export class ItemService extends BaseService {
     body: UpdateItemBody,
   ) {
     return this._withTransaction(async session => {
-      // 🔄 Run version and item fetch in parallel
+      //  Run version and item fetch in parallel
       const [version, item] = await Promise.all([
         this.courseRepo.readVersion(versionId, session),
         this.itemRepo.readItem(versionId, itemId, session),
@@ -253,10 +253,10 @@ export class ItemService extends BaseService {
         );
       }
 
-      // ✅ Update item first
+      //  Update item first
       const result = await this.itemRepo.updateItem(itemId, body, session);
 
-      // 🔄 Run metrics update (if QUIZ) and version update in parallel
+      //  Run metrics update (if QUIZ) and version update in parallel
       version.updatedAt = new Date();
 
       const promises: Promise<any>[] = [

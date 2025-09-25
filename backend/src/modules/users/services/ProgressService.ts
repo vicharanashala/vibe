@@ -31,6 +31,8 @@ import {
   UserQuizMetricsRepository,
 } from '#root/modules/quizzes/repositories/index.js';
 import {EnrollmentRepository} from '#root/shared/index.js';
+import {PROJECTS_TYPES} from '#root/modules/projects/types.js';
+import {IProjectSubmissionRepository} from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
 
 @injectable()
 class ProgressService extends BaseService {
@@ -58,6 +60,9 @@ class ProgressService extends BaseService {
 
     @inject(QUIZZES_TYPES.QuizRepo)
     private quizRepo: QuizRepository,
+
+    @inject(PROJECTS_TYPES.projectSubmissionRepository)
+    private projectSubmissionRepo: IProjectSubmissionRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase, // inject the database provider
@@ -355,7 +360,7 @@ class ProgressService extends BaseService {
             },
             update: {
               $set: {
-                progressPercent: this._calculateProgress(
+                percentCompleted: this._calculateProgress(
                   enrollment,
                   totalItems,
                   completedItems,
@@ -641,62 +646,62 @@ class ProgressService extends BaseService {
 
   private isValidWatchTime(watchTime: IWatchTime, item: Item) {
     return true;
-    switch (item.type) {
-      case 'VIDEO':
-        return true;
-        if (watchTime.startTime && watchTime.endTime && item.details) {
-          const videoDetails = item.details as IVideoDetails;
-          const videoStartTime = videoDetails.startTime; // a string in HH:MM:SS format
-          const videoEndTime = videoDetails.endTime; // a string in HH:MM:SS format
-          const watchStartTime = new Date(watchTime.startTime);
-          const watchEndTime = new Date(watchTime.endTime);
+    // switch (item.type) {
+    //   case 'VIDEO':
+    //     return true;
+    //     if (watchTime.startTime && watchTime.endTime && item.details) {
+    //       const videoDetails = item.details as IVideoDetails;
+    //       const videoStartTime = videoDetails.startTime; // a string in HH:MM:SS format
+    //       const videoEndTime = videoDetails.endTime; // a string in HH:MM:SS format
+    //       const watchStartTime = new Date(watchTime.startTime);
+    //       const watchEndTime = new Date(watchTime.endTime);
 
-          // Get Time difference in seconds
-          const timeDiff =
-            Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
+    //       // Get Time difference in seconds
+    //       const timeDiff =
+    //         Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
 
-          // Get Video duration in seconds
-          // Convert HH:MM:SS to seconds
-          const videoEndTimeInSeconds =
-            parseInt(videoEndTime.split(':')[0]) * 3600 +
-            parseInt(videoEndTime.split(':')[1]) * 60 +
-            parseInt(videoEndTime.split(':')[2]);
-          const videoStartTimeInSeconds =
-            parseInt(videoStartTime.split(':')[0]) * 3600 +
-            parseInt(videoStartTime.split(':')[1]) * 60 +
-            parseInt(videoStartTime.split(':')[2]);
+    //       // Get Video duration in seconds
+    //       // Convert HH:MM:SS to seconds
+    //       const videoEndTimeInSeconds =
+    //         parseInt(videoEndTime.split(':')[0]) * 3600 +
+    //         parseInt(videoEndTime.split(':')[1]) * 60 +
+    //         parseInt(videoEndTime.split(':')[2]);
+    //       const videoStartTimeInSeconds =
+    //         parseInt(videoStartTime.split(':')[0]) * 3600 +
+    //         parseInt(videoStartTime.split(':')[1]) * 60 +
+    //         parseInt(videoStartTime.split(':')[2]);
 
-          const videoDuration = videoEndTimeInSeconds - videoStartTimeInSeconds;
+    //       const videoDuration = videoEndTimeInSeconds - videoStartTimeInSeconds;
 
-          // Check if the watch time is >= 0.2 * video duration
-          if (timeDiff >= 0.2 * videoDuration) {
-            return true;
-          }
-          // return false;
-          return true; // For now, we assume the watch time is valid
-        }
+    //       // Check if the watch time is >= 0.2 * video duration
+    //       if (timeDiff >= 0.2 * videoDuration) {
+    //         return true;
+    //       }
+    //       // return false;
+    //       return true; // For now, we assume the watch time is valid
+    //     }
 
-        break;
+    //     break;
 
-      case 'BLOG':
-        return true;
-        // if (watchTime.startTime && watchTime.endTime && item.details) {
-        //   const blogDetails = item.details as IBlogDetails;
-        //   const watchStartTime = new Date(watchTime.startTime);
-        //   const watchEndTime = new Date(watchTime.endTime);
+    //   case 'BLOG':
+    //     return true;
+    //     // if (watchTime.startTime && watchTime.endTime && item.details) {
+    //     //   const blogDetails = item.details as IBlogDetails;
+    //     //   const watchStartTime = new Date(watchTime.startTime);
+    //     //   const watchEndTime = new Date(watchTime.endTime);
 
-        //   // Get Time difference in seconds
-        //   const timeDiff =
-        //     Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
+    //     //   // Get Time difference in seconds
+    //     //   const timeDiff =
+    //     //     Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
 
-        //   // Check if the watch time is >= 0.5 * estimated read time
-        //   if (timeDiff >= 0.6 * blogDetails.estimatedReadTimeInMinutes * 60) {
-        //     return true;
-        //   }
-        //   return false;
-        // }
-        break;
-    }
+    //     //   // Check if the watch time is >= 0.5 * estimated read time
+    //     //   if (timeDiff >= 0.6 * blogDetails.estimatedReadTimeInMinutes * 60) {
+    //     //     return true;
+    //     //   }
+    //     //   return false;
+    //     // }
+    //     break;
+    // }
   }
 
   async getUserProgress(
@@ -909,7 +914,7 @@ class ProgressService extends BaseService {
         throw new NotFoundError('Item not found in Course Version');
       }
 
-      // Get WatchTime of the item if VIDEO or BLOG item
+      // Only require watch time for VIDEO or BLOG items
       if (item.type === 'VIDEO' || item.type === 'BLOG') {
         const watchTime = await this.progressRepository.getWatchTimeById(
           watchItemId,
@@ -924,7 +929,7 @@ class ProgressService extends BaseService {
             'Watch time is not valid, the user did not watch the item long enough',
           );
         }
-      } else if (!isSkipped) {
+      } else if (item.type === 'QUIZ' && !isSkipped) {
         // Verify if the user has submitted the QUIZ
         const submittedQuiz = await this.submissionRepository.get(
           itemId,
@@ -944,6 +949,17 @@ class ProgressService extends BaseService {
             'Quiz not passed, user cannot proceed to the next item',
           );
         }
+      } else if (item.type === 'PROJECT') {
+        // Verify if the user has submitted the PROJECT
+        const projectSubmission = await this.projectSubmissionRepo.getByUser(
+          userId,
+          courseVersionId,
+          session,
+        );
+
+        if (!projectSubmission || projectSubmission.projectId.toString() !== itemId) {
+          throw new BadRequestError('Project submission is required before marking as complete');
+        }
       }
       // Get the course version
       const courseVersion = await this.courseRepo.readVersion(
@@ -958,7 +974,7 @@ class ProgressService extends BaseService {
         courseVersionId,
         session,
       );
-      
+
       // Get the new progress
       const newProgress = await this.getNewProgress(
         courseVersion,

@@ -1,12 +1,10 @@
-import {
-  IAttemptDetails,
-  IUserQuizMetrics,
-} from '#quizzes/interfaces/grading.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {injectable, inject} from 'inversify';
-import {Collection, ClientSession, ObjectId} from 'mongodb';
-import {InternalServerError} from 'routing-controllers';
+
+import { IUserQuizMetrics } from '#root/modules/quizzes/interfaces/grading.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { injectable, inject } from 'inversify';
+import { Collection, ClientSession, ObjectId } from 'mongodb';
+import { InternalServerError } from 'routing-controllers';
 
 @injectable()
 class UserQuizMetricsRepository {
@@ -15,7 +13,7 @@ class UserQuizMetricsRepository {
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
-  ) {}
+  ) { }
 
   private async init() {
     this.userQuizMetricsCollection =
@@ -55,8 +53,8 @@ class UserQuizMetricsRepository {
       : null;
 
     const filter: any = {
-      userId: {$in: [userIdStr, ...(userIdObj ? [userIdObj] : [])]},
-      quizId: {$in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])]},
+      userId: { $in: [userIdStr, ...(userIdObj ? [userIdObj] : [])] },
+      quizId: { $in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])] },
     };
 
     const result = await this.userQuizMetricsCollection.findOne(filter, {
@@ -75,13 +73,13 @@ class UserQuizMetricsRepository {
   }
 
   async executeBulkMetricsReset(
-    operations: Array<{updateOne: {filter: any; update: any}}>,
+    operations: Array<{ updateOne: { filter: any; update: any } }>,
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
     if (!operations.length) return;
 
-    await this.userQuizMetricsCollection.bulkWrite(operations, {session});
+    await this.userQuizMetricsCollection.bulkWrite(operations, { session });
   }
 
   async update(
@@ -92,9 +90,9 @@ class UserQuizMetricsRepository {
     await this.init();
 
     const result = await this.userQuizMetricsCollection.findOneAndUpdate(
-      {_id: new ObjectId(metricsId)},
-      {$set: updateData},
-      {returnDocument: 'after', session},
+      { _id: new ObjectId(metricsId) },
+      { $set: updateData },
+      { returnDocument: 'after', session },
     );
 
     return result;
@@ -112,9 +110,9 @@ class UserQuizMetricsRepository {
     const result = await this.userQuizMetricsCollection
       .find(
         {
-          quizId: {$in: [quizIdStr, quizIdObj]},
+          quizId: { $in: [quizIdStr, quizIdObj] },
         },
-        {session},
+        { session },
       )
       .toArray();
 
@@ -129,10 +127,42 @@ class UserQuizMetricsRepository {
     }));
   }
 
+  async getByQuizIds(
+    quizIds: (string | ObjectId)[],
+    session?: ClientSession,
+  ): Promise<IUserQuizMetrics[]> {
+    await this.init();
+
+    const objectIds = quizIds
+      .filter(id => typeof id === 'string' && ObjectId.isValid(id) || id instanceof ObjectId)
+      .map(id => (typeof id === 'string' ? new ObjectId(id) : id));
+
+    const stringIds = quizIds.map(id => id.toString());
+
+    const result = await this.userQuizMetricsCollection
+      .find(
+        {
+          quizId: { $in: [...stringIds, ...objectIds] },
+        },
+        { session },
+      )
+      .toArray();
+
+    return result.map(doc => ({
+      ...doc,
+      _id: doc._id?.toString(),
+      userId: doc.userId?.toString(),
+      quizId: doc.quizId?.toString(),
+      latestAttemptId: doc.latestAttemptId?.toString() || null,
+      latestSubmissionResultId: doc.latestSubmissionResultId?.toString() || null,
+    }));
+  }
+
+
   async getAll(session?: ClientSession): Promise<IUserQuizMetrics[]> {
     await this.init();
     const result = await this.userQuizMetricsCollection
-      .find({}, {session})
+      .find({}, { session })
       .toArray();
 
     return result.map(doc => ({
@@ -256,4 +286,4 @@ class UserQuizMetricsRepository {
   }
 }
 
-export {UserQuizMetricsRepository};
+export { UserQuizMetricsRepository };

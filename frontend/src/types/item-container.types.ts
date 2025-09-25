@@ -30,16 +30,20 @@ export interface Item {
     approximateTimeToComplete?: string;
     allowPartialGrading?: boolean;
     allowHint?: boolean;
-    allowSkip?:boolean;
+    allowSkip?: boolean;
     showCorrectAnswersAfterSubmission?: boolean;
     showExplanationAfterSubmission?: boolean;
     showScoreAfterSubmission?: boolean;
     quizId?: string;
+
+    // For Project
+    title?: string;
+    description?: string;
   };
 }
 
 export interface ItemContainerProps {
-  
+
   item: Item;
   doGesture: boolean;
   onNext: () => void;
@@ -52,9 +56,10 @@ export interface ItemContainerProps {
   displayNextLesson?: boolean;
   setQuizPassed?: (passed: number) => void; // Function to update quizPassed
   anomalies?: string[];
-  keyboardLockEnabled?:boolean;
+  readyToDetect: boolean;
+  keyboardLockEnabled?: boolean;
   setIsQuizSkipped: React.Dispatch<React.SetStateAction<boolean>>;
-  linearProgressionEnabled:boolean;
+  linearProgressionEnabled: boolean;
 }
 
 export interface ItemContainerRef {
@@ -62,7 +67,7 @@ export interface ItemContainerRef {
 }
 
 export type ItemMeta = {
-  itemId:string,
-  courseId:string,
-  courseVersionId:string,
+  itemId: string,
+  courseId: string,
+  courseVersionId: string,
 }

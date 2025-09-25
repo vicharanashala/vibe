@@ -367,7 +367,10 @@ class QuizController {
       throw new ForbiddenError('You do not have permission to view quiz analytics');
     }
     
-    return await this.quizService.getQuizAnalytics(quizId);
+    // return 
+    const data =await this.quizService.getQuizAnalytics(quizId);
+    console.log("Controller quiz alaytics",data)
+    return data
   }
 
   @OpenAPI({
