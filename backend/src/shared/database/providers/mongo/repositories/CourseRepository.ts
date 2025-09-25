@@ -22,7 +22,7 @@ import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
 import {ItemsGroup} from '#courses/classes/transformers/Item.js';
 import {ProgressRepository} from './ProgressRepository.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
-import { Module, Section } from '#root/modules/courses/classes/index.js';
+import {Module, Section} from '#root/modules/courses/classes/index.js';
 
 @injectable()
 export class CourseRepository implements ICourseRepository {
@@ -607,47 +607,52 @@ export class CourseRepository implements ICourseRepository {
     }
   }
 
-  async bulkConvertIds(): Promise<{updated: number}> {
+  async bulkConvertIds(batchSize = 100): Promise<{updated: number}> {
     try {
       await this.init();
 
-      const courses = await this.courseCollection
-        .find()
-        .project({_id: 1, versions: 1})
-        .toArray();
+      const cursor = this.courseCollection.find(
+        {},
+        {projection: {_id: 1, versions: 1}},
+      );
+      let bulkOps: any[] = [];
+      let totalUpdated = 0;
 
-      if (!courses.length) return {updated: 0};
+      while (await cursor.hasNext()) {
+        const course = await cursor.next();
+        if (!course || !Array.isArray(course.versions)) continue;
 
-      const bulkOperations = courses
-        .map(course => {
-          if (!Array.isArray(course.versions)) return null;
-
-          let updatedVersions = false;
-          const convertedVersions = course.versions.map(v => {
-            if (v?._id && typeof v._id === 'string') {
-              updatedVersions = true;
-              return {...v, _id: new ObjectId(v._id)};
-            }
-            return v;
-          });
-
-          if (updatedVersions) {
-            return {
-              updateOne: {
-                filter: {_id: course._id},
-                update: {$set: {versions: convertedVersions}},
-              },
-            };
+        let updatedVersions = false;
+        const convertedVersions = course.versions.map(v => {
+          if (typeof v === 'string') {
+            updatedVersions = true;
+            return new ObjectId(v);
           }
+          return v;
+        });
 
-          return null;
-        })
-        .filter(Boolean);
+        if (updatedVersions) {
+          bulkOps.push({
+            updateOne: {
+              filter: {_id: course._id},
+              update: {$set: {versions: convertedVersions}},
+            },
+          });
+        }
 
-      if (!bulkOperations.length) return {updated: 0};
+        if (bulkOps.length >= batchSize) {
+          const result = await this.courseCollection.bulkWrite(bulkOps);
+          totalUpdated += result.modifiedCount;
+          bulkOps = [];
+        }
+      }
 
-      const result = await this.courseCollection.bulkWrite(bulkOperations);
-      return {updated: result.modifiedCount};
+      if (bulkOps.length > 0) {
+        const result = await this.courseCollection.bulkWrite(bulkOps);
+        totalUpdated += result.modifiedCount;
+      }
+
+      return {updated: totalUpdated};
     } catch (error) {
       throw new InternalServerError(
         `Failed newCourse versions ID conversion. More/ ${error}`,
@@ -655,44 +660,48 @@ export class CourseRepository implements ICourseRepository {
     }
   }
 
-  async bulkConvertVersionIds(): Promise<{ updated: number }> {
+  async bulkConvertVersionIds(batchSize = 100): Promise<{updated: number}> {
     try {
       await this.init();
 
-      const versions = await this.courseVersionCollection
-        .find()
-        .project({ _id: 1, courseId: 1, modules: 1 })
-        .toArray();
+      const cursor = this.courseVersionCollection.find(
+        {},
+        {
+          projection: {_id: 1, courseId: 1, modules: 1},
+        },
+      );
 
-      if (!versions.length) return { updated: 0 };
+      let bulkOps: any[] = [];
+      let totalUpdated = 0;
 
-      const bulkOperation = versions.map((version) => {
+      while (await cursor.hasNext()) {
+        const version = await cursor.next();
+        if (!version) continue;
+
         let needsUpdate = false;
 
-        // convert courseId
         let updatedCourseId = version.courseId;
-        if (version.courseId && typeof version.courseId === "string") {
+        if (version.courseId && typeof version.courseId === 'string') {
           updatedCourseId = new ObjectId(version.courseId);
           needsUpdate = true;
         }
 
-        // convert nested modules → sections → itemsGroupId
-        const updatedModules = (version.modules || []).map((mod: Module) => {
-          const updatedSections = (mod.sections || []).map((sec: Section) => {
-            let updatedSection = { ...sec };
-            if (sec.itemsGroupId && typeof sec.itemsGroupId === "string") {
+        const updatedModules = (version.modules || []).map((mod: any) => {
+          const updatedSections = (mod.sections || []).map((sec: any) => {
+            const updatedSection = {...sec};
+            if (sec.itemsGroupId && typeof sec.itemsGroupId === 'string') {
               updatedSection.itemsGroupId = new ObjectId(sec.itemsGroupId);
               needsUpdate = true;
             }
             return updatedSection;
           });
-          return { ...mod, sections: updatedSections };
+          return {...mod, sections: updatedSections};
         });
 
         if (needsUpdate) {
-          return {
+          bulkOps.push({
             updateOne: {
-              filter: { _id: version._id },
+              filter: {_id: version._id},
               update: {
                 $set: {
                   courseId: updatedCourseId,
@@ -700,17 +709,26 @@ export class CourseRepository implements ICourseRepository {
                 },
               },
             },
-          };
+          });
         }
-        return null;
-      }).filter(Boolean);
 
-      if (!bulkOperation.length) return { updated: 0 };
+        if (bulkOps.length >= batchSize) {
+          const result = await this.courseVersionCollection.bulkWrite(bulkOps);
+          totalUpdated += result.modifiedCount;
+          bulkOps = [];
+        }
+      }
 
-      const result = await this.courseVersionCollection.bulkWrite(bulkOperation);
-      return { updated: result.modifiedCount };
+      if (bulkOps.length > 0) {
+        const result = await this.courseVersionCollection.bulkWrite(bulkOps);
+        totalUpdated += result.modifiedCount;
+      }
+
+      return {updated: totalUpdated};
     } catch (error) {
-      throw new InternalServerError(`Failed newCourseVersion ID conversion. More/ ${error}`);
+      throw new InternalServerError(
+        `Failed newCourseVersion ID conversion. More/ ${error}`,
+      );
     }
   }
 }

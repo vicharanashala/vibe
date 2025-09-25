@@ -183,47 +183,58 @@ export class InviteRepository {
     return {invites: normalizedInvites, totalDocuments, totalPages};
   }
 
-  async bulkConvertIds(): Promise<{updated: number}> {
+  async bulkConvertIds(batchSize = 500): Promise<{updated: number}> {
     try {
       await this.init();
 
-      const invites = await this.inviteCollection
-        .find()
-        .project({_id: 1, courseId: 1, courseVersionId: 1})
-        .toArray();
+      const cursor = this.inviteCollection.find(
+        {},
+        {
+          projection: {_id: 1, courseId: 1, courseVersionId: 1},
+        },
+      );
 
-      if (!invites.length) return {updated: 0};
+      let bulkOps: any[] = [];
+      let totalUpdated = 0;
 
-      const bulkOperations = invites
-        .map(invite => {
-          const updateFields: Record<string, any> = {};
+      while (await cursor.hasNext()) {
+        const invite = await cursor.next();
+        if (!invite) continue;
 
-          if (invite.courseId && typeof invite.courseId === 'string') {
-            updateFields.courseId = new ObjectId(invite.courseId);
-          }
-          if (
-            invite.courseVersionId &&
-            typeof invite.courseVersionId === 'string'
-          ) {
-            updateFields.courseVersionId = new ObjectId(invite.courseVersionId);
-          }
+        const updateFields: Record<string, any> = {};
 
-          if (Object.keys(updateFields).length > 0) {
-            return {
-              updateOne: {
-                filter: {_id: invite._id},
-                update: {$set: updateFields},
-              },
-            };
-          }
-          return null;
-        })
-        .filter(Boolean);
+        if (invite.courseId && typeof invite.courseId === 'string') {
+          updateFields.courseId = new ObjectId(invite.courseId);
+        }
+        if (
+          invite.courseVersionId &&
+          typeof invite.courseVersionId === 'string'
+        ) {
+          updateFields.courseVersionId = new ObjectId(invite.courseVersionId);
+        }
 
-      if (!bulkOperations.length) return {updated: 0};
+        if (Object.keys(updateFields).length > 0) {
+          bulkOps.push({
+            updateOne: {
+              filter: {_id: invite._id},
+              update: {$set: updateFields},
+            },
+          });
+        }
 
-      const result = await this.inviteCollection.bulkWrite(bulkOperations);
-      return {updated: result.modifiedCount};
+        if (bulkOps.length >= batchSize) {
+          const result = await this.inviteCollection.bulkWrite(bulkOps);
+          totalUpdated += result.modifiedCount;
+          bulkOps = [];
+        }
+      }
+
+      if (bulkOps.length > 0) {
+        const result = await this.inviteCollection.bulkWrite(bulkOps);
+        totalUpdated += result.modifiedCount;
+      }
+
+      return {updated: totalUpdated};
     } catch (error) {
       throw new InternalServerError(
         `Failed invites ID conversion. More/ ${error}`,

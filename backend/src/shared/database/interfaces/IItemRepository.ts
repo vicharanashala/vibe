@@ -69,5 +69,5 @@ export interface IItemRepository {
   // readVideoDetails(detailsId: string): Promise<IVideoDetails | null>;
   // readQuizDetails(detailsId: string): Promise<IQuizDetails | null>;
   // readBlogDetails(detailsId: string): Promise<IBlogDetails | null>;
-  bulkConvertIds(): Promise<{updated: number}>;
+  bulkConvertIds(batchSize: number): Promise<{updated: number}>;
 }

@@ -410,53 +410,57 @@ export class AnomalyRepository {
     return result.deletedCount > 0;
   }
 
-  async bulkConvertIds(): Promise<{updated: number}> {
+  async bulkConvertIds(batchSize = 500): Promise<{updated: number}> {
     await this.init();
-    const anomalies = await this.anomalyCollection
-      .find({})
-      .project({
-        _id: 1,
-        userId: 1,
-        courseId: 1,
-        versionId: 1,
-        itemId: 1,
-      })
-      .toArray();
-    if (!anomalies.length) return {updated: 0};
+    const cursor = this.anomalyCollection.find({}).project({
+      _id: 1,
+      userId: 1,
+      courseId: 1,
+      versionId: 1,
+      itemId: 1,
+    });
+    let bulkOps: any[] = [];
+    let totalUpdated = 0;
 
-    const bulkOperations = anomalies
-      .map((anomoly: IAnomalyData) => {
-        const updateFields: Record<string, any> = {};
+    while (await cursor.hasNext()) {
+      const anomaly = (await cursor.next()) as IAnomalyData;
+      if (!anomaly) continue;
 
-        if (anomoly.userId && typeof anomoly.userId === 'string') {
-          updateFields.userId = new ObjectId(anomoly.userId);
-        }
-        if (anomoly.courseId && typeof anomoly.courseId === 'string') {
-          updateFields.courseId = new ObjectId(anomoly.courseId);
-        }
-        if (anomoly.versionId && typeof anomoly.versionId === 'string') {
-          updateFields.versionId = new ObjectId(anomoly.versionId);
-        }
-        if (anomoly.itemId && typeof anomoly.itemId === 'string') {
-          updateFields.itemId = new ObjectId(anomoly.itemId);
-        }
+      const updateFields: Record<string, any> = {};
+      if (anomaly.userId && typeof anomaly.userId === 'string') {
+        updateFields.userId = new ObjectId(anomaly.userId);
+      }
+      if (anomaly.courseId && typeof anomaly.courseId === 'string') {
+        updateFields.courseId = new ObjectId(anomaly.courseId);
+      }
+      if (anomaly.versionId && typeof anomaly.versionId === 'string') {
+        updateFields.versionId = new ObjectId(anomaly.versionId);
+      }
+      if (anomaly.itemId && typeof anomaly.itemId === 'string') {
+        updateFields.itemId = new ObjectId(anomaly.itemId);
+      }
 
-        if (Object.keys(updateFields).length > 0) {
-          return {
-            updateOne: {
-              filter: {_id: anomoly._id},
-              update: {$set: updateFields},
-            },
-          };
-        }
+      if (Object.keys(updateFields).length) {
+        bulkOps.push({
+          updateOne: {
+            filter: {_id: anomaly._id},
+            update: {$set: updateFields},
+          },
+        });
+      }
 
-        return null;
-      })
-      .filter(Boolean);
-
-    if (bulkOperations.length) {
-      const result = await this.anomalyCollection.bulkWrite(bulkOperations);
-      return {updated: result.modifiedCount};
+      if (bulkOps.length >= batchSize) {
+        const result = await this.anomalyCollection.bulkWrite(bulkOps);
+        totalUpdated += result.modifiedCount;
+        bulkOps = [];
+      }
     }
+
+    if (bulkOps.length > 0) {
+      const result = await this.anomalyCollection.bulkWrite(bulkOps);
+      totalUpdated += result.modifiedCount;
+    }
+
+    return {updated: totalUpdated};
   }
 }

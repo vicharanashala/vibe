@@ -118,7 +118,7 @@ export class ItemRepository implements IItemRepository {
     session?: ClientSession,
   ): Promise<ItemsGroup | null> {
     await this.init();
-    
+
     const itemFilter =
       typeof itemId === 'string' && ObjectId.isValid(itemId)
         ? {$in: [itemId, new ObjectId(itemId)]}
@@ -433,41 +433,56 @@ export class ItemRepository implements IItemRepository {
     }
   }
 
-  async bulkConvertIds(): Promise<{ updated: number }> {
+  async bulkConvertIds(batchSize = 500): Promise<{updated: number}> {
     try {
       await this.init();
 
-      const itemsGroups = await this.itemsGroupCollection
-        .find()
-        .project({ _id: 1, sectionId: 1 })
-        .toArray();
+      const cursor = this.itemsGroupCollection.find(
+        {},
+        {
+          projection: {_id: 1, sectionId: 1},
+        },
+      );
 
-      if (!itemsGroups.length) return { updated: 0 };
+      let bulkOps: any[] = [];
+      let totalUpdated = 0;
 
-      const bulkOperations = itemsGroups.map((group) => {
+      while (await cursor.hasNext()) {
+        const group = await cursor.next();
+        if (!group) continue;
+
         const updateFields: Record<string, any> = {};
 
-        if (group.sectionId && typeof group.sectionId === "string") {
+        if (group.sectionId && typeof group.sectionId === 'string') {
           updateFields.sectionId = new ObjectId(group.sectionId);
         }
 
         if (Object.keys(updateFields).length > 0) {
-          return {
+          bulkOps.push({
             updateOne: {
-              filter: { _id: group._id },
-              update: { $set: updateFields },
+              filter: {_id: group._id},
+              update: {$set: updateFields},
             },
-          };
+          });
         }
-        return null;
-      }).filter(Boolean);
 
-      if (!bulkOperations.length) return { updated: 0 };
+        if (bulkOps.length >= batchSize) {
+          const result = await this.itemsGroupCollection.bulkWrite(bulkOps);
+          totalUpdated += result.modifiedCount;
+          bulkOps = [];
+        }
+      }
 
-      const result = await this.itemsGroupCollection.bulkWrite(bulkOperations);
-      return { updated: result.modifiedCount };
+      if (bulkOps.length > 0) {
+        const result = await this.itemsGroupCollection.bulkWrite(bulkOps);
+        totalUpdated += result.modifiedCount;
+      }
+
+      return {updated: totalUpdated};
     } catch (error) {
-      throw new InternalServerError(`Failed itemsGroup ID conversion. More/ ${error}`);
+      throw new InternalServerError(
+        `Failed itemsGroup ID conversion. More/ ${error}`,
+      );
     }
   }
 }

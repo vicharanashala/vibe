@@ -3,7 +3,7 @@ import {IQuestionBank} from '#shared/interfaces/quiz.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {injectable, inject} from 'inversify';
 import {Collection, ClientSession, ObjectId} from 'mongodb';
-import { InternalServerError } from 'routing-controllers';
+import {InternalServerError} from 'routing-controllers';
 
 @injectable()
 class QuestionBankRepository {
@@ -126,37 +126,40 @@ class QuestionBankRepository {
     }));
   }
 
-  async bulkConvertIds(): Promise<{ updated: number }> {
+  async bulkConvertIds(batchSize = 100): Promise<{updated: number}> {
     try {
       await this.init();
 
-      const banks = await this.questionBankCollection
-        .find()
-        .project({ _id: 1, courseId: 1, courseVersionId: 1, questions: 1 })
-        .toArray();
+      const cursor = this.questionBankCollection.find(
+        {},
+        {
+          projection: {_id: 1, courseId: 1, courseVersionId: 1, questions: 1},
+        },
+      );
 
-      if (!banks.length) return { updated: 0 };
+      let bulkOps: any[] = [];
+      let totalUpdated = 0;
 
-      const bulkOps = banks.map((bank) => {
+      while (await cursor.hasNext()) {
+        const bank = await cursor.next();
+        if (!bank) continue;
+
         let needsUpdate = false;
 
-        // convert courseId
         let updatedCourseId = bank.courseId;
-        if (bank.courseId && typeof bank.courseId === "string") {
+        if (bank.courseId && typeof bank.courseId === 'string') {
           updatedCourseId = new ObjectId(bank.courseId);
           needsUpdate = true;
         }
 
-        // convert courseVersionId
         let updatedCourseVersionId = bank.courseVersionId;
-        if (bank.courseVersionId && typeof bank.courseVersionId === "string") {
+        if (bank.courseVersionId && typeof bank.courseVersionId === 'string') {
           updatedCourseVersionId = new ObjectId(bank.courseVersionId);
           needsUpdate = true;
         }
 
-        // convert questions array
-        const updatedQuestions = (bank.questions || []).map((q) => {
-          if (q && typeof q === "string") {
+        const updatedQuestions = (bank.questions || []).map(q => {
+          if (q && typeof q === 'string') {
             needsUpdate = true;
             return new ObjectId(q);
           }
@@ -164,9 +167,9 @@ class QuestionBankRepository {
         });
 
         if (needsUpdate) {
-          return {
+          bulkOps.push({
             updateOne: {
-              filter: { _id: bank._id },
+              filter: {_id: bank._id},
               update: {
                 $set: {
                   courseId: updatedCourseId,
@@ -175,18 +178,26 @@ class QuestionBankRepository {
                 },
               },
             },
-          };
+          });
         }
 
-        return null;
-      }).filter(Boolean);
+        if (bulkOps.length >= batchSize) {
+          const result = await this.questionBankCollection.bulkWrite(bulkOps);
+          totalUpdated += result.modifiedCount;
+          bulkOps = [];
+        }
+      }
 
-      if (!bulkOps.length) return { updated: 0 };
+      if (bulkOps.length > 0) {
+        const result = await this.questionBankCollection.bulkWrite(bulkOps);
+        totalUpdated += result.modifiedCount;
+      }
 
-      const result = await this.questionBankCollection.bulkWrite(bulkOps);
-      return { updated: result.modifiedCount };
+      return {updated: totalUpdated};
     } catch (error) {
-      throw new InternalServerError(`Failed questionBanks ID conversion. More/ ${error}`);
+      throw new InternalServerError(
+        `Failed questionBanks ID conversion. More/ ${error}`,
+      );
     }
   }
 }

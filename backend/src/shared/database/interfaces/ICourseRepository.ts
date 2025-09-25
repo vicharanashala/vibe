@@ -56,6 +56,6 @@ export interface ICourseRepository {
   ): Promise<ICourseVersion | null>;
   bulkUpdateVersions(operations: any[], session?: ClientSession): Promise<void>;
   getAllCourses(session?: ClientSession): Promise<ICourse[]>;
-  bulkConvertIds(): Promise<{updated: number}>;
-  bulkConvertVersionIds(): Promise<{updated: number}>;
+  bulkConvertIds(batchSize: number): Promise<{updated: number}>;
+  bulkConvertVersionIds(batchSize: number): Promise<{updated: number}>;
 }

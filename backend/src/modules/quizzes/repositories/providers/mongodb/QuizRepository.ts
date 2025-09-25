@@ -89,56 +89,61 @@ class QuizRepository {
     return result;
   }
 
-  async bulkConvertIds(): Promise<{updated: number}> {
+  async bulkConvertIds(batchSize = 100): Promise<{updated: number}> {
     try {
       await this.init();
 
-      const quizzes = await this.quizCollection
-        .find()
-        .project({_id: 1, details: 1})
-        .toArray();
+      const cursor = this.quizCollection.find(
+        {},
+        {
+          projection: {_id: 1, details: 1},
+        },
+      );
 
-      if (!quizzes.length) return {updated: 0};
+      let bulkOps: any[] = [];
+      let totalUpdated = 0;
 
-      const bulkOps = quizzes
-        .map(quiz => {
-          let needsUpdate = false;
+      while (await cursor.hasNext()) {
+        const quiz = await cursor.next();
+        if (!quiz) continue;
 
-          const updatedDetails = {...(quiz.details || {})};
+        let needsUpdate = false;
+        const updatedDetails = {...(quiz.details || {})};
 
-          if (Array.isArray(updatedDetails.questionBankRefs)) {
-            updatedDetails.questionBankRefs =
-              updatedDetails.questionBankRefs.map((ref: IQuestionBankRef) => {
-                if (ref?.bankId && typeof ref.bankId === 'string') {
-                  needsUpdate = true;
-                  return {
-                    ...ref,
-                    bankId: new ObjectId(ref.bankId),
-                  };
-                }
-                return ref;
-              });
-          }
+        if (Array.isArray(updatedDetails.questionBankRefs)) {
+          updatedDetails.questionBankRefs = updatedDetails.questionBankRefs.map(
+            (ref: IQuestionBankRef) => {
+              if (ref?.bankId && typeof ref.bankId === 'string') {
+                needsUpdate = true;
+                return {...ref, bankId: new ObjectId(ref.bankId)};
+              }
+              return ref;
+            },
+          );
+        }
 
-          if (needsUpdate) {
-            return {
-              updateOne: {
-                filter: {_id: quiz._id},
-                update: {
-                  $set: {details: updatedDetails},
-                },
-              },
-            };
-          }
+        if (needsUpdate) {
+          bulkOps.push({
+            updateOne: {
+              filter: {_id: quiz._id},
+              update: {$set: {details: updatedDetails}},
+            },
+          });
+        }
 
-          return null;
-        })
-        .filter(Boolean);
+        if (bulkOps.length >= batchSize) {
+          const result = await this.quizCollection.bulkWrite(bulkOps);
+          totalUpdated += result.modifiedCount;
+          bulkOps = [];
+        }
+      }
 
-      if (!bulkOps.length) return {updated: 0};
+      if (bulkOps.length > 0) {
+        const result = await this.quizCollection.bulkWrite(bulkOps);
+        totalUpdated += result.modifiedCount;
+      }
 
-      const result = await this.quizCollection.bulkWrite(bulkOps);
-      return {updated: result.modifiedCount};
+      return {updated: totalUpdated};
     } catch (error) {
       throw new InternalServerError(
         `Failed quizzes details.questionBankRefs ID conversion. More/ ${error}`,

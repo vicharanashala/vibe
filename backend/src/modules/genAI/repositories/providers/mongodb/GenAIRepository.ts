@@ -252,78 +252,102 @@ export class GenAIRepository {
     return results;
   }
 
-  async bulkConvertIds(): Promise<{updated: number}> {
+  async bulkConvertIds(batchSize = 500): Promise<{updated: number}> {
     try {
       await this.init();
-      const jobs = await this.genAICollection
-        .find()
-        .project({_id: 1, userId: 1})
-        .toArray();
-      if (!jobs.length) return {updated: 0};
+      const cursor = this.genAICollection.find(
+        {},
+        {
+          projection: {_id: 1, userId: 1},
+        },
+      );
 
-      const bulkOperation = jobs
-        .map(job => {
-          const updateFields: Record<string, any> = {};
+      let bulkOps: any[] = [];
+      let totalUpdated = 0;
 
-          if (job.userId && typeof job.userId === 'string') {
-            updateFields.userId = new ObjectId(job.userId);
-          }
+      while (await cursor.hasNext()) {
+        const job = await cursor.next();
+        if (!job) continue;
 
-          if (Object.keys(updateFields).length > 0) {
-            return {
-              updateOne: {
-                filter: {_id: job._id},
-                update: {$set: updateFields},
-              },
-            };
-          }
-          return null;
-        })
-        .filter(Boolean);
+        const updateFields: Record<string, any> = {};
 
-      if (!bulkOperation.length) return {updated: 0};
+        if (job.userId && typeof job.userId === 'string') {
+          updateFields.userId = new ObjectId(job.userId);
+        }
 
-      const result = await this.genAICollection.bulkWrite(bulkOperation);
-      return {updated: result.modifiedCount};
+        if (Object.keys(updateFields).length) {
+          bulkOps.push({
+            updateOne: {
+              filter: {_id: job._id},
+              update: {$set: updateFields},
+            },
+          });
+        }
+
+        if (bulkOps.length >= batchSize) {
+          const result = await this.genAICollection.bulkWrite(bulkOps);
+          totalUpdated += result.modifiedCount;
+          bulkOps = [];
+        }
+      }
+
+      if (bulkOps.length > 0) {
+        const result = await this.genAICollection.bulkWrite(bulkOps);
+        totalUpdated += result.modifiedCount;
+      }
+
+      return {updated: totalUpdated};
     } catch (error) {
       throw new InternalServerError(`Failed update. More/ ${error}`);
     }
   }
-  async bulkConvertTaskIds(): Promise<{updated: number}> {
+
+  async bulkConvertTaskIds(batchSize = 500): Promise<{updated: number}> {
     try {
       await this.init();
 
-      const tasks = await this.taskDataCollection
-        .find()
-        .project({_id: 1, jobId: 1})
-        .toArray();
+      const cursor = this.taskDataCollection.find(
+        {},
+        {
+          projection: {_id: 1, jobId: 1},
+        },
+      );
 
-      if (!tasks.length) return {updated: 0};
+      let bulkOps: any[] = [];
+      let totalUpdated = 0;
 
-      const bulkOperations = tasks
-        .map(status => {
-          const updateFields: Record<string, any> = {};
+      while (await cursor.hasNext()) {
+        const task = await cursor.next();
+        if (!task) continue;
 
-          if (status.jobId && typeof status.jobId === 'string') {
-            updateFields.jobId = new ObjectId(status.jobId);
-          }
+        const updateFields: Record<string, any> = {};
 
-          if (Object.keys(updateFields).length > 0) {
-            return {
-              updateOne: {
-                filter: {_id: status._id},
-                update: {$set: updateFields},
-              },
-            };
-          }
-          return null;
-        })
-        .filter(Boolean);
+        if (task.jobId && typeof task.jobId === 'string') {
+          updateFields.jobId = new ObjectId(task.jobId);
+        }
 
-      if (!bulkOperations.length) return {updated: 0};
+        if (Object.keys(updateFields).length > 0) {
+          bulkOps.push({
+            updateOne: {
+              filter: {_id: task._id},
+              update: {$set: updateFields},
+            },
+          });
+        }
 
-      const result = await this.taskDataCollection.bulkWrite(bulkOperations);
-      return {updated: result.modifiedCount};
+        if (bulkOps.length >= batchSize) {
+          const result = await this.taskDataCollection.bulkWrite(bulkOps);
+          totalUpdated += result.modifiedCount;
+          bulkOps = [];
+        }
+      }
+
+      if (bulkOps.length > 0) {
+        const result = await this.taskDataCollection.bulkWrite(bulkOps);
+        totalUpdated += result.modifiedCount;
+      }
+
+      return {updated: totalUpdated};
     } catch (error) {
       throw new InternalServerError(
         `Failed job_task_status ID conversion. More/ ${error}`,

@@ -146,111 +146,108 @@ class UserQuizMetricsRepository {
     }));
   }
 
-  async bulkConvertIds(): Promise<{updated: number}> {
+  async bulkConvertIds(batchSize = 100): Promise<{updated: number}> {
     try {
       await this.init();
 
-      const metricsDocs = await this.userQuizMetricsCollection
-        .find()
-        .project({
-          _id: 1,
-          userId: 1,
-          quizId: 1,
-          latestAttemptId: 1,
-          attempts: 1,
-          latestSubmissionResultId: 1
-        })
-        .toArray();
+      const cursor = this.userQuizMetricsCollection.find(
+        {},
+        {
+          projection: {
+            _id: 1,
+            userId: 1,
+            quizId: 1,
+            latestAttemptId: 1,
+            attempts: 1,
+            latestSubmissionResultId: 1,
+          },
+        },
+      );
 
-      if (!metricsDocs.length) return {updated: 0};
+      let bulkOps: any[] = [];
+      let totalUpdated = 0;
 
-      const bulkOperations = metricsDocs
-        .map((metric: IUserQuizMetrics) => {
-          let needsUpdate = false;
+      while (await cursor.hasNext()) {
+        const metric: IUserQuizMetrics | null = await cursor.next();
+        if (!metric) continue;
 
-          let updatedUserId = metric.userId;
-          if (metric.userId && typeof metric.userId === 'string') {
-            updatedUserId = new ObjectId(metric.userId);
+        let needsUpdate = false;
+
+        const updatedUserId =
+          metric.userId && typeof metric.userId === 'string'
+            ? ((needsUpdate = true), new ObjectId(metric.userId))
+            : metric.userId;
+
+        const updatedQuizId =
+          metric.quizId && typeof metric.quizId === 'string'
+            ? ((needsUpdate = true), new ObjectId(metric.quizId))
+            : metric.quizId;
+
+        const updatedLatestAttemptId =
+          metric.latestAttemptId && typeof metric.latestAttemptId === 'string'
+            ? ((needsUpdate = true), new ObjectId(metric.latestAttemptId))
+            : metric.latestAttemptId;
+
+        const updatedLatestSubmissionResultId =
+          metric.latestSubmissionResultId &&
+          typeof metric.latestSubmissionResultId === 'string'
+            ? ((needsUpdate = true),
+              new ObjectId(metric.latestSubmissionResultId))
+            : metric.latestSubmissionResultId;
+
+        const updatedAttempts = (metric.attempts || []).map(attempt => {
+          let newAttempt = {...attempt};
+
+          if (attempt?.attemptId && typeof attempt.attemptId === 'string') {
+            newAttempt.attemptId = new ObjectId(attempt.attemptId);
             needsUpdate = true;
           }
 
-          let updatedQuizId = metric.quizId;
-          if (metric.quizId && typeof metric.quizId === 'string') {
-            updatedQuizId = new ObjectId(metric.quizId);
-            needsUpdate = true;
-          }
-
-          let updatedLatestAttemptId = metric.latestAttemptId;
           if (
-            metric.latestAttemptId &&
-            typeof metric.latestAttemptId === 'string'
+            attempt?.submissionResultId &&
+            typeof attempt.submissionResultId === 'string'
           ) {
-            updatedLatestAttemptId = new ObjectId(metric.latestAttemptId);
-            needsUpdate = true;
-          }
-
-          let updatedLatestSubmissionResultId = metric.latestSubmissionResultId;
-          if (
-            metric.latestSubmissionResultId &&
-            typeof metric.latestSubmissionResultId === 'string'
-          ) {
-            updatedLatestSubmissionResultId = new ObjectId(
-              metric.latestSubmissionResultId,
+            newAttempt.submissionResultId = new ObjectId(
+              attempt.submissionResultId,
             );
             needsUpdate = true;
           }
 
-          // Convert IDs inside attempts array
-          const updatedAttempts = (metric.attempts || []).map(
-            (attempt: IAttemptDetails) => {
-              let newAttempt = {...attempt};
+          return newAttempt;
+        });
 
-              if (attempt?.attemptId && typeof attempt.attemptId === 'string') {
-                newAttempt.attemptId = new ObjectId(attempt.attemptId);
-                needsUpdate = true;
-              }
-
-              if (
-                attempt?.submissionResultId &&
-                typeof attempt.submissionResultId === 'string'
-              ) {
-                newAttempt.submissionResultId = new ObjectId(
-                  attempt.submissionResultId,
-                );
-                needsUpdate = true;
-              }
-
-              return newAttempt;
-            },
-          );
-
-          if (needsUpdate) {
-            return {
-              updateOne: {
-                filter: {_id: metric._id},
-                update: {
-                  $set: {
-                    userId: updatedUserId,
-                    quizId: updatedQuizId,
-                    latestAttemptId: updatedLatestAttemptId,
-                    attempts: updatedAttempts,
-                    latestSubmissionResultId: updatedLatestSubmissionResultId,
-                  },
+        if (needsUpdate) {
+          bulkOps.push({
+            updateOne: {
+              filter: {_id: metric._id},
+              update: {
+                $set: {
+                  userId: updatedUserId,
+                  quizId: updatedQuizId,
+                  latestAttemptId: updatedLatestAttemptId,
+                  attempts: updatedAttempts,
+                  latestSubmissionResultId: updatedLatestSubmissionResultId,
                 },
               },
-            };
-          }
+            },
+          });
+        }
 
-          return null;
-        })
-        .filter(Boolean);
+        if (bulkOps.length >= batchSize) {
+          const result = await this.userQuizMetricsCollection.bulkWrite(
+            bulkOps,
+          );
+          totalUpdated += result.modifiedCount;
+          bulkOps = [];
+        }
+      }
 
-      if (!bulkOperations.length) return {updated: 0};
+      if (bulkOps.length > 0) {
+        const result = await this.userQuizMetricsCollection.bulkWrite(bulkOps);
+        totalUpdated += result.modifiedCount;
+      }
 
-      const result = await this.userQuizMetricsCollection.bulkWrite(
-        bulkOperations,
-      );
-      return {updated: result.modifiedCount};
+      return {updated: totalUpdated};
     } catch (error) {
       throw new InternalServerError(
         `Failed metrics ID conversion. More/ ${error}`,

@@ -608,22 +608,29 @@ export class EnrollmentService extends BaseService {
       | 'quiz_attempts',
   ): Promise<void> {
     try {
+      const BATCH_SIZE = 1000;
       const handlers: Record<
         typeof collection,
         () => Promise<{updated: number}>
       > = {
-        anomaly_records: () => this.anomalyRepository.bulkConvertIds(),
-        genAI_jobs: () => this.genAIRepository.bulkConvertIds(),
-        invites: () => this.inviteRepo.bulkConvertIds(),
-        itemsGroup: () => this.itemRepo.bulkConvertIds(),
-        job_task_status: () => this.genAIRepository.bulkConvertTaskIds(),
-        newCourse: () => this.courseRepo.bulkConvertIds(),
-        newCourseVersion: () => this.courseRepo.bulkConvertVersionIds(),
-        questionBanks: () => this.questionBankRepository.bulkConvertIds(),
-        quiz_submission_results: () => this.submissionRepo.bulkConvertIds(),
-        quizzes: () => this.quizRepo.bulkConvertIds(),
-        user_quiz_metrics: () => this.userQuizMetricsRepo.bulkConvertIds(),
-        quiz_attempts: () => this.attemptRepo.bulkConvertIds(),
+        anomaly_records: () =>
+          this.anomalyRepository.bulkConvertIds(BATCH_SIZE),
+        genAI_jobs: () => this.genAIRepository.bulkConvertIds(BATCH_SIZE),
+        invites: () => this.inviteRepo.bulkConvertIds(BATCH_SIZE),
+        itemsGroup: () => this.itemRepo.bulkConvertIds(BATCH_SIZE),
+        job_task_status: () =>
+          this.genAIRepository.bulkConvertTaskIds(BATCH_SIZE),
+        newCourse: () => this.courseRepo.bulkConvertIds(BATCH_SIZE),
+        newCourseVersion: () =>
+          this.courseRepo.bulkConvertVersionIds(BATCH_SIZE),
+        questionBanks: () =>
+          this.questionBankRepository.bulkConvertIds(BATCH_SIZE),
+        quiz_submission_results: () =>
+          this.submissionRepo.bulkConvertIds(BATCH_SIZE),
+        quizzes: () => this.quizRepo.bulkConvertIds(BATCH_SIZE),
+        user_quiz_metrics: () =>
+          this.userQuizMetricsRepo.bulkConvertIds(BATCH_SIZE),
+        quiz_attempts: () => this.attemptRepo.bulkConvertIds(BATCH_SIZE),
       };
 
       const handler = handlers[collection];
@@ -635,6 +642,7 @@ export class EnrollmentService extends BaseService {
       }
 
       await handler();
+      console.log(`Completed bulk ID conversion for ${collection}`);
     } catch (error) {
       throw new InternalServerError(
         `Failed to bulk update ${collection}. Error: ${error}`,

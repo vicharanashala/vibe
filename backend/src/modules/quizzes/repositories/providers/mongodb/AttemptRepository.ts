@@ -188,134 +188,119 @@ class AttemptRepository {
     return distinctUsers.length;
   }
 
-  async bulkConvertIds(): Promise<{updated: number}> {
+  async bulkConvertIds(batchSize = 100): Promise<{updated: number}> {
     try {
       await this.init();
 
-      const attemptDocs = await this.attemptCollection
-        .find()
-        .project({
-          _id: 1,
-          quizId: 1,
-          userId: 1,
-          questionDetails: 1,
-          answers: 1,
-          isSkipped: 1,
-          createdAt: 1,
-          updatedAt: 1,
-        })
-        .toArray();
+      const cursor = this.attemptCollection.find(
+        {},
+        {
+          projection: {
+            _id: 1,
+            quizId: 1,
+            userId: 1,
+            questionDetails: 1,
+            answers: 1,
+            isSkipped: 1,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        },
+      );
 
-      if (!attemptDocs.length) return {updated: 0};
+      let bulkOps: any[] = [];
+      let totalUpdated = 0;
 
-      const bulkOperations = attemptDocs
-        .map((attempt: IAttempt) => {
-          let needsUpdate = false;
+      while (await cursor.hasNext()) {
+        const attempt: IAttempt | null = await cursor.next();
+        if (!attempt) continue;
 
-          // Convert quizId
-          let updatedQuizId = attempt.quizId;
-          if (attempt.quizId && typeof attempt.quizId === 'string') {
-            updatedQuizId = new ObjectId(attempt.quizId);
+        let needsUpdate = false;
+
+        const updatedQuizId =
+          attempt.quizId && typeof attempt.quizId === 'string'
+            ? ((needsUpdate = true), new ObjectId(attempt.quizId))
+            : attempt.quizId;
+
+        const updatedUserId =
+          attempt.userId && typeof attempt.userId === 'string'
+            ? ((needsUpdate = true), new ObjectId(attempt.userId))
+            : attempt.userId;
+
+        const updatedQuestionDetails = (attempt.questionDetails || []).map(
+          qd => {
+            if (qd?.questionId && typeof qd.questionId === 'string') {
+              needsUpdate = true;
+              return {...qd, questionId: new ObjectId(qd.questionId)};
+            }
+            return qd;
+          },
+        );
+
+        const updatedAnswers = (attempt.answers || []).map(ans => {
+          let newAnswer: any = {...ans.answer};
+
+          if ('lotItemId' in newAnswer && newAnswer.lotItemId) {
+            if (typeof newAnswer.lotItemId === 'string') {
+              newAnswer.lotItemId = new ObjectId(newAnswer.lotItemId);
+              needsUpdate = true;
+            }
+          } else if (
+            'lotItemIds' in newAnswer &&
+            Array.isArray(newAnswer.lotItemIds)
+          ) {
+            newAnswer.lotItemIds = newAnswer.lotItemIds.map(id =>
+              typeof id === 'string' ? new ObjectId(id) : id,
+            );
+            needsUpdate = true;
+          } else if ('orders' in newAnswer && Array.isArray(newAnswer.orders)) {
+            newAnswer.orders = newAnswer.orders.map(o => ({
+              ...o,
+              lotItemId:
+                typeof o.lotItemId === 'string'
+                  ? new ObjectId(o.lotItemId)
+                  : o.lotItemId,
+            }));
             needsUpdate = true;
           }
 
-          // Convert userId
-          let updatedUserId = attempt.userId;
-          if (attempt.userId && typeof attempt.userId === 'string') {
-            updatedUserId = new ObjectId(attempt.userId);
-            needsUpdate = true;
-          }
+          const updatedQId =
+            typeof ans.questionId === 'string'
+              ? ((needsUpdate = true), new ObjectId(ans.questionId))
+              : ans.questionId;
 
-          const updatedQuestionDetails = (attempt.questionDetails || []).map(
-            (qd: IQuestionDetails) => {
-              let newQD: IQuestionDetails = {...qd};
-              if (qd?.questionId && typeof qd.questionId === 'string') {
-                newQD.questionId = new ObjectId(qd.questionId);
-                needsUpdate = true;
-              }
-              return newQD;
-            },
-          );
+          return {...ans, questionId: updatedQId, answer: newAnswer};
+        });
 
-          const updatedAnswers = (attempt.answers || []).map(
-            (ans: IQuestionAnswer) => {
-              let newAnswer: Answer = {...ans.answer};
-
-              if ('lotItemId' in newAnswer && newAnswer.lotItemId) {
-                if (typeof newAnswer.lotItemId === 'string') {
-                  newAnswer = {
-                    ...newAnswer,
-                    lotItemId: new ObjectId(newAnswer.lotItemId),
-                  };
-                  needsUpdate = true;
-                }
-              } else if (
-                'lotItemIds' in newAnswer &&
-                Array.isArray(newAnswer.lotItemIds)
-              ) {
-                newAnswer = {
-                  ...newAnswer,
-                  lotItemIds: newAnswer.lotItemIds.map(id =>
-                    typeof id === 'string' ? new ObjectId(id) : id,
-                  ),
-                };
-                needsUpdate = true;
-              } else if (
-                'orders' in newAnswer &&
-                Array.isArray(newAnswer.orders)
-              ) {
-                newAnswer = {
-                  ...newAnswer,
-                  orders: newAnswer.orders.map(o => ({
-                    ...o,
-                    lotItemId:
-                      typeof o.lotItemId === 'string'
-                        ? new ObjectId(o.lotItemId)
-                        : o.lotItemId,
-                  })),
-                };
-                needsUpdate = true;
-              }
-
-              const updatedQId =
-                typeof ans.questionId === 'string'
-                  ? new ObjectId(ans.questionId)
-                  : ans.questionId;
-
-              if (typeof ans.questionId === 'string') needsUpdate = true;
-
-              return {
-                ...ans,
-                questionId: updatedQId,
-                answer: newAnswer,
-              };
-            },
-          );
-
-          if (needsUpdate) {
-            return {
-              updateOne: {
-                filter: {_id: attempt._id},
-                update: {
-                  $set: {
-                    quizId: updatedQuizId,
-                    userId: updatedUserId,
-                    questionDetails: updatedQuestionDetails,
-                    answers: updatedAnswers,
-                  },
+        if (needsUpdate) {
+          bulkOps.push({
+            updateOne: {
+              filter: {_id: attempt._id},
+              update: {
+                $set: {
+                  quizId: updatedQuizId,
+                  userId: updatedUserId,
+                  questionDetails: updatedQuestionDetails,
+                  answers: updatedAnswers,
                 },
               },
-            };
-          }
+            },
+          });
+        }
 
-          return null;
-        })
-        .filter(Boolean);
+        if (bulkOps.length >= batchSize) {
+          const result = await this.attemptCollection.bulkWrite(bulkOps);
+          totalUpdated += result.modifiedCount;
+          bulkOps = [];
+        }
+      }
 
-      if (!bulkOperations.length) return {updated: 0};
+      if (bulkOps.length > 0) {
+        const result = await this.attemptCollection.bulkWrite(bulkOps);
+        totalUpdated += result.modifiedCount;
+      }
 
-      const result = await this.attemptCollection.bulkWrite(bulkOperations);
-      return {updated: result.modifiedCount};
+      return {updated: totalUpdated};
     } catch (error) {
       throw new InternalServerError(
         `Failed attempts ID conversion. More/ ${error}`,
