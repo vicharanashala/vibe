@@ -308,6 +308,46 @@ export class InviteService extends BaseService {
   async generateLink(courseId: string, courseVersionId: string, role: EnrollmentRole): Promise<string> {
     const token = crypto.randomBytes(24).toString('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const course = await this.courseRepo.read(courseId.toString());
+      if (!course) {
+        throw new NotFoundError('Course not found');
+      }
+      // Get Course Version Details
+      const courseVersion = await this.courseRepo.readVersion(
+        courseVersionId.toString(),
+      );
+      if (!courseVersion) {
+        throw new NotFoundError('Course version not found');
+      }
+      if (!courseVersion.modules || courseVersion.modules.length === 0) {
+        throw new BadRequestError(
+          'Course version has no modules. Please add modules before proceeding.',
+        );
+      }
+
+      const firstModule = [...courseVersion.modules].sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[0];
+
+      if (!firstModule.sections || firstModule.sections.length === 0) {
+        throw new BadRequestError(
+          `Module "${firstModule.name}" has no sections. Add sections to continue.`,
+        );
+      }
+
+      const firstSection = [...firstModule.sections].sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[0];
+
+      const itemsGroup = await this.itemRepo.readItemsGroup(
+        firstSection.itemsGroupId.toString(),
+      );
+
+      if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
+        throw new BadRequestError(
+          `Section "${firstSection.name}" has no items. Add content before sending invites.`,
+        );
+      }
      const invite = new Invite({
     courseId: new ObjectId(courseId),
     courseVersionId: new ObjectId(courseVersionId),

@@ -1000,9 +1000,10 @@ function VersionCard({
       setGeneratedLink(result.link); 
       setShowLinkModal(true);
       toast.success('Link generated successfully!');
-    } catch (error) {
+    } catch (error:any) {
       console.error('Failed to generate link:', error);
-      toast.error('Failed to generate link. Please try again.');
+      // toast.error('Failed to generate link. Please try again.');
+      toast.error(error?.message);
     }
   };
 
@@ -1167,7 +1168,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Copy } from "lucide-react"; // Import Copy icon (or use Clipboard if preferred)
+import { Copy } from "lucide-react"; 
 
 interface LinkModalProps {
   open: boolean;
