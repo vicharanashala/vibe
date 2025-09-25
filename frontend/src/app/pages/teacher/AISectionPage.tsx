@@ -28,7 +28,6 @@ import {
   ListChecks,
   MessageSquareText,
   Workflow,
-  CircleChevronLeft,
   Info,
   Brain,
   Eye,
@@ -43,6 +42,7 @@ import {
   Zap,
   FileMusic,
   Upload,
+  Share
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -212,11 +212,53 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
       return 'uploadContent';
     }
 
-    return null;
+    return 'transcription';
   }, [jobStatus]);
 
+  // Calculate progress based on completed steps
+  const getStepProgress = () => {
+    const stepOrder = [
+      'transcription',
+      'audioExtraction',
+      'transcriptGeneration',
+      'segmentation',
+      'questionGeneration',
+      'uploadContent'
+    ];
+  
+    // Find the last completed step
+    let lastCompletedIndex = -1;
+    
+    stepOrder.forEach((step, index) => {
+      const status = getStepStatus(jobStatus, step);
+      if (status === 'completed') {
+        lastCompletedIndex = index;
+      }
+    });
+    
+    // Only show progress for completed steps
+    if (lastCompletedIndex >= 0) {
+      return ((lastCompletedIndex + 1) / stepOrder.length) * 100;
+    }
+    
+    return 0;
+  };
+
+  const progressPercentage = getStepProgress();
+
   return (
-    <div className="flex items-center mb-12 px-4 relative">
+    <div className="relative mb-12 px-4">
+      {/* Single continuous progress line */}
+      <div className="absolute left-0 top-5 w-full h-[3px] bg-gray-300 dark:bg-[#292524] overflow-hidden">
+        {progressPercentage > 0 && (
+          <div 
+            className="h-full bg-gradient-to-r from-[#00D492] to-[#2B7FFF] transition-all duration-500"
+            style={{ width: `${progressPercentage}%` }}
+          />
+        )}
+      </div>
+      
+      <div className="flex items-center relative z-10">
       {WORKFLOW_STEPS.map((step, idx) => {
         const status = getStepStatus(jobStatus, step.key);
         const isCurrent = step.key === activeStep;
@@ -229,19 +271,12 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
 
         return (
           <React.Fragment key={step.key}>
-            <div className={`relative z-10 ${!isLast ? 'w-full' : 'w-full'}`}>
-              <div
-                className={`
-                  absolute left-0 top-5 w-full h-[3px] -z-10
-                  ${isCompleted || isActive ? 'bg-gradient-to-r from-[#00D492] to-[#2B7FFF]' : 'bg-gray-300'}
-                `}
-              />
-
+            <div className="relative flex-1 flex justify-center">
           <div className="flex flex-col items-center">
              {/* Step Circle */}
            <div className={`
       relative flex items-center justify-center
-      w-11 h-11 rounded-[14px] transition-all duration-300
+      w-11 h-11 rounded-[14px] transition-all duration-300 z-10
       ${isCompleted 
         ? 'bg-[linear-gradient(135deg,_#00D492_0%,_#009966_100%)] text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.1),_0px_10px_15px_-3px_rgba(0,0,0,0.1)]' 
         : isActive 
@@ -250,9 +285,8 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
             ? 'bg-red-500 text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.1),_0px_10px_15px_-3px_rgba(0,0,0,0.1)]' 
             : isStopped 
               ? 'bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.1),_0px_10px_15px_-3px_rgba(0,0,0,0.1)]' 
-              : 'bg-gray-200 text-gray-600'}
-    `}
-  >
+              : 'bg-gray-200 dark:bg-[#2f1d08] text-gray-600 dark:text-[#a8a29e]'}
+    `}>
                       {isCompleted ? (
                         <CheckCircle className="w-6 h-6" />
                       ) : isActive ? (
@@ -266,14 +300,11 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
     )}
     {isActive && <div className="absolute -top-1.5 -right-1 bg-[#2B7FFF] rounded-full h-5 w-5 flex items-center justify-center"><Loader2 className="w-3 h-3 animate-spin text-white" /></div>}
     {isCurrent && jobStatus?.status === 'COMPLETED' && <div className="absolute -top-1.5 -right-1 bg-[#00BC7D] rounded-full h-5 w-5 flex items-center justify-center"><Sparkles className="w-3 h-3 text-white" /></div>}
-    
   </div>
 
   {/* Step Label */}
   <div className="mt-2 flex flex-col items-center">
-    <div
-      className={`
-        text-sm font-medium
+    <div className={`text-sm font-medium
         ${isCompleted 
           ? 'text-[#009966]' 
           : isActive 
@@ -282,18 +313,17 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
               ? 'text-red-600' 
               : isStopped 
                 ? 'text-[#F54900]' 
-                : 'text-[#6A7282]'}
-      `}
-    >
+                : 'text-[#6A7282] dark:text-[#a8a29e]'}
+      `}>
       {step.label}
     </div>
 
     {/* Status Text */}
     <div className="mt-1 h-4 text-xs">
-      {isActive && <span className="text-[#2B7FFF] bg-[#EEF2FF] py-1 px-1.5 rounded-[10px] flex gap-1"><Zap size={14} color="#FAAF2E"/> Processing</span>}
-      {isCompleted && <span className="text-[#00BC7D] bg-[#ECFDF5] py-1 px-1.5 rounded-[10px] flex gap-1"><Check size={14} />Complete</span>}
-      {isFailed && <span className="text-red-500 bg-[#ffe9ea] py-1 px-1.5 rounded-[10px] flex gap-1"><X size={14} />Failed</span>}
-      {isStopped && <span className="text-orange-500">Stopped</span>}
+      {isActive && <span className="text-[#2B7FFF] dark:text-blue-400 bg-[#EEF2FF] dark:bg-blue-900/30 py-1 px-1.5 rounded-[10px] flex gap-1 items-center"><Zap size={14} className="text-yellow-500 dark:text-yellow-400"/> Processing</span>}
+      {isCompleted && <span className="text-[#00BC7D] dark:text-green-400 bg-[#ECFDF5] dark:bg-green-900/30 py-1 px-1.5 rounded-[10px] flex gap-1 items-center"><Check size={14} className="text-green-600 dark:text-green-400" /> Complete</span>}
+      {isFailed && <span className="text-red-600 dark:text-red-400 bg-[#ffe9ea] dark:bg-red-900/30 py-1 px-1.5 rounded-[10px] flex gap-1 items-center"><X size={14} className="text-red-600 dark:text-red-400" /> Failed</span>}
+      {isStopped && <span className="text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 py-1 px-1.5 rounded-[10px] flex gap-1 items-center"><PauseCircle size={14} className="text-orange-600 dark:text-orange-400" /> Stopped</span>}
     </div>
   </div>
   </div>
@@ -312,6 +342,7 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
           </React.Fragment>
         );
       })}
+    </div>
     </div>
   );
 });
@@ -876,28 +907,28 @@ export default function AISectionPage() {
         {task === 'transcription' && audioExtractionStatus !== 'completed' && (
           <div className="flex flex-row gap-5 mb-4">
             <div className="flex-1 flex flex-col items-start">
-              <label className="mb-2.5 flex items-center text-sm font-medium text-gray-700">
+              <label className="mb-2.5 flex items-center text-sm font-medium text-gray-700 dark:text-[#a8a29e]">
                 <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
                 Processing Language
               </label>
               <select
                 value={rerunParams.language}
                 onChange={e => setRerunParams(p => ({ ...p, language: e.target.value }))}
-                className="w-full px-4 py-2 rounded-full border border-gray-200 bg-white shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
+                className="w-full px-4 py-2 rounded-full border border-gray-200 dark:border-[#26211E] bg-white dark:bg-[#140E09] shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
               >
                 <option value="en">English</option>
                 <option value="hi">Hindi</option>
               </select>
             </div>
             <div className="flex-1 flex flex-col items-start">
-              <label className="mb-2.5 flex items-center text-sm font-medium text-gray-700">
+              <label className="mb-2.5 flex items-center text-sm font-medium text-gray-700 dark:text-[#a8a29e]">
                 <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
                 AI Model
               </label>
               <select
                 value={rerunParams.model}
                 onChange={e => setRerunParams(p => ({ ...p, model: e.target.value }))}
-                className="w-full px-4 py-2 rounded-full border border-gray-200 bg-white shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
+                className="w-full px-4 py-2 rounded-full border border-gray-200 dark:border-[#26211E] bg-white dark:bg-[#140E09] shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
               >
                 <option value="default">default</option>
                 {/* Add more models as needed */}
@@ -909,11 +940,12 @@ export default function AISectionPage() {
           (accordionAiJobStatus?.jobStatus?.audioExtraction === 'COMPLETED' ||
            (accordionAiJobStatus?.task === 'AUDIO_EXTRACTION' && accordionAiJobStatus?.status === 'COMPLETED'))
         ) && (
-          <div className="w-full mb-6 bg-white shadow-sm">
+          <div className="w-full mb-6 shadow-sm">
 
-            <div className="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm">
+            <div className="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-gradient-to-r dark:from-emerald-800 dark:to-purple-800
+">
               <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2 text-gray-900 font-semibold text-lg">
+                <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
                 <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
                 <CheckCircle className="w-5 h-5 text-white" />
               </div>
@@ -921,7 +953,7 @@ export default function AISectionPage() {
                   <div>Audio Extraction</div>
                   <div className="flex items-center gap-3">
                   <span className="text-xs text-emerald-600">Run 1</span>
-                  <span className="text-sm text-gray-600">{new Date().toLocaleTimeString()}</span>
+                  <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
                   <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white font-medium">Complete</span>
                   <span className="text-sm text-emerald-700 font-medium">100% complete</span>
                 </div>
@@ -1031,7 +1063,7 @@ export default function AISectionPage() {
         {task === 'transcription' && (
           <>
             {audioExtractionStatus !== 'completed' && (
-            <div className="w-full p-5 rounded-lg border border-[#FFD6A7] mb-4 bg-[linear-gradient(135deg,_#e0fff4_0%,_#f3e7ff_100%)] flex items-start gap-4">
+            <div className="w-full p-5 rounded-lg border border-[#FFD6A7] mb-4 bg-[linear-gradient(135deg,_#e0fff4_0%,_#f3e7ff_100%)] dark:bg-[linear-gradient(135deg,#140E09_0%,#1A0F14_100%)] flex items-start gap-4">
               <div className="flex items-start gap-4 w-full">
              
                 <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] text-white">
@@ -1043,7 +1075,7 @@ export default function AISectionPage() {
           
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2.5">
-                      <span className="font-semibold text-gray-900 text-lg">Audio Extraction</span>
+                      <span className="font-semibold text-gray-900 dark:text-[#a8a29e] text-lg">Audio Extraction</span>
                       <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-orange-500 text-white font-medium">
                         {audioExtractionStatus === 'processing' ? 'Processing' : 
                          audioExtractionStatus === 'completed' ? 'Completed' :
@@ -1083,7 +1115,7 @@ export default function AISectionPage() {
                   </div>
 
            
-                  <div className="flex items-center text-sm text-gray-600">
+                  <div className="flex items-center text-sm text-gray-600 dark:text-[#a8a29e]">
                 <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
                 <span>Run 1</span>
                 <span className="mx-2">•</span>
@@ -1112,7 +1144,7 @@ export default function AISectionPage() {
                       </div>
                       
                       {audioExtractionStatus === 'processing' && (
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-gray-600 dark:text-[#a8a29e]">
                           Estimated time remaining: {estimatedTimeRemaining}
                         </div>
                       )}
@@ -1123,7 +1155,7 @@ export default function AISectionPage() {
             </div>
         )}
             {audioExtractionStatus === 'processing' && (
-              <div className="w-full p-5 rounded-lg border border-[#BEDBFF] bg-[#EEF2FF] shadow-sm">
+              <div className="w-full p-5 rounded-lg border border-[#BEDBFF] bg-[#EEF2FF] dark:bg-[#140E09] shadow-sm">
                 <div className="flex items-center justify-center gap-4">
                   
                   <div className="flex flex-col">
@@ -1151,9 +1183,10 @@ export default function AISectionPage() {
           (accordionAiJobStatus?.jobStatus?.transcription === 'COMPLETED' ||
             (accordionAiJobStatus?.task === 'TRANSCRIPT_GENERATION' && accordionAiJobStatus?.status === 'COMPLETED'))
           ) ? (
-            <div className="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm">
+            <div className="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-gradient-to-r dark:from-emerald-800 dark:to-purple-800
+">
               <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2 text-gray-900 font-semibold text-lg">
+                <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
                   <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
                   <CheckCircle className="w-5 h-5 text-white" />
                 </div>
@@ -1164,7 +1197,7 @@ export default function AISectionPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-emerald-600">Run 1</span>
-                    <span className="text-sm text-gray-600">{new Date().toLocaleTimeString()}</span>
+                    <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
                   </div>
                 </div>
                 </div>
@@ -1298,9 +1331,10 @@ export default function AISectionPage() {
           {/* Add three input boxes for segmentation parameters beside the Segmentation button */}
           {task === 'segmentation' && (
             aiJobStatus?.task === 'SEGMENTATION' && aiJobStatus?.status === 'COMPLETED' ? (
-              <div className="w-full rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm">
+              <div className="w-full rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-gradient-to-r dark:from-emerald-800 dark:to-purple-800
+">
               <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2 text-gray-900 font-semibold text-lg">
+                <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
                   <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
                   <CheckCircle className="w-5 h-5 text-white" />
                 </div>
@@ -1311,7 +1345,7 @@ export default function AISectionPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-emerald-600">Run 1</span>
-                    <span className="text-sm text-gray-600">{new Date().toLocaleTimeString()}</span>
+                    <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
                   </div>
                 </div>
                 </div>
@@ -1323,7 +1357,7 @@ export default function AISectionPage() {
                 <div key={key} className="flex flex-col items-start min-w-[80px]">
                   <label
                     htmlFor={`seg-${key}`}
-                    className="text-[11px] font-semibold mb-1 text-gray-700 dark:text-gray-300"
+                    className="text-[11px] font-semibold mb-1 text-gray-700 dark:text-[#a8a29e]"
                   >
                     {key}
                   </label>
@@ -1334,7 +1368,7 @@ export default function AISectionPage() {
                     onChange={(e) => handleSegParamChange(key, type === 'float'
                       ? parseFloat(e.target.value) || 0
                       : parseInt(e.target.value) || 0)}
-                    className="w-20 h-9 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    className="w-20 h-9 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-[#a8a29e] focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                     style={{ fontSize: '15px' }}
                   />
                 </div>
@@ -1487,7 +1521,7 @@ export default function AISectionPage() {
                 const mainKeys = ["model", "SOL", "SML", "NAT", "DES"];
                 const promptKey = paramKeys.find(k => k.toLowerCase() === "prompt");
                 readableParams = (
-                  <div className="text-sm text-gray-600 dark:text-muted-foreground mb-2">
+                  <div className="text-sm text-gray-600 dark:text-[#a8a29e] mb-2">
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2.5rem', marginBottom: '0.5rem' }}>
                       {mainKeys.map(key =>
                         key in run.parameters ? (
@@ -1507,7 +1541,7 @@ export default function AISectionPage() {
                 <AccordionItem key={run.id} value={run.id} className="border rounded my-2 last:border-b">
                   <AccordionTrigger className="flex items-center gap-2 px-2 py-1">
                     <span>Run {index + 1}</span>
-                    <span className="text-sm text-gray-600 dark:text-muted-foreground">{run.timestamp.toLocaleTimeString()}</span>
+                    <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{run.timestamp.toLocaleTimeString()}</span>
                     {getStatusIcon(run.status)}
                     {acceptedRunId === run.id && <span className="text-blue-500">Accepted</span>}
                   </AccordionTrigger>
@@ -1540,7 +1574,7 @@ export default function AISectionPage() {
             })}
           </Accordion>
         )}
-        <div className="flex items-center justify-center text-[#6A7282] text-[11px]">
+        <div className="flex items-center justify-center text-[#6A7282] dark:text-[#a8a29e] text-[11px]">
         {/* {currentUiStep <= 2 && ( */}
           <>
           {(currentUiStep === 1 && aiJobStatus === null) &&
@@ -2385,7 +2419,7 @@ export default function AISectionPage() {
           <p className="flex items-center gap-2"><MessageSquare color="#AD46FF" size={16}/> <span className="text-[#1E2939] text-sm">Generated Transcript</span></p>
           <p className="flex items-center gap-2"><CircleCheckBig color="#009966" size={14}/> <span className="text-[#009966] text-xs">AI processing complete</span></p>
         </div>
-          <div className="bg-[linear-gradient(135deg,_rgba(255,255,255,0.8)_0%,_rgba(249,250,251,0.8)_100%)] backdrop-blur-md dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-3 rounded-[14px] max-h-48 overflow-y-auto text-sm border border-[#E5E7EB] dark:border-gray-700 mt-2">
+          <div className="bg-[linear-gradient(135deg,_rgba(255,255,255,0.8)_0%,_rgba(249,250,251,0.8)_100%)] backdrop-blur-md dark:bg-gray-900 text-gray-900 dark:text-[#a8a29e] p-3 rounded-[14px] max-h-48 overflow-y-auto text-sm border border-[#E5E7EB] dark:border-gray-700 mt-2">
             {loading && <div className="mt-2">Loading...</div>}
             {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
             {!loading && !error && (
@@ -2404,7 +2438,7 @@ export default function AISectionPage() {
           </>
         )}
       <div className="space-y-2 flex gap-2.5 items-center justify-center mt-4">
-        <Button size="sm" variant="secondary" onClick={handleShowTranscript} className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
+        <Button size="sm" variant="secondary" onClick={handleShowTranscript} className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] dark:text-[#a8a29e] font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
           {showTranscript ? <EyeOff /> : <Eye />}
           {showTranscript ? 'Hide Transcript' : 'Show Transcript'}
         </Button>
@@ -2681,12 +2715,12 @@ export default function AISectionPage() {
                       <div className="flex items-center gap-2.5">
                         <span className="text-white h-7 w-7 flex items-center justify-center bg-[linear-gradient(135deg,_#05DF72_0%,_#2B7FFF_100%)] shadow-[0px_4px_12px_rgba(0,0,0,0.1)] rounded-[10px]">{idx + 1}</span>
                         <p className="flex gap-2.5 items-center">
-                          <span className="flex items-center gap-1 text-[#6A7282]"><Clock size={12}/>{start.toFixed(2)}s </span>
-                          <span className="text-[#6A7282]">Duration: {end.toFixed(2)}s</span>
+                          <span className="flex items-center gap-1 text-[#6A7282] dark:text-[#a8a29e]"><Clock size={12}/>{start.toFixed(2)}s </span>
+                          <span className="text-[#6A7282] dark:text-[#a8a29e]">Duration: {end.toFixed(2)}s</span>
                         </p>
                       </div>
                       {segChunks.length > 0 ? (
-                        <div className="text-xs text-[#4A5565] dark:text-gray-300 mt-1">
+                        <div className="text-xs text-[#4A5565] dark:text-[#a8a29e] mt-1">
                           {(segChunks as { text: string }[]).map((chunk: { text: string }) => chunk.text).join(' ')}
                         </div>
                       ) : null}
@@ -2700,11 +2734,11 @@ export default function AISectionPage() {
             {!loading && !error && (!segmentationMap || segmentationMap.length === 0 || !segmentationChunks) && segments.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {segments.map((seg, idx) => (
-                  <div key={idx} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                  <div key={idx} className="bg-white rounded-xl border border-gray-200 dark:border-[#26211E] p-4 shadow-sm">
                     <div className="flex items-start justify-between mb-2">
                     <div><b>Segment {idx + 1}</b> ({seg.startTime ?? seg.timestamp?.[0]}s - {seg.endTime ?? seg.timestamp?.[1]}s)</div>
                     </div>
-                    <div className="text-xs text-gray-600 dark:text-gray-300">{seg.text}</div>
+                    <div className="text-xs text-gray-600 dark:text-[#a8a29e]">{seg.text}</div>
                   </div>
                 ))}
               </div>
@@ -2718,7 +2752,7 @@ export default function AISectionPage() {
             size="sm"
             variant="secondary"
             onClick={handleShowSegmentation}
-            className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+            className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] dark:text-[#a8a29e] font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
             disabled={run.status !== 'done'}
           >
             {showSegmentation ? <EyeOff /> : <Eye />}
@@ -2777,7 +2811,7 @@ export default function AISectionPage() {
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                      <div className="text-xs text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded p-2 mt-1">
+                      <div className="text-xs text-gray-600 dark:text-[#a8a29e] bg-gray-100 dark:bg-gray-800 rounded p-2 mt-1">
                         {segText}
                       </div>
                     </div>
@@ -2963,14 +2997,63 @@ export default function AISectionPage() {
 
     return (
       <div className="space-y-2">
-        <Button size="sm" variant="secondary" onClick={handleShowQuestions} className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
+        {showQuestions && (
+          <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-[#a8a29e] p-3 rounded max-h-96 overflow-y-auto text-sm border border-gray-300 dark:border-gray-700 mt-2">
+            <strong>Questions:</strong>
+            {loading && <div className="mt-2">Loading...</div>}
+            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
+            {!loading && !error && questions.length > 0 && (
+              <ol className="mt-2 space-y-4">
+                {questions.map((q: any, idx: number) => {
+                  let segIdx = segmentIds.findIndex((sid: any) => sid === q.segmentId);
+                  let segStart = segIdx === 0 ? 0 : segmentIds[segIdx - 1];
+                  let segEnd = q.segmentId;
+                  return (
+                    <li key={q.question?.text || idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                        Segment: {typeof segStart === 'number' && typeof segEnd === 'number' ? `${segStart}–${segEnd}s` : 'N/A'} | Type: {q.questionType || q.question?.type || 'N/A'}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="font-semibold flex-1">Q{idx + 1}: {q.question?.text}</div>
+                        <Button size="sm" variant="outline" onClick={() => { setEditingIdx(idx); setEditQuestion(JSON.parse(JSON.stringify(q))); setEditModalOpen(true); }}>
+                          <Edit className="w-4 h-4" /> Edit
+                        </Button>
+                      </div>
+                      {q.question?.hint && <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Hint: {q.question.hint}</div>}
+                      {q.solution && (
+                        <>
+                          <div className="mt-1"><b>Options:</b></div>
+                          <ul className="list-disc ml-6">
+                            {q.solution.incorrectLotItems?.map((opt: any, oIdx: number) => (
+                              <li key={`inc-${oIdx}`} className="text-red-600 dark:text-red-300">{opt.text}</li>
+                            ))}
+                            {q.solution.correctLotItems?.map((opt: any, oIdx: number) => (
+                              <li key={`cor-${oIdx}`} className="text-green-600 dark:text-green-400 font-semibold">{opt.text}</li>
+                            ))}
+                            {q.solution.correctLotItem && (
+                              <li className="text-green-600 dark:text-green-400 font-semibold">{q.solution.correctLotItem.text}</li>
+                            )}
+                          </ul>
+                        </>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+            {!loading && !error && questions.length === 0 && <div className="mt-2">No questions found.</div>}
+          </div>
+        )}
+        <div className="w-full flex items-center justify-center gap-2 mt-4">
+        <Button size="sm" variant="secondary" onClick={handleShowQuestions} className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] dark:text-[#a8a29e] font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
+          {showQuestions ? <EyeOff /> : <Eye />}
           {showQuestions ? 'Hide Questions' : 'Show Questions'}
         </Button>
         {/* Export PDF Button: appears below Show Questions, opens print-friendly HTML in new tab */}
         <Button
           size="sm"
           variant="outline"
-          className="w-full mt-2 bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+          className="bg-transparent border border-[#DAB2FF] text-[#9810FA] font-medium px-4 py-2 rounded-[12px] shadow-md hover:bg-transparent hover:shadow-lg hover:text-[#9810FA] transition-all duration-300 transform hover:scale-105 btn-beautiful"
           onClick={async () => {
             if (!aiJobId) return;
             try {
@@ -3092,64 +3175,22 @@ export default function AISectionPage() {
             }
           }}
         >
+          <Share />
           Export PDF
         </Button>
-        {showQuestions && (
-          <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-3 rounded max-h-96 overflow-y-auto text-sm border border-gray-300 dark:border-gray-700 mt-2">
-            <strong>Questions:</strong>
-            {loading && <div className="mt-2">Loading...</div>}
-            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
-            {!loading && !error && questions.length > 0 && (
-              <ol className="mt-2 space-y-4">
-                {questions.map((q: any, idx: number) => {
-                  let segIdx = segmentIds.findIndex((sid: any) => sid === q.segmentId);
-                  let segStart = segIdx === 0 ? 0 : segmentIds[segIdx - 1];
-                  let segEnd = q.segmentId;
-                  return (
-                    <li key={q.question?.text || idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                        Segment: {typeof segStart === 'number' && typeof segEnd === 'number' ? `${segStart}–${segEnd}s` : 'N/A'} | Type: {q.questionType || q.question?.type || 'N/A'}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="font-semibold flex-1">Q{idx + 1}: {q.question?.text}</div>
-                        <Button size="sm" variant="outline" onClick={() => { setEditingIdx(idx); setEditQuestion(JSON.parse(JSON.stringify(q))); setEditModalOpen(true); }}>
-                          <Edit className="w-4 h-4" /> Edit
-                        </Button>
-                      </div>
-                      {q.question?.hint && <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Hint: {q.question.hint}</div>}
-                      {q.solution && (
-                        <>
-                          <div className="mt-1"><b>Options:</b></div>
-                          <ul className="list-disc ml-6">
-                            {q.solution.incorrectLotItems?.map((opt: any, oIdx: number) => (
-                              <li key={`inc-${oIdx}`} className="text-red-600 dark:text-red-300">{opt.text}</li>
-                            ))}
-                            {q.solution.correctLotItems?.map((opt: any, oIdx: number) => (
-                              <li key={`cor-${oIdx}`} className="text-green-600 dark:text-green-400 font-semibold">{opt.text}</li>
-                            ))}
-                            {q.solution.correctLotItem && (
-                              <li className="text-green-600 dark:text-green-400 font-semibold">{q.solution.correctLotItem.text}</li>
-                            )}
-                          </ul>
-                        </>
-                      )}
-                    </li>
-                  );
-                })}
-              </ol>
-            )}
-            {!loading && !error && questions.length === 0 && <div className="mt-2">No questions found.</div>}
-          </div>
-        )}
+        
         {acceptedRunId !== run.id && (
           <Button
             size="sm"
             onClick={onAccept}
-            className="w-full"
+            className="mb-2 bg-[linear-gradient(90deg,_#00D492_0%,_#009966_100%)] text-white rounded-[12px]"
           >
-            Accept This Run
+            <Check />
+            Accept & Continue
+            <Sparkles />
           </Button>
         )}
+        </div>
         {/* Edit Question Modal */}
         <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
           <DialogContent className="max-w-lg">
@@ -3175,7 +3216,7 @@ export default function AISectionPage() {
                         solution: edited.solution, // replace solution entirely
                       };
                     });
-                    await aiSectionAPI.editQuestionData(aiJobId, runIndex, updatedQuestions);
+                    await aiSectionAPI.editQuestionData(aiJobId, updatedQuestions, runIndex);
                     // setEditingQuestion(null);
                     setEditModalOpen(false);
                   } catch (e) {
@@ -3349,7 +3390,7 @@ export default function AISectionPage() {
       </div>
       <div className="max-w-6xl w-full mx-auto px-4">
         {/* AI Section Workflow Inline */}
-        <div className="bg-white dark:bg-card/50 rounded-xl shadow-lg border border-gray-200 dark:border-border p-8 mb-8">
+        <div className="bg-white dark:bg-card/50 rounded-xl shadow-lg border border-gray-200 dark:border-[#26211E] p-8 mb-8">
           <div className="text-center mb-8">
             <div className="flex items-center justify-center mb-3">
               <div className={`rounded-3xl flex items-center justify-center gap-2 ${badge.bgGradient} ${badge.textColor} text-[11px] px-3.5 py-2 w-fit`}>
@@ -3360,31 +3401,31 @@ export default function AISectionPage() {
             <h1 className={`text-3xl font-bold mb-3 bg-gradient-to-r ${heading.gradient} bg-clip-text text-transparent`}>
               {heading.text}
             </h1>
-            <p className="text-[#4A5565] text-base">
+            <p className="text-[#4A5565] dark:text-[#a8a29e] text-base">
               {badge.subtitle}
             </p>
           </div>
           {/* Stepper */}
           <Stepper jobStatus={aiJobStatus} />
-            <div className="flex items-center gap-2.5 shadow-xl backdrop-blur bg-white/80 border border-gray-200 rounded-[14px] py-2.5 px-4 w-max mb-3.5 text-sm text-gray-900">
+            <div className="flex items-center gap-2.5 shadow-xl backdrop-blur bg-white/80 dark:bg-[#140E09] border border-gray-200 dark:border-[#26211E] rounded-[14px] py-2.5 px-4 w-max mb-3.5 text-sm text-gray-900 dark:text-[#a8a29e]">
               <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
               <span className="font-normal">Job Status: Active</span>
-              <span className="ml-2 px-3 py-1 rounded-md bg-green-50 text-[#6A7282] text-xs font-medium">
+              <span className="ml-2 px-3 py-1 rounded-md bg-green-50 dark:bg-green-900/30 text-[#6A7282] dark:text-[#a8a29e] text-xs font-medium">
                 Created 3:21:41 PM
               </span>
             </div>
           <div className="space-y-8">
             <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2.5 shadow-xl backdrop-blur bg-white/80 border border-gray-200 rounded-[14px] p-[15px] w-full">
+              <div className="flex items-center gap-2.5 shadow-xl backdrop-blur bg-white/80 dark:bg-[#140E09] border border-gray-200 dark:border-[#26211E] rounded-[14px] p-[15px] w-full">
                 <div><YoutubeIcon /></div>
                 <div className="flex flex-col w-full">
-                  <label className="text-[11px] font-medium text-gray-900 mb-1">Source Video</label>
+                  <label className="text-[11px] font-medium text-gray-900 dark:text-[#a8a29e] mb-1">Source Video</label>
                   <input
                     type="text"
                     value={youtubeUrl}
                     onChange={e => setYoutubeUrl(e.target.value)}
                     placeholder="Paste YouTube URL here"
-                    className={`text-[11px] px-1.5 py-[3px] rounded-lg bg-[#ECFDF5] text-gray-800 border border-transparent focus:outline-none w-full ${
+                    className={`text-[11px] px-1.5 py-[3px] rounded-lg bg-[#ECFDF5] dark:bg-green-900/30 text-gray-800 dark:text-[#a8a29e] border border-transparent focus:outline-none w-full ${
                       urlError ? 'border-red-500 bg-red-50 text-red-700' : ''
                     }`}
                     disabled={!!aiJobId}
@@ -3470,14 +3511,14 @@ export default function AISectionPage() {
                 <div className="space-y-8 mt-8">
                   {/* Transcription Section */}
                   {currentUiStep === 1 && (
-                    <div className=" shadow-xl backdrop-blur bg-white/80 border border-gray-200 rounded-[14px] p-[15px] w-full dark:bg-card dark:border-border">
+                    <div className=" shadow-xl backdrop-blur bg-white/80 dark:bg-[#140E09] border border-gray-200 dark:border-[#26211E] rounded-[14px] p-[15px] w-full dark:bg-card">
                       <div className="flex items-center gap-3.5 mb-7">
                         <div className="bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] h-12 w-12 rounded-[14px] flex items-center justify-center">
                           <FileText className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                          <p className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Audio Extraction</p>
-                          <span className="font-normal text-xs text-[#4A5565] dark:text-card-foreground">Extract high-quality audio from your video</span>
+                          <p className="font-semibold text-xl text-gray-900 dark:text-[#a8a29e]">Audio Extraction</p>
+                          <span className="font-normal text-xs text-[#4A5565] dark:text-[#a8a29e]">Extract high-quality audio from your video</span>
                         </div>
                         {/* <TooltipProvider>
                           <Tooltip>
@@ -3536,14 +3577,14 @@ export default function AISectionPage() {
                   {/* Segmentation Section */}
                   {
                     currentUiStep === 2 && (
-                      <div className="shadow-xl backdrop-blur bg-white/80 border border-gray-200 rounded-[14px] p-[15px] w-full dark:bg-card dark:border-border">
+                      <div className="shadow-xl backdrop-blur bg-white/80 dark:bg-[#140E09] border border-gray-200 rounded-[14px] p-[15px] w-full dark:bg-card dark:border-[#26211E]">
                       <div className="flex items-center gap-3.5 mb-7">
                         <div className="bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] h-12 w-12 rounded-[14px] flex items-center justify-center">
                           <FileText className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                          <p className="font-semibold text-xl text-gray-900 dark:text-card-foreground">AI Segmentation</p>
-                          <span className="font-normal text-xs text-[#4A5565] dark:text-card-foreground">Break content into meaningful sections</span>
+                          <p className="font-semibold text-xl text-gray-900 dark:text-[#a8a29e]">AI Segmentation</p>
+                          <span className="font-normal text-xs text-[#4A5565] dark:text-[#a8a29e]">Break content into meaningful sections</span>
                         </div>
                         </div>
                         <TaskAccordion
@@ -3581,10 +3622,41 @@ export default function AISectionPage() {
                   {/* Question Generation Section */}
                   {
                     currentUiStep === 3 && (
-                      <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                        <div className="flex items-center gap-2 mb-4">
-                          <MessageSquareText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                          <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Question Generation Test</span>
+                      <div className="shadow-xl backdrop-blur bg-white/80 dark:bg-[#140E09] border border-gray-200 rounded-[14px] p-[15px] w-full dark:bg-card dark:border-[#26211E]">
+                        <div className="mb-4">
+                          <div className="flex items-center gap-3.5 mb-7">
+                            <div className="bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] h-12 w-12 rounded-[14px] flex items-center justify-center">
+                              <Brain className="w-6 h-6 text-white" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-xl text-gray-900 dark:text-[#a8a29e]">Question Generation Test</p>
+                              <span className="font-normal text-xs text-[#4A5565] dark:text-[#a8a29e]">Automatically generates relevant questions from the segmented transcript.</span>
+                            </div>
+                          </div>
+                          {
+                            aiJobStatus?.task === 'QUESTION_GENERATION' && aiJobStatus?.status === 'COMPLETED' && (
+                              <div className="w-full rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-gradient-to-r dark:from-emerald-800 dark:to-purple-800
+">
+                                <div className="flex items-center justify-between mb-4">
+                                  <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
+                                    <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
+                                    <CheckCircle className="w-5 h-5 text-white" />
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-2.5">
+                                      <div>AI Question Generation</div>
+                                      <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white font-medium">Complete</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-xs text-emerald-600">Run 1</span>
+                                      <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
+                                    </div>
+                                  </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          }
                           {/* <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -3630,10 +3702,10 @@ export default function AISectionPage() {
                   {/* Upload Section */}
                   {/* {
                   currentUiStep === 4 && (
-                <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
+                <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-[#26211E] w-full">
                   <div className="flex items-center gap-2 mb-4">
                     <UploadCloud className="w-5 h-5 text-green-600 dark:text-green-400" />
-                    <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Upload to Course</span>
+                    <span className="font-semibold text-xl text-gray-900 dark:text-[#a8a29e]">Upload to Course</span>
                   </div>
                   <TaskAccordion
                     task="upload"
@@ -3664,10 +3736,17 @@ export default function AISectionPage() {
 
                   {
                     currentUiStep === 4 && (
-                      <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
+                      <div className="shadow-xl backdrop-blur bg-white/80 dark:bg-[#140E09] border border-gray-200 rounded-[14px] p-[15px] w-full dark:bg-card dark:border-[#26211E]">
                         <div className="flex items-center gap-2 mb-4">
-                          <UploadCloud className="w-5 h-5 text-green-600 dark:text-green-400" />
-                          <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Upload to Course</span>
+                          <div className="flex items-center gap-3.5 mb-7">
+                            <div className="bg-[linear-gradient(90deg,#00D492_0%,#2B7FFF_100%)] h-12 w-12 rounded-[14px] flex items-center justify-center">
+                              <Share className="w-6 h-6 text-white"/>
+                            </div>
+                            <div>
+                              <p className="font-semibold text-xl text-gray-900 dark:text-[#a8a29e]">Upload & Publish</p>
+                              <span className="font-normal text-xs text-[#4A5565] dark:text-[#a8a29e]">Saves and uploads the processed content with questions for later use.</span>
+                            </div>
+                          </div>
                           {/* <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -3710,7 +3789,7 @@ export default function AISectionPage() {
                             />
                           </div>
                         </div>
-
+                        <div className="w-full flex items-center justify-center">
                         <Button
                           onClick={async () => {
                             if (!aiJobId) return;
@@ -3753,10 +3832,13 @@ export default function AISectionPage() {
                             }
                           }}
                           disabled={!acceptedRuns.question || taskRuns.upload.some(r => r.status === "loading")}
-                          className="w-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
+                          className="w-auto bg-[linear-gradient(90deg,#00D492_0%,#2B7FFF_100%)] text-white font-normal px-6 py-3 rounded-[14px] shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
                         >
-                          Upload to Course
+                          <Share />
+                          Publish Learning Module
+                          <Sparkles />
                         </Button>
+                        </div>
 
                         {/* Upload Success Message */}
                         {taskRuns.upload.some(run => run.status === "done") && (
