@@ -66,7 +66,7 @@ const plugins = [
 import type { ArticleProps, ArticleRef } from "@/types/article.types";
 
 
-const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTimeInMinutes, points, tags, onNext, isProgressUpdating, title, description }, ref) => {
+const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTimeInMinutes, points, tags, onNext, isProgressUpdating }, ref) => {
     // ✅ Initialize Yoopta Editor
     const editor = useMemo(() => createYooptaEditor(), []);
     const [value, setValue] = useState<YooptaContentValue>();
@@ -209,14 +209,6 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
     return (
         <MathRenderer className="h-full w-full bg-background">
             <div className="h-full w-full flex flex-col">
-                {/* Article Header */}
-                <div className="border-b border-border/20 p-6 space-y-2">
-                    <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
-                    {description && (
-                        <p className="text-muted-foreground text-lg">{description}</p>
-                    )}
-                </div>
-                
                 {/* Article Metadata Topbar */}
                 {(estimatedReadTimeInMinutes || points || tags?.length) && (
                     <div className="border-b bg-muted/50 px-4 py-3">
