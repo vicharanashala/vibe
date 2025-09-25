@@ -37,6 +37,7 @@ import AiWorkflow from '../pages/teacher/AiWorkflow'
 import AnomaliesList from '../pages/teacher/AnomaliesList'
 import CourseDetails from '../pages/student/CourseDetails'
 import InviteRequestPage from '../pages/teacher/InviteRequestPage'
+import CourseInstructors from '../pages/teacher/course-instructors'
 
 
 // Root route with error and notFound handling

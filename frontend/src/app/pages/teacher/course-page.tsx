@@ -32,7 +32,6 @@ import {
   FlagTriangleRight,
   User,
   Link,
-  Copy,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -65,7 +64,6 @@ import { components } from "@/types/schema"
 import { useAnomalyStore } from "@/store/anomaly-store"
 import { formatDateTime } from "@/utils/utils"
 import { ProjectSubmissionsDownloadButton } from "./components/ProjectSubmissionsDownloadButton"
-import { toast } from "sonner"
 import ConfirmationModal from "./components/confirmation-modal"
 
 export default function TeacherCoursesPage() {
