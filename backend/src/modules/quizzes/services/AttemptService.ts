@@ -85,7 +85,7 @@ class AttemptService extends BaseService {
         true,
       )) as BaseQuestion;
       const questionDetail: IQuestionDetails = {
-        questionId: questionId,
+        questionId: new ObjectId(questionId),
         parameterMap: question.isParameterized
           ? generateRandomParameterMap(question.parameters)
           : null,
@@ -405,21 +405,51 @@ class AttemptService extends BaseService {
       ) {
         throw new BadRequestError('Quiz deadline has passed');
       }
+
       //2. Check if the attempt belongs to the user and quiz
       if (attempt.userId !== userId || attempt.quizId !== quizId) {
         throw new BadRequestError(
           'Attempt does not belong to the user or quiz',
         );
       }
-      const updatedAnswer = answers.map(answer => {
+      const updatedAnswers = answers.map(answer => {
+        const questionId = new ObjectId(answer.questionId);
+
+        let newAnswer = {...answer.answer};
+
+        if ('lotItemId' in newAnswer) {
+          newAnswer = {
+            ...newAnswer,
+            lotItemId: new ObjectId(newAnswer.lotItemId),
+          };
+        } else if ('lotItemIds' in newAnswer) {
+          newAnswer = {
+            ...newAnswer,
+            lotItemIds: newAnswer.lotItemIds.map(
+              (id: string) => new ObjectId(id),
+            ),
+          };
+        } else if ('orders' in newAnswer) {
+          newAnswer = {
+            ...newAnswer,
+            orders: newAnswer.orders.map((order: any) => ({
+              ...order,
+              lotItemId: new ObjectId(order.lotItemId),
+            })),
+          };
+        }
+
         return {
           ...answer,
-          questionId: new ObjectId(answer.questionId),
+          questionId,
+          answer: newAnswer,
         };
       });
+
+      console.log('updatedAnswers[0].answer', updatedAnswers[0].answer);
       //3. Update the attempt with the answers or isSkipped
       if (isSkipped) attempt.isSkipped = isSkipped;
-      else attempt.answers = updatedAnswer;
+      else attempt.answers = updatedAnswers;
 
       attempt.updatedAt = new Date();
       attempt.userId = new ObjectId(attempt.userId);

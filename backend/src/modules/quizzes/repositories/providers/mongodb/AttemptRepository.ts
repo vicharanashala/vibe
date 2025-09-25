@@ -1,9 +1,15 @@
-import {IAttempt} from '#quizzes/interfaces/grading.js';
+import {
+  IAttempt,
+  IOrder,
+  IQuestionAnswer,
+  IQuestionDetails,
+} from '#quizzes/interfaces/grading.js';
 import {MongoDatabase} from '#shared/database/providers/mongo/MongoDatabase.js';
 import {injectable, inject} from 'inversify';
 import {Collection, ClientSession, ObjectId} from 'mongodb';
 import {InternalServerError} from 'routing-controllers';
 import {GLOBAL_TYPES} from '#root/types.js';
+import { ID } from '#root/shared/index.js';
 @injectable()
 class AttemptRepository {
   private attemptCollection: Collection<IAttempt>;
@@ -26,6 +32,7 @@ class AttemptRepository {
     }
     throw new InternalServerError('Failed to create quiz attempt');
   }
+
   async getById(
     attemptId: string,
     quizId: string,
@@ -43,20 +50,53 @@ class AttemptRepository {
       },
       {session},
     );
+
     if (!result) {
       return null;
     }
+
     return {
       ...result,
       userId: result.userId?.toString(),
       quizId: result.quizId?.toString(),
-      answers:
-        result.answers?.map((ans: any) => ({
-          ...ans,
-          questionId: ans.questionId?.toString(),
+      questionDetails:
+        result.questionDetails?.map((qd: IQuestionDetails) => ({
+          ...qd,
+          questionId: qd.questionId?.toString(),
         })) ?? [],
+      answers:
+        result.answers?.map((ans: IQuestionAnswer) => {
+          let answer = ans.answer;
+
+          if ('lotItemId' in answer) {
+            answer = {
+              ...answer,
+              lotItemId: answer.lotItemId?.toString(),
+            };
+          } else if ('lotItemIds' in answer) {
+            answer = {
+              ...answer,
+              lotItemIds: answer.lotItemIds?.map((id: ID) => id?.toString()),
+            };
+          } else if ('orders' in answer) {
+            answer = {
+              ...answer,
+              orders: answer.orders.map((o: IOrder) => ({
+                ...o,
+                lotItemId: o.lotItemId?.toString(),
+              })),
+            };
+          }
+
+          return {
+            ...ans,
+            questionId: ans.questionId?.toString(),
+            answer,
+          };
+        }) ?? [],
     };
   }
+
   async countAttempts(
     quizId: string,
     session?: ClientSession,

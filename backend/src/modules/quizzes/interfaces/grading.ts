@@ -3,16 +3,16 @@ import { ID } from '#root/shared/index.js';
 import {ObjectId} from 'mongodb';
 
 interface ISOLAnswer {
-  lotItemId: string;
+  lotItemId: ID;
 }
 
 interface ISMLAnswer {
-  lotItemIds: string[];
+  lotItemIds: ID[];
 }
 
-interface IOrder {
+export interface IOrder {
   order: number;
-  lotItemId: string;
+  lotItemId: ID;
 }
 
 interface IOTLAnswer {
