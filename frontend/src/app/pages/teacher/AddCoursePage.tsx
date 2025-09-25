@@ -8,6 +8,7 @@ import { useCreateCourse} from "@/hooks/hooks";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 const MAX_DESCRIPTION_LENGTH = 1000;
 
@@ -37,12 +38,22 @@ export default function CreateCourse() {
 
   const handleCreateCourse = async () => {
     if (!courseName.trim() || !courseDescription.trim() || !versionName.trim() || !versionDescription.trim()) {
-      setCreateErrors({
+      const errors = {
         courseName: !courseName.trim() ? "Course Name is required" : "",
         courseDescription: !courseDescription.trim() ? "Course description is required" : "",
         versionName: !versionName.trim() ? "Version Name is required" : "",
         versionDescription: !versionDescription.trim() ? "Version description is required" : "",
-      });
+      };
+      setCreateErrors(errors);
+      
+      // Show toast for the first error found
+      const firstError = Object.values(errors).find(error => error);
+      if (firstError) {
+        toast.error(firstError, {
+          position: 'top-right',
+          duration: 5000,
+        });
+      }
       return;
     }
     setCreateErrors({ courseName: "", courseDescription: "", versionName: "", versionDescription: "" });
@@ -74,10 +85,30 @@ export default function CreateCourse() {
         }, 1500);
 
       } else {
-        setError("Course created but no ID returned");
+        const errorMsg = "Course created but no ID returned";
+        setError(errorMsg);
+        toast.error(errorMsg, {
+          position: 'top-right',
+          duration: 5000,
+        });
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create course");
+    } catch (err: any) {
+      let errorMsg = "Failed to create course";
+      
+      // Extract error message from the error object
+      if (err?.message) {
+        errorMsg = err.message;
+      } else if (err?.data?.message) {
+        errorMsg = err.data.message;
+      } else if (typeof err === 'string') {
+        errorMsg = err;
+      }
+      
+      setError(errorMsg);
+      toast.error(errorMsg, {
+        position: 'top-right',
+        duration: 5000,
+      });
     }
   };
 
