@@ -190,7 +190,7 @@ const {
   error: quizScoresError,
   refetch: fetchQuizScores,
 } = useCourseQuizScores(courseId, versionId,isExporting);
- 
+
   interface QuizScore {
     moduleId?: string;
     sectionId?: string;
@@ -198,6 +198,10 @@ const {
     quizName?: string;
     maxScore?: number;
     attempts?: number;
+    questionScores?: Array<{
+      questionId: string;
+      score: number;
+    }>;
   }
   
   // Define the student data type
@@ -216,46 +220,54 @@ const {
     }
     
     try {
-            if(quizScores&&!isLoadingQuizScores){
-      // Format the data for Excel export
-      const formattedData = quizScores?.data?.map((student: any, index: number) => {
-        // Get all unique module and section names for this student
-        const moduleSectionMap = new Map<string, {moduleName: string, sectionName: string}>();
+      if (quizScores && !isLoadingQuizScores) {
         
-        // First pass: collect all module and section names
-        student.quizScores?.forEach((quiz: any) => {
-          const key = `${quiz.moduleId}_${quiz.sectionId}`;
-          if (!moduleSectionMap.has(key)) {
-            moduleSectionMap.set(key, {
+        // Format the data for Excel export
+        const formattedData = quizScores?.data?.map((student: any, index: number) => {
+          
+          // Get all unique module and section names for this student
+          const moduleSectionMap = new Map<string, {moduleName: string, sectionName: string}>();
+          
+          // First pass: collect all module and section names
+          student.quizScores?.forEach((quiz: any) => {
+            const key = `${quiz.moduleId}_${quiz.sectionId}`;
+            if (!moduleSectionMap.has(key)) {
+              moduleSectionMap.set(key, {
+                moduleName: quiz.moduleName || 'Module',
+                sectionName: quiz.sectionName || 'Section'
+              });
+            }
+          });
+          
+          return {
+            studentId: student.studentId || `student-${index}`,
+            name: student.name || 'Unknown Student',
+            email: student.email || '',
+            quizScores: student.quizScores?.map((quiz: any) => ({
+              moduleId: quiz.moduleId || 'unknown',
+              sectionId: quiz.sectionId || 'unknown',
+              quizId: quiz.quizId || 'unknown',
+              quizName: quiz.quizName || 'Untitled Quiz',
+              maxScore: quiz.maxScore || 0,
+              attempts: quiz.attempts || 0,
               moduleName: quiz.moduleName || 'Module',
-              sectionName: quiz.sectionName || 'Section'
-            });
-          }
-        });
+              sectionName: quiz.sectionName || 'Section',
+              questionScores: Array.isArray(quiz.questionScores) 
+                ? quiz.questionScores.map((q: any) => ({
+                    questionId: q.questionId?.toString() || '',
+                    score: typeof q.score === 'number' ? q.score : 0
+                  }))
+                : []
+            })) || []
+          };
+        }) || [];
         
-        return {
-          studentId: student.studentId || `student-${index}`,
-          name: student.name || 'Unknown Student',
-          email: student.email || '',
-          quizScores: student.quizScores?.map((quiz: any) => ({
-          moduleId: quiz.moduleId || 'unknown',
-          sectionId: quiz.sectionId || 'unknown',
-          quizId: quiz.quizId || 'unknown',
-          quizName: quiz.quizName || 'Untitled Quiz',
-          maxScore: quiz.maxScore || 0,
-          attempts: quiz.attempts || 0,
-            moduleName: quiz.moduleName || 'Module',
-            sectionName: quiz.sectionName || 'Section'
-          })) || []
-            };
-      }) || [];
-      
-      if (formattedData.length === 0) {
-        toast.warning('No quiz scores found to export');
-        return;
-      }
-      
-      console.log('Formatted data for Excel:', formattedData);
+        if (formattedData.length === 0) {
+          toast.warning('No quiz scores found to export');
+          return;
+        }
+        
+        console.log('Formatted data for Excel:', formattedData);
       
       // Generate and download the Excel file
       const formattedTime = new Date().toLocaleTimeString("en-US", {

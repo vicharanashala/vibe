@@ -1,5 +1,10 @@
 import * as XLSX from 'xlsx';
 
+interface QuestionScore {
+  questionId: string;
+  score: number;
+}
+
 interface QuizScore {
   moduleId: string;
   sectionId: string;
@@ -9,6 +14,7 @@ interface QuizScore {
   attempts: number;
   moduleName?: string;
   sectionName?: string;
+  questionScores: QuestionScore[];
 }
 
 export interface StudentData {
@@ -32,35 +38,23 @@ interface QuizColumn {
   moduleId: string;
   sectionId: string;
   quizId: string;
+  maxQuestions: number;
 }
 
 export function transformDataForExcel(data: StudentData[]): TransformedData[] {
   if (!data?.length) return [];
   
-  // First pass: collect all unique module-section-quiz combinations with their names
+  // First pass: collect all unique module-section-quiz combinations and find max questions per quiz
   const quizColumns = new Map<string, QuizColumn>();
-  const moduleOrder = new Map<string, number>();
-  const sectionOrder = new Map<string, number>();
-  const merges: { s: { r: number; c: number }; e: { r: number; c: number } }[] = [];
   
-  // Collect all unique quizzes and track order of modules/sections
+  // Collect all unique quizzes and find maximum questions per quiz
   data.forEach(student => {
     if (!student.quizScores?.length) return;
     
     student.quizScores.forEach(quiz => {
       const key = `${quiz.moduleId}_${quiz.sectionId}_${quiz.quizId}`;
+      const questionCount = quiz.questionScores?.length || 0;
       
-      // Track module order by first occurrence
-      if (!moduleOrder.has(quiz.moduleId)) {
-        moduleOrder.set(quiz.moduleId, moduleOrder.size);
-      }
-      
-      // Track section order by first occurrence
-      if (!sectionOrder.has(quiz.sectionId)) {
-        sectionOrder.set(quiz.sectionId, sectionOrder.size);
-      }
-      
-      // Store quiz column data
       if (!quizColumns.has(key)) {
         quizColumns.set(key, {
           moduleName: quiz.moduleName || `Module_${quiz.moduleId?.substring(0, 4) || 'X'}`,
@@ -68,8 +62,13 @@ export function transformDataForExcel(data: StudentData[]): TransformedData[] {
           quizName: quiz.quizName || `Quiz_${quiz.quizId?.substring(0, 4) || 'X'}`,
           moduleId: quiz.moduleId || '',
           sectionId: quiz.sectionId || '',
-          quizId: quiz.quizId || ''
+          quizId: quiz.quizId || '',
+          maxQuestions: questionCount
         });
+      } else {
+        // Update max questions if this quiz has more questions
+        const existing = quizColumns.get(key)!;
+        existing.maxQuestions = Math.max(existing.maxQuestions, questionCount);
       }
     });
   });
@@ -78,7 +77,6 @@ export function transformDataForExcel(data: StudentData[]): TransformedData[] {
   const orderedQuizzes: QuizColumn[] = [];
   const seenQuizzes = new Set<string>();
   
-  // Process quizzes in the order they first appear in the data
   for (const student of data) {
     if (!student.quizScores?.length) continue;
     
@@ -96,178 +94,119 @@ export function transformDataForExcel(data: StudentData[]): TransformedData[] {
 
   // Create the header rows
   const results: TransformedData[] = [];
-  const headerRow1: TransformedData = { 'S.No.': 'S.No.', 'Name': 'Name', 'Email': 'Email' };  // Quiz names
-  const headerRow2: TransformedData = { 'S.No.': '', 'Name': '', 'Email': '' };  // Score/Attempts
-  const headerRow3: TransformedData = { 'S.No.': '', 'Name': '', 'Email': '' };  // Score/Attempts
-  const headerRow4: TransformedData = { 'S.No.': '', 'Name': '', 'Email': '' };  // Score/Attempts
+  const headerRow1: TransformedData = { 'S.No.': 'S.No.', 'Name': 'Name', 'Email': 'Email' };  // Module headers
+  const headerRow2: TransformedData = { 'S.No.': '', 'Name': '', 'Email': '' };  // Section headers
+  const headerRow3: TransformedData = { 'S.No.': '', 'Name': '', 'Email': '' };  // Quiz headers
+  const headerRow4: TransformedData = { 'S.No.': '', 'Name': '', 'Email': '' };  // Question/Score/Attempts headers
   
-  // Track column positions for each quiz
-  const quizColumnMap = new Map<string, number>();
-  let currentCol = 0;
+  // Track merges for Excel
+  const merges: { s: { r: number; c: number }; e: { r: number; c: number } }[] = [];
   
-  // Track current module, section, and quiz for grouping and numbering
+  let currentCol = 3; // Start after S.No., Name, Email
   let currentModuleId = '';
   let currentSectionId = '';
-  let currentQuizId = '';
-  let moduleStartCol = 0;
-  let sectionStartCol = 0;
-  let quizStartCol = 0;
+  let moduleStartCol = 3;
+  let sectionStartCol = 3;
   let moduleNumber = 0;
   let sectionNumber = 0;
   let quizNumber = 0;
-  const quizNumbers = new Map<string, number>(); // Tracks quiz numbers per section
-  
-  // Track unique modules and sections with their names
-  const moduleNames = new Map<string, string>();
-  const sectionNames = new Map<string, string>();
-  
-  // Collect module and section names
-  orderedQuizzes.forEach(quiz => {
-    if (!moduleNames.has(quiz.moduleId)) {
-      moduleNames.set(quiz.moduleId, quiz.moduleName);
-    }
-    if (!sectionNames.has(quiz.sectionId)) {
-      sectionNames.set(quiz.sectionId, quiz.sectionName);
-    }
-  });
   
   // Process each quiz and build headers with hierarchy
-  orderedQuizzes.forEach((quiz, index) => {
-    let currentCol = index * 2; // Each quiz takes 2 columns (score and attempts)
-    quizColumnMap.set(`${quiz.moduleId}_${quiz.sectionId}_${quiz.quizId}`, currentCol);
+  orderedQuizzes.forEach((quiz, quizIndex) => {
+    const quizStartCol = currentCol;
+    const questionsCount = Math.max(quiz.maxQuestions, 0);
+    const totalColumnsForQuiz = questionsCount + 2; // questions + score + attempts
     
     // Track module changes
     if (currentModuleId !== quiz.moduleId) {
       if (currentModuleId !== '') {
-        // Merge previous module columns
-        merges.push({ s: { r: 0, c: moduleStartCol + 3 }, e: { r: 0, c: currentCol + 3 - 1 } });
+        // Add merge for previous module
+        merges.push({
+          s: { r: 0, c: moduleStartCol },
+          e: { r: 0, c: currentCol - 1 }
+        });
       }
       currentModuleId = quiz.moduleId;
       moduleStartCol = currentCol;
       moduleNumber++;
-      sectionNumber = 0; // Reset section number for new module
+      sectionNumber = 0;
     }
     
     // Track section changes
     if (currentSectionId !== quiz.sectionId) {
       if (currentSectionId !== '') {
-        // Merge previous section columns
-        merges.push({ s: { r: 1, c: sectionStartCol + 3 }, e: { r: 1, c: currentCol + 3 - 1 } });
+        // Add merge for previous section
+        merges.push({
+          s: { r: 1, c: sectionStartCol },
+          e: { r: 1, c: currentCol - 1 }
+        });
       }
       currentSectionId = quiz.sectionId;
       sectionStartCol = currentCol;
       sectionNumber++;
-      quizNumber = 0; // Reset quiz number for new section
+      quizNumber = 0;
     }
     
-    // Track quiz changes
-    const quizKey = `${quiz.sectionId}_${quiz.quizId}`;
-    if (currentQuizId !== quizKey) {
-      currentQuizId = quizKey;
-      quizNumber++;
-      quizStartCol = currentCol;
-    }
+    quizNumber++;
     
     // Set headers for each level
     const moduleName = `Module ${moduleNumber}`;
     const sectionName = `Section ${sectionNumber}`;
-    const quizName = `Quiz ${quizNumber}: ${quiz.quizName || ''}`.trim();
+    const quizName = `Quiz ${quizNumber}: ${quiz.quizName}`.trim();
     
-    // Module header (top level, spans all quizzes in module)
-    headerRow1[`col_${currentCol}_score`] = moduleName;
-    headerRow1[`col_${currentCol + 1}_score`] = moduleName;
+    // Fill module header (spans all columns for this quiz)
+    for (let i = 0; i < totalColumnsForQuiz; i++) {
+      headerRow1[`col_${currentCol + i}`] = moduleName;
+    }
     
-    // Section header (second level, spans all quizzes in section)
-    headerRow2[`col_${currentCol}_score`] = sectionName;
-    headerRow2[`col_${currentCol + 1}_score`] = sectionName;
+    // Fill section header (spans all columns for this quiz)
+    for (let i = 0; i < totalColumnsForQuiz; i++) {
+      headerRow2[`col_${currentCol + i}`] = sectionName;
+    }
     
-    // Quiz header (third level, spans both score and attempts)
-    headerRow3[`col_${currentCol}_score`] = quizName;
-    headerRow3[`col_${currentCol + 1}_score`] = "";
+    // Fill quiz header (spans all columns for this quiz)
+    for (let i = 0; i < totalColumnsForQuiz; i++) {
+      if (i === 0) {
+        headerRow3[`col_${currentCol + i}`] = quizName;
+      } else {
+        headerRow3[`col_${currentCol + i}`] = '';
+      }
+    }
     
-    // Score/Attempts (bottom level, individual columns)
-    headerRow4[`col_${currentCol}_score`] = 'Score (in %)';
-    headerRow4[`col_${currentCol + 1}_score`] = 'Total attempts';
-    
-    // Add merge for quiz header (span 2 columns for score and attempts)
-    if (currentCol >= 0) {
-      // Use currentCol directly since we're already tracking the correct position
-      const startCol = currentCol + 3;  // +3 accounts for S.No, Name, Email columns
+    // Add merge for quiz header
+    if (totalColumnsForQuiz > 1) {
       merges.push({
-        s: { r: 2, c: startCol },     // Row 3 (0-based) for quiz names
-        e: { r: 2, c: startCol + 1 }  // Span 2 columns (score + attempts)
+        s: { r: 2, c: currentCol },
+        e: { r: 2, c: currentCol + totalColumnsForQuiz - 1 }
       });
     }
     
-    // Check for module change
-    if (currentModuleId !== quiz.moduleId) {
-      if (currentModuleId !== '') {
-        // Add merge for previous module (spanning all its columns)
-        merges.push({
-          s: { r: 0, c: moduleStartCol + 3 },
-          e: { r: 0, c: currentCol + 3 - 1 }
-        });
-      }
-      currentModuleId = quiz.moduleId;
-      moduleStartCol = currentCol;
-      moduleNumber++;
-      
-      // Reset section tracking on new module
-      currentSectionId = '';
-      sectionNumber = 0;
+    // Fill question headers (q1, q2, q3, etc.) and then Score/Attempts
+    for (let i = 0; i < questionsCount; i++) {
+      headerRow4[`col_${currentCol + i}`] = `q${i + 1}`;
     }
     
-    // Check for section change
-    if (currentSectionId !== quiz.sectionId) {
-      if (currentSectionId !== '') {
-        // Add merge for previous section (spanning all its columns)
-        merges.push({
-          s: { r: 1, c: sectionStartCol + 3 },
-          e: { r: 1, c: currentCol + 3 - 1 }
-        });
-      }
-      currentSectionId = quiz.sectionId;
-      sectionStartCol = currentCol;
-      sectionNumber++;
-      quizNumbers.clear(); // Reset quiz numbers for new section
-    }
+    // Add Score (in %) and Total attempts columns
+    headerRow4[`col_${currentCol + questionsCount}`] = 'Score (in %)';
+    headerRow4[`col_${currentCol + questionsCount + 1}`] = 'Total attempts';
     
-    // Add merge for quiz header (span 2 columns for score and attempts)
-    merges.push({
-      s: { r: 2, c: currentCol + 3 },
-      e: { r: 2, c: currentCol + 4 }    // Span 2 columns (score + attempts)
-    });
-    
-    currentCol += 2; // Move to next quiz (2 columns per quiz)
+    currentCol += totalColumnsForQuiz;
   });
+  
   // Add final merges for the last module and section
-  if (currentModuleId) {
+  if (currentModuleId && moduleStartCol < currentCol) {
     merges.push({
-      s: { r: 0, c: moduleStartCol + 3 },
-      e: { r: 0, c: currentCol + 3 - 1 }
+      s: { r: 0, c: moduleStartCol },
+      e: { r: 0, c: currentCol - 1 }
     });
   }
-  if (currentSectionId) {
+  if (currentSectionId && sectionStartCol < currentCol) {
     merges.push({
-      s: { r: 1, c: sectionStartCol + 3 },
-      e: { r: 1, c: currentCol + 3 - 1 }
+      s: { r: 1, c: sectionStartCol },
+      e: { r: 1, c: currentCol - 1 }
     });
   }
   
-  // Add final merges for the last module and section
-  if (currentModuleId) {
-    merges.push({
-      s: { r: 0, c: moduleStartCol + 3 },
-      e: { r: 0, c: currentCol + 3 - 1 }
-    });
-  }
-  if (currentSectionId) {
-    merges.push({
-      s: { r: 1, c: sectionStartCol + 3 },
-      e: { r: 1, c: currentCol + 3 - 1 }
-    });
-  }
-
   // Add all header rows to results
   results.push(headerRow1, headerRow2, headerRow3, headerRow4);
   
@@ -279,26 +218,53 @@ export function transformDataForExcel(data: StudentData[]): TransformedData[] {
       'Email': student.email || ''
     };
     
-    // Initialize all quiz columns with empty values
-    orderedQuizzes.forEach((_, index) => {
-      const scoreKey = `col_${index * 2}_score`;
-      const attemptsKey = `col_${index * 2 + 1}_score`;
-      rowData[scoreKey] = '';
-      rowData[attemptsKey] = '';
+    // Initialize all columns with default values
+    let colIndex = 3;
+    orderedQuizzes.forEach(quiz => {
+      const questionsCount = Math.max(quiz.maxQuestions, 0);
+      const totalColumnsForQuiz = questionsCount + 2;
+      
+      // Initialize question columns with 0
+      for (let i = 0; i < questionsCount; i++) {
+        rowData[`col_${colIndex + i}`] = 0;
+      }
+      
+      // Initialize score and attempts columns
+      rowData[`col_${colIndex + questionsCount}`] = 0; // Score
+      rowData[`col_${colIndex + questionsCount + 1}`] = 0; // Attempts
+      
+      colIndex += totalColumnsForQuiz;
     });
     
-    // Fill in actual scores and attempts
+    // Fill in actual data
     if (student.quizScores?.length) {
-      student.quizScores.forEach(quiz => {
-        const key = `${quiz.moduleId}_${quiz.sectionId}_${quiz.quizId}`;
-        const colIndex = quizColumnMap.get(key);
+      let currentColIndex = 3;
+      
+      orderedQuizzes.forEach(quizColumn => {
+        const studentQuiz = student.quizScores.find(sq => 
+          sq.moduleId === quizColumn.moduleId && 
+          sq.sectionId === quizColumn.sectionId && 
+          sq.quizId === quizColumn.quizId
+        );
         
-        if (colIndex !== undefined) {
-          const scoreKey = `col_${colIndex}_score`;
-          const attemptsKey = `col_${colIndex + 1}_score`;
-          rowData[scoreKey] = quiz.maxScore ?? '';
-          rowData[attemptsKey] = quiz.attempts ?? '';
+        const questionsCount = Math.max(quizColumn.maxQuestions, 0);
+        
+        if (studentQuiz) {
+          // Fill question scores
+          if (studentQuiz.questionScores?.length) {
+            studentQuiz.questionScores.forEach((questionScore, questionIndex) => {
+              if (questionIndex < questionsCount) {
+                rowData[`col_${currentColIndex + questionIndex}`] = questionScore.score || 0;
+              }
+            });
+          }
+          
+          // Fill overall score and attempts
+          rowData[`col_${currentColIndex + questionsCount}`] = studentQuiz.maxScore || 0;
+          rowData[`col_${currentColIndex + questionsCount + 1}`] = studentQuiz.attempts || 0;
         }
+        
+        currentColIndex += questionsCount + 2; // Move to next quiz columns
       });
     }
     
@@ -309,7 +275,6 @@ export function transformDataForExcel(data: StudentData[]): TransformedData[] {
 }
 
 export function generateExcel(data: StudentData[], filename: string = 'quiz_scores.xlsx'): void {
-
   try {
     const transformedData = transformDataForExcel(data);
     if (!transformedData.length) {
@@ -323,7 +288,7 @@ export function generateExcel(data: StudentData[], filename: string = 'quiz_scor
     transformedData.forEach(row => {
       const rowArray = [row['S.No.'], row['Name'], row['Email']];
       
-      // Add all the quiz score columns in order
+      // Add all the columns in order
       const keys = Object.keys(row).filter(key => key.startsWith('col_'));
       keys.sort((a, b) => {
         const numA = parseInt(a.split('_')[1]);
@@ -342,60 +307,113 @@ export function generateExcel(data: StudentData[], filename: string = 'quiz_scor
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     
-    // Set up merge ranges
+    // Calculate merges based on the quiz structure
     const merges = [];
-    let currentModuleStart = 3; // Start after S.No., Name, Email
-    let currentSectionStart = 3;
+    let currentCol = 3;
     let currentModuleId = '';
     let currentSectionId = '';
-
-    // Process quizzes to create merge ranges
-    if (data.length > 0 && data[0].quizScores) {
-      data[0].quizScores.forEach((quiz, index) => {
-        const quizStartCol = 3 + (index * 2); // Each quiz takes 2 columns
+    let moduleStartCol = 3;
+    let sectionStartCol = 3;
+    
+    // Get quiz columns info for merging
+    if (data.length > 0) {
+      const quizColumns = new Map<string, QuizColumn>();
+      
+      // Build quiz columns map
+      data.forEach(student => {
+        if (!student.quizScores?.length) return;
+        
+        student.quizScores.forEach(quiz => {
+          const key = `${quiz.moduleId}_${quiz.sectionId}_${quiz.quizId}`;
+          const questionCount = quiz.questionScores?.length || 0;
+          
+          if (!quizColumns.has(key)) {
+            quizColumns.set(key, {
+              moduleName: quiz.moduleName || '',
+              sectionName: quiz.sectionName || '',
+              quizName: quiz.quizName || '',
+              moduleId: quiz.moduleId || '',
+              sectionId: quiz.sectionId || '',
+              quizId: quiz.quizId || '',
+              maxQuestions: questionCount
+            });
+          } else {
+            const existing = quizColumns.get(key)!;
+            existing.maxQuestions = Math.max(existing.maxQuestions, questionCount);
+          }
+        });
+      });
+      
+      // Build ordered quizzes
+      const orderedQuizzes: QuizColumn[] = [];
+      const seenQuizzes = new Set<string>();
+      
+      for (const student of data) {
+        if (!student.quizScores?.length) continue;
+        
+        for (const quiz of student.quizScores) {
+          const key = `${quiz.moduleId}_${quiz.sectionId}_${quiz.quizId}`;
+          if (!seenQuizzes.has(key)) {
+            const quizData = quizColumns.get(key);
+            if (quizData) {
+              orderedQuizzes.push(quizData);
+              seenQuizzes.add(key);
+            }
+          }
+        }
+      }
+      
+      // Create merges
+      orderedQuizzes.forEach(quiz => {
+        const questionsCount = Math.max(quiz.maxQuestions, 0);
+        const totalColumnsForQuiz = questionsCount + 2; // questions + score + attempts
         
         // Module merge
         if (quiz.moduleId !== currentModuleId) {
           if (currentModuleId) {
             merges.push({
-              s: { r: 0, c: currentModuleStart },
-              e: { r: 0, c: quizStartCol - 1 }
+              s: { r: 0, c: moduleStartCol },
+              e: { r: 0, c: currentCol - 1 }
             });
           }
           currentModuleId = quiz.moduleId;
-          currentModuleStart = quizStartCol;
+          moduleStartCol = currentCol;
         }
         
         // Section merge
         if (quiz.sectionId !== currentSectionId) {
           if (currentSectionId) {
             merges.push({
-              s: { r: 1, c: currentSectionStart },
-              e: { r: 1, c: quizStartCol - 1 }
+              s: { r: 1, c: sectionStartCol },
+              e: { r: 1, c: currentCol - 1 }
             });
           }
           currentSectionId = quiz.sectionId;
-          currentSectionStart = quizStartCol;
+          sectionStartCol = currentCol;
         }
         
-        // Quiz merge (spans 2 columns)
-        merges.push({
-          s: { r: 2, c: quizStartCol },
-          e: { r: 2, c: quizStartCol + 1 }
-        });
+        // Quiz merge (spans all columns for this quiz)
+        if (totalColumnsForQuiz > 1) {
+          merges.push({
+            s: { r: 2, c: currentCol },
+            e: { r: 2, c: currentCol + totalColumnsForQuiz - 1 }
+          });
+        }
+        
+        currentCol += totalColumnsForQuiz;
       });
-
-      // Add final merges for the last module and section
-      if (currentModuleId) {
+      
+      // Final merges
+      if (currentModuleId && moduleStartCol < currentCol) {
         merges.push({
-          s: { r: 0, c: currentModuleStart },
-          e: { r: 0, c: 3 + (data[0].quizScores.length * 2) - 1 }
+          s: { r: 0, c: moduleStartCol },
+          e: { r: 0, c: currentCol - 1 }
         });
       }
-      if (currentSectionId) {
+      if (currentSectionId && sectionStartCol < currentCol) {
         merges.push({
-          s: { r: 1, c: currentSectionStart },
-          e: { r: 1, c: 3 + (data[0].quizScores.length * 2) - 1 }
+          s: { r: 1, c: sectionStartCol },
+          e: { r: 1, c: currentCol - 1 }
         });
       }
     }
@@ -404,15 +422,13 @@ export function generateExcel(data: StudentData[], filename: string = 'quiz_scor
     ws['!merges'] = merges;
     
     // Set column widths
+    const totalCols = aoa[0]?.length || 3;
     ws['!cols'] = [
       { wch: 5 },  // S.No.
       { wch: 18 }, // Name
       { wch: 30 }, // Email
-      ...Array((data[0]?.quizScores?.length || 0) * 2).fill({ wch: 12 }) // Quiz columns
+      ...Array(totalCols - 3).fill({ wch: 10 }) // Question/Score/Attempts columns
     ];
-
-    // Apply merges
-    ws['!merges'] = merges;
 
     // Add worksheet to workbook and save
     XLSX.utils.book_append_sheet(wb, ws, 'Quiz Scores');

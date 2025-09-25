@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useImperativeHandle, forwardRef, useRef }
 import MathRenderer from "./math-renderer";
 
 // Import Yoopta Editor Core
-import YooptaEditor, { createYooptaEditor, YooptaContentValue} from '@yoopta/editor';
+import YooptaEditor, { createYooptaEditor, YooptaContentValue } from '@yoopta/editor';
 
 // Import Yoopta Plugins
 import Paragraph from '@yoopta/paragraph';
@@ -13,10 +13,31 @@ import { NumberedList, BulletedList, TodoList } from '@yoopta/lists';
 import Code from '@yoopta/code';
 import { HeadingOne, HeadingTwo, HeadingThree } from '@yoopta/headings';
 import Divider from '@yoopta/divider';
+import LinkTool, { DefaultLinkToolRender } from '@yoopta/link-tool';
+import ActionMenu, { DefaultActionMenuRender } from '@yoopta/action-menu-list';
+import Toolbar, { DefaultToolbarRender } from '@yoopta/toolbar';
+import { Bold, Italic, CodeMark, Underline, Strike, Highlight } from '@yoopta/marks';
 import 'katex/dist/katex.min.css';
 
 // Import Markdown Serialization
 import { markdown } from '@yoopta/exports';
+
+const MARKS = [Bold, Italic, CodeMark, Underline, Strike, Highlight];
+
+const TOOLS = {
+  Toolbar: {
+    tool: Toolbar,
+    render: DefaultToolbarRender,
+  },
+  ActionMenu: {
+    tool: ActionMenu,
+    render: DefaultActionMenuRender,
+  },
+  LinkTool: {
+    tool: LinkTool,
+    render: DefaultLinkToolRender,
+  },
+};
 
 // Import ShadCN UI Components
 import { Badge } from "@/components/ui/badge";
@@ -227,9 +248,11 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
                         value={value}
                         editor={editor}
                         plugins={plugins}
+                        marks={MARKS}
+                        tools={TOOLS}
                         readOnly={true}
                         autoFocus={false}
-                        className="prose prose-lg max-w-none w-full"
+                        className="prose prose-lg max-w-none w-full dark:prose-invert"
                     />
                 </div>
 

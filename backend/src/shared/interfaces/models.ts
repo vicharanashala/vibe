@@ -269,6 +269,7 @@ export enum ItemType {
   VIDEO = 'VIDEO',
   QUIZ = 'QUIZ',
   BLOG = 'BLOG',
+  PROJECT = 'PROJECT',
 }
 
 export interface IBaseItem {
@@ -277,7 +278,12 @@ export interface IBaseItem {
   description: string;
   type: ItemType;
   order: string;
-  itemDetails: IVideoDetails | IQuizDetails | IBlogDetails;
+  itemDetails: IVideoDetails | IQuizDetails | IBlogDetails | IProjectDetails;
+}
+
+// Add minimal IProjectItemDetails interface for PROJECT type
+export interface IProjectDetails {
+  // Add fields as needed for project items, or leave empty if none
 }
 
 export interface IVideoDetails {
@@ -387,15 +393,21 @@ export enum InviteStatusType {
   ACCEPTED = 'ACCEPTED',
   EXPIRED = 'EXPIRED',
 }
+export enum InviteType {
+  SINGLE = 'SINGLE',
+  BULK = 'BULK',
+}
 // Interface for Invite
 export interface IInvite {
   _id?: string | ObjectId | null;
-  email: String;
-  courseId: String | ObjectId;
+  email?: string;
+  courseId: string | ObjectId;
   courseVersionId: string | ObjectId;
-  token: String;
+  token: string;
+  type:InviteType;
+  usedount?:number;
   action: InviteActionType;
-  status: InviteStatusType;
+  Invitestatus: InviteStatusType;
   createdAt: Date;
   expiresAt: Date;
 }

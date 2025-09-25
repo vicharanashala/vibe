@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 
+const MAX_DESCRIPTION_LENGTH = 1000;
+
 type CreateErrors = {
   courseName: string;
   courseDescription: string;
@@ -223,6 +225,23 @@ export const CreateCourseHeader = () => {
               <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground">Create New Course</h1>
             </div>
             <p className="text-muted-foreground text-sm md:text-base">Build amazing learning experiences for your students</p>
+            <p className="mt-2 text-xs md:text-sm text-gray-500 flex items-center gap-1.5 italic">
+              <svg
+                className="w-4 h-5 text-indigo-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            Only administrators can create new courses.
+            </p>
         </div>
     </div>
   )
@@ -293,7 +312,7 @@ export const CourseMetaForm: React.FC<CourseMetaFormProps> = ({
               )}
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3 overflow-auto">
               <Label
                 htmlFor="courseDescription"
                 className="text-sm font-semibold text-foreground flex items-center gap-2"
@@ -303,16 +322,34 @@ export const CourseMetaForm: React.FC<CourseMetaFormProps> = ({
                   (Detailed overview for students)
                 </span>
               </Label>
-              <Textarea
-                id="courseDescription"
-                className="bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300 min-h-[130px] resize-none text-base"
-                placeholder="Provide a comprehensive description of what students will learn, the skills they'll gain, and any prerequisites..."
-                value={courseDescription}
-                onChange={e => setCourseDescription(e.target.value)}
-              />
-              {createErrors?.courseDescription && (
+              <div className="relative">
+                <Textarea
+                  id="courseDescription"
+                  className="w-full overflow-auto bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300 min-h-[130px] resize-none text-base pr-16 w-full"
+                  placeholder="Provide a comprehensive description of what students will learn, the skills they'll gain, and any prerequisites..."
+                  value={courseDescription}
+                  onChange={e => {
+                    if (e.target.value.length <= MAX_DESCRIPTION_LENGTH) {
+                      setCourseDescription(e.target.value);
+                    }
+                  }}
+                />
+                <div className={`absolute bottom-2 right-2 text-xs ${
+                  courseDescription.length >= MAX_DESCRIPTION_LENGTH * 0.9 
+                    ? 'text-destructive' 
+                    : 'text-muted-foreground'
+                }`}>
+                  {courseDescription.length}/{MAX_DESCRIPTION_LENGTH}
+                </div>
+                {createErrors?.courseDescription && (
                 <ErrorMessage message={createErrors?.courseDescription} />
-              )}
+                )}
+                {courseDescription.length > MAX_DESCRIPTION_LENGTH && (
+                  <p className="text-sm text-destructive mt-1">
+                    Description must be less than {MAX_DESCRIPTION_LENGTH} characters
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -416,7 +453,7 @@ const CourseVersionMetaForm: React.FC<CourseVersionMetaFormProps> = ({
               </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3 overflow-auto">
               <Label
                 htmlFor="versionDescription"
                 className="text-sm font-semibold text-foreground flex items-center gap-2"
@@ -426,16 +463,34 @@ const CourseVersionMetaForm: React.FC<CourseVersionMetaFormProps> = ({
                   (What's special about this version?)
                 </span>
               </Label>
-              <Textarea
-                id="versionDescription"
-                className="bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300 min-h-[110px] resize-none text-base"
-                placeholder="Describe what makes this version unique, any major updates, target audience, or special features..."
-                value={versionDescription}
-                onChange={e => setVersionDescription(e.target.value)}
-              />
-              {createErrors?.versionDescription && (
+              <div className="relative">
+                <Textarea
+                  id="versionDescription"
+                  className="bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300 min-h-[110px] resize-none text-base pr-16"
+                  placeholder="Describe what makes this version unique, any major updates, target audience, or special features..."
+                  value={versionDescription}
+                  onChange={e => {
+                    if (e.target.value.length <= MAX_DESCRIPTION_LENGTH) {
+                      setVersionDescription(e.target.value);
+                    }
+                  }}
+                />
+                <div className={`absolute bottom-2 right-2 text-xs ${
+                  versionDescription.length >= MAX_DESCRIPTION_LENGTH * 0.9 
+                    ? 'text-destructive' 
+                    : 'text-muted-foreground'
+                }`}>
+                  {versionDescription.length}/{MAX_DESCRIPTION_LENGTH}
+                </div>
+                {createErrors?.versionDescription && (
                 <ErrorMessage message={createErrors?.versionDescription} />
-              )}
+                )}
+                {versionDescription.length > MAX_DESCRIPTION_LENGTH && (
+                  <p className="text-sm text-destructive mt-1">
+                    Description must be less than {MAX_DESCRIPTION_LENGTH} characters
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>

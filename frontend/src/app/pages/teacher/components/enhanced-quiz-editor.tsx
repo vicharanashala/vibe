@@ -674,8 +674,14 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
       refetchSelectedBank();
       setShowDeleteQuestionModal(false);
       setQuestionToDelete(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete question:', error);
+      
+      if (error?.name === 'ForbiddenError') {
+        toast.error("You don't have permission to delete this question. Only admins or the question creator can delete it.");
+      } else {
+        toast.error("Failed to delete question. Please try again.");
+      }
     }
   };
 

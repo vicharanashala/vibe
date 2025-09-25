@@ -1,16 +1,16 @@
-import { injectable, inject } from 'inversify';
-import { ObjectId } from 'mongodb';
-import { NotFoundError, InternalServerError } from 'routing-controllers';
-import { QUIZZES_TYPES } from '../types.js';
-import { BaseService } from '#root/shared/classes/BaseService.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { AttemptRepository } from '../repositories/providers/mongodb/AttemptRepository.js';
-import { SubmissionRepository } from '../repositories/providers/mongodb/SubmissionRepository.js';
-import { QuizRepository } from '../repositories/providers/mongodb/QuizRepository.js';
-import { QuestionBankRepository } from '../repositories/providers/mongodb/QuestionBankRepository.js';
-import { UserQuizMetricsRepository } from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
-import { IQuestionBankRef } from '#root/shared/interfaces/models.js';
+import {injectable, inject} from 'inversify';
+import {ObjectId} from 'mongodb';
+import {NotFoundError, InternalServerError} from 'routing-controllers';
+import {QUIZZES_TYPES} from '../types.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {AttemptRepository} from '../repositories/providers/mongodb/AttemptRepository.js';
+import {SubmissionRepository} from '../repositories/providers/mongodb/SubmissionRepository.js';
+import {QuizRepository} from '../repositories/providers/mongodb/QuizRepository.js';
+import {QuestionBankRepository} from '../repositories/providers/mongodb/QuestionBankRepository.js';
+import {UserQuizMetricsRepository} from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
+import {IQuestionBankRef} from '#root/shared/interfaces/models.js';
 import {
   IGradingResult,
   IQuestionAnswerFeedback,
@@ -18,8 +18,8 @@ import {
   ISubmissionWithUser,
   PaginatedSubmissions,
 } from '../interfaces/grading.js';
-import { GetQuizSubmissionsQuery, QuestionBankRef } from '../classes/index.js';
-import { QuestionBankService } from './QuestionBankService.js';
+import {GetQuizSubmissionsQuery, QuestionBankRef} from '../classes/index.js';
+import {QuestionBankService} from './QuestionBankService.js';
 @injectable()
 class QuizService extends BaseService {
   constructor(
@@ -191,6 +191,12 @@ class QuizService extends BaseService {
       }
       metrics._id = metrics._id.toString();
       metrics.quizId = metrics.quizId.toString();
+      if (Array.isArray(metrics.attempts)) {
+        metrics.attempts = metrics.attempts.map(attempt => ({
+          ...attempt,
+          attemptId: attempt.attemptId.toString(),
+        }));
+      }
       return metrics;
     });
   }
@@ -237,7 +243,7 @@ class QuizService extends BaseService {
     submissions: number;
     passRate: number;
     averageScore: number;
-    averagePercentage:number;
+    averagePercentage: number;
   }> {
     return this._withTransaction(async session => {
       const quiz = await this.quizRepo.getById(quizId, session);
@@ -251,19 +257,20 @@ class QuizService extends BaseService {
         submissions,
         passedSubmissions,
         averageScore,
-        averagePercentage
+        averagePercentage,
       ] = await Promise.all([
         this.attemptRepo.countAttempts(quizId, session),
         this.submissionRepo.countByQuizId(quizId, session),
         this.submissionRepo.countPassedByQuizId(quizId, session),
         this.submissionRepo.getAverageScoreByQuizId(quizId, session),
-        this.submissionRepo.getAveragePercentageByQuizId(quizId,session)
+        this.submissionRepo.getAveragePercentageByQuizId(quizId, session),
       ]);
 
       return {
         totalAttempts,
         submissions,
-        passRate: totalAttempts > 0 ? (passedSubmissions / totalAttempts) * 100 : 0,
+        passRate:
+          totalAttempts > 0 ? (passedSubmissions / totalAttempts) * 100 : 0,
         averageScore,
         averagePercentage,
       };
@@ -273,13 +280,16 @@ class QuizService extends BaseService {
   async getQuestionPerformanceStats(quizId: string): Promise<
     {
       questionId: string;
-      correctRate: number;
+      correctRate: number; 
       averageScore: number;
       message?: string;
     }[]
   > {
     return this._withTransaction(async session => {
-      const submissions = await this.submissionRepo.getByQuizId(quizId, session);
+      const submissions = await this.submissionRepo.getByQuizId(
+        quizId,
+        session,
+      );
       if (!submissions.data?.length) {
         return [
           {
@@ -291,12 +301,16 @@ class QuizService extends BaseService {
         ];
       }
 
-      const stats: Record<string, { correct: number; total: number; score: number }> = Object.create(null);
+      const stats: Record<
+        string,
+        {correct: number; total: number; score: number}
+      > = Object.create(null);
 
       for (const submission of submissions.data) {
-        for (const feedback of submission.gradingResult?.overallFeedback ?? []) {
+        for (const feedback of submission.gradingResult?.overallFeedback ??
+          []) {
           const qid = feedback.questionId.toString();
-          if (!stats[qid]) stats[qid] = { correct: 0, total: 0, score: 0 };
+          if (!stats[qid]) stats[qid] = {correct: 0, total: 0, score: 0};
 
           stats[qid].total += 1;
           if (feedback.status === 'CORRECT') stats[qid].correct += 1;
@@ -304,11 +318,13 @@ class QuizService extends BaseService {
         }
       }
 
-      return Object.entries(stats).map(([questionId, { correct, total, score }]) => ({
-        questionId,
-        correctRate: total ? correct / total : 0,
-        averageScore: total ? score / total : 0,
-      }));
+      return Object.entries(stats).map(
+        ([questionId, {correct, total, score}]) => ({
+          questionId,
+          correctRate: total ? correct / total : 0,
+          averageScore: total ? score / total : 0,
+        }),
+      );
     });
   }
 
@@ -534,4 +550,4 @@ class QuizService extends BaseService {
   }
 }
 
-export { QuizService };
+export {QuizService};

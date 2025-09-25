@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+
+const MAX_DESCRIPTION_LENGTH = 1000;
+
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
@@ -17,9 +20,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import {
-  BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus, Pencil, Wand2, Sparkles,
-  X
+import { 
+  BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus, Sparkles,
+  X,FolderKanban
 } from "lucide-react";
 
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -31,12 +34,14 @@ import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule
 import { useCourseStore } from "@/store/course-store";
 import VideoModal from "./components/Video-modal";
 import EnhancedQuizEditor from "./components/enhanced-quiz-editor";
+import EnhancedBlogEditor from "./components/enhanced-blog-editor";
 import QuizWizardModal from "./components/quiz-wizard";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";
 import Loader from "@/components/Loader";
 import { Label } from "@/components/ui/label";
-
+import { ProjectSubmissionsDownloadButton } from "./components/ProjectSubmissionsDownloadButton";
+import ProjectItem from "./components/ProjectItem";
 
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
@@ -44,13 +49,15 @@ const getItemIcon = (type: string) => {
     case "BLOG": return <FileText className="h-3 w-3" />;
     case "VIDEO": return <VideoIcon className="h-3 w-3" />;
     case "QUIZ": return <ListChecks className="h-3 w-3" />;
+      case "PROJECT": 
+      return <FolderKanban className="h-3 w-3" />;
     default: return null;
   }
 };
 
 interface LabelOptions {
   itemId: string;
-  itemType: "VIDEO" | "QUIZ" | "BLOG";
+  itemType: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT";
   sectionItems: Record<string, any[]>;
   sectionId: string;
 }
@@ -69,7 +76,7 @@ export default function TeacherCoursePage() {
   // @ts-ignore
   const modules = (versionData as any)?.modules || (versionData as any)?.version?.modules || [];
 
-  const [initialModules, setInitialModules] = useState<typeof modules[]>(modules);
+  const [initialModules, setInitialModules] = useState<typeof modules[]>(modules);  
   // Animated text for empty state
   const aiMessages = [
     "ViBe allows you to add sections in your course module using AI",
@@ -81,7 +88,14 @@ export default function TeacherCoursePage() {
   const [displayedMessage, setDisplayedMessage] = useState(aiMessages[0]);
   const [isVisible, setIsVisible] = useState(true);
   const [selectedItem, setSelectedItem] = useState({ id: "", name: "" });
-
+  
+  // State for project modal
+  const [showAddProjectModal, setShowAddProjectModal] = useState<{
+    moduleId: string;
+    sectionId: string;
+  } | null>(null);
+  
+  <ProjectSubmissionsDownloadButton courseId={courseId || ""} versionId={versionId || ""} />
   const [errors, setErrors] = useState({
     title: "",
     description: "",
@@ -126,6 +140,17 @@ export default function TeacherCoursePage() {
   // Store items for each section
   const [sectionItems, setSectionItems] = useState<Record<string, any[]>>({});
 
+  // Check if a project already exists in any section
+  const hasExistingProject = useMemo(() => {
+    return Object.values(sectionItems).some(items => 
+      items.some(item => item.type === 'PROJECT')
+    );
+  }, [sectionItems]);
+
+  // Controlled state for ProjectItem edit mode
+  const [projectEditName, setProjectEditName] = useState<string>('');
+  const [projectEditDescription, setProjectEditDescription] = useState<string>('');
+
   // Track which section to fetch items for
   const [activeSectionInfo, setActiveSectionInfo] = useState<{ moduleId: string; sectionId: string } | null>(null);
 
@@ -150,6 +175,14 @@ export default function TeacherCoursePage() {
     shouldFetchItem ? versionId : '',
     shouldFetchItem ? selectedEntity?.data?._id : ''
   );
+
+  // Sync controlled state with selectedItemData for PROJECT edit
+  useEffect(() => {
+    if (selectedEntity?.type === 'item' && selectedEntity.data.type === 'PROJECT') {
+      setProjectEditName(selectedItemData?.item?.name || '');
+      setProjectEditDescription(selectedItemData?.item?.description || '');
+    }
+  }, [selectedEntity, selectedItemData]);
 
   const selectedQuizId = selectedEntity?.type === 'item' && selectedEntity?.data?.type === 'QUIZ' ? selectedEntity.data._id : null;
 
@@ -184,6 +217,7 @@ export default function TeacherCoursePage() {
   // --- ITEMS ---
   const { mutateAsync: createItemAsync, isSuccess: isCreateItemSuccess, isError: isCreateItemError, error: createItemError } = useCreateItem();
   const { mutateAsync: updateItemAsync, isSuccess: isUpdateItemSuccess, isError: isUpdateItemError, error: updateItemError } = useUpdateItem();
+  const { mutateAsync: updateCourseItemAsync } = useUpdateCourseItem();
   const { mutateAsync: updateVideoAsync } = useUpdateCourseItem();
   const { mutateAsync: deleteItemAsync, isSuccess: isDeleteItemSuccess, isError: isDeleteItemError, error: deleteItemError } = useDeleteItem();
   const { mutateAsync: moveItemAsync, isPending, isError: isMoveItemError, error: moveItemError } = useMoveItem();
@@ -222,58 +256,99 @@ export default function TeacherCoursePage() {
     isDeleteItemSuccess,
   ]);
 
-  // Success toasts
-  useEffect(() => {
-    if (isCreateModuleSuccess) toast.success("Module created successfully!");
-    if (isUpdateModuleSuccess) toast.success("Module updated successfully!");
-    if (isDeleteModuleSuccess) toast.success("Module deleted successfully!");
+ useStatusToasts({
+  successFlags: {
+    isCreateModuleSuccess: {
+      flag: isCreateModuleSuccess,
+      message: "Module created successfully!",
+    },
+    isUpdateModuleSuccess: {
+      flag: isUpdateModuleSuccess,
+      message: "Module updated successfully!",
+    },
+    isDeleteModuleSuccess: {
+      flag: isDeleteModuleSuccess,
+      message: "Module deleted successfully!",
+    },
+    isCreateSectionSuccess: {
+      flag: isCreateSectionSuccess,
+      message: "Section created successfully!",
+    },
+    isUpdateSectionSuccess: {
+      flag: isUpdateSectionSuccess,
+      message: "Section updated successfully!",
+    },
+    isDeleteSectionSuccess: {
+      flag: isDeleteSectionSuccess,
+      message: "Section deleted successfully!",
+    },
+    isCreateItemSuccess: {
+      flag: isCreateItemSuccess,
+      message: "Item created successfully!",
+    },
+    isUpdateItemSuccess: {
+      flag: isUpdateItemSuccess,
+      message: "Item updated successfully!",
+    },
+    isDeleteItemSuccess: {
+      flag: isDeleteItemSuccess,
+      message: "Item deleted successfully!",
+    },
+  },
+  errorFlags: {
+    isCreateModuleError: {
+      flag: isCreateModuleError,
+      message: createModuleError?.message,
+      fallback: "Failed to create module",
+    },
+    isUpdateModuleError: {
+      flag: isUpdateModuleError,
+      message: updateModuleError?.message,
+      fallback: "Failed to update module",
+    },
+    isDeleteModuleError: {
+      flag: isDeleteModuleError,
+      message: deleteModuleError?.message,
+      fallback: "Failed to delete module",
+    },
+    isCreateSectionError: {
+      flag: isCreateSectionError,
+      message: createSectionError?.message,
+      fallback: "Failed to create section",
+    },
+    isUpdateSectionError: {
+      flag: isUpdateSectionError,
+      message: updateSectionError?.message,
+      fallback: "Failed to update section",
+    },
+    isDeleteSectionError: {
+      flag: isDeleteSectionError,
+      message: deleteSectionError?.message,
+      fallback: "Failed to delete section",
+    },
+    isCreateItemError: {
+      flag: isCreateItemError,
+      message: createItemError?.message,
+      fallback: "Failed to create item",
+    },
+    isUpdateItemError: {
+      flag: isUpdateItemError,
+      message: updateItemError?.message,
+      fallback: "Failed to update item",
+    },
+    isDeleteItemError: {
+      flag: isDeleteItemError,
+      message: deleteItemError?.message,
+      fallback: "Failed to delete item",
+    },
+    isMoveItemError: {
+      flag: isMoveItemError,
+      message: moveItemError?.message,
+      fallback: "Failed to move item",
+    },
+  },
+});
 
-    if (isCreateSectionSuccess) toast.success("Section created successfully!");
-    if (isUpdateSectionSuccess) toast.success("Section updated successfully!");
-    if (isDeleteSectionSuccess) toast.success("Section deleted successfully!");
-
-    if (isCreateItemSuccess) toast.success("Item created successfully!");
-    if (isUpdateItemSuccess) toast.success("Item updated successfully!");
-    if (isDeleteItemSuccess) toast.success("Item deleted successfully!");
-  }, [
-    isCreateModuleSuccess,
-    isUpdateModuleSuccess,
-    isDeleteModuleSuccess,
-    isCreateSectionSuccess,
-    isUpdateSectionSuccess,
-    isDeleteSectionSuccess,
-    isCreateItemSuccess,
-    isUpdateItemSuccess,
-    isDeleteItemSuccess,
-  ]);
-
-  // Error toasts
-  useEffect(() => {
-    if (isCreateModuleError) toast.error("Failed to create module", { description: createModuleError?.message });
-    if (isUpdateModuleError) toast.error("Failed to update module", { description: updateModuleError?.message });
-    if (isDeleteModuleError) toast.error("Failed to delete module", { description: deleteModuleError?.message });
-
-    if (isCreateSectionError) toast.error("Failed to create section", { description: createSectionError?.message });
-    if (isUpdateSectionError) toast.error("Failed to update section", { description: updateSectionError?.message });
-    if (isDeleteSectionError) toast.error("Failed to delete section", { description: deleteSectionError?.message });
-
-    if (isCreateItemError) toast.error("Failed to create item", { description: createItemError?.message });
-    if (isUpdateItemError) toast.error("Failed to update item", { description: updateItemError?.message });
-    if (isDeleteItemError) toast.error("Failed to delete item", { description: deleteItemError?.message });
-
-    if (isMoveItemError) toast.error("Failed to move item", { description: moveItemError?.message });
-  }, [
-    isCreateModuleError,
-    isUpdateModuleError,
-    isDeleteModuleError,
-    isCreateSectionError,
-    isUpdateSectionError,
-    isDeleteSectionError,
-    isCreateItemError,
-    isUpdateItemError,
-    isDeleteItemError,
-    isMoveItemError,
-  ]);
 
 
   // Reload items when quiz wizard closes
@@ -315,6 +390,8 @@ export default function TeacherCoursePage() {
         return `Quiz ${index}`;
       case "BLOG":
         return `Article ${index}`;
+      case "PROJECT":
+        return `Project ${index}`;
       default:
         return "Unknown";
     }
@@ -356,14 +433,19 @@ export default function TeacherCoursePage() {
     });
   };
 
-  // Add Item (now only for article/quiz, video handled via modal)
+  // Add Item (handles all item types including video, quiz, article, and project)
   const handleAddItem = (moduleId: string, sectionId: string, type: string, videoData?: any) => {
     if (!versionId) return;
-    const typeMap: Record<string, "VIDEO" | "QUIZ" | "BLOG"> = {
+    
+    type ItemType = "VIDEO" | "QUIZ" | "BLOG" | "PROJECT";
+    const typeMap: Record<string, ItemType> = {
       video: "VIDEO",
       quiz: "QUIZ",
-      article: "BLOG"
+      article: "BLOG",
+      project: "PROJECT"
     };
+
+    // Handle video items
     if (type === "VIDEO" && videoData) {
       createItemAsync({
         params: { path: { versionId, moduleId, sectionId } },
@@ -380,37 +462,61 @@ export default function TeacherCoursePage() {
         }
       }).then((res) => {
         refetchVersion();
-      });;
+      });
 
-      // Helper function to convert seconds (or ms) to "minutes:seconds.milliseconds"
-      function convertToMinSecMs(time: number) {
-        // If time is in ms, convert to seconds
-        const totalMs = time > 1000 * 60 * 60 ? time : Math.round(time * 1000);
-        const minutes = Math.floor(totalMs / 60000);
-        const seconds = Math.floor((totalMs % 60000) / 1000);
-        return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-      }
       return;
     }
     if (type === "QUIZ") {
-      createItem.mutate({
-        params: { path: { versionId, moduleId, sectionId } },
-        body: {
-          type: typeMap[type], name: `New ${typeMap[type]}`, description: "Sample content"
-        }
+    createItemAsync({
+  params: {
+    path: { versionId, moduleId, sectionId },
+  },
+  body: {
+    type: typeMap[type],
+    name: `New ${typeMap[type]}`,
+    description: "Sample content",
+  },
+}).then((res) => {
+        refetchVersion();
       });
     }
     if (type === "article") {
+     createItemAsync({
+  params: {
+    path: { versionId, moduleId, sectionId },
+  },
+  body: {
+    type: typeMap[type],
+    name: `New ${typeMap[type]}`,
+    description: "Sample content",
+    blogDetails: {
+      content: "Sample content",
+      points: "2.0",
+      estimatedReadTimeInMinutes: 1,
+    },
+  },
+}).then((res) => {
+        refetchVersion();
+      });
+    }
+    if (type === "project") {
       createItem.mutate({
         params: { path: { versionId, moduleId, sectionId } },
         body: {
-          type: typeMap[type], name: `New ${typeMap[type]}`, description: "Sample content", blogDetails: {
-            content: "Sample content",
-            points: '2.0',
-            estimatedReadTimeInMinutes: 1,
-          }
+          type: typeMap[type], name: `New ${typeMap[type]}`,
+          description: "Project description"
         }
+      })
+      .then(() => {
+        refetchVersion();
+        refetchItems();
+        toast.success("Project created successfully");
+      })
+      .catch((error) => {
+        console.error("Error creating project:", error);
+        toast.error(`Failed to create project: ${error.message || 'Unknown error'}`);
       });
+      return;
     }
   };
 
@@ -424,7 +530,7 @@ export default function TeacherCoursePage() {
 
   // Move module
   const handleMoveModule = (moduleId: string, versionId?: string) => {
-
+    
     const newList = pendingOrder.current;
     const newIndex = newList.findIndex((mod: any) => mod.moduleId === moduleId);
 
@@ -433,22 +539,22 @@ export default function TeacherCoursePage() {
 
 
     if (versionId && moduleId) {
-      moveModuleAsync({
-        params: {
-          path: {
-            versionId,
-            moduleId,
-          },
+    moveModuleAsync({
+      params: {
+        path: {
+          versionId,
+          moduleId,
         },
-        body: {
-          ...(before
+      },
+      body: {
+        ...(before
             ? { beforeModuleId: before?.moduleId || "" }
             : { afterModuleId: after?.moduleId || "" }),
 
 
-        },
+      },
       }).then((res) => {
-        refetchVersion();
+      refetchVersion();
       })
     }
   }
@@ -703,15 +809,27 @@ export default function TeacherCoursePage() {
 
                                                       setSelectedItem({ id: item._id, name: label });
 
+                                                      // Patch: For PROJECT, ensure name/description are always present at root
+                                                      let patchedItem = item;
+                                                      if (item.type === 'PROJECT') {
+                                                        const details = item.details || {};
+                                                        const name = (details.name && details.name.trim()) ? details.name : (item.name || '');
+                                                        const description = (details.description && details.description.trim()) ? details.description : (item.description || '');
+                                                        patchedItem = {
+                                                          ...item,
+                                                          name,
+                                                          description
+                                                        };
+                                                      }
                                                       setSelectedEntity({
                                                         type: "item",
-                                                        data: item,
+                                                        data: patchedItem,
                                                         parentIds: {
                                                           moduleId: module.moduleId,
                                                           sectionId: section.sectionId,
                                                           itemsGroupId: section.itemsGroupId,
                                                         },
-                                                      })
+                                                      });
                                                     }
                                                     }
                                                   >
@@ -735,7 +853,7 @@ export default function TeacherCoursePage() {
                                                   </SidebarMenuSubButton>
                                                 </SidebarMenuSubItem>
                                               </Reorder.Item>
-                                            ))}
+                                           ))}
                                           <div className="ml-6 mt-2">
 
                                             <select
@@ -784,7 +902,44 @@ export default function TeacherCoursePage() {
 
                                                     setQuizWizardOpen(true);
 
-                                                  } else {
+
+                                                  } 
+                                                  else if(type === "project"){
+                                                    createItemAsync({
+                                                      params: {
+                                                        path: {
+                                                          versionId: versionId!,
+                                                          moduleId: module.moduleId,
+                                                          sectionId: section.sectionId,
+                                                        },
+                                                      },
+                                                      body: {
+                                                        type: "PROJECT",
+                                                        name: `Project name`,
+                                                        description: `Project description`
+                                                      },
+                                                    })
+                                                    .then((created) => {
+                                                      const newItem = created?.createdItem || created?.item || created?.data || created;
+                                                      const itemsGroupId = created?.itemsGroup?._id || section.itemsGroupId;
+                                                      if (newItem && newItem._id) {
+                                                        setSelectedItem({ id: newItem._id, name: newItem.name });
+                                                        setSelectedEntity({
+                                                          type: "item",
+                                                          data: newItem,
+                                                          parentIds: {
+                                                            moduleId: module.moduleId,
+                                                            sectionId: section.sectionId,
+                                                            itemsGroupId,
+                                                          },
+                                                        });
+                                                      } else {
+                                                        refetchVersion();
+                                                        refetchItems();
+                                                      }
+                                                    });
+                                                  }
+                                                  else {
 
                                                     handleAddItem(module.moduleId, section.sectionId, type);
 
@@ -805,6 +960,14 @@ export default function TeacherCoursePage() {
                                               <option value="VIDEO">Video</option>
 
                                               <option value="quiz">Quiz</option>
+
+                                              <option 
+                                                value="project" 
+                                                disabled={hasExistingProject}
+                                                className={hasExistingProject ? 'text-gray-400' : ''}
+                                              >
+                                                {hasExistingProject ? 'Project (Limit 1 per course)' : 'Project'}
+                                              </option>
 
                                             </select>
                                             <TooltipProvider>
@@ -956,11 +1119,20 @@ export default function TeacherCoursePage() {
         {/* Course Editor Area */}
         <SidebarInset className="flex-1 bg-background overflow-y-auto">
           <div className="w-full p-6">
-            <div className="flex items-center gap-2  mb-4">
-              <div className="md:hidden">
-                <SidebarTrigger />
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="md:hidden">
+                  <SidebarTrigger />
+                </div>
+                <h2 className="text-lg font-semibold">Course Editor</h2>
               </div>
-              <h2 className="text-lg font-semibold">Course Editor</h2>
+              {versionData && (
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary px-4 py-2 text-base font-semibold">
+                    Version: {(versionData as any)?.version || (versionData as any)?.name || 'Unknown'}
+                  </Badge>
+                </div>
+              )}
             </div>
 
             {selectedEntity ? (
@@ -1041,41 +1213,63 @@ export default function TeacherCoursePage() {
 
                     {(selectedEntity.type !== "item") && (
                       <>
-                        <Label className="text-sm font-bold text-foreground">Description *</Label>
-                        <textarea
-                          value={
-                            selectedEntity.type === "item"
-                              ? selectedItemData?.item?.description ?? ""
-                              : selectedEntity.data?.description ?? ""
-                          }
-                          onChange={e => {
-                            const value = e.target.value;
-                            setSelectedEntity({
-                              ...selectedEntity,
-                              data: { ...selectedEntity.data, description: value }
-                            })
-                            if (selectedEntity.type === "module") {
-                              if (!value.trim()) {
-                                setErrors(errors => ({ ...errors, description: "Module description is required." }));
-                              } else {
-                                setErrors(errors => ({ ...errors, description: "" }));
+                        <div className="space-y-2">
+                          <Label className="text-sm font-bold text-foreground">Description *</Label>
+                          <div className="relative">
+                            <textarea
+                              value={
+                                selectedEntity.type === "item"
+                                  ? selectedItemData?.item?.description ?? ""
+                                  : selectedEntity.data?.description ?? ""
                               }
-                            }
-                            if (selectedEntity.type === "section") {
-                              if (!value.trim()) {
-                                setErrors(errors => ({ ...errors, description: "Section description is required." }));
-                              } else {
-                                setErrors(errors => ({ ...errors, description: "" }));
-                              }
-                            }
-                          }}
-                          placeholder="Description"
-                          rows={5}
-                          className="w-full rounded border px-3 py-2 text-sm"
-                        />
-                        {errors.description && (
-                          <div className="text-xs text-red-500">{errors.description}</div>
-                        )}
+                              onChange={e => {
+                                const value = e.target.value;
+                                
+                                // Only update if within limit or deleting characters
+                                if (value.length <= MAX_DESCRIPTION_LENGTH) {
+                                  setSelectedEntity({
+                                    ...selectedEntity,
+                                    data: { ...selectedEntity.data, description: value }
+                                  });
+                                }
+
+                                // Validation
+                                if (selectedEntity.type === "module") {
+                                  if (!value.trim()) {
+                                    setErrors(errors => ({ ...errors, description: "Module description is required." }));
+                                  } else if (value.length >= MAX_DESCRIPTION_LENGTH) {
+                                    setErrors(errors => ({ ...errors, description: `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` }));
+                                  } else {
+                                    setErrors(errors => ({ ...errors, description: "" }));
+                                  }
+                                }
+                                if (selectedEntity.type === "section") {
+                                  if (!value.trim()) {
+                                    setErrors(errors => ({ ...errors, description: "Section description is required." }));
+                                  } else if (value.length >= MAX_DESCRIPTION_LENGTH) {
+                                    setErrors(errors => ({ ...errors, description: `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` }));
+                                  } else {
+                                    setErrors(errors => ({ ...errors, description: "" }));
+                                  }
+                                }
+                              }}
+                              placeholder={`Description (max ${MAX_DESCRIPTION_LENGTH} characters)`}
+                              rows={5}
+                              maxLength={MAX_DESCRIPTION_LENGTH}
+                              className="w-full rounded border px-3 py-2 pr-16 text-sm"
+                            />
+                            <div className={`absolute bottom-2 right-2 text-xs ${
+                              (selectedEntity.data?.description?.length || 0) >= (MAX_DESCRIPTION_LENGTH * 0.9) 
+                                ? 'text-destructive' 
+                                : 'text-muted-foreground'
+                            }`}>
+                              {selectedEntity.data?.description?.length || 0}/{MAX_DESCRIPTION_LENGTH}
+                            </div>
+                          </div>
+                          {errors.description && (
+                            <div className="text-xs text-red-500">{errors.description}</div>
+                          )}
+                        </div>
                       </>
                     )}
                     <div className="flex items-center gap-2">
@@ -1091,7 +1285,11 @@ export default function TeacherCoursePage() {
                               if (!moduleName || !moduleDescription) {
                                 setErrors({
                                   title: !moduleName ? "Module name is required." : "",
-                                  description: !moduleDescription ? "Module description is required." : ""
+                                  description: !moduleDescription 
+                                    ? "Module description is required."
+                                    : moduleDescription.length >= MAX_DESCRIPTION_LENGTH 
+                                      ? `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` 
+                                      : ""
                                 });
                                 return;
                               }
@@ -1101,7 +1299,11 @@ export default function TeacherCoursePage() {
                               if (!sectionName || !sectionDescription) {
                                 setErrors({
                                   title: !sectionName ? "Section name is required." : "",
-                                  description: !sectionDescription ? "Section description is required." : ""
+                                  description: !sectionDescription 
+                                    ? "Section description is required." 
+                                    : sectionDescription.length >= MAX_DESCRIPTION_LENGTH 
+                                      ? `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` 
+                                      : ""
                                 });
                                 return;
                               }
@@ -1288,6 +1490,78 @@ export default function TeacherCoursePage() {
                         }}
                       />
                     )}
+                    {selectedEntity.type === "item" && selectedEntity.data.type === "PROJECT" && courseId && versionId && (
+                      <ProjectItem
+                        mode="edit"
+                        name={projectEditName}
+                        description={projectEditDescription}
+                        onNameChange={setProjectEditName}
+                        onDescriptionChange={setProjectEditDescription}
+                        onSave={async () => {
+                          const projectId = selectedEntity.data._id;
+                          const name = projectEditName;
+                          const description = projectEditDescription;
+                          if (projectId && versionId) {
+                            try {
+                              await updateCourseItemAsync({
+                                params: { path: { versionId, itemId: projectId } },
+                                body: { name, description, type: 'PROJECT' }
+                              });
+                              refetchVersion();
+                              refetchItems();
+                              refetchItem();
+                              toast.success("Project updated successfully");
+                            } catch (err) {
+                              toast.error('Failed to update project: ' + (err?.message || 'Unknown error'));
+                            }
+                          }
+                        }}
+                        onDelete={async () => {
+                          const projectId = selectedEntity.data._id;
+                          if (selectedEntity.parentIds?.itemsGroupId && projectId) {
+                            if (window.confirm("Are you sure you want to delete this item?")) {
+                              await deleteItemAsync({
+                                params: { path: { itemsGroupId: selectedEntity.parentIds.itemsGroupId, itemId: projectId } },
+                              });
+                              refetchVersion();
+                              refetchItems();
+                              refetchItem();
+                              setSelectedEntity(null);
+                              toast.success("Project deleted successfully");
+                            }
+                          }
+                        }}
+                        onClose={() => {
+                          refetchItem();
+                        }}
+                      />
+                    )}
+                    {selectedEntity.type === "item" && selectedEntity.data.type === "BLOG" && courseId && versionId && (
+                      <EnhancedBlogEditor
+                        isLoading={isLoading}
+                        selectedItemName={selectedItem.name}
+                        blogId={selectedEntity.data._id}
+                        moduleId={selectedEntity.parentIds?.moduleId || ""}
+                        sectionId={selectedEntity.parentIds?.sectionId || ""}
+                        courseId={courseId}
+                        courseVersionId={versionId}
+                        details={selectedItemData}
+                        onRefetch={() => {
+                          refetchVersion();
+                          refetchItems();
+                          refetchItem();
+                        }}
+                        onDelete={() => {
+                          deleteItemAsync({
+                            params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
+                          }).then((res) => {
+                            refetchVersion();
+                            refetchItems();
+                          });
+                          setSelectedEntity(null);
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -1398,6 +1672,7 @@ export default function TeacherCoursePage() {
           </div>
         )}
 
+
         {/* Add Quiz Modal */}
         <QuizWizardModal
           quizWizardOpen={quizWizardOpen}
@@ -1406,4 +1681,49 @@ export default function TeacherCoursePage() {
       </div>
     </SidebarProvider>
   );
+}
+
+
+type SuccessFlagEntry = {
+  flag: boolean;
+  message: string;
+};
+
+type ErrorFlagEntry = {
+  flag: boolean;
+  message?: string;
+  fallback: string;
+};
+
+export function useStatusToasts({
+  successFlags,
+  errorFlags,
+}: {
+  successFlags: Record<string, SuccessFlagEntry>;
+  errorFlags: Record<string, ErrorFlagEntry>;
+}) {
+  const prevSuccess = useRef<Record<string, boolean>>({});
+  const prevError = useRef<Record<string, boolean>>({});
+
+  useEffect(() => {
+    // Success toasts
+    Object.entries(successFlags).forEach(([key, { flag, message }]) => {
+      const wasPrev = prevSuccess.current[key];
+      if (!wasPrev && flag) {
+        toast.success(message);
+      }
+      prevSuccess.current[key] = flag;
+    });
+
+    // Error toasts
+    Object.entries(errorFlags).forEach(([key, { flag, message, fallback }]) => {
+      const wasPrev = prevError.current[key];
+      if (!wasPrev && flag) {
+        toast.error(fallback, {
+          description: message ?? "An unknown error occurred.",
+        });
+      }
+      prevError.current[key] = flag;
+    });
+  }, [successFlags, errorFlags]);
 }

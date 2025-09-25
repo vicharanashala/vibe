@@ -12,8 +12,10 @@ import { routingControllersToSpec } from 'routing-controllers-openapi';
 import { appConfig } from '../../config/app.js'; // adjust path as needed
 import { metadata } from 'reflect-metadata/no-conflict';
 import { ValidationMetadata } from 'class-validator/types/metadata/ValidationMetadata.js';
-import { defaultMetadataStorage } from 'class-transformer'
-
+// import { defaultMetadataStorage } from 'class-transformer'
+import classTransformer from 'class-transformer';
+const defaultMetadataStorageTyped: MetadataStorage =
+  (classTransformer as any).defaultMetadataStorage;
 const getOpenApiServers = () => {
   const servers = [];
 
@@ -133,9 +135,9 @@ export function generateOpenAPISpec(
   if (validators.length === 0 || appConfig.module === 'all') {
     // If no specific validators are provided, use all class-validator schemas
     schemas = validationMetadatasToSchemas({
-      refPointerPrefix: '#/components/schemas/',
-      classTransformerMetadataStorage: defaultMetadataStorage
-    });
+  refPointerPrefix: '#/components/schemas/',
+  classTransformerMetadataStorage: defaultMetadataStorageTyped as any
+});
   } else {
     // If specific validators are provided, filter schemas based on them
     schemas = getSchemasForValidators(validators);
