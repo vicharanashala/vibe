@@ -1,348 +1,383 @@
-import { useState, useMemo, useEffect } from "react";
-import { Search, X, CheckCircle, XCircle, Eye, CheckSquare, Hourglass } from "lucide-react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { useState } from "react";
+import {
+  Card,
+  CardContent,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useAuthStore } from "@/store/auth-store";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Loader2, Users, Eye, User, CheckCircle, XCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-// Static user data (replace with actual data fetching if needed)
-const initialUsers = [
-  {
-    id: 1,
-    name: "John Doe",
-    email: "john@example.com",
-    phone: "123-456-7890",
-    address: "123 Main St, Anytown, USA",
-    status: "pending",
-  },
-  {
-    id: 2,
-    name: "Jane Smith",
-    email: "jane@example.com",
-    phone: "987-654-3210",
-    address: "456 Elm St, Othertown, USA",
-    status: "pending",
-  },
-  {
-    id: 3,
-    name: "Alice Johnson",
-    email: "alice@example.com",
-    phone: "555-123-4567",
-    address: "789 Oak St, Somewhere, USA",
-    status: "approved",
-  },
-];
+export default function CourseRegistrationRequests() {
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedRegistration, setSelectedRegistration] = useState<any>(null);
+  const [registrations, setRegistrations] = useState<any[]>([
+    {
+      _id: 'reg001',
+      detail: {
+        name: 'John Doe',
+        email: 'john.doe@example.com',
+        mobile: '+91-9876543210',
+        gender: 'Male',
+        city: 'Bengaluru',
+        state: 'Karnataka',
+        category: 'General',
+        university: 'ABC University',
+      },
+      status: 'pending',
+      createdAt: '2025-09-26T10:30:00.000Z',
+    },
+    {
+      _id: 'reg002',
+      detail: {
+        name: 'Jane Smith',
+        email: 'jane.smith@example.com',
+        mobile: '+91-9123456780',
+        gender: 'Female',
+        city: 'Hyderabad',
+        state: 'Telangana',
+        category: 'OBC',
+        university: 'XYZ University',
+      },
+      status: 'approved',
+      createdAt: '2025-09-25T15:00:00.000Z',
+    },
+    {
+      _id: 'reg003',
+      detail: {
+        name: 'Arjun Kumar',
+        email: 'arjun.kumar@example.com',
+        mobile: '+91-9988776655',
+        gender: 'Male',
+        city: 'Chennai',
+        state: 'Tamil Nadu',
+        category: 'SC',
+        university: 'LMN College',
+      },
+      status: 'pending',
+      createdAt: '2025-09-24T12:15:00.000Z',
+    },
+  ]);
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('ALL');
+  const [sortOrder, setSortOrder] = useState('latest');
+  const [currentPage, setCurrentPage] = useState(1);
 
-export default function RegisteredUsers() {
-  const [users, setUsers] = useState(initialUsers);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
-  const [isSearching, setIsSearching] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [selectedUserIds, setSelectedUserIds] = useState([]);
-  const { isAuthenticated } = useAuthStore();
+  const handleSelectRow = (id: string, checked: boolean) => {
+    setSelectedIds(prev =>
+      checked ? [...prev, id] : prev.filter(item => item !== id),
+    );
+  };
 
-  useEffect(() => {
-    if (searchQuery !== debouncedSearch) {
-      setIsSearching(true);
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(registrations.map(r => r._id));
+    } else {
+      setSelectedIds([]);
     }
-    const handler = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-      setIsSearching(false);
-    }, 300);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [searchQuery, debouncedSearch]);
-
-  const filteredUsers = useMemo(() => {
-    return users.filter((user) =>
-      user.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      user.email.toLowerCase().includes(debouncedSearch.toLowerCase())
-    );
-  }, [users, debouncedSearch]);
-
-  const handleCheckboxChange = (userId) => {
-    setSelectedUserIds((prev) =>
-      prev.includes(userId)
-        ? prev.filter((id) => id !== userId)
-        : [...prev, userId]
-    );
-  };
-
-  const handleApproveSelected = () => {
-    setUsers((prevUsers) =>
-      prevUsers.map((user) =>
-        selectedUserIds.includes(user.id)
-          ? { ...user, status: "approved" }
-          : user
-      )
-    );
-    setSelectedUserIds([]);
-    console.log("Approved selected users:", selectedUserIds);
-  };
-
-  const handleApprove = (userId) => {
-    setUsers((prevUsers) =>
-      prevUsers.map((user) =>
-        user.id === userId ? { ...user, status: "approved" } : user
-      )
-    );
-    console.log(`Approved user ${userId}`);
-  };
-
-  const handleReject = (userId) => {
-    setUsers((prevUsers) =>
-      prevUsers.map((user) =>
-        user.id === userId ? { ...user, status: "rejected" } : user
-      )
-    );
-    console.log(`Rejected user ${userId}`);
   };
 
   const handleApproveAll = () => {
-    setUsers((prevUsers) =>
-      prevUsers.map((user) =>
-        user.status === "pending" ? { ...user, status: "approved" } : user
-      )
-    );
-    setSelectedUserIds([]);
-    console.log("Approved all pending users");
+    // bulk approve API call here using selectedIds
+    console.log('Approving all:', selectedIds);
   };
-
-  const handleViewDetails = (user) => {
-    setSelectedUser(user);
-  };
-
-  // Authentication check
-  if (!isAuthenticated) {
-    return (
-      <div className="flex flex-1 flex-col gap-8 p-8 pt-0 w-full">
-        <EmptyState
-          title="Authentication Required"
-          description="Please log in to manage registered users."
-          actionText="Go to Login"
-          onAction={() => window.location.href = "/auth"}
-          variant="warning"
-        />
-      </div>
-    );
-  }
 
   return (
-    <div className="flex flex-1 flex-col gap-8 p-8 pt-0 w-full">
-      <section className="flex flex-col space-y-4">
-        <h1 className="text-4xl font-extrabold tracking-tight text-primary">
-          Course Registration Requests
-        </h1>
-        <p className="text-xl text-muted-foreground max-w-3xl leading-relaxed">
-          Review and manage all users registered for courses with ease.
-        </p>
-      </section>
-
-      <Card className="relative bg-gradient-to-br from-background to-primary/5 shadow-xl border-none overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg blur-lg"></div>
-        <CardHeader className="relative px-8 py-6">
-          <div className="flex items-center justify-between w-full">
-            <div className="relative w-full max-w-2xl">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input
-                placeholder="Search users by name or email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 py-6 text-base bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300 rounded-lg"
-              />
-              {searchQuery && (
-                <X
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground cursor-pointer"
-                  onClick={() => setSearchQuery("")}
-                />
-              )}
-            </div>
-            <div className="flex items-center gap-4">
-              {selectedUserIds.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={handleApproveSelected}
-                  className="flex items-center gap-2 text-green-700 border-green-700 hover:bg-green-50 transition-all duration-300"
-                >
-                  <CheckCircle className="h-5 w-5" />
-                  Approve Selected
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={handleApproveAll}
-                className="flex items-center gap-2 text-green-700 border-green-700 hover:bg-green-50 transition-all duration-300"
-              >
-                <CheckSquare className="h-5 w-5" />
-                Approve All
-              </Button>
-            </div>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto py-4 space-y-8">
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="space-y-4">
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              Course Registration Requests
+            </h1>
+            <p className="text-muted-foreground">
+              Review and manage all pending course registration requests.
+            </p>
           </div>
-        </CardHeader>
-        <CardContent className="relative px-8 pb-8 space-y-0">
-          {isSearching ? (
-            <div className="text-center text-lg text-muted-foreground py-12">
-              Searching users...
-            </div>
-          ) : filteredUsers.length > 0 ? (
+
+          <Button
+            onClick={handleApproveAll}
+            disabled={selectedIds.length === 0}
+            variant="default"
+            className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white dark:text-black"
+          >
+            <CheckCircle className="h-4 w-4 mr-2" />
+            Approve Selected
+          </Button>
+        </div>
+        <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
+          <div className="flex-1">
+            <Input
+              placeholder="Search by name or email…"
+              value={searchTerm}
+              onChange={e => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full"
+            />
+          </div>
+
+          <Select
+            value={filterStatus}
+            onValueChange={value => {
+              setFilterStatus(value);
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={sortOrder}
+            onValueChange={value => {
+              setSortOrder(value);
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Sort by date" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="latest">Latest</SelectItem>
+              <SelectItem value="oldest">Oldest</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {/* Table */}
+        <Card className="border-0 shadow-lg overflow-hidden">
+          <CardContent className="p-0">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-b border-border/50">
-                    <TableHead className="w-12 py-4"></TableHead>
-                    <TableHead className="text-lg font-semibold py-4 w-1/4">Name</TableHead>
-                    <TableHead className="text-lg font-semibold py-4 w-1/3">Email</TableHead>
-                    <TableHead className="text-lg font-semibold py-4 w-1/6">Status</TableHead>
-                    <TableHead className="text-lg font-semibold py-4 w-1/4">Actions</TableHead>
+                  <TableRow className="border-border bg-muted/30">
+                    <TableHead className="w-[40px] pl-6">
+                      <Checkbox
+                        checked={
+                          selectedIds.length === registrations.length &&
+                          registrations.length > 0
+                        }
+                        onCheckedChange={checked =>
+                          handleSelectAll(checked as boolean)
+                        }
+                      />
+                    </TableHead>
+                    <TableHead className="font-bold text-foreground w-[60px]">
+                      #
+                    </TableHead>
+                    <TableHead className="font-bold text-foreground w-[200px]">
+                      Name
+                    </TableHead>
+                    <TableHead className="font-bold text-foreground w-[250px]">
+                      Email
+                    </TableHead>
+                    <TableHead className="font-bold text-foreground w-[150px]">
+                      Status
+                    </TableHead>
+                    <TableHead className="font-bold text-foreground pr-6 w-[250px]">
+                      Actions
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
+
                 <TableBody>
-                  {filteredUsers.map((user) => (
-                    <TableRow key={user.id} className="hover:bg-muted/50 transition-all duration-200">
-                      <TableCell className="py-4">
-                        <Checkbox
-                          checked={selectedUserIds.includes(user.id)}
-                          onCheckedChange={() => handleCheckboxChange(user.id)}
-                          disabled={user.status !== "pending"}
-                          className="h-5 w-5 border-white bg-white text-green-700"
-                        />
-                      </TableCell>
-                      <TableCell className="py-4 text-lg font-medium">{user.name}</TableCell>
-                      <TableCell className="py-4 text-base">{user.email}</TableCell>
-                      <TableCell className="py-4">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              {user.status === "approved" ? (
-                                <CheckCircle className="h-6 w-6 text-green-600" />
-                              ) : user.status === "rejected" ? (
-                                <XCircle className="h-6 w-6 text-red-600" />
-                              ) : (
-                                <Hourglass className="h-6 w-6 text-yellow-600" />
-                              )}
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{user.status.charAt(0).toUpperCase() + user.status.slice(1)}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </TableCell>
-                      <TableCell className="py-4 flex gap-3">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewDetails(user)}
-                          className="flex items-center gap-2 text-primary border-primary/50 hover:bg-primary/10 transition-all duration-300 px-4 py-2"
-                        >
-                          <Eye className="h-4 w-4" />
-                          View Details
-                        </Button>
-                        {user.status === "pending" && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleApprove(user.id)}
-                              className="flex items-center gap-2 text-green-600 border-green-600 hover:bg-green-50 transition-all duration-300 px-4 py-2"
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                              Approve
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleReject(user.id)}
-                              className="flex items-center gap-2 text-red-600 border-red-600 hover:bg-red-50 transition-all duration-300 px-4 py-2"
-                            >
-                              <XCircle className="h-4 w-4" />
-                              Reject
-                            </Button>
-                          </>
-                        )}
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-12">
+                        <div className="flex items-center justify-center space-x-2">
+                          <Loader2 className="h-6 w-6 animate-spin" />
+                          <span className="text-muted-foreground">
+                            Loading registrations...
+                          </span>
+                        </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : registrations.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-16">
+                        <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
+                          <Users className="h-10 w-10 text-muted-foreground" />
+                        </div>
+                        <p className="text-foreground text-xl font-semibold mb-2">
+                          No Registrations Found
+                        </p>
+                        <p className="text-muted-foreground">
+                          There are no course registration requests yet.
+                        </p>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    registrations.map((reg: any, index: number) => (
+                      <TableRow
+                        key={reg._id}
+                        className="border-border hover:bg-muted/20 transition-colors duration-200 group"
+                      >
+                        <TableCell className="pl-6 py-4">
+                          <Checkbox
+                            checked={selectedIds.includes(reg._id)}
+                            onCheckedChange={checked =>
+                              handleSelectRow(reg._id, checked as boolean)
+                            }
+                          />
+                        </TableCell>
+                        <TableCell className="py-4">{index + 1}</TableCell>
+                        <TableCell className="py-4 font-medium">
+                          {reg.detail.name}
+                        </TableCell>
+                        <TableCell className="py-4">
+                          {reg.detail.email}
+                        </TableCell>
+                        <TableCell className="py-4">
+                          <Badge
+                            variant={
+                              reg.status === 'approved'
+                                ? 'default'
+                                : reg.status === 'rejected'
+                                ? 'destructive'
+                                : 'secondary'
+                            }
+                          >
+                            {reg.status.charAt(0).toUpperCase() +
+                              reg.status.slice(1)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="py-4 pr-6">
+                          <div className="flex gap-3">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedRegistration(reg)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Details
+                            </Button>
+                            {reg.status === 'pending' && (
+                              <>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() =>
+                                    console.log('approve', reg._id)
+                                  }
+                                  className="bg-green-600 hover:bg-green-500 text-white dark:text-black"
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => console.log('reject', reg._id)}
+                                  className="bg-red-600 dark:bg-red-700 hover:dark:bg-red-600 hover:bg-red-500 text-white dark:text-black"
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  Reject
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                  {selectedRegistration && (
+                    <Dialog
+                      open={!!selectedRegistration}
+                      onOpenChange={() => setSelectedRegistration(null)}
+                    >
+                      <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto py-8">
+                        <DialogHeader className="pb-4">
+                          <DialogTitle className="flex items-center gap-2 text-xl">
+                            <User className="h-5 w-5 text-primary" />
+                            Registration Details
+                          </DialogTitle>
+                        </DialogHeader>
+
+                        <div className="space-y-4">
+                          <Card>
+                            <CardContent className="p-6">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <span className="font-medium">Name:</span>{' '}
+                                  {selectedRegistration.detail.name}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Email:</span>{' '}
+                                  {selectedRegistration.detail.email}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Mobile:</span>{' '}
+                                  {selectedRegistration.detail.mobile}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Gender:</span>{' '}
+                                  {selectedRegistration.detail.gender}
+                                </div>
+                                <div>
+                                  <span className="font-medium">City:</span>{' '}
+                                  {selectedRegistration.detail.city}
+                                </div>
+                                <div>
+                                  <span className="font-medium">State:</span>{' '}
+                                  {selectedRegistration.detail.state}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Category:</span>{' '}
+                                  {selectedRegistration.detail.category}
+                                </div>
+                                <div>
+                                  <span className="font-medium">
+                                    University:
+                                  </span>{' '}
+                                  {selectedRegistration.detail.university}
+                                </div>
+                              </div>
+                              <Separator className="my-4" />
+                              <p className="text-sm text-muted-foreground">
+                                Registered on:{' '}
+                                {new Date(
+                                  selectedRegistration.createdAt,
+                                ).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })}
+                              </p>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  )}
                 </TableBody>
               </Table>
             </div>
-          ) : (
-            <EmptyState
-              title="No Users Found"
-              description="No users match your search criteria. Try adjusting your search terms."
-              variant="info"
-              className="py-16"
-            />
-          )}
-        </CardContent>
-      </Card>
-
-      {/* View Details Modal */}
-      <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
-        <DialogContent className="sm:max-w-xl bg-background rounded-lg shadow-2xl">
-          <DialogHeader className="pb-8">
-            <DialogTitle className="text-2xl font-bold">User Details</DialogTitle>
-            <p className="text-lg text-muted-foreground">
-              Detailed information for {selectedUser?.name}
-            </p>
-          </DialogHeader>
-          {selectedUser && (
-            <div className="space-y-8">
-              <div className="space-y-4">
-                <Label className="text-base font-medium text-foreground/80">Full Name</Label>
-                <p className="text-lg text-foreground">{selectedUser.name}</p>
-              </div>
-              <div className="space-y-4">
-                <Label className="text-base font-medium text-foreground/80">Email Address</Label>
-                <p className="text-lg text-foreground">{selectedUser.email}</p>
-              </div>
-              <div className="space-y-4">
-                <Label className="text-base font-medium text-foreground/80">Phone Number</Label>
-                <p className="text-lg text-foreground">{selectedUser.phone}</p>
-              </div>
-              <div className="space-y-4">
-                <Label className="text-base font-medium text-foreground/80">Address</Label>
-                <p className="text-lg text-foreground">{selectedUser.address}</p>
-              </div>
-              <div className="space-y-4">
-                <Label className="text-base font-medium text-foreground/80">Status</Label>
-                <div className="flex items-center gap-2">
-                  {selectedUser.status === "approved" ? (
-                    <CheckCircle className="h-6 w-6 text-green-600" />
-                  ) : selectedUser.status === "rejected" ? (
-                    <XCircle className="h-6 w-6 text-red-600" />
-                  ) : (
-                    <Hourglass className="h-6 w-6 text-yellow-600" />
-                  )}
-                  <span className="text-base text-foreground">
-                    {selectedUser.status.charAt(0).toUpperCase() + selectedUser.status.slice(1)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-          <DialogFooter className="pt-8">
-            <Button
-              variant="primary"
-              size="lg"
-              onClick={() => setSelectedUser(null)}
-              className="bg-primary hover:bg-primary/90 transition-all duration-300 px-8 py-3"
-            >
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
+
