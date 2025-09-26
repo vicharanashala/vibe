@@ -48,6 +48,22 @@ export class GenAIRepository {
       jobStatus.segmentation = TaskStatus.WAITING;
       delete jobDataToSave.transcript;
     }
+    if (jobDataToSave.uploadParameters) {
+      const up = jobDataToSave.uploadParameters;
+
+      if (up.courseId) {
+        up.courseId = new ObjectId(up.courseId);
+      }
+      if (up.versionId) {
+        up.versionId = new ObjectId(up.versionId);
+      }
+      if (up.moduleId) {
+        up.moduleId = new ObjectId(up.moduleId);
+      }
+      if (up.sectionId) {
+        up.sectionId = new ObjectId(up.sectionId);
+      }
+    }
     const result = await this.genAICollection.insertOne(
       {
         userId: new ObjectId(userId),
@@ -168,7 +184,16 @@ export class GenAIRepository {
       },
       {session},
     );
-    return result;
+    return {
+      ...result,
+      uploadParameters: {
+        ...result.uploadParameters,
+        courseId: result.uploadParameters.courseId.toString(),
+        versionId: result.uploadParameters.versionId.toString(),
+        moduleId: result.uploadParameters.moduleId.toString(),
+        sectionId: result.uploadParameters.sectionId.toString(),
+      },
+    };
   }
 
   async getTaskDataByJobId(
@@ -194,6 +219,35 @@ export class GenAIRepository {
     session?: ClientSession,
   ): Promise<GenAIBody> {
     await this.init();
+
+    const jobDataToSave: any = {...jobData};
+
+    if (jobDataToSave.uploadParameters) {
+      jobDataToSave.uploadParameters = {
+        ...jobDataToSave.uploadParameters,
+        courseId: jobDataToSave.uploadParameters.courseId
+          ? new ObjectId(
+              jobDataToSave.uploadParameters.courseId.toString() as string,
+            )
+          : undefined,
+        versionId: jobDataToSave.uploadParameters.versionId
+          ? new ObjectId(
+              jobDataToSave.uploadParameters.versionId.toString() as string,
+            )
+          : undefined,
+        moduleId: jobDataToSave.uploadParameters.moduleId
+          ? new ObjectId(
+              jobDataToSave.uploadParameters.moduleId.toString() as string,
+            )
+          : undefined,
+        sectionId: jobDataToSave.uploadParameters.sectionId
+          ? new ObjectId(
+              jobDataToSave.uploadParameters.sectionId.toString() as string,
+            )
+          : undefined,
+      };
+    }
+
     const result = await this.genAICollection.findOneAndUpdate(
       {
         _id: new ObjectId(jobId),
@@ -246,19 +300,37 @@ export class GenAIRepository {
     };
 
     const results = await this.genAICollection.find(query, {session}).toArray();
-    // const results = await this.genAICollection
-    //   .find({userId: new ObjectId(userId)}, {session})
-    //   .toArray();
-    return results;
+
+    return results.map(doc => {
+      const upload = doc.uploadParameters;
+
+      return {
+        ...doc,
+        uploadParameters: upload
+          ? {
+              ...upload,
+              courseId: upload.courseId?.toString(),
+              versionId: upload.versionId?.toString(),
+              moduleId: upload.moduleId?.toString(),
+              sectionId: upload.sectionId?.toString(),
+            }
+          : null,
+      };
+    }) as GenAIBody[];
   }
 
   async bulkConvertIds(batchSize = 500): Promise<{updated: number}> {
     try {
       await this.init();
+
       const cursor = this.genAICollection.find(
         {},
         {
-          projection: {_id: 1, userId: 1},
+          projection: {
+            _id: 1,
+            userId: 1,
+            uploadParameters: 1,
+          },
         },
       );
 
@@ -275,7 +347,56 @@ export class GenAIRepository {
           updateFields.userId = new ObjectId(job.userId);
         }
 
-        if (Object.keys(updateFields).length) {
+        if (job.uploadParameters) {
+          const updatedUploadParams = {...job.uploadParameters};
+          let changed = false;
+
+          if (
+            updatedUploadParams.courseId &&
+            typeof updatedUploadParams.courseId === 'string'
+          ) {
+            updatedUploadParams.courseId = new ObjectId(
+              updatedUploadParams.courseId,
+            );
+            changed = true;
+          }
+
+          if (
+            updatedUploadParams.versionId &&
+            typeof updatedUploadParams.versionId === 'string'
+          ) {
+            updatedUploadParams.versionId = new ObjectId(
+              updatedUploadParams.versionId,
+            );
+            changed = true;
+          }
+
+          if (
+            updatedUploadParams.moduleId &&
+            typeof updatedUploadParams.moduleId === 'string'
+          ) {
+            updatedUploadParams.moduleId = new ObjectId(
+              updatedUploadParams.moduleId,
+            );
+            changed = true;
+          }
+
+          if (
+            updatedUploadParams.sectionId &&
+            typeof updatedUploadParams.sectionId === 'string'
+          ) {
+            updatedUploadParams.sectionId = new ObjectId(
+              updatedUploadParams.sectionId,
+            );
+            changed = true;
+          }
+
+          if (changed) {
+            updateFields.uploadParameters = updatedUploadParams;
+          }
+        }
+
+        if (Object.keys(updateFields).length > 0) {
           bulkOps.push({
             updateOne: {
               filter: {_id: job._id},

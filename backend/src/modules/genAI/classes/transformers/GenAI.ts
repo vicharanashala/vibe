@@ -52,10 +52,10 @@ export interface QuestionGenerationParameters {
 }
 
 export interface UploadParameters {
-	courseId: string;
-	versionId: string;
-	moduleId?: string;
-	sectionId?: string;
+	courseId: ID;
+	versionId: ID;
+	moduleId?: ID;
+	sectionId?: ID;
 	videoItemBaseName?: string;
 	quizItemBaseName?: string;
 	questionsPerQuiz?: number;

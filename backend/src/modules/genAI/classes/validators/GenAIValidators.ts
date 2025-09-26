@@ -156,7 +156,7 @@ class UploadParameters {
   @IsNotEmpty()
   @IsMongoId()
   @IsString()
-  courseId: string;
+  courseId: ID;
 
   @JSONSchema({
     title: 'Version ID',
@@ -167,7 +167,7 @@ class UploadParameters {
   @IsNotEmpty()
   @IsMongoId()
   @IsString()
-  versionId: string;
+  versionId: ID;
 
   @JSONSchema({
     title: 'Module ID',
@@ -178,7 +178,7 @@ class UploadParameters {
   @IsOptional()
   @IsMongoId()
   @IsString()
-  moduleId?: string;
+  moduleId?: ID;
 
   @JSONSchema({
     title: 'Section ID',
@@ -189,7 +189,7 @@ class UploadParameters {
   @IsOptional()
   @IsMongoId()
   @IsString()
-  sectionId?: string;
+  sectionId?: ID;
 
   @JSONSchema({
     title: 'Video Item Base Name',

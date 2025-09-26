@@ -636,7 +636,8 @@ export class EnrollmentService extends BaseService {
       | 'quiz_submission_results'
       | 'quizzes'
       | 'user_quiz_metrics'
-      | 'quiz_attempts',
+      | 'quiz_attempts'
+      | 'genAI_jobs',
   ): Promise<void> {
     try {
       const BATCH_SIZE = 1000;
