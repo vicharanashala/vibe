@@ -400,6 +400,7 @@ export default function AISectionPage() {
 
   // New: Track current AI job status for manual refresh
   const [aiJobStatus, setAiJobStatus] = useState<JobStatus | null>(null);
+  const [aiJobDate, setAiJobDate] = useState<any | null>(null);
   const [aiWorkflowStep, setAiWorkflowStep] = useState<'idle' | 'audio_extraction' | 'audio_extraction_done' | 'transcription' | 'transcription_done' | 'error'>('idle');
   // New: Track if approveContinueTask has been called for current job's WAITING state
   const [approvedForCurrentJob, setApprovedForCurrentJob] = useState(false);
@@ -2205,6 +2206,7 @@ export default function AISectionPage() {
     if (!aiJobId) return;
     try {
       let status = await aiSectionAPI.getJobStatus(aiJobId);
+      setAiJobDate(status?.createdAt);
       if (status.jobStatus?.transcriptGeneration === 'PENDING') {
         await aiSectionAPI.approveContinueTask(aiJobId);
         toast.success('Approved transcript task.');
@@ -3407,13 +3409,31 @@ export default function AISectionPage() {
           </div>
           {/* Stepper */}
           <Stepper jobStatus={aiJobStatus} />
-            <div className="flex items-center gap-2.5 shadow-xl backdrop-blur bg-white/80 dark:bg-[#140E09] border border-gray-200 dark:border-[#26211E] rounded-[14px] py-2.5 px-4 w-max mb-3.5 text-sm text-gray-900 dark:text-[#a8a29e]">
-              <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
-              <span className="font-normal">Job Status: Active</span>
-              <span className="ml-2 px-3 py-1 rounded-md bg-green-50 dark:bg-green-900/30 text-[#6A7282] dark:text-[#a8a29e] text-xs font-medium">
-                Created 3:21:41 PM
-              </span>
-            </div>
+            {aiJobStatus && (
+              <div className="flex items-center gap-2.5 shadow-xl backdrop-blur bg-white/80 dark:bg-[#140E09] border border-gray-200 dark:border-[#26211E] rounded-[14px] py-2.5 px-4 w-max mb-3.5 text-sm text-gray-900 dark:text-[#a8a29e]">
+                <div className={`w-2.5 h-2.5 rounded-full ${
+                  aiJobStatus.status === 'RUNNING' ? 'bg-blue-500' :
+                  aiJobStatus.status === 'COMPLETED' ? 'bg-green-500' :
+                  aiJobStatus.status === 'FAILED' ? 'bg-red-500' :
+                  'bg-yellow-500'
+                }`}></div>
+                <span className="font-normal">
+                  Job Status: {aiJobStatus.status === 'RUNNING' ? 'Processing' :
+                        aiJobStatus.status === 'COMPLETED' ? 'Completed' :
+                        aiJobStatus.status === 'FAILED' ? 'Failed' :
+                        'Pending'}
+                </span>
+                {aiJobDate && (
+                  <span className="ml-2 px-3 py-1 rounded-md bg-green-50 dark:bg-green-900/30 text-[#6A7282] dark:text-[#a8a29e] text-xs font-medium">
+                    Created {new Date(aiJobDate).toLocaleTimeString('en-US', {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true
+                    })}
+                  </span>
+                )}
+              </div>
+            )}
           <div className="space-y-8">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2.5 shadow-xl backdrop-blur bg-white/80 dark:bg-[#140E09] border border-gray-200 dark:border-[#26211E] rounded-[14px] p-[15px] w-full">
