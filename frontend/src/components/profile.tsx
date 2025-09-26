@@ -16,7 +16,6 @@ import { useNavigate } from "@tanstack/react-router"
 import { LogOut } from "lucide-react"
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal"
 import { Skeleton } from "@/components/ui/skeleton"
-import { bufferToHex } from "@/utils/helpers"
 
 export default function UserProfile({ role = "student" }: { role?: "student" | "teacher" | "admin" }) {
   const { user, setUser } = useAuthStore()
@@ -260,7 +259,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
 
         {/* Learning Stats */}
         
-        {role === "student" ? (
+        {role === "student" && (
           <Card>
             <CardHeader>
               <CardTitle>Learning Statistics</CardTitle>
@@ -312,8 +311,9 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
               </div>
             </CardContent>
           </Card>
-
-        ) : (
+        )
+       } 
+       {/* : (
           <Card>
             <CardHeader>
               <CardTitle>Teaching Statistics</CardTitle>
@@ -340,8 +340,8 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                 
               </div>
             </CardContent>
-          </Card>
-        )}
+          </Card> */}
+        
       </div>
     </div>
   )

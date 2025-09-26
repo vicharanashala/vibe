@@ -209,16 +209,16 @@ export class EnrollmentController {
     const { page, limit, search = "", role } = query;
     const userId = user._id.toString();
     const skip = (page - 1) * limit;
-    console.log("session on the dashboard ", req.session)
-    if (req.session.bulkInviteId) {
-      console.log("bulk id in session dashboard ", req.session.bulkInviteId)
-      let result = await this.enrollmentService.processBulkInvite(userId, req.session.bulkInviteId)
-      console.log("result after enrollment ", result)
-      delete req.session.bulkInviteId
-      await new Promise<void>((resolve, reject) => {
-        req.session.save(err => err ? reject(err) : resolve());
-      });
-    }
+    // console.log("session on the dashboard ", req.session)
+    // if (req.session.bulkInviteId) {
+    //   console.log("bulk id in session dashboard ", req.session.bulkInviteId)
+    //   let result = await this.enrollmentService.processBulkInvite(userId, req.session.bulkInviteId)
+    //   console.log("result after enrollment ", result)
+    //   delete req.session.bulkInviteId
+    //   await new Promise<void>((resolve, reject) => {
+    //     req.session.save(err => err ? reject(err) : resolve());
+    //   });
+    // }
     const enrollments = await this.enrollmentService.getEnrollments(
       userId,
       skip,
