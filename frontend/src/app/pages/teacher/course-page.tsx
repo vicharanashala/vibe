@@ -930,7 +930,7 @@ function VersionCard({
 
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [generatedLink, setGeneratedLink] = useState('');
-  // const generateLinkMutation = useGenerateLink();
+  const generateLinkMutation = useGenerateLink();
   // Fetch individual version data
   const { data: fetchedVersion, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId, !versionData ? true : false)
 
@@ -1098,20 +1098,20 @@ function VersionCard({
     })
   }
 
-  // const handleGenerateLink = async () => {
-  //   try {
-  //     const result = await generateLinkMutation.mutateAsync({
-  //       params: { path: { courseId: courseId, versionId: selectedVersionId } },
-  //     });
-  //     setGeneratedLink(result.link); 
-  //     setShowLinkModal(true);
-  //     toast.success('Link generated successfully!');
-  //   } catch (error:any) {
-  //     console.error('Failed to generate link:', error);
-  //     // toast.error('Failed to generate link. Please try again.');
-  //     toast.error(error?.message);
-  //   }
-  // };
+  const handleGenerateLink = async () => {
+    try {
+      const result = await generateLinkMutation.mutateAsync({
+        params: { path: { courseId: courseId, versionId: selectedVersionId } },
+      });
+      setGeneratedLink(result.link); 
+      setShowLinkModal(true);
+      toast.success('Link generated successfully!');
+    } catch (error:any) {
+      console.error('Failed to generate link:', error);
+      // toast.error('Failed to generate link. Please try again.');
+      toast.error(error?.message);
+    }
+  };
 
   if (versionLoading) {
     return (
@@ -1342,7 +1342,7 @@ function VersionCard({
                   <Users className="h-3 w-3 mr-1" />
                   View Students
                 </Button>
-                {/* <Button
+                <Button
           variant="outline"
           size="sm"
           onClick={handleGenerateLink}
@@ -1355,7 +1355,7 @@ function VersionCard({
             <Link className="h-3 w-3 mr-1" /> 
           )}
           Generate Link
-        </Button> */}
+        </Button>
                 <Button
                   variant="outline"
                   size="sm"

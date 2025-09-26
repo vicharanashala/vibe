@@ -613,7 +613,7 @@ export function useGenerateLink(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("post", "/notifications/invite/courses/{courseId}/versions/{versionId}/bulk");
+  const result = api.useMutation("post", "/notifications/invite/courses/{courseId}/versions/{versionId}/details");
   
   return {
     ...result,

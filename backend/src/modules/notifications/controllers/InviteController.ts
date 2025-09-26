@@ -32,7 +32,8 @@ import { appConfig } from '#root/config/app.js';
 import { inviteRedirectTemplate } from '../redirectTemplate.js';
 import { InviteActions, getInviteAbility } from '../abilities/inviteAbilities.js';
 import { subject } from '@casl/ability';
-import { EnrollmentRole } from '#root/shared/index.js';
+import { EnrollmentRole, ICourse } from '#root/shared/index.js';
+import { CourseDataResponse, CourseIdParams } from '#root/modules/courses/classes/index.js';
 
 /**
  * Controller for managing student enrollments in courses.
@@ -128,8 +129,50 @@ export class InviteController {
     const link = await this.inviteService.generateLink(courseId, versionId, role);
     return { link };
   }
+  
+  //Invite link for course details page
+  @Post('/courses/:courseId/versions/:versionId/details')
+  @HttpCode(200)
+  @OpenAPI({
+    summary: 'Generate invite link to load course details page',
+    description: 'Generates a link that shows the course details to the students',
+  })
+  async generateInvitePageLink(
+     @Params() params: CourseAndVersionId
+  ){
+    const {courseId,versionId} = params
+    const link = await this.inviteService.generateLinkCourseDetails(courseId,versionId)
+    console.log("Recievdd link ",link)
+    return {link}
+  }
 
+  //get request for getting the course details on invite 
 
+  @Get('/course/:courseId')
+  @HttpCode(200)
+  // @ContentType('html')
+  @OpenAPI({
+    summary: 'Load the course details page on invite',
+    description:
+      'Load the course detaila page on the link click',
+    responses: {
+      '200': {
+        description: 'JSON response with redirect information',
+      },
+    },
+  })
+  @ResponseSchema(CourseDataResponse, {
+    description: 'Invite processed successfully',
+    statusCode: 200,
+  })
+  async CourseDetailsinvite(@Params() params: CourseIdParams, @Req() req: any,): Promise<ICourse> {
+    const { courseId } = params;
+    const result = await this.inviteService.courseDetails(courseId)
+    console.log("result from processInvite ", result)
+    return result
+  }
+
+  //invite accepting controller 
   @Get('/:inviteId')
   @HttpCode(200)
   @ContentType('html')

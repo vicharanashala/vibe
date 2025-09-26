@@ -475,6 +475,59 @@ export class InviteService extends BaseService {
     return `${appConfig.url}/api/notifications/invite/${InviteId}`;
   }
 
+  //function to generate link for the course details page 
+
+  async generateLinkCourseDetails(courseId: string, courseVersionId: string): Promise<string> {
+    const course = await this.courseRepo.read(courseId.toString());
+      if (!course) {
+        throw new NotFoundError('Course not found');
+      }
+      // Get Course Version Details
+      const courseVersion = await this.courseRepo.readVersion(
+        courseVersionId.toString(),
+      );
+      if (!courseVersion) {
+        throw new NotFoundError('Course version not found');
+      }
+      if (!courseVersion.modules || courseVersion.modules.length === 0) {
+        throw new BadRequestError(
+          'Course version has no modules. Please add modules before proceeding.',
+        );
+      }
+
+      const firstModule = [...courseVersion.modules].sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[0];
+
+      if (!firstModule.sections || firstModule.sections.length === 0) {
+        throw new BadRequestError(
+          `Module "${firstModule.name}" has no sections. Add sections to continue.`,
+        );
+      }
+
+      const firstSection = [...firstModule.sections].sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[0];
+
+      const itemsGroup = await this.itemRepo.readItemsGroup(
+        firstSection.itemsGroupId.toString(),
+      );
+
+      if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
+        throw new BadRequestError(
+          `Section "${firstSection.name}" has no items. Add content before sending invites.`,
+        );
+      }
+      return `${appConfig.url}/api/notifications/invite/course/${courseId}`;
+  }
+
+  //course details function
+  async courseDetails(courseId:string):Promise<ICourse>{
+    const course = await this.courseRepo.read(courseId)
+    console.log(course)
+    return course
+  }
+
   async processInvite(inviteId: string): Promise<{ message: string; isBulk?: boolean }> {
     const invite = await this.inviteRepo.findInviteById(inviteId);
     if (!invite) {
