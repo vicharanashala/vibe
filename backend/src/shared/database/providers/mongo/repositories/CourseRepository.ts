@@ -23,11 +23,7 @@ import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
 import {ItemsGroup} from '#courses/classes/transformers/Item.js';
 import {ProgressRepository} from './ProgressRepository.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
-<<<<<<< HEAD
 import {Module, Section} from '#root/modules/courses/classes/index.js';
-=======
-import {Module} from '#root/modules/courses/classes/index.js';
->>>>>>> a952ce65244411b7370d3d85ae8e5066779e3840
 
 @injectable()
 export class CourseRepository implements ICourseRepository {
@@ -642,7 +638,6 @@ export class CourseRepository implements ICourseRepository {
     }
   }
 
-<<<<<<< HEAD
   async bulkConvertIds(batchSize = 100): Promise<{updated: number}> {
     try {
       await this.init();
@@ -765,7 +760,8 @@ export class CourseRepository implements ICourseRepository {
       throw new InternalServerError(
         `Failed newCourseVersion ID conversion. More/ ${error}`,
       );
-=======
+    }
+  }
   async addNewCourseVersionToCourse(
     courseId: string,
     versionId: string,
@@ -786,7 +782,6 @@ export class CourseRepository implements ICourseRepository {
     } catch (error) {
       console.error('Failed to add new course version:', error);
       throw new InternalServerError(`Failed to add new course version`);
->>>>>>> a952ce65244411b7370d3d85ae8e5066779e3840
     }
   }
 }

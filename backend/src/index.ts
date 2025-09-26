@@ -26,7 +26,7 @@ app.use(loggingHandler);
 //   session({
 //     secret: process.env.SESSION_SECRET, 
 //     resave: false,
-//     saveUninitialized: true,
+//     saveUninitialized: true, 
 //     cookie: {
 //       secure: NODE_ENV === 'production',
 //       httpOnly:true, 

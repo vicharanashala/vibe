@@ -384,7 +384,6 @@ class SubmissionRepository {
     return 0;
   }
 
-<<<<<<< HEAD
   async bulkConvertIds(batchSize = 500): Promise<{updated: number}> {
     try {
       await this.init();
@@ -459,7 +458,6 @@ class SubmissionRepository {
       );
     }
   }
-=======
   async getAveragePercentageByQuizId(
     quizId: string,
     session?: ClientSession,
@@ -512,7 +510,6 @@ class SubmissionRepository {
     console.log("Percentage is ",Math.round(result[0].averagePercentage * 10) / 10)
     return 0;
 }
->>>>>>> a952ce65244411b7370d3d85ae8e5066779e3840
 }
 
 export {SubmissionRepository};
