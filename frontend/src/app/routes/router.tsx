@@ -37,7 +37,7 @@ import AiWorkflow from '../pages/teacher/AiWorkflow'
 import AnomaliesList from '../pages/teacher/AnomaliesList'
 import CourseInstructors from '../pages/teacher/course-instructors'
 import RegisteredUsers from '../pages/teacher/CourseRegistrationRequests'
-import CourseDetails from '../pages/student/inviteCourseDetials'
+import CourseRegistration from '../pages/student/CourseRegistration'
 
 
 // Root route with error and notFound handling
@@ -306,10 +306,10 @@ const studentProfileRoute = new Route({
   component: StudentProfile,
 });
 
-const studentCourseInviteDetails = new Route({
+export  const studentCourseInviteRegistration = new Route({
   getParentRoute: () => studentLayoutRoute,
-  path:"/courseDetails",
-  component:CourseDetails
+  path:"/course-registration/:courseId",
+  component: CourseRegistration,
 })
 
 const coursePageRoute = new Route({
@@ -374,7 +374,7 @@ const routeTree = rootRoute.addChildren([
     studentDashboardRoute,
     studentCoursesRoute,
     studentProfileRoute,
-    studentCourseInviteDetails
+    studentCourseInviteRegistration
   ]),
   coursePageRoute,
 ]);
