@@ -1372,7 +1372,7 @@ function VersionCard({
                   <Users className="h-3 w-3 mr-1" />
                   View Students
                 </Button>
-                <Button
+                {/* <Button
           variant="outline"
           size="sm"
           onClick={handleGenerateLink}
@@ -1385,7 +1385,7 @@ function VersionCard({
             <Link className="h-3 w-3 mr-1" /> 
           )}
           Generate Link
-        </Button>
+        </Button> */}
                 <Button
                   variant="outline"
                   size="sm"
