@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters } from '@/lib/genai-api';
 import { useCourseStore } from '@/store/course-store';
-import { ArrowLeft, ArrowRight, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors,Settings, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap, Info, Power } from 'lucide-react';
+import { ArrowLeft, ArrowRight,ChevronRight, ChevronLeft, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors,Settings, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap, Info, Power } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner';
 import { AudioTranscripter } from './AudioTranscripter';
@@ -1546,6 +1546,10 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
     const [isMCQ, setIsMCQ] = useState(true);
     const [isMSQ, setIsMSQ] = useState(false);
     const [isBinary, setIsBinary] = useState(false);
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [acceptedQuestions, setAcceptedQuestions] = useState<Set<number>>(new Set());
+    const [rejectedQuestions, setRejectedQuestions] = useState<Set<number>>(new Set());
+    const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
     const binaryPrompt = `Generate only Yes/No questions (binary type).
 Each question must contain exactly two options: "Yes" and "No".
 Phrase each question neutrally so the answer is not obvious from wording.
@@ -1561,6 +1565,51 @@ const [isRerunning, setIsRerunning] = useState(false);
     const segmentIds = Array.from(
         new Set(questions.map((q) => q.segmentId).filter((sid) => typeof sid === "number"))
     ).sort((a, b) => a - b);
+
+    const currentSegmentId = questions[currentQuestionIndex]?.segmentId;
+    const currentSegmentQuestions = questions.filter(q => q.segmentId === currentSegmentId);
+    const currentQuestionInSegment = currentSegmentQuestions.findIndex(
+        q => q === questions[currentQuestionIndex]
+    );
+
+    const handleSwipe = (direction: 'left' | 'right') => {
+        setSwipeDirection(direction);
+        
+        if (direction === 'right') {
+            setAcceptedQuestions(prev => {
+                const newSet = new Set(prev);
+                newSet.add(currentQuestionIndex);
+                return newSet;
+            });
+
+            setTimeout(() => {
+                setSwipeDirection(null);
+                if (currentQuestionIndex < questions.length - 1) {
+                    setCurrentQuestionIndex(prev => prev + 1);
+                }
+            }, 300);
+        } else {
+            setQuestions(prevQuestions => {
+                const newQuestions = [...prevQuestions];
+                newQuestions.splice(currentQuestionIndex, 1);
+                
+                if (currentQuestionIndex > 0) {
+                    setCurrentQuestionIndex(prev => prev - 1);
+                } else if (newQuestions.length > 0) {
+                    setCurrentQuestionIndex(0);
+                }
+                
+                return newQuestions;
+            });
+            
+            setTimeout(() => {
+                setSwipeDirection(null);
+            }, 300);
+        }
+    };
+
+    const isQuestionAccepted = (index: number) => acceptedQuestions.has(index);
+    const isQuestionRejected = (index: number) => rejectedQuestions.has(index);
 
 
     const handleNext = () => {
@@ -1585,6 +1634,10 @@ const [isRerunning, setIsRerunning] = useState(false);
           try {
             setIsRerunning(true);
             await aiSectionAPI.rerunJobTask(aiJobId, "QUESTION_GENERATION", newParams);
+            setCurrentQuestionIndex(0);
+            setAcceptedQuestions(new Set());
+            setRejectedQuestions(new Set());
+            toast.success("Re-run success!");
             toast.error("Re-run success!");
           } catch (err) {
             toast.error("Re-run failed, try again!");
@@ -1794,17 +1847,55 @@ const [isRerunning, setIsRerunning] = useState(false);
                 )}
 
                 {!isLoading && !error && questions.length > 0 && (
-                  <div className="space-y-4">
+                  <div className="relative">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        Question {currentQuestionIndex + 1} of {questions.length}
+                        {currentSegmentQuestions.length > 1 && (
+                          <span className="ml-2">
+                            (Segment {currentQuestionInSegment + 1}/{currentSegmentQuestions.length})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="relative">
                     {questions.map((q: any, idx: number) => {
+                        if (idx !== currentQuestionIndex) return null;
+                        
                       const segIdx = segmentIds.findIndex((sid) => sid === q.segmentId)
                       const segStart = segIdx === 0 ? 0 : segmentIds[segIdx - 1]
                       const segEnd = q.segmentId
+                        const isAccepted = isQuestionAccepted(idx);
+                        const isRejected = isQuestionRejected(idx);
 
                       return (
                         <div
                           key={q.question?.text || idx}
-                          className="bg-card/90 border border-gray-200 dark:border-gray-600 rounded-lg p-4 hover:shadow-md transition-shadow duration-200"
+                          className={`bg-card/90 border rounded-lg p-4 transition-all duration-300 transform relative ${
+                            swipeDirection === 'right' 
+                              ? 'translate-x-full opacity-0' 
+                              : swipeDirection === 'left' 
+                              ? '-translate-x-full opacity-0'
+                              : 'translate-x-0 opacity-100'
+                          } ${
+                            isAccepted 
+                              ? 'border-green-500 dark:border-green-700 bg-green-50/50 dark:bg-green-900/20' 
+                              : isRejected 
+                              ? 'border-red-500 dark:border-red-700 bg-red-50/50 dark:bg-red-900/20 opacity-70'
+                              : 'border-gray-200 dark:border-gray-600 hover:shadow-md'
+                          }`}
                         >
+                          {isAccepted && (
+                            <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-medium px-2 py-1 rounded-full flex items-center">
+                              <CheckCircle className="w-3 h-3 mr-1" /> Accepted
+                            </div>
+                          )}
+                          {isRejected && (
+                            <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-medium px-2 py-1 rounded-full flex items-center">
+                              <XCircle className="w-3 h-3 mr-1" /> Rejected
+                            </div>
+                          )}
                           {/* Question Metadata */}
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-4 text-xs">
@@ -1885,9 +1976,57 @@ const [isRerunning, setIsRerunning] = useState(false);
                               </div>
                             </div>
                           )}
-                        </div>
-                      )
-                    })}
+                              <button
+                                onClick={() => handleSwipe('left')}
+                                disabled={isQuestionRejected(currentQuestionIndex) || isQuestionAccepted(currentQuestionIndex)}
+                                className={`absolute top-[100px] bg-red-50 dark:bg-red-900/20 -left-4 p-2 rounded-full transition-colors border border-solid border-red-200 dark:border-red-800 ${
+                                  isQuestionRejected(currentQuestionIndex) || isQuestionAccepted(currentQuestionIndex)
+                                    ? 'opacity-30 cursor-not-allowed'
+                                    : 'hover:bg-red-100 dark:hover:bg-red-900/30 cursor-pointer text-red-500'
+                                }`}
+                                aria-label="Reject question"
+                              >
+                                <ChevronLeft className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleSwipe('right')}
+                                disabled={isQuestionAccepted(currentQuestionIndex) || isQuestionRejected(currentQuestionIndex)}
+                                className={`absolute top-[100px] bg-green-50 dark:bg-green-900/20 -right-4 p-2 rounded-full transition-colors border border-solid border-green-200 dark:border-green-800 ${
+                                  isQuestionAccepted(currentQuestionIndex) || isQuestionRejected(currentQuestionIndex)
+                                    ? 'opacity-30 cursor-not-allowed'
+                                    : 'hover:bg-green-100 dark:hover:bg-green-900/30 cursor-pointer text-green-500'
+                                }`}
+                                aria-label="Accept question"
+                              >
+                                <ChevronRight className="w-4 h-4" />
+                              </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Segment Progress
+                        </span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                          {acceptedQuestions.size} / {currentSegmentQuestions.length} questions accepted
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                        <div 
+                          className="bg-green-600 h-2.5 rounded-full transition-all duration-300" 
+                          style={{ 
+                            width: `${(acceptedQuestions.size / currentSegmentQuestions.length) * 100}%`,
+                            minWidth: acceptedQuestions.size > 0 ? '0.5rem' : '0'
+                          }}
+                        />
+                      </div>
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        At least one question must be accepted per segment.
+                      </p>
+                    </div>
                   </div>
                 )}
 
