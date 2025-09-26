@@ -4,7 +4,7 @@ import { COURSE_REGISTRATION_TYPES } from './types.js';
 import { CourseRegistrationController } from './controllers/CourseRegistrationController.js';
 import { CourseRegistrationRepository } from './repositories/index.js';
 
-export const CourseRegistrationContainerModule = new ContainerModule(options => {
+export const courseRegistrationContainerModule = new ContainerModule(options => {
     // Repositories
 
     options.bind(COURSE_REGISTRATION_TYPES.CourseRegistrationRepository).to(CourseRegistrationRepository).inSingletonScope();

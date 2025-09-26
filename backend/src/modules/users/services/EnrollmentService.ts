@@ -396,6 +396,10 @@ export class EnrollmentService extends BaseService {
     });
   }
 
+
+  async getInstructorEnrollment(courseId:string,versionId:string){
+    return this.enrollmentRepo.getByCourseVersion(courseId,versionId)
+  }
   async processBulkInvite(userId: string, inviteId: string): Promise<void> {
     const invite = await this.inviteRepo.findInviteById(inviteId)
     if (!invite) {
