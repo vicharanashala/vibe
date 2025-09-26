@@ -174,11 +174,11 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               <DialogTrigger asChild>
                 <Button variant="outline">View Details</Button>
               </DialogTrigger>
-              <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
+              <DialogContent className="max-w-3xl max-h-full flex flex-col">
                 <DialogHeader>
                   <DialogTitle>Course Details</DialogTitle>
                 </DialogHeader>
-                <ScrollArea className="flex-1 pr-4 -mr-4">
+                <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[700px] overflow-y-auto">
                   <div className="space-y-6 py-2">
                     <div>
                       <div className="grid grid-cols-2 gap-4 mt-2">
