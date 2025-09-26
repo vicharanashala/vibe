@@ -153,8 +153,8 @@ export class InviteController {
     console.log("result from processInvite ", result)
     if (result.isBulk) {
       console.log("setting session on process")
-      req.session.bulkInviteId = inviteId
-      console.log("session added ", req.session.bulkInviteId)
+      // req.session.bulkInviteId = inviteId
+      // console.log("session added ", req.session.bulkInviteId)
     }
     return inviteRedirectTemplate(result.message, appConfig.origins[0]);
     // return inviteRedirectTemplate(result.message, appConfig.origin);
