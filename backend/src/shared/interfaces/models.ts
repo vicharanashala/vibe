@@ -566,3 +566,24 @@ export interface AuthenticatedUser {
   globalRole: 'admin' | 'user';
   enrollments: AuthenticatedUserEnrollements[];
 }
+
+
+export interface ICourseRegistration{
+  _id?: string; 
+  courseId: string; 
+  versionId: string;
+  userId: string;
+  detail: {
+    name: string; 
+    email: string; 
+    mobile: number; 
+    gender: "MALE" | "FEMALE" | "OTHERS";
+    city: string;
+    state: string;
+    category: "GENERAL" | "OBC" | "SE" | "ST" | "OTHERS";
+    university: string;
+  };
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  createdAt?: Date;
+  updatedAt?: Date;
+}
