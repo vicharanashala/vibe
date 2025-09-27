@@ -28,8 +28,21 @@ import {
   ListChecks,
   MessageSquareText,
   Workflow,
-  CircleChevronLeft,
-  Info
+  Info,
+  Brain,
+  Eye,
+  EyeOff,
+  Pencil,
+  Sparkles,
+  Check,
+  MessageSquare,
+  CircleCheckBig,
+  Layers,
+  Clock,
+  Zap,
+  FileMusic,
+  Upload,
+  Share
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -199,115 +212,137 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
       return 'uploadContent';
     }
 
-    return null;
+    return 'transcription';
   }, [jobStatus]);
 
+  // Calculate progress based on completed steps
+  const getStepProgress = () => {
+    const stepOrder = [
+      'transcription',
+      'audioExtraction',
+      'transcriptGeneration',
+      'segmentation',
+      'questionGeneration',
+      'uploadContent'
+    ];
+  
+    // Find the last completed step
+    let lastCompletedIndex = -1;
+    
+    stepOrder.forEach((step, index) => {
+      const status = getStepStatus(jobStatus, step);
+      if (status === 'completed') {
+        lastCompletedIndex = index;
+      }
+    });
+    
+    // Only show progress for completed steps
+    if (lastCompletedIndex >= 0) {
+      return ((lastCompletedIndex + 1) / stepOrder.length) * 100;
+    }
+    
+    return 0;
+  };
+
+  const progressPercentage = getStepProgress();
+
   return (
-    <div className="flex items-center justify-between mb-8 px-2 relative animate-fade-in">
+    <div className="relative mb-12 px-4">
+      {/* Single continuous progress line */}
+      <div className="absolute left-0 top-5 w-full h-[3px] bg-gray-300 dark:bg-[#292524] overflow-hidden">
+        {progressPercentage > 0 && (
+          <div 
+            className="h-full bg-gradient-to-r from-[#00D492] to-[#2B7FFF] transition-all duration-500"
+            style={{ width: `${progressPercentage}%` }}
+          />
+        )}
+      </div>
+      
+      <div className="flex items-center relative z-10">
       {WORKFLOW_STEPS.map((step, idx) => {
         const status = getStepStatus(jobStatus, step.key);
         const isCurrent = step.key === activeStep;
-
         const isLast = idx === WORKFLOW_STEPS.length - 1;
         const isCompleted = status === 'completed';
         const isFailed = status === 'failed';
         const isStopped = status === 'stopped';
         const isActive = status === 'active' || (isCurrent && !isCompleted && !isFailed && !isStopped);
+        const isUpcoming = !isCompleted && !isActive && !isFailed && !isStopped;
 
         return (
           <React.Fragment key={step.key}>
-            <div className="flex flex-col items-center relative z-10 animate-step-appear">
-              {/* Step Circle */}
-              <div className={`
-                stepper-step rounded-full p-3 mb-3 transition-all duration-500 ease-out transform hover:scale-110
-                ${isCompleted ? 'bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg shadow-green-500/25 ring-2 ring-green-500/20 animate-stepper-success-glow' :
-                  isActive ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25 ring-2 ring-blue-500/20 animate-stepper-glow' :
-                    isFailed ? 'bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/25 ring-2 ring-red-500/20 animate-stepper-error-glow' :
-                      isStopped ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/25 ring-2 ring-orange-500/20 animate-stepper-error-glow' :
-                        'bg-gradient-to-br from-muted to-muted/80 text-muted-foreground shadow-md ring-1 ring-border/50 hover:shadow-lg hover:shadow-lg hover:ring-2 hover:ring-primary/20'
-                }`}
-                style={{ minWidth: 48, minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                {/* Animated Icons */}
-                <div className="transition-all duration-300 ease-out flex items-center justify-center w-6 h-6">
-                  {isCompleted ? (
-                    <CheckCircle className="w-6 h-6 animate-bounce" />
-                  ) : isActive ? (
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  ) : isFailed ? (
-                    <XCircle className="w-6 h-6 animate-pulse" />
-                  ) : isStopped ? (
-                    <PauseCircle className="w-6 h-6 animate-pulse" />
-                  ) : (
-                    <div className="transition-all duration-300 hover:scale-110 flex items-center justify-center w-6 h-6">
-                      {step.icon}
-                    </div>
-                  )}
-                </div>
-              </div>
+            <div className="relative flex-1 flex justify-center">
+          <div className="flex flex-col items-center">
+             {/* Step Circle */}
+           <div className={`
+      relative flex items-center justify-center
+      w-11 h-11 rounded-[14px] transition-all duration-300 z-10
+      ${isCompleted 
+        ? 'bg-[linear-gradient(135deg,_#00D492_0%,_#009966_100%)] text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.1),_0px_10px_15px_-3px_rgba(0,0,0,0.1)]' 
+        : isActive 
+          ? 'bg-[linear-gradient(135deg,_#51A2FF_0%,_#9810FA_100%)] text-white shadow-lg ring-4 ring-blue-200' 
+          : isFailed 
+            ? 'bg-red-500 text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.1),_0px_10px_15px_-3px_rgba(0,0,0,0.1)]' 
+            : isStopped 
+              ? 'bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.1),_0px_10px_15px_-3px_rgba(0,0,0,0.1)]' 
+              : 'bg-gray-200 dark:bg-[#2f1d08] text-gray-600 dark:text-[#a8a29e]'}
+    `}>
+                      {isCompleted ? (
+                        <CheckCircle className="w-6 h-6" />
+                      ) : isActive ? (
+                        <span>{step.icon}</span>
+                      ) : isFailed ? (
+                        <XCircle className="w-6 h-6" />
+                      ) : isStopped ? (
+                        <PauseCircle className="w-6 h-6" />
+                      ) : (
+                        <span className="font-medium">{step.icon}</span>
+    )}
+    {isActive && <div className="absolute -top-1.5 -right-1 bg-[#2B7FFF] rounded-full h-5 w-5 flex items-center justify-center"><Loader2 className="w-3 h-3 animate-spin text-white" /></div>}
+    {isCurrent && jobStatus?.status === 'COMPLETED' && <div className="absolute -top-1.5 -right-1 bg-[#00BC7D] rounded-full h-5 w-5 flex items-center justify-center"><Sparkles className="w-3 h-3 text-white" /></div>}
+  </div>
 
-              {/* Step Label */}
-              <div className="text-center max-w-24">
-                <span className={`
-                  text-sm font-semibold transition-all duration-300 ease-out
-                  ${isCompleted ? 'text-green-600 dark:text-green-400' :
-                    isActive ? 'text-blue-600 dark:text-blue-400' :
-                      isFailed ? 'text-red-600 dark:text-red-400' :
-                        isStopped ? 'text-orange-600 dark:text-orange-400' :
-                          'text-muted-foreground'
-                  }`}
-                >
-                  {step.label}
-                </span>
+  {/* Step Label */}
+  <div className="mt-2 flex flex-col items-center">
+    <div className={`text-sm font-medium
+        ${isCompleted 
+          ? 'text-[#009966]' 
+          : isActive 
+            ? 'text-[#155DFC]' 
+            : isFailed 
+              ? 'text-red-600' 
+              : isStopped 
+                ? 'text-[#F54900]' 
+                : 'text-[#6A7282] dark:text-[#a8a29e]'}
+      `}>
+      {step.label}
+    </div>
 
-                {/* Status Indicator */}
-                {isActive && (
-                  <div className="mt-1 flex items-center justify-center">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping" />
-                    <span className="ml-1 text-xs text-blue-600 dark:text-blue-400 font-medium">
-                      Processing...
-                    </span>
-                  </div>
-                )}
-                {isCompleted && (
-                  <div className="mt-1 flex items-center justify-center">
-                    <div className="w-2 h-2 bg-green-500 rounded-full" />
-                    <span className="ml-1 text-xs text-green-600 dark:text-green-400 font-medium">
-                      Complete
-                    </span>
-                  </div>
-                )}
-                {isFailed && (
-                  <div className="mt-1 flex items-center justify-center">
-                    <div className="w-2 h-2 bg-red-500 rounded-full" />
-                    <span className="ml-1 text-xs text-red-600 dark:text-red-400 font-medium">
-                      Failed
-                    </span>
-                  </div>
-                )}
-                {isStopped && (
-                  <div className="mt-1 flex items-center justify-center">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full" />
-                    <span className="ml-1 text-xs text-orange-600 dark:text-orange-400 font-medium">
-                      Stopped
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
+    {/* Status Text */}
+    <div className="mt-1 h-4 text-xs">
+      {isActive && <span className="text-[#2B7FFF] dark:text-blue-400 bg-[#EEF2FF] dark:bg-blue-900/30 py-1 px-1.5 rounded-[10px] flex gap-1 items-center"><Zap size={14} className="text-yellow-500 dark:text-yellow-400"/> Processing</span>}
+      {isCompleted && <span className="text-[#00BC7D] dark:text-green-400 bg-[#ECFDF5] dark:bg-green-900/30 py-1 px-1.5 rounded-[10px] flex gap-1 items-center"><Check size={14} className="text-green-600 dark:text-green-400" /> Complete</span>}
+      {isFailed && <span className="text-red-600 dark:text-red-400 bg-[#ffe9ea] dark:bg-red-900/30 py-1 px-1.5 rounded-[10px] flex gap-1 items-center"><X size={14} className="text-red-600 dark:text-red-400" /> Failed</span>}
+      {isStopped && <span className="text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 py-1 px-1.5 rounded-[10px] flex gap-1 items-center"><PauseCircle size={14} className="text-orange-600 dark:text-orange-400" /> Stopped</span>}
+    </div>
+  </div>
+  </div>
+</div>
+
 
             {/* Connecting Line */}
-            {!isLast && (
-              <div className="flex-1 flex items-center justify-center relative z-0">
-                <div className={`
-                  stepper-line h-0.5 w-full mx-2 rounded-full transition-all duration-700 ease-out
-                  ${isCompleted ? 'bg-green-500' : 'bg-muted'}
-                `} style={{ minWidth: 32 }} />
+            {/* {!isLast && (
+              <div className="flex-1 h-1 mx-2 bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full transition-all duration-500 ${isCompleted ? 'bg-green-500' : 'bg-transparent'}`}
+                  style={{ width: isCompleted ? '100%' : '0%' }}
+                />
               </div>
-            )}
+            )} */}
           </React.Fragment>
         );
       })}
+    </div>
     </div>
   );
 });
@@ -341,7 +376,6 @@ export default function AISectionPage() {
   const [manuallyCollapsedItems, setManuallyCollapsedItems] = useState<string[]>([]);
   const [isCreatingJob, setIsCreatingJob] = useState(false);
   const [currentUiStep, setCurrentUiStep] = useState(0);
-
   // // Drag and drop handlers for ORDER_THE_LOTS questions (unchanged)
   // const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
   //   e.dataTransfer.setData('text/plain', index.toString());
@@ -366,6 +400,7 @@ export default function AISectionPage() {
 
   // New: Track current AI job status for manual refresh
   const [aiJobStatus, setAiJobStatus] = useState<JobStatus | null>(null);
+  const [aiJobDate, setAiJobDate] = useState<any | null>(null);
   const [aiWorkflowStep, setAiWorkflowStep] = useState<'idle' | 'audio_extraction' | 'audio_extraction_done' | 'transcription' | 'transcription_done' | 'error'>('idle');
   // New: Track if approveContinueTask has been called for current job's WAITING state
   const [approvedForCurrentJob, setApprovedForCurrentJob] = useState(false);
@@ -373,6 +408,40 @@ export default function AISectionPage() {
   const [transcriptStartedForCurrentJob, setTranscriptStartedForCurrentJob] = useState(false);
   // New: Parameters for rerun
   const [rerunParams, setRerunParams] = useState({ language: 'en', model: 'default' });
+
+  const [audioExtractionProgress, setAudioExtractionProgress] = useState(0);
+  type AudioExtractionStatus = 'ready' | 'processing' | 'completed' | 'failed';
+  const [audioExtractionStatus, setAudioExtractionStatus] = useState<AudioExtractionStatus>('ready');
+  const [audioExtractionStartTime, setAudioExtractionStartTime] = useState<Date | null>(null);
+  const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState<string>('');
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    
+    if (audioExtractionStatus === 'processing') {
+      interval = setInterval(() => {
+        setAudioExtractionProgress((prev) => {
+          if (prev >= 99) return 99;
+          return prev + Math.random() * 2;
+        });
+        
+        if (audioExtractionStartTime) {
+          const elapsed = Date.now() - audioExtractionStartTime.getTime();
+          const progress = audioExtractionProgress;
+          if (progress > 0) {
+            const totalEstimated = elapsed / (progress / 100);
+            const remaining = totalEstimated - elapsed;
+            const minutes = Math.max(0, Math.ceil(remaining / 60000));
+            setEstimatedTimeRemaining(`~${minutes} minute${minutes !== 1 ? 's' : ''}`);
+          }
+        }
+      }, 1000);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [audioExtractionStatus, audioExtractionProgress, audioExtractionStartTime]);
 
   // Add state for question generation parameters
   const [questionGenParams, setQuestionGenParams] = useState<QuestionGenParams>({
@@ -834,27 +903,33 @@ export default function AISectionPage() {
     }, []);
 
     return (
-      <div className="space-y-3">
+      <div className="space-y-[28px]">
         {/* Always show transcription parameter inputs for 'transcription' task */}
-        {task === 'transcription' && (
-          <div className="flex flex-row gap-4 mb-2">
+        {task === 'transcription' && audioExtractionStatus !== 'completed' && (
+          <div className="flex flex-row gap-5 mb-4">
             <div className="flex-1 flex flex-col items-start">
-              <label className="mb-1">Language:</label>
+              <label className="mb-2.5 flex items-center text-sm font-medium text-gray-700 dark:text-[#a8a29e]">
+                <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                Processing Language
+              </label>
               <select
                 value={rerunParams.language}
                 onChange={e => setRerunParams(p => ({ ...p, language: e.target.value }))}
-                className="w-full px-2 py-1 rounded"
+                className="w-full px-4 py-2 rounded-full border border-gray-200 dark:border-[#26211E] bg-white dark:bg-[#140E09] shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
               >
                 <option value="en">English</option>
                 <option value="hi">Hindi</option>
               </select>
             </div>
             <div className="flex-1 flex flex-col items-start">
-              <label className="mb-1">Model:</label>
+              <label className="mb-2.5 flex items-center text-sm font-medium text-gray-700 dark:text-[#a8a29e]">
+                <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                AI Model
+              </label>
               <select
                 value={rerunParams.model}
                 onChange={e => setRerunParams(p => ({ ...p, model: e.target.value }))}
-                className="w-full px-2 py-1 rounded"
+                className="w-full px-4 py-2 rounded-full border border-gray-200 dark:border-[#26211E] bg-white dark:bg-[#140E09] shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
               >
                 <option value="default">default</option>
                 {/* Add more models as needed */}
@@ -862,48 +937,63 @@ export default function AISectionPage() {
             </div>
           </div>
         )}
-        {/* Show Start Transcription button for transcription task when audio extraction is completed */}
-        {task === 'transcription' && accordionAiJobStatus?.status === 'COMPLETED' && accordionAiJobStatus?.task === 'AUDIO_EXTRACTION' && (
-          <div className="mb-4">
-            <Button
-              onClick={handleStartTranscription}
-              variant="default"
-              disabled={accordionAiJobStatus?.status !== 'COMPLETED' || accordionAiJobStatus?.task !== 'AUDIO_EXTRACTION'}
-              className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-5 py-2.5 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
-            >
-              Start Transcription Task
-            </Button>
-            {/* <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    onClick={handleStartTranscription}
-                    variant="default"
-                    disabled={accordionAiJobStatus?.status !== 'COMPLETED' || accordionAiJobStatus?.task !== 'AUDIO_EXTRACTION'}
-                    className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-5 py-2.5 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
-                  >
-                    Start Transcription Task
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {(accordionAiJobStatus?.task as string) === "TRANSCRIPT_GENERATION" && (accordionAiJobStatus?.status as string) === 'PENDING' && (
-                    <span>
-                      Approves the transcript task. Click again when status is <b>WAITING</b> to actually start transcription.
-                    </span>
-                  )}
-                  {(accordionAiJobStatus?.task as string) === "TRANSCRIPT_GENERATION" && (accordionAiJobStatus?.status as string) === 'WAITING' && (
-                    <span>
-                      Starts the transcript generation task. Status will move to <b>RUNNING</b>.
-                    </span>
-                  )}
-                  {(accordionAiJobStatus?.task as string) === "TRANSCRIPT_GENERATION" && (accordionAiJobStatus?.status as string) !== 'PENDING' && (accordionAiJobStatus?.status as string) !== 'WAITING' && (
-                    <span>
-                      Transcript generation is not ready to start yet.
-                    </span>
-                  )}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider> */}
+        {task === 'transcription' && (
+          (accordionAiJobStatus?.jobStatus?.audioExtraction === 'COMPLETED' ||
+           (accordionAiJobStatus?.task === 'AUDIO_EXTRACTION' && accordionAiJobStatus?.status === 'COMPLETED'))
+        ) && (
+          <div className="w-full mb-6 shadow-sm">
+
+            <div className="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-gradient-to-r dark:from-emerald-800 dark:to-purple-800
+">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
+                <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
+                <CheckCircle className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                  <div>Audio Extraction</div>
+                  <div className="flex items-center gap-3">
+                  <span className="text-xs text-emerald-600">Run 1</span>
+                  <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
+                  <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white font-medium">Complete</span>
+                  <span className="text-sm text-emerald-700 font-medium">100% complete</span>
+                </div>
+                </div>
+                </div>
+                
+              </div>
+              <div className="rounded-lg border border-emerald-100 bg-white/60 backdrop-blur-md p-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <div className="text-gray-500">Duration</div>
+                    <div className="text-gray-800 font-medium">12:48 minutes</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Quality</div>
+                    <div className="text-gray-800 font-medium">High (320kbps)</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Format</div>
+                    <div className="text-gray-800 font-medium">MP3</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">File Size</div>
+                    <div className="text-gray-800 font-medium">29.4 MB</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 shadow-sm">
+              <div className="flex flex-col items-center gap-2 justify-center text-center">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-emerald-600" />
+                  <div className="font-medium">Audio extraction completed successfully!</div>
+                </div>
+                <div>Ready to proceed with AI-powered transcription</div>
+              </div>
+            </div>
+
           </div>
         )}
         {/* Always show question generation parameter inputs for 'question' task */}
@@ -970,11 +1060,173 @@ export default function AISectionPage() {
             />
           </div>
         )}
-        <div className="flex items-center gap-3">
+
+        {task === 'transcription' && (
+          <>
+            {audioExtractionStatus !== 'completed' && (
+            <div className="w-full p-5 rounded-lg border border-[#FFD6A7] mb-4 bg-[linear-gradient(135deg,_#e0fff4_0%,_#f3e7ff_100%)] dark:bg-[linear-gradient(135deg,#140E09_0%,#1A0F14_100%)] flex items-start gap-4">
+              <div className="flex items-start gap-4 w-full">
+             
+                <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] text-white">
+                <FileText className="w-6 h-6 text-white" />
+            </div>
+          
+       
+            <div className="flex flex-col justify-center w-full">
+          
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="font-semibold text-gray-900 dark:text-[#a8a29e] text-lg">Audio Extraction</span>
+                      <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-orange-500 text-white font-medium">
+                        {audioExtractionStatus === 'processing' ? 'Processing' : 
+                         audioExtractionStatus === 'completed' ? 'Completed' :
+                         audioExtractionStatus === 'failed' ? 'Failed' : 'Ready'}
+                      </span>
+              </div>
+
+               
+                    {aiJobId && (
+            runs.some(r => r.status === "loading") ||
+            runs.some(r => r.status === "stopped") ||
+            (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.audioExtraction === 'RUNNING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'PENDING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'WAITING') && accordionAiJobStatus?.jobStatus?.audioExtraction !== 'FAILED') ||
+            (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'RUNNING' || accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'PENDING' || accordionAiJobStatus?.jobStatus?.transcriptGeneration === 'WAITING') && accordionAiJobStatus?.jobStatus?.transcriptGeneration !== 'FAILED') ||
+            (task === 'segmentation' && (accordionAiJobStatus?.jobStatus?.segmentation === 'RUNNING' || accordionAiJobStatus?.jobStatus?.segmentation === 'PENDING' || accordionAiJobStatus?.jobStatus?.segmentation === 'WAITING') && accordionAiJobStatus?.jobStatus?.segmentation !== 'FAILED') ||
+            (task === 'question' && (accordionAiJobStatus?.jobStatus?.questionGeneration === 'RUNNING' || accordionAiJobStatus?.jobStatus?.questionGeneration === 'PENDING' || accordionAiJobStatus?.jobStatus?.questionGeneration === 'WAITING') && accordionAiJobStatus?.jobStatus?.questionGeneration !== 'FAILED') ||
+            (task === 'upload' && (accordionAiJobStatus?.jobStatus?.uploadContent === 'RUNNING' || accordionAiJobStatus?.jobStatus?.uploadContent === 'PENDING' || accordionAiJobStatus?.jobStatus?.uploadContent === 'WAITING') && accordionAiJobStatus?.jobStatus?.uploadContent !== 'FAILED')
+          ) && (
+              <Button
+                onClick={() => handleStopTask(task)}
+                variant="outline"
+                disabled={runs.some(r => r.status === "stopped")}
+                className="bg-red-50 border-red-300 text-red-700 hover:bg-red-100 hover:border-red-400 font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                {runs.some(r => r.status === "stopped") ? "Task Stopped" : "Stop Task"}
+              </Button>
+            )}
+                    {audioExtractionStatus === 'completed' && (
+                      <Button
+                        onClick={handleStartTranscription}
+                        size="sm"
+                        className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-4 py-2 rounded-lg shadow-md hover:shadow-lg"
+                      >
+                        Start Transcription Task
+                      </Button>
+                    )}
+                  </div>
+
+           
+                  <div className="flex items-center text-sm text-gray-600 dark:text-[#a8a29e]">
+                <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                <span>Run 1</span>
+                <span className="mx-2">•</span>
+                    <span>{audioExtractionStartTime ? audioExtractionStartTime.toLocaleTimeString() : new Date().toLocaleTimeString()}</span>
+                    {(audioExtractionStatus === 'processing' || audioExtractionStatus === 'completed') && (
+                      <>
+                        <span className="mx-2">✨</span>
+                        <span>{Math.round(audioExtractionStatus === 'completed' ? 100 : audioExtractionProgress)}% complete</span>
+                      </>
+                    )}
+              </div>
+
+               
+                  {(audioExtractionStatus === 'processing' || audioExtractionStatus === 'completed') && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700">Extraction Progress</span>
+                        <span className="text-sm font-medium text-blue-600">{Math.round(audioExtractionStatus === 'completed' ? 100 : audioExtractionProgress)}%</span>
+                      </div>
+                      
+                      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div 
+                          className="bg-gray-800 h-2 rounded-full transition-all duration-300 ease-out"
+                          style={{ width: `${audioExtractionStatus === 'completed' ? 100 : audioExtractionProgress}%` }}
+                        ></div>
+                      </div>
+                      
+                      {audioExtractionStatus === 'processing' && (
+                        <div className="text-sm text-gray-600 dark:text-[#a8a29e]">
+                          Estimated time remaining: {estimatedTimeRemaining}
+                        </div>
+                      )}
+          </div>
+                  )}
+                </div>
+              </div>
+            </div>
+        )}
+            {audioExtractionStatus === 'processing' && (
+              <div className="w-full p-5 rounded-lg border border-[#BEDBFF] bg-[#EEF2FF] dark:bg-[#140E09] shadow-sm">
+                <div className="flex items-center justify-center gap-4">
+                  
+                  <div className="flex flex-col">
+                 <div className="flex items-center justify-center">
+                 <div className="w-8 h-8 flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+                  </div>
+                    <span className="font-medium text-blue-600 text-base">Processing Audio</span>
+                 </div>
+                    <span className="text-sm text-blue-500 mt-4">
+                      Our advanced algorithms are carefully extracting high-quality audio from your video...
+                    </span>
+                    <div className="flex items-center gap-1 mt-[18px] justify-center">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+        {task === 'transcription' && (
+          (accordionAiJobStatus?.jobStatus?.transcription === 'COMPLETED' ||
+            (accordionAiJobStatus?.task === 'TRANSCRIPT_GENERATION' && accordionAiJobStatus?.status === 'COMPLETED'))
+          ) ? (
+            <div className="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-gradient-to-r dark:from-emerald-800 dark:to-purple-800
+">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
+                  <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
+                  <CheckCircle className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <div>AI Transcription</div>
+                    <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white font-medium">Complete</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-emerald-600">Run 1</span>
+                    <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
+                  </div>
+                </div>
+                </div>
+              </div>
+            </div>
+          ):(
+        <div className={`flex items-center gap-3 justify-center`}>
+          {task === 'transcription' && audioExtractionStatus === 'completed' ? (
+            <Button
+              onClick={handleStartTranscription}
+              disabled={aiJobStatus?.task === 'TRANSCRIPT_GENERATION' && aiJobStatus?.status === 'RUNNING'}
+              className="px-6 py-3 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Start Transcription Task
+            </Button>
+          ) : !(task === 'segmentation' && aiJobStatus?.task === 'SEGMENTATION' && aiJobStatus?.status === 'COMPLETED') && (
           <Button
             onClick={async () => {
               setQuestionGenParams(localParams);
               setSegParams(localSegParams);
+              
+              if (task === 'transcription') {
+                setAudioExtractionStatus('processing');
+                setAudioExtractionProgress(0);
+                setAudioExtractionStartTime(new Date());
+                setEstimatedTimeRemaining('~2 minutes');
+              }
+              
               if (task === 'upload') {
                 // Use values from store and input fields
                 if (!aiJobId) return;
@@ -1050,13 +1302,15 @@ export default function AISectionPage() {
               }
               handleTask(task, localSegParams, localParams);
             }}
-            disabled={!canRunTask(task) || runs.some(r => r.status === "loading")}
-            className="flex-1 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
+            disabled={!canRunTask(task) || runs.some(r => r.status === "loading") || (task === 'transcription' && audioExtractionStatus === 'completed')}
+            className="flex items-center justify-between gap-2 bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white font-semibold px-6 py-3 rounded-full shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {runs.some(r => r.status === 'stopped') ? `Restart ${title}` : title}
+             <Play />
+            {runs.some(r => r.status === 'stopped') ? `Restart ${title}` : `Start ${title}`}
           </Button>
-
-          {aiJobId && (
+          )}
+           
+          {/* {aiJobId && (
             runs.some(r => r.status === "loading") ||
             runs.some(r => r.status === "stopped") ||
             (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.audioExtraction === 'RUNNING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'PENDING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'WAITING') && accordionAiJobStatus?.jobStatus?.audioExtraction !== 'FAILED') ||
@@ -1074,15 +1328,37 @@ export default function AISectionPage() {
                 <XCircle className="w-4 h-4 mr-2" />
                 {runs.some(r => r.status === "stopped") ? "Task Stopped" : "Stop Task"}
               </Button>
-            )}
+            )} */}
           {/* Add three input boxes for segmentation parameters beside the Segmentation button */}
           {task === 'segmentation' && (
+            aiJobStatus?.task === 'SEGMENTATION' && aiJobStatus?.status === 'COMPLETED' ? (
+              <div className="w-full rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-gradient-to-r dark:from-emerald-800 dark:to-purple-800
+">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
+                  <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
+                  <CheckCircle className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <div>AI Segmentation</div>
+                    <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white font-medium">Complete</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-emerald-600">Run 1</span>
+                    <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
+                  </div>
+                </div>
+                </div>
+              </div>
+            </div>
+            ) : (
             <div className="flex flex-row gap-3 items-center ml-4 bg-gray-100 dark:bg-gray-800/60 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700">
               {segFields.map(({ key, type }) => (
                 <div key={key} className="flex flex-col items-start min-w-[80px]">
                   <label
                     htmlFor={`seg-${key}`}
-                    className="text-[11px] font-semibold mb-1 text-gray-700 dark:text-gray-300"
+                    className="text-[11px] font-semibold mb-1 text-gray-700 dark:text-[#a8a29e]"
                   >
                     {key}
                   </label>
@@ -1093,12 +1369,13 @@ export default function AISectionPage() {
                     onChange={(e) => handleSegParamChange(key, type === 'float'
                       ? parseFloat(e.target.value) || 0
                       : parseInt(e.target.value) || 0)}
-                    className="w-20 h-9 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    className="w-20 h-9 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-[#a8a29e] focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                     style={{ fontSize: '15px' }}
                   />
                 </div>
               ))}
             </div>
+          )
           )}
           {/* Add Re-run Transcription button */}
           {task === 'transcription' && jobStatus?.task === 'TRANSCRIPT_GENERATION' && jobStatus?.status === 'COMPLETED' && (
@@ -1201,6 +1478,7 @@ export default function AISectionPage() {
             </Button>
           )}
         </div>
+        )}     
 
         {runs.length > 0 && (
           <Accordion
@@ -1244,7 +1522,7 @@ export default function AISectionPage() {
                 const mainKeys = ["model", "SOL", "SML", "NAT", "DES"];
                 const promptKey = paramKeys.find(k => k.toLowerCase() === "prompt");
                 readableParams = (
-                  <div className="text-sm text-gray-600 dark:text-muted-foreground mb-2">
+                  <div className="text-sm text-gray-600 dark:text-[#a8a29e] mb-2">
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2.5rem', marginBottom: '0.5rem' }}>
                       {mainKeys.map(key =>
                         key in run.parameters ? (
@@ -1264,7 +1542,7 @@ export default function AISectionPage() {
                 <AccordionItem key={run.id} value={run.id} className="border rounded my-2 last:border-b">
                   <AccordionTrigger className="flex items-center gap-2 px-2 py-1">
                     <span>Run {index + 1}</span>
-                    <span className="text-sm text-gray-600 dark:text-muted-foreground">{run.timestamp.toLocaleTimeString()}</span>
+                    <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{run.timestamp.toLocaleTimeString()}</span>
                     {getStatusIcon(run.status)}
                     {acceptedRunId === run.id && <span className="text-blue-500">Accepted</span>}
                   </AccordionTrigger>
@@ -1297,6 +1575,33 @@ export default function AISectionPage() {
             })}
           </Accordion>
         )}
+        <div className="flex items-center justify-center text-[#6A7282] dark:text-[#a8a29e] text-[11px]">
+        {/* {currentUiStep <= 2 && ( */}
+          <>
+          {(currentUiStep === 1 && aiJobStatus === null) &&
+            <span>Extracts audio from uploaded files (video or audio) for further processing.</span>
+          }
+          {(currentUiStep === 1 && aiJobStatus?.task === "AUDIO_EXTRACTION") &&
+            (aiJobStatus?.status === "COMPLETED" || aiJobStatus?.status === "RUNNING") && (
+              <span>Extracts audio from uploaded files (video or audio) for further processing.</span>
+            )
+          }
+          {aiJobStatus?.task === "TRANSCRIPT_GENERATION" &&
+            (aiJobStatus?.status === "COMPLETED" || aiJobStatus?.status === "RUNNING") && (
+              <span>Converts extracted audio into accurate text transcripts.</span>
+            )}
+            {aiJobStatus?.task === "SEGMENTATION" &&
+            (<span>Breaks down the transcript into logical sections or chunks.</span>)}
+            {aiJobStatus?.task === "QUESTION_GENERATION" &&
+            (<span>Automatically generates relevant questions from the segmented transcript.</span>)}
+            {aiJobStatus?.task === "UPLOAD_CONTENT" &&
+            (<span>Saves and uploads the processed content with questions for later use.</span> )}
+            </>
+           {/* )} */}
+           {/* {currentUiStep >= 2 && aiJobStatus?.task == "SEGMENTATION" && (
+              WORKFLOW_STEPS.find(s => s.key === task)?.explanation || WORKFLOW_STEPS[0].explanation
+            )} */}
+        </div>
       </div>
     );
   });
@@ -1826,6 +2131,22 @@ export default function AISectionPage() {
           optimisticFailedTaskRef.current = null;
         }
 
+        if (next?.task === 'AUDIO_EXTRACTION') {
+          if (next?.status === 'RUNNING') {
+            setAudioExtractionStatus('processing');
+          }
+          if (next?.status === 'COMPLETED') {
+            setAudioExtractionStatus('completed');
+            setAudioExtractionProgress(100);
+            setEstimatedTimeRemaining('');
+          }
+          if (next?.status === 'STOPPED') {
+            setAudioExtractionStatus('ready');
+            setAudioExtractionProgress(0);
+            setEstimatedTimeRemaining('');
+          }
+        }
+
         if (next?.task === 'TRANSCRIPT_GENERATION' && next?.status === 'COMPLETED') {
           setTimeout(() => {
             setTaskRuns((prevTaskRuns: any) => {
@@ -1885,6 +2206,7 @@ export default function AISectionPage() {
     if (!aiJobId) return;
     try {
       let status = await aiSectionAPI.getJobStatus(aiJobId);
+      setAiJobDate(status?.createdAt);
       if (status.jobStatus?.transcriptGeneration === 'PENDING') {
         await aiSectionAPI.approveContinueTask(aiJobId);
         toast.success('Approved transcript task.');
@@ -2092,12 +2414,39 @@ export default function AISectionPage() {
     };
 
     return (
-      <div className="space-y-2">
-        <Button size="sm" variant="secondary" onClick={handleShowTranscript} className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
+      <>
+       {showTranscript && (
+        <>
+        <div className="flex items-center justify-between mt-4">
+          <p className="flex items-center gap-2"><MessageSquare color="#AD46FF" size={16}/> <span className="text-[#1E2939] text-sm">Generated Transcript</span></p>
+          <p className="flex items-center gap-2"><CircleCheckBig color="#009966" size={14}/> <span className="text-[#009966] text-xs">AI processing complete</span></p>
+        </div>
+          <div className="bg-[linear-gradient(135deg,_rgba(255,255,255,0.8)_0%,_rgba(249,250,251,0.8)_100%)] backdrop-blur-md dark:bg-gray-900 text-gray-900 dark:text-[#a8a29e] p-3 rounded-[14px] max-h-48 overflow-y-auto text-sm border border-[#E5E7EB] dark:border-gray-700 mt-2">
+            {loading && <div className="mt-2">Loading...</div>}
+            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
+            {!loading && !error && (
+              <div className="flex items-start justify-between gap-1.5">
+                <div className="mt-2 whitespace-pre-line text-[#1E2939] leading-[22.75px] text-[13px]">
+                  {transcriptChunks
+                    ? transcriptChunks.map((chunk: { text: string }) => chunk.text).join(' ')
+                    : transcript}
+                </div>
+                  <div className="bg-[#DBEAFE] text-[#1447E6] rounded-[9px] text-[10px] py-1.5 px-2 w-full max-w-max">
+                  AI Generated
+                </div>
+              </div>
+            )}
+          </div>
+          </>
+        )}
+      <div className="space-y-2 flex gap-2.5 items-center justify-center mt-4">
+        <Button size="sm" variant="secondary" onClick={handleShowTranscript} className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] dark:text-[#a8a29e] font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
+          {showTranscript ? <EyeOff /> : <Eye />}
           {showTranscript ? 'Hide Transcript' : 'Show Transcript'}
         </Button>
         {/* Edit button for transcript run */}
-        <Button size="sm" variant="outline" onClick={() => setEditModalOpen(true)} className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
+        <Button size="sm" variant="outline" onClick={() => setEditModalOpen(true)} className="bg-transparent border border-[#DAB2FF] text-[#9810FA] font-medium px-4 py-2 rounded-[12px] shadow-md hover:bg-transparent hover:shadow-lg hover:text-[#9810FA] transition-all duration-300 transform hover:scale-105 btn-beautiful">
+          <Pencil />
           Edit
         </Button>
         {/* Edit Modal */}
@@ -2134,30 +2483,19 @@ export default function AISectionPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        {showTranscript && (
-          <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-3 rounded max-h-48 overflow-y-auto text-sm border border-gray-300 dark:border-gray-700">
-            <strong>Transcript:</strong>
-            {loading && <div className="mt-2">Loading...</div>}
-            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
-            {!loading && !error && (
-              <div className="mt-2 whitespace-pre-line">
-                {transcriptChunks
-                  ? transcriptChunks.map((chunk: { text: string }) => chunk.text).join(' ')
-                  : transcript}
-              </div>
-            )}
-          </div>
-        )}
         {acceptedRunId !== run.id && (
           <Button
             size="sm"
             onClick={onAccept}
-            className="w-full"
+            className="mb-2 bg-[linear-gradient(90deg,_#00D492_0%,_#009966_100%)] text-white rounded-[12px]"
           >
-            Accept This Run
+            <Check />
+            Accept & Continue
+            <Sparkles />
           </Button>
         )}
       </div>
+      </>
     );
   }
 
@@ -2358,19 +2696,72 @@ export default function AISectionPage() {
     };
 
     return (
-      <div className="space-y-2">
-        <div className="flex gap-2">
+      <>
+      {showSegmentation && (
+          <div className="mt-4 space-y-4">
+            {loading && <div className="mt-2">Loading...</div>}
+            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
+            {/* Enhanced display: segmentationMap + transcript chunks */}
+            {!loading && !error && segmentationMap && segmentationMap.length > 0 && segmentationChunks && (
+              <>
+              <div className="flex items-center justify-between mt-4">
+                <p className="flex items-center gap-2"><Layers color="#00C950" size={20}/> <span className="text-[#1E2939] text-sm font-bold">Generated Segments</span></p>
+                <p className="flex items-center gap-2"><CircleCheckBig color="#009966" size={14}/> <span className="text-[#009966] text-xs">AI processing complete</span></p>
+              </div>
+              <div className="space-y-2">
+                {segmentationMap.map((end, idx) => {
+                  const start = idx === 0 ? 0 : segmentationMap[idx - 1];
+                  const segChunks = segmentationChunks[idx] || [];
+                  return (
+                    <div key={idx} className="bg-[linear-gradient(135deg,_rgba(255,255,255,0.8)_0%,_rgba(249,250,251,0.8)_100%)] backdrop-blur-md border border-[#E5E7EB] p-3 rounded-[12px]">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-white h-7 w-7 flex items-center justify-center bg-[linear-gradient(135deg,_#05DF72_0%,_#2B7FFF_100%)] shadow-[0px_4px_12px_rgba(0,0,0,0.1)] rounded-[10px]">{idx + 1}</span>
+                        <p className="flex gap-2.5 items-center">
+                          <span className="flex items-center gap-1 text-[#6A7282] dark:text-[#a8a29e]"><Clock size={12}/>{start.toFixed(2)}s </span>
+                          <span className="text-[#6A7282] dark:text-[#a8a29e]">Duration: {end.toFixed(2)}s</span>
+                        </p>
+                      </div>
+                      {segChunks.length > 0 ? (
+                        <div className="text-xs text-[#4A5565] dark:text-[#a8a29e] mt-1">
+                          {(segChunks as { text: string }[]).map((chunk: { text: string }) => chunk.text).join(' ')}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+              </>
+            )}
+            {/* Fallback: old display if no segmentationMap+chunks */}
+            {!loading && !error && (!segmentationMap || segmentationMap.length === 0 || !segmentationChunks) && segments.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {segments.map((seg, idx) => (
+                  <div key={idx} className="bg-white rounded-xl border border-gray-200 dark:border-[#26211E] p-4 shadow-sm">
+                    <div className="flex items-start justify-between mb-2">
+                    <div><b>Segment {idx + 1}</b> ({seg.startTime ?? seg.timestamp?.[0]}s - {seg.endTime ?? seg.timestamp?.[1]}s)</div>
+                    </div>
+                    <div className="text-xs text-gray-600 dark:text-[#a8a29e]">{seg.text}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!loading && !error && (!segmentationMap || segmentationMap.length === 0) && segments.length === 0 && <div className="mt-2">No segments found.</div>}
+          </div>
+        )}
+      <div className="flex gap-2.5 justify-center mt-4">
+        <div>
           <Button
             size="sm"
             variant="secondary"
             onClick={handleShowSegmentation}
-            className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+            className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] dark:text-[#a8a29e] font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
             disabled={run.status !== 'done'}
           >
+            {showSegmentation ? <EyeOff /> : <Eye />}
             {showSegmentation ? 'Hide Segmentation' : 'Show Segmentation'}
           </Button>
           {/* Edit button for segmentation run */}
-          <Button
+          {/* <Button
             size="sm"
             variant="outline"
             onClick={handleOpenEditModal}
@@ -2378,7 +2769,7 @@ export default function AISectionPage() {
             disabled={run.status !== 'done'}
           >
             Edit
-          </Button>
+          </Button> */}
         </div>
         {/* Edit Modal */}
         <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
@@ -2422,7 +2813,7 @@ export default function AISectionPage() {
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                      <div className="text-xs text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded p-2 mt-1">
+                      <div className="text-xs text-gray-600 dark:text-[#a8a29e] bg-gray-100 dark:bg-gray-800 rounded p-2 mt-1">
                         {segText}
                       </div>
                     </div>
@@ -2449,51 +2840,14 @@ export default function AISectionPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        {showSegmentation && (
-          <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-3 rounded max-h-96 overflow-y-auto text-sm border border-gray-300 dark:border-gray-700 mt-2">
-            <strong>Segments:</strong>
-            {loading && <div className="mt-2">Loading...</div>}
-            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
-            {/* Enhanced display: segmentationMap + transcript chunks */}
-            {!loading && !error && segmentationMap && segmentationMap.length > 0 && segmentationChunks && (
-              <ol className="mt-2 space-y-4">
-                {segmentationMap.map((end, idx) => {
-                  const start = idx === 0 ? 0 : segmentationMap[idx - 1];
-                  const segChunks = segmentationChunks[idx] || [];
-                  return (
-                    <li key={idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
-                      <div><b>Segment {idx + 1}:</b> {start.toFixed(2)}s – {end.toFixed(2)}s</div>
-                      {segChunks.length > 0 ? (
-                        <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
-                          {(segChunks as { text: string }[]).map((chunk: { text: string }) => chunk.text).join(' ')}
-                        </div>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ol>
-            )}
-            {/* Fallback: old display if no segmentationMap+chunks */}
-            {!loading && !error && (!segmentationMap || segmentationMap.length === 0 || !segmentationChunks) && segments.length > 0 && (
-              <ol className="mt-2 space-y-2">
-                {segments.map((seg, idx) => (
-                  <li key={idx} className="border-b border-gray-300 dark:border-gray-700 pb-1">
-                    <div><b>Segment {idx + 1}</b> ({seg.startTime ?? seg.timestamp?.[0]}s - {seg.endTime ?? seg.timestamp?.[1]}s)</div>
-                    <div className="text-xs text-gray-600 dark:text-gray-300">{seg.text}</div>
-                  </li>
-                ))}
-              </ol>
-            )}
-            {!loading && !error && (!segmentationMap || segmentationMap.length === 0) && segments.length === 0 && <div className="mt-2">No segments found.</div>}
-          </div>
-        )}
         {run.status === 'done' && (
           <Button
             size="sm"
             variant="outline"
             onClick={handleOpenEditModal}
-            className="w-full mt-2 bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+            className="bg-transparent border border-[#7BF1A8] text-[#00A63E] font-medium px-4 py-2 rounded-[12px] shadow-md hover:bg-transparent hover:text-[#00A63E] hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
           >
+            <Pencil />
             Edit Segments
           </Button>
         )}
@@ -2501,12 +2855,15 @@ export default function AISectionPage() {
           <Button
             size="sm"
             onClick={onAccept}
-            className="w-full"
+            className="bg-[linear-gradient(90deg,_#00D492_0%,_#009966_100%)] text-white rounded-[12px]"
           >
+            <Check />
             Accept This Run
+            <Sparkles />
           </Button>
         )}
       </div>
+      </>
     );
   }
 
@@ -2642,14 +2999,63 @@ export default function AISectionPage() {
 
     return (
       <div className="space-y-2">
-        <Button size="sm" variant="secondary" onClick={handleShowQuestions} className="w-full bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
+        {showQuestions && (
+          <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-[#a8a29e] p-3 rounded max-h-96 overflow-y-auto text-sm border border-gray-300 dark:border-gray-700 mt-2">
+            <strong>Questions:</strong>
+            {loading && <div className="mt-2">Loading...</div>}
+            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
+            {!loading && !error && questions.length > 0 && (
+              <ol className="mt-2 space-y-4">
+                {questions.map((q: any, idx: number) => {
+                  let segIdx = segmentIds.findIndex((sid: any) => sid === q.segmentId);
+                  let segStart = segIdx === 0 ? 0 : segmentIds[segIdx - 1];
+                  let segEnd = q.segmentId;
+                  return (
+                    <li key={q.question?.text || idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                        Segment: {typeof segStart === 'number' && typeof segEnd === 'number' ? `${segStart}–${segEnd}s` : 'N/A'} | Type: {q.questionType || q.question?.type || 'N/A'}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="font-semibold flex-1">Q{idx + 1}: {q.question?.text}</div>
+                        <Button size="sm" variant="outline" onClick={() => { setEditingIdx(idx); setEditQuestion(JSON.parse(JSON.stringify(q))); setEditModalOpen(true); }}>
+                          <Edit className="w-4 h-4" /> Edit
+                        </Button>
+                      </div>
+                      {q.question?.hint && <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Hint: {q.question.hint}</div>}
+                      {q.solution && (
+                        <>
+                          <div className="mt-1"><b>Options:</b></div>
+                          <ul className="list-disc ml-6">
+                            {q.solution.incorrectLotItems?.map((opt: any, oIdx: number) => (
+                              <li key={`inc-${oIdx}`} className="text-red-600 dark:text-red-300">{opt.text}</li>
+                            ))}
+                            {q.solution.correctLotItems?.map((opt: any, oIdx: number) => (
+                              <li key={`cor-${oIdx}`} className="text-green-600 dark:text-green-400 font-semibold">{opt.text}</li>
+                            ))}
+                            {q.solution.correctLotItem && (
+                              <li className="text-green-600 dark:text-green-400 font-semibold">{q.solution.correctLotItem.text}</li>
+                            )}
+                          </ul>
+                        </>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+            {!loading && !error && questions.length === 0 && <div className="mt-2">No questions found.</div>}
+          </div>
+        )}
+        <div className="w-full flex items-center justify-center gap-2 mt-4">
+        <Button size="sm" variant="secondary" onClick={handleShowQuestions} className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] dark:text-[#a8a29e] font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
+          {showQuestions ? <EyeOff /> : <Eye />}
           {showQuestions ? 'Hide Questions' : 'Show Questions'}
         </Button>
         {/* Export PDF Button: appears below Show Questions, opens print-friendly HTML in new tab */}
         <Button
           size="sm"
           variant="outline"
-          className="w-full mt-2 bg-background border-primary/30 text-primary hover:bg-primary/10 hover:border-primary font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+          className="bg-transparent border border-[#DAB2FF] text-[#9810FA] font-medium px-4 py-2 rounded-[12px] shadow-md hover:bg-transparent hover:shadow-lg hover:text-[#9810FA] transition-all duration-300 transform hover:scale-105 btn-beautiful"
           onClick={async () => {
             if (!aiJobId) return;
             try {
@@ -2771,64 +3177,22 @@ export default function AISectionPage() {
             }
           }}
         >
+          <Share />
           Export PDF
         </Button>
-        {showQuestions && (
-          <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-3 rounded max-h-96 overflow-y-auto text-sm border border-gray-300 dark:border-gray-700 mt-2">
-            <strong>Questions:</strong>
-            {loading && <div className="mt-2">Loading...</div>}
-            {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
-            {!loading && !error && questions.length > 0 && (
-              <ol className="mt-2 space-y-4">
-                {questions.map((q: any, idx: number) => {
-                  let segIdx = segmentIds.findIndex((sid: any) => sid === q.segmentId);
-                  let segStart = segIdx === 0 ? 0 : segmentIds[segIdx - 1];
-                  let segEnd = q.segmentId;
-                  return (
-                    <li key={q.question?.text || idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                        Segment: {typeof segStart === 'number' && typeof segEnd === 'number' ? `${segStart}–${segEnd}s` : 'N/A'} | Type: {q.questionType || q.question?.type || 'N/A'}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="font-semibold flex-1">Q{idx + 1}: {q.question?.text}</div>
-                        <Button size="sm" variant="outline" onClick={() => { setEditingIdx(idx); setEditQuestion(JSON.parse(JSON.stringify(q))); setEditModalOpen(true); }}>
-                          <Edit className="w-4 h-4" /> Edit
-                        </Button>
-                      </div>
-                      {q.question?.hint && <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Hint: {q.question.hint}</div>}
-                      {q.solution && (
-                        <>
-                          <div className="mt-1"><b>Options:</b></div>
-                          <ul className="list-disc ml-6">
-                            {q.solution.incorrectLotItems?.map((opt: any, oIdx: number) => (
-                              <li key={`inc-${oIdx}`} className="text-red-600 dark:text-red-300">{opt.text}</li>
-                            ))}
-                            {q.solution.correctLotItems?.map((opt: any, oIdx: number) => (
-                              <li key={`cor-${oIdx}`} className="text-green-600 dark:text-green-400 font-semibold">{opt.text}</li>
-                            ))}
-                            {q.solution.correctLotItem && (
-                              <li className="text-green-600 dark:text-green-400 font-semibold">{q.solution.correctLotItem.text}</li>
-                            )}
-                          </ul>
-                        </>
-                      )}
-                    </li>
-                  );
-                })}
-              </ol>
-            )}
-            {!loading && !error && questions.length === 0 && <div className="mt-2">No questions found.</div>}
-          </div>
-        )}
+        
         {acceptedRunId !== run.id && (
           <Button
             size="sm"
             onClick={onAccept}
-            className="w-full"
+            className="mb-2 bg-[linear-gradient(90deg,_#00D492_0%,_#009966_100%)] text-white rounded-[12px]"
           >
-            Accept This Run
+            <Check />
+            Accept & Continue
+            <Sparkles />
           </Button>
         )}
+        </div>
         {/* Edit Question Modal */}
         <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
           <DialogContent className="max-w-lg">
@@ -2854,7 +3218,7 @@ export default function AISectionPage() {
                         solution: edited.solution, // replace solution entirely
                       };
                     });
-                    await aiSectionAPI.editQuestionData(aiJobId, runIndex, updatedQuestions);
+                    await aiSectionAPI.editQuestionData(aiJobId, updatedQuestions, runIndex);
                     // setEditingQuestion(null);
                     setEditModalOpen(false);
                   } catch (e) {
@@ -2871,27 +3235,245 @@ export default function AISectionPage() {
     );
   }
 
+  const YoutubeIcon = () => (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      width="auto" 
+      height="28" 
+      viewBox="0 0 28 28" 
+      fill="currentColor" 
+      className="text-red-500"
+    >
+      <path d="M23.498 6.186a2.998 2.998 0 0 0-2.115-2.122C19.397 3.5 12 3.5 12 3.5s-7.397 0-9.383.564A2.998 2.998 0 0 0 .502 6.186C0 8.17 0 12 0 12s0 3.83.502 5.814a2.998 2.998 0 0 0 2.115 2.122C4.603 20.5 12 20.5 12 20.5s7.397 0 9.383-.564a2.998 2.998 0 0 0 2.115-2.122C24 15.83 24 12 24 12s0-3.83-.502-5.814zM9.75 15.568V8.432L15.818 12 9.75 15.568z"/>
+    </svg>
+  );
+
+  const getDynamicHeading = () => {
+    if (!aiJobId) {
+      return {
+        text: "Generate Learning Content with AI",
+        gradient: "from-[#101828] via-[#6E11B0] to-[#A3004C]"
+      };
+    }
+
+    if (!aiJobStatus) {
+      return {
+        text: "Generate Learning Content with AI",
+        gradient: "from-[#101828] via-[#6E11B0] to-[#A3004C]"
+      };
+    }
+
+    switch (aiJobStatus?.task) {
+      case 'AUDIO_EXTRACTION':
+        if (aiJobStatus.status === 'RUNNING') {
+          return {
+            text: "Extracting Audio from Video",
+            gradient: "from-[#101828] via-[#193CB8] to-[#6E11B0]"
+          };
+        } else if (aiJobStatus.status === 'COMPLETED') {
+          return {
+            text: "Audio Successfully Extracted",
+            gradient: "from-[#101828] via-[#006045] to-[#193CB8]"
+          };
+        }
+        return {
+          text: "Extract Audio from Video",
+          gradient: "from-blue-600 via-indigo-600 to-purple-600"
+        };
+      
+      case 'TRANSCRIPT_GENERATION':
+        return {
+          text: "Convert Speech to Text",
+          gradient: "from-[#101828] via-[#193CB8] to-[#6E11B0]"
+        };
+      
+      case 'SEGMENTATION':
+        return {
+          text: "Organize Content into Sections",
+          gradient: "from-[#101828] via-[#006045] to-[#193CB8]"
+        };
+      
+      case 'QUESTION_GENERATION':
+        return {
+          text: "Generate Learning Questions",
+          gradient: "from-[#101828] via-[#193CB8] to-[#6E11B0]"
+        };
+      
+      case 'UPLOAD_CONTENT':
+        return {
+          text: "Publish Your Learning Module",
+          gradient: "from-[#101828] via-[#006045] to-[#193CB8]"
+        };
+      
+      default:
+        return {
+          text: "Generate Learning Content with AI",
+          gradient: "from-[#101828] via-[#6E11B0] to-[#A3004C]"
+        };
+    }
+  };
+
+  const getBadgeConfig = () => {
+    if (!aiJobId || !aiJobStatus) {
+      return {
+        text: "AI-Powered Processing",
+        icon: <Brain size={16} />,
+        bgGradient: "bg-[#F3E8FF]",
+        textColor: "text-[#8200DB]",
+        subtitle: "Transform your YouTube content into interactive learning materials using advanced artificial intelligence"
+      };
+    }
+  
+    switch (aiJobStatus.task) {
+      case 'AUDIO_EXTRACTION':
+        return {
+          text: aiJobStatus.status === 'RUNNING' ? "Step 1: Processing Audio" : "Step 1: Audio Extraction Complete",
+          icon: aiJobStatus.status === 'RUNNING' ? <FileMusic size={16} /> : <CheckCircle size={16} />,
+          bgGradient: aiJobStatus.status === 'RUNNING' ? "bg-[#DBEAFE]" : "bg-[#D0FAE5]",
+          textColor: aiJobStatus.status === 'RUNNING' ? "text-[#1447E6]" : "text-[#007A55]",
+          subtitle: aiJobStatus.status === 'RUNNING' ? "Processing your YouTube video with advanced algorithms to extract high-quality audio" : "High-quality audio has been extracted from your video and is ready for transcription",
+        };
+      
+      case 'TRANSCRIPT_GENERATION':
+        return {
+          text: "Step 2: AI Transcription",
+          icon: <MessageSquare size={16} />,
+          bgGradient: "bg-[#F3E8FF]",
+          textColor: "text-[#8200DB]",
+          subtitle: "Advanced AI-powered transcription that converts your audio into accurate, readable text"
+        };
+      
+      case 'SEGMENTATION':
+        return {
+          text: "Step 3: Content Segmentation",
+          icon: <Layers size={16} />,
+          bgGradient: "bg-[#DBEAFE]",
+          textColor: "text-[#008236]",
+          subtitle: "Intelligently break down your transcript into meaningful sections for better learning structure"
+        };
+      
+      case 'QUESTION_GENERATION':
+        return {
+          text: "Step 4: Question Generation",
+          icon: <Brain size={16} />,
+          bgGradient: "bg-[#F3E8FF]",
+          textColor: "text-[#8200DB]",
+          subtitle: "AI-powered question generation to create engaging assessments from your content"
+        };
+      
+      case 'UPLOAD_CONTENT':
+        return {
+          text: "Step 5: Upload & Share",
+          icon: <Upload size={16} />,
+          bgGradient: "bg-[#D0FAE5]",
+          textColor: "text-[#007A55]",
+          subtitle: "Complete your AI-generated learning module and share it with the world"
+        };
+      
+      default:
+        return {
+          text: "AI-Powered Processing",
+          icon: <Brain size={16} />,
+          bgGradient: "bg-[#F3E8FF]",
+          textColor: "text-[#8200DB]",
+          subtitle: "Transform your YouTube content into interactive learning materials using advanced artificial intelligence"
+        };
+    }
+  };
+  
+  const heading = getDynamicHeading();
+  const badge = getBadgeConfig();
+
   // Render the AI workflow UI and the quiz question editor
-  return (
+  return ( 
     <>
       <div className="mb-4">
         <Button className="bg-primary text-primary-foreground" onClick={() => navigate({ to: "/teacher/courses/view" })}>Back</Button>
       </div>
       <div className="max-w-6xl w-full mx-auto px-4">
         {/* AI Section Workflow Inline */}
-        <div className="bg-white dark:bg-card/50 rounded-xl shadow-lg border border-gray-200 dark:border-border p-8 mb-8">
+        <div className="bg-white dark:bg-card/50 rounded-xl shadow-lg border border-gray-200 dark:border-[#26211E] p-8 mb-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-3 text-primary">
-              Generate Section using AI
+            <div className="flex items-center justify-center mb-3">
+              <div className={`rounded-3xl flex items-center justify-center gap-2 ${badge.bgGradient} ${badge.textColor} text-[11px] px-3.5 py-2 w-fit`}>
+                {badge.icon}
+                {badge.text}
+              </div>
+            </div>
+            <h1 className={`text-3xl font-bold mb-3 bg-gradient-to-r ${heading.gradient} bg-clip-text text-transparent`}>
+              {heading.text}
             </h1>
-            <p className="text-muted-foreground text-lg">
-              Transform your YouTube content into interactive learning materials
+            <p className="text-[#4A5565] dark:text-[#a8a29e] text-base">
+              {badge.subtitle}
             </p>
           </div>
           {/* Stepper */}
           <Stepper jobStatus={aiJobStatus} />
+            {aiJobStatus && (
+              <div className="flex items-center gap-2.5 shadow-xl backdrop-blur bg-white/80 dark:bg-[#140E09] border border-gray-200 dark:border-[#26211E] rounded-[14px] py-2.5 px-4 w-max mb-3.5 text-sm text-gray-900 dark:text-[#a8a29e]">
+                <div className={`w-2.5 h-2.5 rounded-full ${
+                  aiJobStatus.status === 'RUNNING' ? 'bg-blue-500' :
+                  aiJobStatus.status === 'COMPLETED' ? 'bg-green-500' :
+                  aiJobStatus.status === 'FAILED' ? 'bg-red-500' :
+                  'bg-yellow-500'
+                }`}></div>
+                <span className="font-normal">
+                  Job Status: {aiJobStatus.status === 'RUNNING' ? 'Processing' :
+                        aiJobStatus.status === 'COMPLETED' ? 'Completed' :
+                        aiJobStatus.status === 'FAILED' ? 'Failed' :
+                        'Pending'}
+                </span>
+                {aiJobDate && (
+                  <span className="ml-2 px-3 py-1 rounded-md bg-green-50 dark:bg-green-900/30 text-[#6A7282] dark:text-[#a8a29e] text-xs font-medium">
+                    Created {new Date(aiJobDate).toLocaleTimeString('en-US', {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true
+                    })}
+                  </span>
+                )}
+              </div>
+            )}
           <div className="space-y-8">
-            <div className="flex flex-col sm:flex-row gap-6 items-center w-full mt-4">
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2.5 shadow-xl backdrop-blur bg-white/80 dark:bg-[#140E09] border border-gray-200 dark:border-[#26211E] rounded-[14px] p-[15px] w-full">
+                <div><YoutubeIcon /></div>
+                <div className="flex flex-col w-full">
+                  <label className="text-[11px] font-medium text-gray-900 dark:text-[#a8a29e] mb-1">Source Video</label>
+                  <input
+                    type="text"
+                    value={youtubeUrl}
+                    onChange={e => setYoutubeUrl(e.target.value)}
+                    placeholder="Paste YouTube URL here"
+                    className={`text-[11px] px-1.5 py-[3px] rounded-lg bg-[#ECFDF5] dark:bg-green-900/30 text-gray-800 dark:text-[#a8a29e] border border-transparent focus:outline-none w-full ${
+                      urlError ? 'border-red-500 bg-red-50 text-red-700' : ''
+                    }`}
+                    disabled={!!aiJobId}
+                  />
+                  {urlError && (
+                    <p className="mt-1 text-xs text-red-600">{urlError}</p>
+                  )}
+                </div>
+            </div>
+            <Button
+                onClick={handleCreateJob}
+                disabled={!youtubeUrl || !!aiJobId || isCreatingJob}
+                className="w-full sm:w-auto mt-2 sm:mt-0 bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
+              >
+                {isCreatingJob ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    Creating Job...
+                  </>
+                ) : aiJobId ? (
+                  "Job Created"
+                ) : (
+                  "Create AI Job"
+                )}
+              </Button>
+            </div>
+
+            {/* <div className="flex flex-col sm:flex-row gap-6 items-center w-full mt-4">
               <div className="flex-1 w-full">
                 <Input
                   placeholder="YouTube URL"
@@ -2920,7 +3502,7 @@ export default function AISectionPage() {
                   "Create AI Job"
                 )}
               </Button>
-            </div>
+            </div> */}
 
             {/* Navigation to ai workflow */}
             {/* <Link to="/teacher/ai-workflow">
@@ -2949,11 +3531,16 @@ export default function AISectionPage() {
                 <div className="space-y-8 mt-8">
                   {/* Transcription Section */}
                   {currentUiStep === 1 && (
-                    <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                      <div className="flex items-center gap-2 mb-4">
-                        <FileText className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-                        <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Transcription</span>
-                        <TooltipProvider>
+                    <div className=" shadow-xl backdrop-blur bg-white/80 dark:bg-[#140E09] border border-gray-200 dark:border-[#26211E] rounded-[14px] p-[15px] w-full dark:bg-card">
+                      <div className="flex items-center gap-3.5 mb-7">
+                        <div className="bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] h-12 w-12 rounded-[14px] flex items-center justify-center">
+                          <FileText className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-xl text-gray-900 dark:text-[#a8a29e]">Audio Extraction</p>
+                          <span className="font-normal text-xs text-[#4A5565] dark:text-[#a8a29e]">Extract high-quality audio from your video</span>
+                        </div>
+                        {/* <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
@@ -2973,7 +3560,7 @@ export default function AISectionPage() {
                                 )}
                             </TooltipContent>
                           </Tooltip>
-                        </TooltipProvider>
+                        </TooltipProvider> */}
                       </div>
                       <TaskAccordion
                         task="transcription"
@@ -3000,8 +3587,8 @@ export default function AISectionPage() {
                         setExpandedAccordionItems={setExpandedAccordionItems}
                       />
                       {acceptedRuns.transcription && (
-                        <div className="flex justify-end mt-4">
-                          <Button onClick={() => setCurrentUiStep(2)}>Next Step</Button>
+                        <div className="flex justify-center mt-4">
+                          <Button className="bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white" onClick={() => setCurrentUiStep(2)}>Next Step</Button>
                         </div>
                       )}
                     </div>
@@ -3010,20 +3597,15 @@ export default function AISectionPage() {
                   {/* Segmentation Section */}
                   {
                     currentUiStep === 2 && (
-                      <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                        <div className="flex items-center gap-2 mb-4">
-                          <ListChecks className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-                          <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Segmentation</span>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>{WORKFLOW_STEPS.find(step => step.key === 'segmentation')?.explanation}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                      <div className="shadow-xl backdrop-blur bg-white/80 dark:bg-[#140E09] border border-gray-200 rounded-[14px] p-[15px] w-full dark:bg-card dark:border-[#26211E]">
+                      <div className="flex items-center gap-3.5 mb-7">
+                        <div className="bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] h-12 w-12 rounded-[14px] flex items-center justify-center">
+                          <FileText className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-xl text-gray-900 dark:text-[#a8a29e]">AI Segmentation</p>
+                          <span className="font-normal text-xs text-[#4A5565] dark:text-[#a8a29e]">Break content into meaningful sections</span>
+                        </div>
                         </div>
                         <TaskAccordion
                           task="segmentation"
@@ -3051,7 +3633,7 @@ export default function AISectionPage() {
                         />
                         {acceptedRuns.segmentation && currentUiStep === 2 && (
                           <div className="flex justify-end mt-4">
-                            <Button onClick={() => setCurrentUiStep(3)}>Next Step</Button>
+                            <Button className="bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white" onClick={() => setCurrentUiStep(3)}>Next Step</Button>
                           </div>
                         )}
                       </div>
@@ -3060,11 +3642,42 @@ export default function AISectionPage() {
                   {/* Question Generation Section */}
                   {
                     currentUiStep === 3 && (
-                      <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
-                        <div className="flex items-center gap-2 mb-4">
-                          <MessageSquareText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                          <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Question Generation Test</span>
-                          <TooltipProvider>
+                      <div className="shadow-xl backdrop-blur bg-white/80 dark:bg-[#140E09] border border-gray-200 rounded-[14px] p-[15px] w-full dark:bg-card dark:border-[#26211E]">
+                        <div className="mb-4">
+                          <div className="flex items-center gap-3.5 mb-7">
+                            <div className="bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] h-12 w-12 rounded-[14px] flex items-center justify-center">
+                              <Brain className="w-6 h-6 text-white" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-xl text-gray-900 dark:text-[#a8a29e]">Question Generation Test</p>
+                              <span className="font-normal text-xs text-[#4A5565] dark:text-[#a8a29e]">Automatically generates relevant questions from the segmented transcript.</span>
+                            </div>
+                          </div>
+                          {
+                            aiJobStatus?.task === 'QUESTION_GENERATION' && aiJobStatus?.status === 'COMPLETED' && (
+                              <div className="w-full rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-gradient-to-r dark:from-emerald-800 dark:to-purple-800
+">
+                                <div className="flex items-center justify-between mb-4">
+                                  <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
+                                    <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
+                                    <CheckCircle className="w-5 h-5 text-white" />
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-2.5">
+                                      <div>AI Question Generation</div>
+                                      <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white font-medium">Complete</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-xs text-emerald-600">Run 1</span>
+                                      <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
+                                    </div>
+                                  </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          }
+                          {/* <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
@@ -3073,7 +3686,7 @@ export default function AISectionPage() {
                                 <p>{WORKFLOW_STEPS.find(step => step.key === 'questionGeneration')?.explanation}</p>
                               </TooltipContent>
                             </Tooltip>
-                          </TooltipProvider>
+                          </TooltipProvider> */}
                         </div>
                         <TaskAccordion
                           task="question"
@@ -3101,7 +3714,7 @@ export default function AISectionPage() {
                         />
                         {acceptedRuns.question && (
                           <div className="flex justify-end mt-4">
-                            <Button onClick={() => setCurrentUiStep(4)}>Next Step</Button>
+                            <Button className="bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white" onClick={() => setCurrentUiStep(4)}>Next Step</Button>
                           </div>
                         )}
                       </div>
@@ -3109,10 +3722,10 @@ export default function AISectionPage() {
                   {/* Upload Section */}
                   {/* {
                   currentUiStep === 4 && (
-                <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
+                <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-[#26211E] w-full">
                   <div className="flex items-center gap-2 mb-4">
                     <UploadCloud className="w-5 h-5 text-green-600 dark:text-green-400" />
-                    <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Upload to Course</span>
+                    <span className="font-semibold text-xl text-gray-900 dark:text-[#a8a29e]">Upload to Course</span>
                   </div>
                   <TaskAccordion
                     task="upload"
@@ -3143,11 +3756,18 @@ export default function AISectionPage() {
 
                   {
                     currentUiStep === 4 && (
-                      <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-border w-full">
+                      <div className="shadow-xl backdrop-blur bg-white/80 dark:bg-[#140E09] border border-gray-200 rounded-[14px] p-[15px] w-full dark:bg-card dark:border-[#26211E]">
                         <div className="flex items-center gap-2 mb-4">
-                          <UploadCloud className="w-5 h-5 text-green-600 dark:text-green-400" />
-                          <span className="font-semibold text-xl text-gray-900 dark:text-card-foreground">Upload to Course</span>
-                          <TooltipProvider>
+                          <div className="flex items-center gap-3.5 mb-7">
+                            <div className="bg-[linear-gradient(90deg,#00D492_0%,#2B7FFF_100%)] h-12 w-12 rounded-[14px] flex items-center justify-center">
+                              <Share className="w-6 h-6 text-white"/>
+                            </div>
+                            <div>
+                              <p className="font-semibold text-xl text-gray-900 dark:text-[#a8a29e]">Upload & Publish</p>
+                              <span className="font-normal text-xs text-[#4A5565] dark:text-[#a8a29e]">Saves and uploads the processed content with questions for later use.</span>
+                            </div>
+                          </div>
+                          {/* <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
@@ -3156,7 +3776,7 @@ export default function AISectionPage() {
                                 <p>{WORKFLOW_STEPS.find(step => step.key === 'uploadContent')?.explanation}</p>
                               </TooltipContent>
                             </Tooltip>
-                          </TooltipProvider>
+                          </TooltipProvider> */}
                         </div>
 
                         {/* Simplified upload form */}
@@ -3189,7 +3809,7 @@ export default function AISectionPage() {
                             />
                           </div>
                         </div>
-
+                        <div className="w-full flex items-center justify-center">
                         <Button
                           onClick={async () => {
                             if (!aiJobId) return;
@@ -3232,10 +3852,13 @@ export default function AISectionPage() {
                             }
                           }}
                           disabled={!acceptedRuns.question || taskRuns.upload.some(r => r.status === "loading")}
-                          className="w-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
+                          className="w-auto bg-[linear-gradient(90deg,#00D492_0%,#2B7FFF_100%)] text-white font-normal px-6 py-3 rounded-[14px] shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
                         >
-                          Upload to Course
+                          <Share />
+                          Publish Learning Module
+                          <Sparkles />
                         </Button>
+                        </div>
 
                         {/* Upload Success Message */}
                         {taskRuns.upload.some(run => run.status === "done") && (
