@@ -28,4 +28,10 @@ export interface IProjectSubmissionRepository {
     comment: string,
     session?: ClientSession,
   ): Promise<ID>;
+
+  deleteByUserAndVersion(
+    userId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<boolean>;
 }
