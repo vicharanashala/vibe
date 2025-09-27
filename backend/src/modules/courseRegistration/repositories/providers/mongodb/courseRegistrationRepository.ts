@@ -31,7 +31,7 @@ class CourseRegistrationRepository{
     return result.insertedId.toString()
   }
 
-  async findAllregistrations(filter:{status?:string;search?:string},skip:number,limit:number,sort:'createdAt' | 'latest'){
+  async findAllregistrations(filter:{status?:string;search?:string},skip:number,limit:number,sort:'older' | 'latest'){
     await this.init()
     const query:any ={}
     if(filter.status && filter.status !== 'ALL'){
@@ -49,6 +49,15 @@ class CourseRegistrationRepository{
     const registrations = result.map((item) => ({...item,_id:item._id.toString()}))
     const totalDocuments = await this.courseRegistrationCollection.countDocuments(query)
     return {registrations,totalDocuments}
+  }
+
+  async updateStatus(registrationId:string,status:"PENDING" | "APPROVED" | "REJECTED"){
+    await this.init()
+    const result = await this.courseRegistrationCollection.findOneAndUpdate({_id:new ObjectId(registrationId)},{
+      $set:{status,updatedAt:new Date()}
+    },{returnDocument:"after"})
+    console.log("result ",result)
+    return result
   }
 }
 

@@ -1,4 +1,4 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { IsEmail, IsEnum, IsMongoId, IsNotEmpty, IsNumber, IsString } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 
 export class CourseRegistrationBody {
@@ -71,6 +71,22 @@ export class RegistrationFilterQuery {
   status: "PENDING" | "APPROVED" | "REJECTED" | "ALL" = "ALL";
 
   @IsOptional()
-  @IsIn(["createdAt", "latest"])
-  sort: "createdAt" | "latest" = "createdAt";
+  @IsIn(["older", "latest"])
+  sort: "older" | "latest" ;
+}
+
+
+export class RegistrationParams{
+  @JSONSchema({
+      description: 'ID of the registration',
+      type: 'string',
+    })
+    @IsMongoId()
+    @IsNotEmpty()
+    registrationId: string;
+}
+
+export class UpdateStatusBody {
+  @IsIn(["PENDING", "APPROVED", "REJECTED"])
+  status: "PENDING" | "APPROVED" | "REJECTED";
 }

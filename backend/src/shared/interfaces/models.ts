@@ -569,7 +569,7 @@ export interface AuthenticatedUser {
 
 
 export interface ICourseRegistration{
-  _id?: string; 
+  _id?: string | ObjectId; 
   courseId: string; 
   versionId: string;
   userId: string;

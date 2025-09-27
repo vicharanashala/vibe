@@ -95,7 +95,7 @@ export class CourseRegistrationService extends BaseService{
   }
 
 
-  async getAllregistrations(page:number,limit:number,status:string,search:string,sort:"createdAt" | "latest"){
+  async getAllregistrations(page:number,limit:number,status:string,search:string,sort:"older" | "latest"){
     const skip = (page - 1) * limit
     const {registrations,totalDocuments} = await this.courseRegistrationRepo.findAllregistrations({status,search},skip,limit,sort)
     return{
@@ -104,5 +104,9 @@ export class CourseRegistrationService extends BaseService{
       currentPage:page,
       registrations
     }
+  }
+
+  async updateStatus(registrationId: string, status: "PENDING" | "APPROVED" | "REJECTED"){
+    return await this.courseRegistrationRepo.updateStatus(registrationId,status)
   }
 } 

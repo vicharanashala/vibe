@@ -1,6 +1,7 @@
 import { inject, injectable } from 'inversify';
 import {
   Authorized,
+  BadRequestError,
   Body,
   ForbiddenError,
   Get,
@@ -20,7 +21,7 @@ import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { BadRequestErrorResponse, IReport } from '#root/shared/index.js';
 import { subject } from '@casl/ability';
 import { CourseAndVersionId, CourseVersionIdParams } from '#root/modules/notifications/index.js';
-import { CourseRegistrationBody, RegistrationFilterQuery } from '../classes/index.js';
+import { CourseRegistrationBody, RegistrationFilterQuery, RegistrationParams, UpdateStatusBody } from '../classes/index.js';
 
 
 @OpenAPI({
@@ -104,9 +105,32 @@ class CourseRegistrationController {
   async getAllRegistrations(@QueryParams() query:RegistrationFilterQuery){
     const {page,limit,status,search,sort} =query
     const result = await this.courseRegistrationService.getAllregistrations(page,limit,status,search,sort)
-    console.log("result from controller ",result)
     return result
   }
+
+
+
+   @OpenAPI({
+      summary: 'Update Enrollment Progress',
+      description: 'Recomputes and updates progress for all enrollments across all courses or a specific course if courseId is provided.',
+    })
+    // @Authorized()
+    @Patch('/status/:registrationId', { transformResponse: true })
+    @ResponseSchema(BadRequestError, {
+      description: 'Bad Request Error',
+      statusCode: 400,
+    })
+    async updateStatus(
+      @Params() params:RegistrationParams,
+      @Body () body:UpdateStatusBody
+    ) {
+        const {registrationId} = params
+        const {status} = body
+        const result = await this.courseRegistrationService.updateStatus(registrationId,status);
+        console.log("result from controller ",result)
+        return {message:"Registration status updated successfully", registration: result}
+    }
+  
 }
 
 
