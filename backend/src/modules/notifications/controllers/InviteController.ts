@@ -99,7 +99,7 @@ export class InviteController {
   }
 
   //new route for Link creation
-
+  
   @Authorized()
   @Post('/courses/:courseId/versions/:versionId/bulk')
   @HttpCode(200)

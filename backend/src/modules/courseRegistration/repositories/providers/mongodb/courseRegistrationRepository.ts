@@ -18,6 +18,18 @@ class CourseRegistrationRepository{
   private async init(){
     this.courseRegistrationCollection = await this.db.getCollection<ICourseRegistration>('CourseRegistration')
   }
+
+  async findByUserId(userId:string){
+    await this.init()
+    const result = await this.courseRegistrationCollection.findOne({userId})
+    return result
+  }
+
+  async Create(data:ICourseRegistration){
+    await this.init()
+    const result = await this.courseRegistrationCollection.insertOne(data)
+    return result.insertedId.toString()
+  }
 }
 
 export {CourseRegistrationRepository}
