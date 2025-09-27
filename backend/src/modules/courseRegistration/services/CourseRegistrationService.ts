@@ -68,10 +68,10 @@ export class CourseRegistrationService extends BaseService{
   // return dto
   // }
 
-  async getCourseDetails(courseId:string,versionId:string){
-    const course = await this.courseRepo.read(courseId)
-    console.log("course ",course)
+  async getCourseDetails(versionId:string){
     const courseVersion = await this.courseRepo.readVersion(versionId)
+    const course = await this.courseRepo.read(courseVersion.courseId as string)
+    console.log("course ",course)
     console.log("Version ",courseVersion)
     const modules = [];
     let totalItems = 0;
