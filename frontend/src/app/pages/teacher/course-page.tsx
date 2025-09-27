@@ -1378,15 +1378,7 @@ function VersionCard({
                   <UserCog2  className="h-3 w-3 mr-1" />
                   View Instructors
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={goToRegistrations}
-                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-                >
-                  <UserCheck className="h-3 w-3 mr-1" />
-                   Registrations
-                </Button>
+               
                 <Button
                   variant="outline"
                   size="sm"
@@ -1395,6 +1387,15 @@ function VersionCard({
                 >
                   <Users className="h-3 w-3 mr-1" />
                   View Students
+                </Button>
+                 <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToRegistrations}
+                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                >
+                  <UserCheck className="h-3 w-3 mr-1" />
+                   Registrations
                 </Button>
                 {/* <Button
           variant="outline"
