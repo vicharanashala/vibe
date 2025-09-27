@@ -15,7 +15,7 @@ export class CourseRegistrationBody {
   @IsNumber()
   @IsNotEmpty()
   @JSONSchema({ example: 9876543210 })
-  mobile: number;
+  mobile: string;
 
   @IsEnum(['MALE', 'FEMALE', 'OTHERS'])
   @JSONSchema({ enum: ['MALE', 'FEMALE', 'OTHERS'], example: 'MALE' })
@@ -44,3 +44,33 @@ export class CourseRegistrationBody {
 // export class CourseRegistrationBody {
 //   detail: CourseRegistrationDetail;
 // }
+
+
+import { IsOptional, IsInt, Min, IsIn } from "class-validator";
+import { Type } from "class-transformer";
+
+export class RegistrationFilterQuery {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit: number = 10;
+
+  @IsOptional()
+  @IsString()
+  search: string = "";
+
+  @IsOptional()
+  @IsIn(["PENDING", "APPROVED", "REJECTED", "ALL"])
+  status: "PENDING" | "APPROVED" | "REJECTED" | "ALL" = "ALL";
+
+  @IsOptional()
+  @IsIn(["createdAt", "latest"])
+  sort: "createdAt" | "latest" = "createdAt";
+}

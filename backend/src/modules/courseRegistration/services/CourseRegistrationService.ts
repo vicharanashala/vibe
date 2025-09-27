@@ -93,4 +93,16 @@ export class CourseRegistrationService extends BaseService{
     } 
     return await this.courseRegistrationRepo.Create(data)
   }
+
+
+  async getAllregistrations(page:number,limit:number,status:string,search:string,sort:"createdAt" | "latest"){
+    const skip = (page - 1) * limit
+    const {registrations,totalDocuments} = await this.courseRegistrationRepo.findAllregistrations({status,search},skip,limit,sort)
+    return{
+      totalDocuments,
+      totalPages:Math.ceil(totalDocuments/limit),
+      currentPage:page,
+      registrations
+    }
+  }
 } 

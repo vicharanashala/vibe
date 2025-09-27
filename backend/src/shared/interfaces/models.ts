@@ -576,7 +576,7 @@ export interface ICourseRegistration{
   detail: {
     name: string; 
     email: string; 
-    mobile: number; 
+    mobile: string; 
     gender: "MALE" | "FEMALE" | "OTHERS";
     city: string;
     state: string;

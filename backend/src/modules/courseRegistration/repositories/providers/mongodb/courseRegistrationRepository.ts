@@ -1,6 +1,6 @@
 import { ICourseRegistration, MongoDatabase } from "#root/shared/index.js";
 import { inject,injectable } from "inversify";
-import {Collection, ClientSession, ObjectId, Filter} from 'mongodb';
+import {Collection, ClientSession, ObjectId, Filter, SortDirection} from 'mongodb';
 import {
   BadRequestError,
   InternalServerError,
@@ -29,6 +29,26 @@ class CourseRegistrationRepository{
     await this.init()
     const result = await this.courseRegistrationCollection.insertOne(data)
     return result.insertedId.toString()
+  }
+
+  async findAllregistrations(filter:{status?:string;search?:string},skip:number,limit:number,sort:'createdAt' | 'latest'){
+    await this.init()
+    const query:any ={}
+    if(filter.status && filter.status !== 'ALL'){
+      query.status = filter.status
+    }
+    if(filter.search){
+      query.$or= [
+        {"detail.name":{$regex:filter.search,$options:"i"}},
+        {"detail.email":{$regex:filter.search,$options:"i"}},
+      ]
+    }
+
+    const sortOption = sort === "latest" ? { createdAt: -1 as SortDirection} : { createdAt: 1 as SortDirection };
+    const result = await this.courseRegistrationCollection.find(query).sort(sortOption).skip(skip).limit(limit).toArray()
+    const registrations = result.map((item) => ({...item,_id:item._id.toString()}))
+    const totalDocuments = await this.courseRegistrationCollection.countDocuments(query)
+    return {registrations,totalDocuments}
   }
 }
 
