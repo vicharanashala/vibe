@@ -108,6 +108,24 @@ export class EnrollmentRepository {
     );
   }
 
+  async getInstructorIdsByVersion(courseId: string, versionId: string) {
+    await this.init()
+  console.log("CourseId and versionId from getInstructors ",courseId,versionId)
+  const enrollments = await this.enrollmentCollection
+    .find(
+      {
+        courseId:new ObjectId(courseId),
+        courseVersionId: new ObjectId(versionId),
+        role: 'INSTRUCTOR',
+        status: 'ACTIVE'
+      },
+      { projection: { userId: 1, _id: 0 } } // only return userId
+    )
+    .toArray();
+  console.log("enrollments ",enrollments)
+  return enrollments.map(enrollment => enrollment.userId);
+}
+
   async updateProgressPercentById(
     enrollmentId: string,
     percentCompleted: number,
@@ -872,6 +890,20 @@ export class EnrollmentRepository {
       console.log(err);
     }
   }
+
+  //new method to get instructors 
+//   async getInstructorIdsByVersion(courseId:string, versionId:strin) {
+//   const enrollments = await this.enrollmentCollection.find({
+//     courseId,
+//     courseVersionId: versionId,
+//     role: 'INSTRUCTOR',
+//     status: 'ACTIVE'
+//   }).select('userId').lean();
+//   return enrollments.map(enrollment => enrollment.userId);
+// }
+
+
+
 
   async getByCourseVersion(
     courseId: string,
