@@ -22,6 +22,7 @@ import type { ProctoringSettings } from '@/types/video.types';
 import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.types';
 import { EntityType, IReport, ReportStatus } from '@/types/flag.types';
 import { useQueryClient } from '@tanstack/react-query';
+import { VersionWithCourse } from '@/app/pages/student/CourseRegistration';
 
 // Add missing ObjectId type
 type ObjectId = string;
@@ -2738,7 +2739,6 @@ export function useProjectSubmissions(courseId: string, versionId: string): {
     error: result.error ? (result.error.message || 'Failed to fetch project submissions') : null,
     refetch: result.refetch
   };
-
 }
 
 // POST (copy course version)
@@ -2766,3 +2766,209 @@ export function useCopyCourseVersion(): {
 }
 
 
+// Course registration
+
+export const useGetCourseRegistration = (
+  versionId: string,
+): {
+  data: VersionWithCourse;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} => {
+  const result = api.useQuery(
+    "get",
+    "/course/registration/version/{versionId}" as any,
+    {
+      params: {
+        path: { versionId },
+      },
+    },
+    {
+      enabled: !!versionId,
+    }
+  );
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error
+      ? result.error.message || "Failed to fetch project submissions"
+      : null,
+    refetch: result.refetch,
+  };
+};
+
+type RegistrationBody = {
+  name: string;
+  email: string;
+  mobile: string;
+  gender: string;
+  city: string;
+  state: string;
+  category: string;
+  university: string;
+};
+
+export const useSubmitCourseRegistration: () => {
+  mutate: (variables: {
+    params: { path: { versionId: string } };
+    body: RegistrationBody;
+  }) => void;
+  mutateAsync: (variables: {
+    params: { path: { versionId: string } };
+    body: RegistrationBody;
+  }) => Promise<{ message: string }>;
+  data: { message: string } | undefined;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} = () => {
+  const result = api.useMutation(
+    'post',
+    '/course/registration/version/{versionId}' as any
+  );
+
+  return {
+    ...result,
+    error: result.error
+      ? result.error.message || 'Failed to submit course registration'
+      : null,
+  };
+};
+
+
+export interface RegistrationRequestQuery {
+  filter?: 'pending' | 'approved' | 'rejected' | 'all';
+  sort?: 'createdAt' | 'latest';
+  search?: string;
+  limit?: number;
+  skip?: number;
+}
+
+export interface RegistrationRequestResponse {
+ 
+}
+
+export const useGetCourseRegistrationRequests = (
+  params: RegistrationRequestQuery = {}
+): {
+  data: RegistrationRequestResponse[] | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} => {
+  const result = api.useQuery(
+    'get',
+    '/course/registration/requests' as any,
+    {
+      params: {
+        query: {
+          filter: params.filter,
+          sort: params.sort,
+          search: params.search,
+          limit: params.limit,
+          skip: params.skip,
+        },
+      },
+    }
+  );
+
+  return {
+    data: result.data as RegistrationRequestResponse[] | undefined,
+    isLoading: result.isLoading,
+    error: result.error
+      ? result.error.message || 'Failed to fetch course registration requests'
+      : null,
+    refetch: result.refetch,
+  };
+};
+
+
+export const useUpdateRegistrationStatus = (): {
+  mutate: (registrationId: string, status: 'approved' | 'rejected' | 'pending') => void;
+  mutateAsync: (registrationId: string, status: 'approved' | 'rejected' | 'pending') => Promise<{
+    message: string;
+    registrationId: string;
+  }>;
+  data: { message: string; registrationId: string } | undefined;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} => {
+  const result = api.useMutation('patch', '/course/status/{id}' as any);
+
+  return {
+    mutate: (registrationId, status) =>
+      result.mutate({
+        params: { path: { registrationId } },
+        body: { status },
+      }),
+
+    mutateAsync: (registrationId, status) =>
+      result.mutateAsync({
+        params: { path: { registrationId } },
+        body: { status },
+      }),
+
+    data: result.data as { message: string; registrationId: string } | undefined,
+    error: result.error
+      ? result.error.message || 'Failed to update registration status'
+      : null,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+  };
+};
+
+export const useBulkUpdateRegistrationStatus = (): {
+  mutate: (selected: string[]) => void;
+  mutateAsync: (selected: string[]) => Promise<{
+    message: string;
+    updatedCount?: number; 
+  }>;
+  data: { message: string; updatedCount?: number } | undefined;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} => {
+  const result = api.useMutation('patch', '/course/registration/status' as any);
+
+  return {
+    mutate: (selected) =>
+      result.mutate({
+        body: { selected },
+      }),
+
+    mutateAsync: (selected) =>
+      result.mutateAsync({
+        body: { selected },
+      }),
+
+    data: result.data as { message: string; updatedCount?: number } | undefined,
+    error: result.error
+      ? result.error.message || 'Failed to update registration status'
+      : null,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+  };
+};
