@@ -108,12 +108,10 @@ async getUserNamesByIds(userIds: string[]) {
       { projection: { firstName: 1,firebaseUID:1, _id: 0 } } // <-- projection instead of select
     )
     .toArray();
-    console.log("Users from getusername ",users)
     const results = await Promise.all(
     users.map(async (user) => {
       try {
         const userRecord = await admin.auth().getUser(user.firebaseUID);
-        console.log("UserRecord from firebase ",userRecord)
         return {
           name: user.firstName,
           profileImage: userRecord.photoURL || null,

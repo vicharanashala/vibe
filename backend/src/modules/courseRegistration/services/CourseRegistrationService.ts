@@ -71,8 +71,6 @@ export class CourseRegistrationService extends BaseService{
   async getCourseDetails(versionId:string){
     const courseVersion = await this.courseRepo.readVersion(versionId)
     const course = await this.courseRepo.read(courseVersion.courseId as string)
-    console.log("course ",course)
-    console.log("Version ",courseVersion)
     const modules = [];
     let totalItems = 0;
   for (const mod of courseVersion.modules || []) {

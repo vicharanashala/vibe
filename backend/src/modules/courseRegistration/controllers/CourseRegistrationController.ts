@@ -50,7 +50,7 @@ class CourseRegistrationController {
   ) {
     const {versionId} =params
     const result = await this.courseRegistrationService.getCourseDetails(versionId)
-    return {result}
+    return result
   }
 }
 
