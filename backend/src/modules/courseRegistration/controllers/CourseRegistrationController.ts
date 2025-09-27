@@ -20,7 +20,7 @@ import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { BadRequestErrorResponse, IReport } from '#root/shared/index.js';
 import { subject } from '@casl/ability';
 import { CourseAndVersionId, CourseVersionIdParams } from '#root/modules/notifications/index.js';
-import { CourseRegistrationBody } from '../classes/index.js';
+import { CourseRegistrationBody, RegistrationFilterQuery } from '../classes/index.js';
 
 
 @OpenAPI({
@@ -41,7 +41,7 @@ class CourseRegistrationController {
     description: 'Get all the Data to load in the course details page for student registration.',
   })
   // @Authorized()
-  @Get('/:versionId')
+  @Get('/version/:versionId')
   @HttpCode(200)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
@@ -64,7 +64,7 @@ class CourseRegistrationController {
     description: 'Details submitted from users for the course registration.',
   })
   @Authorized()
-  @Post('/:versionId')
+  @Post('/version/:versionId')
   @HttpCode(201)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
@@ -94,15 +94,18 @@ class CourseRegistrationController {
     summary: 'Get Data for course Details page',
     description: 'Get all the Data to load in the course details page for student registration.',
   })
-  @Authorized()
+  // @Authorized()
   @Get('/requests')
   @HttpCode(200)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
   })
-  async getAllRegistrations(){
-
+  async getAllRegistrations(@QueryParams() query:RegistrationFilterQuery){
+    const {page,limit,status,search,sort} =query
+    const result = await this.courseRegistrationService.getAllregistrations(page,limit,status,search,sort)
+    console.log("result from controller ",result)
+    return result
   }
 }
 
