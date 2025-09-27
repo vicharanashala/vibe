@@ -502,14 +502,14 @@ export class ItemRepository implements IItemRepository {
     }
   }
 
-  async bulkConvertIds(batchSize = 500): Promise<{updated: number}> {
+  async bulkConvertIds(batchSize = 500): Promise<{ updated: number }> {
     try {
       await this.init();
 
       const cursor = this.itemsGroupCollection.find(
         {},
         {
-          projection: {_id: 1, sectionId: 1},
+          projection: { _id: 1, sectionId: 1, items: 1 },
         },
       );
 
@@ -522,15 +522,25 @@ export class ItemRepository implements IItemRepository {
 
         const updateFields: Record<string, any> = {};
 
-        if (group.sectionId && typeof group.sectionId === 'string') {
+        if (group.sectionId && typeof group.sectionId === "string") {
           updateFields.sectionId = new ObjectId(group.sectionId);
+        }
+
+        if (Array.isArray(group.items) && group.items.length > 0) {
+          const updatedItems = group.items.map((item: any) => {
+            if (item._id && typeof item._id === "string") {
+              return { ...item, _id: new ObjectId(item._id) };
+            }
+            return item;
+          });
+          updateFields.items = updatedItems;
         }
 
         if (Object.keys(updateFields).length > 0) {
           bulkOps.push({
             updateOne: {
-              filter: {_id: group._id},
-              update: {$set: updateFields},
+              filter: { _id: group._id },
+              update: { $set: updateFields },
             },
           });
         }
@@ -547,11 +557,12 @@ export class ItemRepository implements IItemRepository {
         totalUpdated += result.modifiedCount;
       }
 
-      return {updated: totalUpdated};
+      return { updated: totalUpdated };
     } catch (error) {
       throw new InternalServerError(
         `Failed itemsGroup ID conversion. More/ ${error}`,
       );
     }
   }
+
 }

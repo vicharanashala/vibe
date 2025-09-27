@@ -494,4 +494,30 @@ export class EnrollmentController {
 
     return this.enrollmentService.getQuizScoresForCourseVersion(courseId, versionId);
   }
+
+  @Post("/bulk-update/:collection")
+  @HttpCode(200)
+  async bulkUpdate(
+    @Param("collection") collection:
+      | 'anomaly_records'
+      | 'genAI_jobs'
+      | 'invites'
+      | 'itemsGroup'
+      | 'job_task_status'
+      | 'newCourse'
+      | 'newCourseVersion'
+      | 'questionBanks'
+      | 'quiz_submission_results'
+      | 'quizzes'
+      | 'user_quiz_metrics'
+      | 'quiz_attempts'
+  ): Promise<{ message: string }> {
+    try {
+      await this.enrollmentService.bulkUpdateIdConversion(collection);
+      return { message: `Bulk update successful for ${collection}` };
+    } catch (error) {
+      console.error(error);
+      throw new Error(`Failed to update ${collection}: ${error.message}`);
+    }
+  }
 }
