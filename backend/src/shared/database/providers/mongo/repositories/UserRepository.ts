@@ -8,6 +8,23 @@ import { InternalServerError, NotFoundError } from 'routing-controllers';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { User } from '#auth/classes/transformers/User.js';
 import admin from "firebase-admin";
+import { appConfig } from "#root/config/app.js";
+
+if (!admin.apps.length) {
+  if (appConfig.isDevelopment) {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        clientEmail: appConfig.firebase.clientEmail,
+        privateKey: appConfig.firebase.privateKey.replace(/\\n/g, "\n"),
+        projectId: appConfig.firebase.projectId,
+      }),
+    });
+  } else {
+    admin.initializeApp({
+      credential: admin.credential.applicationDefault(),
+    });
+  }
+}
 @injectable()
 export class UserRepository implements IUserRepository {
   private usersCollection!: Collection<IUser>;
