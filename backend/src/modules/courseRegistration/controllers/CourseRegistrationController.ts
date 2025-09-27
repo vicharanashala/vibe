@@ -54,4 +54,7 @@ class CourseRegistrationController {
   }
 }
 
+
+
+
 export {CourseRegistrationController}
