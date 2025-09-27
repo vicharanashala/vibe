@@ -53,10 +53,11 @@ class CourseRegistrationRepository{
 
   async updateStatus(registrationId:string,status:"PENDING" | "APPROVED" | "REJECTED"){
     await this.init()
-    const result = await this.courseRegistrationCollection.findOneAndUpdate({_id:new ObjectId(registrationId)},{
+    const data = await this.courseRegistrationCollection.findOneAndUpdate({_id:new ObjectId(registrationId)},{
       $set:{status,updatedAt:new Date()}
     },{returnDocument:"after"})
-    console.log("result ",result)
+    console.log("result ",data)
+    const result = {...data,_id:data._id.toString()}
     return result
   }
 }
