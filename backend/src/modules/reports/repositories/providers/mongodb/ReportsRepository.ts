@@ -127,6 +127,7 @@ class ReportRepository {
     });
     return result;
   }
+  
 
   async getById(
     reportId: string,
