@@ -39,17 +39,36 @@ class ProgressRepository {
   ): Promise<string[]> {
     await this.init();
 
-    const distinctItemIds = await this.watchTimeCollection.distinct(
+    // Get completed items from watch time (videos, blogs, articles)
+    const watchTimeItems = await this.watchTimeCollection.distinct(
       'itemId',
       {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      {session},
+      {session}
     );
 
-    return distinctItemIds.map(id => id.toString());
+    // Get completed project submissions
+    const projectSubmissionsCollection = await this.db.getCollection<{projectId: ObjectId}>('project_submissions');
+    const projectSubmissions = await projectSubmissionsCollection.distinct(
+      'projectId',
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+      },
+      {session}
+    );
+
+    // Combine and deduplicate item IDs
+    const allItemIds = [...new Set([
+      ...watchTimeItems.map(id => id.toString()),
+      ...projectSubmissions.map(id => id.toString())
+    ])];
+
+    return allItemIds;
   }
 
   async getAllWatchTime(

@@ -892,6 +892,15 @@ class ProgressService extends BaseService {
     attemptId?: string,
     isSkipped?: boolean,
   ): Promise<void> {
+    console.log(`[ProgressService] Starting progress update for user ${userId}, item ${itemId}`, {
+      courseId,
+      courseVersionId,
+      moduleId,
+      sectionId,
+      watchItemId,
+      attemptId,
+      isSkipped
+    });
     return this._withTransaction(async session => {
       await this.verifyDetails(userId, courseId, courseVersionId);
 
@@ -905,16 +914,19 @@ class ProgressService extends BaseService {
       );
 
       // Check if the watch time is greater than the item duration
+      console.log(`[ProgressService] Fetching item details for ${itemId}`);
       const item = await this.itemRepo.readItem(
         courseVersionId,
         itemId,
         session,
       );
       if (!item) {
+        console.error(`[ProgressService] Item ${itemId} not found in course version ${courseVersionId}`);
         throw new NotFoundError('Item not found in Course Version');
       }
 
       // Only require watch time for VIDEO or BLOG items
+      console.log(`[ProgressService] Processing item of type ${item.type}`);
       if (item.type === 'VIDEO' || item.type === 'BLOG') {
         const watchTime = await this.progressRepository.getWatchTimeById(
           watchItemId,
@@ -930,6 +942,7 @@ class ProgressService extends BaseService {
           );
         }
       } else if (item.type === 'QUIZ' && !isSkipped) {
+        console.log(`[ProgressService] Verifying quiz submission for item ${itemId}`);
         // Verify if the user has submitted the QUIZ
         const submittedQuiz = await this.submissionRepository.get(
           itemId,
@@ -950,32 +963,47 @@ class ProgressService extends BaseService {
           );
         }
       } else if (item.type === 'PROJECT') {
-        // Verify if the user has submitted the PROJECT
+        console.log(`[ProgressService] Progress update for project item ${itemId}`);
+        // For project items, we need to check if the project is submitted
         const projectSubmission = await this.projectSubmissionRepo.getByUser(
           userId,
           courseVersionId,
-          session,
+          session
         );
-
+        
         if (!projectSubmission || projectSubmission.projectId.toString() !== itemId) {
-          throw new BadRequestError('Project submission is required before marking as complete');
+          throw new BadRequestError('Project not submitted yet');
         }
       }
+
+         
       // Get the course version
+      console.log(`[ProgressService] Fetching course version ${courseVersionId}`);
       const courseVersion = await this.courseRepo.readVersion(
         courseVersionId,
         session,
       );
+      if (!courseVersion) {
+        console.error(`[ProgressService] Course version ${courseVersionId} not found`);
+        throw new NotFoundError('Course version not found');
+      }
+      console.log(`[ProgressService] Course version loaded`);
 
-      //  for updating enrollment progress percent
-      await this.updateEnrollmentProgressPercent(
-        userId,
-        courseId,
-        courseVersionId,
-        session,
-      );
+      console.log(`[ProgressService] Updating enrollment progress percent`);
+      try {
+        await this.updateEnrollmentProgressPercent(
+          userId,
+          courseId,
+          courseVersionId,
+          session,
+        );
+        console.log(`[ProgressService] Enrollment progress percent updated`);
+      } catch (error) {
+        console.error(`[ProgressService] Error updating enrollment progress:`, error);
+        throw error;
+      }
 
-      // Get the new progress
+      console.log(`[ProgressService] Calculating new progress`);
       const newProgress = await this.getNewProgress(
         courseVersion,
         moduleId,
@@ -995,14 +1023,16 @@ class ProgressService extends BaseService {
         newProgress,
         session,
       );
+      console.log(`[ProgressService] Progress updated`);
 
       if (!updatedProgress) {
+        console.log(`[ProgressService] Progress could not be updated`);
         throw new InternalServerError('Progress could not be updated');
       }
     });
   }
 
-  // helper to reset quiz realted data
+  // helper to reset quiz related data
   private async resetUserQuizData(
     userId: string,
     quizItemIds: string[],
@@ -1042,6 +1072,23 @@ class ProgressService extends BaseService {
     ]);
   }
 
+  // helper to reset project submission data
+  private async resetUserProjectData(
+    userId: string,
+    projectItemIds: string[],
+    courseVersionId: string,
+    session: ClientSession,
+  ): Promise<void> {
+    if (!projectItemIds.length) return;
+
+    // Delete all project submissions for the user in this course version
+    await this.projectSubmissionRepo.deleteByUserAndVersion(
+      userId,
+      courseVersionId,
+      session
+    );
+  }
+
   // Admin Level Endpoint
   async resetCourseProgress(
     userId: string,
@@ -1078,17 +1125,21 @@ class ProgressService extends BaseService {
         itemsGroupIds.map(id => this.itemRepo.readItemsGroup(id, session)),
       );
 
-      // Collect quizItemIds
+      // Collect quizItemIds and projectItemIds
       const quizItemIds: string[] = [];
+      const projectItemIds: string[] = [];
+      
       for (const group of itemsGroups) {
         for (const item of group.items || []) {
           if (item.type === 'QUIZ') {
-            quizItemIds.push(item._id as string);
+            quizItemIds.push(item._id.toString());
+          } else if (item.type === 'PROJECT') {
+            projectItemIds.push(item._id.toString());
           }
         }
       }
 
-      // Run watchTime deletion, enrollment progress update, and quiz reset in parallel
+      // Run watchTime deletion, enrollment progress update, and data reset in parallel
       await Promise.all([
         this.progressRepository.deleteUserWatchTimeByCourseVersion(
           userId,
@@ -1105,6 +1156,9 @@ class ProgressService extends BaseService {
         ),
         quizItemIds.length
           ? this.resetUserQuizData(userId, quizItemIds, session)
+          : Promise.resolve(),
+        projectItemIds.length
+          ? this.resetUserProjectData(userId, projectItemIds, courseVersionId, session)
           : Promise.resolve(),
       ]);
 
@@ -1156,17 +1210,21 @@ class ProgressService extends BaseService {
         itemsGroupIds.map(id => this.itemRepo.readItemsGroup(id, session)),
       );
 
-      // Collect quizItemIds
+      // Collect quizItemIds and projectItemIds
       const quizItemIds: string[] = [];
+      const projectItemIds: string[] = [];
+      
       for (const group of itemsGroups) {
         for (const item of group.items || []) {
           if (item.type === 'QUIZ') {
-            quizItemIds.push(item._id as string);
+            quizItemIds.push(item._id.toString());
+          } else if (item.type === 'PROJECT') {
+            projectItemIds.push(item._id.toString());
           }
         }
       }
 
-      // Run watchTime deletion, enrollment progress update, and quiz reset in parallel
+      // Run watchTime deletion, enrollment progress update, and data reset in parallel
       await Promise.all([
         this.progressRepository.deleteProgress(
           userId,
@@ -1188,6 +1246,9 @@ class ProgressService extends BaseService {
         ),
         quizItemIds.length
           ? this.resetUserQuizData(userId, quizItemIds, session)
+          : Promise.resolve(),
+        projectItemIds.length
+          ? this.resetUserProjectData(userId, projectItemIds, courseVersionId, session)
           : Promise.resolve(),
       ]);
     });
@@ -1260,8 +1321,9 @@ class ProgressService extends BaseService {
       if (!selectedModule)
         throw new NotFoundError(`Failed to find module with id: ${moduleId}`);
 
-      // to store all the quiz item id's, to update attempts and metrics
+      // to store all the quiz and project item ids
       const quizItemIds: string[] = [];
+      const projectItemIds: string[] = [];
 
       // to store all the item id's to clear watch time using itemId
       const itemIds: string[] = [];
@@ -1270,14 +1332,15 @@ class ProgressService extends BaseService {
       // storing the item group id to a array
       for (const section of selectedModule.sections) {
         itemsGroupIds.push(section.itemsGroupId as string);
-      }
+        }
 
       for (const itemGroupId of itemsGroupIds) {
         const itemsGroup = await this.itemRepo.readItemsGroup(
           itemGroupId,
           session,
-        );
+      );
         for (const item of itemsGroup.items || []) {
+          const itemId = item._id.toString();
           if (item.type === 'QUIZ') {
             quizItemIds.push(item._id as string);
           }
