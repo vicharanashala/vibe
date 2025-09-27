@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Card,
   CardContent,
@@ -14,13 +14,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Users, Eye, User, CheckCircle, XCircle, Share2, Check, Copy, ExternalLink, Share } from "lucide-react";
+import { Loader2, Users, Eye, User, CheckCircle, XCircle, Share2, Check, Copy, ExternalLink, Share, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCourseStore } from "@/store/course-store";
 import { toast } from "sonner";
+import { RegistrationRequestQuery, useGetCourseRegistrationRequests } from "@/hooks/hooks";
+import { Pagination } from "@/components/ui/Pagination";
 
 
 interface RegistrationDetail {
@@ -42,67 +44,33 @@ export interface Registration {
 }
 
 
+export type RegistrationStatus = "PENDING" | "APPROVED" | "REJECTED" | "ALL";
+
 
 export default function CourseRegistrationRequests() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedRegistration, setSelectedRegistration] = useState<any>(null);
-  const [registrations, setRegistrations] = useState<Registration[]>([
-    {
-      _id: 'reg001',
-      detail: {
-        name: 'John Doe',
-        email: 'john.doe@example.com',
-        mobile: '+91-9876543210',
-        gender: 'Male',
-        city: 'Bengaluru',
-        state: 'Karnataka',
-        category: 'General',
-        university: 'ABC University',
-      },
-      status: 'pending',
-      createdAt: '2025-09-26T10:30:00.000Z',
-    },
-    {
-      _id: 'reg002',
-      detail: {
-        name: 'Jane Smith',
-        email: 'jane.smith@example.com',
-        mobile: '+91-9123456780',
-        gender: 'Female',
-        city: 'Hyderabad',
-        state: 'Telangana',
-        category: 'OBC',
-        university: 'XYZ University',
-      },
-      status: 'approved',
-      createdAt: '2025-09-25T15:00:00.000Z',
-    },
-    {
-      _id: 'reg003',
-      detail: {
-        name: 'Arjun Kumar',
-        email: 'arjun.kumar@example.com',
-        mobile: '+91-9988776655',
-        gender: 'Male',
-        city: 'Chennai',
-        state: 'Tamil Nadu',
-        category: 'SC',
-        university: 'LMN College',
-      },
-      status: 'pending',
-      createdAt: '2025-09-24T12:15:00.000Z',
-    },
-  ]);
-  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('ALL');
-  const [sortOrder, setSortOrder] = useState('latest');
+  const [filterStatus, setFilterStatus] = useState<RegistrationStatus>('ALL');
+  const [sortOrder, setSortOrder] = useState<'older' | 'latest'>('latest');
   const [currentPage, setCurrentPage] = useState(1);
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const { currentCourse } = useCourseStore()
   const versionId = currentCourse?.versionId
+
+  const params = useMemo(() => ({
+    filter: filterStatus,
+    search: searchTerm,
+    sort: sortOrder,
+    page: currentPage,
+    limit: 10,
+  }), [filterStatus, searchTerm, sortOrder, currentPage]);
+
+  const {data: registrationsData, isLoading, refetch: registrationsRefetch} = useGetCourseRegistrationRequests(params)
+
+  const registrations = registrationsData?.registrations || []
 
    const FRONTEND_URL = window.location.origin;
    const registrationUrl = `${FRONTEND_URL}/student/course-registration/${versionId}`;
@@ -114,6 +82,11 @@ Hello,
 Register for the course using the link below:
 
 ${registrationUrl}`;
+
+
+  useEffect(() => {
+    registrationsRefetch();
+  }, [params, registrationsRefetch]);
 
   const handleSelectRow = (id: string, checked: boolean) => {
     setSelectedIds(prev =>
@@ -148,6 +121,11 @@ ${registrationUrl}`;
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
+  };
+
+
+   const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
   };
 
 
@@ -239,24 +217,6 @@ ${registrationUrl}`;
                       <Share className="h-4 w-4" />
                       <span>Share Link</span>
                     </Button>
-
-                    {/* <Button
-                      onClick={copyRegistrationUrl}
-                      size="sm"
-                      className="flex items-center gap-2 transition-all duration-200 hover:scale-105 active:scale-95"
-                    >
-                      {copied ? (
-                        <>
-                          <Check className="h-4 w-4" />
-                          <span>Copied!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-4 w-4" />
-                          <span>Copy URL</span>
-                        </>
-                      )}
-                    </Button> */}
                   </div>
                 </DialogFooter>
               </DialogContent>
@@ -264,12 +224,22 @@ ${registrationUrl}`;
 
             <Button
               onClick={handleApproveAll}
-              disabled={selectedIds.length === 0}
+              disabled={selectedIds?.length === 0}
               variant="default"
               className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white dark:text-black"
             >
               <CheckCircle className="h-4 w-4 mr-2" />
               Approve Selected
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => registrationsRefetch()}
+              disabled={isLoading}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+              Refresh
             </Button>
           </div>
 
@@ -290,7 +260,7 @@ ${registrationUrl}`;
           <Select
             value={filterStatus}
             onValueChange={value => {
-              setFilterStatus(value);
+              setFilterStatus(value as RegistrationStatus);
               setCurrentPage(1);
             }}
           >
@@ -299,16 +269,16 @@ ${registrationUrl}`;
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="PENDING">Pending</SelectItem>
+              <SelectItem value="APPROVED">Approved</SelectItem>
+              <SelectItem value="REJECTED">Rejected</SelectItem>
             </SelectContent>
           </Select>
 
           <Select
             value={sortOrder}
             onValueChange={value => {
-              setSortOrder(value);
+              setSortOrder(value as 'older' | 'latest');
               setCurrentPage(1);
             }}
           >
@@ -317,7 +287,7 @@ ${registrationUrl}`;
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="latest">Latest</SelectItem>
-              <SelectItem value="oldest">Oldest</SelectItem>
+              <SelectItem value="older">Oldest</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -332,8 +302,8 @@ ${registrationUrl}`;
                     <TableHead className="w-[40px] pl-6">
                       <Checkbox
                         checked={
-                          selectedIds.length === registrations.length &&
-                          registrations.length > 0
+                          selectedIds?.length === registrations?.length &&
+                          registrations?.length > 0
                         }
                         onCheckedChange={checked =>
                           handleSelectAll(checked as boolean)
@@ -359,7 +329,7 @@ ${registrationUrl}`;
                 </TableHeader>
 
                 <TableBody>
-                  {loading ? (
+                  {isLoading ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-12">
                         <div className="flex items-center justify-center space-x-2">
@@ -370,7 +340,7 @@ ${registrationUrl}`;
                         </div>
                       </TableCell>
                     </TableRow>
-                  ) : registrations.length === 0 ? (
+                  ) : registrations?.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-16">
                         <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
@@ -385,7 +355,7 @@ ${registrationUrl}`;
                       </TableCell>
                     </TableRow>
                   ) : (
-                    registrations.map((reg: any, index: number) => (
+                    registrations?.map((reg: any, index: number) => (
                       <TableRow
                         key={reg._id}
                         className="border-border hover:bg-muted/20 transition-colors duration-200 group"
@@ -429,7 +399,7 @@ ${registrationUrl}`;
                               <Eye className="h-4 w-4 mr-2" />
                               View Details
                             </Button>
-                            {reg.status === 'pending' && (
+                            {reg.status === 'PENDING' && (
                               <>
                                 <Button
                                   variant="default"
@@ -532,6 +502,14 @@ ${registrationUrl}`;
             </div>
           </CardContent>
         </Card>
+          {registrationsData?.totalDocuments > 1 && (
+              <Pagination
+              currentPage={currentPage}
+              totalPages={registrationsData?.totalPages}
+              totalDocuments={registrationsData?.totalDocuments}
+              onPageChange={handlePageChange}
+              />
+          )}
 
         
       </div>
