@@ -12,9 +12,9 @@ export class CourseRegistrationBody {
   @JSONSchema({ example: 'john@example.com' })
   email: string;
 
-  @IsNumber()
+  @IsString()
   @IsNotEmpty()
-  @JSONSchema({ example: 9876543210 })
+  @JSONSchema({ example: "9876543210" })
   mobile: string;
 
   @IsEnum(['MALE', 'FEMALE', 'OTHERS'])

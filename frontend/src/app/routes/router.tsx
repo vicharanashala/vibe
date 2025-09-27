@@ -230,7 +230,7 @@ const teacherCourseInstructorsRoute = new Route({
 // Teacher Course Regstration requests
 const teacherCourseRegistrationRequests = new Route({
   getParentRoute:() => teacherLayoutRoute,
-  path:'/requests',
+  path:'/courses/registration-requests',
   component:RegisteredUsers
 })
 
@@ -308,7 +308,7 @@ const studentProfileRoute = new Route({
 
 export  const studentCourseInviteRegistration = new Route({
   getParentRoute: () => studentLayoutRoute,
-  path:"/course-registration/:courseId",
+  path:"/course-registration/$versionId",
   component: CourseRegistration,
 })
 

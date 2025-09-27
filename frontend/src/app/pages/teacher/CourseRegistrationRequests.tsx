@@ -14,16 +14,39 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Users, Eye, User, CheckCircle, XCircle } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Loader2, Users, Eye, User, CheckCircle, XCircle, Share2, Check, Copy, ExternalLink, Share } from "lucide-react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCourseStore } from "@/store/course-store";
+import { toast } from "sonner";
+
+
+interface RegistrationDetail {
+  name: string;
+  email: string;
+  mobile: string;
+  gender: string;
+  city: string;
+  state: string;
+  category: string;
+  university: string;
+}
+
+export interface Registration {
+  _id: string;
+  detail: RegistrationDetail;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string; 
+}
+
+
 
 export default function CourseRegistrationRequests() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedRegistration, setSelectedRegistration] = useState<any>(null);
-  const [registrations, setRegistrations] = useState<any[]>([
+  const [registrations, setRegistrations] = useState<Registration[]>([
     {
       _id: 'reg001',
       detail: {
@@ -75,6 +98,22 @@ export default function CourseRegistrationRequests() {
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [sortOrder, setSortOrder] = useState('latest');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isOpen, setIsOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const { currentCourse } = useCourseStore()
+  const versionId = currentCourse?.versionId
+
+   const FRONTEND_URL = window.location.origin;
+   const registrationUrl = `${FRONTEND_URL}/student/course-registration/${versionId}`;
+
+   const registrationMessage = `🎓 Course Registration - ViBe Platform
+
+Hello,
+
+Register for the course using the link below:
+
+${registrationUrl}`;
 
   const handleSelectRow = (id: string, checked: boolean) => {
     setSelectedIds(prev =>
@@ -91,9 +130,26 @@ export default function CourseRegistrationRequests() {
   };
 
   const handleApproveAll = () => {
-    // bulk approve API call here using selectedIds
     console.log('Approving all:', selectedIds);
   };
+
+  const copyRegistrationUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(registrationUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      const textArea = document.createElement('textarea');
+      textArea.value = registrationUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -108,16 +164,115 @@ export default function CourseRegistrationRequests() {
               Review and manage all pending course registration requests.
             </p>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+             <Dialog open={isOpen} onOpenChange={setIsOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Share2 className="h-4 w-4" />
+                  Get Registration URL
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                  <DialogTitle className="text-xl font-semibold flex items-center gap-2">
+                    <Share2 className="h-5 w-5 text-primary" />
+                    Student Registration URL
+                  </DialogTitle>
+                  <p className="text-sm text-muted-foreground leading-relaxed mt-2">
+                    Share this URL with students to allow them to view available course versions and submit registration requests.
+                  </p>
+                </DialogHeader>
+                
+                <div className="space-y-4 mt-6">
+                  <div className="relative">
+                    <label className="text-sm font-medium text-foreground mb-2 block">
+                      Registration URL
+                    </label>
+                    <div className="flex items-center gap-2 p-3 bg-muted/50 border border-border rounded-lg">
+                      <code className="flex-1 text-sm font-mono text-foreground break-all">
+                        {registrationUrl}
+                      </code>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={copyRegistrationUrl}
+                        className="h-8 w-8 p-0 flex-shrink-0"
+                      >
+                        {copied ? (
+                          <Check className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
 
-          <Button
-            onClick={handleApproveAll}
-            disabled={selectedIds.length === 0}
-            variant="default"
-            className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white dark:text-black"
-          >
-            <CheckCircle className="h-4 w-4 mr-2" />
-            Approve Selected
-          </Button>
+                  {copied && (
+                    <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                      <Check className="h-4 w-4" />
+                      URL copied to clipboard successfully!
+                    </div>
+                  )}
+                </div>
+
+                <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-6">
+                  
+                <div className="flex flex-col sm:flex-row gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (navigator.share) {
+                          navigator
+                            .share({
+                              title: "Course Registration - Vibe Platform",
+                               text: registrationMessage,
+                              // url: registrationUrl,
+                            })
+                            .catch((err) => console.error("Error sharing:", err));
+                        } else {
+                          toast.error("Web Share API not supported. Please copy the URL manually.");
+                        }
+                      }}
+                      className="flex items-center gap-2 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 dark:hover:bg-blue-950 dark:hover:text-blue-300 dark:hover:border-blue-700 transition-colors"
+                    >
+                      <Share className="h-4 w-4" />
+                      <span>Share Link</span>
+                    </Button>
+
+                    {/* <Button
+                      onClick={copyRegistrationUrl}
+                      size="sm"
+                      className="flex items-center gap-2 transition-all duration-200 hover:scale-105 active:scale-95"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="h-4 w-4" />
+                          <span>Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-4 w-4" />
+                          <span>Copy URL</span>
+                        </>
+                      )}
+                    </Button> */}
+                  </div>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Button
+              onClick={handleApproveAll}
+              disabled={selectedIds.length === 0}
+              variant="default"
+              className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white dark:text-black"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Approve Selected
+            </Button>
+          </div>
+
         </div>
         <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
           <div className="flex-1">
@@ -166,6 +321,7 @@ export default function CourseRegistrationRequests() {
             </SelectContent>
           </Select>
         </div>
+            
         {/* Table */}
         <Card className="border-0 shadow-lg overflow-hidden">
           <CardContent className="p-0">
@@ -376,6 +532,8 @@ export default function CourseRegistrationRequests() {
             </div>
           </CardContent>
         </Card>
+
+        
       </div>
     </div>
   );

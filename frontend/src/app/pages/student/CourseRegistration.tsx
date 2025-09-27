@@ -8,10 +8,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { useSearch } from '@tanstack/react-router';
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useGetCourseRegistration, useSubmitCourseRegistration } from '@/hooks/hooks';
+import { useParams } from '@tanstack/react-router';
+import React, { useState } from 'react';
 import { toast } from 'sonner';
+
+
+const FormError: React.FC<{ message?: string }> = ({ message }) => {
+  if (!message) return null;
+  return <p className="text-xs text-red-500 mt-1">{message}</p>;
+};
 
 interface IModule {
   id: string;
@@ -41,37 +47,31 @@ interface ICourse {
   updatedAt?: Date;
 }
 
-interface VersionWithCourse extends ICourseVersion {
+export interface VersionWithCourse extends ICourseVersion {
   course: ICourse;
-  instructorNames: string[];
+  instructors: {name: string, profileImage: string}[];
 }
+
 
 const CourseRegistration: React.FC = () => {
 
-  const url = new URL(window.location.href);
-  const pathParts = url.pathname.split('/'); 
-  const courseId = pathParts[pathParts.length - 1];
+  const { versionId } = useParams({ from: studentCourseInviteRegistration.id });
 
-  // const params = useParams();
-  // const courseId = params.courseId;
-    // const courseId = window.location.pathname.split('/').pop();
-
-  //   const search = useSearch({ from: studentCourseInviteRegistration as any });
-  // const courseId = search.courseId; 
-
-  const [version, setVersion] = useState<VersionWithCourse | null>(null);
-  const [loading, setLoading] = useState(true);
+  // const [version, setVersion] = useState<VersionWithCourse | null>(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
   const [gender, setGender] = useState('');
   const [city, setCity] = useState('');
-  const [stateName, setStateName] = useState('');
+  const [state, setState] = useState('');
   const [category, setCategory] = useState('');
   const [university, setUniversity] = useState('');
-  const [submitting, setSubmitting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showModules, setShowModules] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+
+  const {data: versionData, isLoading: isLoadingVersionData} = useGetCourseRegistration(versionId);
+  const {mutateAsync: submitRegistration, isPending: isSubmitting} = useSubmitCourseRegistration();
 
   const formatDate = (iso?: string) => {
     if (!iso) return '—';
@@ -80,118 +80,79 @@ const CourseRegistration: React.FC = () => {
     return d.toLocaleDateString();
   };
 
-  useEffect(() => {
-    const mockVersion: VersionWithCourse = {
-      id: 'v1',
-      courseId: '1',
-      version: 'v1.0 - React Fundamentals',
-      description:
-        'Learn the core concepts of React development including components, JSX, state management, and event handling. Perfect for beginners starting their React journey.',
-      modules: [
-        {
-          id: '1',
-          name: 'Introduction to React',
-          description:
-            'Understanding React philosophy and component-based architecture',
-            itemsCount: 3
-        },
-        {
-          id: '2',
-          name: 'JSX and Components',
-          description: 'Learn JSX syntax and how to create reusable components',
-          itemsCount: 3
-        },
-        {
-          id: '3',
-          name: 'State and Props',
-          description:
-            'Managing component state and passing data between components',
-            itemsCount: 3
-        },
-        {
-          id: '4',
-          name: 'Event Handling',
-          description: 'Handling user interactions and form submissions',
-          itemsCount: 3
-        },
-        {
-          id: '5',
-          name: 'Project: Todo Application',
-          description: 'Build a complete todo app using learned concepts',
-          itemsCount: 3
-        },
-      ],
-      totalItems: 15,
-      createdAt: new Date('2024-01-15'),
-      updatedAt: new Date('2024-02-01'),
-      course: {
-        id: '1',
-        name: 'Introduction to React Development',
-        description:
-          'A comprehensive course series covering React development from basics to advanced concepts. Learn to build modern web applications with confidence.',
-        versions: ['v1', 'v2'],
-        instructors: ['inst1', 'inst2'],
-        createdAt: new Date('2024-01-15'),
-        updatedAt: new Date('2024-03-01'),
-      },
-      instructorNames: ['Dr. Sarah Johnson', 'Prof. Michael Chen'],
-    };
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
 
-    setTimeout(() => {
-      setVersion(mockVersion);
-      setLoading(false);
-    }, 1000);
-  }, []);
+    if (!name.trim()) newErrors.name = "Full name is required";
+    if (!email.trim()) newErrors.email = "Email is required";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      newErrors.email = "Enter a valid email";
+
+    if (!mobile.trim()) newErrors.mobile = "Mobile number is required";
+    else if (!/^\d{10}$/.test(mobile))
+      newErrors.mobile = "Enter a valid 10-digit mobile number";
+
+    if (!gender) newErrors.gender = "Gender is required";
+    if (!city.trim()) newErrors.city = "City is required";
+    if (!state.trim()) newErrors.stateName = "State is required";
+    if (!category) newErrors.category = "Category is required";
+    if (!university.trim()) newErrors.university = "University is required";
+
+    setErrors(newErrors);
+
+    return Object.keys(newErrors).length === 0; 
+  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !email.trim() || !mobile.trim()) {
-      toast.error('Missing information');
-      return;
-    }
+    if (!validateForm()) return;
+
     try {
-      setSubmitting(true);
-      const res = await fetch('/api/registrations', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          courseId: version?.courseId,
-          versionId: version?.id,
+
+      await submitRegistration({
+        params: {
+          path: {
+            versionId: versionId || '',
+          },
+        },
+        body: {
           name,
           email,
           mobile,
           gender,
           city,
-          state: stateName,
+          state,
           category,
           university,
-        }),
+        },
       });
-      if (!res.ok) throw new Error('Registration failed');
-      toast('You have been registered for this course version.');
-      setName('');
-      setEmail('');
-      setMobile('');
-      setGender('');
-      setCity('');
-      setStateName('');
-      setCategory('');
-      setUniversity('');
+
+      toast.success('You have been registered for this course version.');
       setIsDialogOpen(false);
+      setErrors({});
     } catch (err: any) {
-      toast('Something went wrong, Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
+      toast.error(err?.message || 'Something went wrong, please try again.');
+    } 
   };
 
+  const resetForm = () => {
+  setName('');
+  setEmail('');
+  setMobile('');
+  setGender('');
+  setCity('');
+  setState('');
+  setCategory('');
+  setUniversity('');
+};
 
-  if (loading) {
+
+  if (isLoadingVersionData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-gray-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading available course versions...</p>
+          <p className="text-gray-600">Loading course data ...</p>
         </div>
       </div>
     );
@@ -199,13 +160,12 @@ const CourseRegistration: React.FC = () => {
 
   return (
     <main className="mx-auto max-w-5xl space-y-8">
-      Course id: {courseId}
       <header className="space-y-1">
         <h1 className="text-pretty text-2xl md:text-3xl font-semibold text-foreground">
-          Register for {version?.course.name}
+          Register for {versionData?.course?.name}
         </h1>
         <p className="text-pretty text-sm md:text-base text-muted-foreground">
-          {version?.course.description}
+          {versionData?.course?.description}
         </p>
       </header>
 
@@ -213,19 +173,18 @@ const CourseRegistration: React.FC = () => {
         <Card className="w-full border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
           <CardHeader className="space-y-2">
             <CardTitle className="text-xl font-bold">
-              Course Version {version?.version}
+              Course Version {versionData?.version}
             </CardTitle>
             <CardDescription className="text-pretty">
-              {version?.description}
+              {versionData?.description}
             </CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-8">
-            {/* Version Information */}
             <section className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">
-                  Total Items: {version?.totalItems}
+                  Total Items: {versionData?.totalItems}
                 </Badge>
               </div>
 
@@ -233,19 +192,18 @@ const CourseRegistration: React.FC = () => {
                 <div>
                   <span className="block">Created On</span>
                   <span className="font-medium text-foreground">
-                    {formatDate(version?.createdAt.toString())}
+                    {formatDate(versionData?.createdAt?.toString())}
                   </span>
                 </div>
                 <div>
                   <span className="block">Last Updated</span>
                   <span className="font-medium text-foreground">
-                    {formatDate(version?.updatedAt.toString())}
+                    {formatDate(versionData?.updatedAt?.toString())}
                   </span>
                 </div>
               </div>
             </section>
 
-            {/* Registration Section */}
             <section>
               <h3 className="text-lg font-semibold text-foreground mb-1">
                 Register for this Version
@@ -254,10 +212,17 @@ const CourseRegistration: React.FC = () => {
                 Provide your details to enroll in this course version.
               </p>
 
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+               <Dialog
+                open={isDialogOpen}
+                onOpenChange={(open) => {
+                  setIsDialogOpen(open);
+                  if (!open) resetForm();
+                }}
+              >
                 <DialogTrigger asChild>
                   <Button className="w-full">Begin Registration</Button>
                 </DialogTrigger>
+
                 <DialogContent className="sm:max-w-lg">
                   <DialogHeader>
                     <DialogTitle className="text-lg mb-3 font-semibold">
@@ -272,89 +237,135 @@ const CourseRegistration: React.FC = () => {
                         <Input
                           id="name"
                           value={name}
-                          onChange={e => setName(e.target.value)}
-                          required
+                          onChange={(e) => {
+                            setName(e.target.value);
+                            setErrors(prev => ({ ...prev, name: undefined }));
+                          }}
                           placeholder="Enter your full name"
+                          className={errors.name ? "border-red-500" : ""}
                         />
+                        <FormError message={errors.name} />
                       </div>
+
                       <div className="space-y-2">
                         <Label htmlFor="email">Email Address</Label>
                         <Input
                           id="email"
                           type="email"
                           value={email}
-                          onChange={e => setEmail(e.target.value)}
-                          required
+                          onChange={(e) => {
+                            setEmail(e.target.value);
+                            setErrors(prev => ({ ...prev, email: undefined }));
+                          }}
                           placeholder="example@domain.com"
+                          className={errors.email ? "border-red-500" : ""}
                         />
+                        <FormError message={errors.email} />
                       </div>
+
                       <div className="space-y-2">
                         <Label htmlFor="mobile">Mobile Number</Label>
                         <Input
                           id="mobile"
                           type="tel"
                           value={mobile}
-                          onChange={e => setMobile(e.target.value)}
-                          required
+                          onChange={(e) => {
+                            setMobile(e.target.value);
+                            setErrors(prev => ({ ...prev, mobile: undefined }));
+                          }}
                           placeholder="Enter mobile number"
+                          className={errors.mobile ? "border-red-500" : ""}
                         />
+                        <FormError message={errors.mobile} />
                       </div>
+
                       <div className="space-y-2">
                         <Label htmlFor="gender">Gender</Label>
                         <select
                           id="gender"
                           value={gender}
-                          onChange={e => setGender(e.target.value)}
-                          className="w-full rounded-md border px-3 py-2 text-sm bg-background"
+                          onChange={(e) => {
+                            setGender(e.target.value);
+                            setErrors(prev => ({ ...prev, gender: undefined }));
+                          }}
+                          className={`w-full rounded-md border px-3 py-2 text-sm bg-background ${
+                            errors.gender ? "border-red-500" : ""
+                          }`}
                         >
                           <option value="">Select gender</option>
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
-                          <option value="Other">Other</option>
+                          <option value="MALE">Male</option>
+                          <option value="FEMAIL">Female</option>
+                          <option value="OTHERS">Other</option>
                         </select>
+                        <FormError message={errors.gender} />
                       </div>
+
                       <div className="space-y-2">
                         <Label htmlFor="city">City</Label>
                         <Input
                           id="city"
                           value={city}
-                          onChange={e => setCity(e.target.value)}
+                          onChange={(e) => {
+                            setCity(e.target.value);
+                            setErrors(prev => ({ ...prev, city: undefined }));
+                          }}
                           placeholder="Enter city"
+                          className={errors.city ? "border-red-500" : ""}
                         />
+                        <FormError message={errors.city} />
                       </div>
+
                       <div className="space-y-2">
                         <Label htmlFor="state">State</Label>
                         <Input
                           id="state"
-                          value={stateName}
-                          onChange={e => setStateName(e.target.value)}
+                          value={state}
+                          onChange={(e) => {
+                            setState(e.target.value);
+                            setErrors(prev => ({ ...prev, stateName: undefined }));
+                          }}
                           placeholder="Enter state"
+                          className={errors.stateName ? "border-red-500" : ""}
                         />
+                        <FormError message={errors.stateName} />
                       </div>
+
                       <div className="space-y-2">
                         <Label htmlFor="category">Category</Label>
                         <select
                           id="category"
                           value={category}
-                          onChange={e => setCategory(e.target.value)}
-                          className="w-full rounded-md border px-3 py-2 text-sm bg-background"
+                          onChange={(e) => {
+                            setCategory(e.target.value);
+                            setErrors(prev => ({ ...prev, category: undefined }));
+                          }}
+                          className={`w-full rounded-md border px-3 py-2 text-sm bg-background ${
+                            errors.category ? "border-red-500" : ""
+                          }`}
                         >
                           <option value="">Select category</option>
-                          <option value="General">General</option>
+                          <option value="GENERAL">General</option>
                           <option value="OBC">OBC</option>
                           <option value="SC">SC</option>
                           <option value="ST">ST</option>
-                          <option value="Other">Other</option>
+                          <option value="OTHERS">Others</option>
                         </select>
+                        <FormError message={errors.category} />
                       </div>
+
                       <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="university">University</Label>
                         <Input
                           id="university"
                           value={university}
-                          onChange={e => setUniversity(e.target.value)}
+                          onChange={(e) => {
+                            setUniversity(e.target.value);
+                            setErrors(prev => ({ ...prev, university: undefined }));
+                          }}
                           placeholder="Enter university name"
+                          className={errors.university ? "border-red-500" : ""}
                         />
+                        <FormError message={errors.university} />
                       </div>
                     </div>
 
@@ -366,8 +377,8 @@ const CourseRegistration: React.FC = () => {
                       >
                         Cancel
                       </Button>
-                      <Button type="submit" disabled={submitting}>
-                        {submitting ? 'Submitting...' : 'Submit'}
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? "Submitting..." : "Submit"}
                       </Button>
                     </DialogFooter>
                   </form>
@@ -393,10 +404,10 @@ const CourseRegistration: React.FC = () => {
         {showModules && (
           <>
             {(() => {
-              const allModules = version?.modules ?? [];
+              const allModules = versionData?.modules ?? [];
               const preview = allModules.slice(0, 6);
               return (
-                <ScrollArea className="h-96 w-full pr-2">
+                <ScrollArea className="min-h-48 max-h-96 w-full pr-2">
                   <div className="grid gap-4 md:grid-cols-2">
                     {preview.map((m, idx) => (
                       <Card key={(m as any)._id ?? (m as any).title ?? idx}>
@@ -445,43 +456,56 @@ const CourseRegistration: React.FC = () => {
           </p>
         </div>
         {(() => {
-          const names = version?.course.instructors ?? [];
-          const preview = names.slice(0, 6);
-          const remaining = names.slice(6);
-          const renderItem = (name: string) => {
-            const initials = name
+          const instructors = versionData?.instructors ?? [];
+          const preview = instructors.slice(0, 6);
+          const remaining = instructors.slice(6);
+
+          const renderItem = (instructor: { name: string; profileImage: string }) => {
+            const initials = instructor.name
               .split(' ')
               .map(n => n[0])
               .join('')
               .slice(0, 2)
               .toUpperCase();
+
             return (
               <div
                 className="flex items-center gap-3 rounded-lg border bg-card p-3"
-                key={name}
+                key={instructor.name}
               >
+                {/* <Avatar className="h-9 w-9">
+                  {instructor.profileImage ? (
+                    <AvatarImage src={instructor.profileImage} alt={instructor.name} onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = "none";
+                      }}/>
+                  ) : (
+                    <AvatarFallback>{initials}</AvatarFallback>
+                  )}
+                </Avatar> */}
                 <Avatar className="h-9 w-9">
                   <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
                 <div className="min-w-0">
-                  <p className="truncate font-medium">{name}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    Instructor
-                  </p>
+                  <p className="truncate font-medium">{instructor.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">Instructor</p>
                 </div>
               </div>
             );
           };
 
-          return names.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No instructors listed yet.
-            </p>
-          ) : (
+          if (instructors.length === 0) {
+            return (
+              <p className="text-sm text-muted-foreground">
+                No instructors listed yet.
+              </p>
+            );
+          }
+
+          return (
             <div className="space-y-4">
               <ul className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-                {preview.map(n => (
-                  <li key={n}>{renderItem(n)}</li>
+                {preview.map((ins) => (
+                  <li key={ins.name}>{renderItem(ins)}</li>
                 ))}
               </ul>
 
@@ -489,7 +513,7 @@ const CourseRegistration: React.FC = () => {
                 <details className="group rounded-lg border bg-card">
                   <summary className="cursor-pointer list-none px-4 py-3 hover:bg-muted/50">
                     <span className="font-medium">
-                      Show all {names.length} instructors
+                      Show all {instructors.length} instructors
                     </span>
                     <span className="ml-2 text-sm text-muted-foreground">
                       (includes {remaining.length} more)
@@ -497,8 +521,8 @@ const CourseRegistration: React.FC = () => {
                   </summary>
                   <div className="px-4 pb-4">
                     <ul className="max-h-80 overflow-y-auto grid gap-3 sm:grid-cols-2 md:grid-cols-3 pt-2">
-                      {remaining.map(n => (
-                        <li key={n}>{renderItem(n)}</li>
+                      {remaining.map((ins) => (
+                        <li key={ins.name}>{renderItem(ins)}</li>
                       ))}
                     </ul>
                   </div>
