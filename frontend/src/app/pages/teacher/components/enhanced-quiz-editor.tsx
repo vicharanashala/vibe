@@ -370,9 +370,13 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   });
 
   // Fetch data
-  let { data: questionBanks, refetch: refetchQuestionBanks } = useGetAllQuestionBanksForQuiz(quizId || '');
+  let { data: questionBanks, refetch: refetchQuestionBanks, isLoading: questionBanksLoading, error: questionBanksError } = useGetAllQuestionBanksForQuiz(quizId || '');
   const { data: selectedBankData, refetch: refetchSelectedBank } = useQuestionBankById(selectedQuestionBank || '');
 
+  console.log("QuizId:", quizId);
+  console.log("Question banks data:", questionBanks);
+  console.log("Question banks loading:", questionBanksLoading);
+  console.log("Question banks error:", questionBanksError);
   console.log("selected Question bank ID", selectedQuestionBank);
 
   // Mutations

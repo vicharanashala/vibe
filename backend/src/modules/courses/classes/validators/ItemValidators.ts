@@ -32,6 +32,7 @@ import {
   IProjectDetails,
 } from '#root/shared/interfaces/models.js';
 import { OnlyOneId } from './customValidators.js';
+import { QuestionBankRef } from '#root/modules/quizzes/classes/validators/QuestionBankValidator.js';
 
 class VideoDetailsPayloadValidator implements IVideoDetails {
   @JSONSchema({
@@ -83,6 +84,26 @@ class VideoDetailsPayloadValidator implements IVideoDetails {
 
 class QuizDetailsPayloadValidator
   implements Omit<IQuizDetails, 'questionBankRefs'> {
+  @JSONSchema({
+    description: 'Array of question bank references for the quiz',
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        bankId: { type: 'string', example: '60d21b4667d0d8992e610c85' },
+        count: { type: 'number', example: 10 },
+        difficulty: { type: 'array', items: { type: 'string' }, example: ['easy', 'medium'] },
+        tags: { type: 'array', items: { type: 'string' }, example: ['math', 'science'] },
+        type: { type: 'string', example: 'multiple-choice' }
+      }
+    }
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QuestionBankRef)
+  questionBankRefs?: QuestionBankRef[];
+
   @JSONSchema({
     description: 'Minimum percentage required to pass, between 0 and 1',
     example: 0.7,

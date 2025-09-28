@@ -39,6 +39,7 @@ import {
   Patch,
   BadRequestError,
   ForbiddenError,
+  NotFoundError,
   Authorized,
   QueryParams,
 } from 'routing-controllers';
@@ -182,7 +183,13 @@ class QuizController {
       throw new ForbiddenError('You do not have permission to view this quiz');
     }
     
-    return await this.quizService.getAllQuestionBanks(quizId);
+    // Get quiz details from course item instead of quizzes collection
+    const quiz = await this.itemService.readItem(courseInfo.versionId, quizId);
+    if (!quiz || quiz.type !== 'QUIZ') {
+      throw new NotFoundError('Quiz does not exist.');
+    }
+    
+    return await this.quizService.getAllQuestionBanksFromRefs(quiz.details?.questionBankRefs || []);
   }
 
   @OpenAPI({

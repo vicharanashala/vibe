@@ -158,6 +158,12 @@ class QuizService extends BaseService {
         throw new NotFoundError('Quiz does not exist.');
       }
       const refs = quiz.details.questionBankRefs || [];
+      return await this.getAllQuestionBanksFromRefs(refs);
+    });
+  }
+
+  getAllQuestionBanksFromRefs(refs: IQuestionBankRef[]) {
+    return this._withTransaction(async session => {
       const banks = await Promise.all(
         refs.map(async ref => {
           const bank = await this.questionBankRepo.getById(

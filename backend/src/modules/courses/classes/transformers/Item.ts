@@ -170,7 +170,7 @@ class ItemBase {
           );
           break;
         case ItemType.QUIZ:
-          quizDetails.questionBankRefs = [];
+          // Preserve questionBankRefs from request body instead of overriding
           this.itemDetails = new QuizItem(
             itemBody.name,
             itemBody.description,

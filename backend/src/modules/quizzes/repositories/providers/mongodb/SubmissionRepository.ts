@@ -433,7 +433,6 @@ class SubmissionRepository {
     if (result.length > 0 && result[0].averagePercentage !== null) {
         return Math.round(result[0].averagePercentage * 10) / 10; 
     }
-    console.log("Percentage is ",Math.round(result[0].averagePercentage * 10) / 10)
     return 0;
 }
 }

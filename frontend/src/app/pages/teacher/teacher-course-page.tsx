@@ -467,18 +467,20 @@ export default function TeacherCoursePage() {
       return;
     }
     if (type === "QUIZ") {
-    createItemAsync({
-  params: {
-    path: { versionId, moduleId, sectionId },
-  },
-  body: {
-    type: typeMap[type],
-    name: `New ${typeMap[type]}`,
-    description: "Sample content",
-  },
-}).then((res) => {
-        refetchVersion();
-      });
+      // Open Quiz Wizard instead of creating blank quiz immediately
+      setQuizModuleId(moduleId);
+      setQuizSectionId(sectionId);
+      
+      // Update course store with current context
+      if (currentCourse) {
+        setCurrentCourse({
+          ...currentCourse,
+          moduleId: moduleId,
+          sectionId: sectionId
+        });
+      }
+      setQuizWizardOpen(true);
+      return;
     }
     if (type === "article") {
      createItemAsync({
