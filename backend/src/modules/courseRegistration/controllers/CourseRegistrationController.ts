@@ -64,7 +64,7 @@ class CourseRegistrationController {
     summary: 'Form Submission for User Course Registration',
     description: 'Details submitted from users for the course registration.',
   })
-  @Authorized()
+  // @Authorized()
   @Post('/version/:versionId')
   @HttpCode(201)
   @ResponseSchema(BadRequestErrorResponse, {
@@ -76,7 +76,7 @@ class CourseRegistrationController {
     @Body() body:CourseRegistrationBody,
     @Req() req: any,
   ) {
-    const userId = req.user?.id || ''
+    const userId = req.user?.id || '124'
     const {versionId} = params
     const registrationData = {
       userId,
@@ -126,6 +126,7 @@ class CourseRegistrationController {
     ) {
         const {registrationId} = params
         const {status} = body
+        console.log("registratoinId and ststus ",registrationId,status)
         const result = await this.courseRegistrationService.updateStatus(registrationId,status);
         console.log("result from controller ",result)
         return {message:"Registration status updated successfully", registration: result}

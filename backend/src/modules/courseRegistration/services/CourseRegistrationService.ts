@@ -6,11 +6,13 @@ import { CourseRegistrationRepository } from '../repositories/index.js';
 import { plainToInstance } from 'class-transformer';
 import { BaseService, CourseRepository, EnrollmentRepository, ICourseRegistration, IItemRepository, InviteType, IUserRepository, MongoDatabase } from '#root/shared/index.js';
 import { COURSE_REGISTRATION_TYPES } from '../types.js';
-import { Invite } from '#root/modules/notifications/index.js';
+import { Invite, InviteService } from '#root/modules/notifications/index.js';
 import { ObjectId } from 'mongodb';
 import { CourseDetailsDTO } from '../classes/index.js';
 import { USERS_TYPES } from '#root/modules/users/types.js';
 import { COURSES_TYPES } from '#root/modules/courses/types.js';
+import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
+import { NOTIFICATIONS_TYPES } from '#root/modules/notifications/types.js';
 
 @injectable()
 
@@ -20,6 +22,8 @@ export class CourseRegistrationService extends BaseService{
     private courseRegistrationRepo: CourseRegistrationRepository,
     @inject(USERS_TYPES.EnrollmentRepo)
     private readonly enrollmentRepo: EnrollmentRepository,
+    @inject(NOTIFICATIONS_TYPES.InviteService)
+    private readonly inviteService: InviteService,
     @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
     @inject(COURSES_TYPES.ItemRepo) private readonly itemRepo: IItemRepository,
     @inject(GLOBAL_TYPES.CourseRepo)
@@ -107,10 +111,17 @@ export class CourseRegistrationService extends BaseService{
   }
 
   async updateStatus(registrationId: string, status: "PENDING" | "APPROVED" | "REJECTED"){
+    const data = await this.courseRegistrationRepo.getRegistration(registrationId)
+    if (!data) {
+    throw new NotFoundError(`Registration with id ${registrationId} not found`);
+    }
+    await this.inviteService.courseContentLength(data.courseId,data.versionId)
     return await this.courseRegistrationRepo.updateStatus(registrationId,status)
   }
 
   async updateBulkStatus(registrationIds:string[]){
+    const data = await this.courseRegistrationRepo.getRegistration(registrationIds[0])
+    await this.inviteService.courseContentLength(data.courseId,data.versionId)
     return await this.courseRegistrationRepo.updateBulkStatus(registrationIds)
   }
 } 
