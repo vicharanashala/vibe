@@ -88,7 +88,7 @@ class CourseRegistrationController {
       status:"PENDING" as const
     };
 
-    const result =await this.courseRegistrationService.Create(registrationData)
+    const result =await this.courseRegistrationService.create(registrationData)
     return result
   }
 
@@ -99,15 +99,18 @@ class CourseRegistrationController {
     description: 'Get all the Data to load in the course details page for student registration.',
   })
   @Authorized()
-  @Get('/requests')
+  @Get('/requests/version/:versionId')
   @HttpCode(200)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
   })
-  async getAllRegistrations(@QueryParams() query:RegistrationFilterQuery){
+  async getAllRegistrations(
+    @Params() params: CourseVersionIdParams,
+    @QueryParams() query:RegistrationFilterQuery){
+    const {versionId} = params
     const {page,limit,status,search,sort} =query
-    const result = await this.courseRegistrationService.getAllregistrations(page,limit,status,search,sort)
+    const result = await this.courseRegistrationService.getAllregistrations(versionId, page,limit,status,search,sort)
     return result
   }
 

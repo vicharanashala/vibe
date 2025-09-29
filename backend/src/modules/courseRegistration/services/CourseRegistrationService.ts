@@ -83,7 +83,7 @@ export class CourseRegistrationService extends BaseService{
   };
   }
 
-  async Create(registrationData:Omit<ICourseRegistration,"courseId"| "createdAt" | "updatedAt">){
+  async create(registrationData:Omit<ICourseRegistration,"courseId"| "createdAt" | "updatedAt">){
     const courseVersion = await this.courseRepo.readVersion(registrationData.versionId)
     const existing = await this.courseRegistrationRepo.findByUserId(registrationData.userId)
     if(existing){
@@ -99,9 +99,9 @@ export class CourseRegistrationService extends BaseService{
   }
 
 
-  async getAllregistrations(page:number,limit:number,status:string,search:string,sort:"older" | "latest"){
+  async getAllregistrations(versionId: string, page:number,limit:number,status:string,search:string,sort:"older" | "latest"){
     const skip = (page - 1) * limit
-    const {registrations,totalDocuments} = await this.courseRegistrationRepo.findAllregistrations({status,search},skip,limit,sort)
+    const {registrations,totalDocuments} = await this.courseRegistrationRepo.findAllregistrations(versionId, {status,search},skip,limit,sort)
     return{
       totalDocuments,
       totalPages:Math.ceil(totalDocuments/limit),
