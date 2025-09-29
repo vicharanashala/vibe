@@ -32,7 +32,7 @@ class CourseRegistrationRepository {
     return result;
   }
 
-  async Create(data: ICourseRegistration) {
+  async create(data: ICourseRegistration) {
     await this.init();
     const result = await this.courseRegistrationCollection.insertOne(data);
     return result.insertedId.toString();
@@ -56,11 +56,11 @@ class CourseRegistrationRepository {
     sort: 'older' | 'latest',
   ) {
     await this.init();
-    const query: any = {versionId};
-    console.log(filter);
-    if (filter.status && filter.status !== 'ALL') {
-      query.status = filter.status;
-    }
+    const query: any = { versionId, status: "PENDING"};
+
+    // if (filter.status && filter.status !== 'ALL') {
+    //   query.status = filter.status;
+    // }
     if (filter.search) {
       query.$or = [
         {'detail.name': {$regex: filter.search, $options: 'i'}},

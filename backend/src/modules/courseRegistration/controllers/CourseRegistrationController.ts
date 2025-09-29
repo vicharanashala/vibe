@@ -1,4 +1,4 @@
-import { inject, injectable } from 'inversify';
+import {inject, injectable} from 'inversify';
 import {
   Authorized,
   BadRequestError,
@@ -15,15 +15,26 @@ import {
   QueryParams,
   Req,
 } from 'routing-controllers';
-import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
-import { COURSE_REGISTRATION_TYPES } from '../types.js';
-import { CourseRegistrationService } from '../services/CourseRegistrationService.js';
-import { Ability } from '#root/shared/functions/AbilityDecorator.js';
-import { BadRequestErrorResponse, IReport } from '#root/shared/index.js';
-import { subject } from '@casl/ability';
-import { CourseAndVersionId, CourseVersionIdParams } from '#root/modules/notifications/index.js';
-import { BulkUpdateStatusBody, CourseRegistrationBody, RegistrationFilterQuery, RegistrationParams, UpdateStatusBody } from '../classes/index.js';
-
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {COURSE_REGISTRATION_TYPES} from '../types.js';
+import {CourseRegistrationService} from '../services/CourseRegistrationService.js';
+import {Ability} from '#root/shared/functions/AbilityDecorator.js';
+import {BadRequestErrorResponse} from '#root/shared/index.js';
+import {CourseVersionIdParams} from '#root/modules/notifications/index.js';
+import {
+  BulkUpdateStatusBody,
+  CourseRegistrationBody,
+  RegistrationFilterQuery,
+  RegistrationParams,
+  UpdateStatusBody,
+} from '../classes/index.js';
+import {
+  CourseRegistrationActions,
+  courseRegistrationSubject,
+  getCourseRegistrationAbility,
+} from '../abilities/CourseRegistrationAbilities.js';
+import {subject} from '@casl/ability';
+import { ObjectId } from 'mongodb';
 
 @OpenAPI({
   tags: ['CourseRegistration'],
@@ -31,16 +42,16 @@ import { BulkUpdateStatusBody, CourseRegistrationBody, RegistrationFilterQuery, 
 })
 @injectable()
 @JsonController('/course/registration')
-
 class CourseRegistrationController {
   constructor(
     @inject(COURSE_REGISTRATION_TYPES.CourseRegistrationService)
-    private readonly courseRegistrationService: CourseRegistrationService
-  ){}
+    private readonly courseRegistrationService: CourseRegistrationService,
+  ) {}
 
   @OpenAPI({
     summary: 'Get Data for course Details page',
-    description: 'Get all the Data to load in the course details page for student registration.',
+    description:
+      'Get all the Data to load in the course details page for student registration.',
   })
   @Authorized()
   @Get('/version/:versionId')
@@ -49,23 +60,21 @@ class CourseRegistrationController {
     description: 'Bad Request Error',
     statusCode: 400,
   })
-  async courseDetails(
-    @Params() params:CourseVersionIdParams,
-  ) {
-    const {versionId} =params
-    const result = await this.courseRegistrationService.getCourseDetails(versionId)
-    return result
+  async courseDetails(@Params() params: CourseVersionIdParams) {
+    const {versionId} = params;
+    const result = await this.courseRegistrationService.getCourseDetails(
+      versionId,
+    );
+    return result;
   }
 
-
-
-  //Course Registration For students 
+  //Course Registration For students
 
   @OpenAPI({
     summary: 'Form Submission for User Course Registration',
     description: 'Details submitted from users for the course registration.',
   })
-  // @Authorized()
+  @Authorized()
   @Post('/version/:versionId')
   @HttpCode(201)
   @ResponseSchema(BadRequestErrorResponse, {
@@ -74,32 +83,33 @@ class CourseRegistrationController {
   })
   async courseRegistration(
     @Params() params: CourseVersionIdParams,
-    @Body() body:CourseRegistrationBody,
-    @CurrentUser() user: {_id: string},
+    @Body() body: CourseRegistrationBody,
+    @Ability(getCourseRegistrationAbility) {ability, user},
     @Req() req: any,
   ) {
     // const userId = req.user?.id || '124'
     const userId = user._id;
-    const {versionId} = params
+    const {versionId} = params;
     const registrationData = {
       userId,
       versionId,
-      detail:body,
-      status:"PENDING" as const
+      detail: body,
+      status: 'PENDING' as const,
     };
 
-    const result =await this.courseRegistrationService.create(registrationData)
-    return result
+    const result = await this.courseRegistrationService.create(
+      registrationData,
+    );
+    return result;
   }
-
-
 
   @OpenAPI({
     summary: 'Get Data for course Details page',
-    description: 'Get all the Data to load in the course details page for student registration.',
+    description:
+      'Get all the Data to load in the course details page for student registration.',
   })
-  @Authorized()
   @Get('/requests/version/:versionId')
+  @Authorized()
   @HttpCode(200)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
@@ -107,62 +117,87 @@ class CourseRegistrationController {
   })
   async getAllRegistrations(
     @Params() params: CourseVersionIdParams,
-    @QueryParams() query:RegistrationFilterQuery){
-    const {versionId} = params
-    const {page,limit,status,search,sort} =query
-    const result = await this.courseRegistrationService.getAllregistrations(versionId, page,limit,status,search,sort)
-    return result
+    @QueryParams() query: RegistrationFilterQuery,
+    @Ability(getCourseRegistrationAbility) {ability, user},
+  ) {
+    const {versionId} = params;
+    const {page, limit, status, search, sort} = query;
+
+    // const courseRegistrationResource = subject(courseRegistrationSubject, {
+    //   courseVersionId: new ObjectId(versionId),
+    // });
+
+    // if (
+    //   !ability.can(CourseRegistrationActions.View, courseRegistrationResource)
+    // ) {
+    //   throw new ForbiddenError(
+    //     'You do not have permission to view registrations',
+    //   );
+    // }
+
+    const result = await this.courseRegistrationService.getAllregistrations(
+      versionId,
+      page,
+      limit,
+      status,
+      search,
+      sort,
+    );
+    return result;
   }
 
+  @OpenAPI({
+    summary: 'Update Enrollment Progress',
+    description: 'Update the registration status of a student',
+  })
+  @Authorized()
+  @Patch('/status/:registrationId', {transformResponse: true})
+  @ResponseSchema(BadRequestError, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async updateStatus(
+    @Params() params: RegistrationParams,
+    @Body() body: UpdateStatusBody,
+    @Ability(getCourseRegistrationAbility) {ability, user},
+  ) {
+    const {registrationId} = params;
+    const {status} = body;
 
+    const result = await this.courseRegistrationService.updateStatus(
+      registrationId,
+      status,
+    );
+    console.log('result from controller ', result);
+    return {
+      message: 'Registration status updated successfully',
+      registration: result,
+    };
+  }
 
-   @OpenAPI({
-      summary: 'Update Enrollment Progress',
-      description: 'Update the registration status of a student',
-    })
-    @Authorized()
-    @Patch('/status/:registrationId', { transformResponse: true })
-    @ResponseSchema(BadRequestError, {
-      description: 'Bad Request Error',
-      statusCode: 400,
-    })
-    async updateStatus(
-      @Params() params:RegistrationParams,
-      @Body () body:UpdateStatusBody
-    ) {
-        const {registrationId} = params
-        const {status} = body
-        console.log("registratoinId and ststus ",registrationId,status)
-        const result = await this.courseRegistrationService.updateStatus(registrationId,status);
-        console.log("result from controller ",result)
-        return {message:"Registration status updated successfully", registration: result}
-    }
-
-
-    @OpenAPI({
-      summary: 'Update Enrollment Progress on Bulk',
-      description: 'Update the status of registration on Bulk Manner',
-    })
-    @Authorized()
-    @Patch('/status/update/bulk', { transformResponse: true })
-    @ResponseSchema(BadRequestError, {
-      description: 'Bad Request Error',
-      statusCode: 400,
-    })
-    async updateStatusBulk(
-      @Body () body:BulkUpdateStatusBody
-    ) {
-        const {registrationIds} = body
-        const result = await this.courseRegistrationService.updateBulkStatus(registrationIds)
-        return {message:"Registration status updated successfully", registration: result}
-    }    
-  
+  @OpenAPI({
+    summary: 'Update Enrollment Progress on Bulk',
+    description: 'Update the status of registration on Bulk Manner',
+  })
+  @Authorized()
+  @Patch('/status/update/bulk', {transformResponse: true})
+  @ResponseSchema(BadRequestError, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async updateStatusBulk(
+    @Body() body: BulkUpdateStatusBody,
+    @Ability(getCourseRegistrationAbility) {ability},
+  ) {
+    const {registrationIds} = body;
+    const result = await this.courseRegistrationService.updateBulkStatus(
+      registrationIds,
+    );
+    return {
+      message: 'Registration status updated successfully',
+      registration: result,
+    };
+  }
 }
 
-
-
-
-
-
-
-export {CourseRegistrationController}
+export {CourseRegistrationController};
