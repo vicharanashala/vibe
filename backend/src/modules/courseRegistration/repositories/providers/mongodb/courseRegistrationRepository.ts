@@ -31,6 +31,14 @@ class CourseRegistrationRepository{
     return result.insertedId.toString()
   }
 
+  async getRegistration(registrationId:string){
+    await this.init()
+    console.log("registrationId from repo ",registrationId)
+    const result =await this.courseRegistrationCollection.findOne({_id: new ObjectId(registrationId)})
+    console.log("result getregi ",result)
+    return result
+  }
+
   async findAllregistrations(filter:{status?:string;search?:string},skip:number,limit:number,sort:'older' | 'latest'){
     await this.init()
     const query:any ={}
@@ -64,7 +72,7 @@ class CourseRegistrationRepository{
 
   async updateBulkStatus(registrationIds:string[]){
     await this.init()
-    if(registrationIds.length<0){
+    if(registrationIds.length<=0){
       const data = await this.courseRegistrationCollection.updateMany({_id:{$in:registrationIds}},{$set:{status:"APPROVED",updatedAt:new Date()}});
       return data.modifiedCount
     }else{
