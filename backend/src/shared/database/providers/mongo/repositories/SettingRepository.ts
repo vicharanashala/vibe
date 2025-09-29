@@ -2,7 +2,12 @@ import 'reflect-metadata';
 import {Collection, ObjectId, UpdateResult, ClientSession} from 'mongodb';
 import {injectable, inject} from 'inversify';
 import {MongoDatabase} from '../MongoDatabase.js';
-import {ICourseSetting, IUserSetting} from '#shared/interfaces/models.js';
+import {
+  ICourseSetting,
+  IRegistrationSettings,
+  ISettings,
+  IUserSetting,
+} from '#shared/interfaces/models.js';
 import {
   ISettingRepository,
   ProctoringComponent,
@@ -304,7 +309,7 @@ export class SettingRepository implements ISettingRepository {
         },
       },
       {
-        upsert: true, 
+        upsert: true,
         session,
       },
     );
@@ -339,4 +344,50 @@ export class SettingRepository implements ISettingRepository {
   //     return false;
   //   }
   // }
+
+  async addDefaultRegistrationSettings(
+    courseId: string,
+    courseVersionId: string,
+    settings: IRegistrationSettings[],
+    session?: ClientSession,
+  ): Promise<UpdateResult | null> {
+    await this.init();
+
+    const result = await this.courseSettingsCollection.updateOne(
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+      },
+      {
+        $set: {
+          'settings.registration_settings': settings,
+        },
+      },
+      {session},
+    );
+    return result;
+  }
+
+  async updateRegistrationSettings(
+    courseId: string,
+    versionId: string,
+    settings: IRegistrationSettings[],
+    session?: ClientSession,
+  ): Promise<UpdateResult | null> {
+    await this.init();
+
+    const result = await this.courseSettingsCollection.updateOne(
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(versionId),
+      },
+      {
+        $set: {
+          'settings.registration_settings': settings,
+        },
+      },
+      {session},
+    );
+    return result;
+  }
 }

@@ -1,43 +1,56 @@
-import { ArrayUnique, IsArray, IsEmail, IsEnum, IsMongoId, IsNotEmpty, IsNumber, IsString } from 'class-validator';
-import { JSONSchema } from 'class-validator-jsonschema';
+import {
+  ArrayUnique,
+  IsArray,
+  IsBoolean,
+  IsEmail,
+  IsEnum,
+  IsMongoId,
+  IsNotEmpty,
+  IsNumber,
+  IsString,
+} from 'class-validator';
+import {JSONSchema} from 'class-validator-jsonschema';
 
 export class CourseRegistrationBody {
   @IsString()
   @IsNotEmpty()
-  @JSONSchema({ example: 'John Doe' })
+  @JSONSchema({example: 'John Doe'})
   name: string;
 
   @IsEmail()
   @IsNotEmpty()
-  @JSONSchema({ example: 'john@example.com' })
+  @JSONSchema({example: 'john@example.com'})
   email: string;
 
   @IsString()
   @IsNotEmpty()
-  @JSONSchema({ example: "9876543210" })
+  @JSONSchema({example: '9876543210'})
   mobile: string;
 
   @IsEnum(['MALE', 'FEMALE', 'OTHERS'])
-  @JSONSchema({ enum: ['MALE', 'FEMALE', 'OTHERS'], example: 'MALE' })
+  @JSONSchema({enum: ['MALE', 'FEMALE', 'OTHERS'], example: 'MALE'})
   gender: 'MALE' | 'FEMALE' | 'OTHERS';
 
   @IsString()
   @IsNotEmpty()
-  @JSONSchema({ example: 'CityName' })
+  @JSONSchema({example: 'CityName'})
   city: string;
 
   @IsString()
   @IsNotEmpty()
-  @JSONSchema({ example: 'StateName' })
+  @JSONSchema({example: 'StateName'})
   state: string;
 
   @IsEnum(['GENERAL', 'OBC', 'SE', 'ST', 'OTHERS'])
-  @JSONSchema({ enum: ['GENERAL', 'OBC', 'SE', 'ST', 'OTHERS'], example: 'GENERAL' })
+  @JSONSchema({
+    enum: ['GENERAL', 'OBC', 'SE', 'ST', 'OTHERS'],
+    example: 'GENERAL',
+  })
   category: 'GENERAL' | 'OBC' | 'SE' | 'ST' | 'OTHERS';
 
   @IsString()
   @IsNotEmpty()
-  @JSONSchema({ example: 'UniversityName' })
+  @JSONSchema({example: 'UniversityName'})
   university: string;
 }
 
@@ -45,9 +58,8 @@ export class CourseRegistrationBody {
 //   detail: CourseRegistrationDetail;
 // }
 
-
-import { IsOptional, IsInt, Min, IsIn } from "class-validator";
-import { Type } from "class-transformer";
+import {IsOptional, IsInt, Min, IsIn} from 'class-validator';
+import {Type} from 'class-transformer';
 
 export class RegistrationFilterQuery {
   @IsOptional()
@@ -64,41 +76,85 @@ export class RegistrationFilterQuery {
 
   @IsOptional()
   @IsString()
-  search: string = "";
+  search: string = '';
 
   @IsOptional()
-  @IsIn(["PENDING", "APPROVED", "REJECTED", "ALL"])
-  status: "PENDING" | "APPROVED" | "REJECTED" | "ALL" = "ALL";
+  @IsIn(['PENDING', 'APPROVED', 'REJECTED', 'ALL'])
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL' = 'ALL';
 
   @IsOptional()
-  @IsIn(["older", "latest"])
-  sort: "older" | "latest" ;
+  @IsIn(['older', 'latest'])
+  sort: 'older' | 'latest';
 }
 
-
-export class RegistrationParams{
+export class RegistrationParams {
   @JSONSchema({
-      description: 'ID of the registration',
-      type: 'string',
-    })
-    @IsMongoId()
-    @IsNotEmpty()
-    registrationId: string;
+    description: 'ID of the registration',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsNotEmpty()
+  registrationId: string;
 }
 
 export class UpdateStatusBody {
-  @IsIn(["PENDING", "APPROVED", "REJECTED"])
-  status: "PENDING" | "APPROVED" | "REJECTED";
+  @IsIn(['PENDING', 'APPROVED', 'REJECTED'])
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
 }
 
 export class BulkUpdateStatusBody {
   @IsArray()
   @ArrayUnique()
-  @IsString({ each: true })
+  @IsString({each: true})
   @IsOptional() // allow the array to be empty
   @JSONSchema({
     description: 'Array of registration IDs to update',
     example: ['68d7c3aaa1291bb31a3739f0', '68d7c3aaa1291bb31a3739f1'],
   })
   registrationIds?: string[];
+}
+
+export class updateSettingsBody {
+  @IsString()
+  @IsNotEmpty()
+  @JSONSchema({example: 'Gender'})
+  label: string;
+
+  @IsEnum([
+    'TEXT',
+    'TEXTAREA',
+    'EMAIL',
+    'TEL',
+    'DATE',
+    'NUMBER',
+    'URL',
+    'SELECT',
+  ])
+  @IsNotEmpty()
+  @JSONSchema({example: 'select'})
+  type:
+    | 'TEXT'
+    | 'TEXTAREA'
+    | 'EMAIL'
+    | 'TEL'
+    | 'DATE'
+    | 'NUMBER'
+    | 'URL'
+    | 'SELECT';
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsString({each: true})
+  @JSONSchema({example: ''})
+  options?: string[];
+
+  @IsBoolean()
+  @IsNotEmpty()
+  @JSONSchema({example: true})
+  required: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  @JSONSchema({example: true})
+  isDefault: boolean;
 }

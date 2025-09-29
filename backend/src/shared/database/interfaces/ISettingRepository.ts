@@ -1,6 +1,7 @@
 import {ClientSession, UpdateResult} from 'mongodb';
 import {
   ICourseSetting,
+  IRegistrationSettings,
   ISettings,
   IUserSetting,
 } from '../../interfaces/models.js';
@@ -56,6 +57,37 @@ export interface ISettingRepository {
     courseVersionId: string,
     detectors: DetectorSettingsDto[],
     linearProgressionEnabled: boolean,
+    session?: ClientSession,
+  ): Promise<UpdateResult | null>;
+
+  /**
+   * Reads course settings for a specific course and version.
+   * @param courseId - The ID of the course
+   * @param courseVersionId - The ID of the course version
+   * @param settings - The default registration settings to add
+   * @param session - Optional MongoDB session for transactions
+   * @returns The course settings or null if not found
+   */
+
+  addDefaultRegistrationSettings(
+    courseId: string,
+    courseVersionId: string,
+    settings: IRegistrationSettings[],
+    session?: ClientSession,
+  ): Promise<UpdateResult | null>;
+  /**
+   * Reads course settings for a specific course and version.
+   * @param courseId - The ID of the course
+   * @param courseVersionId - The ID of the course version
+   * @param settings - The updated registration settings
+   * @param session - Optional MongoDB session for transactions
+   * @returns The course settings or null if not found
+   */
+
+  updateRegistrationSettings(
+    courseId: string,
+    versionId: string,
+    settings: IRegistrationSettings[],
     session?: ClientSession,
   ): Promise<UpdateResult | null>;
 

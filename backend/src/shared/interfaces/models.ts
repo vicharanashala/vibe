@@ -1,6 +1,6 @@
-import { ObjectId } from 'mongodb';
-import { ProctoringComponent } from '../database/index.js';
-import { Type } from 'class-transformer';
+import {ObjectId} from 'mongodb';
+import {ProctoringComponent} from '../database/index.js';
+import {Type} from 'class-transformer';
 import {
   IsOptional,
   IsInt,
@@ -8,9 +8,9 @@ import {
   IsString,
   IsIn,
   isString,
-  IsEnum
+  IsEnum,
 } from 'class-validator';
-import { Priority } from './quiz.js';
+import {Priority} from './quiz.js';
 
 export interface IUser {
   _id?: string | ObjectId | null;
@@ -404,8 +404,8 @@ export interface IInvite {
   courseId: string | ObjectId;
   courseVersionId: string | ObjectId;
   token: string;
-  type:InviteType;
-  usedount?:number;
+  type: InviteType;
+  usedount?: number;
   action: InviteActionType;
   Invitestatus: InviteStatusType;
   createdAt: Date;
@@ -431,9 +431,26 @@ export interface IProctoringSettings {
 }
 
 // Common settings interface for both user and course settings.
+export interface IRegistrationSettings {
+  _id?: ID;
+  label: string;
+  type:
+    | 'TEXT'
+    | 'TEXTAREA'
+    | 'EMAIL'
+    | 'TEL'
+    | 'DATE'
+    | 'NUMBER'
+    | 'URL'
+    | 'SELECT';
+  isDefault: boolean;
+  required: boolean;
+  options?: string[];
+}
 export interface ISettings {
   proctors: IProctoringSettings;
   linearProgressionEnabled: boolean;
+  registration_settings?: IRegistrationSettings[];
 }
 
 // Interface for user-specific settings.
@@ -454,7 +471,7 @@ export interface ICourseSetting {
 
 export enum SortOrder {
   ASC = 'asc',
-  DESC = 'desc'
+  DESC = 'desc',
 }
 
 export interface SortOptions {
@@ -567,23 +584,22 @@ export interface AuthenticatedUser {
   enrollments: AuthenticatedUserEnrollements[];
 }
 
-
-export interface ICourseRegistration{
-  _id?: string | ObjectId; 
-  courseId: string; 
+export interface ICourseRegistration {
+  _id?: string | ObjectId;
+  courseId: string;
   versionId: string;
   userId: string;
   detail: {
-    name: string; 
-    email: string; 
-    mobile: string; 
-    gender: "MALE" | "FEMALE" | "OTHERS";
+    name: string;
+    email: string;
+    mobile: string;
+    gender: 'MALE' | 'FEMALE' | 'OTHERS';
     city: string;
     state: string;
-    category: "GENERAL" | "OBC" | "SE" | "ST" | "OTHERS";
+    category: 'GENERAL' | 'OBC' | 'SE' | 'ST' | 'OTHERS';
     university: string;
   };
-  status: "PENDING" | "APPROVED" | "REJECTED";
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
   createdAt?: Date;
   updatedAt?: Date;
 }
