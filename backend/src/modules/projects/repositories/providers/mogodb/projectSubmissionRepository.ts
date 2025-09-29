@@ -21,12 +21,14 @@ export class ProjectSubmissionRepository
   async getByUser(
     userId: string,
     versionId: string,
+    courseId: string,
     session?: ClientSession,
   ): Promise<IProjectSubmission | null> {
     await this.init();
     return await this._projectSubmissionCollection.findOne(
       {
         userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(versionId),
       },
       {session},

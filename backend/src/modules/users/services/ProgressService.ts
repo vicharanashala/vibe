@@ -811,28 +811,28 @@ class ProgressService extends BaseService {
     itemId: string,
   ): Promise<string> {
     return this._withTransaction(async session => {
-      // Verify if the user, course, and course version exist
-      await this.verifyDetails(userId, courseId, courseVersionId);
-      await this.verifyProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        moduleId,
-        sectionId,
-        itemId,
-      );
+        // Verify if the user, course, and course version exist
+        await this.verifyDetails(userId, courseId, courseVersionId);
+        await this.verifyProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          moduleId,
+          sectionId,
+          itemId,
+        );
 
-      // Start tracking the item
+        // Start tracking the item
       const result = await this.progressRepository.startItemTracking(
-        userId,
-        courseId,
-        courseVersionId,
-        itemId,
-        session,
-      );
+          userId,
+          courseId,
+          courseVersionId,
+          itemId,
+          session,
+        );
 
       return result;
-    });
+      });
   }
 
   async stopItem(
@@ -845,40 +845,40 @@ class ProgressService extends BaseService {
     watchItemId: string,
   ): Promise<void> {
     return this._withTransaction(async session => {
-      // Verify if the user, course, and course version exist
-      await this.verifyDetails(userId, courseId, courseVersionId);
-      await this.verifyProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        moduleId,
-        sectionId,
-        itemId,
-      );
+        // Verify if the user, course, and course version exist
+        await this.verifyDetails(userId, courseId, courseVersionId);
+        await this.verifyProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          moduleId,
+          sectionId,
+          itemId,
+        );
 
       //Verify if the watchItemId is valid
-      const watchItem = await this.progressRepository.getWatchTimeById(
-        watchItemId,
-        session,
-      );
+        const watchItem = await this.progressRepository.getWatchTimeById(
+          watchItemId,
+          session,
+        );
 
-      if (!watchItem) {
+        if (!watchItem) {
         throw new NotFoundError('Watch item not found');
-      }
+        }
 
-      // Stop tracking the item
-      const result: IWatchTime = await this.progressRepository.stopItemTracking(
-        userId,
-        courseId,
-        courseVersionId,
-        itemId,
-        watchItemId,
-        session,
-      );
-      if (!result) {
+        // Stop tracking the item
+        const result: IWatchTime = await this.progressRepository.stopItemTracking(
+          userId,
+          courseId,
+          courseVersionId,
+          itemId,
+          watchItemId,
+          session,
+        );
+        if (!result) {
         throw new InternalServerError('Failed to stop tracking item');
-      }
-    });
+        }
+      });
   }
 
   async updateProgress(
@@ -892,15 +892,6 @@ class ProgressService extends BaseService {
     attemptId?: string,
     isSkipped?: boolean,
   ): Promise<void> {
-    console.log(`[ProgressService] Starting progress update for user ${userId}, item ${itemId}`, {
-      courseId,
-      courseVersionId,
-      moduleId,
-      sectionId,
-      watchItemId,
-      attemptId,
-      isSkipped
-    });
     return this._withTransaction(async session => {
       await this.verifyDetails(userId, courseId, courseVersionId);
 
@@ -914,7 +905,6 @@ class ProgressService extends BaseService {
       );
 
       // Check if the watch time is greater than the item duration
-      console.log(`[ProgressService] Fetching item details for ${itemId}`);
       const item = await this.itemRepo.readItem(
         courseVersionId,
         itemId,
@@ -926,7 +916,6 @@ class ProgressService extends BaseService {
       }
 
       // Only require watch time for VIDEO or BLOG items
-      console.log(`[ProgressService] Processing item of type ${item.type}`);
       if (item.type === 'VIDEO' || item.type === 'BLOG') {
         const watchTime = await this.progressRepository.getWatchTimeById(
           watchItemId,
@@ -942,7 +931,6 @@ class ProgressService extends BaseService {
           );
         }
       } else if (item.type === 'QUIZ' && !isSkipped) {
-        console.log(`[ProgressService] Verifying quiz submission for item ${itemId}`);
         // Verify if the user has submitted the QUIZ
         const submittedQuiz = await this.submissionRepository.get(
           itemId,
@@ -963,11 +951,11 @@ class ProgressService extends BaseService {
           );
         }
       } else if (item.type === 'PROJECT') {
-        console.log(`[ProgressService] Progress update for project item ${itemId}`);
-        // For project items, we need to check if the project is submitted
+                // For project items, we need to check if the project is submitted
         const projectSubmission = await this.projectSubmissionRepo.getByUser(
           userId,
           courseVersionId,
+          courseId,
           session
         );
         
@@ -978,7 +966,6 @@ class ProgressService extends BaseService {
 
          
       // Get the course version
-      console.log(`[ProgressService] Fetching course version ${courseVersionId}`);
       const courseVersion = await this.courseRepo.readVersion(
         courseVersionId,
         session,
@@ -987,9 +974,7 @@ class ProgressService extends BaseService {
         console.error(`[ProgressService] Course version ${courseVersionId} not found`);
         throw new NotFoundError('Course version not found');
       }
-      console.log(`[ProgressService] Course version loaded`);
 
-      console.log(`[ProgressService] Updating enrollment progress percent`);
       try {
         await this.updateEnrollmentProgressPercent(
           userId,
@@ -997,13 +982,11 @@ class ProgressService extends BaseService {
           courseVersionId,
           session,
         );
-        console.log(`[ProgressService] Enrollment progress percent updated`);
       } catch (error) {
         console.error(`[ProgressService] Error updating enrollment progress:`, error);
         throw error;
       }
 
-      console.log(`[ProgressService] Calculating new progress`);
       const newProgress = await this.getNewProgress(
         courseVersion,
         moduleId,
@@ -1023,10 +1006,8 @@ class ProgressService extends BaseService {
         newProgress,
         session,
       );
-      console.log(`[ProgressService] Progress updated`);
 
       if (!updatedProgress) {
-        console.log(`[ProgressService] Progress could not be updated`);
         throw new InternalServerError('Progress could not be updated');
       }
     });

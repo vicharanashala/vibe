@@ -10,6 +10,7 @@ export interface IProjectSubmissionRepository {
   getByUser(
     userId: string,
     versionId: string,
+    courseId: string,
     session?: ClientSession,
   ): Promise<IProjectSubmission | null>;
 
