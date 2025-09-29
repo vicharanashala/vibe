@@ -2854,7 +2854,8 @@ export interface RegistrationRequestQuery {
 
 
 export const useGetCourseRegistrationRequests = (
-  params: RegistrationRequestQuery = {}
+  versionId:string,
+  params: RegistrationRequestQuery = {},
 ): {
   data: {totalDocuments: number, totalPages: number, currentPage: number, registrations: Registration[]};
   isLoading: boolean;
@@ -2863,9 +2864,10 @@ export const useGetCourseRegistrationRequests = (
 } => {
   const result = api.useQuery(
     'get',
-    '/course/registration/requests' as any,
+    '/course/registration/requests/version/{versionId}' as any,
     {
       params: {
+        path:{versionId},
         query: {
           filter: params.filter,
           sort: params.sort,
@@ -2873,7 +2875,12 @@ export const useGetCourseRegistrationRequests = (
           limit: params.limit,
           page: params.page,
         },
-      },
+      }
+    },
+    {
+      enabled:!!versionId,
+      retry: 1,
+      refetchOnWindowFocus: false
     }
   );
 
