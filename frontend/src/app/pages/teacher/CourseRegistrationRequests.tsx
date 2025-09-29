@@ -21,10 +21,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCourseStore } from "@/store/course-store";
 import { toast } from "sonner";
-import { RegistrationRequestQuery, useBulkUpdateRegistrationStatus, useGetCourseRegistrationRequests, useUpdateRegistrationStatus } from "@/hooks/hooks";
+import { RegistrationRequestQuery, useBulkUpdateRegistrationStatus, useGetCourseRegistrationRequests, useUpdateRegistrationFields, useUpdateRegistrationStatus } from "@/hooks/hooks";
 import { Pagination } from "@/components/ui/Pagination";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import ConfirmationModal from "./components/confirmation-modal";
+import { RegistrationSettingsDialog } from "./components/course-registration-modal";
 
 
 interface RegistrationDetail {
@@ -58,7 +59,7 @@ export default function CourseRegistrationRequests() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-
+  const [isCustomOpen, setIsCustomOpen] = useState(false);
   // for confirmation modal
   const [isSingleApproveOpen, setIsSingleApproveOpen] = useState(false);
   const [isBulkApproveOpen, setIsBulkApproveOpen] = useState(false);
@@ -80,7 +81,7 @@ export default function CourseRegistrationRequests() {
   const { data: registrationsData, isLoading, refetch: registrationsRefetch } = useGetCourseRegistrationRequests(versionId as string, params);
   const { mutateAsync: updateStatus, isPending: isUpdatingStatus } = useUpdateRegistrationStatus();
   const { mutateAsync: updateBulkStatus, isPending: isUpdatingBulkStatus } = useBulkUpdateRegistrationStatus();
-
+  const { mutateAsync: updateFields, isPending:isUpdatingFields } = useUpdateRegistrationFields()
   const registrations = registrationsData?.registrations || []
 
   const FRONTEND_URL = window.location.origin;
@@ -179,6 +180,23 @@ ${registrationUrl}`;
     }
   };
 
+  const handleSave = async (fields) => {
+    const processedFields = fields.map((f) => ({
+      label:f.label,
+      type:f.type,
+      required:f.required,
+      options:f.options ?? []
+    }))
+    try {
+      await updateFields(versionId as string,processedFields)
+      toast.success('Custom fields saved successfully!');
+      setIsCustomOpen(false)
+      registrationsRefetch()
+    } catch (error:any) {
+      toast.error(error?.message || 'Failed to save fields. Please try again.')
+    }
+  }
+
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
@@ -231,6 +249,16 @@ ${registrationUrl}`;
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => setIsCustomOpen(true)}
+            >
+              <Share2 className="h-4 w-4" />
+              Create Custom Fields
+            </Button>
+
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
@@ -689,7 +717,11 @@ ${registrationUrl}`;
           />
         )}
 
-
+        <RegistrationSettingsDialog
+          open={isCustomOpen}
+          onOpenChange={setIsCustomOpen}
+          onSave={handleSave}
+        />
       </div>
     </div>
   );

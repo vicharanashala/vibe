@@ -2978,3 +2978,43 @@ export const useBulkUpdateRegistrationStatus = (): {
     status: result.status,
   };
 };
+
+export const useUpdateRegistrationFields = (): {
+  mutate: (versionId: string, fields: { label: string; type: "text" | "textarea" | "email" | "tel" | "date" | "number" | "url" | "select"; required: boolean; options: string[] }[]) => void;
+  mutateAsync: (versionId: string, fields: { label: string; type: "text" | "textarea" | "email" | "tel" | "date" | "number" | "url" | "select"; required: boolean; options: string[] }[]) => Promise<{ message: string }>;
+  data: { message: string } | undefined;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} => {
+  const result = api.useMutation('put', '/course/registration/settings/version/{versionId}' as any);
+
+  return {
+    mutate: (versionId, fields) =>
+      result.mutate({
+        params: { path: { versionId } },
+        body: fields,
+      }),
+
+    mutateAsync: (versionId, fields) =>
+      result.mutateAsync({
+        params: { path: { versionId } },
+        body: fields,
+      }),
+
+    data: result.data as { message: string } | undefined,
+    error: result.error
+      ? result.error.message || 'Failed to update registration fields'
+      : null,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+  };
+};

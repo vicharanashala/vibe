@@ -77,15 +77,6 @@ export const  RegistrationSettingsDialog = ({
           required: true,
           isDefault: true,
         },
-        {
-          id: uid(),
-          label: "Subjects Interested",
-          type: "select",
-          required: false,
-          isDefault: false,
-          options: ["Math", "Science", "History"],
-          allowMultiple: true,
-        },
       ],
   )
 
@@ -253,7 +244,7 @@ export const  RegistrationSettingsDialog = ({
               placeholder="Enter an option and press Enter"
               addButtonText="Add option"
             />
-            <div className="flex items-center gap-2 pt-1">
+            {/* <div className="flex items-center gap-2 pt-1">
               <Checkbox
                 id="allowMultiple"
                 checked={editField.allowMultiple}
@@ -262,7 +253,7 @@ export const  RegistrationSettingsDialog = ({
               <label htmlFor="allowMultiple" className="text-sm text-muted-foreground cursor-pointer select-none">
                 Allow multiple selections
               </label>
-            </div>
+            </div> */}
           </div>
         ) : null}
 
@@ -292,8 +283,12 @@ export const  RegistrationSettingsDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
+      {/* <DialogContent
         className={`bg-background text-foreground max-w-2xl max-h-[90vh] ${showAddField && "overflow-y-auto"}`}
+      > */}
+
+      <DialogContent
+        className="bg-background text-foreground max-w-2xl max-h-[90vh] overflow-y-auto"
       >
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-center">Registration Form Settings</DialogTitle>
@@ -337,7 +332,7 @@ export const  RegistrationSettingsDialog = ({
                           </div>
                         </div>
                         <div className="flex items-center space-x-3">
-                          <div className="flex items-center space-x-2">
+                          {/* <div className="flex items-center space-x-2">
                             <Checkbox
                               id={`required-${field.id}`}
                               checked={field.required}
@@ -349,7 +344,7 @@ export const  RegistrationSettingsDialog = ({
                             >
                               Required
                             </label>
-                          </div>
+                          </div> */}
                           <Button
                             type="button"
                             variant="ghost"
