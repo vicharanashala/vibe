@@ -109,4 +109,8 @@ export class CourseRegistrationService extends BaseService{
   async updateStatus(registrationId: string, status: "PENDING" | "APPROVED" | "REJECTED"){
     return await this.courseRegistrationRepo.updateStatus(registrationId,status)
   }
+
+  async updateBulkStatus(registrationIds:string[]){
+    return await this.courseRegistrationRepo.updateBulkStatus(registrationIds)
+  }
 } 

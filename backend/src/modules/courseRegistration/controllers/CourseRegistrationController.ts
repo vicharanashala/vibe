@@ -21,7 +21,7 @@ import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { BadRequestErrorResponse, IReport } from '#root/shared/index.js';
 import { subject } from '@casl/ability';
 import { CourseAndVersionId, CourseVersionIdParams } from '#root/modules/notifications/index.js';
-import { CourseRegistrationBody, RegistrationFilterQuery, RegistrationParams, UpdateStatusBody } from '../classes/index.js';
+import { BulkUpdateStatusBody, CourseRegistrationBody, RegistrationFilterQuery, RegistrationParams, UpdateStatusBody } from '../classes/index.js';
 
 
 @OpenAPI({
@@ -112,7 +112,7 @@ class CourseRegistrationController {
 
    @OpenAPI({
       summary: 'Update Enrollment Progress',
-      description: 'Recomputes and updates progress for all enrollments across all courses or a specific course if courseId is provided.',
+      description: 'Update the registration status of a student',
     })
     // @Authorized()
     @Patch('/status/:registrationId', { transformResponse: true })
@@ -130,6 +130,25 @@ class CourseRegistrationController {
         console.log("result from controller ",result)
         return {message:"Registration status updated successfully", registration: result}
     }
+
+
+    @OpenAPI({
+      summary: 'Update Enrollment Progress on Bulk',
+      description: 'Update the status of registration on Bulk Manner',
+    })
+    // @Authorized()
+    @Patch('/status/update/bulk', { transformResponse: true })
+    @ResponseSchema(BadRequestError, {
+      description: 'Bad Request Error',
+      statusCode: 400,
+    })
+    async updateStatusBulk(
+      @Body () body:BulkUpdateStatusBody
+    ) {
+        const {registrationIds} = body
+        const result = await this.courseRegistrationService.updateBulkStatus(registrationIds)
+        return {message:"Registration status updated successfully", registration: result}
+    }    
   
 }
 

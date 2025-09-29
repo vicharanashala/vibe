@@ -1,4 +1,4 @@
-import { IsEmail, IsEnum, IsMongoId, IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { ArrayUnique, IsArray, IsEmail, IsEnum, IsMongoId, IsNotEmpty, IsNumber, IsString } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 
 export class CourseRegistrationBody {
@@ -89,4 +89,16 @@ export class RegistrationParams{
 export class UpdateStatusBody {
   @IsIn(["PENDING", "APPROVED", "REJECTED"])
   status: "PENDING" | "APPROVED" | "REJECTED";
+}
+
+export class BulkUpdateStatusBody {
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  @IsOptional() // allow the array to be empty
+  @JSONSchema({
+    description: 'Array of registration IDs to update',
+    example: ['68d7c3aaa1291bb31a3739f0', '68d7c3aaa1291bb31a3739f1'],
+  })
+  registrationIds?: string[];
 }
