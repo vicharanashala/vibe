@@ -3,6 +3,7 @@ import {
   Authorized,
   BadRequestError,
   Body,
+  CurrentUser,
   ForbiddenError,
   Get,
   HttpCode,
@@ -41,7 +42,7 @@ class CourseRegistrationController {
     summary: 'Get Data for course Details page',
     description: 'Get all the Data to load in the course details page for student registration.',
   })
-  // @Authorized()
+  @Authorized()
   @Get('/version/:versionId')
   @HttpCode(200)
   @ResponseSchema(BadRequestErrorResponse, {
@@ -49,7 +50,7 @@ class CourseRegistrationController {
     statusCode: 400,
   })
   async courseDetails(
-    @Params() params:CourseVersionIdParams
+    @Params() params:CourseVersionIdParams,
   ) {
     const {versionId} =params
     const result = await this.courseRegistrationService.getCourseDetails(versionId)
@@ -74,9 +75,11 @@ class CourseRegistrationController {
   async courseRegistration(
     @Params() params: CourseVersionIdParams,
     @Body() body:CourseRegistrationBody,
+    @CurrentUser() user: {_id: string},
     @Req() req: any,
   ) {
-    const userId = req.user?.id || '124'
+    // const userId = req.user?.id || '124'
+    const userId = user._id;
     const {versionId} = params
     const registrationData = {
       userId,
@@ -95,7 +98,7 @@ class CourseRegistrationController {
     summary: 'Get Data for course Details page',
     description: 'Get all the Data to load in the course details page for student registration.',
   })
-  // @Authorized()
+  @Authorized()
   @Get('/requests')
   @HttpCode(200)
   @ResponseSchema(BadRequestErrorResponse, {
@@ -114,7 +117,7 @@ class CourseRegistrationController {
       summary: 'Update Enrollment Progress',
       description: 'Update the registration status of a student',
     })
-    // @Authorized()
+    @Authorized()
     @Patch('/status/:registrationId', { transformResponse: true })
     @ResponseSchema(BadRequestError, {
       description: 'Bad Request Error',
@@ -137,7 +140,7 @@ class CourseRegistrationController {
       summary: 'Update Enrollment Progress on Bulk',
       description: 'Update the status of registration on Bulk Manner',
     })
-    // @Authorized()
+    @Authorized()
     @Patch('/status/update/bulk', { transformResponse: true })
     @ResponseSchema(BadRequestError, {
       description: 'Bad Request Error',
