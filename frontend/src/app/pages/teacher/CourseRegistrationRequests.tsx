@@ -77,8 +77,7 @@ export default function CourseRegistrationRequests() {
     page: currentPage,
     limit: PAGE_LIMIT,
   }), [filterStatus, searchTerm, sortOrder, currentPage]);
-
-  const {data: registrationsData, isLoading, refetch: registrationsRefetch} = useGetCourseRegistrationRequests(params);
+  const {data: registrationsData, isLoading, refetch: registrationsRefetch} = useGetCourseRegistrationRequests(versionId as string,params);
   const {mutateAsync: updateStatus, isPending: isUpdatingStatus } = useUpdateRegistrationStatus();
   const {mutateAsync: updateBulkStatus, isPending: isUpdatingBulkStatus} = useBulkUpdateRegistrationStatus();
 
