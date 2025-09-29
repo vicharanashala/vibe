@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters } from '@/lib/genai-api';
 import { useCourseStore } from '@/store/course-store';
 import { ArrowLeft, ArrowRight,ChevronRight, ChevronLeft, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors,Settings, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap, Info, Power } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner';
 import { AudioTranscripter } from './AudioTranscripter';
 import { TranscriberData } from '@/hooks/useTranscriber';
@@ -1541,12 +1541,74 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
     isWaitingServer,
     isApprovingTask
     }) => {
+    useEffect(() => {
+      if (questions && questions.length > 0) {
+        const storedQuestions = localStorage.getItem('questions');
+        let existingQuestions: any[] = [];
+        
+        if (storedQuestions) {
+          try {
+            existingQuestions = JSON.parse(storedQuestions);
+          } catch (error) {
+            console.error('Error parsing stored questions:', error);
+          }
+        }
+
+        const questionsToStore = questions.map((question, index) => {
+          const existingQuestion = existingQuestions.find(
+            (q: any) => q.question?.text === question.question?.text && 
+                      q.segmentId === question.segmentId
+          );
+          
+          if (existingQuestion && existingQuestion.hasOwnProperty('isAccept')) {
+            return {
+              ...question,
+              isAccept: existingQuestion.isAccept
+            };
+          } else {
+            return question;
+          }
+        });
+        
+        localStorage.setItem('questions', JSON.stringify(questionsToStore));
+        console.log('Questions stored in localStorage - only storing explicit decisions');
+      }
+    }, [questions]);
+
+    useEffect(() => {
+      const storedQuestions = localStorage.getItem('questions');
+      if (storedQuestions) {
+        try {
+          const parsedQuestions = JSON.parse(storedQuestions);
+          console.log('Loaded questions from localStorage:', parsedQuestions);
+          
+          const accepted = new Set<number>();
+          const rejected = new Set<number>();
+          
+          parsedQuestions.forEach((question: any, index: number) => {
+            if (question.hasOwnProperty('isAccept')) {
+              if (question.isAccept === true) {
+                accepted.add(index);
+              } else if (question.isAccept === false) {
+                rejected.add(index);
+              }
+            }
+          });
+          
+          setAcceptedQuestions(accepted);
+          setRejectedQuestions(rejected);
+          
+        } catch (error) {
+          console.error('Error parsing stored questions:', error);
+        }
+      }
+    }, []);
 
     const isLocked = Boolean(!aiJobId) || isWaitingServer || isLoading || isApprovingTask;
     const [isMCQ, setIsMCQ] = useState(true);
     const [isMSQ, setIsMSQ] = useState(false);
     const [isBinary, setIsBinary] = useState(false);
-    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [currentQuestionIndexBySegment, setCurrentQuestionIndexBySegment] = useState<Record<number, number>>({});
     const [acceptedQuestions, setAcceptedQuestions] = useState<Set<number>>(new Set());
     const [rejectedQuestions, setRejectedQuestions] = useState<Set<number>>(new Set());
     const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
@@ -1562,62 +1624,226 @@ Do not mention the word 'transcript' for giving references, use the word 'video'
 const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 const [isRerunning, setIsRerunning] = useState(false);
 
+    const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
+    
     const segmentIds = Array.from(
         new Set(questions.map((q) => q.segmentId).filter((sid) => typeof sid === "number"))
     ).sort((a, b) => a - b);
 
-    const currentSegmentId = questions[currentQuestionIndex]?.segmentId;
+    const currentSegmentId = segmentIds[currentSegmentIndex];
     const currentSegmentQuestions = questions.filter(q => q.segmentId === currentSegmentId);
-    const currentQuestionInSegment = currentSegmentQuestions.findIndex(
-        q => q === questions[currentQuestionIndex]
-    );
+    const currentQuestionIndex = currentQuestionIndexBySegment[currentSegmentIndex] || 0;
+    const currentQuestionInSegment = Math.min(currentQuestionIndex, currentSegmentQuestions.length - 1);
 
-    const handleSwipe = (direction: 'left' | 'right') => {
+    const hasNextSegment = currentSegmentIndex < segmentIds.length - 1;
+
+        const handleSwipe = (direction: 'left' | 'right') => {
         setSwipeDirection(direction);
         
+        const currentQuestion = currentSegmentQuestions[currentQuestionInSegment];
+        const globalIndex = questions.findIndex(q => q === currentQuestion);
+      
+      const storedQuestions = localStorage.getItem('questions');
+      let allQuestions: any[] = [];
+      
+      if (storedQuestions) {
+        try {
+          allQuestions = JSON.parse(storedQuestions);
+        } catch (error) {
+          console.error('Error parsing stored questions:', error);
+        }
+      }
+  
         if (direction === 'right') {
-            setAcceptedQuestions(prev => {
-                const newSet = new Set(prev);
-                newSet.add(currentQuestionIndex);
-                return newSet;
-            });
-
-            setTimeout(() => {
-                setSwipeDirection(null);
-                if (currentQuestionIndex < questions.length - 1) {
-                    setCurrentQuestionIndex(prev => prev + 1);
-                }
-            }, 300);
+          setAcceptedQuestions(prev => {
+            const newSet = new Set(prev);
+            newSet.add(globalIndex);
+            return newSet;
+          });
+          
+          setRejectedQuestions(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(globalIndex);
+            return newSet;
+          });
+          
+          if (allQuestions[globalIndex]) {
+            allQuestions[globalIndex].isAccept = true;
+            localStorage.setItem('questions', JSON.stringify(allQuestions));
+            console.log(`Question ${globalIndex} accepted and stored in localStorage`);
+          }
         } else {
-            setQuestions(prevQuestions => {
-                const newQuestions = [...prevQuestions];
-                newQuestions.splice(currentQuestionIndex, 1);
-                
-                if (currentQuestionIndex > 0) {
-                    setCurrentQuestionIndex(prev => prev - 1);
-                } else if (newQuestions.length > 0) {
-                    setCurrentQuestionIndex(0);
-                }
-                
-                return newQuestions;
-            });
+          setRejectedQuestions(prev => {
+            const newSet = new Set(prev);
+            newSet.add(globalIndex);
+            return newSet;
+          });
+          
+          setAcceptedQuestions(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(globalIndex);
+            return newSet;
+          });
+          
+          if (allQuestions[globalIndex]) {
+            allQuestions[globalIndex].isAccept = false;
+            localStorage.setItem('questions', JSON.stringify(allQuestions));
+            console.log(`Question ${globalIndex} rejected and stored in localStorage`);
+          }
+        }
+        
+        setTimeout(() => {
+          setSwipeDirection(null);
+          
+          const nextPendingIndex = currentSegmentQuestions.findIndex((_, idx) => 
+            idx > currentQuestionInSegment && !isQuestionDecidedInSegment(currentSegmentIndex, idx)
+          );
+          
+          if (nextPendingIndex >= 0) {
+            setCurrentQuestionIndexBySegment(prevState => ({
+              ...prevState,
+              [currentSegmentIndex]: nextPendingIndex
+            }));
+          } else {
+            setCurrentQuestionIndexBySegment(prevState => ({
+              ...prevState,
+              [currentSegmentIndex]: currentQuestionInSegment
+            }));
+          }
+        }, 300);
+      };
+      const isQuestionDecidedInSegment = (segmentIndex: number, questionIndexInSegment: number) => {
+        const segmentId = segmentIds[segmentIndex];
+        const segmentQuestions = questions.filter(q => q.segmentId === segmentId);
+        const question = segmentQuestions[questionIndexInSegment];
+        
+        if (!question) return false;
+        
+        const globalIndex = questions.findIndex(q => q === question);
+        
+        if (acceptedQuestions.has(globalIndex) || rejectedQuestions.has(globalIndex)) {
+          return true;
+        }
+        
+        const storedQuestions = localStorage.getItem('questions');
+        if (storedQuestions) {
+          try {
+            const parsedQuestions = JSON.parse(storedQuestions);
+            const storedQuestion = parsedQuestions[globalIndex];
+            return storedQuestion?.hasOwnProperty('isAccept');
+          } catch (error) {
+            console.error('Error checking question decision:', error);
+          }
+        }
+        
+        return false;
+      };
+        const handleNextSegment = () => {
+        if (currentSegmentIndex < segmentIds.length - 1) {
+            setCurrentSegmentIndex(prev => {
+                const newIndex = prev + 1;
             
-            setTimeout(() => {
-                setSwipeDirection(null);
-            }, 300);
+            const nextSegmentQuestions = questions.filter(q => q.segmentId === segmentIds[newIndex]);
+            const firstPendingIndex = nextSegmentQuestions.findIndex((_, idx) => !isQuestionDecidedInSegment(newIndex, idx));
+            
+            setCurrentQuestionIndexBySegment(prevState => ({
+              ...prevState,
+              [newIndex]: firstPendingIndex >= 0 ? firstPendingIndex : 0
+            }));
+            
+                return newIndex;
+            });
         }
     };
 
-    const isQuestionAccepted = (index: number) => acceptedQuestions.has(index);
-    const isQuestionRejected = (index: number) => rejectedQuestions.has(index);
+    const handlePreviousSegment = () => {
+        if (currentSegmentIndex > 0) {
+            setCurrentSegmentIndex(prev => {
+            const newIndex = prev - 1;
+            
+            const prevSegmentQuestions = questions.filter(q => q.segmentId === segmentIds[newIndex]);
+            const firstPendingIndex = prevSegmentQuestions.findIndex((_, idx) => !isQuestionDecidedInSegment(newIndex, idx));
+            
+            setCurrentQuestionIndexBySegment(prevState => ({
+              ...prevState,
+              [newIndex]: firstPendingIndex >= 0 ? firstPendingIndex : 0
+            }));
+            
+            return newIndex;
+          });
+        }
+      };
+      const isQuestionAccepted = (index: number) => {
+        const globalIndex = questions.findIndex(q => 
+            q.segmentId === currentSegmentId && 
+            q === currentSegmentQuestions[index]
+        );
+  
+  if (acceptedQuestions.has(globalIndex)) return true;
+  
+  const storedQuestions = localStorage.getItem('questions');
+  if (storedQuestions) {
+    try {
+      const parsedQuestions = JSON.parse(storedQuestions);
+      const storedQuestion = parsedQuestions[globalIndex];
+      return storedQuestion?.isAccept === true;
+    } catch (error) {
+      console.error('Error checking question status:', error);
+    }
+  }
+  
+  return false;
+};
 
+    const isQuestionRejected = (index: number) => {
+        const globalIndex = questions.findIndex(q => 
+            q.segmentId === currentSegmentId && 
+            q === currentSegmentQuestions[index]
+        );
+  
+  if (rejectedQuestions.has(globalIndex)) return true;
+  
+  const storedQuestions = localStorage.getItem('questions');
+  if (storedQuestions) {
+    try {
+      const parsedQuestions = JSON.parse(storedQuestions);
+      const storedQuestion = parsedQuestions[globalIndex];
+      return storedQuestion?.isAccept === false;
+    } catch (error) {
+      console.error('Error checking question status:', error);
+    }
+  }
+  
+  return false;
+};
+  const getAcceptedQuestionsFromStorage = () => {
+      const storedQuestions = localStorage.getItem('questions');
+      if (storedQuestions) {
+          try {
+              const questions = JSON.parse(storedQuestions);
+              return questions.filter((q: any) => q.isAccept === true);
+          } catch (error) {
+              console.error('Error getting accepted questions:', error);
+              return [];
+          }
+      }
+      return [];
+  };
+
+const clearStoredQuestions = () => {
+  localStorage.removeItem('questions');
+  console.log('Cleared questions from localStorage');
+  setAcceptedQuestions(new Set());
+  setRejectedQuestions(new Set());
+};
 
     const handleNext = () => {
-        updateCurrentJob ("uploadContent", "WAITING");
+      const acceptedQuestions = getAcceptedQuestionsFromStorage();
+      console.log('Accepted questions:', acceptedQuestions);
+      updateCurrentJob("uploadContent", "WAITING");
     }
 
     const handleAddParams = async() => {
-
       if(!aiJobId){
         toast.error("Failed to find jobId!")
         return;      
@@ -1634,11 +1860,15 @@ const [isRerunning, setIsRerunning] = useState(false);
           try {
             setIsRerunning(true);
             await aiSectionAPI.rerunJobTask(aiJobId, "QUESTION_GENERATION", newParams);
-            setCurrentQuestionIndex(0);
+            setCurrentQuestionIndexBySegment(prev => ({
+              ...prev,
+              [0]: 0 
+            }));
+            setCurrentSegmentIndex(0);
             setAcceptedQuestions(new Set());
             setRejectedQuestions(new Set());
+            clearStoredQuestions();
             toast.success("Re-run success!");
-            toast.error("Re-run success!");
           } catch (err) {
             toast.error("Re-run failed, try again!");
             console.error("Re-run failed:", err);
@@ -1649,6 +1879,45 @@ const [isRerunning, setIsRerunning] = useState(false);
           handleApproveTask(newParams);
       }
     }
+
+    const isQuestionAcceptedInSegment = (segmentIndex: number, questionIndexInSegment: number) => {
+  const segmentId = segmentIds[segmentIndex];
+  const segmentQuestions = questions.filter(q => q.segmentId === segmentId);
+  const question = segmentQuestions[questionIndexInSegment];
+  
+  if (!question) return false;
+  
+  const globalIndex = questions.findIndex(q => q === question);
+  
+  if (acceptedQuestions.has(globalIndex)) return true;
+  
+  const storedQuestions = localStorage.getItem('questions');
+  if (storedQuestions) {
+    try {
+      const parsedQuestions = JSON.parse(storedQuestions);
+      const storedQuestion = parsedQuestions[globalIndex];
+      return storedQuestion?.isAccept === true;
+    } catch (error) {
+      console.error('Error checking question acceptance:', error);
+    }
+  }
+  
+  return false;
+};
+
+const currentSegmentAcceptedCount = useMemo(() => {
+  return currentSegmentQuestions.filter((_, idx) => {
+    return isQuestionAcceptedInSegment(currentSegmentIndex, idx);
+  }).length;
+}, [currentSegmentQuestions, currentSegmentIndex]);
+
+const currentSegmentTotalQuestions = currentSegmentQuestions.length;
+
+const isSegmentCompleted = currentSegmentAcceptedCount > 0;
+
+const isQuestionDecided = (index: number) => {
+  return isQuestionAccepted(index) || isQuestionRejected(index);
+};
 
     return (
         <div className="py-12 text-center text-gray-500">
@@ -1846,28 +2115,50 @@ const [isRerunning, setIsRerunning] = useState(false);
                   </div>
                 )}
 
-                {!isLoading && !error && questions.length > 0 && (
+                {!isLoading && !error && questions.length > 0 && segmentIds.length > 0 && (
                   <div className="relative">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handlePreviousSegment}
+                          disabled={currentSegmentIndex === 0 || isLocked}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <div className="text-sm font-medium px-2 py-1 bg-muted rounded-md">
+                          Segment {currentSegmentIndex + 1} of {segmentIds.length}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleNextSegment}
+                          disabled={!hasNextSegment || isLocked}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      
                       <div className="text-sm text-gray-600 dark:text-gray-400">
-                        Question {currentQuestionIndex + 1} of {questions.length}
-                        {currentSegmentQuestions.length > 1 && (
-                          <span className="ml-2">
-                            (Segment {currentQuestionInSegment + 1}/{currentSegmentQuestions.length})
-                          </span>
-                        )}
+                        Question {currentQuestionInSegment + 1} of {currentSegmentQuestions.length}
                       </div>
                     </div>
 
                     <div className="relative">
-                    {questions.map((q: any, idx: number) => {
-                        if (idx !== currentQuestionIndex) return null;
+                    {currentSegmentQuestions.map((q: any, idx: number) => {
+                      //   if (idx !== currentQuestionInSegment) return null;
                         
                       const segIdx = segmentIds.findIndex((sid) => sid === q.segmentId)
                       const segStart = segIdx === 0 ? 0 : segmentIds[segIdx - 1]
                       const segEnd = q.segmentId
-                        const isAccepted = isQuestionAccepted(idx);
-                        const isRejected = isQuestionRejected(idx);
+                        if (idx !== currentQuestionInSegment) return null;
+  
+                      const globalIndex = questions.findIndex(question => question === q);
+                      const isAccepted = isQuestionAccepted(idx);
+                      const isRejected = isQuestionRejected(idx);
 
                       return (
                         <div
@@ -1978,9 +2269,9 @@ const [isRerunning, setIsRerunning] = useState(false);
                           )}
                               <button
                                 onClick={() => handleSwipe('left')}
-                                disabled={isQuestionRejected(currentQuestionIndex) || isQuestionAccepted(currentQuestionIndex)}
+                                disabled={isQuestionDecided(currentQuestionInSegment)}                               
                                 className={`absolute top-[100px] bg-red-50 dark:bg-red-900/20 -left-4 p-2 rounded-full transition-colors border border-solid border-red-200 dark:border-red-800 ${
-                                  isQuestionRejected(currentQuestionIndex) || isQuestionAccepted(currentQuestionIndex)
+                                  isQuestionDecided(currentQuestionInSegment)
                                     ? 'opacity-30 cursor-not-allowed'
                                     : 'hover:bg-red-100 dark:hover:bg-red-900/30 cursor-pointer text-red-500'
                                 }`}
@@ -1990,9 +2281,9 @@ const [isRerunning, setIsRerunning] = useState(false);
                               </button>
                               <button
                                 onClick={() => handleSwipe('right')}
-                                disabled={isQuestionAccepted(currentQuestionIndex) || isQuestionRejected(currentQuestionIndex)}
+                                disabled={isQuestionDecided(currentQuestionInSegment)}
                                 className={`absolute top-[100px] bg-green-50 dark:bg-green-900/20 -right-4 p-2 rounded-full transition-colors border border-solid border-green-200 dark:border-green-800 ${
-                                  isQuestionAccepted(currentQuestionIndex) || isQuestionRejected(currentQuestionIndex)
+                                  isQuestionDecided(currentQuestionInSegment)
                                     ? 'opacity-30 cursor-not-allowed'
                                     : 'hover:bg-green-100 dark:hover:bg-green-900/30 cursor-pointer text-green-500'
                                 }`}
@@ -2011,15 +2302,15 @@ const [isRerunning, setIsRerunning] = useState(false);
                           Segment Progress
                         </span>
                         <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          {acceptedQuestions.size} / {currentSegmentQuestions.length} questions accepted
+                          {currentSegmentAcceptedCount} / {currentSegmentQuestions.length} questions accepted (Segment {currentSegmentIndex + 1} of {segmentIds.length})
                         </span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
                         <div 
                           className="bg-green-600 h-2.5 rounded-full transition-all duration-300" 
                           style={{ 
-                            width: `${(acceptedQuestions.size / currentSegmentQuestions.length) * 100}%`,
-                            minWidth: acceptedQuestions.size > 0 ? '0.5rem' : '0'
+                            width: `${(currentSegmentAcceptedCount / currentSegmentQuestions.length) * 100}%`,
+                            minWidth: currentSegmentAcceptedCount > 0 ? '0.5rem' : '0'
                           }}
                         />
                       </div>
