@@ -60,6 +60,18 @@ class CourseRegistrationRepository{
     const result = {...data,_id:data._id.toString()}
     return result
   }
+
+
+  async updateBulkStatus(registrationIds:string[]){
+    await this.init()
+    if(registrationIds.length<0){
+      const data = await this.courseRegistrationCollection.updateMany({_id:{$in:registrationIds}},{$set:{status:"APPROVED",updatedAt:new Date()}});
+      return data.modifiedCount
+    }else{
+      const data = await this.courseRegistrationCollection.updateMany({},{$set:{status:"APPROVED",updatedAt:new Date()}})
+      return data.modifiedCount
+    }
+  }
 }
 
 export {CourseRegistrationRepository}
