@@ -42,7 +42,7 @@ export interface Registration {
   _id: string;
   detail: RegistrationDetail;
   status: 'pending' | 'approved' | 'rejected';
-  createdAt: string; 
+  createdAt: string;
 }
 
 
@@ -77,16 +77,16 @@ export default function CourseRegistrationRequests() {
     page: currentPage,
     limit: PAGE_LIMIT,
   }), [filterStatus, searchTerm, sortOrder, currentPage]);
-  const {data: registrationsData, isLoading, refetch: registrationsRefetch} = useGetCourseRegistrationRequests(versionId as string,params);
-  const {mutateAsync: updateStatus, isPending: isUpdatingStatus } = useUpdateRegistrationStatus();
-  const {mutateAsync: updateBulkStatus, isPending: isUpdatingBulkStatus} = useBulkUpdateRegistrationStatus();
+  const { data: registrationsData, isLoading, refetch: registrationsRefetch } = useGetCourseRegistrationRequests(versionId as string, params);
+  const { mutateAsync: updateStatus, isPending: isUpdatingStatus } = useUpdateRegistrationStatus();
+  const { mutateAsync: updateBulkStatus, isPending: isUpdatingBulkStatus } = useBulkUpdateRegistrationStatus();
 
   const registrations = registrationsData?.registrations || []
 
-   const FRONTEND_URL = window.location.origin;
-   const registrationUrl = `${FRONTEND_URL}/student/course-registration/${versionId}`;
+  const FRONTEND_URL = window.location.origin;
+  const registrationUrl = `${FRONTEND_URL}/student/course-registration/${versionId}`;
 
-   const registrationMessage = `🎓 Course Registration - ViBe Platform
+  const registrationMessage = `🎓 Course Registration - ViBe Platform
 
 Hello,
 
@@ -134,7 +134,7 @@ ${registrationUrl}`;
     } catch (error: any) {
       toast.error(
         error?.message ||
-          'Failed to approve registrations. Please try again.'
+        'Failed to approve registrations. Please try again.'
       );
     }
   };
@@ -145,9 +145,9 @@ ${registrationUrl}`;
     try {
       await updateStatus(registrationId, 'APPROVED');
       toast.success('Registration approved successfully');
-      registrationsRefetch(); 
+      registrationsRefetch();
     } catch (error: any) {
-      toast.error(error?.message ||'Failed to approve registration. Please try again.');
+      toast.error(error?.message || 'Failed to approve registration. Please try again.');
     }
   }
 
@@ -156,7 +156,7 @@ ${registrationUrl}`;
     try {
       await updateStatus(registrationId, 'REJECTED');
       toast.success('Registration rejected successfully');
-      registrationsRefetch(); 
+      registrationsRefetch();
     } catch (error: any) {
       toast.error(error?.message || 'Failed to rejected registration. Please try again.');
     }
@@ -180,7 +180,7 @@ ${registrationUrl}`;
   };
 
 
-   const handlePageChange = (newPage: number) => {
+  const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
   };
 
@@ -189,10 +189,10 @@ ${registrationUrl}`;
     <div className="min-h-screen bg-background">
       <ConfirmationModal
         isOpen={isSingleApproveOpen}
-        onClose={() => {  
+        onClose={() => {
           setIsSingleApproveOpen(false);
-           setSingleRegistrationId(null)
-          }}
+          setSingleRegistrationId(null)
+        }}
         onConfirm={() => handleApprove(singleRegistrationId)}
         title="Approve Registration"
         description="Are you sure you want to approve this registration? This action cannot be undone."
@@ -231,7 +231,7 @@ ${registrationUrl}`;
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-             <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <Dialog open={isOpen} onOpenChange={setIsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
                   <Share2 className="h-4 w-4" />
@@ -248,7 +248,7 @@ ${registrationUrl}`;
                     Share this URL with students to allow them to view available course versions and submit registration requests.
                   </p>
                 </DialogHeader>
-                
+
                 <div className="space-y-4 mt-6">
                   <div className="relative">
                     <label className="text-sm font-medium text-foreground mb-2 block">
@@ -282,8 +282,8 @@ ${registrationUrl}`;
                 </div>
 
                 <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-6">
-                  
-                <div className="flex flex-col sm:flex-row gap-3">
+
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <Button
                       variant="outline"
                       size="sm"
@@ -292,7 +292,7 @@ ${registrationUrl}`;
                           navigator
                             .share({
                               title: "Course Registration - Vibe Platform",
-                               text: registrationMessage,
+                              text: registrationMessage,
                               // url: registrationUrl,
                             })
                             .catch((err) => console.error("Error sharing:", err));
@@ -311,15 +311,11 @@ ${registrationUrl}`;
             </Dialog>
 
             <Button
-              onClick={()=> setIsBulkApproveOpen(true)}
-              disabled={isUpdatingBulkStatus || isUpdatingStatus }
-              variant="default"
+              onClick={() => setIsBulkApproveOpen(true)}
+              disabled={isUpdatingBulkStatus || isUpdatingStatus}
+              variant="outline"
               className={`
-                bg-green-600 
-                hover:bg-green-500 
-                disabled:opacity-50 
-                text-white 
-                dark:text-black
+                hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 dark:hover:bg-blue-950 dark:hover:text-blue-300 dark:hover:border-blue-700 transition-colors
               `}
             >
               <CheckCircle className="h-4 w-4 mr-2" />
@@ -353,7 +349,7 @@ ${registrationUrl}`;
             />
           </div>
 
-          <Select
+          {/* <Select
             value={filterStatus}
             onValueChange={value => {
               setFilterStatus(value as RegistrationStatus);
@@ -369,7 +365,7 @@ ${registrationUrl}`;
               <SelectItem value="APPROVED">Approved</SelectItem>
               <SelectItem value="REJECTED">Rejected</SelectItem>
             </SelectContent>
-          </Select>
+          </Select> */}
 
           <Select
             value={sortOrder}
@@ -387,7 +383,7 @@ ${registrationUrl}`;
             </SelectContent>
           </Select>
         </div>
-            
+
         {/* Table */}
         <Card className="border-0 shadow-lg overflow-hidden">
           <CardContent className="p-0">
@@ -494,9 +490,9 @@ ${registrationUrl}`;
                               <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
                                 {reg.detail.name
                                   ? reg.detail.name
-                                      .split(" ")
-                                      .map((part: string) => part[0]?.toUpperCase())
-                                      .join("")
+                                    .split(" ")
+                                    .map((part: string) => part[0]?.toUpperCase())
+                                    .join("")
                                   : "?"}
                               </AvatarFallback>
                             </Avatar>
@@ -514,12 +510,41 @@ ${registrationUrl}`;
                             </div>
                           </div>
                         </TableCell>
-
+                        {/* { 
                         <TableCell className="py-4">
                           {reg.createdAt
                             ? new Date(reg.createdAt).toLocaleDateString("en-US")
                             : "-"}
                         </TableCell>
+                        } */}
+
+
+                        <TableCell className="py-4">
+                          {reg.createdAt ? (
+                            <div className="flex flex-col">
+                              {/* Date */}
+                              <span>
+                                {new Date(reg.createdAt).toLocaleDateString("en-IN", {
+                                  timeZone: "Asia/Kolkata",
+                                })}
+                              </span>
+
+                              {/* Time */}
+                              <span className="text-xs text-gray-500">
+                                {new Date(reg.createdAt).toLocaleTimeString("en-IN", {
+                                  timeZone: "Asia/Kolkata",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  second: "2-digit",
+                                })}
+                              </span>
+                            </div>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
+
+
 
                         <TableCell className="py-4">
                           <Badge
@@ -527,8 +552,8 @@ ${registrationUrl}`;
                               reg.status === "APPROVED"
                                 ? "default"
                                 : reg.status === "REJECTED"
-                                ? "destructive"
-                                : "secondary"
+                                  ? "destructive"
+                                  : "secondary"
                             }
                           >
                             {reg.status.charAt(0).toUpperCase() + reg.status.slice(1).toLowerCase()}
@@ -549,13 +574,13 @@ ${registrationUrl}`;
                             {reg.status === "PENDING" && (
                               <>
                                 <Button
-                                  variant="default"
+                                  variant="destructive"
                                   size="sm"
-                                  onClick={() =>{
-                                     setSingleRegistrationId(reg._id);
-                                     setIsSingleApproveOpen(true);
-                                    }}
-                                  className="bg-green-600 hover:bg-green-500 text-white dark:text-black"
+                                  onClick={() => {
+                                    setSingleRegistrationId(reg._id);
+                                    setIsSingleApproveOpen(true);
+                                  }}
+                                  className="bg-green-500 dark:bg-green-300 hover:dark:bg-green-500 hover:bg-green-700 text-white dark:text-black"
                                 >
                                   <CheckCircle className="h-4 w-4 mr-2" />
                                   Approve
@@ -565,11 +590,11 @@ ${registrationUrl}`;
                                   variant="destructive"
                                   size="sm"
                                   onClick={() => {
-                                      setSingleRegistrationId(reg._id);
-                                      setIsSingleRejectOpen(true);
-                                    }
+                                    setSingleRegistrationId(reg._id);
+                                    setIsSingleRejectOpen(true);
                                   }
-                                  className="bg-red-600 dark:bg-red-700 hover:dark:bg-red-600 hover:bg-red-500 text-white dark:text-black"
+                                  }
+                                  className="bg-red-500 dark:bg-red-300 hover:dark:bg-red-500 hover:bg-red-700 text-white dark:text-black"
                                 >
                                   <XCircle className="h-4 w-4 mr-2" />
                                   Reject
@@ -655,16 +680,16 @@ ${registrationUrl}`;
             </div>
           </CardContent>
         </Card>
-          {registrationsData?.totalDocuments > 1 && (
-              <Pagination
-              currentPage={currentPage}
-              totalPages={registrationsData?.totalPages}
-              totalDocuments={registrationsData?.totalDocuments}
-              onPageChange={handlePageChange}
-              />
-          )}
+        {registrationsData?.totalDocuments > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={registrationsData?.totalPages}
+            totalDocuments={registrationsData?.totalDocuments}
+            onPageChange={handlePageChange}
+          />
+        )}
 
-        
+
       </div>
     </div>
   );
