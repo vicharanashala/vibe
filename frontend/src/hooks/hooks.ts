@@ -24,6 +24,7 @@ import { EntityType, IReport, ReportStatus } from '@/types/flag.types';
 import { useQueryClient } from '@tanstack/react-query';
 import { VersionWithCourse } from '@/app/pages/student/CourseRegistration';
 import { Registration, RegistrationStatus } from '@/app/pages/teacher/CourseRegistrationRequests';
+import { Field } from '@/app/pages/teacher/components/course-registration-modal';
 
 // Add missing ObjectId type
 type ObjectId = string;
@@ -3016,5 +3017,39 @@ export const useUpdateRegistrationFields = (): {
     isIdle: result.isIdle,
     reset: result.reset,
     status: result.status,
+  };
+};
+
+
+export const useGetRegistrationFields = (
+  versionId: string,
+): {
+  data: Omit<Field, 'id' | 'isDefault' >[];
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} => {
+  const result = api.useQuery(
+    'get',
+    '/course/registration/settings/version/{versionId}' as any,
+    {
+      params: {
+        path: { versionId },
+      },
+    },
+    {
+      enabled: !!versionId,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    }
+  );
+
+  return {
+    data: (result.data as Omit<Field, 'id' | 'isDefault'>[]) || [],
+    isLoading: result.isLoading,
+    error: result.error
+      ? result.error.message || 'Failed to fetch registration fields'
+      : null,
+    refetch: result.refetch,
   };
 };
