@@ -14,15 +14,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Users, Eye, User, CheckCircle, XCircle, Share2, Check, Copy, ExternalLink, Share, RefreshCw } from "lucide-react";
+import { Loader2, Users, Eye, User, CheckCircle, XCircle, Share2, Check, Copy, ExternalLink, Share, RefreshCw, Settings, ListChecks, Mail, Hash, Calendar } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCourseStore } from "@/store/course-store";
 import { toast } from "sonner";
-import { RegistrationRequestQuery, useGetCourseRegistrationRequests } from "@/hooks/hooks";
+import { RegistrationRequestQuery, useBulkUpdateRegistrationStatus, useGetCourseRegistrationRequests, useUpdateRegistrationStatus } from "@/hooks/hooks";
 import { Pagination } from "@/components/ui/Pagination";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import ConfirmationModal from "./components/confirmation-modal";
 
 
 interface RegistrationDetail {
@@ -57,18 +59,28 @@ export default function CourseRegistrationRequests() {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // for confirmation modal
+  const [isSingleApproveOpen, setIsSingleApproveOpen] = useState(false);
+  const [isBulkApproveOpen, setIsBulkApproveOpen] = useState(false);
+  const [isSingleRejectOpen, setIsSingleRejectOpen] = useState(false);
+  const [singleRegistrationId, setSingleRegistrationId] = useState<string | null>(null);
+
   const { currentCourse } = useCourseStore()
   const versionId = currentCourse?.versionId
+
+  const PAGE_LIMIT = 15;
 
   const params = useMemo(() => ({
     filter: filterStatus,
     search: searchTerm,
     sort: sortOrder,
     page: currentPage,
-    limit: 10,
+    limit: PAGE_LIMIT,
   }), [filterStatus, searchTerm, sortOrder, currentPage]);
 
-  const {data: registrationsData, isLoading, refetch: registrationsRefetch} = useGetCourseRegistrationRequests(params)
+  const {data: registrationsData, isLoading, refetch: registrationsRefetch} = useGetCourseRegistrationRequests(params);
+  const {mutateAsync: updateStatus, isPending: isUpdatingStatus } = useUpdateRegistrationStatus();
+  const {mutateAsync: updateBulkStatus, isPending: isUpdatingBulkStatus} = useBulkUpdateRegistrationStatus();
 
   const registrations = registrationsData?.registrations || []
 
@@ -102,9 +114,54 @@ ${registrationUrl}`;
     }
   };
 
-  const handleApproveAll = () => {
-    console.log('Approving all:', selectedIds);
+  const handleBulkApprove = async () => {
+    if (isUpdatingBulkStatus || isUpdatingStatus) return;
+
+    const idsToApprove = selectedIds && selectedIds.length > 0 ? selectedIds : [];
+
+    try {
+      await updateBulkStatus(idsToApprove);
+
+      const successMessage =
+        idsToApprove.length > 0
+          ? 'Selected registrations approved successfully'
+          : 'All registrations approved successfully';
+
+      toast.success(successMessage);
+
+      if (idsToApprove.length > 0) setSelectedIds([]);
+
+      registrationsRefetch();
+    } catch (error: any) {
+      toast.error(
+        error?.message ||
+          'Failed to approve registrations. Please try again.'
+      );
+    }
   };
+
+
+  const handleApprove = async (registrationId: string | null) => {
+    if (isUpdatingBulkStatus || isUpdatingStatus || !registrationId) return;
+    try {
+      await updateStatus(registrationId, 'APPROVED');
+      toast.success('Registration approved successfully');
+      registrationsRefetch(); 
+    } catch (error: any) {
+      toast.error(error?.message ||'Failed to approve registration. Please try again.');
+    }
+  }
+
+  const handleReject = async (registrationId: string | null) => {
+    if (isUpdatingBulkStatus || isUpdatingStatus || !registrationId) return;
+    try {
+      await updateStatus(registrationId, 'REJECTED');
+      toast.success('Registration rejected successfully');
+      registrationsRefetch(); 
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to rejected registration. Please try again.');
+    }
+  }
 
   const copyRegistrationUrl = async () => {
     try {
@@ -131,8 +188,40 @@ ${registrationUrl}`;
 
   return (
     <div className="min-h-screen bg-background">
+      <ConfirmationModal
+        isOpen={isSingleApproveOpen}
+        onClose={() => {  
+          setIsSingleApproveOpen(false);
+           setSingleRegistrationId(null)
+          }}
+        onConfirm={() => handleApprove(singleRegistrationId)}
+        title="Approve Registration"
+        description="Are you sure you want to approve this registration? This action cannot be undone."
+        confirmText="Approve"
+        cancelText="Cancel"
+        isDestructive={false}
+      />
+      <ConfirmationModal
+        isOpen={isSingleRejectOpen}
+        onClose={() => setIsSingleRejectOpen(false)}
+        onConfirm={() => handleReject(singleRegistrationId)}
+        title="Reject Registration"
+        description="Are you sure you want to reject this registration? This action cannot be undone."
+        confirmText="Reject"
+        cancelText="Cancel"
+        isDestructive={true}
+      />
+      <ConfirmationModal
+        isOpen={isBulkApproveOpen}
+        onClose={() => setIsBulkApproveOpen(false)}
+        onConfirm={() => handleBulkApprove()}
+        title="Approve All Registrations"
+        description="Are you sure you want to approve all selected registrations? This action cannot be undone."
+        confirmText="Approve All"
+        cancelText="Cancel"
+        isDestructive={false}
+      />
       <div className="container mx-auto py-4 space-y-8">
-        {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="space-y-4">
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
@@ -223,13 +312,21 @@ ${registrationUrl}`;
             </Dialog>
 
             <Button
-              onClick={handleApproveAll}
-              disabled={selectedIds?.length === 0}
+              onClick={()=> setIsBulkApproveOpen(true)}
+              disabled={isUpdatingBulkStatus || isUpdatingStatus }
               variant="default"
-              className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white dark:text-black"
+              className={`
+                bg-green-600 
+                hover:bg-green-500 
+                disabled:opacity-50 
+                text-white 
+                dark:text-black
+              `}
             >
               <CheckCircle className="h-4 w-4 mr-2" />
-              Approve Selected
+              {(!selectedIds || selectedIds.length === 0)
+                ? "Approve All"
+                : `Approve Selected (${selectedIds.length})`}
             </Button>
 
             <Button
@@ -310,24 +407,42 @@ ${registrationUrl}`;
                         }
                       />
                     </TableHead>
+
                     <TableHead className="font-bold text-foreground w-[60px]">
-                      #
+                      <span className="inline-flex items-center gap-2">
+                        <Hash className="h-4 w-4 text-muted-foreground" />
+                      </span>
                     </TableHead>
+
                     <TableHead className="font-bold text-foreground w-[200px]">
-                      Name
+                      <span className="inline-flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        Name
+                      </span>
                     </TableHead>
+
                     <TableHead className="font-bold text-foreground w-[250px]">
-                      Email
+                      <span className="inline-flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        Registered At
+                      </span>
                     </TableHead>
+
                     <TableHead className="font-bold text-foreground w-[150px]">
-                      Status
+                      <span className="inline-flex items-center gap-2">
+                        <ListChecks className="h-4 w-4 text-muted-foreground" />
+                        Status
+                      </span>
                     </TableHead>
+
                     <TableHead className="font-bold text-foreground pr-6 w-[250px]">
-                      Actions
+                      <span className="inline-flex items-center gap-2">
+                        <Settings className="h-4 w-4 text-muted-foreground" />
+                        Actions
+                      </span>
                     </TableHead>
                   </TableRow>
                 </TableHeader>
-
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
@@ -360,6 +475,7 @@ ${registrationUrl}`;
                         key={reg._id}
                         className="border-border hover:bg-muted/20 transition-colors duration-200 group"
                       >
+
                         <TableCell className="pl-6 py-4">
                           <Checkbox
                             checked={selectedIds.includes(reg._id)}
@@ -368,27 +484,58 @@ ${registrationUrl}`;
                             }
                           />
                         </TableCell>
-                        <TableCell className="py-4">{index + 1}</TableCell>
-                        <TableCell className="py-4 font-medium">
-                          {reg.detail.name}
-                        </TableCell>
+
                         <TableCell className="py-4">
-                          {reg.detail.email}
+                          {index + 1 + (currentPage - 1) * PAGE_LIMIT}
                         </TableCell>
+
+                        <TableCell className="py-4 font-medium">
+                          <div className="flex items-center gap-4">
+                            <Avatar className="h-10 w-10 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
+                              <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
+                                {reg.detail.name
+                                  ? reg.detail.name
+                                      .split(" ")
+                                      .map((part: string) => part[0]?.toUpperCase())
+                                      .join("")
+                                  : "?"}
+                              </AvatarFallback>
+                            </Avatar>
+
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-foreground truncate text-base md:text-lg">
+                                {reg.detail.name || "Unknown User"}
+                              </p>
+
+                              {reg.detail.email && (
+                                <p className="text-xs md:text-sm text-muted-foreground truncate mt-1">
+                                  {reg.detail.email}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="py-4">
+                          {reg.createdAt
+                            ? new Date(reg.createdAt).toLocaleDateString("en-US")
+                            : "-"}
+                        </TableCell>
+
                         <TableCell className="py-4">
                           <Badge
                             variant={
-                              reg.status === 'approved'
-                                ? 'default'
-                                : reg.status === 'rejected'
-                                ? 'destructive'
-                                : 'secondary'
+                              reg.status === "APPROVED"
+                                ? "default"
+                                : reg.status === "REJECTED"
+                                ? "destructive"
+                                : "secondary"
                             }
                           >
-                            {reg.status.charAt(0).toUpperCase() +
-                              reg.status.slice(1)}
+                            {reg.status.charAt(0).toUpperCase() + reg.status.slice(1).toLowerCase()}
                           </Badge>
                         </TableCell>
+
                         <TableCell className="py-4 pr-6">
                           <div className="flex gap-3">
                             <Button
@@ -399,23 +546,30 @@ ${registrationUrl}`;
                               <Eye className="h-4 w-4 mr-2" />
                               View Details
                             </Button>
-                            {reg.status === 'PENDING' && (
+
+                            {reg.status === "PENDING" && (
                               <>
                                 <Button
                                   variant="default"
                                   size="sm"
-                                  onClick={() =>
-                                    console.log('approve', reg._id)
-                                  }
+                                  onClick={() =>{
+                                     setSingleRegistrationId(reg._id);
+                                     setIsSingleApproveOpen(true);
+                                    }}
                                   className="bg-green-600 hover:bg-green-500 text-white dark:text-black"
                                 >
                                   <CheckCircle className="h-4 w-4 mr-2" />
                                   Approve
                                 </Button>
+
                                 <Button
                                   variant="destructive"
                                   size="sm"
-                                  onClick={() => console.log('reject', reg._id)}
+                                  onClick={() => {
+                                      setSingleRegistrationId(reg._id);
+                                      setIsSingleRejectOpen(true);
+                                    }
+                                  }
                                   className="bg-red-600 dark:bg-red-700 hover:dark:bg-red-600 hover:bg-red-500 text-white dark:text-black"
                                 >
                                   <XCircle className="h-4 w-4 mr-2" />

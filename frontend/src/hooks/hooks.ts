@@ -2888,9 +2888,9 @@ export const useGetCourseRegistrationRequests = (
 };
 
 
-export const useUpdateRegistrationStatus = (): {
-  mutate: (registrationId: string, status: 'approved' | 'rejected' | 'pending') => void;
-  mutateAsync: (registrationId: string, status: 'approved' | 'rejected' | 'pending') => Promise<{
+export const useUpdateRegistrationStatus  = (): {
+  mutate: (registrationId: string, status: RegistrationStatus) => void;
+  mutateAsync: (registrationId: string, status: RegistrationStatus) => Promise<{
     message: string;
     registrationId: string;
   }>;
@@ -2903,7 +2903,7 @@ export const useUpdateRegistrationStatus = (): {
   reset: () => void;
   status: 'idle' | 'pending' | 'success' | 'error';
 } => {
-  const result = api.useMutation('patch', '/course/status/{id}' as any);
+  const result = api.useMutation('patch', '/course/registration/status/{registrationId}' as any);
 
   return {
     mutate: (registrationId, status) =>
@@ -2946,7 +2946,7 @@ export const useBulkUpdateRegistrationStatus = (): {
   reset: () => void;
   status: 'idle' | 'pending' | 'success' | 'error';
 } => {
-  const result = api.useMutation('patch', '/course/registration/status' as any);
+  const result = api.useMutation('patch', '/course/registration/status/update/bulk' as any);
 
   return {
     mutate: (selected) =>
