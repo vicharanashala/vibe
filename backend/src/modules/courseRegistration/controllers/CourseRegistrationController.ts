@@ -4,6 +4,7 @@ import {
   BadRequestError,
   Body,
   CurrentUser,
+  Delete,
   ForbiddenError,
   Get,
   HttpCode,
@@ -12,6 +13,7 @@ import {
   Params,
   Patch,
   Post,
+  Put,
   QueryParams,
   Req,
 } from 'routing-controllers';
@@ -26,6 +28,7 @@ import {
   CourseRegistrationBody,
   RegistrationFilterQuery,
   RegistrationParams,
+  updateSettingsBody,
   UpdateStatusBody,
 } from '../classes/index.js';
 import {
@@ -34,7 +37,7 @@ import {
   getCourseRegistrationAbility,
 } from '../abilities/CourseRegistrationAbilities.js';
 import {subject} from '@casl/ability';
-import { ObjectId } from 'mongodb';
+import {ObjectId} from 'mongodb';
 
 @OpenAPI({
   tags: ['CourseRegistration'],
@@ -197,6 +200,47 @@ class CourseRegistrationController {
       message: 'Registration status updated successfully',
       registration: result,
     };
+  }
+
+  @Get('/settings/version/:versionId')
+  @Authorized()
+  async getSettings(
+    @Params() params: CourseVersionIdParams,
+    @Ability(getCourseRegistrationAbility) {ability},
+  ) {
+    const {versionId} = params;
+
+    // if (
+    //   !ability.can(
+    //     CourseRegistrationActions.View,
+    //     subject(courseRegistrationSubject, {versionId}),
+    //   )
+    // ) {
+    //   throw new ForbiddenError('You do not have permission to view settings');
+    // }
+
+    return this.courseRegistrationService.getSettings(versionId);
+  }
+
+  @Put('/settings/version/:versionId')
+  @Authorized()
+  async updateSettings(
+    @Params() params: CourseVersionIdParams,
+    @Body() body: updateSettingsBody[],
+    @Ability(getCourseRegistrationAbility) {ability},
+  ) {
+    const {versionId} = params;
+
+    // if (
+    //   !ability.can(
+    //     CourseRegistrationActions.Modify,
+    //     subject(courseRegistrationSubject, {versionId}),
+    //   )
+    // ) {
+    //   throw new ForbiddenError('You do not have permission to modify settings');
+    // }
+
+    return this.courseRegistrationService.updateSettings(versionId, body);
   }
 }
 

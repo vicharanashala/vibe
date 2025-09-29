@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {inject, injectable} from 'inversify';
-import {NotFoundError} from 'routing-controllers';
+import {InternalServerError, NotFoundError} from 'routing-controllers';
 import {CourseRegistrationRepository} from '../repositories/index.js';
 import {plainToInstance} from 'class-transformer';
 import {
@@ -11,6 +11,9 @@ import {
   ICourseRegistration,
   IItemRepository,
   InviteType,
+  IRegistrationSettings,
+  ISettingRepository,
+  ISettings,
   IUserRepository,
   MongoDatabase,
 } from '#root/shared/index.js';
@@ -36,6 +39,8 @@ export class CourseRegistrationService extends BaseService {
     @inject(COURSES_TYPES.ItemRepo) private readonly itemRepo: IItemRepository,
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: CourseRepository,
+    @inject(GLOBAL_TYPES.SettingRepo)
+    private readonly settingsRepo: ISettingRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly mongoDatabase: MongoDatabase,
   ) {
@@ -174,5 +179,78 @@ export class CourseRegistrationService extends BaseService {
     );
     await this.inviteService.courseContentLength(data.courseId, data.versionId);
     return await this.courseRegistrationRepo.updateBulkStatus(registrationIds);
+  }
+
+  async getSettings(versionId: string): Promise<IRegistrationSettings[]> {
+    return this._withTransaction(async session => {
+      try {
+        const version = await this.courseRepo.readVersion(versionId, session);
+        if (!version) {
+          throw new NotFoundError(
+            `Course version with id ${versionId} not found`,
+          );
+        }
+
+        const courseId = version.courseId.toString();
+
+        let courseSettings = await this.settingsRepo.readCourseSettings(
+          courseId,
+          versionId,
+          session,
+        );
+
+        if (!courseSettings) {
+          throw new NotFoundError(
+            `Course settings for course ID ${courseId} and version ID ${versionId} not found.`,
+          );
+        }
+
+        let registrationSettings =
+          courseSettings.settings.registration_settings;
+
+        // If no registration settings exist, add default ones
+        if (!registrationSettings || registrationSettings.length === 0) {
+          const defaultSettings: IRegistrationSettings[] = [
+            {label: 'Full Name', type: 'TEXT', required: true, isDefault: true},
+            {label: 'Email', type: 'EMAIL', required: true, isDefault: true},
+            {label: 'Phone', type: 'TEL', required: false, isDefault: true},
+          ];
+
+          await this.settingsRepo.addDefaultRegistrationSettings(
+            courseId,
+            versionId,
+            defaultSettings,
+            session,
+          );
+          registrationSettings = defaultSettings;
+        }
+
+        return registrationSettings;
+      } catch (error) {
+        throw new InternalServerError('Failed to get settings');
+      }
+    });
+  }
+
+  async updateSettings(versionId: string, settings: IRegistrationSettings[]) {
+    return this._withTransaction(async session => {
+      try {
+        const version = await this.courseRepo.readVersion(versionId, session);
+        if (!version) {
+          throw new NotFoundError(
+            `Course version with id ${versionId} not found`,
+          );
+        }
+        const courseId = version.courseId.toString();
+        return await this.settingsRepo.updateRegistrationSettings(
+          courseId,
+          versionId,
+          settings,
+          session,
+        );
+      } catch (error) {
+        throw new InternalServerError('Failed to update settings');
+      }
+    });
   }
 }
