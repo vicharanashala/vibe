@@ -159,42 +159,32 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
         }
 
         try {
-            // Prepare the question data based on type
-            const questionData = {
-                text: questionForm.text,
-                type: questionForm.type,
-                isParameterized: questionForm.isParameterized,
-                parameters: questionForm.isParameterized ? [] : [],
-                hint: questionForm.hint || undefined,
-                timeLimitSeconds: questionForm.timeLimitSeconds,
-                points: questionForm.points,
-                priority: questionForm.priority,
-                incorrectLotItems: incorrectOptions.map(({ text, explaination }) => ({ text, explaination })),
-                ...(questionForm.type === 'SELECT_ONE_IN_LOT'
-                    ? { correctLotItem: { text: correctOptions[0].text, explaination: correctOptions[0].explaination } }
-                    : { correctLotItems: correctOptions.map(({ text, explaination }) => ({ text, explaination })) }
-                )
-            };
+            // Prepare solution based on question type
+            const solution = questionForm.type === 'SELECT_ONE_IN_LOT' 
+                ? {
+                    correctLotItem: { text: correctOptions[0].text, explaination: correctOptions[0].explaination },
+                    incorrectLotItems: incorrectOptions.map(({ text, explaination }) => ({ text, explaination }))
+                  }
+                : {
+                    correctLotItems: correctOptions.map(({ text, explaination }) => ({ text, explaination })),
+                    incorrectLotItems: incorrectOptions.map(({ text, explaination }) => ({ text, explaination }))
+                  };
 
-            console.log('Creating question:', questionData);
+            console.log('Creating question with solution:', solution);
 
             const data = await createQuestion.mutateAsync({
                 body: {
                     question: {
-                        text: questionData.text,
-                        type: questionData.type,
-                        isParameterized: questionData.isParameterized,
-                        parameters: questionData.parameters,
-                        hint: questionData.hint,
-                        timeLimitSeconds: questionData.timeLimitSeconds,
-                        points: questionData.points,
-                        priority: questionData.priority
+                        text: questionForm.text,
+                        type: questionForm.type,
+                        isParameterized: questionForm.isParameterized,
+                        parameters: questionForm.isParameterized ? [] : [],
+                        hint: questionForm.hint || undefined,
+                        timeLimitSeconds: questionForm.timeLimitSeconds,
+                        points: questionForm.points,
+                        priority: questionForm.priority
                     },
-                    solution: {
-                        correctLotItems: questionData.correctLotItems,
-                        incorrectLotItems: questionData.incorrectLotItems,
-                        correctLotItem: questionData.correctLotItem
-                    }
+                    solution
                 }
             });
             await addQuestionToBank.mutateAsync({
@@ -302,7 +292,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                             <Label htmlFor="priority" className='mb-3'>Priority *</Label>
                                             <Select
                                                 value={questionForm.priority}
-                                                onValueChange={(value) => setQuestionForm(prev => ({ ...prev, priority: value }))}
+                                                onValueChange={(value) => setQuestionForm(prev => ({ ...prev, priority: value as 'LOW' | 'MEDIUM' | 'HIGH' }))}
                                             >
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select priority" />
