@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters } from '@/lib/genai-api';
 import { useCourseStore } from '@/store/course-store';
-import { ArrowLeft, ArrowRight,ChevronRight, ChevronLeft, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors,Settings, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap, Info, Power } from 'lucide-react';
+import { ArrowLeft, ArrowRight,ChevronRight, ChevronLeft, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors,Settings, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap, Info, Power, Check } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner';
 import { AudioTranscripter } from './AudioTranscripter';
@@ -2277,7 +2277,7 @@ const isQuestionDecided = (index: number) => {
                                 }`}
                                 aria-label="Reject question"
                               >
-                                <ChevronLeft className="w-4 h-4" />
+                                <X className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => handleSwipe('right')}
@@ -2289,7 +2289,7 @@ const isQuestionDecided = (index: number) => {
                                 }`}
                                 aria-label="Accept question"
                               >
-                                <ChevronRight className="w-4 h-4" />
+                                <Check className="w-4 h-4" />
                               </button>
                           </div>
                         );
