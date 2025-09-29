@@ -23,6 +23,7 @@ import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.type
 import { EntityType, IReport, ReportStatus } from '@/types/flag.types';
 import { useQueryClient } from '@tanstack/react-query';
 import { VersionWithCourse } from '@/app/pages/student/CourseRegistration';
+import { Registration, RegistrationStatus } from '@/app/pages/teacher/CourseRegistrationRequests';
 
 // Add missing ObjectId type
 type ObjectId = string;
@@ -2843,21 +2844,19 @@ export const useSubmitCourseRegistration: () => {
 
 
 export interface RegistrationRequestQuery {
-  filter?: 'pending' | 'approved' | 'rejected' | 'all';
-  sort?: 'createdAt' | 'latest';
+  filter?: RegistrationStatus;
+  sort?: 'older' | 'latest';
   search?: string;
   limit?: number;
-  skip?: number;
+  page?: number;
 }
 
-export interface RegistrationRequestResponse {
- 
-}
+
 
 export const useGetCourseRegistrationRequests = (
   params: RegistrationRequestQuery = {}
 ): {
-  data: RegistrationRequestResponse[] | undefined;
+  data: {totalDocuments: number, totalPages: number, currentPage: number, registrations: Registration[]};
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
@@ -2872,14 +2871,14 @@ export const useGetCourseRegistrationRequests = (
           sort: params.sort,
           search: params.search,
           limit: params.limit,
-          skip: params.skip,
+          page: params.page,
         },
       },
     }
   );
 
   return {
-    data: result.data as RegistrationRequestResponse[] | undefined,
+    data: result.data as {totalDocuments: number, totalPages: number, currentPage: number, registrations: Registration[]} ,
     isLoading: result.isLoading,
     error: result.error
       ? result.error.message || 'Failed to fetch course registration requests'
