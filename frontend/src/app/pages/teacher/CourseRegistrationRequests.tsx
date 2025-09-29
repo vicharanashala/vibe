@@ -721,6 +721,7 @@ ${registrationUrl}`;
           open={isCustomOpen}
           onOpenChange={setIsCustomOpen}
           onSave={handleSave}
+          versionId={versionId as string}
         />
       </div>
     </div>
