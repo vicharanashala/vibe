@@ -1850,9 +1850,9 @@ const clearStoredQuestions = () => {
       }
       const newParams = {
         ...customQuestionParams,
-        SOL: (isMCQ) ? 2 : 0,
-        SML: isMSQ  ? 2 : 0,
-        BIN:isBinary ?2:0,
+        SOL: (isMCQ) ? 10 : 0,
+        SML: isMSQ  ? 10 : 0,
+        BIN:isBinary ?10:0,
         // prompt: isBinary ? binaryPrompt : customQuestionParams.prompt,
       };
 
