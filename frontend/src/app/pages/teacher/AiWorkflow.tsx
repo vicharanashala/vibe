@@ -641,7 +641,7 @@ const AiWorkflow = () => {
         }
     };
 
-    const handleApproveTask = async(qnGenParams?:QuestionGenerationParameters) => {
+    const handleApproveTask = async(qnGenParams?: QuestionGenerationParameters, filteredQuestions?: any[]) => {
         try {
             // 1. Check aiJobId
             if (!aiJobId) {
@@ -676,14 +676,33 @@ const AiWorkflow = () => {
             setAiJobStatus( { ...status, task: currentTask, status: currentStatus  } );
             
             
-            const customUploadParams = { 
+            const customUploadParams: any = { 
               courseId: currentCourse?.courseId, 
               versionId: currentCourse?.versionId, 
               moduleId: currentCourse?.moduleId, 
               sectionId: currentCourse?.sectionId, 
               videoItemBaseName: uploadParams.videoItemBaseName, 
-              quizItemBaseName: uploadParams.quizItemBaseName, questionsPerQuiz: uploadParams.questionsPerQuiz
+              quizItemBaseName: uploadParams.quizItemBaseName, 
+              questionsPerQuiz: uploadParams.questionsPerQuiz
             };
+
+            if (filteredQuestions && filteredQuestions.length > 0) {
+              customUploadParams.questions = filteredQuestions;
+            } else {
+              try {
+                const storedQuestions = localStorage.getItem('questions');
+                if (storedQuestions) {
+                  const parsedQuestions = JSON.parse(storedQuestions);
+                  const acceptedQuestions = parsedQuestions.filter((q: any) => q.isAccept === true);
+                  if (acceptedQuestions.length > 0) {
+                    customUploadParams.questions = acceptedQuestions;
+                  }
+                }
+              } catch (error) {
+                console.error('Error getting accepted questions from localStorage:', error);
+              }
+            }
+            
             const customQuestionGenParams = qnGenParams || customQuestionParams;
 
             let params: Record<string, any> | null = null;
@@ -718,10 +737,8 @@ const AiWorkflow = () => {
         } catch(error) {
             if(!isWaitingServer) {
               toast.error("Failed to approve task");
-              console.log("Failed to approve task", error);
             } else {
               toast.error("Failed to retry task");
-              console.log("Failed to retry task", error);
             }
             setProgress(100);
             setTimeout(() => setIsLoading(false), 500);
@@ -1387,7 +1404,7 @@ interface QuestionGenerationResultProps {
   setQuestions: React.Dispatch<React.SetStateAction<any[]>>;
   editModalOpen: boolean;
   aiJobId: string | null;
-  handleApproveTask: (qnGenParams?: QuestionGenerationParameters, jobStatus?: CurrentJob) => void;
+  handleApproveTask: (qnGenParams?: QuestionGenerationParameters, filteredQuestions?: any[]) => void;
   setEditingIdx: (idx: number) => void;
   setEditQuestion: (q: any) => void;
   setEditModalOpen: (open: boolean) => void;
@@ -1577,7 +1594,6 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
         });
         
         localStorage.setItem('questions', JSON.stringify(questionsToStore));
-        console.log('Questions stored in localStorage - only storing explicit decisions');
       }
     }, [questions]);
 
@@ -1586,7 +1602,6 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
       if (storedQuestions) {
         try {
           const parsedQuestions = JSON.parse(storedQuestions);
-          console.log('Loaded questions from localStorage:', parsedQuestions);
           
           const accepted = new Set<number>();
           const rejected = new Set<number>();
@@ -1676,7 +1691,6 @@ const [isRerunning, setIsRerunning] = useState(false);
           if (allQuestions[globalIndex]) {
             allQuestions[globalIndex].isAccept = true;
             localStorage.setItem('questions', JSON.stringify(allQuestions));
-            console.log(`Question ${globalIndex} accepted and stored in localStorage`);
           }
         } else {
           setRejectedQuestions(prev => {
@@ -1694,7 +1708,6 @@ const [isRerunning, setIsRerunning] = useState(false);
           if (allQuestions[globalIndex]) {
             allQuestions[globalIndex].isAccept = false;
             localStorage.setItem('questions', JSON.stringify(allQuestions));
-            console.log(`Question ${globalIndex} rejected and stored in localStorage`);
           }
         }
         
@@ -1842,14 +1855,12 @@ const [isRerunning, setIsRerunning] = useState(false);
 
 const clearStoredQuestions = () => {
   localStorage.removeItem('questions');
-  console.log('Cleared questions from localStorage');
   setAcceptedQuestions(new Set());
   setRejectedQuestions(new Set());
 };
 
     const handleNext = () => {
       const acceptedQuestions = getAcceptedQuestionsFromStorage();
-      console.log('Accepted questions:', acceptedQuestions);
       updateCurrentJob("uploadContent", "WAITING");
     }
 
@@ -3624,7 +3635,7 @@ interface UploadContentProps {
   uploadParams: UploadParams;
   setUploadParams: React.Dispatch<React.SetStateAction<UploadParams>>;
   isLoading: boolean;
-  handleApproveTask: (qnGenParms?: QuestionGenerationParameters) => void;
+  handleApproveTask: (qnGenParms?: QuestionGenerationParameters, filteredQuestions?: any[]) => void;
   isApprovingTask: boolean;
 }
 
@@ -3637,6 +3648,22 @@ const UploadContentView: React.FC<UploadContentProps> = ({
   isApprovingTask
 }) => {
   const navigate = useNavigate();
+
+  const handleUploadContent = () => {
+    const storedQuestions = localStorage.getItem('questions');
+    let acceptedQuestions: any[] = [];
+    
+    if (storedQuestions) {
+      try {
+        const allQuestions = JSON.parse(storedQuestions);
+        acceptedQuestions = allQuestions.filter((q: any) => q.isAccept === true);
+      } catch (error) {
+        console.error('Error parsing stored questions:', error);
+      }
+    }
+    
+    handleApproveTask(undefined, acceptedQuestions);
+  };
 
   if(currentJobStatus !== "COMPLETED") { 
     return(<div className="space-y-6">
@@ -3693,7 +3720,7 @@ const UploadContentView: React.FC<UploadContentProps> = ({
         {/* Centered Next Button */}
         <div className="flex justify-center">
         <Button
-            onClick={() => handleApproveTask()}
+            onClick={handleUploadContent}
             disabled={isLoading || isApprovingTask}
             className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
         >
