@@ -3264,7 +3264,7 @@ const SegmentationView = ({
                     <SelectValue/>
                     </SelectTrigger>
                     <SelectContent>
-                    <SelectItem value="0.5" >Very Frequent</SelectItem>
+                    <SelectItem value="1.2" >Very Frequent</SelectItem>
                     <SelectItem value="2">Frequent</SelectItem>
                     <SelectItem value="4.5">Normal</SelectItem>
                     <SelectItem value="5.5">Less Frequent</SelectItem>
