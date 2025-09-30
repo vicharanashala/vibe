@@ -38,13 +38,11 @@ class CourseRegistrationRepository {
     return result.insertedId.toString();
   }
 
-  async getRegistration(registrationId: string) {
+  async getRegistration(registrationId: string, session?: ClientSession) {
     await this.init();
-    console.log('registrationId from repo ', registrationId);
     const result = await this.courseRegistrationCollection.findOne({
       _id: new ObjectId(registrationId),
-    });
-    console.log('result getregi ', result);
+    }, {session});
     return result;
   }
 
@@ -90,6 +88,7 @@ class CourseRegistrationRepository {
   async updateStatus(
     registrationId: string,
     status: 'PENDING' | 'APPROVED' | 'REJECTED',
+    session?: ClientSession,
   ) {
     await this.init();
     const data = await this.courseRegistrationCollection.findOneAndUpdate(
@@ -97,19 +96,19 @@ class CourseRegistrationRepository {
       {
         $set: {status, updatedAt: new Date()},
       },
-      {returnDocument: 'after'},
+      {returnDocument: 'after', session},
     );
-    console.log('result ', data);
     const result = {...data, _id: data._id.toString()};
     return result;
   }
 
-  async updateBulkStatus(registrationIds: string[]) {
+  async updateBulkStatus(registrationIds: string[], session?: ClientSession) {
     await this.init();
     if (registrationIds.length <= 0) {
       const data = await this.courseRegistrationCollection.updateMany(
         {_id: {$in: registrationIds}},
         {$set: {status: 'APPROVED', updatedAt: new Date()}},
+        {session}
       );
       return data.modifiedCount;
     } else {

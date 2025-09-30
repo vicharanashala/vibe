@@ -44,7 +44,7 @@ export const quizzesContainerModule = new ContainerModule(options => {
     .bind(QUIZZES_TYPES.QuestionBankRepo)
     .to(QuestionBankRepository)
     .inSingletonScope();
- 
+
   // Services
   options
     .bind(QUIZZES_TYPES.QuestionService)
