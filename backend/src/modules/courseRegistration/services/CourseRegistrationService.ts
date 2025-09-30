@@ -19,7 +19,7 @@ import {
 } from '#root/shared/index.js';
 import {COURSE_REGISTRATION_TYPES} from '../types.js';
 import {Invite, InviteService} from '#root/modules/notifications/index.js';
-import {ObjectId} from 'mongodb';
+import {ClientSession, ObjectId} from 'mongodb';
 import {CourseDetailsDTO} from '../classes/index.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {COURSES_TYPES} from '#root/modules/courses/types.js';
@@ -158,29 +158,66 @@ export class CourseRegistrationService extends BaseService {
     registrationId: string,
     status: 'PENDING' | 'APPROVED' | 'REJECTED',
   ) {
-    const data = await this.courseRegistrationRepo.getRegistration(
-      registrationId,
-    );
-    if (!data) {
-      throw new NotFoundError(
-        `Registration with id ${registrationId} not found`,
-      );
-    }
-    await this.inviteService.courseContentLength(data.courseId, data.versionId);
-    return await this.courseRegistrationRepo.updateStatus(
-      registrationId,
-      status,
-    );
+    return this._withTransaction(async (session: ClientSession) => {
+      try {
+        const data = await this.courseRegistrationRepo.getRegistration(
+          registrationId,
+          session,
+        );
+        if (!data) {
+          throw new NotFoundError(
+            `Registration with id ${registrationId} not found`,
+          );
+        }
+
+        await this.inviteService.courseContentLength(
+          data.courseId,
+          data.versionId,
+        );
+
+        return await this.courseRegistrationRepo.updateStatus(
+          registrationId,
+          status,
+          session,
+        );
+      } catch (error) {
+        console.error('Failed to update status:', error);
+        throw new InternalServerError('Failed to update registration status');
+      }
+    });
   }
 
   async updateBulkStatus(registrationIds: string[]) {
-    const data = await this.courseRegistrationRepo.getRegistration(
-      registrationIds[0],
-    );
-    await this.inviteService.courseContentLength(data.courseId, data.versionId);
-    return await this.courseRegistrationRepo.updateBulkStatus(registrationIds);
-  }
+    return this._withTransaction(async (session: ClientSession) => {
+      try {
+        const first = await this.courseRegistrationRepo.getRegistration(
+          registrationIds[0],
+          session,
+        );
 
+        if (!first) {
+          throw new NotFoundError(
+            `Registration with id ${registrationIds[0]} not found`,
+          );
+        }
+
+        await this.inviteService.courseContentLength(
+          first.courseId,
+          first.versionId,
+        );
+
+        return await this.courseRegistrationRepo.updateBulkStatus(
+          registrationIds,
+          session,
+        );
+      } catch (error) {
+        console.error('Failed to bulk update status:', error);
+        throw new InternalServerError(
+          'Failed to bulk update registration status',
+        );
+      }
+    });
+  }
   async getSettings(versionId: string): Promise<IRegistrationSettings[]> {
     return this._withTransaction(async session => {
       try {
