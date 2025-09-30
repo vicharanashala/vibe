@@ -3274,7 +3274,7 @@ const SegmentationView = ({
                 </div>
 
                 <div className="mt-7 text-sm dark:text-gray-200 text-gray-900 max-w-xs transition-opacity duration-300">
-                {customSegmentationParams.lam === 0.5 &&
+                {customSegmentationParams.lam === 1.2 &&
                     "Segments will be created very frequently, providing high detail and precision."}
                 {customSegmentationParams.lam === 2 &&
                     "Segments will be created frequently, offering a balance between detail and performance."}
