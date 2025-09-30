@@ -21,12 +21,14 @@ export class ProjectSubmissionRepository
   async getByUser(
     userId: string,
     versionId: string,
+    courseId: string,
     session?: ClientSession,
   ): Promise<IProjectSubmission | null> {
     await this.init();
     return await this._projectSubmissionCollection.findOne(
       {
         userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(versionId),
       },
       {session},
@@ -124,19 +126,34 @@ export class ProjectSubmissionRepository
     session?: ClientSession,
   ): Promise<ID> {
     await this.init();
-    const data: IProjectSubmission = {
-      projectId: new ObjectId(projectId),
+    const result = await this._projectSubmissionCollection.insertOne(
+      {
+        projectId: new ObjectId(projectId),
       userId: new ObjectId(userId),
-      courseId: new ObjectId(courseId),
-      courseVersionId: new ObjectId(courseVersionId),
-      submissionURL,
-      comment,
-      createdAt: new Date(),
-    };
-
-    const result = await this._projectSubmissionCollection.insertOne(data, {
-      session,
-    });
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        submissionURL,
+        comment,
+        createdAt: new Date(),
+      },
+      {session},
+    );
     return result.insertedId;
+  }
+
+  async deleteByUserAndVersion(
+    userId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+    const result = await this._projectSubmissionCollection.deleteMany(
+      {
+        userId: new ObjectId(userId),
+        courseVersionId: new ObjectId(courseVersionId),
+      },
+      {session},
+    );
+    return result.deletedCount > 0;
   }
 }
