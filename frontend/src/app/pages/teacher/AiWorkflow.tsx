@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters } from '@/lib/genai-api';
+import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, editQuestionData, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters } from '@/lib/genai-api';
 import { useCourseStore } from '@/store/course-store';
 import { ArrowLeft, ArrowRight,ChevronRight, ChevronLeft, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors,Settings, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap, Info, Power, Check } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react'
@@ -925,12 +925,13 @@ const AiWorkflow = () => {
                                 />
                             ) : currentJob?.task === "UPLOAD_CONTENT" ? (
                                 <UploadContentView
-                                    currentJobStatus = {currentJob.status} 
-                                    setUploadParams = {setUploadParams}
-                                    uploadParams = {uploadParams} 
-                                    handleApproveTask = {handleApproveTask} 
-                                    isLoading = {isLoading}
+                                    currentJobStatus={currentJob.status} 
+                                    setUploadParams={setUploadParams}
+                                    uploadParams={uploadParams} 
+                                    handleApproveTask={handleApproveTask} 
+                                    isLoading={isLoading}
                                     isApprovingTask={isApprovingTask}
+                                    aiJobId={aiJobId}
                                 />
                             ) : (
                             <>
@@ -2466,7 +2467,7 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
                 const updatedQuestions = questions.map((q, idx) =>
                   idx !== editingIdx ? q : { ...q, question: { ...q.question, text: edited.text }, solution: edited.solution }
                 );
-                await aiSectionAPI.editQuestionData(aiJobId, updatedQuestions);
+                await aiSectionAPI.editQuestionData(aiJobId, updatedQuestions, editingIdx);
                   setQuestions(prev =>
                     prev.map((q, idx) =>
                       idx !== editingIdx
@@ -3637,6 +3638,7 @@ interface UploadContentProps {
   isLoading: boolean;
   handleApproveTask: (qnGenParms?: QuestionGenerationParameters, filteredQuestions?: any[]) => void;
   isApprovingTask: boolean;
+  aiJobId: string | null;
 }
 
 const UploadContentView: React.FC<UploadContentProps> = ({
@@ -3645,11 +3647,17 @@ const UploadContentView: React.FC<UploadContentProps> = ({
   setUploadParams,
   isLoading, 
   handleApproveTask,
-  isApprovingTask
+  isApprovingTask,
+  aiJobId
 }) => {
   const navigate = useNavigate();
 
-  const handleUploadContent = () => {
+  const handleUploadContent = async () => {
+    if (!aiJobId) {
+      console.error('No job ID found');
+      return;
+    }
+
     const storedQuestions = localStorage.getItem('questions');
     let acceptedQuestions: any[] = [];
     
@@ -3657,8 +3665,21 @@ const UploadContentView: React.FC<UploadContentProps> = ({
       try {
         const allQuestions = JSON.parse(storedQuestions);
         acceptedQuestions = allQuestions.filter((q: any) => q.isAccept === true);
+        
+        // Send all accepted questions as an array to the API
+        if (acceptedQuestions.length > 0) {
+          try {
+            await editQuestionData(aiJobId, acceptedQuestions);
+          } catch (error) {
+            console.error('Error updating questions:', error);
+            toast.error('Failed to update questions. Please try again.');
+            return;
+          }
+        }
       } catch (error) {
-        console.error('Error parsing stored questions:', error);
+        console.error('Error processing questions:', error);
+        toast.error('Error processing questions. Please try again.');
+        return;
       }
     }
     
