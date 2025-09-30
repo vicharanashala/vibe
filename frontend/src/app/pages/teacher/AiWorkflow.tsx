@@ -59,6 +59,9 @@ const AiWorkflow = () => {
     const [showUrl, setShowUrl] = useState(false);
     const [urlError, setUrlError] = useState<string | null>(null); // yt url error
     const [aiJobId, setAiJobId] = useState<string | null>(null); 
+    const clearStoredQuestions = () => {
+      localStorage.removeItem('questions');
+    };
 
     const [uploadParams, setUploadParams] = useState<UploadParams>({
     videoItemBaseName: "video_item",
@@ -513,6 +516,7 @@ const AiWorkflow = () => {
     }
 
     const handleCreateJob = async () => {
+      clearStoredQuestions();
         // 1. Check transcription text is there
         if(!transcribedData?.text){
             toast.error("No transcript found, Try again!");
@@ -600,6 +604,7 @@ const AiWorkflow = () => {
             scrollToError();
             return;
         }
+        clearStoredQuestions();
         setIsLoading(true)
 
         setTimeout(() => {
@@ -742,6 +747,7 @@ const AiWorkflow = () => {
         // setYoutubeUrl("");
         setIsURLValidated(false);
         updateCurrentJob("audioExtraction","WAITING");
+        clearStoredQuestions();
         toast.success("You have successfully ended the current session.");
     }
 
@@ -1693,11 +1699,15 @@ const [isRerunning, setIsRerunning] = useState(false);
         }
         
         setTimeout(() => {
-          setSwipeDirection(null);
+        const nextPendingIndex = currentSegmentQuestions.findIndex((_, idx) => {
+          const isDecided = isQuestionDecidedInSegment(currentSegmentIndex, idx);
+          const isRejected = isQuestionRejected(idx);
+          return idx > currentQuestionInSegment && !isDecided && !isRejected;
+        });
           
-          const nextPendingIndex = currentSegmentQuestions.findIndex((_, idx) => 
-            idx > currentQuestionInSegment && !isQuestionDecidedInSegment(currentSegmentIndex, idx)
-          );
+          setTimeout(() => {
+            setSwipeDirection(null);
+          }, 200);
           
           if (nextPendingIndex >= 0) {
             setCurrentQuestionIndexBySegment(prevState => ({
@@ -1911,8 +1921,13 @@ const currentSegmentAcceptedCount = useMemo(() => {
   }).length;
 }, [currentSegmentQuestions, currentSegmentIndex]);
 
-const currentSegmentTotalQuestions = currentSegmentQuestions.length;
+const currentSegmentRejectedCount = useMemo(() => {
+  return currentSegmentQuestions.filter((_, idx) => {
+    return isQuestionRejected(idx);
+  }).length;
+}, [currentSegmentQuestions]);
 
+const currentSegmentActiveQuestions = currentSegmentQuestions.length - currentSegmentRejectedCount;
 const isSegmentCompleted = currentSegmentAcceptedCount > 0;
 
 const isQuestionDecided = (index: number) => {
@@ -2143,7 +2158,7 @@ const isQuestionDecided = (index: number) => {
                       </div>
                       
                       <div className="text-sm text-gray-600 dark:text-gray-400">
-                        Question {currentQuestionInSegment + 1} of {currentSegmentQuestions.length}
+                        Question {currentSegmentAcceptedCount} of {currentSegmentQuestions.length - currentSegmentRejectedCount}
                       </div>
                     </div>
 
@@ -2163,7 +2178,7 @@ const isQuestionDecided = (index: number) => {
                       return (
                         <div
                           key={q.question?.text || idx}
-                          className={`bg-card/90 border rounded-lg p-4 transition-all duration-300 transform relative ${
+                          className={`bg-card/90 border rounded-lg p-4 transition-all duration-500 ease-in-out transform relative ${
                             swipeDirection === 'right' 
                               ? 'translate-x-full opacity-0' 
                               : swipeDirection === 'left' 
@@ -2302,14 +2317,15 @@ const isQuestionDecided = (index: number) => {
                           Segment Progress
                         </span>
                         <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          {currentSegmentAcceptedCount} / {currentSegmentQuestions.length} questions accepted (Segment {currentSegmentIndex + 1} of {segmentIds.length})
+                          {currentSegmentAcceptedCount} of {currentSegmentQuestions.length - currentSegmentRejectedCount} questions 
+                                (Segment {currentSegmentIndex + 1} of {segmentIds.length})
                         </span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
                         <div 
                           className="bg-green-600 h-2.5 rounded-full transition-all duration-300" 
                           style={{ 
-                            width: `${(currentSegmentAcceptedCount / currentSegmentQuestions.length) * 100}%`,
+                            width: `${(currentSegmentAcceptedCount / Math.max(1, currentSegmentActiveQuestions)) * 100}%`,
                             minWidth: currentSegmentAcceptedCount > 0 ? '0.5rem' : '0'
                           }}
                         />
