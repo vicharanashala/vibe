@@ -14,18 +14,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Users, Eye, User, CheckCircle, XCircle, Share2, Check, Copy, ExternalLink, Share, RefreshCw, Settings, ListChecks, Mail, Hash, Calendar } from "lucide-react";
+import { Loader2, Users, Eye, User, CheckCircle, XCircle, Share2, Check, Copy, Share, RefreshCw, Settings, ListChecks, Hash, Calendar } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCourseStore } from "@/store/course-store";
 import { toast } from "sonner";
-import { RegistrationRequestQuery, useBulkUpdateRegistrationStatus, useGetCourseRegistrationRequests, useUpdateRegistrationFields, useUpdateRegistrationStatus } from "@/hooks/hooks";
+import {useBulkUpdateRegistrationStatus, useGetCourseRegistrationRequests, useUpdateRegistrationFields, useUpdateRegistrationStatus } from "@/hooks/hooks";
 import { Pagination } from "@/components/ui/Pagination";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import ConfirmationModal from "./components/confirmation-modal";
-import { RegistrationSettingsDialog } from "./components/course-registration-modal";
+import { FormBuilder } from "./components/course-registration-modal";
 
 
 interface RegistrationDetail {
@@ -81,7 +81,7 @@ export default function CourseRegistrationRequests() {
   const { data: registrationsData, isLoading, refetch: registrationsRefetch } = useGetCourseRegistrationRequests(versionId as string, params);
   const { mutateAsync: updateStatus, isPending: isUpdatingStatus } = useUpdateRegistrationStatus();
   const { mutateAsync: updateBulkStatus, isPending: isUpdatingBulkStatus } = useBulkUpdateRegistrationStatus();
-  const { mutateAsync: updateFields, isPending:isUpdatingFields } = useUpdateRegistrationFields()
+  // const { mutateAsync: updateFields, isPending:isUpdatingFields } = useUpdateRegistrationFields()
   const registrations = registrationsData?.registrations || []
 
   const FRONTEND_URL = window.location.origin;
@@ -180,22 +180,22 @@ ${registrationUrl}`;
     }
   };
 
-  const handleSave = async (fields) => {
-    const processedFields = fields.map((f) => ({
-      label:f.label,
-      type:f.type,
-      required:f.required,
-      options:f.options ?? []
-    }))
-    try {
-      await updateFields(versionId as string,processedFields)
-      toast.success('Custom fields saved successfully!');
-      setIsCustomOpen(false)
-      registrationsRefetch()
-    } catch (error:any) {
-      toast.error(error?.message || 'Failed to save fields. Please try again.')
-    }
-  }
+  // const handleSave = async (fields: Field[]) => {
+  //   const processedFields = fields.map((f) => ({
+  //     label:f.label,
+  //     type:f.type,
+  //     required:f.required,
+  //     options:f.options ?? []
+  //   }))
+  //   try {
+  //     await updateFields(versionId as string,processedFields)
+  //     toast.success('Custom fields saved successfully!');
+  //     setIsCustomOpen(false)
+  //     registrationsRefetch()
+  //   } catch (error:any) {
+  //     toast.error(error?.message || 'Failed to save fields. Please try again.')
+  //   }
+  // }
 
 
   const handlePageChange = (newPage: number) => {
@@ -205,6 +205,8 @@ ${registrationUrl}`;
 
   return (
     <div className="min-h-screen bg-background">
+                                          <FormBuilder versionId={versionId!}/>
+
       <ConfirmationModal
         isOpen={isSingleApproveOpen}
         onClose={() => {
@@ -249,15 +251,7 @@ ${registrationUrl}`;
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => setIsCustomOpen(true)}
-            >
-              <Share2 className="h-4 w-4" />
-              Create Custom Fields
-            </Button>
+          
 
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
               <DialogTrigger asChild>
@@ -351,6 +345,17 @@ ${registrationUrl}`;
                 ? "Approve All"
                 : `Approve Selected (${selectedIds.length})`}
             </Button>
+
+              <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => setIsCustomOpen(true)}
+            >
+              <Settings className="h-4 w-4" />
+              Settings
+            </Button>
+
 
             <Button
               variant="outline"
@@ -717,13 +722,14 @@ ${registrationUrl}`;
           />
         )}
 
-        <RegistrationSettingsDialog
+        {/* <RegistrationSettingsDialog
           open={isCustomOpen}
           onOpenChange={setIsCustomOpen}
-          onSave={handleSave}
-          versionId={versionId as string}
-        />
+          onSave={handleSave} */}
+          {/* // versionId={versionId as string} */}
+        {/* /> */}
       </div>
+
     </div>
   );
 }
