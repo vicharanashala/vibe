@@ -4,6 +4,10 @@ import { ItemScope, createAbilityBuilder } from './types.js';
 import { getFromContainer, InternalServerError } from "routing-controllers";
 import { ProgressService } from "#root/modules/users/services/ProgressService.js";
 import { CourseSettingService } from "#root/modules/setting/services/CourseSettingService.js";
+import { ItemService } from "#root/modules/courses/services/ItemService.js";
+import { QuizService } from "#root/modules/quizzes/services/QuizService.js";
+import { COURSES_TYPES } from "#root/modules/courses/types.js";
+import { QUIZZES_TYPES } from "#root/modules/quizzes/types.js";
 
 // Actions
 export enum ItemActions {
@@ -65,17 +69,52 @@ export async function setupItemAbilities(
                     throw new InternalServerError('No progress found for user');
                 }
 
+                // AllowedItemIds: completed items + current item
                 const allowedItemIds = [...completedItems];
-                allowedItemIds.push(progress.currentItem.toString());
+                const currentItemId = progress.currentItem.toString();
+                
+                if (!allowedItemIds.includes(currentItemId)) {
+                    allowedItemIds.push(currentItemId);
+                }
+
+
 
                 const itemBounded: { courseId: string, versionId: string, itemId?: any } = {
                     courseId: enrollment.courseId,
                     versionId: enrollment.versionId,
                 };
                 
-                // Grant permission to view items that are in the allowed list
+                // Apply linear progression with blank quiz filtering
                 if (linearProgressionEnabled) {
-                    itemBounded.itemId = { $in: allowedItemIds };
+                    try {
+                        const itemService = getFromContainer(ItemService);
+                        
+                        // Filter out blank quizzes from linear progression
+                        const filteredAllowedItemIds = [];
+                        for (const itemId of allowedItemIds) {
+                            try {
+                                const itemDetails = await itemService.readItem(enrollment.versionId, itemId.toString());
+                                
+                                // Skip blank quizzes entirely from progression
+                                if (itemDetails && itemDetails.type === 'QUIZ') {
+                                    const quizDetails = itemDetails.details;
+                                    if (quizDetails && 
+                                        Array.isArray(quizDetails.questionBankRefs) && 
+                                        quizDetails.questionBankRefs.length === 0) {
+                                        continue; 
+                                    }
+                                }
+                                filteredAllowedItemIds.push(itemId);
+                            } catch (itemError) {
+                                filteredAllowedItemIds.push(itemId);
+                            }
+                        }
+                        
+                        itemBounded.itemId = { $in: filteredAllowedItemIds };
+                        
+                    } catch (diError) {
+    
+                    }
                 }
 
                 can(ItemActions.View, 'Item', itemBounded);
