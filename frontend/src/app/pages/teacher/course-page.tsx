@@ -1208,6 +1208,7 @@ function VersionCard({
                     </div>
                   </div>
                   <div className="flex items-center justify-end gap-2 shrink-0 mt-3 md:mt-0">
+                  <ProjectSubmissionsDownloadButton courseId={courseId || ""} versionId={versionId || ""} />
                   <Button
                     variant="outline"
                     size="sm"
