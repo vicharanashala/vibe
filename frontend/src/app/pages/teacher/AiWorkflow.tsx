@@ -83,6 +83,7 @@ const AiWorkflow = () => {
     - Make all the options roughly the same length
     - Set isParameterized to false unless the question uses variables
     - Do not mention the word 'transcript' for giving references, use the word 'video' instead`,
+        numberOfQuestions: 10
     });
     const [customSegmentationParams, setCustomSegmentationParams] =
     useState<SegmentationParameters>({
@@ -1630,6 +1631,7 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
     const [isMCQ, setIsMCQ] = useState(true);
     const [isMSQ, setIsMSQ] = useState(false);
     const [isBinary, setIsBinary] = useState(false);
+    const [numberOfQuestions, setNumberOfQuestions] = useState(10);
     const [currentQuestionIndexBySegment, setCurrentQuestionIndexBySegment] = useState<Record<number, number>>({});
     const [acceptedQuestions, setAcceptedQuestions] = useState<Set<number>>(new Set());
     const [rejectedQuestions, setRejectedQuestions] = useState<Set<number>>(new Set());
@@ -1872,9 +1874,10 @@ const clearStoredQuestions = () => {
       }
       const newParams = {
         ...customQuestionParams,
-        SOL: (isMCQ) ? 10 : 0,
-        SML: isMSQ  ? 10 : 0,
-        BIN:isBinary ?10:0,
+        SOL: (isMCQ) ? numberOfQuestions : 0,
+        SML: isMSQ  ? numberOfQuestions : 0,
+        BIN:isBinary ? numberOfQuestions : 0,
+        numberOfQuestions: numberOfQuestions,
         // prompt: isBinary ? binaryPrompt : customQuestionParams.prompt,
       };
 
@@ -2097,6 +2100,27 @@ const isQuestionDecided = (index: number) => {
                           Toggle which type to include. Only one type can be selected at a time.
                         </p>
                       </div>
+
+                      {(isMCQ || isMSQ || isBinary) && (
+                        <div className="space-y-2 min-w-[220px]">
+                          <Label className="text-sm font-medium" htmlFor="questions-count">
+                            No. of questions to generate
+                          </Label>
+                          <Input
+                            id="questions-count"
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={numberOfQuestions}
+                            onChange={(e) => setNumberOfQuestions(parseInt(e.target.value) || 10)}
+                            disabled={isLocked}
+                            className="h-10"
+                          />
+                          <p className="text-sm text-muted-foreground">
+                            Number of questions to generate (1-100)
+                          </p>
+                        </div>
+                      )}
                       </div>
                   </div>
               </section>
