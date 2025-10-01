@@ -3053,3 +3053,47 @@ export const useGetRegistrationFields = (
     refetch: result.refetch,
   };
 };
+
+
+//New hook for the Form creation 
+// New hook for updating registration fields
+export const useCreateRegistrationFields = (versionId: string): {
+  mutate: (versionId:string,fields: any) => void;
+  mutateAsync: (versionId:string,fields: any) => Promise<{ message: string }>;
+  data: { message: string } | undefined;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} => {
+  // Assuming the endpoint path includes versionId; adjust if needed based on your API structure
+  const result = api.useMutation('put', `/course/registration/settings/version/{versionId}` as any);
+
+  return {
+    mutate: (fields) =>
+      result.mutate({
+        params:{path:{versionId}},
+        body: fields ,
+      }),
+
+    mutateAsync: (fields) =>
+      result.mutateAsync({
+        params:{path:{versionId}},
+        body:fields,
+      }),
+
+    data: result.data as { message: string } | undefined,
+    error: result.error
+      ? result.error.message || 'Failed to update registration fields'
+      : null,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+  };
+};

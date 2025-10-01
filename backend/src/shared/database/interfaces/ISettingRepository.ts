@@ -87,7 +87,7 @@ export interface ISettingRepository {
   updateRegistrationSettings(
     courseId: string,
     versionId: string,
-    settings: IRegistrationSettings[],
+    schemas: { jsonSchema: any; uiSchema: any },
     session?: ClientSession,
   ): Promise<UpdateResult | null>;
 

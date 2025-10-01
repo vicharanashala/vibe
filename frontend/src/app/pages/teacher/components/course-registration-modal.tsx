@@ -34,6 +34,7 @@ import {
 import {toast} from 'sonner';
 import { RJSFSchema } from '@rjsf/utils';
 import ConfirmationModal from './confirmation-modal';
+import { useCreateRegistrationFields } from '@/hooks/hooks';
 
 
 type FieldType =
@@ -130,7 +131,7 @@ export const FormBuilder = ({versionId}: {versionId: string}) => {
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
-
+  const { mutateAsync: updateFields, isPending: isUpdatingFields } = useCreateRegistrationFields(versionId as string);
   const [jsonSchema, setJsonSchema] = useState<RJSFSchema>({
     title: 'A registration form',
     description: `A simple form for version ${versionId}`,
@@ -306,14 +307,15 @@ export const FormBuilder = ({versionId}: {versionId: string}) => {
 };
 
 const handleSubmit = async () => {
+  if(isUpdatingFields) return
   try {
     const { jsonSchema, uiSchema } = buildSchemas();
-
+    console.log("json and ui ",jsonSchema,uiSchema)
     setJsonSchema(jsonSchema);
     setUiSchema(uiSchema);
 
-    console.log("Form submitted:", { jsonSchema, uiSchema, formData });
-
+    console.log("Form submitted:", { jsonSchema, uiSchema});
+    await updateFields({jsonSchema,uiSchema})
     toast.success("Form submitted successfully!");
   } catch (error) {
     console.error("Error submitting form:", error);
@@ -331,8 +333,8 @@ const handleSubmit = async () => {
                   setIsConfirmationModalOpen(false);
                 }}
                 onConfirm={handleSubmit}
-                title="Approve Registration"
-                description="Are you sure you want to approve this registration? This action cannot be undone."
+                title="Create Form"
+                description="Are you sure, You add all the fields you need."
                 confirmText="Approve"
                 cancelText="Cancel"
                 isDestructive={false}

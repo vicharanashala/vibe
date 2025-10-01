@@ -60,6 +60,7 @@ export default function CourseRegistrationRequests() {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isCustomOpen, setIsCustomOpen] = useState(false);
+  const [showFormBuilder, setShowFormBuilder] = useState(false);
   // for confirmation modal
   const [isSingleApproveOpen, setIsSingleApproveOpen] = useState(false);
   const [isBulkApproveOpen, setIsBulkApproveOpen] = useState(false);
@@ -203,9 +204,27 @@ ${registrationUrl}`;
   };
 
 
+  if (showFormBuilder) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto py-4">
+          {/* Back button to return to the registration requests view */}
+          <Button
+            variant="outline"
+            onClick={() => setShowFormBuilder(false)}
+            className="mb-4"
+          >
+            Back to Registrations
+          </Button>
+          <FormBuilder versionId={versionId!} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
-                                          <FormBuilder versionId={versionId!}/>
+                                          {/* <FormBuilder versionId={versionId!}/> */}
 
       <ConfirmationModal
         isOpen={isSingleApproveOpen}
@@ -356,6 +375,17 @@ ${registrationUrl}`;
               Settings
             </Button>
 
+
+            {/*New Button for form genaration */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => setShowFormBuilder(true)}
+            >
+              <Settings className="h-4 w-4" />
+              Generate Form
+            </Button>
 
             <Button
               variant="outline"
@@ -728,6 +758,16 @@ ${registrationUrl}`;
           onSave={handleSave} */}
           {/* // versionId={versionId as string} */}
         {/* /> */}
+
+
+        {/* <Dialog open={isCustomOpen} onOpenChange={setIsCustomOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-semibold">Registration Form Settings</DialogTitle>
+            </DialogHeader>
+            <FormBuilder versionId={versionId!} />
+          </DialogContent>
+        </Dialog> */}
       </div>
 
     </div>
