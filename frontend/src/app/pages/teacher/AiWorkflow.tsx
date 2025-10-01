@@ -1636,6 +1636,7 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
     const [acceptedQuestions, setAcceptedQuestions] = useState<Set<number>>(new Set());
     const [rejectedQuestions, setRejectedQuestions] = useState<Set<number>>(new Set());
     const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
+    const [isNewQuestionEntering, setIsNewQuestionEntering] = useState(false);
     const binaryPrompt = `Generate only Yes/No questions (binary type).
 Each question must contain exactly two options: "Yes" and "No".
 Phrase each question neutrally so the answer is not obvious from wording.
@@ -1721,22 +1722,26 @@ const [isRerunning, setIsRerunning] = useState(false);
           return idx > currentQuestionInSegment && !isDecided && !isRejected;
         });
           
-          setTimeout(() => {
-            setSwipeDirection(null);
-          }, 200);
+          setSwipeDirection(null);
           
           if (nextPendingIndex >= 0) {
+          setTimeout(() => {
+            setIsNewQuestionEntering(true);
             setCurrentQuestionIndexBySegment(prevState => ({
               ...prevState,
               [currentSegmentIndex]: nextPendingIndex
             }));
+            setTimeout(() => {
+              setIsNewQuestionEntering(false);
+            }, 400);
+          }, 100);
           } else {
             setCurrentQuestionIndexBySegment(prevState => ({
               ...prevState,
               [currentSegmentIndex]: currentQuestionInSegment
             }));
           }
-        }, 300);
+        }, 500);
       };
       const isQuestionDecidedInSegment = (segmentIndex: number, questionIndexInSegment: number) => {
         const segmentId = segmentIds[segmentIndex];
@@ -1772,10 +1777,14 @@ const [isRerunning, setIsRerunning] = useState(false);
             const nextSegmentQuestions = questions.filter(q => q.segmentId === segmentIds[newIndex]);
             const firstPendingIndex = nextSegmentQuestions.findIndex((_, idx) => !isQuestionDecidedInSegment(newIndex, idx));
             
+            setIsNewQuestionEntering(true);
             setCurrentQuestionIndexBySegment(prevState => ({
               ...prevState,
               [newIndex]: firstPendingIndex >= 0 ? firstPendingIndex : 0
             }));
+            setTimeout(() => {
+              setIsNewQuestionEntering(false);
+            }, 400);
             
                 return newIndex;
             });
@@ -1790,10 +1799,14 @@ const [isRerunning, setIsRerunning] = useState(false);
             const prevSegmentQuestions = questions.filter(q => q.segmentId === segmentIds[newIndex]);
             const firstPendingIndex = prevSegmentQuestions.findIndex((_, idx) => !isQuestionDecidedInSegment(newIndex, idx));
             
+            setIsNewQuestionEntering(true);
             setCurrentQuestionIndexBySegment(prevState => ({
               ...prevState,
               [newIndex]: firstPendingIndex >= 0 ? firstPendingIndex : 0
             }));
+            setTimeout(() => {
+              setIsNewQuestionEntering(false);
+            }, 400);
             
             return newIndex;
           });
@@ -1885,10 +1898,14 @@ const clearStoredQuestions = () => {
           try {
             setIsRerunning(true);
             await aiSectionAPI.rerunJobTask(aiJobId, "QUESTION_GENERATION", newParams);
+            setIsNewQuestionEntering(true);
             setCurrentQuestionIndexBySegment(prev => ({
               ...prev,
               [0]: 0 
             }));
+            setTimeout(() => {
+              setIsNewQuestionEntering(false);
+            }, 400);
             setCurrentSegmentIndex(0);
             setAcceptedQuestions(new Set());
             setRejectedQuestions(new Set());
@@ -2219,7 +2236,9 @@ const isQuestionDecided = (index: number) => {
                               ? 'translate-x-full opacity-0' 
                               : swipeDirection === 'left' 
                               ? '-translate-x-full opacity-0'
-                              : 'translate-x-0 opacity-100'
+                              : isNewQuestionEntering
+                              ? 'opacity-0 scale-0 animate-[zoomOutFromCenter_0.4s_ease-out_forwards]'
+                              : 'translate-x-0 opacity-100 scale-100'
                           } ${
                             isAccepted 
                               ? 'border-green-500 dark:border-green-700 bg-green-50/50 dark:bg-green-900/20' 
