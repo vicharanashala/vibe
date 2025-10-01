@@ -3,9 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters } from '@/lib/genai-api';
+import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, editQuestionData, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters } from '@/lib/genai-api';
 import { useCourseStore } from '@/store/course-store';
-import { ArrowLeft, ArrowRight,ChevronRight, ChevronLeft, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors,Settings, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap, Info, Power } from 'lucide-react';
+import { ArrowLeft, ArrowRight,ChevronRight, ChevronLeft, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors,Settings, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap, Info, Power, Check } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner';
 import { AudioTranscripter } from './AudioTranscripter';
@@ -59,6 +59,9 @@ const AiWorkflow = () => {
     const [showUrl, setShowUrl] = useState(false);
     const [urlError, setUrlError] = useState<string | null>(null); // yt url error
     const [aiJobId, setAiJobId] = useState<string | null>(null); 
+    const clearStoredQuestions = () => {
+      localStorage.removeItem('questions');
+    };
 
     const [uploadParams, setUploadParams] = useState<UploadParams>({
     videoItemBaseName: "video_item",
@@ -513,6 +516,7 @@ const AiWorkflow = () => {
     }
 
     const handleCreateJob = async () => {
+      clearStoredQuestions();
         // 1. Check transcription text is there
         if(!transcribedData?.text){
             toast.error("No transcript found, Try again!");
@@ -600,6 +604,7 @@ const AiWorkflow = () => {
             scrollToError();
             return;
         }
+        clearStoredQuestions();
         setIsLoading(true)
 
         setTimeout(() => {
@@ -636,7 +641,7 @@ const AiWorkflow = () => {
         }
     };
 
-    const handleApproveTask = async(qnGenParams?:QuestionGenerationParameters) => {
+    const handleApproveTask = async(qnGenParams?: QuestionGenerationParameters, filteredQuestions?: any[]) => {
         try {
             // 1. Check aiJobId
             if (!aiJobId) {
@@ -671,14 +676,33 @@ const AiWorkflow = () => {
             setAiJobStatus( { ...status, task: currentTask, status: currentStatus  } );
             
             
-            const customUploadParams = { 
+            const customUploadParams: any = { 
               courseId: currentCourse?.courseId, 
               versionId: currentCourse?.versionId, 
               moduleId: currentCourse?.moduleId, 
               sectionId: currentCourse?.sectionId, 
               videoItemBaseName: uploadParams.videoItemBaseName, 
-              quizItemBaseName: uploadParams.quizItemBaseName, questionsPerQuiz: uploadParams.questionsPerQuiz
+              quizItemBaseName: uploadParams.quizItemBaseName, 
+              questionsPerQuiz: uploadParams.questionsPerQuiz
             };
+
+            if (filteredQuestions && filteredQuestions.length > 0) {
+              customUploadParams.questions = filteredQuestions;
+            } else {
+              try {
+                const storedQuestions = localStorage.getItem('questions');
+                if (storedQuestions) {
+                  const parsedQuestions = JSON.parse(storedQuestions);
+                  const acceptedQuestions = parsedQuestions.filter((q: any) => q.isAccept === true);
+                  if (acceptedQuestions.length > 0) {
+                    customUploadParams.questions = acceptedQuestions;
+                  }
+                }
+              } catch (error) {
+                console.error('Error getting accepted questions from localStorage:', error);
+              }
+            }
+            
             const customQuestionGenParams = qnGenParams || customQuestionParams;
 
             let params: Record<string, any> | null = null;
@@ -713,10 +737,8 @@ const AiWorkflow = () => {
         } catch(error) {
             if(!isWaitingServer) {
               toast.error("Failed to approve task");
-              console.log("Failed to approve task", error);
             } else {
               toast.error("Failed to retry task");
-              console.log("Failed to retry task", error);
             }
             setProgress(100);
             setTimeout(() => setIsLoading(false), 500);
@@ -742,6 +764,7 @@ const AiWorkflow = () => {
         // setYoutubeUrl("");
         setIsURLValidated(false);
         updateCurrentJob("audioExtraction","WAITING");
+        clearStoredQuestions();
         toast.success("You have successfully ended the current session.");
     }
 
@@ -902,12 +925,13 @@ const AiWorkflow = () => {
                                 />
                             ) : currentJob?.task === "UPLOAD_CONTENT" ? (
                                 <UploadContentView
-                                    currentJobStatus = {currentJob.status} 
-                                    setUploadParams = {setUploadParams}
-                                    uploadParams = {uploadParams} 
-                                    handleApproveTask = {handleApproveTask} 
-                                    isLoading = {isLoading}
+                                    currentJobStatus={currentJob.status} 
+                                    setUploadParams={setUploadParams}
+                                    uploadParams={uploadParams} 
+                                    handleApproveTask={handleApproveTask} 
+                                    isLoading={isLoading}
                                     isApprovingTask={isApprovingTask}
+                                    aiJobId={aiJobId}
                                 />
                             ) : (
                             <>
@@ -1381,7 +1405,7 @@ interface QuestionGenerationResultProps {
   setQuestions: React.Dispatch<React.SetStateAction<any[]>>;
   editModalOpen: boolean;
   aiJobId: string | null;
-  handleApproveTask: (qnGenParams?: QuestionGenerationParameters, jobStatus?: CurrentJob) => void;
+  handleApproveTask: (qnGenParams?: QuestionGenerationParameters, filteredQuestions?: any[]) => void;
   setEditingIdx: (idx: number) => void;
   setEditQuestion: (q: any) => void;
   setEditModalOpen: (open: boolean) => void;
@@ -1571,7 +1595,6 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
         });
         
         localStorage.setItem('questions', JSON.stringify(questionsToStore));
-        console.log('Questions stored in localStorage - only storing explicit decisions');
       }
     }, [questions]);
 
@@ -1580,7 +1603,6 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
       if (storedQuestions) {
         try {
           const parsedQuestions = JSON.parse(storedQuestions);
-          console.log('Loaded questions from localStorage:', parsedQuestions);
           
           const accepted = new Set<number>();
           const rejected = new Set<number>();
@@ -1670,7 +1692,6 @@ const [isRerunning, setIsRerunning] = useState(false);
           if (allQuestions[globalIndex]) {
             allQuestions[globalIndex].isAccept = true;
             localStorage.setItem('questions', JSON.stringify(allQuestions));
-            console.log(`Question ${globalIndex} accepted and stored in localStorage`);
           }
         } else {
           setRejectedQuestions(prev => {
@@ -1688,16 +1709,19 @@ const [isRerunning, setIsRerunning] = useState(false);
           if (allQuestions[globalIndex]) {
             allQuestions[globalIndex].isAccept = false;
             localStorage.setItem('questions', JSON.stringify(allQuestions));
-            console.log(`Question ${globalIndex} rejected and stored in localStorage`);
           }
         }
         
         setTimeout(() => {
-          setSwipeDirection(null);
+        const nextPendingIndex = currentSegmentQuestions.findIndex((_, idx) => {
+          const isDecided = isQuestionDecidedInSegment(currentSegmentIndex, idx);
+          const isRejected = isQuestionRejected(idx);
+          return idx > currentQuestionInSegment && !isDecided && !isRejected;
+        });
           
-          const nextPendingIndex = currentSegmentQuestions.findIndex((_, idx) => 
-            idx > currentQuestionInSegment && !isQuestionDecidedInSegment(currentSegmentIndex, idx)
-          );
+          setTimeout(() => {
+            setSwipeDirection(null);
+          }, 200);
           
           if (nextPendingIndex >= 0) {
             setCurrentQuestionIndexBySegment(prevState => ({
@@ -1832,14 +1856,12 @@ const [isRerunning, setIsRerunning] = useState(false);
 
 const clearStoredQuestions = () => {
   localStorage.removeItem('questions');
-  console.log('Cleared questions from localStorage');
   setAcceptedQuestions(new Set());
   setRejectedQuestions(new Set());
 };
 
     const handleNext = () => {
       const acceptedQuestions = getAcceptedQuestionsFromStorage();
-      console.log('Accepted questions:', acceptedQuestions);
       updateCurrentJob("uploadContent", "WAITING");
     }
 
@@ -1911,8 +1933,13 @@ const currentSegmentAcceptedCount = useMemo(() => {
   }).length;
 }, [currentSegmentQuestions, currentSegmentIndex]);
 
-const currentSegmentTotalQuestions = currentSegmentQuestions.length;
+const currentSegmentRejectedCount = useMemo(() => {
+  return currentSegmentQuestions.filter((_, idx) => {
+    return isQuestionRejected(idx);
+  }).length;
+}, [currentSegmentQuestions]);
 
+const currentSegmentActiveQuestions = currentSegmentQuestions.length - currentSegmentRejectedCount;
 const isSegmentCompleted = currentSegmentAcceptedCount > 0;
 
 const isQuestionDecided = (index: number) => {
@@ -2143,7 +2170,7 @@ const isQuestionDecided = (index: number) => {
                       </div>
                       
                       <div className="text-sm text-gray-600 dark:text-gray-400">
-                        Question {currentQuestionInSegment + 1} of {currentSegmentQuestions.length}
+                        Question {currentSegmentAcceptedCount} of {currentSegmentQuestions.length - currentSegmentRejectedCount}
                       </div>
                     </div>
 
@@ -2163,7 +2190,7 @@ const isQuestionDecided = (index: number) => {
                       return (
                         <div
                           key={q.question?.text || idx}
-                          className={`bg-card/90 border rounded-lg p-4 transition-all duration-300 transform relative ${
+                          className={`bg-card/90 border rounded-lg p-4 transition-all duration-500 ease-in-out transform relative ${
                             swipeDirection === 'right' 
                               ? 'translate-x-full opacity-0' 
                               : swipeDirection === 'left' 
@@ -2277,7 +2304,7 @@ const isQuestionDecided = (index: number) => {
                                 }`}
                                 aria-label="Reject question"
                               >
-                                <ChevronLeft className="w-4 h-4" />
+                                <X className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => handleSwipe('right')}
@@ -2289,7 +2316,7 @@ const isQuestionDecided = (index: number) => {
                                 }`}
                                 aria-label="Accept question"
                               >
-                                <ChevronRight className="w-4 h-4" />
+                                <Check className="w-4 h-4" />
                               </button>
                           </div>
                         );
@@ -2302,14 +2329,15 @@ const isQuestionDecided = (index: number) => {
                           Segment Progress
                         </span>
                         <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          {currentSegmentAcceptedCount} / {currentSegmentQuestions.length} questions accepted (Segment {currentSegmentIndex + 1} of {segmentIds.length})
+                          {currentSegmentAcceptedCount} of {currentSegmentQuestions.length - currentSegmentRejectedCount} questions 
+                                (Segment {currentSegmentIndex + 1} of {segmentIds.length})
                         </span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
                         <div 
                           className="bg-green-600 h-2.5 rounded-full transition-all duration-300" 
                           style={{ 
-                            width: `${(currentSegmentAcceptedCount / currentSegmentQuestions.length) * 100}%`,
+                            width: `${(currentSegmentAcceptedCount / Math.max(1, currentSegmentActiveQuestions)) * 100}%`,
                             minWidth: currentSegmentAcceptedCount > 0 ? '0.5rem' : '0'
                           }}
                         />
@@ -2439,7 +2467,7 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
                 const updatedQuestions = questions.map((q, idx) =>
                   idx !== editingIdx ? q : { ...q, question: { ...q.question, text: edited.text }, solution: edited.solution }
                 );
-                await aiSectionAPI.editQuestionData(aiJobId, updatedQuestions);
+                await aiSectionAPI.editQuestionData(aiJobId, updatedQuestions, editingIdx);
                   setQuestions(prev =>
                     prev.map((q, idx) =>
                       idx !== editingIdx
@@ -3237,7 +3265,7 @@ const SegmentationView = ({
                     <SelectValue/>
                     </SelectTrigger>
                     <SelectContent>
-                    <SelectItem value="0.5" >Very Frequent</SelectItem>
+                    <SelectItem value="1.2" >Very Frequent</SelectItem>
                     <SelectItem value="2">Frequent</SelectItem>
                     <SelectItem value="4.5">Normal</SelectItem>
                     <SelectItem value="5.5">Less Frequent</SelectItem>
@@ -3247,7 +3275,7 @@ const SegmentationView = ({
                 </div>
 
                 <div className="mt-7 text-sm dark:text-gray-200 text-gray-900 max-w-xs transition-opacity duration-300">
-                {customSegmentationParams.lam === 0.5 &&
+                {customSegmentationParams.lam === 1.2 &&
                     "Segments will be created very frequently, providing high detail and precision."}
                 {customSegmentationParams.lam === 2 &&
                     "Segments will be created frequently, offering a balance between detail and performance."}
@@ -3608,8 +3636,9 @@ interface UploadContentProps {
   uploadParams: UploadParams;
   setUploadParams: React.Dispatch<React.SetStateAction<UploadParams>>;
   isLoading: boolean;
-  handleApproveTask: (qnGenParms?: QuestionGenerationParameters) => void;
+  handleApproveTask: (qnGenParms?: QuestionGenerationParameters, filteredQuestions?: any[]) => void;
   isApprovingTask: boolean;
+  aiJobId: string | null;
 }
 
 const UploadContentView: React.FC<UploadContentProps> = ({
@@ -3618,9 +3647,44 @@ const UploadContentView: React.FC<UploadContentProps> = ({
   setUploadParams,
   isLoading, 
   handleApproveTask,
-  isApprovingTask
+  isApprovingTask,
+  aiJobId
 }) => {
   const navigate = useNavigate();
+
+  const handleUploadContent = async () => {
+    if (!aiJobId) {
+      console.error('No job ID found');
+      return;
+    }
+
+    const storedQuestions = localStorage.getItem('questions');
+    let acceptedQuestions: any[] = [];
+    
+    if (storedQuestions) {
+      try {
+        const allQuestions = JSON.parse(storedQuestions);
+        acceptedQuestions = allQuestions.filter((q: any) => q.isAccept === true);
+        
+        // Send all accepted questions as an array to the API
+        if (acceptedQuestions.length > 0) {
+          try {
+            await editQuestionData(aiJobId, acceptedQuestions);
+          } catch (error) {
+            console.error('Error updating questions:', error);
+            toast.error('Failed to update questions. Please try again.');
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error processing questions:', error);
+        toast.error('Error processing questions. Please try again.');
+        return;
+      }
+    }
+    
+    handleApproveTask(undefined, acceptedQuestions);
+  };
 
   if(currentJobStatus !== "COMPLETED") { 
     return(<div className="space-y-6">
@@ -3677,7 +3741,7 @@ const UploadContentView: React.FC<UploadContentProps> = ({
         {/* Centered Next Button */}
         <div className="flex justify-center">
         <Button
-            onClick={() => handleApproveTask()}
+            onClick={handleUploadContent}
             disabled={isLoading || isApprovingTask}
             className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
         >
