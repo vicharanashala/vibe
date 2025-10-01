@@ -455,6 +455,166 @@ class ProgressService extends BaseService {
     }
   }
 
+  /**
+   * Check if an item is a blank quiz
+   */
+  private async isBlankQuiz(versionId: string, itemId: string): Promise<boolean> {
+    try {
+      console.log(`Checking if item ${itemId} is blank quiz...`);
+      const item = await this.itemRepo.readItem(versionId, itemId);
+      
+      if (!item || item.type !== 'QUIZ') {
+        console.log(`Item ${itemId} is not a quiz (type: ${item?.type})`);
+        return false;
+      }
+      
+
+      const quizItem = item as any; 
+      
+      const isBlank = !quizItem.details?.questionBankRefs || quizItem.details.questionBankRefs.length === 0;
+      console.log(`Item ${itemId} is ${isBlank ? 'BLANK' : 'NOT BLANK'} quiz - questionBankRefs:`, quizItem.details?.questionBankRefs);
+      return isBlank;
+    } catch (error) {
+      console.log('Error checking if item is blank quiz:', error.message);
+      return false; 
+    }
+  }
+
+  private async findNextNonBlankItem(
+    courseVersion: ICourseVersion,
+    moduleId: string,
+    sectionId: string,
+    itemId: string,
+    maxDepth: number = 10 
+  ): Promise<{moduleId: string, sectionId: string, itemId: string, completed: boolean} | null> {
+    if (maxDepth <= 0) {
+      console.log('Max recursion depth reached in findNextNonBlankItem');
+      return null;
+    }
+
+    const isBlank = await this.isBlankQuiz(courseVersion._id.toString(), itemId);
+    
+    if (!isBlank) {
+      return {
+        moduleId,
+        sectionId,
+        itemId,
+        completed: false
+      };
+    }
+    
+    console.log(`Item ${itemId} is a blank quiz, skipping to next item`);
+    
+    const nextProgress = await this.getNextItemInSequence(courseVersion, moduleId, sectionId, itemId);
+    
+    if (!nextProgress) {
+      return {
+        moduleId,
+        sectionId,
+        itemId,
+        completed: true
+      };
+    }
+    
+    return await this.findNextNonBlankItem(
+      courseVersion, 
+      nextProgress.moduleId, 
+      nextProgress.sectionId, 
+      nextProgress.itemId, 
+      maxDepth - 1
+    );
+  }
+
+  private async getNextItemInSequence(
+    courseVersion: ICourseVersion,
+    moduleId: string,
+    sectionId: string,
+    itemId: string
+  ): Promise<{moduleId: string, sectionId: string, itemId: string, completed: boolean} | null> {
+    let isLastItem = false;
+    let isLastSection = false;
+    let isLastModule = false;
+
+    // Check if the moduleId is the last module in the course
+    const sortedModules = courseVersion.modules.sort((a, b) =>
+      a.order.localeCompare(b.order),
+    );
+    const lastModule = sortedModules[sortedModules.length - 1].moduleId;
+    if (lastModule === moduleId) {
+      isLastModule = true;
+    }
+
+    // Check if the sectionId is the last section in the module
+    const sortedSections = courseVersion.modules
+      .find(module => module.moduleId === moduleId)
+      ?.sections.sort((a, b) => a.order.localeCompare(b.order));
+    const lastSection = sortedSections?.[sortedSections.length - 1].sectionId;
+    if (lastSection === sectionId) {
+      isLastSection = true;
+    }
+
+    // Check if the itemId is the last item in the section
+    const itemsGroupId = courseVersion.modules
+      .find(module => module.moduleId === moduleId)
+      ?.sections.find(section => section.sectionId === sectionId)?.itemsGroupId;
+    const itemsGroup = await this.itemRepo.readItemsGroup(itemsGroupId?.toString());
+    const sortedItems = itemsGroup.items.sort((a, b) => a.order.localeCompare(b.order));
+    const lastItem = sortedItems[sortedItems.length - 1]._id;
+    if (lastItem === itemId) {
+      isLastItem = true;
+    }
+
+    // Handle when the item is the last item in the last section of the last module
+    if (isLastItem && isLastSection && isLastModule) {
+      return null;
+    }
+
+    // Handle when the item is the last item in the last section but not the last module
+    if (isLastItem && isLastSection && !isLastModule) {
+      const currentModuleIndex = sortedModules.findIndex(module => module.moduleId === moduleId);
+      const nextModule = sortedModules[currentModuleIndex + 1];
+      const firstSection = nextModule?.sections.sort((a, b) => a.order.localeCompare(b.order))[0];
+      const itemsGroup = await this.itemRepo.readItemsGroup(firstSection?.itemsGroupId.toString());
+      const firstItem = itemsGroup.items.sort((a, b) => a.order.localeCompare(b.order))[0];
+      
+      return {
+        moduleId: nextModule?.moduleId.toString(),
+        sectionId: firstSection?.sectionId.toString(),
+        itemId: firstItem._id.toString(),
+        completed: false
+      };
+    }
+
+    // Handle when the item is the last item in the section but not the last section
+    if (isLastItem && !isLastSection) {
+      const currentSectionIndex = sortedSections?.findIndex(section => section.sectionId === sectionId);
+      const nextSection = sortedSections?.[currentSectionIndex + 1];
+      const itemsGroup = await this.itemRepo.readItemsGroup(nextSection?.itemsGroupId.toString());
+      const firstItem = itemsGroup.items.sort((a, b) => a.order.localeCompare(b.order))[0];
+      
+      return {
+        moduleId,
+        sectionId: nextSection?.sectionId.toString(),
+        itemId: firstItem._id.toString(),
+        completed: false
+      };
+    }
+
+    if (!isLastItem) {
+      const currentItemIndex = sortedItems.findIndex(item => item._id === itemId);
+      const nextItem = sortedItems[currentItemIndex + 1];
+      
+      return {
+        moduleId,
+        sectionId,
+        itemId: nextItem._id.toString(),
+        completed: false
+      };
+    }
+
+    return null;
+  }
+
   private async getNewProgress(
     courseVersion: ICourseVersion,
     moduleId: string,
@@ -462,186 +622,61 @@ class ProgressService extends BaseService {
     itemId: string,
     userId: string,
   ) {
-    let isLastItem = false;
-    let isLastSection = false;
-    let isLastModule = false;
-
-    let completed = false;
-    let currentItem: string = itemId;
-    let currentSection: string = sectionId;
-    let currentModule: string = moduleId;
-
+    console.log(`=== getNewProgress CALLED ===`);
+    console.log(`Progressing from item: ${itemId} in module: ${moduleId}, section: ${sectionId}`);
+    
     const completedItems = await this.progressRepository.getCompletedItems(
       userId,
       courseVersion.courseId.toString(),
       courseVersion._id.toString(),
     );
 
-    // Check if the moduleId is the last module in the course
-    // 1. Sort modules by order
-    const sortedModules = courseVersion.modules.sort((a, b) =>
-      a.order.localeCompare(b.order),
+    console.log('Getting next item in sequence...');
+    const nextSequenceItem = await this.getNextItemInSequence(courseVersion, moduleId, sectionId, itemId);
+    console.log('Next sequence item:', nextSequenceItem);
+    
+    if (!nextSequenceItem) {
+      return {
+        completed: true,
+        currentModule: moduleId,
+        currentSection: sectionId,
+        currentItem: itemId,
+      };
+    }
+
+    // Now find the next non-blank item, automatically skipping blank quizzes
+    console.log('Finding next non-blank item...');
+    const nextNonBlankItem = await this.findNextNonBlankItem(
+      courseVersion,
+      nextSequenceItem.moduleId,
+      nextSequenceItem.sectionId,
+      nextSequenceItem.itemId
     );
-    // 2. Find the last moduleId in the course
-    const lastModule = sortedModules[sortedModules.length - 1].moduleId;
-    // 3. Set the isLastModule flag to true if it is the last module
-    if (lastModule === moduleId) {
-      isLastModule = true;
+    console.log('Next non-blank item:', nextNonBlankItem);
+
+    if (!nextNonBlankItem) {
+      console.log('No more non-blank items, course complete');
+      return {
+        completed: true,
+        currentModule: moduleId,
+        currentSection: sectionId,
+        currentItem: itemId,
+      };
     }
 
-    // Check if the sectionId is the last section in the module
-    // 1. Sort sections in module by order
-    const sortedSections = courseVersion.modules
-      .find(module => module.moduleId === moduleId)
-      ?.sections.sort((a, b) => a.order.localeCompare(b.order));
-    // 2. ind the last sectionId in the module
-    const lastSection = sortedSections?.[sortedSections.length - 1].sectionId;
-    // 3. Set the isLastSection flag to true if it is the last section
-    if (lastSection === sectionId) {
-      isLastSection = true;
+    if (nextNonBlankItem.itemId && completedItems.includes(nextNonBlankItem.itemId)) {
+      return null;
     }
 
-    // Check if the itemId is the last item in the section
-    // 1. Sort items in section by order
-    // 1.1 Find the itemsGroupId in the section
-    const itemsGroupId = courseVersion.modules
-      .find(module => module.moduleId === moduleId)
-      ?.sections.find(section => section.sectionId === sectionId)?.itemsGroupId;
-    // 1.2 Get items from itemsGroupId
-    const itemsGroup = await this.itemRepo.readItemsGroup(
-      itemsGroupId?.toString(),
-    );
-    // 1.3 Sort items in itemsGroup by order
-    const sortedItems = itemsGroup.items.sort((a, b) =>
-      a.order.localeCompare(b.order),
-    );
-    // 2. Check if the itemId is the last item in the section
-    const lastItem = sortedItems[sortedItems.length - 1]._id;
-    // 3. Set the isLastItem flag to true if it is the last item
-    if (lastItem === itemId) {
-      isLastItem = true;
-    }
-
-    // Handle when the item is the last item in the last section of the last module
-    if (isLastItem && isLastSection && isLastModule) {
-      completed = true;
-    }
-
-    // Handle when the item is the last item in the last section but not the last module
-    if (isLastItem && isLastSection && !isLastModule) {
-      // Get index of the current module
-      const currentModuleIndex = sortedModules.findIndex(
-        module => module.moduleId === moduleId,
-      );
-      // Get next moduleId
-      const nextModule = sortedModules[currentModuleIndex + 1];
-      currentModule = nextModule?.moduleId.toString();
-      // Get first sectionId in the next module
-      const firstSection = nextModule?.sections.sort((a, b) =>
-        a.order.localeCompare(b.order),
-      )[0];
-      currentSection = firstSection?.sectionId.toString();
-
-      // Get first itemId in the next section
-      const itemsGroup = await this.itemRepo.readItemsGroup(
-        firstSection?.itemsGroupId.toString(),
-      );
-      const firstItem = itemsGroup.items.sort((a, b) =>
-        a.order.localeCompare(b.order),
-      )[0];
-      currentItem = firstItem._id.toString();
-    }
-
-    // Handle when the item is the last item in the section but not the last section and not the last module
-    if (isLastItem && !isLastSection && !isLastModule) {
-      // Get index of the current section
-      const currentSectionIndex = sortedSections?.findIndex(
-        section => section.sectionId === sectionId,
-      );
-      // Get next sectionId
-      const nextSection = sortedSections?.[currentSectionIndex + 1];
-      currentSection = nextSection?.sectionId.toString();
-
-      // Get first itemId in the next section
-      const itemsGroup = await this.itemRepo.readItemsGroup(
-        nextSection?.itemsGroupId.toString(),
-      );
-      const firstItem = itemsGroup.items.sort((a, b) =>
-        a.order.localeCompare(b.order),
-      )[0];
-      currentItem = firstItem._id.toString();
-    }
-
-    // Handle when none of the item, the section, or the module is last.
-    if (!isLastItem && !isLastSection && !isLastModule) {
-      // Get index of the current item
-      const currentItemIndex = sortedItems.findIndex(
-        item => item._id === itemId,
-      );
-      // Get next itemId
-      const nextItem = sortedItems[currentItemIndex + 1];
-      currentItem = nextItem._id.toString();
-    }
-
-    if (isLastItem && !isLastSection && isLastModule) {
-      // Get index of the current section
-      const currentSectionIndex = sortedSections?.findIndex(
-        section => section.sectionId === sectionId,
-      );
-      // Get next sectionId
-      const nextSection = sortedSections?.[currentSectionIndex + 1];
-      currentSection = nextSection?.sectionId.toString();
-
-      // Get first itemId in the next section
-      const itemsGroup = await this.itemRepo.readItemsGroup(
-        nextSection?.itemsGroupId.toString(),
-      );
-      const firstItem = itemsGroup.items.sort((a, b) =>
-        a.order.localeCompare(b.order),
-      )[0];
-      currentItem = firstItem._id.toString();
-    }
-
-    if (!isLastItem && !isLastSection && isLastModule) {
-      // Get index of the current item
-      const currentItemIndex = sortedItems.findIndex(
-        item => item._id === itemId,
-      );
-      // Get next itemId
-      const nextItem = sortedItems[currentItemIndex + 1];
-      currentItem = nextItem._id.toString();
-    }
-
-    if (!isLastItem && isLastSection && isLastModule) {
-      // Get index of the current item
-      const currentItemIndex = sortedItems.findIndex(
-        item => item._id === itemId,
-      );
-      // Get next itemId
-      const nextItem = sortedItems[currentItemIndex + 1];
-      currentItem = nextItem._id.toString();
-    }
-
-    if (!isLastItem && isLastSection && !isLastModule) {
-      // Get index of the current item
-      const currentItemIndex = sortedItems.findIndex(
-        item => item._id === itemId,
-      );
-      // Get next itemId
-      const nextItem = sortedItems[currentItemIndex + 1];
-      currentItem = nextItem._id.toString();
-    }
-    if (currentItem) {
-      if (completedItems.includes(currentItem)) {
-        return null;
-      }
-    }
-    return {
-      completed,
-      currentModule,
-      currentSection,
-      currentItem,
+    const result = {
+      completed: nextNonBlankItem.completed,
+      currentModule: nextNonBlankItem.moduleId,
+      currentSection: nextNonBlankItem.sectionId,
+      currentItem: nextNonBlankItem.itemId,
     };
+    
+    console.log('getNewProgress RESULT', result);
+    return result;
   }
 
   private isValidWatchTime(watchTime: IWatchTime, item: Item) {
@@ -892,6 +927,8 @@ class ProgressService extends BaseService {
     attemptId?: string,
     isSkipped?: boolean,
   ): Promise<void> {
+    console.log(`updateProgress CALLED`);
+    console.log(`User: ${userId}, Item: ${itemId}, Module: ${moduleId}, Section: ${sectionId}`);
     return this._withTransaction(async session => {
       await this.verifyDetails(userId, courseId, courseVersionId);
 
