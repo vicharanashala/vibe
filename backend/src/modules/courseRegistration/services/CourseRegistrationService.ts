@@ -20,7 +20,7 @@ import {
 import {COURSE_REGISTRATION_TYPES} from '../types.js';
 import {Invite, InviteService} from '#root/modules/notifications/index.js';
 import {ClientSession, ObjectId} from 'mongodb';
-import {CourseDetailsDTO} from '../classes/index.js';
+import {CourseDetailsDTO, UpdateRegistrationSchemasBody} from '../classes/index.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {COURSES_TYPES} from '#root/modules/courses/types.js';
 import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
@@ -269,7 +269,7 @@ export class CourseRegistrationService extends BaseService {
     });
   }
 
-  async updateSettings(versionId: string, settings: IRegistrationSettings[]) {
+  async updateSettings(versionId: string, schemas: { jsonSchema: any; uiSchema: any }) {
     return this._withTransaction(async session => {
       try {
         const version = await this.courseRepo.readVersion(versionId, session);
@@ -282,10 +282,12 @@ export class CourseRegistrationService extends BaseService {
         return await this.settingsRepo.updateRegistrationSettings(
           courseId,
           versionId,
-          settings,
+          // settings,
+          schemas,
           session,
         );
       } catch (error) {
+        console.error(error)
         throw new InternalServerError('Failed to update settings');
       }
     });

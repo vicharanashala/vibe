@@ -28,7 +28,8 @@ import {
   CourseRegistrationBody,
   RegistrationFilterQuery,
   RegistrationParams,
-  updateSettingsBody,
+  UpdateRegistrationSchemasBody,
+  // updateSettingsBody,
   UpdateStatusBody,
 } from '../classes/index.js';
 import {
@@ -226,11 +227,10 @@ class CourseRegistrationController {
   @Authorized()
   async updateSettings(
     @Params() params: CourseVersionIdParams,
-    @Body() body: updateSettingsBody[],
+    @Body() body: UpdateRegistrationSchemasBody,
     @Ability(getCourseRegistrationAbility) {ability},
   ) {
     const {versionId} = params;
-
     // if (
     //   !ability.can(
     //     CourseRegistrationActions.Modify,

@@ -371,7 +371,7 @@ export class SettingRepository implements ISettingRepository {
   async updateRegistrationSettings(
     courseId: string,
     versionId: string,
-    settings: IRegistrationSettings[],
+    schemas: { jsonSchema: any; uiSchema: any },
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
     await this.init();
@@ -383,7 +383,8 @@ export class SettingRepository implements ISettingRepository {
       },
       {
         $set: {
-          'settings.registration_settings': settings,
+          'settings.jsonSchema': schemas.jsonSchema,
+          'settings.uiSchema': schemas.uiSchema
         },
       },
       {session},

@@ -7,6 +7,7 @@ import {
   IsMongoId,
   IsNotEmpty,
   IsNumber,
+  IsObject,
   IsString,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
@@ -114,47 +115,68 @@ export class BulkUpdateStatusBody {
   registrationIds?: string[];
 }
 
-export class updateSettingsBody {
-  @IsString()
-  @IsNotEmpty()
-  @JSONSchema({example: 'Gender'})
-  label: string;
+// export class updateSettingsBody {
+//   @IsString()
+//   @IsNotEmpty()
+//   @JSONSchema({example: 'Gender'})
+//   label: string;
 
-  @IsEnum([
-    'TEXT',
-    'TEXTAREA',
-    'EMAIL',
-    'TEL',
-    'DATE',
-    'NUMBER',
-    'URL',
-    'SELECT',
-  ])
-  @IsNotEmpty()
-  @JSONSchema({example: 'select'})
-  type:
-    | 'TEXT'
-    | 'TEXTAREA'
-    | 'EMAIL'
-    | 'TEL'
-    | 'DATE'
-    | 'NUMBER'
-    | 'URL'
-    | 'SELECT';
-  @IsOptional()
-  @IsArray()
-  @ArrayUnique()
-  @IsString({each: true})
-  @JSONSchema({example: ''})
-  options?: string[];
+//   @IsEnum([
+//     'TEXT',
+//     'TEXTAREA',
+//     'EMAIL',
+//     'TEL',
+//     'DATE',
+//     'NUMBER',
+//     'URL',
+//     'SELECT',
+//   ])
+//   @IsNotEmpty()
+//   @JSONSchema({example: 'select'})
+//   type:
+//     | 'TEXT'
+//     | 'TEXTAREA'
+//     | 'EMAIL'
+//     | 'TEL'
+//     | 'DATE'
+//     | 'NUMBER'
+//     | 'URL'
+//     | 'SELECT';
+//   @IsOptional()
+//   @IsArray()
+//   @ArrayUnique()
+//   @IsString({each: true})
+//   @JSONSchema({example: ''})
+//   options?: string[];
 
-  @IsBoolean()
-  @IsNotEmpty()
-  @JSONSchema({example: true})
-  required: boolean;
+//   @IsBoolean()
+//   @IsNotEmpty()
+//   @JSONSchema({example: true})
+//   required: boolean;
 
-  @IsBoolean()
-  @IsOptional()
-  @JSONSchema({example: true})
-  isDefault: boolean;
+//   @IsBoolean()
+//   @IsOptional()
+//   @JSONSchema({example: true})
+//   isDefault: boolean;
+// }
+
+// export class UpdateRegistrationSchemasBody {
+//   @IsObject()
+//   @JSONSchema({ example: { type: 'object', properties: { name: { type: 'string' } } } }) // Example; adjust as needed
+//   jsonSchema: any;
+
+//   @IsObject()
+//   @JSONSchema({ example: { type: 'VerticalLayout', elements: [{ type: 'Control', scope: '#/properties/name' }] } }) 
+//   uiSchema: any;
+// }/
+
+
+export class UpdateRegistrationSchemasBody {
+  @IsObject()
+  @JSONSchema({ description: "Dynamic JSON Schema for the form" })
+  jsonSchema: Record<string, any>;
+
+  @IsObject()
+  @JSONSchema({ description: "Dynamic UI Schema for the form" })
+  uiSchema: Record<string, any>;
 }

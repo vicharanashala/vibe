@@ -55,7 +55,8 @@ class CourseVersionIdParams {
     description: 'ID of the specific version of the course',
     type: 'string',
   })
-  @IsMongoId()
+  // @IsMongoId()
+  @IsString()
   @IsNotEmpty()
   versionId: string;
 }
