@@ -218,7 +218,7 @@ export class CourseRegistrationService extends BaseService {
       }
     });
   }
-  async getSettings(versionId: string): Promise<IRegistrationSettings[]> {
+  async getSettings(versionId: string): Promise<{ jsonSchema: any; uiSchema: any }> {
     return this._withTransaction(async session => {
       try {
         const version = await this.courseRepo.readVersion(versionId, session);
@@ -241,28 +241,101 @@ export class CourseRegistrationService extends BaseService {
             `Course settings for course ID ${courseId} and version ID ${versionId} not found.`,
           );
         }
+        // let registrationSettings =
+        //   courseSettings.settings.registration_settings;
 
-        let registrationSettings =
-          courseSettings.settings.registration_settings;
+        // // If no registration settings exist, add default ones
+        // if (!registrationSettings || registrationSettings.length === 0) {
+        //   const defaultSettings: IRegistrationSettings[] = [
+        //     {label: 'Full Name', type: 'TEXT', required: true, isDefault: true},
+        //     {label: 'Email', type: 'EMAIL', required: true, isDefault: true},
+        //     {label: 'Phone', type: 'TEL', required: false, isDefault: true},
+        //   ];
 
-        // If no registration settings exist, add default ones
-        if (!registrationSettings || registrationSettings.length === 0) {
-          const defaultSettings: IRegistrationSettings[] = [
-            {label: 'Full Name', type: 'TEXT', required: true, isDefault: true},
-            {label: 'Email', type: 'EMAIL', required: true, isDefault: true},
-            {label: 'Phone', type: 'TEL', required: false, isDefault: true},
-          ];
+        //   await this.settingsRepo.addDefaultRegistrationSettings(
+        //     courseId,
+        //     versionId,
+        //     defaultSettings,
+        //     session,
+        //   );
+        //   registrationSettings = defaultSettings;
+        // }
 
-          await this.settingsRepo.addDefaultRegistrationSettings(
-            courseId,
-            versionId,
-            defaultSettings,
-            session,
-          );
-          registrationSettings = defaultSettings;
-        }
+        let { jsonSchema, uiSchema } = courseSettings.settings;
 
-        return registrationSettings;
+      // If no schemas exist, add default ones and persist
+      if (!jsonSchema || !uiSchema) {
+        // Define default schemas (customize as needed)
+        const defaultJsonSchema = {
+          type: 'object',
+          properties: {
+            name: {
+              type: 'string',
+              title: 'Full Name',
+              minLength: 1,
+            },
+            email: {
+              type: 'string',
+              format: 'email',
+              title: 'Email',
+            },
+            phone: {
+              type: 'string',
+              title: 'Phone',
+            },
+          },
+          required: ['name', 'email'],
+        };
+
+
+        const defaultUiSchema = {
+          Name: {
+            'ui:placeholder': 'Enter your Name',
+          },
+          Email: {
+            'ui:placeholder': 'Enter your Email',
+          },
+          Mobile: {
+            'ui:options': {
+              inputType: 'tel',
+            },
+          },
+        };
+
+        // const defaultUiSchema = {
+        //   type: 'VerticalLayout',
+        //   elements: [
+        //     {
+        //       type: 'Control',
+        //       scope: '#/properties/name',
+        //     },
+        //     {
+        //       type: 'Control',
+        //       scope: '#/properties/email',
+        //     },
+        //     {
+        //       type: 'Control',
+        //       scope: '#/properties/phone',
+        //     },
+        //   ],
+        // };
+
+        // Persist defaults
+        await this.settingsRepo.updateRegistrationSchemas(
+          courseId,
+          versionId,
+          { jsonSchema: defaultJsonSchema, uiSchema: defaultUiSchema },
+          session,
+        );
+
+        // Update local reference
+        jsonSchema = defaultJsonSchema;
+        uiSchema = defaultUiSchema;
+      }
+
+      return {jsonSchema,uiSchema}
+
+        // return registrationSettings;
       } catch (error) {
         throw new InternalServerError('Failed to get settings');
       }

@@ -60,6 +60,13 @@ export interface ISettingRepository {
     session?: ClientSession,
   ): Promise<UpdateResult | null>;
 
+  updateRegistrationSchemas(
+  courseId: string,
+  versionId: string,
+  schemas: { jsonSchema?: any; uiSchema?: any }, // Partial update for schemas only
+  session?: ClientSession,
+): Promise<UpdateResult>
+
   /**
    * Reads course settings for a specific course and version.
    * @param courseId - The ID of the course
