@@ -1148,7 +1148,7 @@ export const FormBuilder = ({ versionId }: { versionId: string }) => {
   const selectedField = fields.find((f) => f.id === selectedFieldId);
 
   // Added hook for fetching existing schemas
-  const { data: fetchedSchemas, isLoading: fetchLoading, error: fetchError } = useGetRegistrationFields(versionId as string);
+  const { data: fetchedSchemas, isLoading: fetchLoading, error: fetchError,refetch } = useGetRegistrationFields(versionId as string);
 
   // Added useEffect to populate fields from fetched schemas on mount or when data changes
   useEffect(() => {
@@ -1169,7 +1169,7 @@ export const FormBuilder = ({ versionId }: { versionId: string }) => {
       setFields(populatedFields); // Populate fields from fetched data
       // setJsonSchema(fetchedSchemas.jsonSchema); // Set initial jsonSchema
       // setUiSchema(fetchedSchemas.uiSchema);
-      toast.success('Loaded existing form fields'); // Success toast for loading
+      // toast.success('Loaded existing form fields'); // Success toast for loading
     } else {
       // If no schemas, start empty (or set defaults if needed)
       setFields([]); // Ensure empty if no data
@@ -1413,6 +1413,7 @@ export const FormBuilder = ({ versionId }: { versionId: string }) => {
 
       console.log('Form submitted:', { jsonSchema, uiSchema });
       await updateFields({ jsonSchema, uiSchema });
+      refetch()
       toast.success('Form submitted successfully!');
     } catch (error) {
       console.error('Error submitting form:', error);
