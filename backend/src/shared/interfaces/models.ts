@@ -450,7 +450,9 @@ export interface IRegistrationSettings {
 export interface ISettings {
   proctors: IProctoringSettings;
   linearProgressionEnabled: boolean;
-  registration_settings?: IRegistrationSettings[];
+  // registration_settings?: IRegistrationSettings[];
+  jsonSchema?: any; // JSON Schema object for the form (e.g., { type: 'object', properties: {...} })
+  uiSchema?: any;
 }
 
 // Interface for user-specific settings.

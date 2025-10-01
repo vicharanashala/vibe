@@ -20,6 +20,7 @@ import {
   UserSetting,
 } from '#root/modules/setting/classes/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
+import { NotFoundError } from 'routing-controllers';
 
 /**
  * Implementation of the Settings Repository for MongoDB.
@@ -391,4 +392,34 @@ export class SettingRepository implements ISettingRepository {
     );
     return result;
   }
+
+  async updateRegistrationSchemas(
+  courseId: string,
+  versionId: string,
+  schemas: { jsonSchema?: any; uiSchema?: any }, // Partial update for schemas only
+  session?: ClientSession,
+): Promise<UpdateResult> {
+  await this.init();
+
+  const result = await this.courseSettingsCollection.updateOne(
+    {
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(versionId),
+    },
+    {
+      $set: {
+        'settings.jsonSchema': schemas.jsonSchema,
+        'settings.uiSchema': schemas.uiSchema,
+      },
+    },
+    { session },
+  );
+
+  if (result.matchedCount === 0) {
+    throw new NotFoundError(`Course settings for course ID ${courseId} and version ID ${versionId} not found.`);
+  }
+
+  return result;
 }
+}
+

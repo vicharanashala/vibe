@@ -204,10 +204,10 @@ class CourseRegistrationController {
   }
 
   @Get('/settings/version/:versionId')
-  @Authorized()
+  // @Authorized()
   async getSettings(
     @Params() params: CourseVersionIdParams,
-    @Ability(getCourseRegistrationAbility) {ability},
+    // @Ability(getCourseRegistrationAbility) {ability},
   ) {
     const {versionId} = params;
 
