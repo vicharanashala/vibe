@@ -1078,13 +1078,13 @@ export default function AISectionPage() {
                       <span className="font-semibold text-gray-900 dark:text-[#a8a29e] text-lg">Audio Extraction</span>
                       <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-orange-500 text-white dark:text-[#0D0D0D] font-medium">
                         {audioExtractionStatus === 'processing' ? 'Processing' : 
-                         audioExtractionStatus === 'completed' ? 'Completed' :
+                         (audioExtractionStatus as AudioExtractionStatus) === 'completed' ? 'Completed' :
                          audioExtractionStatus === 'failed' ? 'Failed' : 'Ready'}
                       </span>
               </div>
 
                
-                    {aiJobId && (
+                    {/* {aiJobId && (
             runs.some(r => r.status === "loading") ||
             runs.some(r => r.status === "stopped") ||
             (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.audioExtraction === 'RUNNING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'PENDING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'WAITING') && accordionAiJobStatus?.jobStatus?.audioExtraction !== 'FAILED') ||
@@ -1102,8 +1102,8 @@ export default function AISectionPage() {
                 <XCircle className="w-4 h-4 mr-2" />
                 {runs.some(r => r.status === "stopped") ? "Task Stopped" : "Stop Task"}
               </Button>
-            )}
-                    {audioExtractionStatus === 'completed' && (
+            )} */}
+                    {(audioExtractionStatus as AudioExtractionStatus) === 'completed' && (
                       <Button
                         onClick={handleStartTranscription}
                         size="sm"
@@ -1120,26 +1120,26 @@ export default function AISectionPage() {
                 <span>Run 1</span>
                 <span className="mx-2">•</span>
                     <span>{audioExtractionStartTime ? audioExtractionStartTime.toLocaleTimeString() : new Date().toLocaleTimeString()}</span>
-                    {(audioExtractionStatus === 'processing' || audioExtractionStatus === 'completed') && (
+                    {audioExtractionStatus !== 'ready' && audioExtractionStatus !== 'failed' && (
                       <>
                         <span className="mx-2">✨</span>
-                        <span>{Math.round(audioExtractionStatus === 'completed' ? 100 : audioExtractionProgress)}% complete</span>
+                        <span>{Math.round(audioExtractionStatus !== 'processing' ? 100 : audioExtractionProgress)}% complete</span>
                       </>
                     )}
               </div>
 
                
-                  {(audioExtractionStatus === 'processing' || audioExtractionStatus === 'completed') && (
+                  {audioExtractionStatus !== 'ready' && audioExtractionStatus !== 'failed' && (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-gray-700 dark:text-[#F8FAFD]">Extraction Progress</span>
-                        <span className="text-sm font-medium text-blue-600">{Math.round(audioExtractionStatus === 'completed' ? 100 : audioExtractionProgress)}%</span>
+                        <span className="text-sm font-medium text-blue-600">{Math.round(audioExtractionStatus !== 'processing' ? 100 : audioExtractionProgress)}%</span>
                       </div>
                       
                       <div className="w-full bg-gray-200 dark:bg-[#464545] rounded-full h-2 overflow-hidden">
                         <div  
                           className="bg-gray-800 dark:bg-[#FFFFFF] h-2 rounded-full transition-all duration-300 ease-out"
-                          style={{ width: `${audioExtractionStatus === 'completed' ? 100 : audioExtractionProgress}%` }}
+                          style={{ width: `${audioExtractionStatus !== 'processing' ? 100 : audioExtractionProgress}%` }}
                         ></div>
                       </div>
                       
@@ -1179,6 +1179,28 @@ export default function AISectionPage() {
             )}
           </>
         )}
+        {task === 'segmentation' && aiJobStatus?.task === 'SEGMENTATION' && aiJobStatus?.status === 'COMPLETED' && (
+            <div className="w-full rounded-xl border border-emerald-200 dark:border-[#0E7145] bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-[#171717] dark:from-[#171717] dark:to-[#171717]">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
+                  <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
+                    <CheckCircle className="w-5 h-5 text-white dark:text-[#0D0D0D]" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2.5">
+                      <div>AI Segmentation</div>
+                      <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white dark:text-[#0D0D0D] font-medium">Complete</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-emerald-600">Run 1</span>
+                      <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+        )}
+       
         {task === 'transcription' && (
           (accordionAiJobStatus?.jobStatus?.transcription === 'COMPLETED' ||
             (accordionAiJobStatus?.task === 'TRANSCRIPT_GENERATION' && accordionAiJobStatus?.status === 'COMPLETED'))
@@ -1204,29 +1226,22 @@ export default function AISectionPage() {
             </div>
           ):(
         <div className={`flex items-center gap-3 justify-center`}>
-          {task === 'transcription' && audioExtractionStatus === 'completed' ? (
+          {task === 'transcription' && accordionAiJobStatus?.status === 'COMPLETED' && accordionAiJobStatus?.task === 'AUDIO_EXTRACTION' ? (
             <Button
               onClick={handleStartTranscription}
-              disabled={aiJobStatus?.task === 'TRANSCRIPT_GENERATION' && aiJobStatus?.status === 'RUNNING'}
+              variant="default"
+              disabled={accordionAiJobStatus?.status !== 'COMPLETED' || accordionAiJobStatus?.task !== 'AUDIO_EXTRACTION'}
               className="px-6 py-3 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white dark:text-[#0D0D0D] font-semibold shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               < Play />
               Start Transcription Task
               <Sparkles/>
             </Button>
-          ) : !(task === 'segmentation' && aiJobStatus?.task === 'SEGMENTATION' && aiJobStatus?.status === 'COMPLETED') && (
+          ) : (
           <Button
             onClick={async () => {
               setQuestionGenParams(localParams);
               setSegParams(localSegParams);
-              
-              if (task === 'transcription') {
-                setAudioExtractionStatus('processing');
-                setAudioExtractionProgress(0);
-                setAudioExtractionStartTime(new Date());
-                setEstimatedTimeRemaining('~2 minutes');
-              }
-              
               if (task === 'upload') {
                 // Use values from store and input fields
                 if (!aiJobId) return;
@@ -1302,16 +1317,15 @@ export default function AISectionPage() {
               }
               handleTask(task, localSegParams, localParams);
             }}
-            disabled={!canRunTask(task) || runs.some(r => r.status === "loading") || (task === 'transcription' && audioExtractionStatus === 'completed')}
+            disabled={!canRunTask(task) || runs.some(r => r.status === "loading")}
             className="flex items-center justify-between gap-2 bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white dark:text-[#0D0D0D] font-semibold px-6 py-3 rounded-full shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-             <Play />
-            {runs.some(r => r.status === 'stopped') ? `Restart ${title}` : `Start ${title}`}
+            <Play />
+            {runs.some(r => r.status === 'stopped') ? `Restart ${title}` :  `Start ${title}`}
             <Sparkles />
           </Button>
           )}
-           
-          {/* {aiJobId && (
+          {aiJobId && (
             runs.some(r => r.status === "loading") ||
             runs.some(r => r.status === "stopped") ||
             (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.audioExtraction === 'RUNNING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'PENDING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'WAITING') && accordionAiJobStatus?.jobStatus?.audioExtraction !== 'FAILED') ||
@@ -1329,30 +1343,8 @@ export default function AISectionPage() {
                 <XCircle className="w-4 h-4 mr-2" />
                 {runs.some(r => r.status === "stopped") ? "Task Stopped" : "Stop Task"}
               </Button>
-            )} */}
-          {/* Add three input boxes for segmentation parameters beside the Segmentation button */}
-          {task === 'segmentation' && (
-            aiJobStatus?.task === 'SEGMENTATION' && aiJobStatus?.status === 'COMPLETED' ? (
-              <div className="w-full rounded-xl border border-emerald-200 dark:border-[#0E7145] bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-[#171717] dark:from-[#171717] dark:to-[#171717]">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
-                  <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
-                  <CheckCircle className="w-5 h-5 text-white dark:text-[#0D0D0D]" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2.5">
-                    <div>AI Segmentation</div>
-                    <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white dark:text-[#0D0D0D] font-medium">Complete</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-emerald-600">Run 1</span>
-                    <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
-                  </div>
-                </div>
-                </div>
-              </div>
-            </div>
-            ) : (
+            )}
+           {task === 'segmentation' && (
             <div className="flex flex-row gap-3 items-center ml-4 bg-gray-100 dark:bg-gray-800/60 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700">
               {segFields.map(({ key, type }) => (
                 <div key={key} className="flex flex-col items-start min-w-[80px]">
@@ -1375,8 +1367,7 @@ export default function AISectionPage() {
                 </div>
               ))}
             </div>
-          )
-          )}
+         )}
           {/* Add Re-run Transcription button */}
           {task === 'transcription' && jobStatus?.task === 'TRANSCRIPT_GENERATION' && jobStatus?.status === 'COMPLETED' && (
             <Button
@@ -4120,3 +4111,5 @@ async function editSegmentMap(jobId: string, segmentMap: number[], index: number
   if (res.status === 404) throw new Error('Job not found: ' + errMsg);
   throw new Error(errMsg);
 }
+
+
