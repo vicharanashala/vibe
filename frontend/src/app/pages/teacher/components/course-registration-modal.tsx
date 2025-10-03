@@ -479,6 +479,8 @@ export const FormBuilder = ({ versionId, setShowFormBuilder }: { versionId: stri
         confirmText="Submit"
         cancelText="Cancel"
         isDestructive={false}
+        isLoading={isUpdatingFields}
+        loadingText="Submitting..."
       />
 
       <ConfirmationModal

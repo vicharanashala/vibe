@@ -202,7 +202,6 @@ ${registrationUrl}`;
     setCurrentPage(newPage);
   };
 
-  console.log("data from frontend ",selectedRegistration)
   if (showFormBuilder) {
     return (
       <div className="min-h-screen bg-background w-full">
@@ -254,6 +253,8 @@ ${registrationUrl}`;
         confirmText="Approve"
         cancelText="Cancel"
         isDestructive={false}
+        isLoading={isUpdatingStatus}
+        loadingText={"Approving..."}
       />
     
       <ConfirmationModal
@@ -265,6 +266,8 @@ ${registrationUrl}`;
         confirmText="Reject"
         cancelText="Cancel"
         isDestructive={true}
+        isLoading={isUpdatingStatus}
+        loadingText={"Rejecting..."}
       />
       <ConfirmationModal
         isOpen={isBulkApproveOpen}
@@ -275,6 +278,8 @@ ${registrationUrl}`;
         confirmText="Approve All"
         cancelText="Cancel"
         isDestructive={false}
+        isLoading={isUpdatingBulkStatus}
+        loadingText={"Approving..."}
       />
       <div className="container mx-auto py-4 space-y-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
