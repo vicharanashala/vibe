@@ -20,7 +20,10 @@ import {
 import {COURSE_REGISTRATION_TYPES} from '../types.js';
 import {Invite, InviteService} from '#root/modules/notifications/index.js';
 import {ClientSession, ObjectId} from 'mongodb';
-import {CourseDetailsDTO, UpdateRegistrationSchemasBody} from '../classes/index.js';
+import {
+  CourseDetailsDTO,
+  UpdateRegistrationSchemasBody,
+} from '../classes/index.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {COURSES_TYPES} from '#root/modules/courses/types.js';
 import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
@@ -59,50 +62,61 @@ export class CourseRegistrationService extends BaseService {
   }
 
   async getCourseDetails(versionId: string) {
-    const courseVersion = await this.courseRepo.readVersion(versionId);
-    const course = await this.courseRepo.read(courseVersion.courseId as string);
-    const modules = [];
-    let totalItems = 0;
-    for (const mod of courseVersion.modules || []) {
-      // Collect all itemsGroupIds from sections in this module
-      const groupIds = mod.sections
-        ? mod.sections.map(section => section.itemsGroupId).filter(id => id)
-        : [];
-      // Fetch total items for the module
-      const itemsCount = await this.itemRepo.getItemsCountByGroupIds(
-        groupIds as string[],
+    return this._withTransaction(async session => {
+      const courseVersion = await this.courseRepo.readVersion(
+        versionId,
+        session,
       );
-      totalItems += itemsCount;
+      const course = await this.courseRepo.read(
+        courseVersion.courseId as string,
+        session,
+      );
+      const modules = [];
+      let totalItems = 0;
+      for (const mod of courseVersion.modules || []) {
+        // Collect all itemsGroupIds from sections in this module
+        const groupIds = mod.sections
+          ? mod.sections.map(section => section.itemsGroupId).filter(id => id)
+          : [];
+        // Fetch total items for the module
+        const itemsCount = await this.itemRepo.getItemsCountByGroupIds(
+          groupIds as string[],
+          session,
+        );
+        totalItems += itemsCount;
 
-      modules.push({
-        id: mod.moduleId, // Use moduleId if available
-        name: mod.name,
-        description: mod.description,
-        itemsCount,
-      });
-    }
+        modules.push({
+          id: mod.moduleId, // Use moduleId if available
+          name: mod.name,
+          description: mod.description,
+          itemsCount,
+        });
+      }
 
-    // Fetch instructors
-    const instructorIds = await this.enrollmentRepo.getInstructorIdsByVersion(
-      courseVersion.courseId.toString(),
-      versionId,
-    );
-    const instructorDetails = await this.userRepo.getUserNamesByIds(
-      instructorIds as string[],
-    );
-    // Construct the final output (match your sample structure)
-    return {
-      id: 'v1', // Hardcode or generate dynamically, e.g., based on version string
-      courseId: courseVersion.courseId.toString(),
-      course: course,
-      version: `${courseVersion.version} - ${course.name}`, // Combined as in your example
-      description: course.description || courseVersion.description, // Use course desc if version desc is short
-      modules,
-      totalItems,
-      createdAt: courseVersion.createdAt,
-      updatedAt: courseVersion.updatedAt,
-      instructors: instructorDetails,
-    };
+      // Fetch instructors
+      const instructorIds = await this.enrollmentRepo.getInstructorIdsByVersion(
+        courseVersion.courseId.toString(),
+        versionId,
+        session,
+      );
+      const instructorDetails = await this.userRepo.getUserNamesByIds(
+        instructorIds as string[],
+        session,
+      );
+      // Construct the final output (match your sample structure)
+      return {
+        id: 'v1', // Hardcode or generate dynamically, e.g., based on version string
+        courseId: courseVersion.courseId.toString(),
+        course: course,
+        version: `${courseVersion.version} - ${course.name}`, // Combined as in your example
+        description: course.description || courseVersion.description, // Use course desc if version desc is short
+        modules,
+        totalItems,
+        createdAt: courseVersion.createdAt,
+        updatedAt: courseVersion.updatedAt,
+        instructors: instructorDetails,
+      };
+    });
   }
 
   async create(
@@ -111,22 +125,26 @@ export class CourseRegistrationService extends BaseService {
       'courseId' | 'createdAt' | 'updatedAt'
     >,
   ) {
-    const courseVersion = await this.courseRepo.readVersion(
-      registrationData.versionId,
-    );
-    const existing = await this.courseRegistrationRepo.findByUserId(
-      registrationData.userId,
-    );
-    if (existing) {
-      throw new Error('You are already enrolled in this course');
-    }
-    const data: ICourseRegistration = {
-      ...registrationData,
-      courseId: courseVersion.courseId as string,
-      createdAt: new Date(),
-      updatedAt: null,
-    };
-    return await this.courseRegistrationRepo.create(data);
+    return this._withTransaction(async session => {
+      const courseVersion = await this.courseRepo.readVersion(
+        registrationData.versionId,
+        session,
+      );
+      const existing = await this.courseRegistrationRepo.findByUserId(
+        registrationData.userId,
+        session,
+      );
+      if (existing) {
+        throw new Error('You are already enrolled in this course');
+      }
+      const data: ICourseRegistration = {
+        ...registrationData,
+        courseId: courseVersion.courseId as string,
+        createdAt: new Date(),
+        updatedAt: null,
+      };
+      return await this.courseRegistrationRepo.create(data, session);
+    });
   }
 
   async getAllregistrations(
@@ -137,21 +155,24 @@ export class CourseRegistrationService extends BaseService {
     search: string,
     sort: 'older' | 'latest',
   ) {
-    const skip = (page - 1) * limit;
-    const {registrations, totalDocuments} =
-      await this.courseRegistrationRepo.findAllregistrations(
-        versionId,
-        {status, search},
-        skip,
-        limit,
-        sort,
-      );
-    return {
-      totalDocuments,
-      totalPages: Math.ceil(totalDocuments / limit),
-      currentPage: page,
-      registrations,
-    };
+    return this._withTransaction(async session => {
+      const skip = (page - 1) * limit;
+      const {registrations, totalDocuments} =
+        await this.courseRegistrationRepo.findAllregistrations(
+          versionId,
+          {status, search},
+          skip,
+          limit,
+          sort,
+          session,
+        );
+      return {
+        totalDocuments,
+        totalPages: Math.ceil(totalDocuments / limit),
+        currentPage: page,
+        registrations,
+      };
+    });
   }
 
   async updateStatus(
@@ -218,7 +239,9 @@ export class CourseRegistrationService extends BaseService {
       }
     });
   }
-  async getSettings(versionId: string): Promise<{ jsonSchema: any; uiSchema: any }> {
+  async getSettings(
+    versionId: string,
+  ): Promise<{jsonSchema: any; uiSchema: any}> {
     return this._withTransaction(async session => {
       try {
         const version = await this.courseRepo.readVersion(versionId, session);
@@ -261,79 +284,78 @@ export class CourseRegistrationService extends BaseService {
         //   registrationSettings = defaultSettings;
         // }
 
-        let { jsonSchema, uiSchema } = courseSettings.settings;
+        let {jsonSchema, uiSchema} = courseSettings.settings;
 
-      // If no schemas exist, add default ones and persist
-      if (!jsonSchema || !uiSchema) {
-        // Define default schemas (customize as needed)
-        const defaultJsonSchema = {
-          type: 'object',
-          properties: {
-            name: {
-              type: 'string',
-              title: 'Full Name',
-              minLength: 1,
+        // If no schemas exist, add default ones and persist
+        if (!jsonSchema || !uiSchema) {
+          // Define default schemas (customize as needed)
+          const defaultJsonSchema = {
+            type: 'object',
+            properties: {
+              name: {
+                type: 'string',
+                title: 'Full Name',
+                minLength: 1,
+              },
+              email: {
+                type: 'string',
+                format: 'email',
+                title: 'Email',
+              },
+              phone: {
+                type: 'string',
+                title: 'Phone',
+              },
             },
-            email: {
-              type: 'string',
-              format: 'email',
-              title: 'Email',
+            required: ['name', 'email'],
+          };
+
+          const defaultUiSchema = {
+            Name: {
+              'ui:placeholder': 'Enter your Name',
             },
-            phone: {
-              type: 'string',
-              title: 'Phone',
+            Email: {
+              'ui:placeholder': 'Enter your Email',
             },
-          },
-          required: ['name', 'email'],
-        };
-
-
-        const defaultUiSchema = {
-          Name: {
-            'ui:placeholder': 'Enter your Name',
-          },
-          Email: {
-            'ui:placeholder': 'Enter your Email',
-          },
-          Mobile: {
-            'ui:options': {
-              inputType: 'tel',
+            Mobile: {
+              'ui:options': {
+                inputType: 'tel',
+              },
             },
-          },
-        };
+          };
 
-        // const defaultUiSchema = {
-        //   type: 'VerticalLayout',
-        //   elements: [
-        //     {
-        //       type: 'Control',
-        //       scope: '#/properties/name',
-        //     },
-        //     {
-        //       type: 'Control',
-        //       scope: '#/properties/email',
-        //     },
-        //     {
-        //       type: 'Control',
-        //       scope: '#/properties/phone',
-        //     },
-        //   ],
-        // };
+          // const defaultUiSchema = {
+          //   type: 'VerticalLayout',
+          //   elements: [
+          //     {
+          //       type: 'Control',
+          //       scope: '#/properties/name',
+          //     },
+          //     {
+          //       type: 'Control',
+          //       scope: '#/properties/email',
+          //     },
+          //     {
+          //       type: 'Control',
+          //       scope: '#/properties/phone',
+          //     },
+          //   ],
+          // };
 
-        // Persist defaults
-        await this.settingsRepo.updateRegistrationSchemas(
-          courseId,
-          versionId,
-          { jsonSchema: defaultJsonSchema, uiSchema: defaultUiSchema },
-          session,
-        );
+          // Persist defaults
+          await this.settingsRepo.updateRegistrationSchemas(
+            courseId,
+            versionId,
+            {jsonSchema: defaultJsonSchema, uiSchema: defaultUiSchema},
+            session,
+          );
 
-        // Update local reference
-        jsonSchema = defaultJsonSchema;
-        uiSchema = defaultUiSchema;
-      }
+          // Update local reference
+          jsonSchema = defaultJsonSchema;
+          uiSchema = defaultUiSchema;
+        }
 
-      return {jsonSchema,uiSchema}
+        return {jsonSchema, uiSchema};
 
         // return registrationSettings;
       } catch (error) {
@@ -342,7 +364,10 @@ export class CourseRegistrationService extends BaseService {
     });
   }
 
-  async updateSettings(versionId: string, schemas: { jsonSchema: any; uiSchema: any }) {
+  async updateSettings(
+    versionId: string,
+    schemas: {jsonSchema: any; uiSchema: any},
+  ) {
     return this._withTransaction(async session => {
       try {
         const version = await this.courseRepo.readVersion(versionId, session);
@@ -360,15 +385,15 @@ export class CourseRegistrationService extends BaseService {
           session,
         );
       } catch (error) {
-        console.error(error)
+        console.error(error);
         throw new InternalServerError('Failed to update settings');
       }
     });
   }
 
-  async getRegistrationForm(versionId:string){
+  async getRegistrationForm(versionId: string) {
     return this._withTransaction(async session => {
-      return await this.settingsRepo.readSettingsSchema(versionId,session)
-    })
+      return await this.settingsRepo.readSettingsSchema(versionId, session);
+    });
   }
 }
