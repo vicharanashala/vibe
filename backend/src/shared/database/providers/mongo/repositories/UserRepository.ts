@@ -99,13 +99,13 @@ export class UserRepository implements IUserRepository {
 //   return users.map(user => user.name);
 // }
 
-async getUserNamesByIds(userIds: string[]) {
+async getUserNamesByIds(userIds: string[],session?:ClientSession) {
   await this.init()
   console.log("get user name by id",userIds)
   const users = await this.usersCollection
     .find(
       { _id: { $in: userIds.map(id => new ObjectId(id)) } }, 
-      { projection: { firstName: 1,firebaseUID:1, _id: 0 } } // <-- projection instead of select
+      { projection: { firstName: 1,firebaseUID:1, _id: 0 },session } // <-- projection instead of select
     )
     .toArray();
     const results = await Promise.all(
