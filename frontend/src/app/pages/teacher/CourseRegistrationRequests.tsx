@@ -726,7 +726,7 @@ ${registrationUrl}`;
                       {Object.entries(selectedRegistration.detail).map(([key, value]) => (
                         <div key={key}>
                           <span className="font-medium capitalize">{key}:</span>{' '}
-                          {value}
+                          {value as string}
                         </div>
                       ))}
                     </div>
