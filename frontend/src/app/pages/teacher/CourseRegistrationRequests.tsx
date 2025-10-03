@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Users, Eye, User, CheckCircle, XCircle, Share2, Check, Copy, Share, RefreshCw, Settings, ListChecks, Hash, Calendar } from "lucide-react";
+import { Loader2, Users, Eye, User, CheckCircle, XCircle, Share2, Check, Copy, Share, RefreshCw,  ListChecks, Hash, Calendar, ArrowLeft, Settings, Info, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import ConfirmationModal from "./components/confirmation-modal";
 import { FormBuilder } from "./components/course-registration-modal";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
 interface RegistrationDetail {
@@ -59,14 +60,12 @@ export default function CourseRegistrationRequests() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [isCustomOpen, setIsCustomOpen] = useState(false);
   const [showFormBuilder, setShowFormBuilder] = useState(false);
   // for confirmation modal
   const [isSingleApproveOpen, setIsSingleApproveOpen] = useState(false);
   const [isBulkApproveOpen, setIsBulkApproveOpen] = useState(false);
   const [isSingleRejectOpen, setIsSingleRejectOpen] = useState(false);
   const [singleRegistrationId, setSingleRegistrationId] = useState<string | null>(null);
-
   const { currentCourse } = useCourseStore()
   const versionId = currentCourse?.versionId
 
@@ -206,17 +205,36 @@ ${registrationUrl}`;
 
   if (showFormBuilder) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background w-full">
         <div className="container mx-auto py-4">
-          {/* Back button to return to the registration requests view */}
-          <Button
-            variant="outline"
-            onClick={() => setShowFormBuilder(false)}
-            className="mb-4"
-          >
-            Back to Registrations
-          </Button>
-          <FormBuilder versionId={versionId!} />
+          <div className="flex items-center gap-4 mb-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowFormBuilder(false)}
+              className="h-10 w-10 p-2"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="flex items-center gap-3">
+
+        
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent ">
+              Form Builder
+            </h1>
+            <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="me-2 w-5 h-5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    Here you can manage the course registration form fields. 
+                    Only selected fields will be visible to students.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </div>
+          <FormBuilder versionId={versionId!} setShowFormBuilder={setShowFormBuilder}/>
         </div>
       </div>
     );
@@ -224,8 +242,6 @@ ${registrationUrl}`;
 
   return (
     <div className="min-h-screen bg-background">
-                                          {/* <FormBuilder versionId={versionId!}/> */}
-
       <ConfirmationModal
         isOpen={isSingleApproveOpen}
         onClose={() => {
@@ -239,6 +255,7 @@ ${registrationUrl}`;
         cancelText="Cancel"
         isDestructive={false}
       />
+    
       <ConfirmationModal
         isOpen={isSingleRejectOpen}
         onClose={() => setIsSingleRejectOpen(false)}
@@ -365,26 +382,15 @@ ${registrationUrl}`;
                 : `Approve Selected (${selectedIds.length})`}
             </Button>
 
-              <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => setIsCustomOpen(true)}
-            >
-              <Settings className="h-4 w-4" />
-              Settings
-            </Button>
-
-
-            {/*New Button for form genaration */}
+      
             <Button
               variant="outline"
               size="sm"
               className="gap-2"
               onClick={() => setShowFormBuilder(true)}
             >
-              <Settings className="h-4 w-4" />
-              Generate Form
+              <FileText  className="h-4 w-4" />
+              Build Form
             </Button>
 
             <Button
