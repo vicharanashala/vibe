@@ -365,4 +365,10 @@ export class CourseRegistrationService extends BaseService {
       }
     });
   }
+
+  async getRegistrationForm(versionId:string){
+    return this._withTransaction(async session => {
+      return await this.settingsRepo.readSettingsSchema(versionId,session)
+    })
+  }
 }

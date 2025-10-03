@@ -110,6 +110,8 @@ export interface ISettingRepository {
     session?: ClientSession,
   ): Promise<IUserSetting | null>;
 
+  readSettingsSchema(versionId:string,session?:ClientSession)
+
   /**
    * Reads user settings for a specific student, course and version.
    * @param studentId - The ID of the student

@@ -421,5 +421,14 @@ export class SettingRepository implements ISettingRepository {
 
   return result;
 }
+
+async readSettingsSchema(versionId:string){
+  await this.init()
+  const result = await this.courseSettingsCollection.findOne({courseVersionId:new ObjectId(versionId)})
+  const jsonSchema=result.settings.jsonSchema
+  const uiSchema= result.settings.uiSchema
+  return {jsonSchema,uiSchema}
+}
+
 }
 
