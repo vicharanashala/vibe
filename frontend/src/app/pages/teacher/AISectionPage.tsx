@@ -814,6 +814,17 @@ export default function AISectionPage() {
     }
   };
 
+  const getCurrentActiveRunNumber = (taskType: keyof TaskRuns): number => {
+    const runs = taskRuns[taskType];
+    if (!runs || runs.length === 0) return 1;
+    
+    const latestRun = runs.reduce((latest, current) => 
+      current.timestamp > latest.timestamp ? current : latest
+    );
+    
+    return runs.indexOf(latestRun) + 1;
+  };
+
   const TaskAccordion = React.memo(({
     task,
     title,
@@ -953,7 +964,7 @@ export default function AISectionPage() {
               <div>
                   <div>Audio Extraction</div>
                   <div className="flex items-center gap-3">
-                  <span className="text-xs text-emerald-600">Run 1</span>
+                  <span className="text-xs text-emerald-600">Run {getCurrentActiveRunNumber('transcription')}</span>
                   <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
                   <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white dark:text-[#0D0D0D] font-medium">Complete</span>
                   <span className="text-sm text-emerald-700 font-medium">100% complete</span>
@@ -1118,7 +1129,7 @@ export default function AISectionPage() {
            
                   <div className="flex items-center text-sm text-gray-600 dark:text-[#FBFDFF]">
                 <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                <span>Run 1</span>
+                <span>Run {getCurrentActiveRunNumber('transcription')}</span>
                 <span className="mx-2">•</span>
                     <span>{audioExtractionStartTime ? audioExtractionStartTime.toLocaleTimeString() : new Date().toLocaleTimeString()}</span>
                     {audioExtractionStatus !== 'ready' && audioExtractionStatus !== 'failed' && (
@@ -1193,7 +1204,7 @@ export default function AISectionPage() {
                       <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white dark:text-[#0D0D0D] font-medium">Complete</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-xs text-emerald-600">Run 1</span>
+                      <span className="text-xs text-emerald-600">Run {getCurrentActiveRunNumber('segmentation')}</span>
                       <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
                     </div>
                   </div>
@@ -1218,7 +1229,7 @@ export default function AISectionPage() {
                     <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white dark:text-[#0D0D0D] font-medium">Complete</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-emerald-600">Run 1</span>
+                    <span className="text-xs text-emerald-600">Run {getCurrentActiveRunNumber('transcription')}</span>
                     <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
                   </div>
                 </div>
@@ -3700,7 +3711,7 @@ export default function AISectionPage() {
                                       <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white dark:text-[#0D0D0D] font-medium">Complete</span>
                                     </div>
                                     <div className="flex items-center gap-3">
-                                      <span className="text-xs text-emerald-600">Run 1</span>
+                                      <span className="text-xs text-emerald-600">Run {getCurrentActiveRunNumber('question')}</span>
                                       <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
                                     </div>
                                   </div>
