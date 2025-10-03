@@ -87,7 +87,8 @@ class CourseRegistrationController {
   })
   async courseRegistration(
     @Params() params: CourseVersionIdParams,
-    @Body() body: CourseRegistrationBody,
+    // @Body() body: CourseRegistrationBody,
+    @Body() body:Record<string, any>,
     @Ability(getCourseRegistrationAbility) {ability, user},
     @Req() req: any,
   ) {
