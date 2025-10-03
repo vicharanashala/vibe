@@ -117,7 +117,9 @@ ${registrationUrl}`;
   const handleBulkApprove = async () => {
     if (isUpdatingBulkStatus || isUpdatingStatus) return;
 
-    const idsToApprove = selectedIds && selectedIds.length > 0 ? selectedIds : [];
+    const allRegistrationIds = registrationsData?.registrations?.map((reg) => reg._id) || [];
+
+    const idsToApprove = selectedIds && selectedIds.length > 0 ? selectedIds : allRegistrationIds;
 
     try {
       await updateBulkStatus(idsToApprove);
@@ -202,7 +204,6 @@ ${registrationUrl}`;
     setCurrentPage(newPage);
   };
 
-  console.log("data from frontend ",selectedRegistration)
   if (showFormBuilder) {
     return (
       <div className="min-h-screen bg-background w-full">
@@ -254,6 +255,8 @@ ${registrationUrl}`;
         confirmText="Approve"
         cancelText="Cancel"
         isDestructive={false}
+        isLoading={isUpdatingStatus}
+        loadingText={"Approving..."}
       />
     
       <ConfirmationModal
@@ -265,6 +268,8 @@ ${registrationUrl}`;
         confirmText="Reject"
         cancelText="Cancel"
         isDestructive={true}
+        isLoading={isUpdatingStatus}
+        loadingText={"Rejecting..."}
       />
       <ConfirmationModal
         isOpen={isBulkApproveOpen}
@@ -275,6 +280,8 @@ ${registrationUrl}`;
         confirmText="Approve All"
         cancelText="Cancel"
         isDestructive={false}
+        isLoading={isUpdatingBulkStatus}
+        loadingText={"Approving..."}
       />
       <div className="container mx-auto py-4 space-y-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
@@ -726,7 +733,7 @@ ${registrationUrl}`;
                       {Object.entries(selectedRegistration.detail).map(([key, value]) => (
                         <div key={key}>
                           <span className="font-medium capitalize">{key}:</span>{' '}
-                          {value}
+                          {value as string}
                         </div>
                       ))}
                     </div>
