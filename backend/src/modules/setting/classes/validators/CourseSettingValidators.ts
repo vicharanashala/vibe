@@ -59,6 +59,8 @@ export class SettingsDto {
   @IsDefined()
   @IsBoolean()
   linearProgressionEnabled: boolean;
+  jsonSchema?:any
+  uiSchema?:any
 }
 
 @ValidatorConstraint({ async: false })

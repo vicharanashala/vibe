@@ -7,7 +7,24 @@ import { MongoDatabase } from '../MongoDatabase.js';
 import { InternalServerError, NotFoundError } from 'routing-controllers';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { User } from '#auth/classes/transformers/User.js';
+import admin from "firebase-admin";
+import { appConfig } from "#root/config/app.js";
 
+if (!admin.apps.length) {
+  if (appConfig.isDevelopment) {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        clientEmail: appConfig.firebase.clientEmail,
+        privateKey: appConfig.firebase.privateKey.replace(/\\n/g, "\n"),
+        projectId: appConfig.firebase.projectId,
+      }),
+    });
+  } else {
+    admin.initializeApp({
+      credential: admin.credential.applicationDefault(),
+    });
+  }
+}
 @injectable()
 export class UserRepository implements IUserRepository {
   private usersCollection!: Collection<IUser>;
@@ -76,6 +93,45 @@ export class UserRepository implements IUserRepository {
     const user = await this.usersCollection.findOne({ _id: new ObjectId(id) }, {session});
     return instanceToPlain(new User(user)) as IUser;
   }
+
+//   async getUserNamesByIds(userIds:string[]) {
+//   const users = await this.usersCollection.find({ _id: { $in: userIds } }).select('name').lean(); // Assuming 'name' field exists
+//   return users.map(user => user.name);
+// }
+
+async getUserNamesByIds(userIds: string[]) {
+  await this.init()
+  console.log("get user name by id",userIds)
+  const users = await this.usersCollection
+    .find(
+      { _id: { $in: userIds.map(id => new ObjectId(id)) } }, 
+      { projection: { firstName: 1,firebaseUID:1, _id: 0 } } // <-- projection instead of select
+    )
+    .toArray();
+    const results = await Promise.all(
+    users.map(async (user) => {
+      try {
+        const userRecord = await admin.auth().getUser(user.firebaseUID);
+        return {
+          name: user.firstName,
+          profileImage: userRecord.photoURL || null,
+        };
+      } catch (error) {
+        console.error(
+          `Failed to fetch Firebase user for UID: ${user.firebaseUID}`,
+          error
+        );
+        return {
+          name: user.firstName,
+          profileImage: null,
+        };
+      }
+    })
+  );
+  return results
+
+  // return users.map(user => user.firstName);
+}
 
   /**
    * Finds a user by Firebase UID.

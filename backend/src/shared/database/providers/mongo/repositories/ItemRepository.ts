@@ -43,6 +43,7 @@ export class ItemRepository implements IItemRepository {
       'projects',
     );
   }
+  
 
   // Methods for ItemsGroup operations
   async createItemsGroup(
@@ -50,6 +51,7 @@ export class ItemRepository implements IItemRepository {
     session?: ClientSession,
   ): Promise<ItemsGroup> {
     await this.init();
+    
     const result = await this.itemsGroupCollection.insertOne(itemsGroup, {
       session,
     });
@@ -69,6 +71,29 @@ export class ItemRepository implements IItemRepository {
       Object.assign(new ItemsGroup(), newItemsGroup),
     ) as ItemsGroup;
   }
+
+//   async getItemsCountByGroupIds(groupIds:string[]) {
+//   const itemGroups = await this.itemsGroupCollection.find({ _id: { $in: groupIds } }).select('items').lean();
+//   return itemGroups.reduce((total, group) => total + (group.items ? group.items.length : 0), 0);
+// }
+
+async getItemsCountByGroupIds(groupIds: string[]) {
+  await this.init();
+  console.log("groupids ",groupIds)
+  console.log("itemsGroupCollection is", this.itemsGroupCollection?.namespace);
+  const itemGroups = await this.itemsGroupCollection
+    .find(
+      { _id: { $in: groupIds.map(id => new ObjectId(id)) } }, 
+      { projection: { items: 1 } } // only return `items`
+    )
+    .toArray();
+  console.log("Items group ",ItemsGroup)
+
+  return itemGroups.reduce(
+    (total, group) => total + (group.items ? group.items.length : 0),
+    0
+  );
+}
 
   async readItemsGroup(
     itemsGroupId: string,
