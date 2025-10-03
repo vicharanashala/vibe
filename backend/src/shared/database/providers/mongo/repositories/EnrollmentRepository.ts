@@ -170,7 +170,7 @@ export class EnrollmentRepository {
       if (!newEnrollment) {
         throw new NotFoundError('Newly created enrollment not found');
       }
-
+      console.log("new enrollment ",newEnrollment)
       return newEnrollment;
     } catch (error) {
       throw new InternalServerError(

@@ -194,9 +194,11 @@ class CourseRegistrationController {
     @Body() body: BulkUpdateStatusBody,
     @Ability(getCourseRegistrationAbility) {ability},
   ) {
-    const {registrationIds} = body;
+    const {selected} = body;
+    console.log("body ",body)
+    console.log("ids ",selected)
     const result = await this.courseRegistrationService.updateBulkStatus(
-      registrationIds,
+      selected,
     );
     return {
       message: 'Registration status updated successfully',

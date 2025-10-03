@@ -113,6 +113,7 @@ class CourseRegistrationRepository {
 
   async updateBulkStatus(registrationIds: string[], session?: ClientSession) {
     await this.init();
+    console.log("reached here repo bulk")
     if (registrationIds.length <= 0) {
       const data = await this.courseRegistrationCollection.updateMany(
         {_id: {$in: registrationIds}},

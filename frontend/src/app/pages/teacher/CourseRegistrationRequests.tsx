@@ -568,12 +568,12 @@ ${registrationUrl}`;
 
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold text-foreground truncate text-base md:text-lg">
-                                {reg.detail.name || "Unknown User"}
+                                {reg.detail.name || reg.detail.Name|| "Unknown User"}
                               </p>
 
-                              {reg.detail.email && (
+                              {reg.detail.email || reg.detail.Email && (
                                 <p className="text-xs md:text-sm text-muted-foreground truncate mt-1">
-                                  {reg.detail.email}
+                                  {reg.detail.email || reg.detail.Email}
                                 </p>
                               )}
                             </div>
