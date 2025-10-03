@@ -115,7 +115,7 @@ export interface JSONSchemaProperty {
 const FIELD_TYPES = [
   { type: 'text' as FieldType, label: 'Text Input', icon: Type },
   { type: 'email' as FieldType, label: 'Email', icon: Mail },
-  { type: 'password' as FieldType, label: 'Password', icon: Lock },
+  // { type: 'password' as FieldType, label: 'Password', icon: Lock },
   { type: 'number' as FieldType, label: 'Number', icon: Hash },
   { type: 'textarea' as FieldType, label: 'Text Area', icon: AlignLeft },
   { type: 'checkbox' as FieldType, label: 'Checkbox', icon: CheckSquare },
@@ -124,7 +124,7 @@ const FIELD_TYPES = [
   { type: 'date' as FieldType, label: 'Date Picker', icon: Calendar },
   { type: 'tel' as FieldType, label: 'Phone', icon: Phone },
   { type: 'url' as FieldType, label: 'URL', icon: Link },
-  { type: 'file' as FieldType, label: 'File Upload', icon: FileText },
+  // { type: 'file' as FieldType, label: 'File Upload', icon: FileText },
 ];
 
 export const FormBuilder = ({ versionId, setShowFormBuilder }: { versionId: string, setShowFormBuilder: (value: boolean)=> void }) => {
@@ -449,8 +449,8 @@ export const FormBuilder = ({ versionId, setShowFormBuilder }: { versionId: stri
       />
 
       <div className="flex gap-6 h-[calc(100vh-165px)]">
-        <div className="w-[380px] flex flex-col gap-4">
-          <Card className="flex-shrink-0">
+        <div className="w-[380px] h-full flex flex-col gap-4">
+          <Card className="flex-shrink-0 h-full "  >
             <CardHeader className="pb-3 border-b">
               <CardTitle className="text-lg flex items-center gap-2">
                 <PlusCircle className="w-5 h-5 text-muted-foreground" />
@@ -753,14 +753,13 @@ export const FormBuilder = ({ versionId, setShowFormBuilder }: { versionId: stri
                             <div key={index} className="flex items-center gap-2">
                               <Input
                                 value={option.label}
-                                onChange={(e) =>
-                                  updateOption(selectedField.id, index, {
-                                    label: e.target.value,
-                                    value: e.target.value
-                                      .toLowerCase()
-                                      .replace(/\s+/g, "_"),
-                                  })
-                                }
+                                onChange={(e) => {
+                                  const label = e.target.value;
+                                  const value = label.trim()
+                                    ? label.toLowerCase().replace(/\s+/g, "_")
+                                    : `option_${index}`; 
+                                  updateOption(selectedField.id, index, { label, value });
+                                }}
                                 placeholder="Option label"
                               />
                               <Button
