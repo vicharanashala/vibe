@@ -205,7 +205,7 @@ class CourseRegistrationController {
   }
 
   @Get('/settings/version/:versionId')
-  // @Authorized()
+  @Authorized()
   async getSettings(
     @Params() params: CourseVersionIdParams,
     // @Ability(getCourseRegistrationAbility) {ability},
@@ -251,7 +251,7 @@ class CourseRegistrationController {
       'Get all the Data to load in the register form page for student registration.',
   })
   @Get('/form/version/:versionId')
-  // @Authorized()
+  @Authorized()
   @HttpCode(200)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',

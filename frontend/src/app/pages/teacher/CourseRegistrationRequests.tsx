@@ -202,7 +202,7 @@ ${registrationUrl}`;
     setCurrentPage(newPage);
   };
 
-
+  console.log("data from frontend ",selectedRegistration)
   if (showFormBuilder) {
     return (
       <div className="min-h-screen bg-background w-full">
@@ -675,75 +675,6 @@ ${registrationUrl}`;
                       </TableRow>
                     ))
                   )}
-                  {selectedRegistration && (
-                    <Dialog
-                      open={!!selectedRegistration}
-                      onOpenChange={() => setSelectedRegistration(null)}
-                    >
-                      <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto py-8">
-                        <DialogHeader className="pb-4">
-                          <DialogTitle className="flex items-center gap-2 text-xl">
-                            <User className="h-5 w-5 text-primary" />
-                            Registration Details
-                          </DialogTitle>
-                        </DialogHeader>
-
-                        <div className="space-y-4">
-                          <Card>
-                            <CardContent className="p-6">
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                                <div>
-                                  <span className="font-medium">Name:</span>{' '}
-                                  {selectedRegistration.detail.name}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Email:</span>{' '}
-                                  {selectedRegistration.detail.email}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Mobile:</span>{' '}
-                                  {selectedRegistration.detail.mobile}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Gender:</span>{' '}
-                                  {selectedRegistration.detail.gender}
-                                </div>
-                                <div>
-                                  <span className="font-medium">City:</span>{' '}
-                                  {selectedRegistration.detail.city}
-                                </div>
-                                <div>
-                                  <span className="font-medium">State:</span>{' '}
-                                  {selectedRegistration.detail.state}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Category:</span>{' '}
-                                  {selectedRegistration.detail.category}
-                                </div>
-                                <div>
-                                  <span className="font-medium">
-                                    University:
-                                  </span>{' '}
-                                  {selectedRegistration.detail.university}
-                                </div>
-                              </div>
-                              <Separator className="my-4" />
-                              <p className="text-sm text-muted-foreground">
-                                Registered on:{' '}
-                                {new Date(
-                                  selectedRegistration.createdAt,
-                                ).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  year: 'numeric',
-                                })}
-                              </p>
-                            </CardContent>
-                          </Card>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  )}
                 </TableBody>
               </Table>
             </div>
@@ -774,9 +705,50 @@ ${registrationUrl}`;
             <FormBuilder versionId={versionId!} />
           </DialogContent>
         </Dialog> */}
+
+        {selectedRegistration && (
+          <Dialog
+            open={!!selectedRegistration}
+            onOpenChange={() => setSelectedRegistration(null)}
+          >
+            <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto py-8">
+              <DialogHeader className="pb-4">
+                <DialogTitle className="flex items-center gap-2 text-xl">
+                  <User className="h-5 w-5 text-primary" />
+                  Registration Details
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                      {Object.entries(selectedRegistration.detail).map(([key, value]) => (
+                        <div key={key}>
+                          <span className="font-medium capitalize">{key}:</span>{' '}
+                          {value}
+                        </div>
+                      ))}
+                    </div>
+                    <Separator className="my-4" />
+                    <p className="text-sm text-muted-foreground">
+                      Registered on:{' '}
+                      {new Date(
+                        selectedRegistration.createdAt,
+                      ).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
     </div>
   );
 }
-

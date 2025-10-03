@@ -26,23 +26,31 @@ class CourseRegistrationRepository {
       await this.db.getCollection<ICourseRegistration>('CourseRegistration');
   }
 
-  async findByUserId(userId: string) {
+  async findByUserId(userId: string, session?: ClientSession) {
     await this.init();
-    const result = await this.courseRegistrationCollection.findOne({userId});
+    const result = await this.courseRegistrationCollection.findOne(
+      {userId},
+      {session},
+    );
     return result;
   }
 
-  async create(data: ICourseRegistration) {
+  async create(data: ICourseRegistration, session?: ClientSession) {
     await this.init();
-    const result = await this.courseRegistrationCollection.insertOne(data);
+    const result = await this.courseRegistrationCollection.insertOne(data, {
+      session,
+    });
     return result.insertedId.toString();
   }
 
   async getRegistration(registrationId: string, session?: ClientSession) {
     await this.init();
-    const result = await this.courseRegistrationCollection.findOne({
-      _id: new ObjectId(registrationId),
-    }, {session});
+    const result = await this.courseRegistrationCollection.findOne(
+      {
+        _id: new ObjectId(registrationId),
+      },
+      {session},
+    );
     return result;
   }
 
@@ -52,9 +60,10 @@ class CourseRegistrationRepository {
     skip: number,
     limit: number,
     sort: 'older' | 'latest',
+    session?: ClientSession,
   ) {
     await this.init();
-    const query: any = { versionId, status: "PENDING"};
+    const query: any = {versionId, status: 'PENDING'};
 
     // if (filter.status && filter.status !== 'ALL') {
     //   query.status = filter.status;
@@ -81,7 +90,7 @@ class CourseRegistrationRepository {
       _id: item._id.toString(),
     }));
     const totalDocuments =
-      await this.courseRegistrationCollection.countDocuments(query);
+      await this.courseRegistrationCollection.countDocuments(query, {session});
     return {registrations, totalDocuments};
   }
 
@@ -108,7 +117,7 @@ class CourseRegistrationRepository {
       const data = await this.courseRegistrationCollection.updateMany(
         {_id: {$in: registrationIds}},
         {$set: {status: 'APPROVED', updatedAt: new Date()}},
-        {session}
+        {session},
       );
       return data.modifiedCount;
     } else {

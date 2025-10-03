@@ -97,7 +97,7 @@ const CourseRegistration: React.FC = () => {
   const { data: versionData, isLoading: isLoadingVersionData } = useGetCourseRegistration(versionId);
   const { mutateAsync: submitRegistration, isPending: isSubmitting } = useSubmitCourseRegistration();
   const { data: formFieldData, isLoading: isFormFieldsLoading } = useGetDynamicFields(versionId);
-
+  
   const jsonSchema = formFieldData?.jsonSchema as RJSFSchema | undefined;
   const uiSchema = formFieldData?.uiSchema as Record<string, any> | undefined;
 

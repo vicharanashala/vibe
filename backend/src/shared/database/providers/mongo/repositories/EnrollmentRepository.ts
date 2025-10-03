@@ -108,7 +108,7 @@ export class EnrollmentRepository {
     );
   }
 
-  async getInstructorIdsByVersion(courseId: string, versionId: string) {
+  async getInstructorIdsByVersion(courseId: string, versionId: string,session?:ClientSession) {
     await this.init()
   console.log("CourseId and versionId from getInstructors ",courseId,versionId)
   const enrollments = await this.enrollmentCollection
@@ -119,7 +119,7 @@ export class EnrollmentRepository {
         role: 'INSTRUCTOR',
         status: 'ACTIVE'
       },
-      { projection: { userId: 1, _id: 0 } } // only return userId
+      { projection: { userId: 1, _id: 0 },session } // only return userId
     )
     .toArray();
   console.log("enrollments ",enrollments)

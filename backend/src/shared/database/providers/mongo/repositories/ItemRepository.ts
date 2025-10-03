@@ -77,14 +77,12 @@ export class ItemRepository implements IItemRepository {
 //   return itemGroups.reduce((total, group) => total + (group.items ? group.items.length : 0), 0);
 // }
 
-async getItemsCountByGroupIds(groupIds: string[]) {
+async getItemsCountByGroupIds(groupIds: string[],session?:ClientSession) {
   await this.init();
-  console.log("groupids ",groupIds)
-  console.log("itemsGroupCollection is", this.itemsGroupCollection?.namespace);
   const itemGroups = await this.itemsGroupCollection
     .find(
       { _id: { $in: groupIds.map(id => new ObjectId(id)) } }, 
-      { projection: { items: 1 } } // only return `items`
+      { projection: { items: 1 },session} // only return `items`
     )
     .toArray();
   console.log("Items group ",ItemsGroup)
