@@ -2815,11 +2815,11 @@ type RegistrationBody = {
 export const useSubmitCourseRegistration: () => {
   mutate: (variables: {
     params: { path: { versionId: string } };
-    body: RegistrationBody;
+    body: Record<string, any>;
   }) => void;
   mutateAsync: (variables: {
     params: { path: { versionId: string } };
-    body: RegistrationBody;
+    body: Record<string, any>;
   }) => Promise<{ message: string }>;
   data: { message: string } | undefined;
   error: string | null;
@@ -3126,6 +3126,34 @@ export const useGetRegistrationFields = (
     error: result.error
       ? result.error.message || 'Failed to fetch registration fields'
       : null,
+    refetch: result.refetch,
+  };
+};
+
+export const useGetDynamicFields = (
+  versionId: string,
+): {
+  data: { jsonSchema: RJSFSchema; uiSchema: Record<string, any> } | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} => {
+  const result = api.useQuery(
+    "get",
+    "/course/registration/form/version/{versionId}" as any, 
+    {
+      params: {
+        path: { versionId },
+      },
+    },
+    {
+      enabled: !!versionId, 
+    }
+  );
+  return {
+    data: result.data as { jsonSchema: RJSFSchema; uiSchema: Record<string, any> } | undefined,
+    isLoading: result.isLoading,
+    error: result.error ? result.error.message || "Failed to fetch settings schema" : null,
     refetch: result.refetch,
   };
 };

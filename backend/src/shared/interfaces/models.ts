@@ -586,21 +586,32 @@ export interface AuthenticatedUser {
   enrollments: AuthenticatedUserEnrollements[];
 }
 
+// export interface ICourseRegistration {
+//   _id?: string | ObjectId;
+//   courseId: string;
+//   versionId: string;
+//   userId: string;
+//   detail: {
+//     name: string;
+//     email: string;
+//     mobile: string;
+//     gender: 'MALE' | 'FEMALE' | 'OTHERS';
+//     city: string;
+//     state: string;
+//     category: 'GENERAL' | 'OBC' | 'SE' | 'ST' | 'OTHERS';
+//     university: string;
+//   };
+//   status: 'PENDING' | 'APPROVED' | 'REJECTED';
+//   createdAt?: Date;
+//   updatedAt?: Date;
+// }
+
 export interface ICourseRegistration {
   _id?: string | ObjectId;
   courseId: string;
   versionId: string;
   userId: string;
-  detail: {
-    name: string;
-    email: string;
-    mobile: string;
-    gender: 'MALE' | 'FEMALE' | 'OTHERS';
-    city: string;
-    state: string;
-    category: 'GENERAL' | 'OBC' | 'SE' | 'ST' | 'OTHERS';
-    university: string;
-  };
+  detail: Record<string, any>;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   createdAt?: Date;
   updatedAt?: Date;
