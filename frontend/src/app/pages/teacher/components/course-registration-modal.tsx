@@ -48,7 +48,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 type FieldType =
   | 'text'
   | 'email'
-  | 'password'
   | 'number'
   | 'textarea'
   | 'checkbox'
@@ -57,7 +56,6 @@ type FieldType =
   | 'date'
   | 'tel'
   | 'url'
-  | 'file';
 
 interface ValidationRule {
   required?: boolean;
@@ -271,13 +269,16 @@ export const FormBuilder = ({ versionId, setShowFormBuilder }: { versionId: stri
   };
 
   const mapValidationToSchema = (validation: ValidationRule): Partial<JSONSchemaProperty> => {
-    return {
-      ...(validation.minLength !== undefined && { minLength: validation.minLength }),
-      ...(validation.maxLength !== undefined && { maxLength: validation.maxLength }),
-      ...(validation.min !== undefined && { minimum: validation.min }),
-      ...(validation.max !== undefined && { maximum: validation.max }),
-      ...(validation.pattern && { pattern: validation.pattern }),
-    };
+    const schema: Partial<JSONSchemaProperty> = {};
+
+    if (validation.required) schema['minLength'] = 1;
+    if (validation.minLength !== undefined) schema.minLength = validation.minLength;
+    if (validation.maxLength !== undefined) schema.maxLength = validation.maxLength;
+    if (validation.min !== undefined) schema.minimum = validation.min;
+    if (validation.max !== undefined) schema.maximum = validation.max;
+    if (validation.pattern) schema.pattern = validation.pattern;
+
+    return schema;
   };
 
   const buildSchemas = (): { jsonSchema: RJSFSchema; uiSchema: Record<string, any> } => {
@@ -291,44 +292,82 @@ export const FormBuilder = ({ versionId, setShowFormBuilder }: { versionId: stri
 
     fields.forEach((field) => {
       const { type, label, validation, options, placeholder, helpText } = field;
+
+      // Base field schema
       const fieldSchema: JSONSchemaProperty = { type: 'string' };
 
-      // --- Map type -> JSON Schema ---
-      if (type === 'email') {
-        fieldSchema.format = 'email';
-      } else if (type === 'number') {
-        fieldSchema.type = 'number';
-      } else if (type === 'checkbox') {
-        fieldSchema.type = 'boolean';
-      } else if (type === 'select' || type === 'radio') {
-        fieldSchema.enum = options?.map((opt) => opt.value);
+      switch (type) {
+        case 'text':
+          fieldSchema.type = 'string';
+          break;
+        case 'email':
+          fieldSchema.type = 'string';
+          fieldSchema.format = 'email';
+          break;
+        case 'number':
+          fieldSchema.type = 'number';
+          break;
+        case 'textarea':
+          fieldSchema.type = 'string';
+          break;
+        case 'checkbox':
+          fieldSchema.type = 'boolean';
+          break;
+        case 'select':
+        case 'radio':
+          fieldSchema.enum = options?.map((opt) => opt.value) || [];
+          break;
+        case 'date':
+          fieldSchema.type = 'string';
+          fieldSchema.format = 'date';
+          break;
+        case 'tel':
+          fieldSchema.type = 'string';
+          fieldSchema.pattern = validation?.pattern || '^\\+?[0-9\\-\\s]{7,15}$';
+          break;
+        case 'url':
+          fieldSchema.type = 'string';
+          fieldSchema.format = 'uri';
+          break;
+        default:
+          fieldSchema.type = 'string';
       }
 
-      // --- Add validations ---
-      if (validation) {
-        Object.assign(fieldSchema, mapValidationToSchema(validation));
-      }
+      if (validation) Object.assign(fieldSchema, mapValidationToSchema(validation));
 
-      // --- Required ---
-      if (validation?.required) {
-        jsonSchema.required?.push(label);
-      }
+      if (validation?.required) jsonSchema.required?.push(label);
 
-      // Add to jsonSchema
-      if (!jsonSchema.properties) jsonSchema.properties = {};
-      jsonSchema.properties[label] = fieldSchema;
+      jsonSchema.properties![label] = fieldSchema;
 
-      // --- Build uiSchema ---
       const ui: Record<string, any> = {};
       if (placeholder) ui['ui:placeholder'] = placeholder;
       if (helpText) ui['ui:help'] = helpText;
 
-      if (type === 'password') ui['ui:widget'] = 'password';
-      else if (type === 'textarea') ui['ui:widget'] = 'textarea';
-      else if (type === 'number') ui['ui:widget'] = 'updown';
-      else if (type === 'radio') ui['ui:widget'] = 'radio';
-      else if (type === 'date') ui['ui:widget'] = 'date';
-      else if (type === 'tel') ui['ui:options'] = { inputType: 'tel' };
+      switch (type) {
+        case 'textarea':
+          ui['ui:widget'] = 'textarea';
+          break;
+        case 'number':
+          ui['ui:widget'] = 'updown';
+          break;
+        case 'radio':
+          ui['ui:widget'] = 'radio';
+          ui['ui:options'] = {
+            inline: true,
+          }
+          break;
+        case 'select':
+          ui['ui:widget'] = 'select';
+          break;
+        case 'date':
+          ui['ui:widget'] = 'date';
+          break;
+        case 'tel':
+          ui['ui:options'] = { inputType: 'tel' };
+          break;
+        default:
+          ui['ui:widget'] = 'text';
+      }
 
       uiSchema[label] = ui;
     });
@@ -336,7 +375,8 @@ export const FormBuilder = ({ versionId, setShowFormBuilder }: { versionId: stri
     return { jsonSchema, uiSchema };
   };
 
-  // Added new function to convert schemas back to FormField[] for populating existing data
+
+
   const schemasToFields = (
     schema: RJSFSchema,
     ui: Record<string, any>,
@@ -346,19 +386,20 @@ export const FormBuilder = ({ versionId, setShowFormBuilder }: { versionId: stri
     if (schema.properties) {
       Object.entries(schema.properties).forEach(([label, prop]) => {
         const typedProp = prop as JSONSchemaProperty;
-        // Map schema type/format to FieldType (with fallbacks)
-        let fieldType: FieldType = 'text'; // Default
+
+        let fieldType: FieldType = 'text';
         if (typedProp.type === 'number') fieldType = 'number';
         else if (typedProp.type === 'boolean') fieldType = 'checkbox';
         else if (typedProp.format === 'email') fieldType = 'email';
         else if (typedProp.format === 'date') fieldType = 'date';
         else if (typedProp.format === 'uri') fieldType = 'url';
-        else if (typedProp.enum && typedProp.enum.length > 0) fieldType = 'select'; // Assume select for enum
-        else if (typedProp.format === 'password') fieldType = 'password'; // Custom handling if needed
-        else if (typedProp.type === 'string' && ui[label]?.['ui:options']?.inputType === 'tel') fieldType = 'tel';
         else if (typedProp.type === 'string' && ui[label]?.['ui:widget'] === 'textarea') fieldType = 'textarea';
+        else if (typedProp.type === 'string' && ui[label]?.['ui:options']?.inputType === 'tel') fieldType = 'tel';
+        else if (typedProp.enum && typedProp.enum.length > 0) {
+          // Check ui widget to distinguish radio vs select
+          fieldType = ui[label]?.['ui:widget'] === 'radio' ? 'radio' : 'select';
+        }
 
-        // Extract validation from schema
         const validation: ValidationRule = {
           required: schema.required?.includes(label) || false,
           minLength: typedProp.minLength,
@@ -368,22 +409,24 @@ export const FormBuilder = ({ versionId, setShowFormBuilder }: { versionId: stri
           pattern: typedProp.pattern,
         };
 
-        // Extract UI options (placeholder, helpText)
         const placeholder = ui[label]?.['ui:placeholder'] || '';
         const helpText = ui[label]?.['ui:help'] || '';
 
-        // Handle options for select/radio
         let options: SelectOption[] | undefined;
         if (typedProp.enum) {
           options = typedProp.enum.map((value: string) => ({
-            label: value, // Assume value is label; customize if needed
+            label: value, 
             value,
           }));
         }
 
-        // Create FormField (use label as id for simplicity; generate unique if needed)
+        let inline = false;
+        if (fieldType === 'radio') {
+          inline = ui[label]?.['ui:options']?.inline === true;
+        }
+
         const formField: FormField = {
-          id: label.toLowerCase().replace(/\s+/g, '_'), // Generate id from label
+          id: label.toLowerCase().replace(/\s+/g, '_'),
           type: fieldType,
           label,
           placeholder,
@@ -398,6 +441,7 @@ export const FormBuilder = ({ versionId, setShowFormBuilder }: { versionId: stri
 
     return populatedFields;
   };
+
 
   const handleSubmit = async () => {
     if (isUpdatingFields) return;
@@ -435,6 +479,8 @@ export const FormBuilder = ({ versionId, setShowFormBuilder }: { versionId: stri
         confirmText="Submit"
         cancelText="Cancel"
         isDestructive={false}
+        isLoading={isUpdatingFields}
+        loadingText="Submitting..."
       />
 
       <ConfirmationModal
@@ -515,8 +561,7 @@ export const FormBuilder = ({ versionId, setShowFormBuilder }: { versionId: stri
 
                   {/* Placeholder */}
                   {selectedField.type !== "checkbox" &&
-                    selectedField.type !== "radio" &&
-                    selectedField.type !== "file" && (
+                    selectedField.type !== "radio" && (
                       <div>
                         <label htmlFor="field-placeholder" className="font-medium flex items-center gap-2">
                           <AlignLeft className="w-4 h-4 text-muted-foreground" />
@@ -590,7 +635,6 @@ export const FormBuilder = ({ versionId, setShowFormBuilder }: { versionId: stri
                     {/* Min/Max Length */}
                     {(selectedField.type === "text" ||
                       selectedField.type === "email" ||
-                      selectedField.type === "password" ||
                       selectedField.type === "textarea" ||
                       selectedField.type === "tel" ||
                       selectedField.type === "url") && (
