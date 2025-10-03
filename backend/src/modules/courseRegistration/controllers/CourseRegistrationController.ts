@@ -242,6 +242,28 @@ class CourseRegistrationController {
 
     return this.courseRegistrationService.updateSettings(versionId, body);
   }
+
+
+  @OpenAPI({
+    summary: 'Get Data for student registration form',
+    description:
+      'Get all the Data to load in the register form page for student registration.',
+  })
+  @Get('/form/version/:versionId')
+  // @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async getRegistrationForm(
+    @Params() params: CourseVersionIdParams,
+    // @Ability(getCourseRegistrationAbility) {ability, user},
+  ) {
+    const {versionId} =params
+    const result = await this.courseRegistrationService.getRegistrationForm(versionId)
+    return result
+  }
 }
 
 export {CourseRegistrationController};
