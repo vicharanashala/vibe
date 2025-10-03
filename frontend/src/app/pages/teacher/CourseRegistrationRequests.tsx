@@ -117,7 +117,9 @@ ${registrationUrl}`;
   const handleBulkApprove = async () => {
     if (isUpdatingBulkStatus || isUpdatingStatus) return;
 
-    const idsToApprove = selectedIds && selectedIds.length > 0 ? selectedIds : [];
+    const allRegistrationIds = registrationsData?.registrations?.map((reg) => reg._id) || [];
+
+    const idsToApprove = selectedIds && selectedIds.length > 0 ? selectedIds : allRegistrationIds;
 
     try {
       await updateBulkStatus(idsToApprove);
