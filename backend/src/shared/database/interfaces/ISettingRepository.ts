@@ -1,6 +1,7 @@
 import {ClientSession, UpdateResult} from 'mongodb';
 import {
   ICourseSetting,
+  IRegistrationSettings,
   ISettings,
   IUserSetting,
 } from '../../interfaces/models.js';
@@ -59,6 +60,44 @@ export interface ISettingRepository {
     session?: ClientSession,
   ): Promise<UpdateResult | null>;
 
+  updateRegistrationSchemas(
+  courseId: string,
+  versionId: string,
+  schemas: { jsonSchema?: any; uiSchema?: any }, // Partial update for schemas only
+  session?: ClientSession,
+): Promise<UpdateResult>
+
+  /**
+   * Reads course settings for a specific course and version.
+   * @param courseId - The ID of the course
+   * @param courseVersionId - The ID of the course version
+   * @param settings - The default registration settings to add
+   * @param session - Optional MongoDB session for transactions
+   * @returns The course settings or null if not found
+   */
+
+  addDefaultRegistrationSettings(
+    courseId: string,
+    courseVersionId: string,
+    settings: IRegistrationSettings[],
+    session?: ClientSession,
+  ): Promise<UpdateResult | null>;
+  /**
+   * Reads course settings for a specific course and version.
+   * @param courseId - The ID of the course
+   * @param courseVersionId - The ID of the course version
+   * @param settings - The updated registration settings
+   * @param session - Optional MongoDB session for transactions
+   * @returns The course settings or null if not found
+   */
+
+  updateRegistrationSettings(
+    courseId: string,
+    versionId: string,
+    schemas: { jsonSchema: any; uiSchema: any },
+    session?: ClientSession,
+  ): Promise<UpdateResult | null>;
+
   /**
    * Creates new user settings.
    * @param userSettings - The user settings to create
@@ -70,6 +109,8 @@ export interface ISettingRepository {
     userSettings: IUserSetting,
     session?: ClientSession,
   ): Promise<IUserSetting | null>;
+
+  readSettingsSchema(versionId:string,session?:ClientSession)
 
   /**
    * Reads user settings for a specific student, course and version.
