@@ -289,17 +289,22 @@ export class CourseRegistrationService extends BaseService {
         registrationData.versionId.toString(),
         session,
       );
-      // const existing = await this.courseRegistrationRepo.findByUserId(
-      //   registrationData.userId,
-      //   session,
-      // );
-      const existing = await this.enrollmentService.findEnrollment(
+      const requestExisits = await this.courseRegistrationRepo.findByUserId(
+        registrationData.userId.toString(),
+        registrationData.versionId.toString(),
+        session,
+      );
+      if (requestExisits) {
+        throw new Error('You are already registered for this course');
+      }
+
+      const enrollmentExists = await this.enrollmentService.findEnrollment(
         registrationData.userId.toString(),
         courseVersion.courseId.toString(),
         registrationData.versionId.toString(),
       );
 
-      if (existing) {
+      if (enrollmentExists) {
         throw new Error('You are already enrolled in this course');
       }
       const data: ICourseRegistration = {
@@ -405,8 +410,10 @@ export class CourseRegistrationService extends BaseService {
 
         return updateResult;
       } catch (error) {
-        console.log(error)
-        throw new InternalServerError(`Failed to update registration status MORE/${error}`);
+        console.log(error);
+        throw new InternalServerError(
+          `Failed to update registration status MORE/${error}`,
+        );
       }
     });
   }
@@ -508,7 +515,7 @@ export class CourseRegistrationService extends BaseService {
             `Course settings for course ID ${courseId} and version ID ${versionId} not found.`,
           );
         }
-       
+
         let {jsonSchema, uiSchema} =
           courseSettings.settings?.registration || {};
         // If no schemas exist, add default ones and persist
