@@ -338,6 +338,58 @@ export class CourseRegistrationService extends BaseService {
           sort,
           session,
         );
+
+      const version = await this.courseRepo.readVersion(versionId, session);
+      if (!version) {
+        throw new NotFoundError(
+          `Course version with id ${versionId} not found`,
+        );
+      }
+
+      const courseId = version.courseId.toString();
+
+      const defaultJsonSchema = {
+        type: 'object',
+        properties: {
+          Name: {
+            type: 'string',
+            title: 'Name',
+            minLength: 1,
+          },
+          email: {
+            type: 'string',
+            format: 'email',
+            title: 'Email',
+          },
+          phone: {
+            type: 'string',
+            title: 'Phone',
+          },
+        },
+        required: ['Name', 'email'],
+      };
+
+      const defaultUiSchema = {
+        Name: {
+          'ui:placeholder': 'Enter your Name',
+        },
+        Email: {
+          'ui:placeholder': 'Enter your Email',
+        },
+        Mobile: {
+          'ui:options': {
+            inputType: 'tel',
+          },
+        },
+      };
+
+      await this.settingsRepo.updateRegistrationSchemas(
+        courseId,
+        versionId,
+        {jsonSchema: defaultJsonSchema, uiSchema: defaultUiSchema},
+        session,
+      );
+
       return {
         totalDocuments,
         totalPages: Math.ceil(totalDocuments / limit),
@@ -518,74 +570,74 @@ export class CourseRegistrationService extends BaseService {
 
         let {jsonSchema, uiSchema} =
           courseSettings.settings?.registration || {};
-        // If no schemas exist, add default ones and persist
-        if (!jsonSchema || !uiSchema) {
-          // Define default schemas (customize as needed)
-          const defaultJsonSchema = {
-            type: 'object',
-            properties: {
-              Name: {
-                type: 'string',
-                title: 'Name',
-                minLength: 1,
-              },
-              email: {
-                type: 'string',
-                format: 'email',
-                title: 'Email',
-              },
-              phone: {
-                type: 'string',
-                title: 'Phone',
-              },
-            },
-            required: ['Name', 'email'],
-          };
+        // // If no schemas exist, add default ones and persist
+        // if (!jsonSchema || !uiSchema) {
+        //   // Define default schemas (customize as needed)
+        //   const defaultJsonSchema = {
+        //     type: 'object',
+        //     properties: {
+        //       Name: {
+        //         type: 'string',
+        //         title: 'Name',
+        //         minLength: 1,
+        //       },
+        //       email: {
+        //         type: 'string',
+        //         format: 'email',
+        //         title: 'Email',
+        //       },
+        //       phone: {
+        //         type: 'string',
+        //         title: 'Phone',
+        //       },
+        //     },
+        //     required: ['Name', 'email'],
+        //   };
 
-          const defaultUiSchema = {
-            Name: {
-              'ui:placeholder': 'Enter your Name',
-            },
-            Email: {
-              'ui:placeholder': 'Enter your Email',
-            },
-            Mobile: {
-              'ui:options': {
-                inputType: 'tel',
-              },
-            },
-          };
+        //   const defaultUiSchema = {
+        //     Name: {
+        //       'ui:placeholder': 'Enter your Name',
+        //     },
+        //     Email: {
+        //       'ui:placeholder': 'Enter your Email',
+        //     },
+        //     Mobile: {
+        //       'ui:options': {
+        //         inputType: 'tel',
+        //       },
+        //     },
+        //   };
 
-          // const defaultUiSchema = {
-          //   type: 'VerticalLayout',
-          //   elements: [
-          //     {
-          //       type: 'Control',
-          //       scope: '#/properties/name',
-          //     },
-          //     {
-          //       type: 'Control',
-          //       scope: '#/properties/email',
-          //     },
-          //     {
-          //       type: 'Control',
-          //       scope: '#/properties/phone',
-          //     },
-          //   ],
-          // };
+        //   // const defaultUiSchema = {
+        //   //   type: 'VerticalLayout',
+        //   //   elements: [
+        //   //     {
+        //   //       type: 'Control',
+        //   //       scope: '#/properties/name',
+        //   //     },
+        //   //     {
+        //   //       type: 'Control',
+        //   //       scope: '#/properties/email',
+        //   //     },
+        //   //     {
+        //   //       type: 'Control',
+        //   //       scope: '#/properties/phone',
+        //   //     },
+        //   //   ],
+        //   // };
 
-          // Persist defaults
-          await this.settingsRepo.updateRegistrationSchemas(
-            courseId,
-            versionId,
-            {jsonSchema: defaultJsonSchema, uiSchema: defaultUiSchema},
-            session,
-          );
+        //   // Persist defaults
+        //   await this.settingsRepo.updateRegistrationSchemas(
+        //     courseId,
+        //     versionId,
+        //     {jsonSchema: defaultJsonSchema, uiSchema: defaultUiSchema},
+        //     session,
+        //   );
 
-          // Update local reference
-          jsonSchema = defaultJsonSchema;
-          uiSchema = defaultUiSchema;
-        }
+        //   // Update local reference
+        //   jsonSchema = defaultJsonSchema;
+        //   uiSchema = defaultUiSchema;
+        // }
 
         return {jsonSchema, uiSchema};
 
