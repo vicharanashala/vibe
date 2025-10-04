@@ -64,7 +64,6 @@ class CourseRegistrationRepository {
     session?: ClientSession,
   ):Promise<{registrations:ICourseRegistration[]; totalDocuments:number}> {
     await this.init();
-    console.log("filteer ",filter)
     // const query: any = {versionId, status: 'PENDING'};
     const query: any = {versionId};
 
@@ -88,7 +87,6 @@ class CourseRegistrationRepository {
       .skip(skip)
       .limit(limit)
       .toArray();
-    console.log("result ",result)
     const registrations = result.map(item => ({
       ...item,
       _id: item._id.toString(),
@@ -117,7 +115,6 @@ class CourseRegistrationRepository {
 
   async updateBulkStatus(registrationIds: string[], session?: ClientSession):Promise<number> {
     await this.init();
-    console.log("reached here repo bulk")
     if (registrationIds.length <= 0) {
       const data = await this.courseRegistrationCollection.updateMany(
         {_id: {$in: registrationIds}},
