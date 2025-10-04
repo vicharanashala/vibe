@@ -484,9 +484,7 @@ export class CourseRegistrationService extends BaseService {
         //   );
         //   registrationSettings = defaultSettings;
         // }
-
-        let {jsonSchema, uiSchema} = courseSettings.settings.registration;
-
+        let {jsonSchema, uiSchema} = courseSettings.settings?.registration || {};
         // If no schemas exist, add default ones and persist
         if (!jsonSchema || !uiSchema) {
           // Define default schemas (customize as needed)
@@ -495,7 +493,7 @@ export class CourseRegistrationService extends BaseService {
             properties: {
               name: {
                 type: 'string',
-                title: 'Full Name',
+                title: 'Name',
                 minLength: 1,
               },
               email: {
