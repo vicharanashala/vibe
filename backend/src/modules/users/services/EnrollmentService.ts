@@ -155,9 +155,9 @@ export class EnrollmentService extends BaseService {
         courseId,
         courseVersionId,
       );
-      if (!existingEnrollment) {
-        throw new Error('User is not enrolled in this course version');
-      }
+      // if (!existingEnrollment) {
+      //   throw new Error('User is not enrolled in this course version');
+      // }
 
       return existingEnrollment;
     });

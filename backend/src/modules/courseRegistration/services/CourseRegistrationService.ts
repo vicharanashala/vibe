@@ -270,10 +270,12 @@ export class CourseRegistrationService extends BaseService {
         registrationData.versionId,
         session,
       );
-      const existing = await this.courseRegistrationRepo.findByUserId(
-        registrationData.userId,
-        session,
-      );
+      // const existing = await this.courseRegistrationRepo.findByUserId(
+      //   registrationData.userId,
+      //   session,
+      // );
+      const existing = await this.enrollmentService.findEnrollment(registrationData.userId,courseVersion.courseId.toString(),registrationData.versionId)
+
       if (existing) {
         throw new Error('You are already enrolled in this course');
       }
@@ -325,7 +327,6 @@ export class CourseRegistrationService extends BaseService {
           registrationId,
           session,
         );
-        console.log("Data ",data)
         if (!data) {
           throw new NotFoundError(
             `Registration with id ${registrationId} not found`,
@@ -337,7 +338,6 @@ export class CourseRegistrationService extends BaseService {
           data.versionId,
           session
         );
-        console.log("check ",check)
 
         // return await this.courseRegistrationRepo.updateStatus(
         //   registrationId,
@@ -362,30 +362,24 @@ export class CourseRegistrationService extends BaseService {
           enrollmentDate: new Date(),
           percentCompleted: 0,
         }
-        console.log("Enrolled Data ",enrollmentData)
         // const enrolled = await this.enrollmentRepo.createEnrollment(enrollmentData,session)
         
         const enrolled = await this.enrollmentService.enrollUser(data.userId,data.courseId,data.versionId,"STUDENT",true,session)
-        console.log("enrolled ",enrolled)
         const emailMessage =await this.createStatusEmailMessage(data, course, status);
         try {
           await this.mailService.sendMail(emailMessage);
-          console.log(`Status email sent successfully for registration ${registrationId}`);
         } catch (emailError) {
-          console.error(`Failed to send status email for registration ${registrationId}:`, emailError);
           // Optionally, log to a separate table or service, but do not rollback the status update
         }
 
         return updateResult;
       } catch (error) {
-        console.error('Failed to update status:', error);
         throw new InternalServerError('Failed to update registration status');
       }
     });
   }
 
   async updateBulkStatus(registrationIds: string[]) {
-    console.log("registrationIds ",registrationIds)
     return this._withTransaction(async (session: ClientSession) => {
       try {
         
@@ -420,20 +414,16 @@ export class CourseRegistrationService extends BaseService {
           const emailMessage=await this.createStatusEmailMessage(item,course,"APPROVED")
           try {
           await this.mailService.sendMail(emailMessage);
-          console.log(`Status email sent successfully for registration ${item}`);
         } catch (emailError) {
-          console.error(`Failed to send status email for registration ${item}:`, emailError);
           // Optionally, log to a separate table or service, but do not rollback the status update
         }
         }
-        console.log("enrollment updated going to bulk  ")
         return await this.courseRegistrationRepo.updateBulkStatus(
           registrationIds,
           session,
         );
         
       } catch (error) {
-        console.error('Failed to bulk update status:', error);
         throw new InternalServerError(
           'Failed to bulk update registration status',
         );

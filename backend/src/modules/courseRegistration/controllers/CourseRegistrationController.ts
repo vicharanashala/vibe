@@ -127,7 +127,6 @@ class CourseRegistrationController {
   ) {
     const {versionId} = params;
     const {page, limit, status, search, sort} = query;
-    console.log("Status from controllee ",status)
     // const courseRegistrationResource = subject(courseRegistrationSubject, {
     //   courseVersionId: new ObjectId(versionId),
     // });
@@ -173,7 +172,6 @@ class CourseRegistrationController {
       registrationId,
       status,
     );
-    console.log('result from controller ', result);
     return {
       message: 'Registration status updated successfully',
       registration: result,
@@ -195,8 +193,6 @@ class CourseRegistrationController {
     @Ability(getCourseRegistrationAbility) {ability},
   ) {
     const {selected} = body;
-    console.log("body ",body)
-    console.log("ids ",selected)
     const result = await this.courseRegistrationService.updateBulkStatus(
       selected,
     );
