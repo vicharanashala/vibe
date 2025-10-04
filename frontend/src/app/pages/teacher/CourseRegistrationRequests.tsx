@@ -140,7 +140,7 @@ ${registrationUrl}`;
       await updateStatus(registrationId, 'APPROVED');
       toast.success('Registration approved successfully');
       registrationsRefetch();
-
+      setIsSingleApproveOpen(false);
     } catch (error: any) {
       toast.error(error?.message || 'Failed to approve registration. Please try again.');
     } 
@@ -152,6 +152,7 @@ ${registrationUrl}`;
       await updateStatus(registrationId, 'REJECTED');
       toast.success('Registration rejected successfully');
       registrationsRefetch();
+      setIsSingleRejectOpen(false);
     } catch (error: any) {
       toast.error(error?.message || 'Failed to rejected registration. Please try again.');
     }

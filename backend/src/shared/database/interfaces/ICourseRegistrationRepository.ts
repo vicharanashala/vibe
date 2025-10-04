@@ -4,6 +4,7 @@ import {ClientSession} from 'mongodb';
 export interface ICourseRegistrationRepository {
   findByUserId(
     userId: string,
+    versionId: string,
     session?: ClientSession,
   ): Promise<ICourseRegistration>;
   create(data: ICourseRegistration, session?: ClientSession): Promise<string>;

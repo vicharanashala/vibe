@@ -2,9 +2,7 @@ import 'reflect-metadata';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {inject, injectable} from 'inversify';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {CourseRegistrationRepository} from '../repositories/index.js';
-import {plainToInstance} from 'class-transformer';
-import nodemailer from 'nodemailer'
+import nodemailer from 'nodemailer';
 import {
   BaseService,
   CourseRepository,
@@ -15,31 +13,28 @@ import {
   ICourseRegistration,
   IItemRepository,
   InviteType,
-  IRegistrationSettings,
   ISettingRepository,
-  ISettings,
   IUserRepository,
   MongoDatabase,
 } from '#root/shared/index.js';
 import {COURSE_REGISTRATION_TYPES} from '../types.js';
-import {Invite, InviteService, MailService} from '#root/modules/notifications/index.js';
-import {ClientSession, ObjectId} from 'mongodb';
 import {
-  CourseDetailsDTO,
-  UpdateRegistrationSchemasBody,
-} from '../classes/index.js';
+  Invite,
+  InviteService,
+  MailService,
+} from '#root/modules/notifications/index.js';
+import {ClientSession, ObjectId} from 'mongodb';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {COURSES_TYPES} from '#root/modules/courses/types.js';
 import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
 import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
-import { appConfig } from '#root/config/app.js';
-import { ICourseRegistrationRepository } from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
+import {appConfig} from '#root/config/app.js';
+import {ICourseRegistrationRepository} from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
 
 @injectable()
 export class CourseRegistrationService extends BaseService {
   constructor(
     @inject(COURSE_REGISTRATION_TYPES.CourseRegistrationRepository)
-    // private courseRegistrationRepo: CourseRegistrationRepository,
     private courseRegistrationRepo: ICourseRegistrationRepository,
     @inject(USERS_TYPES.EnrollmentRepo)
     private readonly enrollmentRepo: EnrollmentRepository,
@@ -65,8 +60,8 @@ export class CourseRegistrationService extends BaseService {
     registration: ICourseRegistration,
     course: ICourse,
     status: 'PENDING' | 'APPROVED' | 'REJECTED',
-  ): Promise<Omit<nodemailer.SendMailOptions, "from">> {
-    const userDetails = await this.userRepo.findById(registration.userId)
+  ): Promise<Omit<nodemailer.SendMailOptions, 'from'>> {
+    const userDetails = await this.userRepo.findById(registration.userId);
     const statusText = status.toLowerCase();
     let subject = `Your registration request for ${course.name} is ${statusText}`;
     let greeting = '';
@@ -94,7 +89,9 @@ export class CourseRegistrationService extends BaseService {
         break;
     }
 
-    const textBody = `Dear ${userDetails.firstName || 'Participant'},\n\n${greeting}\n\n${bodyText}`;
+    const textBody = `Dear ${
+      userDetails.firstName || 'Participant'
+    },\n\n${greeting}\n\n${bodyText}`;
 
     const htmlBody = `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
@@ -130,17 +127,35 @@ export class CourseRegistrationService extends BaseService {
               <p style="margin:0 0 16px;">
                 Dear ${userDetails.firstName || 'Participant'},
               </p>
-              <p style="margin:0 0 16px; font-size:18px; font-weight:bold; color:${status === 'APPROVED' ? '#4caf50' : status === 'REJECTED' ? '#f44336' : '#ff9800'};">
+              <p style="margin:0 0 16px; font-size:18px; font-weight:bold; color:${
+                status === 'APPROVED'
+                  ? '#4caf50'
+                  : status === 'REJECTED'
+                  ? '#f44336'
+                  : '#ff9800'
+              };">
                 ${greeting}
               </p>
               <p style="margin:0 0 16px;">
-                Your registration for the course <strong style="color:#ff9800;">${course.name}</strong> has been updated to <strong style="color:${status === 'APPROVED' ? '#4caf50' : status === 'REJECTED' ? '#f44336' : '#ff9800'};">${status}</strong>.
+                Your registration for the course <strong style="color:#ff9800;">${
+                  course.name
+                }</strong> has been updated to <strong style="color:${
+      status === 'APPROVED'
+        ? '#4caf50'
+        : status === 'REJECTED'
+        ? '#f44336'
+        : '#ff9800'
+    };">${status}</strong>.
               </p>
-              ${status !== 'REJECTED' && status !== 'PENDING' ? `
+              ${
+                status !== 'REJECTED' && status !== 'PENDING'
+                  ? `
               <p style="margin:0 0 16px;">
                 You can now access the course via our platform.
               </p>
-              ` : ''}
+              `
+                  : ''
+              }
               <p style="margin:0 0 24px;">
                 ${bodyText.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}
               </p>
@@ -148,7 +163,9 @@ export class CourseRegistrationService extends BaseService {
           </tr>
 
           <!-- CTA Button if applicable -->
-          ${buttonHref ? `
+          ${
+            buttonHref
+              ? `
           <tr>
             <td align="center" style="padding:0 24px 24px;">
               <table cellpadding="0" cellspacing="0" border="0">
@@ -163,7 +180,9 @@ export class CourseRegistrationService extends BaseService {
               </table>
             </td>
           </tr>
-          ` : ''}
+          `
+              : ''
+          }
 
           <!-- Closing -->
           <tr>
@@ -267,21 +286,27 @@ export class CourseRegistrationService extends BaseService {
   ) {
     return this._withTransaction(async session => {
       const courseVersion = await this.courseRepo.readVersion(
-        registrationData.versionId,
+        registrationData.versionId.toString(),
         session,
       );
       // const existing = await this.courseRegistrationRepo.findByUserId(
       //   registrationData.userId,
       //   session,
       // );
-      const existing = await this.enrollmentService.findEnrollment(registrationData.userId,courseVersion.courseId.toString(),registrationData.versionId)
+      const existing = await this.enrollmentService.findEnrollment(
+        registrationData.userId.toString(),
+        courseVersion.courseId.toString(),
+        registrationData.versionId.toString(),
+      );
 
       if (existing) {
         throw new Error('You are already enrolled in this course');
       }
       const data: ICourseRegistration = {
         ...registrationData,
-        courseId: courseVersion.courseId as string,
+        userId: new ObjectId(registrationData.userId),
+        versionId: new ObjectId(registrationData.versionId),
+        courseId: new ObjectId(courseVersion.courseId.toString()),
         createdAt: new Date(),
         updatedAt: null,
       };
@@ -333,10 +358,10 @@ export class CourseRegistrationService extends BaseService {
           );
         }
 
-        const check = await this.inviteService.courseContentLength(
-          data.courseId,
-          data.versionId,
-          session
+        await this.inviteService.courseContentLength(
+          data.courseId.toString(),
+          data.versionId.toString(),
+          session,
         );
 
         // return await this.courseRegistrationRepo.updateStatus(
@@ -344,7 +369,10 @@ export class CourseRegistrationService extends BaseService {
         //   status,
         //   session,
         // );
-        const course = await this.courseRepo.read(data.courseId.toString(),session); 
+        const course = await this.courseRepo.read(
+          data.courseId.toString(),
+          session,
+        );
         if (!course) {
           throw new NotFoundError('Course not found');
         }
@@ -353,28 +381,32 @@ export class CourseRegistrationService extends BaseService {
           status,
           session,
         );
-        const enrollmentData = {
-          userId:data.userId,
-          courseId: data.courseId,
-          courseVersionId: data.versionId,
-          role: "STUDENT" as EnrollmentRole,
-          status: "ACTIVE" as EnrollmentStatus,
-          enrollmentDate: new Date(),
-          percentCompleted: 0,
-        }
-        // const enrolled = await this.enrollmentRepo.createEnrollment(enrollmentData,session)
-        
-        const enrolled = await this.enrollmentService.enrollUser(data.userId,data.courseId,data.versionId,"STUDENT",true,session)
-        const emailMessage =await this.createStatusEmailMessage(data, course, status);
+        const THROUGH_INVITE = true;
+        await this.enrollmentService.enrollUser(
+          data.userId.toString(),
+          data.courseId.toString(),
+          data.versionId.toString(),
+          'STUDENT',
+          THROUGH_INVITE,
+          session,
+        );
+        const emailMessage = await this.createStatusEmailMessage(
+          data,
+          course,
+          status,
+        );
         try {
           await this.mailService.sendMail(emailMessage);
         } catch (emailError) {
-          // Optionally, log to a separate table or service, but do not rollback the status update
+          throw new InternalServerError(
+            `Failed to send email /MORE ${emailError}`,
+          );
         }
 
         return updateResult;
       } catch (error) {
-        throw new InternalServerError('Failed to update registration status');
+        console.log(error)
+        throw new InternalServerError(`Failed to update registration status MORE/${error}`);
       }
     });
   }
@@ -382,7 +414,6 @@ export class CourseRegistrationService extends BaseService {
   async updateBulkStatus(registrationIds: string[]) {
     return this._withTransaction(async (session: ClientSession) => {
       try {
-        
         const first = await this.courseRegistrationRepo.getRegistration(
           registrationIds[0],
           session,
@@ -393,36 +424,57 @@ export class CourseRegistrationService extends BaseService {
           );
         }
         await this.inviteService.courseContentLength(
-          first.courseId,
-          first.versionId,
-          session
+          first.courseId.toString(),
+          first.versionId.toString(),
+          session,
         );
-        for(let id of registrationIds){
-          const item = await this.courseRegistrationRepo.getRegistration(id,session)
-          if(!item){
-            continue
+        for (let registrationId of registrationIds) {
+          const item = await this.courseRegistrationRepo.getRegistration(
+            registrationId,
+            session,
+          );
+          if (!item) continue;
+          const existingEnrollment = await this.enrollmentRepo.findEnrollment(
+            item.userId.toString(),
+            item.courseId.toString(),
+            item.versionId.toString(),
+            session,
+          );
+          if (existingEnrollment) continue;
+
+          const course = await this.courseRepo.read(
+            item.courseId.toString(),
+            session,
+          );
+          if (!course) {
+            throw new NotFoundError('Course not found');
           }
-          const existingEnrollment = await this.enrollmentRepo.findEnrollment(item.userId.toString(),item.courseId.toString(),item.versionId.toString(),session)
-          if(existingEnrollment){
-            continue
-          } 
-          const course = await this.courseRepo.read(item.courseId.toString(),session); 
-          if(!course) {
-          throw new NotFoundError('Course not found');
-        }
-          await this.enrollmentService.enrollUser(item.userId.toString(),item.courseId.toString(),item.versionId.toString(),"STUDENT",true,session)
-          const emailMessage=await this.createStatusEmailMessage(item,course,"APPROVED")
+          const THROUGH_INVITE = true;
+          await this.enrollmentService.enrollUser(
+            item.userId.toString(),
+            item.courseId.toString(),
+            item.versionId.toString(),
+            'STUDENT',
+            THROUGH_INVITE,
+            session,
+          );
+          const emailMessage = await this.createStatusEmailMessage(
+            item,
+            course,
+            'APPROVED',
+          );
           try {
-          await this.mailService.sendMail(emailMessage);
-        } catch (emailError) {
-          // Optionally, log to a separate table or service, but do not rollback the status update
-        }
+            await this.mailService.sendMail(emailMessage);
+          } catch (emailError) {
+            throw new InternalServerError(
+              `Failed to send email /MORE ${emailError}`,
+            );
+          }
         }
         return await this.courseRegistrationRepo.updateBulkStatus(
           registrationIds,
           session,
         );
-        
       } catch (error) {
         throw new InternalServerError(
           'Failed to bulk update registration status',
@@ -430,6 +482,7 @@ export class CourseRegistrationService extends BaseService {
       }
     });
   }
+
   async getSettings(
     versionId: string,
   ): Promise<{jsonSchema: any; uiSchema: any}> {
@@ -455,33 +508,16 @@ export class CourseRegistrationService extends BaseService {
             `Course settings for course ID ${courseId} and version ID ${versionId} not found.`,
           );
         }
-        // let registrationSettings =
-        //   courseSettings.settings.registration_settings;
-
-        // // If no registration settings exist, add default ones
-        // if (!registrationSettings || registrationSettings.length === 0) {
-        //   const defaultSettings: IRegistrationSettings[] = [
-        //     {label: 'Full Name', type: 'TEXT', required: true, isDefault: true},
-        //     {label: 'Email', type: 'EMAIL', required: true, isDefault: true},
-        //     {label: 'Phone', type: 'TEL', required: false, isDefault: true},
-        //   ];
-
-        //   await this.settingsRepo.addDefaultRegistrationSettings(
-        //     courseId,
-        //     versionId,
-        //     defaultSettings,
-        //     session,
-        //   );
-        //   registrationSettings = defaultSettings;
-        // }
-        let {jsonSchema, uiSchema} = courseSettings.settings?.registration || {};
+       
+        let {jsonSchema, uiSchema} =
+          courseSettings.settings?.registration || {};
         // If no schemas exist, add default ones and persist
         if (!jsonSchema || !uiSchema) {
           // Define default schemas (customize as needed)
           const defaultJsonSchema = {
             type: 'object',
             properties: {
-              name: {
+              Name: {
                 type: 'string',
                 title: 'Name',
                 minLength: 1,
@@ -496,7 +532,7 @@ export class CourseRegistrationService extends BaseService {
                 title: 'Phone',
               },
             },
-            required: ['name', 'email'],
+            required: ['Name', 'email'],
           };
 
           const defaultUiSchema = {

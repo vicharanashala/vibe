@@ -250,19 +250,19 @@ class CourseRegistrationController {
   })
   async getRegistrationForm(
     @Params() params: CourseVersionIdParams,
-    @Ability(getCourseRegistrationAbility) { ability },
+    // @Ability(getCourseRegistrationAbility) { ability },
   ) {
     const { versionId } = params;
 
-    const courseRegistrationResource = subject(courseRegistrationSubject, {
-      versionId,
-    });
+    // const courseRegistrationResource = subject(courseRegistrationSubject, {
+    //   versionId,
+    // });
 
-    if (
-      !ability.can(CourseRegistrationActions.View, courseRegistrationResource)
-    ) {
-      throw new ForbiddenError('You do not have permission to view registration form');
-    }
+    // if (
+    //   !ability.can(CourseRegistrationActions.View, courseRegistrationResource)
+    // ) {
+    //   throw new ForbiddenError('You do not have permission to view registration form');
+    // }
 
     const result = await this.courseRegistrationService.getRegistrationForm(
       versionId,

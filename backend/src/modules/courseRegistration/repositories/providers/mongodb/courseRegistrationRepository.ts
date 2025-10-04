@@ -1,21 +1,13 @@
 import {ICourseRegistration, MongoDatabase} from '#root/shared/index.js';
 import {inject, injectable} from 'inversify';
-import {
-  Collection,
-  ClientSession,
-  ObjectId,
-  Filter,
-  SortDirection,
-} from 'mongodb';
-import {
-  BadRequestError,
-  InternalServerError,
-  NotFoundError,
-} from 'routing-controllers';
-import {GLOBAL_TYPES} from '#root/types.js';
-import { consoleLoggingIntegration } from '@sentry/node';
+import {Collection, ClientSession, ObjectId, SortDirection} from 'mongodb';
 
-class CourseRegistrationRepository {
+import {GLOBAL_TYPES} from '#root/types.js';
+import {ICourseRegistrationRepository} from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
+import {plainToInstance} from 'class-transformer';
+import {CourseRegistration} from '#root/modules/courseRegistration/classes/index.js';
+
+class CourseRegistrationRepository implements ICourseRegistrationRepository {
   private courseRegistrationCollection: Collection<ICourseRegistration>;
   constructor(
     @inject(GLOBAL_TYPES.Database)
@@ -27,16 +19,33 @@ class CourseRegistrationRepository {
       await this.db.getCollection<ICourseRegistration>('CourseRegistration');
   }
 
-  async findByUserId(userId: string, session?: ClientSession):Promise<ICourseRegistration> {
+  async findByUserId(
+    userId: string,
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<ICourseRegistration | null> {
     await this.init();
+
     const result = await this.courseRegistrationCollection.findOne(
-      {userId},
+      {userId: new ObjectId(userId), versionId: new ObjectId(versionId)},
       {session},
     );
-    return result;
+
+    if (!result) return null;
+
+    return {
+      ...result,
+      _id: result._id?.toString(),
+      userId: result.userId?.toString(),
+      courseId: result.courseId?.toString(),
+      versionId: result.versionId?.toString(),
+    };
   }
 
-  async create(data: ICourseRegistration, session?: ClientSession):Promise<string> {
+  async create(
+    data: ICourseRegistration,
+    session?: ClientSession,
+  ): Promise<string> {
     await this.init();
     const result = await this.courseRegistrationCollection.insertOne(data, {
       session,
@@ -44,15 +53,26 @@ class CourseRegistrationRepository {
     return result.insertedId.toString();
   }
 
-  async getRegistration(registrationId: string, session?: ClientSession):Promise<ICourseRegistration | null> {
+  async getRegistration(
+    registrationId: string,
+    session?: ClientSession,
+  ): Promise<ICourseRegistration | null> {
     await this.init();
+
     const result = await this.courseRegistrationCollection.findOne(
-      {
-        _id: new ObjectId(registrationId),
-      },
+      {_id: new ObjectId(registrationId)},
       {session},
     );
-    return result;
+
+    if (!result) return null;
+
+    return {
+      ...result,
+      _id: result._id?.toString(),
+      userId: result.userId?.toString(),
+      courseId: result.courseId?.toString(),
+      versionId: result.versionId?.toString(),
+    };
   }
 
   async findAllregistrations(
@@ -62,17 +82,17 @@ class CourseRegistrationRepository {
     limit: number,
     sort: 'older' | 'latest',
     session?: ClientSession,
-  ):Promise<{registrations:ICourseRegistration[]; totalDocuments:number}> {
+  ): Promise<{registrations: ICourseRegistration[]; totalDocuments: number}> {
     await this.init();
-    // const query: any = {versionId, status: 'PENDING'};
-    const query: any = {versionId};
+
+    const query: any = {versionId: new ObjectId(versionId)};
 
     if (filter.status && filter.status !== 'ALL') {
       query.status = filter.status;
     }
     if (filter.search) {
       query.$or = [
-        {'detail.name': {$regex: filter.search, $options: 'i'}},
+        {'detail.Name': {$regex: filter.search, $options: 'i'}},
         {'detail.email': {$regex: filter.search, $options: 'i'}},
       ];
     }
@@ -81,18 +101,25 @@ class CourseRegistrationRepository {
       sort === 'older'
         ? {createdAt: 1 as SortDirection}
         : {createdAt: -1 as SortDirection};
+
     const result = await this.courseRegistrationCollection
-      .find(query)
+      .find(query, {session})
       .sort(sortOption)
       .skip(skip)
       .limit(limit)
       .toArray();
-    const registrations = result.map(item => ({
+
+    const registrations: ICourseRegistration[] = result.map(item => ({
       ...item,
-      _id: item._id.toString(),
+      _id: item._id?.toString(),
+      userId: item.userId?.toString(),
+      courseId: item.courseId?.toString(),
+      versionId: item.versionId?.toString(),
     }));
+
     const totalDocuments =
       await this.courseRegistrationCollection.countDocuments(query, {session});
+
     return {registrations, totalDocuments};
   }
 
@@ -100,8 +127,9 @@ class CourseRegistrationRepository {
     registrationId: string,
     status: 'PENDING' | 'APPROVED' | 'REJECTED',
     session?: ClientSession,
-  ):Promise<ICourseRegistration> {
+  ): Promise<ICourseRegistration | null> {
     await this.init();
+
     const data = await this.courseRegistrationCollection.findOneAndUpdate(
       {_id: new ObjectId(registrationId)},
       {
@@ -109,11 +137,24 @@ class CourseRegistrationRepository {
       },
       {returnDocument: 'after', session},
     );
-    const result = {...data, _id: data._id.toString()};
+
+    if (!data) return null; // no document found
+
+    const result: ICourseRegistration = {
+      ...data,
+      _id: data._id?.toString(),
+      userId: data.userId?.toString(),
+      courseId: data.courseId?.toString(),
+      versionId: data.versionId?.toString(),
+    };
+
     return result;
   }
 
-  async updateBulkStatus(registrationIds: string[], session?: ClientSession):Promise<number> {
+  async updateBulkStatus(
+    registrationIds: string[],
+    session?: ClientSession,
+  ): Promise<number> {
     await this.init();
     if (registrationIds.length <= 0) {
       const data = await this.courseRegistrationCollection.updateMany(
