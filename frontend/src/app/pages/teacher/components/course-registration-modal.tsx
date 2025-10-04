@@ -597,7 +597,14 @@ export const FormBuilder = ({ versionId,  handleNavigateToRequests }: { versionI
                                 ? "border-primary bg-primary/5"
                                 : "border-border hover:border-muted-foreground/30"
                             }`}
-                            onClick={() => setSelectedFieldId(field.id)}
+                            onClick={() => {if(
+                                field.label==="Name" ||
+                                field.label==="Email"
+                            ){
+                              toast.error("Cannot select default fields")
+                              return
+                            } 
+                            setSelectedFieldId(field.id)}}
                           >
                             {/* Field Actions */}
                             <div className="absolute -right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1 z-50 w-10">
@@ -635,18 +642,33 @@ export const FormBuilder = ({ versionId,  handleNavigateToRequests }: { versionI
                               >
                                 <ArrowDown className="w-3 h-3" />
                               </Button>
-                              <Button
+                              {/* <Button
                                 size="icon"
                                 type="button"
                                 variant="destructive"
                                 className="h-7 w-7 shadow-sm"
-                                onClick={(e) => {
+                                onClick={(e) => { 
                                   e.stopPropagation()
                                   setFieldIdToDelete(field.id)
                                 }}
                               >
                                 <Trash2 className="w-3 h-3" />
+                              </Button> */}
+
+                              {field.label !== "Name" && field.label !== "Email" && (
+                              <Button
+                                size="icon"
+                                type="button"
+                                variant="destructive"
+                                className="h-7 w-7 shadow-sm"
+                                onClick={(e) => { 
+                                  e.stopPropagation();
+                                  setFieldIdToDelete(field.id);
+                                }}
+                              >
+                                <Trash2 className="w-3 h-3" />
                               </Button>
+                            )}
                             </div>
 
                             <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
