@@ -3,10 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters } from '@/lib/genai-api';
+import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, editQuestionData, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters } from '@/lib/genai-api';
 import { useCourseStore } from '@/store/course-store';
-import { ArrowLeft, ArrowRight, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors,Settings, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap, Info, Power } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react'
+import { ArrowLeft, ArrowRight,ChevronRight, ChevronLeft, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors,Settings, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap, Info, Power, Check } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner';
 import { AudioTranscripter } from './AudioTranscripter';
 import { TranscriberData } from '@/hooks/useTranscriber';
@@ -59,6 +59,9 @@ const AiWorkflow = () => {
     const [showUrl, setShowUrl] = useState(false);
     const [urlError, setUrlError] = useState<string | null>(null); // yt url error
     const [aiJobId, setAiJobId] = useState<string | null>(null); 
+    const clearStoredQuestions = () => {
+      localStorage.removeItem('questions');
+    };
 
     const [uploadParams, setUploadParams] = useState<UploadParams>({
     videoItemBaseName: "video_item",
@@ -80,6 +83,7 @@ const AiWorkflow = () => {
     - Make all the options roughly the same length
     - Set isParameterized to false unless the question uses variables
     - Do not mention the word 'transcript' for giving references, use the word 'video' instead`,
+        numberOfQuestions: 10
     });
     const [customSegmentationParams, setCustomSegmentationParams] =
     useState<SegmentationParameters>({
@@ -513,6 +517,7 @@ const AiWorkflow = () => {
     }
 
     const handleCreateJob = async () => {
+      clearStoredQuestions();
         // 1. Check transcription text is there
         if(!transcribedData?.text){
             toast.error("No transcript found, Try again!");
@@ -600,6 +605,7 @@ const AiWorkflow = () => {
             scrollToError();
             return;
         }
+        clearStoredQuestions();
         setIsLoading(true)
 
         setTimeout(() => {
@@ -636,7 +642,7 @@ const AiWorkflow = () => {
         }
     };
 
-    const handleApproveTask = async(qnGenParams?:QuestionGenerationParameters) => {
+    const handleApproveTask = async(qnGenParams?: QuestionGenerationParameters, filteredQuestions?: any[]) => {
         try {
             // 1. Check aiJobId
             if (!aiJobId) {
@@ -671,14 +677,33 @@ const AiWorkflow = () => {
             setAiJobStatus( { ...status, task: currentTask, status: currentStatus  } );
             
             
-            const customUploadParams = { 
+            const customUploadParams: any = { 
               courseId: currentCourse?.courseId, 
               versionId: currentCourse?.versionId, 
               moduleId: currentCourse?.moduleId, 
               sectionId: currentCourse?.sectionId, 
               videoItemBaseName: uploadParams.videoItemBaseName, 
-              quizItemBaseName: uploadParams.quizItemBaseName, questionsPerQuiz: uploadParams.questionsPerQuiz
+              quizItemBaseName: uploadParams.quizItemBaseName, 
+              questionsPerQuiz: uploadParams.questionsPerQuiz
             };
+
+            if (filteredQuestions && filteredQuestions.length > 0) {
+              customUploadParams.questions = filteredQuestions;
+            } else {
+              try {
+                const storedQuestions = localStorage.getItem('questions');
+                if (storedQuestions) {
+                  const parsedQuestions = JSON.parse(storedQuestions);
+                  const acceptedQuestions = parsedQuestions.filter((q: any) => q.isAccept === true);
+                  if (acceptedQuestions.length > 0) {
+                    customUploadParams.questions = acceptedQuestions;
+                  }
+                }
+              } catch (error) {
+                console.error('Error getting accepted questions from localStorage:', error);
+              }
+            }
+            
             const customQuestionGenParams = qnGenParams || customQuestionParams;
 
             let params: Record<string, any> | null = null;
@@ -713,10 +738,8 @@ const AiWorkflow = () => {
         } catch(error) {
             if(!isWaitingServer) {
               toast.error("Failed to approve task");
-              console.log("Failed to approve task", error);
             } else {
               toast.error("Failed to retry task");
-              console.log("Failed to retry task", error);
             }
             setProgress(100);
             setTimeout(() => setIsLoading(false), 500);
@@ -742,6 +765,7 @@ const AiWorkflow = () => {
         // setYoutubeUrl("");
         setIsURLValidated(false);
         updateCurrentJob("audioExtraction","WAITING");
+        clearStoredQuestions();
         toast.success("You have successfully ended the current session.");
     }
 
@@ -902,12 +926,13 @@ const AiWorkflow = () => {
                                 />
                             ) : currentJob?.task === "UPLOAD_CONTENT" ? (
                                 <UploadContentView
-                                    currentJobStatus = {currentJob.status} 
-                                    setUploadParams = {setUploadParams}
-                                    uploadParams = {uploadParams} 
-                                    handleApproveTask = {handleApproveTask} 
-                                    isLoading = {isLoading}
+                                    currentJobStatus={currentJob.status} 
+                                    setUploadParams={setUploadParams}
+                                    uploadParams={uploadParams} 
+                                    handleApproveTask={handleApproveTask} 
+                                    isLoading={isLoading}
                                     isApprovingTask={isApprovingTask}
+                                    aiJobId={aiJobId}
                                 />
                             ) : (
                             <>
@@ -1381,7 +1406,7 @@ interface QuestionGenerationResultProps {
   setQuestions: React.Dispatch<React.SetStateAction<any[]>>;
   editModalOpen: boolean;
   aiJobId: string | null;
-  handleApproveTask: (qnGenParams?: QuestionGenerationParameters, jobStatus?: CurrentJob) => void;
+  handleApproveTask: (qnGenParams?: QuestionGenerationParameters, filteredQuestions?: any[]) => void;
   setEditingIdx: (idx: number) => void;
   setEditQuestion: (q: any) => void;
   setEditModalOpen: (open: boolean) => void;
@@ -1541,11 +1566,77 @@ const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
     isWaitingServer,
     isApprovingTask
     }) => {
+    useEffect(() => {
+      if (questions && questions.length > 0) {
+        const storedQuestions = localStorage.getItem('questions');
+        let existingQuestions: any[] = [];
+        
+        if (storedQuestions) {
+          try {
+            existingQuestions = JSON.parse(storedQuestions);
+          } catch (error) {
+            console.error('Error parsing stored questions:', error);
+          }
+        }
+
+        const questionsToStore = questions.map((question, index) => {
+          const existingQuestion = existingQuestions.find(
+            (q: any) => q.question?.text === question.question?.text && 
+                      q.segmentId === question.segmentId
+          );
+          
+          if (existingQuestion && existingQuestion.hasOwnProperty('isAccept')) {
+            return {
+              ...question,
+              isAccept: existingQuestion.isAccept
+            };
+          } else {
+            return question;
+          }
+        });
+        
+        localStorage.setItem('questions', JSON.stringify(questionsToStore));
+      }
+    }, [questions]);
+
+    useEffect(() => {
+      const storedQuestions = localStorage.getItem('questions');
+      if (storedQuestions) {
+        try {
+          const parsedQuestions = JSON.parse(storedQuestions);
+          
+          const accepted = new Set<number>();
+          const rejected = new Set<number>();
+          
+          parsedQuestions.forEach((question: any, index: number) => {
+            if (question.hasOwnProperty('isAccept')) {
+              if (question.isAccept === true) {
+                accepted.add(index);
+              } else if (question.isAccept === false) {
+                rejected.add(index);
+              }
+            }
+          });
+          
+          setAcceptedQuestions(accepted);
+          setRejectedQuestions(rejected);
+          
+        } catch (error) {
+          console.error('Error parsing stored questions:', error);
+        }
+      }
+    }, []);
 
     const isLocked = Boolean(!aiJobId) || isWaitingServer || isLoading || isApprovingTask;
     const [isMCQ, setIsMCQ] = useState(true);
     const [isMSQ, setIsMSQ] = useState(false);
     const [isBinary, setIsBinary] = useState(false);
+    const [numberOfQuestions, setNumberOfQuestions] = useState(10);
+    const [currentQuestionIndexBySegment, setCurrentQuestionIndexBySegment] = useState<Record<number, number>>({});
+    const [acceptedQuestions, setAcceptedQuestions] = useState<Set<number>>(new Set());
+    const [rejectedQuestions, setRejectedQuestions] = useState<Set<number>>(new Set());
+    const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
+    const [isNewQuestionEntering, setIsNewQuestionEntering] = useState(false);
     const binaryPrompt = `Generate only Yes/No questions (binary type).
 Each question must contain exactly two options: "Yes" and "No".
 Phrase each question neutrally so the answer is not obvious from wording.
@@ -1558,26 +1649,248 @@ Do not mention the word 'transcript' for giving references, use the word 'video'
 const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 const [isRerunning, setIsRerunning] = useState(false);
 
+    const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
+    
     const segmentIds = Array.from(
         new Set(questions.map((q) => q.segmentId).filter((sid) => typeof sid === "number"))
     ).sort((a, b) => a - b);
 
+    const currentSegmentId = segmentIds[currentSegmentIndex];
+    const currentSegmentQuestions = questions.filter(q => q.segmentId === currentSegmentId);
+    const currentQuestionIndex = currentQuestionIndexBySegment[currentSegmentIndex] || 0;
+    const currentQuestionInSegment = Math.min(currentQuestionIndex, currentSegmentQuestions.length - 1);
+
+    const hasNextSegment = currentSegmentIndex < segmentIds.length - 1;
+
+        const handleSwipe = (direction: 'left' | 'right') => {
+        setSwipeDirection(direction);
+        
+        const currentQuestion = currentSegmentQuestions[currentQuestionInSegment];
+        const globalIndex = questions.findIndex(q => q === currentQuestion);
+      
+      const storedQuestions = localStorage.getItem('questions');
+      let allQuestions: any[] = [];
+      
+      if (storedQuestions) {
+        try {
+          allQuestions = JSON.parse(storedQuestions);
+        } catch (error) {
+          console.error('Error parsing stored questions:', error);
+        }
+      }
+  
+        if (direction === 'right') {
+          setAcceptedQuestions(prev => {
+            const newSet = new Set(prev);
+            newSet.add(globalIndex);
+            return newSet;
+          });
+          
+          setRejectedQuestions(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(globalIndex);
+            return newSet;
+          });
+          
+          if (allQuestions[globalIndex]) {
+            allQuestions[globalIndex].isAccept = true;
+            localStorage.setItem('questions', JSON.stringify(allQuestions));
+          }
+        } else {
+          setRejectedQuestions(prev => {
+            const newSet = new Set(prev);
+            newSet.add(globalIndex);
+            return newSet;
+          });
+          
+          setAcceptedQuestions(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(globalIndex);
+            return newSet;
+          });
+          
+          if (allQuestions[globalIndex]) {
+            allQuestions[globalIndex].isAccept = false;
+            localStorage.setItem('questions', JSON.stringify(allQuestions));
+          }
+        }
+        
+        setTimeout(() => {
+        const nextPendingIndex = currentSegmentQuestions.findIndex((_, idx) => {
+          const isDecided = isQuestionDecidedInSegment(currentSegmentIndex, idx);
+          const isRejected = isQuestionRejected(idx);
+          return idx > currentQuestionInSegment && !isDecided && !isRejected;
+        });
+          
+          setSwipeDirection(null);
+          
+          if (nextPendingIndex >= 0) {
+          setTimeout(() => {
+            setIsNewQuestionEntering(true);
+            setCurrentQuestionIndexBySegment(prevState => ({
+              ...prevState,
+              [currentSegmentIndex]: nextPendingIndex
+            }));
+            setTimeout(() => {
+              setIsNewQuestionEntering(false);
+            }, 400);
+          }, 100);
+          } else {
+            setCurrentQuestionIndexBySegment(prevState => ({
+              ...prevState,
+              [currentSegmentIndex]: currentQuestionInSegment
+            }));
+          }
+        }, 500);
+      };
+      const isQuestionDecidedInSegment = (segmentIndex: number, questionIndexInSegment: number) => {
+        const segmentId = segmentIds[segmentIndex];
+        const segmentQuestions = questions.filter(q => q.segmentId === segmentId);
+        const question = segmentQuestions[questionIndexInSegment];
+        
+        if (!question) return false;
+        
+        const globalIndex = questions.findIndex(q => q === question);
+        
+        if (acceptedQuestions.has(globalIndex) || rejectedQuestions.has(globalIndex)) {
+          return true;
+        }
+        
+        const storedQuestions = localStorage.getItem('questions');
+        if (storedQuestions) {
+          try {
+            const parsedQuestions = JSON.parse(storedQuestions);
+            const storedQuestion = parsedQuestions[globalIndex];
+            return storedQuestion?.hasOwnProperty('isAccept');
+          } catch (error) {
+            console.error('Error checking question decision:', error);
+          }
+        }
+        
+        return false;
+      };
+        const handleNextSegment = () => {
+        if (currentSegmentIndex < segmentIds.length - 1) {
+            setCurrentSegmentIndex(prev => {
+                const newIndex = prev + 1;
+            
+            const nextSegmentQuestions = questions.filter(q => q.segmentId === segmentIds[newIndex]);
+            const firstPendingIndex = nextSegmentQuestions.findIndex((_, idx) => !isQuestionDecidedInSegment(newIndex, idx));
+            
+            setIsNewQuestionEntering(true);
+            setCurrentQuestionIndexBySegment(prevState => ({
+              ...prevState,
+              [newIndex]: firstPendingIndex >= 0 ? firstPendingIndex : 0
+            }));
+            setTimeout(() => {
+              setIsNewQuestionEntering(false);
+            }, 400);
+            
+                return newIndex;
+            });
+        }
+    };
+
+    const handlePreviousSegment = () => {
+        if (currentSegmentIndex > 0) {
+            setCurrentSegmentIndex(prev => {
+            const newIndex = prev - 1;
+            
+            const prevSegmentQuestions = questions.filter(q => q.segmentId === segmentIds[newIndex]);
+            const firstPendingIndex = prevSegmentQuestions.findIndex((_, idx) => !isQuestionDecidedInSegment(newIndex, idx));
+            
+            setIsNewQuestionEntering(true);
+            setCurrentQuestionIndexBySegment(prevState => ({
+              ...prevState,
+              [newIndex]: firstPendingIndex >= 0 ? firstPendingIndex : 0
+            }));
+            setTimeout(() => {
+              setIsNewQuestionEntering(false);
+            }, 400);
+            
+            return newIndex;
+          });
+        }
+      };
+      const isQuestionAccepted = (index: number) => {
+        const globalIndex = questions.findIndex(q => 
+            q.segmentId === currentSegmentId && 
+            q === currentSegmentQuestions[index]
+        );
+  
+  if (acceptedQuestions.has(globalIndex)) return true;
+  
+  const storedQuestions = localStorage.getItem('questions');
+  if (storedQuestions) {
+    try {
+      const parsedQuestions = JSON.parse(storedQuestions);
+      const storedQuestion = parsedQuestions[globalIndex];
+      return storedQuestion?.isAccept === true;
+    } catch (error) {
+      console.error('Error checking question status:', error);
+    }
+  }
+  
+  return false;
+};
+
+    const isQuestionRejected = (index: number) => {
+        const globalIndex = questions.findIndex(q => 
+            q.segmentId === currentSegmentId && 
+            q === currentSegmentQuestions[index]
+        );
+  
+  if (rejectedQuestions.has(globalIndex)) return true;
+  
+  const storedQuestions = localStorage.getItem('questions');
+  if (storedQuestions) {
+    try {
+      const parsedQuestions = JSON.parse(storedQuestions);
+      const storedQuestion = parsedQuestions[globalIndex];
+      return storedQuestion?.isAccept === false;
+    } catch (error) {
+      console.error('Error checking question status:', error);
+    }
+  }
+  
+  return false;
+};
+  const getAcceptedQuestionsFromStorage = () => {
+      const storedQuestions = localStorage.getItem('questions');
+      if (storedQuestions) {
+          try {
+              const questions = JSON.parse(storedQuestions);
+              return questions.filter((q: any) => q.isAccept === true);
+          } catch (error) {
+              console.error('Error getting accepted questions:', error);
+              return [];
+          }
+      }
+      return [];
+  };
+
+const clearStoredQuestions = () => {
+  localStorage.removeItem('questions');
+  setAcceptedQuestions(new Set());
+  setRejectedQuestions(new Set());
+};
 
     const handleNext = () => {
-        updateCurrentJob ("uploadContent", "WAITING");
+      const acceptedQuestions = getAcceptedQuestionsFromStorage();
+      updateCurrentJob("uploadContent", "WAITING");
     }
 
     const handleAddParams = async() => {
-
       if(!aiJobId){
         toast.error("Failed to find jobId!")
         return;      
       }
       const newParams = {
         ...customQuestionParams,
-        SOL: (isMCQ) ? 2 : 0,
-        SML: isMSQ  ? 2 : 0,
-        BIN:isBinary ?2:0,
+        SOL: (isMCQ) ? numberOfQuestions : 0,
+        SML: isMSQ  ? numberOfQuestions : 0,
+        BIN:isBinary ? numberOfQuestions : 0,
+        numberOfQuestions: numberOfQuestions,
         // prompt: isBinary ? binaryPrompt : customQuestionParams.prompt,
       };
 
@@ -1585,7 +1898,19 @@ const [isRerunning, setIsRerunning] = useState(false);
           try {
             setIsRerunning(true);
             await aiSectionAPI.rerunJobTask(aiJobId, "QUESTION_GENERATION", newParams);
-            toast.error("Re-run success!");
+            setIsNewQuestionEntering(true);
+            setCurrentQuestionIndexBySegment(prev => ({
+              ...prev,
+              [0]: 0 
+            }));
+            setTimeout(() => {
+              setIsNewQuestionEntering(false);
+            }, 400);
+            setCurrentSegmentIndex(0);
+            setAcceptedQuestions(new Set());
+            setRejectedQuestions(new Set());
+            clearStoredQuestions();
+            toast.success("Re-run success!");
           } catch (err) {
             toast.error("Re-run failed, try again!");
             console.error("Re-run failed:", err);
@@ -1596,6 +1921,50 @@ const [isRerunning, setIsRerunning] = useState(false);
           handleApproveTask(newParams);
       }
     }
+
+    const isQuestionAcceptedInSegment = (segmentIndex: number, questionIndexInSegment: number) => {
+  const segmentId = segmentIds[segmentIndex];
+  const segmentQuestions = questions.filter(q => q.segmentId === segmentId);
+  const question = segmentQuestions[questionIndexInSegment];
+  
+  if (!question) return false;
+  
+  const globalIndex = questions.findIndex(q => q === question);
+  
+  if (acceptedQuestions.has(globalIndex)) return true;
+  
+  const storedQuestions = localStorage.getItem('questions');
+  if (storedQuestions) {
+    try {
+      const parsedQuestions = JSON.parse(storedQuestions);
+      const storedQuestion = parsedQuestions[globalIndex];
+      return storedQuestion?.isAccept === true;
+    } catch (error) {
+      console.error('Error checking question acceptance:', error);
+    }
+  }
+  
+  return false;
+};
+
+const currentSegmentAcceptedCount = useMemo(() => {
+  return currentSegmentQuestions.filter((_, idx) => {
+    return isQuestionAcceptedInSegment(currentSegmentIndex, idx);
+  }).length;
+}, [currentSegmentQuestions, currentSegmentIndex]);
+
+const currentSegmentRejectedCount = useMemo(() => {
+  return currentSegmentQuestions.filter((_, idx) => {
+    return isQuestionRejected(idx);
+  }).length;
+}, [currentSegmentQuestions]);
+
+const currentSegmentActiveQuestions = currentSegmentQuestions.length - currentSegmentRejectedCount;
+const isSegmentCompleted = currentSegmentAcceptedCount > 0;
+
+const isQuestionDecided = (index: number) => {
+  return isQuestionAccepted(index) || isQuestionRejected(index);
+};
 
     return (
         <div className="py-12 text-center text-gray-500">
@@ -1748,6 +2117,27 @@ const [isRerunning, setIsRerunning] = useState(false);
                           Toggle which type to include. Only one type can be selected at a time.
                         </p>
                       </div>
+
+                      {(isMCQ || isMSQ || isBinary) && (
+                        <div className="space-y-2 min-w-[220px]">
+                          <Label className="text-sm font-medium" htmlFor="questions-count">
+                            No. of questions to generate
+                          </Label>
+                          <Input
+                            id="questions-count"
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={numberOfQuestions}
+                            onChange={(e) => setNumberOfQuestions(parseInt(e.target.value) || 10)}
+                            disabled={isLocked}
+                            className="h-10"
+                          />
+                          <p className="text-sm text-muted-foreground">
+                            Number of questions to generate (1-100)
+                          </p>
+                        </div>
+                      )}
                       </div>
                   </div>
               </section>
@@ -1793,18 +2183,80 @@ const [isRerunning, setIsRerunning] = useState(false);
                   </div>
                 )}
 
-                {!isLoading && !error && questions.length > 0 && (
-                  <div className="space-y-4">
-                    {questions.map((q: any, idx: number) => {
+                {!isLoading && !error && questions.length > 0 && segmentIds.length > 0 && (
+                  <div className="relative">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handlePreviousSegment}
+                          disabled={currentSegmentIndex === 0 || isLocked}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <div className="text-sm font-medium px-2 py-1 bg-muted rounded-md">
+                          Segment {currentSegmentIndex + 1} of {segmentIds.length}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleNextSegment}
+                          disabled={!hasNextSegment || isLocked}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        Question {currentSegmentAcceptedCount} of {currentSegmentQuestions.length - currentSegmentRejectedCount}
+                      </div>
+                    </div>
+
+                    <div className="relative">
+                    {currentSegmentQuestions.map((q: any, idx: number) => {
+                      //   if (idx !== currentQuestionInSegment) return null;
+                        
                       const segIdx = segmentIds.findIndex((sid) => sid === q.segmentId)
                       const segStart = segIdx === 0 ? 0 : segmentIds[segIdx - 1]
                       const segEnd = q.segmentId
+                        if (idx !== currentQuestionInSegment) return null;
+  
+                      const globalIndex = questions.findIndex(question => question === q);
+                      const isAccepted = isQuestionAccepted(idx);
+                      const isRejected = isQuestionRejected(idx);
 
                       return (
                         <div
                           key={q.question?.text || idx}
-                          className="bg-card/90 border border-gray-200 dark:border-gray-600 rounded-lg p-4 hover:shadow-md transition-shadow duration-200"
+                          className={`bg-card/90 border rounded-lg p-4 transition-all duration-500 ease-in-out transform relative ${
+                            swipeDirection === 'right' 
+                              ? 'translate-x-full opacity-0' 
+                              : swipeDirection === 'left' 
+                              ? '-translate-x-full opacity-0'
+                              : isNewQuestionEntering
+                              ? 'opacity-0 scale-0 animate-[zoomOutFromCenter_0.4s_ease-out_forwards]'
+                              : 'translate-x-0 opacity-100 scale-100'
+                          } ${
+                            isAccepted 
+                              ? 'border-green-500 dark:border-green-700 bg-green-50/50 dark:bg-green-900/20' 
+                              : isRejected 
+                              ? 'border-red-500 dark:border-red-700 bg-red-50/50 dark:bg-red-900/20 opacity-70'
+                              : 'border-gray-200 dark:border-gray-600 hover:shadow-md'
+                          }`}
                         >
+                          {isAccepted && (
+                            <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-medium px-2 py-1 rounded-full flex items-center">
+                              <CheckCircle className="w-3 h-3 mr-1" /> Accepted
+                            </div>
+                          )}
+                          {isRejected && (
+                            <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-medium px-2 py-1 rounded-full flex items-center">
+                              <XCircle className="w-3 h-3 mr-1" /> Rejected
+                            </div>
+                          )}
                           {/* Question Metadata */}
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-4 text-xs">
@@ -1885,9 +2337,58 @@ const [isRerunning, setIsRerunning] = useState(false);
                               </div>
                             </div>
                           )}
-                        </div>
-                      )
-                    })}
+                              <button
+                                onClick={() => handleSwipe('left')}
+                                disabled={isQuestionDecided(currentQuestionInSegment)}                               
+                                className={`absolute top-[100px] bg-red-50 dark:bg-red-900/20 -left-4 p-2 rounded-full transition-colors border border-solid border-red-200 dark:border-red-800 ${
+                                  isQuestionDecided(currentQuestionInSegment)
+                                    ? 'opacity-30 cursor-not-allowed'
+                                    : 'hover:bg-red-100 dark:hover:bg-red-900/30 cursor-pointer text-red-500'
+                                }`}
+                                aria-label="Reject question"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleSwipe('right')}
+                                disabled={isQuestionDecided(currentQuestionInSegment)}
+                                className={`absolute top-[100px] bg-green-50 dark:bg-green-900/20 -right-4 p-2 rounded-full transition-colors border border-solid border-green-200 dark:border-green-800 ${
+                                  isQuestionDecided(currentQuestionInSegment)
+                                    ? 'opacity-30 cursor-not-allowed'
+                                    : 'hover:bg-green-100 dark:hover:bg-green-900/30 cursor-pointer text-green-500'
+                                }`}
+                                aria-label="Accept question"
+                              >
+                                <Check className="w-4 h-4" />
+                              </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Segment Progress
+                        </span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                          {currentSegmentAcceptedCount} of {currentSegmentQuestions.length - currentSegmentRejectedCount} questions 
+                                (Segment {currentSegmentIndex + 1} of {segmentIds.length})
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                        <div 
+                          className="bg-green-600 h-2.5 rounded-full transition-all duration-300" 
+                          style={{ 
+                            width: `${(currentSegmentAcceptedCount / Math.max(1, currentSegmentActiveQuestions)) * 100}%`,
+                            minWidth: currentSegmentAcceptedCount > 0 ? '0.5rem' : '0'
+                          }}
+                        />
+                      </div>
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        At least one question must be accepted per segment.
+                      </p>
+                    </div>
                   </div>
                 )}
 
@@ -2009,7 +2510,7 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
                 const updatedQuestions = questions.map((q, idx) =>
                   idx !== editingIdx ? q : { ...q, question: { ...q.question, text: edited.text }, solution: edited.solution }
                 );
-                await aiSectionAPI.editQuestionData(aiJobId, updatedQuestions);
+                await aiSectionAPI.editQuestionData(aiJobId, updatedQuestions, editingIdx);
                   setQuestions(prev =>
                     prev.map((q, idx) =>
                       idx !== editingIdx
@@ -2807,7 +3308,7 @@ const SegmentationView = ({
                     <SelectValue/>
                     </SelectTrigger>
                     <SelectContent>
-                    <SelectItem value="0.5" >Very Frequent</SelectItem>
+                    <SelectItem value="1.2" >Very Frequent</SelectItem>
                     <SelectItem value="2">Frequent</SelectItem>
                     <SelectItem value="4.5">Normal</SelectItem>
                     <SelectItem value="5.5">Less Frequent</SelectItem>
@@ -2817,7 +3318,7 @@ const SegmentationView = ({
                 </div>
 
                 <div className="mt-7 text-sm dark:text-gray-200 text-gray-900 max-w-xs transition-opacity duration-300">
-                {customSegmentationParams.lam === 0.5 &&
+                {customSegmentationParams.lam === 1.2 &&
                     "Segments will be created very frequently, providing high detail and precision."}
                 {customSegmentationParams.lam === 2 &&
                     "Segments will be created frequently, offering a balance between detail and performance."}
@@ -3178,8 +3679,9 @@ interface UploadContentProps {
   uploadParams: UploadParams;
   setUploadParams: React.Dispatch<React.SetStateAction<UploadParams>>;
   isLoading: boolean;
-  handleApproveTask: (qnGenParms?: QuestionGenerationParameters) => void;
+  handleApproveTask: (qnGenParms?: QuestionGenerationParameters, filteredQuestions?: any[]) => void;
   isApprovingTask: boolean;
+  aiJobId: string | null;
 }
 
 const UploadContentView: React.FC<UploadContentProps> = ({
@@ -3188,9 +3690,44 @@ const UploadContentView: React.FC<UploadContentProps> = ({
   setUploadParams,
   isLoading, 
   handleApproveTask,
-  isApprovingTask
+  isApprovingTask,
+  aiJobId
 }) => {
   const navigate = useNavigate();
+
+  const handleUploadContent = async () => {
+    if (!aiJobId) {
+      console.error('No job ID found');
+      return;
+    }
+
+    const storedQuestions = localStorage.getItem('questions');
+    let acceptedQuestions: any[] = [];
+    
+    if (storedQuestions) {
+      try {
+        const allQuestions = JSON.parse(storedQuestions);
+        acceptedQuestions = allQuestions.filter((q: any) => q.isAccept === true);
+        
+        // Send all accepted questions as an array to the API
+        if (acceptedQuestions.length > 0) {
+          try {
+            await editQuestionData(aiJobId, acceptedQuestions);
+          } catch (error) {
+            console.error('Error updating questions:', error);
+            toast.error('Failed to update questions. Please try again.');
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error processing questions:', error);
+        toast.error('Error processing questions. Please try again.');
+        return;
+      }
+    }
+    
+    handleApproveTask(undefined, acceptedQuestions);
+  };
 
   if(currentJobStatus !== "COMPLETED") { 
     return(<div className="space-y-6">
@@ -3247,7 +3784,7 @@ const UploadContentView: React.FC<UploadContentProps> = ({
         {/* Centered Next Button */}
         <div className="flex justify-center">
         <Button
-            onClick={() => handleApproveTask()}
+            onClick={handleUploadContent}
             disabled={isLoading || isApprovingTask}
             className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
         >
