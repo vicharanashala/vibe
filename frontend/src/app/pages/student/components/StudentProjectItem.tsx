@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
 import { Label } from '../../../../components/ui/label';
 import { Textarea } from '../../../../components/ui/textarea';
 import { CheckCircle, Link as LinkIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { useSubmitProject, SubmitProjectBody } from '../../../../hooks/hooks';
+import { useSubmitProject, SubmitProjectBody, useStartItem, useStopItem } from '../../../../hooks/hooks';
 import { useCourseStore } from '../../../../store/course-store';
 
 // This file is a student-side ProjectItem component for project submission
@@ -23,11 +23,20 @@ export type StudentProjectItemProps = {
 };
 
 export default function StudentProjectItem({ item, onNext, isProgressUpdating }: StudentProjectItemProps) {
-  const [link, setLink] = React.useState('');
-  const [comment, setComment] = React.useState('');
-  const [isSubmitted, setIsSubmitted] = React.useState(false);
+  const [link, setLink] = useState('');
+  const [comment, setComment] = useState('');
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
   const { mutateAsync: submitProject, isPending: isSubmitting } = useSubmitProject();
+  const startItem = useStartItem();
+  const stopItem = useStopItem();
   const { currentCourse } = useCourseStore();
+  const [watchItemId, setWatchItemId] = useState<string>('');
+
+
+  // Track if item has been started and if start request has been sent
+  const itemStartedRef = useRef(false);
+  const startRequestSentRef = useRef(false);
 
   const validateUrl = (url: string): boolean => {
     try {
@@ -38,38 +47,133 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating }:
     }
   };
 
+  // ===== COURSE ITEM TRACKING FUNCTIONS =====
+  const handleStartItem = useCallback(async (): Promise<string> => {
+    if (!currentCourse?.itemId) {
+      console.error('Missing course item ID');
+      return '';
+    }
+    
+    try {
+      const response = await startItem.mutateAsync({
+        params: {
+          path: {
+            courseId: currentCourse.courseId,
+            courseVersionId: currentCourse.versionId ?? '',
+          },
+        },
+        body: {
+          itemId: currentCourse.itemId,
+          moduleId: currentCourse.moduleId ?? '',
+          sectionId: currentCourse.sectionId ?? '',
+        }
+      });
+
+      if (!response?.watchItemId) {
+        console.error('No watchItemId returned from startItem');
+        return '';
+      }
+      
+      itemStartedRef.current = true;
+      setWatchItemId(response.watchItemId);
+
+      return response.watchItemId;
+    } catch (error) {
+      console.error('Failed to start item:', error);
+      return '';
+    }
+  }, [currentCourse]);
+
+
+  // Function to stop watching the item
+  const handleStopItem = useCallback(async (stopWatchItemId: string): Promise<boolean> => {
+    if (!currentCourse?.itemId || !stopWatchItemId) {
+      console.warn('Cannot stop item - missing required data', {
+        hasItemId: !!currentCourse?.itemId,
+        hasWatchItemId: !!stopWatchItemId
+      });
+      return false;
+    }
+
+    try {
+      // Stop the watch item
+      await stopItem.mutateAsync({
+        params: {
+          path: {
+            courseId: currentCourse.courseId,
+            courseVersionId: currentCourse.versionId ?? '',
+          },
+        },
+        body: {
+          watchItemId: stopWatchItemId,
+          itemId: currentCourse.itemId,
+          sectionId: currentCourse.sectionId ?? '',
+          moduleId: currentCourse.moduleId ?? ''
+        }
+      });
+      return true;
+    } catch (error) {
+      console.error('Error stopping watch item:', error);
+      return false;
+    } finally {
+      itemStartedRef.current = false;
+    }
+  }, [currentCourse, stopItem]);
+
+
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!link.trim()) {
-      toast.error('Please enter a link');
-      return;
-    }
-    if (!validateUrl(link)) {
-      toast.error('Please enter a valid URL');
-      return;
-    }
-    if (!currentCourse) {
-      toast.error('Course information not available');
-      return;
-    }
+
     try {
+      if (!link.trim()) {
+        toast.error('Please enter a link');
+        return;
+      }
+
+      if (!validateUrl(link)) {
+        toast.error('Please enter a valid URL');
+        return;
+      }
+
+      if (!currentCourse) {
+        toast.error('Course information not available');
+        return;
+      }
+
+      // Start watching the item and get the watchItemId
+      const newWatchItemId = await handleStartItem();
+
+      // Use the returned watchItemId directly instead of state
+      if (!newWatchItemId) {
+        throw new Error('Failed to start watching the item');
+      }
+
       const submitData: SubmitProjectBody = {
         projectId: item._id,
         courseId: currentCourse.courseId,
         versionId: currentCourse.versionId || '',
         moduleId: currentCourse.moduleId || '',
         sectionId: currentCourse.sectionId || '',
-        watchItemId: item._id, // Always use the current item id
+        watchItemId: newWatchItemId,
         submissionURL: link.trim(),
         comment: comment.trim() || undefined,
       };
+
+      // Submit the form with watchItemId
       await submitProject({ body: submitData });
+      
+      // Stop watching the item using the same watchItemId
+      const stopSuccess = await handleStopItem(newWatchItemId);
+      if (stopSuccess) {
+        toast.success('Form submitted successfully!');
       setIsSubmitted(true);
-      toast.success('Form submitted successfully!');
+      } else {
+        toast.warning('Project submitted but failed to stop tracking');
+      }
+
+      // Call onNext if provided
       if (onNext) {
-        setTimeout(() => {
-          onNext();
-        }, 1500);
+        onNext();
       }
     } catch (error) {
       console.error('Failed to submit form:', error);

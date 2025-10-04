@@ -47,6 +47,7 @@ export class ProjectService extends BaseService {
           await this._projectSubmissionRepository.getByUser(
             userId,
             versionId,
+            courseId,
             session,
           );
         if (isAlreadySumbitted)

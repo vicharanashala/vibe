@@ -39,6 +39,7 @@ class ProgressRepository {
   ): Promise<string[]> {
     await this.init();
 
+
     const distinctItemIds = await this.watchTimeCollection.distinct(
       'itemId',
       {
@@ -50,6 +51,7 @@ class ProgressRepository {
     );
 
     return distinctItemIds.map(id => id.toString());
+
   }
 
   async getAllWatchTime(
@@ -59,7 +61,7 @@ class ProgressRepository {
     await this.init();
     const result = await this.watchTimeCollection
       .find({userId: new ObjectId(userId)}, {session})
-      .toArray();
+      .toArray();   
     return result.map(item => ({
       ...item,
       _id: item._id.toString(),

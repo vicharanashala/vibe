@@ -101,6 +101,7 @@ export interface QuestionGenerationParameters {
   NAT?: number;
   DES?: number;
   prompt?: string;
+  numberOfQuestions?: number;
 }
 
 export interface Chunk {
