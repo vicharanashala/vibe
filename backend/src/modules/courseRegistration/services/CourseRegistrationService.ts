@@ -410,7 +410,19 @@ export class CourseRegistrationService extends BaseService {
           if(existingEnrollment){
             continue
           } 
+          const course = await this.courseRepo.read(item.courseId.toString(),session); 
+          if(!course) {
+          throw new NotFoundError('Course not found');
+        }
           await this.enrollmentService.enrollUser(item.userId.toString(),item.courseId.toString(),item.versionId.toString(),"STUDENT",true,session)
+          const emailMessage=await this.createStatusEmailMessage(item,course,"APPROVED")
+          try {
+          await this.mailService.sendMail(emailMessage);
+          console.log(`Status email sent successfully for registration ${item}`);
+        } catch (emailError) {
+          console.error(`Failed to send status email for registration ${item}:`, emailError);
+          // Optionally, log to a separate table or service, but do not rollback the status update
+        }
         }
         console.log("enrollment updated going to bulk  ")
         return await this.courseRegistrationRepo.updateBulkStatus(
