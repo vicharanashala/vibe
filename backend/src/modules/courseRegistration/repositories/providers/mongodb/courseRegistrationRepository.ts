@@ -27,7 +27,7 @@ class CourseRegistrationRepository {
       await this.db.getCollection<ICourseRegistration>('CourseRegistration');
   }
 
-  async findByUserId(userId: string, session?: ClientSession) {
+  async findByUserId(userId: string, session?: ClientSession):Promise<ICourseRegistration> {
     await this.init();
     const result = await this.courseRegistrationCollection.findOne(
       {userId},
@@ -36,7 +36,7 @@ class CourseRegistrationRepository {
     return result;
   }
 
-  async create(data: ICourseRegistration, session?: ClientSession) {
+  async create(data: ICourseRegistration, session?: ClientSession):Promise<string> {
     await this.init();
     const result = await this.courseRegistrationCollection.insertOne(data, {
       session,
@@ -44,7 +44,7 @@ class CourseRegistrationRepository {
     return result.insertedId.toString();
   }
 
-  async getRegistration(registrationId: string, session?: ClientSession) {
+  async getRegistration(registrationId: string, session?: ClientSession):Promise<ICourseRegistration | null> {
     await this.init();
     const result = await this.courseRegistrationCollection.findOne(
       {
@@ -62,7 +62,7 @@ class CourseRegistrationRepository {
     limit: number,
     sort: 'older' | 'latest',
     session?: ClientSession,
-  ) {
+  ):Promise<{registrations:ICourseRegistration[]; totalDocuments:number}> {
     await this.init();
     console.log("filteer ",filter)
     // const query: any = {versionId, status: 'PENDING'};
@@ -102,7 +102,7 @@ class CourseRegistrationRepository {
     registrationId: string,
     status: 'PENDING' | 'APPROVED' | 'REJECTED',
     session?: ClientSession,
-  ) {
+  ):Promise<ICourseRegistration> {
     await this.init();
     const data = await this.courseRegistrationCollection.findOneAndUpdate(
       {_id: new ObjectId(registrationId)},
@@ -115,7 +115,7 @@ class CourseRegistrationRepository {
     return result;
   }
 
-  async updateBulkStatus(registrationIds: string[], session?: ClientSession) {
+  async updateBulkStatus(registrationIds: string[], session?: ClientSession):Promise<number> {
     await this.init();
     console.log("reached here repo bulk")
     if (registrationIds.length <= 0) {
