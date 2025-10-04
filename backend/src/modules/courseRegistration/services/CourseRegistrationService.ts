@@ -356,7 +356,7 @@ export class CourseRegistrationService extends BaseService {
             title: 'Name',
             minLength: 1,
           },
-          email: {
+          Email: {
             type: 'string',
             format: 'email',
             title: 'Email',
@@ -366,7 +366,7 @@ export class CourseRegistrationService extends BaseService {
             title: 'Phone',
           },
         },
-        required: ['Name', 'email'],
+        required: ['Name', 'Email'],
       };
 
       const defaultUiSchema = {
@@ -570,43 +570,7 @@ export class CourseRegistrationService extends BaseService {
 
         let {jsonSchema, uiSchema} =
           courseSettings.settings?.registration || {};
-        // // If no schemas exist, add default ones and persist
-        // if (!jsonSchema || !uiSchema) {
-        //   // Define default schemas (customize as needed)
-        //   const defaultJsonSchema = {
-        //     type: 'object',
-        //     properties: {
-        //       Name: {
-        //         type: 'string',
-        //         title: 'Name',
-        //         minLength: 1,
-        //       },
-        //       email: {
-        //         type: 'string',
-        //         format: 'email',
-        //         title: 'Email',
-        //       },
-        //       phone: {
-        //         type: 'string',
-        //         title: 'Phone',
-        //       },
-        //     },
-        //     required: ['Name', 'email'],
-        //   };
-
-        //   const defaultUiSchema = {
-        //     Name: {
-        //       'ui:placeholder': 'Enter your Name',
-        //     },
-        //     Email: {
-        //       'ui:placeholder': 'Enter your Email',
-        //     },
-        //     Mobile: {
-        //       'ui:options': {
-        //         inputType: 'tel',
-        //       },
-        //     },
-        //   };
+ 
 
         //   // const defaultUiSchema = {
         //   //   type: 'VerticalLayout',
@@ -626,18 +590,6 @@ export class CourseRegistrationService extends BaseService {
         //   //   ],
         //   // };
 
-        //   // Persist defaults
-        //   await this.settingsRepo.updateRegistrationSchemas(
-        //     courseId,
-        //     versionId,
-        //     {jsonSchema: defaultJsonSchema, uiSchema: defaultUiSchema},
-        //     session,
-        //   );
-
-        //   // Update local reference
-        //   jsonSchema = defaultJsonSchema;
-        //   uiSchema = defaultUiSchema;
-        // }
 
         return {jsonSchema, uiSchema};
 
