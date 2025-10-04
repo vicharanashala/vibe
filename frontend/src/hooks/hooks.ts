@@ -3064,7 +3064,7 @@ export const useCreateRegistrationFields = (versionId: string): {
   status: 'idle' | 'pending' | 'success' | 'error';
 } => {
   // Assuming the endpoint path includes versionId; adjust if needed based on your API structure
-  const result = api.useMutation('put', `/course/registration/settings/version/${versionId}` as any);
+  const result = api.useMutation('put', `/course/registration/build-form/version/${versionId}` as any);
 
   return {
     mutate: (fields) =>
@@ -3101,7 +3101,7 @@ export const useGetRegistrationFields = (
 } => {
   const result = api.useQuery(
     'get',
-    '/course/registration/settings/version/{versionId}' as any,
+    '/course/registration/build-form/version/{versionId}' as any,
     {
       params: {
         path: { versionId },
