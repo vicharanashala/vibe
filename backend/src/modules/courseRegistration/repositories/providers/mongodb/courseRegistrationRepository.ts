@@ -91,7 +91,7 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
     if (filter.search) {
       query.$or = [
         {'detail.Name': {$regex: filter.search, $options: 'i'}},
-        {'detail.email': {$regex: filter.search, $options: 'i'}},
+        {'detail.Email': {$regex: filter.search, $options: 'i'}},
       ];
     }
 
