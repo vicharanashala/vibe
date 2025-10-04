@@ -2845,7 +2845,7 @@ export const useSubmitCourseRegistration: () => {
 
 
 export interface RegistrationRequestQuery {
-  filter?: RegistrationStatus;
+  status?: RegistrationStatus;
   sort?: 'older' | 'latest';
   search?: string;
   limit?: number;
@@ -2856,7 +2856,7 @@ export interface RegistrationRequestQuery {
 
 export const useGetCourseRegistrationRequests = (
   versionId:string,
-  params: RegistrationRequestQuery = {},
+  query: RegistrationRequestQuery = {},
 ): {
   data: {totalDocuments: number, totalPages: number, currentPage: number, registrations: Registration[]};
   isLoading: boolean;
@@ -2869,13 +2869,7 @@ export const useGetCourseRegistrationRequests = (
     {
       params: {
         path:{versionId},
-        query: {
-          filter: params.filter,
-          sort: params.sort,
-          search: params.search,
-          limit: params.limit,
-          page: params.page,
-        },
+        query
       }
     },
     {
