@@ -14,36 +14,23 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Users, Eye, User, CheckCircle, XCircle, Share2, Check, Copy, Share, RefreshCw,  ListChecks, Hash, Calendar, ArrowLeft, Settings, Info, FileText } from "lucide-react";
+import { Loader2, Users, Eye, User, CheckCircle, XCircle, Share2, Check, Copy, Share, RefreshCw,  ListChecks, Hash, Calendar, ArrowLeft, Settings, Info, FileText, Search, X, UserCheck, FilterIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCourseStore } from "@/store/course-store";
 import { toast } from "sonner";
-import {useBulkUpdateRegistrationStatus, useGetCourseRegistrationRequests, useUpdateRegistrationFields, useUpdateRegistrationStatus } from "@/hooks/hooks";
+import {useBulkUpdateRegistrationStatus, useGetCourseRegistrationRequests, useUpdateRegistrationStatus } from "@/hooks/hooks";
 import { Pagination } from "@/components/ui/Pagination";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import ConfirmationModal from "./components/confirmation-modal";
 import { FormBuilder } from "./components/course-registration-modal";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
-
-interface RegistrationDetail {
-  name: string;
-  email: string;
-  mobile: string;
-  gender: string;
-  city: string;
-  state: string;
-  category: string;
-  university: string;
-}
 
 export interface Registration {
   _id: string;
-  detail: RegistrationDetail;
-  status: 'pending' | 'approved' | 'rejected';
+  detail: Record<string, any>;
+  status: RegistrationStatus;
   createdAt: string;
 }
 
@@ -66,13 +53,15 @@ export default function CourseRegistrationRequests() {
   const [isBulkApproveOpen, setIsBulkApproveOpen] = useState(false);
   const [isSingleRejectOpen, setIsSingleRejectOpen] = useState(false);
   const [singleRegistrationId, setSingleRegistrationId] = useState<string | null>(null);
+  const [isUnsavedChanges, setIsUnsavedChanges] = useState(false);
+
   const { currentCourse } = useCourseStore()
   const versionId = currentCourse?.versionId
 
   const PAGE_LIMIT = 15;
 
   const params = useMemo(() => ({
-    filter: filterStatus,
+    status: filterStatus,
     search: searchTerm,
     sort: sortOrder,
     page: currentPage,
@@ -108,7 +97,8 @@ ${registrationUrl}`;
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(registrations.map(r => r._id));
+      setSelectedIds(registrations.filter((reg)=> reg.status=="PENDING" )
+      .map(r => r._id));
     } else {
       setSelectedIds([]);
     }
@@ -117,7 +107,7 @@ ${registrationUrl}`;
   const handleBulkApprove = async () => {
     if (isUpdatingBulkStatus || isUpdatingStatus) return;
 
-    const allRegistrationIds = registrationsData?.registrations?.map((reg) => reg._id) || [];
+    const allRegistrationIds = registrationsData?.registrations?.filter((reg)=>reg.status=="PENDING").map((reg) => reg._id) || [];
 
     const idsToApprove = selectedIds && selectedIds.length > 0 ? selectedIds : allRegistrationIds;
 
@@ -134,6 +124,7 @@ ${registrationUrl}`;
       if (idsToApprove.length > 0) setSelectedIds([]);
 
       registrationsRefetch();
+      setIsBulkApproveOpen(false);
     } catch (error: any) {
       toast.error(
         error?.message ||
@@ -149,9 +140,10 @@ ${registrationUrl}`;
       await updateStatus(registrationId, 'APPROVED');
       toast.success('Registration approved successfully');
       registrationsRefetch();
+
     } catch (error: any) {
       toast.error(error?.message || 'Failed to approve registration. Please try again.');
-    }
+    } 
   }
 
   const handleReject = async (registrationId: string | null) => {
@@ -182,62 +174,38 @@ ${registrationUrl}`;
     }
   };
 
-  // const handleSave = async (fields: Field[]) => {
-  //   const processedFields = fields.map((f) => ({
-  //     label:f.label,
-  //     type:f.type,
-  //     required:f.required,
-  //     options:f.options ?? []
-  //   }))
-  //   try {
-  //     await updateFields(versionId as string,processedFields)
-  //     toast.success('Custom fields saved successfully!');
-  //     setIsCustomOpen(false)
-  //     registrationsRefetch()
-  //   } catch (error:any) {
-  //     toast.error(error?.message || 'Failed to save fields. Please try again.')
-  //   }
-  // }
-
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
   };
 
+  const handleNavigateToRequests = (currentFieldsLength: number, existingFieldsLength: number) => {
+    if(currentFieldsLength > existingFieldsLength){
+      setIsUnsavedChanges(true);
+      return;
+    }
+    setShowFormBuilder(false);
+    setIsUnsavedChanges(false)
+  }
+
   if (showFormBuilder) {
     return (
-      <div className="min-h-screen bg-background w-full">
-        <div className="container mx-auto py-4">
-          <div className="flex items-center gap-4 mb-4">
-            <Button
-              variant="outline"
-              onClick={() => setShowFormBuilder(false)}
-              className="h-10 w-10 p-2"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-
-        
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent ">
-              Form Builder
-            </h1>
-            <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Info className="me-2 w-5 h-5 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    Here you can manage the course registration form fields. 
-                    Only selected fields will be visible to students.
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          </div>
-          <FormBuilder versionId={versionId!} setShowFormBuilder={setShowFormBuilder}/>
-        </div>
-      </div>
+      <>
+        <FormBuilder versionId={versionId!} handleNavigateToRequests={handleNavigateToRequests}/>
+        <ConfirmationModal
+          isOpen={isUnsavedChanges}
+          onClose={() => setIsUnsavedChanges(false)}
+          onConfirm={() => {
+            setShowFormBuilder(false);
+            setIsUnsavedChanges(false);
+          }}
+          title="Unsaved Changes"
+          description="You have unsaved changes. Are you sure you want to leave without saving? Any unsaved changes will be lost."
+          confirmText="Leave"
+          cancelText="Stay"
+          isDestructive={true} 
+        />
+      </>
     );
   }
 
@@ -283,6 +251,8 @@ ${registrationUrl}`;
         isLoading={isUpdatingBulkStatus}
         loadingText={"Approving..."}
       />
+   
+
       <div className="container mx-auto py-4 space-y-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="space-y-4">
@@ -413,27 +383,44 @@ ${registrationUrl}`;
 
         </div>
         <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
-          <div className="flex-1">
+          <div className="flex-1 relative">
+            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+              <Search size={20} />
+            </span>
+
             <Input
               placeholder="Search by name or email…"
               value={searchTerm}
-              onChange={e => {
+              onChange={(e) => {
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full"
+              className="w-full pl-10 pr-10" 
             />
+
+            {searchTerm && (
+              <Button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 transform bg-transparent hover:bg-transparent -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                <X size={20} />
+              </Button>
+            )}
           </div>
 
-          {/* <Select
+         <Select
             value={filterStatus}
-            onValueChange={value => {
+            onValueChange={(value) => {
               setFilterStatus(value as RegistrationStatus);
               setCurrentPage(1);
             }}
           >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by status" />
+            <SelectTrigger className="w-[180px] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FilterIcon className="w-4 h-4 text-gray-500" />
+                <SelectValue placeholder="Filter by status" />
+              </div>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All</SelectItem>
@@ -441,17 +428,34 @@ ${registrationUrl}`;
               <SelectItem value="APPROVED">Approved</SelectItem>
               <SelectItem value="REJECTED">Rejected</SelectItem>
             </SelectContent>
-          </Select> */}
+          </Select>
 
           <Select
             value={sortOrder}
-            onValueChange={value => {
-              setSortOrder(value as 'older' | 'latest');
+            onValueChange={(value) => {
+              setSortOrder(value as "older" | "latest");
               setCurrentPage(1);
             }}
           >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Sort by date" />
+            <SelectTrigger className="w-[180px] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-4 h-4 text-gray-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3 6h18M3 12h18M3 18h18"
+                  />
+                </svg>
+
+                <SelectValue placeholder="Sort by date" />
+              </div>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="latest">Latest</SelectItem>
@@ -541,7 +545,7 @@ ${registrationUrl}`;
                       </TableCell>
                     </TableRow>
                   ) : (
-                    registrations?.map((reg: any, index: number) => (
+                    registrations?.map((reg: Registration, index: number) => (
                       <TableRow
                         key={reg._id}
                         className="border-border hover:bg-muted/20 transition-colors duration-200 group"
@@ -550,6 +554,7 @@ ${registrationUrl}`;
                         <TableCell className="pl-6 py-4">
                           <Checkbox
                             checked={selectedIds.includes(reg._id)}
+                            disabled={reg.status !== "PENDING"}
                             onCheckedChange={checked =>
                               handleSelectRow(reg._id, checked as boolean)
                             }
@@ -564,18 +569,30 @@ ${registrationUrl}`;
                           <div className="flex items-center gap-4">
                             <Avatar className="h-10 w-10 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
                               <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
-                                {reg.detail.name
-                                  ? reg.detail.name
-                                    .split(" ")
-                                    .map((part: string) => part[0]?.toUpperCase())
-                                    .join("")
-                                  : "?"}
+                                {(() => {
+                                  const detail = reg.detail || {};
+                                  const key = Object.keys(detail).find(k => k.toLowerCase().includes("name"));
+                                  const value = key ? detail[key] : null;
+
+                                  if (typeof value === "string" && value.trim()) {
+                                    return value
+                                      .split(" ")
+                                      .map((part) => part[0]?.toUpperCase())
+                                      .join("");
+                                  }
+
+                                  return "?";
+                                })()}
                               </AvatarFallback>
                             </Avatar>
 
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold text-foreground truncate text-base md:text-lg">
-                                {reg.detail.name || reg.detail.Name|| "Unknown User"}
+                                {(() => {
+                                  const detail = reg.detail || {};
+                                  const key = Object.keys(detail).find(k => k.toLowerCase().includes("name"));
+                                  return key ? detail[key] : "Unknown User";
+                                })()}
                               </p>
 
                               {reg.detail.email || reg.detail.Email && (

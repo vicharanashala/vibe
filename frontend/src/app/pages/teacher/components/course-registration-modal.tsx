@@ -36,6 +36,7 @@ import {
   Plus,
   Eye,
   PlusCircle,
+  ArrowLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { RJSFSchema } from '@rjsf/utils';
@@ -43,6 +44,7 @@ import ConfirmationModal from './confirmation-modal';
 import { useCreateRegistrationFields } from '@/hooks/hooks'; // Renamed hook import for clarity (assuming it's the update hook; adjust if separate)
 import { useGetRegistrationFields } from '@/hooks/hooks'; // Added import for new GET hook
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 type FieldType =
@@ -125,13 +127,11 @@ const FIELD_TYPES = [
   // { type: 'file' as FieldType, label: 'File Upload', icon: FileText },
 ];
 
-export const FormBuilder = ({ versionId, setShowFormBuilder }: { versionId: string, setShowFormBuilder: (value: boolean)=> void }) => {
-  console.log("version if from form builder ",versionId)
+export const FormBuilder = ({ versionId,  handleNavigateToRequests }: { versionId: string,  handleNavigateToRequests:(currentFieldsLength: number, existingFieldsLength: number) => void } ) => {
   const [fields, setFields] = useState<FormField[]>([]);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
-  
   // Added loading state for fetching existing schemas
   const [isLoading, setIsLoading] = useState(true);
   // Get selected field
@@ -159,12 +159,8 @@ export const FormBuilder = ({ versionId, setShowFormBuilder }: { versionId: stri
     if (fetchedSchemas && (fetchedSchemas.jsonSchema || fetchedSchemas.uiSchema)) {
       // Convert fetched schemas back to fields
       const populatedFields = schemasToFields(fetchedSchemas.jsonSchema, fetchedSchemas.uiSchema);
-      setFields(populatedFields); // Populate fields from fetched data
-      // setJsonSchema(fetchedSchemas.jsonSchema); // Set initial jsonSchema
-      // setUiSchema(fetchedSchemas.uiSchema);
-      // toast.success('Loaded existing form fields'); // Success toast for loading
+      setFields(populatedFields); 
     } else {
-      // If no schemas, start empty (or set defaults if needed)
       setFields([]); // Ensure empty if no data
     }
 
@@ -455,7 +451,7 @@ export const FormBuilder = ({ versionId, setShowFormBuilder }: { versionId: stri
       toast.error('Something went wrong while submitting the form!');
     } finally {
       setIsConfirmationModalOpen(false);
-      setShowFormBuilder(false)
+      // setShowFormBuilder(false)
     }
   };
 
@@ -469,630 +465,625 @@ export const FormBuilder = ({ versionId, setShowFormBuilder }: { versionId: stri
   }
 
   return (
-    <div className="p-6">
-      <ConfirmationModal
-        isOpen={isConfirmationModalOpen}
-        onClose={() => setIsConfirmationModalOpen(false)}
-        onConfirm={handleSubmit}
-        title="Submit Form"
-        description="Are you sure you want to submit this form? Make sure all required fields are added and correct before proceeding."
-        confirmText="Submit"
-        cancelText="Cancel"
-        isDestructive={false}
-        isLoading={isUpdatingFields}
-        loadingText="Submitting..."
-      />
+      <div className="min-h-screen bg-background w-full ">
+        <div className="container mx-auto ">
+          <div className="flex items-center gap-4 mb-4">
+            <Button
+              variant="outline"
+              onClick={() => handleNavigateToRequests(fields.length, Object.keys(fetchedSchemas?.jsonSchema?.properties || {}).length)}
+              className="h-10 w-10 p-2"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="flex items-center gap-3">
 
-      <ConfirmationModal
-        isOpen={!!feildIdToDelete}
-        onClose={() => setFieldIdToDelete("")}
-        onConfirm={deleteField}
-        title="Delete Field"
-        description="Are you sure you want to delete this field? This action cannot be undone."
-        confirmText="Delete"
-        cancelText="Cancel"
-        isDestructive={true}
-      />
+        
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent ">
+              Form Builder
+            </h1>
+            <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="me-2 w-5 h-5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    Here you can manage the course registration form fields. 
+                    Only selected fields will be visible to students.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </div>
+          <div className="p-6">
+            <ConfirmationModal
+              isOpen={isConfirmationModalOpen}
+              onClose={() => setIsConfirmationModalOpen(false)}
+              onConfirm={handleSubmit}
+              title="Submit Form"
+              description="Are you sure you want to submit this form? Make sure all required fields are added and correct before proceeding."
+              confirmText="Submit"
+              cancelText="Cancel"
+              isDestructive={false}
+              isLoading={isUpdatingFields}
+              loadingText="Submitting..."
+            />
 
-      <div className="flex gap-6 h-[calc(100vh-165px)]">
-        <div className="w-[380px] h-full flex flex-col gap-4">
-          <Card className="flex-shrink-0 h-full "  >
-            <CardHeader className="pb-3 border-b">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <PlusCircle className="w-5 h-5 text-muted-foreground" />
-                Add Elements
-              </CardTitle>           
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-2">
-                {FIELD_TYPES.map((fieldType) => {
-                  const Icon = fieldType.icon;
-                  return (
-                    <Button
-                      key={fieldType.type}
-                      variant="outline"
-                      className="h-auto py-3 flex flex-col items-center gap-2 bg-transparent"
-                      onClick={() => addField(fieldType.type)}
-                    >
-                      <Icon className="w-5 h-5" />
-                      <span className="text-xs">{fieldType.label}</span>
-                    </Button>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-        <Card className="flex-1 flex flex-col min-h-0 ">
-          <CardHeader className="pb-3 border-b">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Settings className="w-5 h-5" />
-              Field Settings
-            </CardTitle>
-          </CardHeader>
+            <ConfirmationModal
+              isOpen={!!feildIdToDelete}
+              onClose={() => setFieldIdToDelete("")}
+              onConfirm={deleteField}
+              title="Delete Field"
+              description="Are you sure you want to delete this field? This action cannot be undone."
+              confirmText="Delete"
+              cancelText="Cancel"
+              isDestructive={true}
+            />
 
-          <CardContent className="flex-1 min-h-0 p-0">
-            {!selectedField ? (
-              <div className="text-sm text-muted-foreground text-center py-12 px-4">
-                Select a field from the preview to configure its properties and validation rules.
-              </div>
-            ) : (
-              <ScrollArea className="h-full px-4 py-4">
-                <div className="space-y-6  px-1 ">
+            <div className="flex flex-col gap-1 h-[110vh]">
+            <Card className="flex-shrink-0">
+              <CardHeader className=" border-b">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <PlusCircle className="w-5 h-5 text-muted-foreground" />
+                  Add Elements
+                </CardTitle>
+              </CardHeader>
 
-                  {/* Label */}
-                  <div>
-                    <label htmlFor="field-label" className="font-medium flex items-center gap-2">
-                      <Type className="w-4 h-4 text-muted-foreground" />
-                      Label
-                    </label>
-                    <Input
-                      id="field-label"
-                      value={selectedField.label}
-                      onChange={(e) =>
-                        updateField(selectedField.id, { label: e.target.value })
-                      }
-                      className="mt-1.5"
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      Display name of the field shown to users.
-                    </span>
+              <CardContent className="">
+                <ScrollArea className="max-h-24 min-h-fit"> 
+                  <div className="flex flex-wrap gap-2">
+                    {FIELD_TYPES.map((fieldType) => {
+                      const Icon = fieldType.icon;
+                      return (
+                        <Button
+                          key={fieldType.type}
+                          variant="outline"
+                          className="h-auto py-2 px-4 flex items-center gap-2 bg-transparent"
+                          onClick={() => addField(fieldType.type)}
+                        >
+                          <Icon className="w-4 h-4" />
+                          <span className="text-sm">{fieldType.label}</span>
+                        </Button>
+                      );
+                    })}
                   </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
 
-                  {/* Placeholder */}
-                  {selectedField.type !== "checkbox" &&
-                    selectedField.type !== "radio" && (
-                      <div>
-                        <label htmlFor="field-placeholder" className="font-medium flex items-center gap-2">
-                          <AlignLeft className="w-4 h-4 text-muted-foreground" />
-                          Placeholder
-                        </label>
-                        <Input
-                          id="field-placeholder"
-                          value={selectedField.placeholder || ""}
-                          onChange={(e) =>
-                            updateField(selectedField.id, {
-                              placeholder: e.target.value,
-                            })
-                          }
-                          className="mt-1.5"
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          Shown inside the input before the user types.
-                        </span>
-                      </div>
-                    )}
-
-                  {/* Help Text */}
-                  <div>
-                    <label htmlFor="field-help" className="font-medium flex items-center gap-2">
-                      <Info className="w-4 h-4 text-muted-foreground" />
-                      Help Text
-                    </label>
-                    <Input
-                      id="field-help"
-                      value={selectedField.helpText || ""}
-                      onChange={(e) =>
-                        updateField(selectedField.id, {
-                          helpText: e.target.value,
-                        })
-                      }
-                      className="mt-1.5"
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      Additional guidance shown below the field.
-                    </span>
-                  </div>
-
-                  <Separator />
-
-                  {/* Validation Rules */}
-                  <div>
-                    <h4 className="font-semibold mb-3 flex items-center gap-2">
-                      <CheckSquare className="w-4 h-4 text-muted-foreground" />
-                      Validation Rules
-                    </h4>
-
-                    {/* Required */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <Checkbox
-                        id="field-required"
-                        checked={selectedField.validation.required || false}
-                        onCheckedChange={(checked) =>
-                          updateField(selectedField.id, {
-                            validation: {
-                              ...selectedField.validation,
-                              required: !!checked,
-                            },
-                          })
-                        }
-                      />
-                      <label htmlFor="field-required" className="cursor-pointer">
-                        Required field
-                      </label>
+          
+            <div className="flex gap-1 flex-1 min-h-0">
+              <Card className="flex-[2] flex flex-col min-w-0">
+                <CardHeader className="pb-2 border-b">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Eye className="w-4 h-4" />
+                      Form Preview
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {fields.length} {fields.length === 1 ? "field" : "fields"}
+                      </span>
+                      {fields.length > 0 && (
+                        <Button variant="ghost" size="sm" onClick={() => setFormData({})} className="h-7 text-xs border-1">
+                          Clear
+                        </Button>
+                      )}
                     </div>
-
-                    {/* Min/Max Length */}
-                    {(selectedField.type === "text" ||
-                      selectedField.type === "email" ||
-                      selectedField.type === "textarea" ||
-                      selectedField.type === "tel" ||
-                      selectedField.type === "url") && (
-                      <>
-                        <div className="mb-3">
-                          <label htmlFor="field-minlength" className="flex items-center gap-2">
-                            <Hash className="w-4 h-4 text-muted-foreground" />
-                            Minimum Length
-                          </label>
-                          <Input
-                            id="field-minlength"
-                            type="number"
-                            min="0"
-                            value={selectedField.validation.minLength || ""}
-                            onChange={(e) =>
-                              updateField(selectedField.id, {
-                                validation: {
-                                  ...selectedField.validation,
-                                  minLength: e.target.value
-                                    ? Number(e.target.value)
-                                    : undefined,
-                                },
-                              })
-                            }
-                            className="mt-1.5"
-                          />
-                        </div>
-
-                        <div className="mb-3">
-                          <label htmlFor="field-maxlength" className="flex items-center gap-2">
-                            <Hash className="w-4 h-4 text-muted-foreground" />
-                            Maximum Length
-                          </label>
-                          <Input
-                            id="field-maxlength"
-                            type="number"
-                            min="0"
-                            value={selectedField.validation.maxLength || ""}
-                            onChange={(e) =>
-                              updateField(selectedField.id, {
-                                validation: {
-                                  ...selectedField.validation,
-                                  maxLength: e.target.value
-                                    ? Number(e.target.value)
-                                    : undefined,
-                                },
-                              })
-                            }
-                            className="mt-1.5"
-                          />
-                        </div>
-                      </>
-                    )}
-
-                    {/* Min/Max Value */}
-                    {selectedField.type === "number" && (
-                      <>
-                        <div className="mb-3">
-                          <label htmlFor="field-min" className="flex items-center gap-2">
-                            <Hash className="w-4 h-4 text-muted-foreground" />
-                            Minimum Value
-                          </label>
-                          <Input
-                            id="field-min"
-                            type="number"
-                            value={selectedField.validation.min ?? ""}
-                            onChange={(e) =>
-                              updateField(selectedField.id, {
-                                validation: {
-                                  ...selectedField.validation,
-                                  min: e.target.value
-                                    ? Number(e.target.value)
-                                    : undefined,
-                                },
-                              })
-                            }
-                            className="mt-1.5"
-                          />
-                        </div>
-
-                        <div className="mb-3">
-                          <label htmlFor="field-max" className="flex items-center gap-2">
-                            <Hash className="w-4 h-4 text-muted-foreground" />
-                            Maximum Value
-                          </label>
-                          <Input
-                            id="field-max"
-                            type="number"
-                            value={selectedField.validation.max ?? ""}
-                            onChange={(e) =>
-                              updateField(selectedField.id, {
-                                validation: {
-                                  ...selectedField.validation,
-                                  max: e.target.value
-                                    ? Number(e.target.value)
-                                    : undefined,
-                                },
-                              })
-                            }
-                            className="mt-1.5"
-                          />
-                        </div>
-                      </>
-                    )}
-
-                    {/* Pattern */}
-                    {(selectedField.type === "text" ||
-                      selectedField.type === "email" ||
-                      selectedField.type === "tel" ||
-                      selectedField.type === "url") && (
-                      <div className="mb-3">
-                        <label htmlFor="field-pattern" className="flex items-center gap-2">
-                          <Regex className="w-4 h-4 text-muted-foreground" />
-                          Pattern (Regex)
-                        </label>
-                        <Input
-                          id="field-pattern"
-                          value={selectedField.validation.pattern || ""}
-                          onChange={(e) =>
-                            updateField(selectedField.id, {
-                              validation: {
-                                ...selectedField.validation,
-                                pattern: e.target.value,
-                              },
-                            })
-                          }
-                          placeholder="e.g., ^[A-Z].*"
-                          className="mt-1.5"
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          Defines a regex pattern the input must match.
-                        </span>
-                      </div>
-                    )}
                   </div>
-
-                  {/* Options */}
-                  {(selectedField.type === "select" ||
-                    selectedField.type === "radio") && (
-                    <>
-                      <Separator />
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <h4 className="font-semibold flex items-center gap-2">
-                            <ListChecks className="w-4 h-4 text-muted-foreground" />
-                            Options
-                          </h4>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => addOption(selectedField.id)}
-                          >
-                            <Plus className="w-4 h-4 mr-1" />
-                            Add Option
-                          </Button>
+                </CardHeader>
+                <CardContent className="flex-1 min-h-0 p-4">
+                  <ScrollArea className="h-full pr-3">
+                    {fields.length === 0 ? (
+                      <div className="h-full flex items-center justify-center px-8">
+                        <div className="text-center max-w-sm">
+                          <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
+                          <h3 className="text-base font-semibold text-foreground mb-1">No fields yet</h3>
+                          <p className="text-xs text-muted-foreground">Add elements from the top panel to build your form</p>
                         </div>
-
-                        <div className="space-y-2">
-                          {selectedField.options?.map((option, index) => (
-                            <div key={index} className="flex items-center gap-2">
-                              <Input
-                                value={option.label}
-                                onChange={(e) => {
-                                  const label = e.target.value;
-                                  const value = label.trim()
-                                    ? label.toLowerCase().replace(/\s+/g, "_")
-                                    : `option_${index}`; 
-                                  updateOption(selectedField.id, index, { label, value });
-                                }}
-                                placeholder="Option label"
-                              />
+                      </div>
+                    ) : (
+                      <form
+                        className="space-y-4"
+                        onSubmit={(e) => {
+                          setIsConfirmationModalOpen(true)
+                          e.preventDefault()
+                        }}
+                      >
+                        {fields.map((field, index) => (
+                          <div
+                            key={field.id}
+                            className={`relative group p-3 rounded-lg border-2 transition-all cursor-pointer ${
+                              selectedFieldId === field.id
+                                ? "border-primary bg-primary/5"
+                                : "border-border hover:border-muted-foreground/30"
+                            }`}
+                            onClick={() => setSelectedFieldId(field.id)}
+                          >
+                            {/* Field Actions */}
+                            <div className="absolute -right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1 z-50 w-10">
                               <Button
                                 size="icon"
-                                variant="ghost"
-                                onClick={() => 
-                                  deleteOption(selectedField.id, index)
-                                }
-                                disabled={(selectedField.options?.length || 0) <= 1}
+                                type="button"
+                                variant="secondary"
+                                className="h-7 w-7 shadow-sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  const newFields = [...fields]
+                                  const fromIndex = index
+                                  const toIndex = index - 1
+                                  ;[newFields[fromIndex], newFields[toIndex]] = [newFields[toIndex], newFields[fromIndex]]
+                                  setFields(newFields)
+                                }}
+                                disabled={index === 0}
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <ArrowUp className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                type="button"
+                                variant="secondary"
+                                className="h-7 w-7 shadow-sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  const newFields = [...fields]
+                                  const fromIndex = index
+                                  const toIndex = index + 1
+                                  ;[newFields[fromIndex], newFields[toIndex]] = [newFields[toIndex], newFields[fromIndex]]
+                                  setFields(newFields)
+                                }}
+                                disabled={index === fields.length - 1}
+                              >
+                                <ArrowDown className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                type="button"
+                                variant="destructive"
+                                className="h-7 w-7 shadow-sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setFieldIdToDelete(field.id)
+                                }}
+                              >
+                                <Trash2 className="w-3 h-3" />
                               </Button>
                             </div>
-                          ))}
+
+                            <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                              <label className="text-sm font-medium flex items-center gap-1">
+                                {field.label}
+                                {field.validation.required && <span className="text-destructive">*</span>}
+                              </label>
+
+                              {field.type === "text" && (
+                                <Input
+                                  type="text"
+                                  placeholder={field.placeholder}
+                                  value={formData[field.id] || ""}
+                                  onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                                  className="h-9"
+                                />
+                              )}
+
+                              {field.type === "email" && (
+                                <Input
+                                  type="email"
+                                  placeholder={field.placeholder}
+                                  value={formData[field.id] || ""}
+                                  onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                                  className="h-9"
+                                />
+                              )}
+
+                              {field.type === "number" && (
+                                <Input
+                                  type="number"
+                                  placeholder={field.placeholder}
+                                  value={formData[field.id] || ""}
+                                  onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                                  className="h-9"
+                                />
+                              )}
+
+                              {field.type === "textarea" && (
+                                <Textarea
+                                  placeholder={field.placeholder}
+                                  value={formData[field.id] || ""}
+                                  onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                                  rows={3}
+                                  className="resize-none"
+                                />
+                              )}
+
+                              {field.type === "checkbox" && (
+                                <div className="flex items-center gap-2">
+                                  <Checkbox
+                                    id={field.id}
+                                    checked={formData[field.id] || false}
+                                    onCheckedChange={(checked) => setFormData({ ...formData, [field.id]: checked })}
+                                  />
+                                  <label htmlFor={field.id} className="text-sm cursor-pointer">
+                                    {field.placeholder || "Check this box"}
+                                  </label>
+                                </div>
+                              )}
+
+                              {field.type === "select" && (
+                                <Select
+                                  value={formData[field.id] || ""}
+                                  onValueChange={(value) => setFormData({ ...formData, [field.id]: value })}
+                                >
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue placeholder={field.placeholder || "Select an option"} />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {field.options?.map((option) => (
+                                      <SelectItem key={option.value} value={option.value}>
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+
+                              {field.type === "radio" && (
+                                <div className="space-y-1.5">
+                                  {field.options?.map((option) => (
+                                    <div key={option.value} className="flex items-center gap-2">
+                                      <input
+                                        type="radio"
+                                        id={`${field.id}_${option.value}`}
+                                        name={field.id}
+                                        value={option.value}
+                                        checked={formData[field.id] === option.value}
+                                        onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                                        className="w-4 h-4"
+                                      />
+                                      <label htmlFor={`${field.id}_${option.value}`} className="text-sm cursor-pointer">
+                                        {option.label}
+                                      </label>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {field.type === "date" && (
+                                <Input
+                                  type="date"
+                                  value={formData[field.id] || ""}
+                                  onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                                  className="h-9"
+                                />
+                              )}
+
+                              {field.type === "tel" && (
+                                <Input
+                                  type="tel"
+                                  placeholder={field.placeholder}
+                                  value={formData[field.id] || ""}
+                                  onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                                  className="h-9"
+                                />
+                              )}
+
+                              {field.type === "url" && (
+                                <Input
+                                  type="url"
+                                  placeholder={field.placeholder}
+                                  value={formData[field.id] || ""}
+                                  onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                                  className="h-9"
+                                />
+                              )}
+
+                              {field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
+                            </div>
+                          </div>
+                        ))}
+
+                        <Button type="submit" className="w-full h-9">
+                          <FileText className="w-4 h-4 mr-2" />
+                          Submit Form
+                        </Button>
+                      </form>
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+
+              {/* Field Settings - Right Sidebar */}
+              <Card className="w-[380px] flex-shrink-0 flex flex-col min-h-0">
+                <CardHeader className="pb-2 border-b">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Settings className="w-5 h-5" />
+                    Field Settings
+                  </CardTitle>
+                </CardHeader>
+
+                <CardContent className="flex-1 min-h-0 p-0">
+                  {!selectedField ? (
+                    <div className="text-sm text-muted-foreground text-center py-12 px-4">
+                      Select a field from the preview to configure its properties and validation rules.
+                    </div>
+                  ) : (
+                    <ScrollArea className="h-full px-4 py-4">
+                      <div className="space-y-6 px-1">
+                        {/* Label */}
+                        <div>
+                          <label htmlFor="field-label" className="font-medium flex items-center gap-2">
+                            <Type className="w-4 h-4 text-muted-foreground" />
+                            Label
+                          </label>
+                          <Input
+                            id="field-label"
+                            value={selectedField.label}
+                            onChange={(e) => updateField(selectedField.id, { label: e.target.value })}
+                            className="mt-1.5"
+                          />
+                          <span className="text-xs text-muted-foreground">Display name of the field shown to users.</span>
                         </div>
-                      </div>
-                    </>
-                  )}
 
-                  <Separator />
-
-                  {/* Delete Button */}
-                  <Button
-                    variant="destructive"
-                    className="w-full"
-                    onClick={() =>
-                      //  deleteField(selectedField.id)
-                      setFieldIdToDelete(selectedField.id)
-                      }
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete Field
-                  </Button>
-                </div>
-              </ScrollArea>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="flex-1 flex flex-col min-w-0">
-          <CardHeader className="pb-3 border-b">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Eye className="w-4 h-4" />
-                Form Preview
-              </CardTitle>
-              <div className="flex items-center gap-2 ">
-                <span className="text-xs text-muted-foreground">
-                  {fields.length} {fields.length === 1 ? 'field' : 'fields'}
-                </span>
-                {fields.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setFormData({})}
-                    className="h-7 text-xs border-1"
-                  >
-                    Clear
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="flex-1 min-h-0 p-4 ">
-            <ScrollArea className="h-full pr-3">
-              {fields.length === 0 ? (
-                <div className="h-full flex items-center justify-center px-8 ">
-                  <div className="text-center max-w-sm">
-                    <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
-                    <h3 className="text-base font-semibold text-foreground mb-1">
-                      No fields yet
-                    </h3>
-                    <p className="text-xs text-muted-foreground">
-                      Add elements from the left panel to build your form
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <form className="space-y-4" onSubmit={(e) =>{
-                  setIsConfirmationModalOpen(true);
-                  e.preventDefault()
-                  }}>
-                  {fields.map((field, index) => (
-                    <div
-                      key={field.id}
-                      className={`relative group p-3 rounded-lg border-2 transition-all cursor-pointer ${
-                        selectedFieldId === field.id
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-muted-foreground/30'
-                      }`}
-                      onClick={() => setSelectedFieldId(field.id)}
-                    >
-                      {/* Field Actions */}
-                      <div className="absolute -right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1 z-50 w-10">
-                        <Button
-                          size="icon"
-                          type="button"
-                          variant="secondary"
-                          className="h-7 w-7 shadow-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const newFields = [...fields];
-                            const fromIndex = index;
-                            const toIndex = index - 1;
-                            [newFields[fromIndex], newFields[toIndex]] = [newFields[toIndex], newFields[fromIndex]];
-                            setFields(newFields);
-                          }}
-                          disabled={index === 0}
-                        >
-                          <ArrowUp className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          type="button"
-                          variant="secondary"
-                          className="h-7 w-7 shadow-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const newFields = [...fields];
-                            const fromIndex = index;
-                            const toIndex = index + 1;
-                            [newFields[fromIndex], newFields[toIndex]] = [newFields[toIndex], newFields[fromIndex]];
-                            setFields(newFields);
-                          }}
-                          disabled={index === fields.length - 1}
-                        >
-                          <ArrowDown className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          type="button"
-                          variant="destructive"
-                          className="h-7 w-7 shadow-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setFieldIdToDelete(field.id)
-                          }}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-
-                      <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-                        <label className="text-sm font-medium flex items-center gap-1">
-                          {field.label}
-                          {field.validation.required && (
-                            <span className="text-destructive">*</span>
-                          )}
-                        </label>
-
-                        {field.type === 'text' && (
-                          <Input
-                            type="text"
-                            placeholder={field.placeholder}
-                            value={formData[field.id] || ''}
-                            onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
-                            className="h-9"
-                          />
-                        )}
-
-                        {field.type === 'email' && (
-                          <Input
-                            type="email"
-                            placeholder={field.placeholder}
-                            value={formData[field.id] || ''}
-                            onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
-                            className="h-9"
-                          />
-                        )}
-
-                        {field.type === 'number' && (
-                          <Input
-                            type="number"
-                            placeholder={field.placeholder}
-                            value={formData[field.id] || ''}
-                            onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
-                            className="h-9"
-                          />
-                        )}
-
-                        {field.type === 'textarea' && (
-                          <Textarea
-                            placeholder={field.placeholder}
-                            value={formData[field.id] || ''}
-                            onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
-                            rows={3}
-                            className="resize-none"
-                          />
-                        )}
-
-                        {field.type === 'checkbox' && (
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              id={field.id}
-                              checked={formData[field.id] || false}
-                              onCheckedChange={(checked) => setFormData({ ...formData, [field.id]: checked })}
+                        {/* Placeholder */}
+                        {selectedField.type !== "checkbox" && selectedField.type !== "radio" && (
+                          <div>
+                            <label htmlFor="field-placeholder" className="font-medium flex items-center gap-2">
+                              <AlignLeft className="w-4 h-4 text-muted-foreground" />
+                              Placeholder
+                            </label>
+                            <Input
+                              id="field-placeholder"
+                              value={selectedField.placeholder || ""}
+                              onChange={(e) =>
+                                updateField(selectedField.id, {
+                                  placeholder: e.target.value,
+                                })
+                              }
+                              className="mt-1.5"
                             />
-                            <label htmlFor={field.id} className="text-sm cursor-pointer">
-                              {field.placeholder || 'Check this box'}
+                            <span className="text-xs text-muted-foreground">
+                              Shown inside the input before the user types.
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Help Text */}
+                        <div>
+                          <label htmlFor="field-help" className="font-medium flex items-center gap-2">
+                            <Info className="w-4 h-4 text-muted-foreground" />
+                            Help Text
+                          </label>
+                          <Input
+                            id="field-help"
+                            value={selectedField.helpText || ""}
+                            onChange={(e) =>
+                              updateField(selectedField.id, {
+                                helpText: e.target.value,
+                              })
+                            }
+                            className="mt-1.5"
+                          />
+                          <span className="text-xs text-muted-foreground">Additional guidance shown below the field.</span>
+                        </div>
+
+                        <Separator />
+
+                        {/* Validation Rules */}
+                        <div>
+                          <h4 className="font-semibold mb-3 flex items-center gap-2">
+                            <CheckSquare className="w-4 h-4 text-muted-foreground" />
+                            Validation Rules
+                          </h4>
+
+                          {/* Required */}
+                          <div className="flex items-center gap-2 mb-3">
+                            <Checkbox
+                              id="field-required"
+                              checked={selectedField.validation.required || false}
+                              onCheckedChange={(checked) =>
+                                updateField(selectedField.id, {
+                                  validation: {
+                                    ...selectedField.validation,
+                                    required: !!checked,
+                                  },
+                                })
+                              }
+                            />
+                            <label htmlFor="field-required" className="cursor-pointer">
+                              Required field
                             </label>
                           </div>
-                        )}
 
-                        {field.type === 'select' && (
-                          <Select
-                            value={formData[field.id] || ''}
-                            onValueChange={(value) => setFormData({ ...formData, [field.id]: value })}
-                          >
-                            <SelectTrigger className="h-9">
-                              <SelectValue placeholder={field.placeholder || 'Select an option'} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {field.options?.map((option: any) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-
-                        {field.type === 'radio' && (
-                          <div className="space-y-1.5">
-                            {field.options?.map((option: any) => (
-                              <div key={option.value} className="flex items-center gap-2">
-                                <input
-                                  type="radio"
-                                  id={`${field.id}_${option.value}`}
-                                  name={field.id}
-                                  value={option.value}
-                                  checked={formData[field.id] === option.value}
-                                  onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
-                                  className="w-4 h-4"
-                                />
-                                <label htmlFor={`${field.id}_${option.value}`} className="text-sm cursor-pointer">
-                                  {option.label}
+                          {/* Min/Max Length */}
+                          {(selectedField.type === "text" ||
+                            selectedField.type === "email" ||
+                            selectedField.type === "textarea" ||
+                            selectedField.type === "tel" ||
+                            selectedField.type === "url") && (
+                            <>
+                              <div className="mb-3">
+                                <label htmlFor="field-minlength" className="flex items-center gap-2">
+                                  <Hash className="w-4 h-4 text-muted-foreground" />
+                                  Minimum Length
                                 </label>
+                                <Input
+                                  id="field-minlength"
+                                  type="number"
+                                  min="0"
+                                  value={selectedField.validation.minLength || ""}
+                                  onChange={(e) =>
+                                    updateField(selectedField.id, {
+                                      validation: {
+                                        ...selectedField.validation,
+                                        minLength: e.target.value ? Number(e.target.value) : undefined,
+                                      },
+                                    })
+                                  }
+                                  className="mt-1.5"
+                                />
                               </div>
-                            ))}
-                          </div>
+
+                              <div className="mb-3">
+                                <label htmlFor="field-maxlength" className="flex items-center gap-2">
+                                  <Hash className="w-4 h-4 text-muted-foreground" />
+                                  Maximum Length
+                                </label>
+                                <Input
+                                  id="field-maxlength"
+                                  type="number"
+                                  min="0"
+                                  value={selectedField.validation.maxLength || ""}
+                                  onChange={(e) =>
+                                    updateField(selectedField.id, {
+                                      validation: {
+                                        ...selectedField.validation,
+                                        maxLength: e.target.value ? Number(e.target.value) : undefined,
+                                      },
+                                    })
+                                  }
+                                  className="mt-1.5"
+                                />
+                              </div>
+                            </>
+                          )}
+
+                          {/* Min/Max Value */}
+                          {selectedField.type === "number" && (
+                            <>
+                              <div className="mb-3">
+                                <label htmlFor="field-min" className="flex items-center gap-2">
+                                  <Hash className="w-4 h-4 text-muted-foreground" />
+                                  Minimum Value
+                                </label>
+                                <Input
+                                  id="field-min"
+                                  type="number"
+                                  value={selectedField.validation.min ?? ""}
+                                  onChange={(e) =>
+                                    updateField(selectedField.id, {
+                                      validation: {
+                                        ...selectedField.validation,
+                                        min: e.target.value ? Number(e.target.value) : undefined,
+                                      },
+                                    })
+                                  }
+                                  className="mt-1.5"
+                                />
+                              </div>
+
+                              <div className="mb-3">
+                                <label htmlFor="field-max" className="flex items-center gap-2">
+                                  <Hash className="w-4 h-4 text-muted-foreground" />
+                                  Maximum Value
+                                </label>
+                                <Input
+                                  id="field-max"
+                                  type="number"
+                                  value={selectedField.validation.max ?? ""}
+                                  onChange={(e) =>
+                                    updateField(selectedField.id, {
+                                      validation: {
+                                        ...selectedField.validation,
+                                        max: e.target.value ? Number(e.target.value) : undefined,
+                                      },
+                                    })
+                                  }
+                                  className="mt-1.5"
+                                />
+                              </div>
+                            </>
+                          )}
+
+                          {/* Pattern */}
+                          {(selectedField.type === "text" ||
+                            selectedField.type === "email" ||
+                            selectedField.type === "tel" ||
+                            selectedField.type === "url") && (
+                            <div className="mb-3">
+                              <label htmlFor="field-pattern" className="flex items-center gap-2">
+                                <Regex className="w-4 h-4 text-muted-foreground" />
+                                Pattern (Regex)
+                              </label>
+                              <Input
+                                id="field-pattern"
+                                value={selectedField.validation.pattern || ""}
+                                onChange={(e) =>
+                                  updateField(selectedField.id, {
+                                    validation: {
+                                      ...selectedField.validation,
+                                      pattern: e.target.value,
+                                    },
+                                  })
+                                }
+                                placeholder="e.g., ^[A-Z].*"
+                                className="mt-1.5"
+                              />
+                              <span className="text-xs text-muted-foreground">
+                                Defines a regex pattern the input must match.
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Options */}
+                        {(selectedField.type === "select" || selectedField.type === "radio") && (
+                          <>
+                            <Separator />
+                            <div>
+                              <div className="flex items-center justify-between mb-3">
+                                <h4 className="font-semibold flex items-center gap-2">
+                                  <ListChecks className="w-4 h-4 text-muted-foreground" />
+                                  Options
+                                </h4>
+                                <Button size="sm" variant="outline" onClick={() => addOption(selectedField.id)}>
+                                  <Plus className="w-4 h-4 mr-1" />
+                                  Add Option
+                                </Button>
+                              </div>
+
+                              <div className="space-y-2">
+                                {selectedField.options?.map((option, index) => (
+                                  <div key={index} className="flex items-center gap-2">
+                                    <Input
+                                      value={option.label}
+                                      onChange={(e) => {
+                                        const label = e.target.value
+                                        const value = label.trim()
+                                          ? label.toLowerCase().replace(/\s+/g, "_")
+                                          : `option_${index}`
+                                        updateOption(selectedField.id, index, { label, value })
+                                      }}
+                                      placeholder="Option label"
+                                    />
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => deleteOption(selectedField.id, index)}
+                                      disabled={(selectedField.options?.length || 0) <= 1}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </>
                         )}
 
-                        {field.type === 'date' && (
-                          <Input
-                            type="date"
-                            value={formData[field.id] || ''}
-                            onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
-                            className="h-9"
-                          />
-                        )}
+                        <Separator />
 
-                        {field.type === 'tel' && (
-                          <Input
-                            type="tel"
-                            placeholder={field.placeholder}
-                            value={formData[field.id] || ''}
-                            onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
-                            className="h-9"
-                          />
-                        )}
-
-                        {field.type === 'url' && (
-                          <Input
-                            type="url"
-                            placeholder={field.placeholder}
-                            value={formData[field.id] || ''}
-                            onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
-                            className="h-9"
-                          />
-                        )}
-
-                        {field.helpText && (
-                          <p className="text-xs text-muted-foreground">
-                            {field.helpText}
-                          </p>
-                        )}
+                        {/* Delete Button */}
+                        <Button variant="destructive" className="w-full" onClick={() => setFieldIdToDelete(selectedField.id)}>
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete Field
+                        </Button>
                       </div>
-                    </div>
-                  ))}
-
-                  <Button type="submit" className="w-full h-9">
-                    <FileText className="w-4 h-4 mr-2" />
-                    Submit Form
-                  </Button>
-                </form>
-              )}
-            </ScrollArea>
-          </CardContent>
-        </Card>
+                    </ScrollArea>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
