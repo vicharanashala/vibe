@@ -485,7 +485,7 @@ export class CourseRegistrationService extends BaseService {
         //   registrationSettings = defaultSettings;
         // }
 
-        let {jsonSchema, uiSchema} = courseSettings.settings;
+        let {jsonSchema, uiSchema} = courseSettings.settings.registration;
 
         // If no schemas exist, add default ones and persist
         if (!jsonSchema || !uiSchema) {

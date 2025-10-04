@@ -384,8 +384,8 @@ export class SettingRepository implements ISettingRepository {
       },
       {
         $set: {
-          'settings.jsonSchema': schemas.jsonSchema,
-          'settings.uiSchema': schemas.uiSchema
+          'settings.registration.jsonSchema': schemas.jsonSchema,
+          'settings.registration.uiSchema': schemas.uiSchema
         },
       },
       {session},
@@ -408,8 +408,8 @@ export class SettingRepository implements ISettingRepository {
     },
     {
       $set: {
-        'settings.jsonSchema': schemas.jsonSchema,
-        'settings.uiSchema': schemas.uiSchema,
+        'settings.registration.jsonSchema': schemas.jsonSchema,
+        'settings.registration.uiSchema': schemas.uiSchema,
       },
     },
     { session },
@@ -425,8 +425,8 @@ export class SettingRepository implements ISettingRepository {
 async readSettingsSchema(versionId:string,session?:ClientSession){
   await this.init()
   const result = await this.courseSettingsCollection.findOne({courseVersionId:new ObjectId(versionId)},{session})
-  const jsonSchema=result.settings.jsonSchema
-  const uiSchema= result.settings.uiSchema
+  const jsonSchema=result.settings.registration.jsonSchema
+  const uiSchema= result.settings.registration.uiSchema
   return {jsonSchema,uiSchema}
 }
 
