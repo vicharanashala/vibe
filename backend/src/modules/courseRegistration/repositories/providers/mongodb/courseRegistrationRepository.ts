@@ -4,8 +4,6 @@ import {Collection, ClientSession, ObjectId, SortDirection} from 'mongodb';
 
 import {GLOBAL_TYPES} from '#root/types.js';
 import {ICourseRegistrationRepository} from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
-import {plainToInstance} from 'class-transformer';
-import {CourseRegistration} from '#root/modules/courseRegistration/classes/index.js';
 
 class CourseRegistrationRepository implements ICourseRegistrationRepository {
   private courseRegistrationCollection: Collection<ICourseRegistration>;
@@ -16,7 +14,7 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
 
   private async init() {
     this.courseRegistrationCollection =
-      await this.db.getCollection<ICourseRegistration>('CourseRegistration');
+      await this.db.getCollection<ICourseRegistration>('course_registrations');
   }
 
   async findByUserId(
