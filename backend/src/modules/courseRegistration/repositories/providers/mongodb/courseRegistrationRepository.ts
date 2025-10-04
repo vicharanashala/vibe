@@ -169,6 +169,22 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
       return data.modifiedCount;
     }
   }
+
+  async remove(
+    userId: string,
+    courseId: string,
+    versionId: string,
+    session?: ClientSession,
+  ) {
+    return await this.courseRegistrationCollection.deleteOne(
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        versionId: new ObjectId(versionId),
+      },
+      {session},
+    );
+  }
 }
 
 export {CourseRegistrationRepository};
