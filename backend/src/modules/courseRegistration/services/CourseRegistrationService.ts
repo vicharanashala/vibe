@@ -156,9 +156,6 @@ export class CourseRegistrationService extends BaseService {
               `
                   : ''
               }
-              <p style="margin:0 0 24px;">
-                ${bodyText.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}
-              </p>
             </td>
           </tr>
 
