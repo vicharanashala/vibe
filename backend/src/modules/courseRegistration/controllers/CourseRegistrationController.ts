@@ -1,15 +1,12 @@
-import {inject, injectable} from 'inversify';
+import { inject, injectable } from 'inversify';
 import {
   Authorized,
   BadRequestError,
   Body,
-  CurrentUser,
-  Delete,
   ForbiddenError,
   Get,
   HttpCode,
   JsonController,
-  Param,
   Params,
   Patch,
   Post,
@@ -17,19 +14,17 @@ import {
   QueryParams,
   Req,
 } from 'routing-controllers';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {COURSE_REGISTRATION_TYPES} from '../types.js';
-import {CourseRegistrationService} from '../services/CourseRegistrationService.js';
-import {Ability} from '#root/shared/functions/AbilityDecorator.js';
-import {BadRequestErrorResponse} from '#root/shared/index.js';
-import {CourseVersionIdParams} from '#root/modules/notifications/index.js';
+import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
+import { COURSE_REGISTRATION_TYPES } from '../types.js';
+import { CourseRegistrationService } from '../services/CourseRegistrationService.js';
+import { Ability } from '#root/shared/functions/AbilityDecorator.js';
+import { BadRequestErrorResponse } from '#root/shared/index.js';
+import { CourseVersionIdParams } from '#root/modules/notifications/index.js';
 import {
   BulkUpdateStatusBody,
-  CourseRegistrationBody,
   RegistrationFilterQuery,
   RegistrationParams,
   UpdateRegistrationSchemasBody,
-  // updateSettingsBody,
   UpdateStatusBody,
 } from '../classes/index.js';
 import {
@@ -37,20 +32,20 @@ import {
   courseRegistrationSubject,
   getCourseRegistrationAbility,
 } from '../abilities/CourseRegistrationAbilities.js';
-import {subject} from '@casl/ability';
-import {ObjectId} from 'mongodb';
+import { subject } from '@casl/ability';
 
 @OpenAPI({
   tags: ['CourseRegistration'],
   description: 'Operations for managing course registration',
 })
 @injectable()
+@Authorized()
 @JsonController('/course/registration')
 class CourseRegistrationController {
   constructor(
     @inject(COURSE_REGISTRATION_TYPES.CourseRegistrationService)
     private readonly courseRegistrationService: CourseRegistrationService,
-  ) {}
+  ) { }
 
   @OpenAPI({
     summary: 'Get Data for course Details page',
@@ -60,12 +55,13 @@ class CourseRegistrationController {
   @Authorized()
   @Get('/version/:versionId')
   @HttpCode(200)
+  @Authorized()
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
   })
   async courseDetails(@Params() params: CourseVersionIdParams) {
-    const {versionId} = params;
+    const { versionId } = params;
     const result = await this.courseRegistrationService.getCourseDetails(
       versionId,
     );
@@ -87,14 +83,12 @@ class CourseRegistrationController {
   })
   async courseRegistration(
     @Params() params: CourseVersionIdParams,
-    // @Body() body: CourseRegistrationBody,
-    @Body() body:Record<string, any>,
-    @Ability(getCourseRegistrationAbility) {ability, user},
+    @Body() body: Record<string, any>,
+    @Ability(getCourseRegistrationAbility) { ability, user },
     @Req() req: any,
   ) {
-    // const userId = req.user?.id || '124'
     const userId = user._id;
-    const {versionId} = params;
+    const { versionId } = params;
     const registrationData = {
       userId,
       versionId,
@@ -123,22 +117,22 @@ class CourseRegistrationController {
   async getAllRegistrations(
     @Params() params: CourseVersionIdParams,
     @QueryParams() query: RegistrationFilterQuery,
-    @Ability(getCourseRegistrationAbility) {ability, user},
+    @Ability(getCourseRegistrationAbility) { ability },
   ) {
-    const {versionId} = params;
-    const {page, limit, status, search, sort} = query;
-    // const courseRegistrationResource = subject(courseRegistrationSubject, {
-    //   courseVersionId: new ObjectId(versionId),
-    // });
+    const { versionId } = params;
+    const { page, limit, status, search, sort } = query;
 
-    // if (
-    //   !ability.can(CourseRegistrationActions.View, courseRegistrationResource)
-    // ) {
-    //   throw new ForbiddenError(
-    //     'You do not have permission to view registrations',
-    //   );
-    // }
+    const courseRegistrationResource = subject(courseRegistrationSubject, {
+      versionId,
+    });
 
+    if (
+      !ability.can(CourseRegistrationActions.View, courseRegistrationResource)
+    ) {
+      throw new ForbiddenError(
+        'You do not have permission to view registrations',
+      );
+    }
     const result = await this.courseRegistrationService.getAllregistrations(
       versionId,
       page,
@@ -155,7 +149,7 @@ class CourseRegistrationController {
     description: 'Update the registration status of a student',
   })
   @Authorized()
-  @Patch('/status/:registrationId', {transformResponse: true})
+  @Patch('/status/:registrationId', { transformResponse: true })
   @ResponseSchema(BadRequestError, {
     description: 'Bad Request Error',
     statusCode: 400,
@@ -163,10 +157,10 @@ class CourseRegistrationController {
   async updateStatus(
     @Params() params: RegistrationParams,
     @Body() body: UpdateStatusBody,
-    @Ability(getCourseRegistrationAbility) {ability, user},
+    @Ability(getCourseRegistrationAbility) { ability, user },
   ) {
-    const {registrationId} = params;
-    const {status} = body;
+    const { registrationId } = params;
+    const { status } = body;
 
     const result = await this.courseRegistrationService.updateStatus(
       registrationId,
@@ -183,16 +177,16 @@ class CourseRegistrationController {
     description: 'Update the status of registration on Bulk Manner',
   })
   @Authorized()
-  @Patch('/status/update/bulk', {transformResponse: true})
+  @Patch('/status/update/bulk', { transformResponse: true })
   @ResponseSchema(BadRequestError, {
     description: 'Bad Request Error',
     statusCode: 400,
   })
   async updateStatusBulk(
     @Body() body: BulkUpdateStatusBody,
-    @Ability(getCourseRegistrationAbility) {ability},
+    @Ability(getCourseRegistrationAbility) { ability },
   ) {
-    const {selected} = body;
+    const { selected } = body;
     const result = await this.courseRegistrationService.updateBulkStatus(
       selected,
     );
@@ -202,46 +196,45 @@ class CourseRegistrationController {
     };
   }
 
-  @Get('/settings/version/:versionId')
+  @Get('/build-form/version/:versionId')
   @Authorized()
   async getSettings(
     @Params() params: CourseVersionIdParams,
-    // @Ability(getCourseRegistrationAbility) {ability},
+    @Ability(getCourseRegistrationAbility) { ability },
   ) {
-    const {versionId} = params;
+    const { versionId } = params;
 
-    // if (
-    //   !ability.can(
-    //     CourseRegistrationActions.View,
-    //     subject(courseRegistrationSubject, {versionId}),
-    //   )
-    // ) {
-    //   throw new ForbiddenError('You do not have permission to view settings');
-    // }
+    const courseRegistrationResource = subject(courseRegistrationSubject, {
+      versionId,
+    });
+
+    if (
+      !ability.can(CourseRegistrationActions.View, courseRegistrationResource)
+    ) {
+      throw new ForbiddenError('You do not have permission to view this page');
+    }
 
     return this.courseRegistrationService.getSettings(versionId);
   }
 
-  @Put('/settings/version/:versionId')
+  @Put('/build-form/version/:versionId')
   @Authorized()
   async updateSettings(
     @Params() params: CourseVersionIdParams,
     @Body() body: UpdateRegistrationSchemasBody,
-    @Ability(getCourseRegistrationAbility) {ability},
+    @Ability(getCourseRegistrationAbility) { ability },
   ) {
-    const {versionId} = params;
-    // if (
-    //   !ability.can(
-    //     CourseRegistrationActions.Modify,
-    //     subject(courseRegistrationSubject, {versionId}),
-    //   )
-    // ) {
-    //   throw new ForbiddenError('You do not have permission to modify settings');
-    // }
-
+    const { versionId } = params;
+    if (
+      !ability.can(
+        CourseRegistrationActions.Modify,
+        subject(courseRegistrationSubject, { versionId }),
+      )
+    ) {
+      throw new ForbiddenError('You do not have permission to modify settings');
+    }
     return this.courseRegistrationService.updateSettings(versionId, body);
   }
-
 
   @OpenAPI({
     summary: 'Get Data for student registration form',
@@ -257,12 +250,25 @@ class CourseRegistrationController {
   })
   async getRegistrationForm(
     @Params() params: CourseVersionIdParams,
-    // @Ability(getCourseRegistrationAbility) {ability, user},
+    @Ability(getCourseRegistrationAbility) { ability },
   ) {
-    const {versionId} =params
-    const result = await this.courseRegistrationService.getRegistrationForm(versionId)
-    return result
+    const { versionId } = params;
+
+    const courseRegistrationResource = subject(courseRegistrationSubject, {
+      versionId,
+    });
+
+    if (
+      !ability.can(CourseRegistrationActions.View, courseRegistrationResource)
+    ) {
+      throw new ForbiddenError('You do not have permission to view registration form');
+    }
+
+    const result = await this.courseRegistrationService.getRegistrationForm(
+      versionId,
+    );
+    return result;
   }
 }
 
-export {CourseRegistrationController};
+export { CourseRegistrationController };
