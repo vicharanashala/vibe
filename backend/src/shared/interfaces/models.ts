@@ -612,9 +612,9 @@ export interface AuthenticatedUser {
 
 export interface ICourseRegistration {
   _id?: string | ObjectId;
-  courseId: string;
-  versionId: string;
-  userId: string;
+  courseId: ID;
+  versionId: ID;
+  userId: ID;
   detail: Record<string, any>;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   createdAt?: Date;
