@@ -54,7 +54,7 @@ export default function CourseRegistrationRequests() {
   const [isSingleRejectOpen, setIsSingleRejectOpen] = useState(false);
   const [singleRegistrationId, setSingleRegistrationId] = useState<string | null>(null);
   const [isUnsavedChanges, setIsUnsavedChanges] = useState(false);
-
+  const [isRefresh, setIsRefresh] = useState(false);
   const { currentCourse } = useCourseStore()
   const versionId = currentCourse?.versionId
 
@@ -373,11 +373,16 @@ ${registrationUrl}`;
 
             <Button
               variant="outline"
-              onClick={() => registrationsRefetch()}
+              onClick={() =>{
+                setIsRefresh(true)
+                setTimeout(()=> {
+                  setIsRefresh(false);
+                },2000)
+                registrationsRefetch()}}
               disabled={isLoading}
               className="flex items-center gap-2"
             >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-4 h-4 ${(isLoading || isRefresh) ? "animate-spin" : ""}`} />
               Refresh
             </Button>
           </div>
@@ -466,7 +471,7 @@ ${registrationUrl}`;
         </div>
 
         {/* Table */}
-        <Card className="border-0 shadow-lg overflow-hidden">
+        <Card className="border-0 shadow-lg overflow-hidden min-h-[50vh]">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <Table>
@@ -520,7 +525,7 @@ ${registrationUrl}`;
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {isLoading ? (
+                  {(isLoading || isRefresh) ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-12">
                         <div className="flex items-center justify-center space-x-2">
