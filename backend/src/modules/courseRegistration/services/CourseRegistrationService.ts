@@ -33,12 +33,14 @@ import {COURSES_TYPES} from '#root/modules/courses/types.js';
 import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
 import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
 import { appConfig } from '#root/config/app.js';
+import { ICourseRegistrationRepository } from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
 
 @injectable()
 export class CourseRegistrationService extends BaseService {
   constructor(
     @inject(COURSE_REGISTRATION_TYPES.CourseRegistrationRepository)
-    private courseRegistrationRepo: CourseRegistrationRepository,
+    // private courseRegistrationRepo: CourseRegistrationRepository,
+    private courseRegistrationRepo: ICourseRegistrationRepository,
     @inject(USERS_TYPES.EnrollmentRepo)
     private readonly enrollmentRepo: EnrollmentRepository,
     @inject(NOTIFICATIONS_TYPES.InviteService)
