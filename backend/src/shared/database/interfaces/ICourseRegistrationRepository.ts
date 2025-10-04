@@ -29,4 +29,5 @@ export interface ICourseRegistrationRepository {
     registrationIds: string[],
     session?: ClientSession,
   ): Promise<number>;
+  remove(userId:string,courseId:string,versionId:string,session?:ClientSession)
 }
