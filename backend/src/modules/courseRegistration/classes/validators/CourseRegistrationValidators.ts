@@ -81,7 +81,8 @@ export class RegistrationFilterQuery {
 
   @IsOptional()
   @IsIn(['PENDING', 'APPROVED', 'REJECTED', 'ALL'])
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL' = 'ALL';
+  // status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL' = 'ALL';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL' ;
 
   @IsOptional()
   @IsIn(['older', 'latest'])
