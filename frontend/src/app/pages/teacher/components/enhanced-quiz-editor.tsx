@@ -926,15 +926,15 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
             <Tabs value={selectedTab} onValueChange={setSelectedTab} className="px-6 mb-4">
               <TabsList>
-                <TabsTrigger value="analytics" className="flex items-center gap-2">
+                <TabsTrigger value="analytics" className="flex items-center gap-2 cursor-pointer">
                   <BarChart3 className="h-4 w-4" />
                   Analytics
                 </TabsTrigger>
-                <TabsTrigger value="questions" className="flex items-center gap-2">
+                <TabsTrigger value="questions" className="flex items-center gap-2 cursor-pointer">
                   <HelpCircle className="h-4 w-4" />
                   Questions
                 </TabsTrigger>
-                <TabsTrigger value="submissions" className="flex items-center gap-2">
+                <TabsTrigger value="submissions" className="flex items-center gap-2 cursor-pointer">
                   <Users className="h-4 w-4" />
                   Submissions
                 </TabsTrigger>
