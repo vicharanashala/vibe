@@ -40,7 +40,6 @@ import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";
 import Loader from "@/components/Loader";
 import { Label } from "@/components/ui/label";
-import { ProjectSubmissionsDownloadButton } from "./components/ProjectSubmissionsDownloadButton";
 import ProjectItem from "./components/ProjectItem";
 
 // ✅ Icons per item type
@@ -95,7 +94,6 @@ export default function TeacherCoursePage() {
     sectionId: string;
   } | null>(null);
   
-  <ProjectSubmissionsDownloadButton courseId={courseId || ""} versionId={versionId || ""} />
   const [errors, setErrors] = useState({
     title: "",
     description: "",

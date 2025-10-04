@@ -42,7 +42,8 @@ import {
   Zap,
   FileMusic,
   Upload,
-  Share
+  Share,
+  BookOpen
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -249,7 +250,7 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
   return (
     <div className="relative mb-12 px-4">
       {/* Single continuous progress line */}
-      <div className="absolute left-0 top-5 w-full h-[3px] bg-gray-300 dark:bg-[#292524] overflow-hidden">
+      <div className="absolute left-0 top-5 w-full h-[3px] bg-gray-300 dark:bg-[#FCFDFF] overflow-hidden">
         {progressPercentage > 0 && (
           <div 
             className="h-full bg-gradient-to-r from-[#00D492] to-[#2B7FFF] transition-all duration-500"
@@ -285,10 +286,10 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
             ? 'bg-red-500 text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.1),_0px_10px_15px_-3px_rgba(0,0,0,0.1)]' 
             : isStopped 
               ? 'bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.1),_0px_10px_15px_-3px_rgba(0,0,0,0.1)]' 
-              : 'bg-gray-200 dark:bg-[#2f1d08] text-gray-600 dark:text-[#a8a29e]'}
+              : 'bg-gray-200 dark:bg-[#464545] text-gray-600 dark:text-[#FFFFFF]'}
     `}>
                       {isCompleted ? (
-                        <CheckCircle className="w-6 h-6" />
+                        <CheckCircle className="w-6 h-6 dark:text-[#0D0D0D]" />
                       ) : isActive ? (
                         <span>{step.icon}</span>
                       ) : isFailed ? (
@@ -298,8 +299,8 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
                       ) : (
                         <span className="font-medium">{step.icon}</span>
     )}
-    {isActive && <div className="absolute -top-1.5 -right-1 bg-[#2B7FFF] rounded-full h-5 w-5 flex items-center justify-center"><Loader2 className="w-3 h-3 animate-spin text-white" /></div>}
-    {isCurrent && jobStatus?.status === 'COMPLETED' && <div className="absolute -top-1.5 -right-1 bg-[#00BC7D] rounded-full h-5 w-5 flex items-center justify-center"><Sparkles className="w-3 h-3 text-white" /></div>}
+    {isActive && <div className="absolute -top-1.5 -right-1 bg-[#2B7FFF] rounded-full h-5 w-5 flex items-center justify-center"><Loader2 className="w-3 h-3 animate-spin text-white dark:text-[#0D0D0D]" /></div>}
+    {isCurrent && jobStatus?.status === 'COMPLETED' && <div className="absolute -top-1.5 -right-1 bg-[#00BC7D] rounded-full h-5 w-5 flex items-center justify-center"><Sparkles className="w-3 h-3 text-white dark:text-[#0D0D0D]" /></div>}
   </div>
 
   {/* Step Label */}
@@ -313,17 +314,17 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
               ? 'text-red-600' 
               : isStopped 
                 ? 'text-[#F54900]' 
-                : 'text-[#6A7282] dark:text-[#a8a29e]'}
+                : 'text-[#6A7282] dark:text-[#FFFFFF]'}
       `}>
       {step.label}
     </div>
 
     {/* Status Text */}
     <div className="mt-1 h-4 text-xs">
-      {isActive && <span className="text-[#2B7FFF] dark:text-blue-400 bg-[#EEF2FF] dark:bg-blue-900/30 py-1 px-1.5 rounded-[10px] flex gap-1 items-center"><Zap size={14} className="text-yellow-500 dark:text-yellow-400"/> Processing</span>}
-      {isCompleted && <span className="text-[#00BC7D] dark:text-green-400 bg-[#ECFDF5] dark:bg-green-900/30 py-1 px-1.5 rounded-[10px] flex gap-1 items-center"><Check size={14} className="text-green-600 dark:text-green-400" /> Complete</span>}
-      {isFailed && <span className="text-red-600 dark:text-red-400 bg-[#ffe9ea] dark:bg-red-900/30 py-1 px-1.5 rounded-[10px] flex gap-1 items-center"><X size={14} className="text-red-600 dark:text-red-400" /> Failed</span>}
-      {isStopped && <span className="text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 py-1 px-1.5 rounded-[10px] flex gap-1 items-center"><PauseCircle size={14} className="text-orange-600 dark:text-orange-400" /> Stopped</span>}
+      {isActive && <span className="text-[#2B7FFF] dark:text-blue-400 bg-[#EEF2FF] dark:bg-[#171717] py-1 px-1.5 rounded-[10px] flex gap-1 items-center"><Zap size={14} className="text-yellow-500 dark:text-yellow-400"/> Processing</span>}
+      {isCompleted && <span className="text-[#00BC7D] dark:text-green-400 bg-[#ECFDF5] dark:bg-[#171717] py-1 px-1.5 rounded-[10px] flex gap-1 items-center"><Check size={14} className="text-green-600 dark:text-green-400" /> Complete</span>}
+      {isFailed && <span className="text-red-600 dark:text-red-400 bg-[#ffe9ea] dark:bg-[#171717] py-1 px-1.5 rounded-[10px] flex gap-1 items-center"><X size={14} className="text-red-600 dark:text-red-400" /> Failed</span>}
+      {isStopped && <span className="text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-[#171717] py-1 px-1.5 rounded-[10px] flex gap-1 items-center"><PauseCircle size={14} className="text-orange-600 dark:text-orange-400" /> Stopped</span>}
     </div>
   </div>
   </div>
@@ -813,6 +814,17 @@ export default function AISectionPage() {
     }
   };
 
+  const getCurrentActiveRunNumber = (taskType: keyof TaskRuns): number => {
+    const runs = taskRuns[taskType];
+    if (!runs || runs.length === 0) return 1;
+    
+    const latestRun = runs.reduce((latest, current) => 
+      current.timestamp > latest.timestamp ? current : latest
+    );
+    
+    return runs.indexOf(latestRun) + 1;
+  };
+
   const TaskAccordion = React.memo(({
     task,
     title,
@@ -915,7 +927,7 @@ export default function AISectionPage() {
               <select
                 value={rerunParams.language}
                 onChange={e => setRerunParams(p => ({ ...p, language: e.target.value }))}
-                className="w-full px-4 py-2 rounded-full border border-gray-200 dark:border-[#26211E] bg-white dark:bg-[#140E09] shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
+                className="w-full px-4 py-2 rounded-full border border-gray-200 dark:border-[#26211E] bg-white dark:bg-[#202020] shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
               >
                 <option value="en">English</option>
                 <option value="hi">Hindi</option>
@@ -929,7 +941,7 @@ export default function AISectionPage() {
               <select
                 value={rerunParams.model}
                 onChange={e => setRerunParams(p => ({ ...p, model: e.target.value }))}
-                className="w-full px-4 py-2 rounded-full border border-gray-200 dark:border-[#26211E] bg-white dark:bg-[#140E09] shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
+                className="w-full px-4 py-2 rounded-full border border-gray-200 dark:border-[#26211E] bg-white dark:bg-[#202020] shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
               >
                 <option value="default">default</option>
                 {/* Add more models as needed */}
@@ -943,51 +955,50 @@ export default function AISectionPage() {
         ) && (
           <div className="w-full mb-6 shadow-sm">
 
-            <div className="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-gradient-to-r dark:from-emerald-800 dark:to-purple-800
-">
+            <div className="rounded-xl border border-emerald-200 dark:border-[#0E7145] bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-[#171717] dark:from-[#171717] dark:to-[#171717]">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
                 <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
-                <CheckCircle className="w-5 h-5 text-white" />
+                <CheckCircle className="w-5 h-5 text-white dark:text-[#0D0D0D]" />
               </div>
               <div>
                   <div>Audio Extraction</div>
                   <div className="flex items-center gap-3">
-                  <span className="text-xs text-emerald-600">Run 1</span>
+                  <span className="text-xs text-emerald-600">Run {getCurrentActiveRunNumber('transcription')}</span>
                   <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
-                  <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white font-medium">Complete</span>
+                  <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white dark:text-[#0D0D0D] font-medium">Complete</span>
                   <span className="text-sm text-emerald-700 font-medium">100% complete</span>
                 </div>
                 </div>
                 </div>
                 
               </div>
-              <div className="rounded-lg border border-emerald-100 bg-white/60 backdrop-blur-md p-4">
+              <div className="rounded-lg border border-emerald-100 dark:border-transparent bg-white/60 dark:bg-[#464545] backdrop-blur-md p-4">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
-                    <div className="text-gray-500">Duration</div>
-                    <div className="text-gray-800 font-medium">12:48 minutes</div>
+                    <div className="text-gray-500 dark:text-[#FAFCFF]">Duration</div>
+                    <div className="text-gray-800 font-medium dark:text-[#FAFCFF]">12:48 minutes</div>
                   </div>
                   <div>
-                    <div className="text-gray-500">Quality</div>
-                    <div className="text-gray-800 font-medium">High (320kbps)</div>
+                    <div className="text-gray-500 dark:text-[#FAFCFF]">Quality</div>
+                    <div className="text-gray-800 font-medium dark:text-[#FAFCFF]">High (320kbps)</div>
                   </div>
                   <div>
-                    <div className="text-gray-500">Format</div>
-                    <div className="text-gray-800 font-medium">MP3</div>
+                    <div className="text-gray-500 dark:text-[#FAFCFF]">Format</div>
+                    <div className="text-gray-800 font-medium dark:text-[#FAFCFF]">MP3</div>
                   </div>
                   <div>
-                    <div className="text-gray-500">File Size</div>
-                    <div className="text-gray-800 font-medium">29.4 MB</div>
+                    <div className="text-gray-500 dark:text-[#FAFCFF]">File Size</div>
+                    <div className="text-gray-800 font-medium dark:text-[#FAFCFF]">29.4 MB</div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 shadow-sm">
+            <div className="mt-4 rounded-lg border border-emerald-200 dark:border-[#171717] bg-emerald-50 dark:bg-[#171717] p-4 text-sm text-[#007A55] dark:text-[#00B277] shadow-sm">
               <div className="flex flex-col items-center gap-2 justify-center text-center">
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-600" />
+                  <CheckCircle className="w-4 h-4" />
                   <div className="font-medium">Audio extraction completed successfully!</div>
                 </div>
                 <div>Ready to proceed with AI-powered transcription</div>
@@ -1006,7 +1017,7 @@ export default function AISectionPage() {
                   type="text"
                   value={localParams.model}
                   onChange={e => handleParamChange("model", e.target.value)}
-                  className="w-full"
+                  className="w-full dark:bg-[#0D0D0DCC]"
                 />
               </div>
               {fields.map(field => (
@@ -1018,7 +1029,7 @@ export default function AISectionPage() {
                     min={0}
                     value={localParams[field]}
                     onChange={e => handleParamChange(field, Number(e.target.value))}
-                    className="w-full"
+                    className="w-full dark:bg-[#0D0D0DCC]"
                   />
                 </div>
               ))}
@@ -1028,7 +1039,7 @@ export default function AISectionPage() {
               <Textarea
                 value={localParams.prompt}
                 onChange={e => setLocalParams(p => ({ ...p, prompt: e.target.value }))}
-                className="w-full min-h-[80px]"
+                className="w-full min-h-[80px] dark:bg-[#0D0D0DCC]"
               />
             </div>
           </div>
@@ -1064,11 +1075,11 @@ export default function AISectionPage() {
         {task === 'transcription' && (
           <>
             {audioExtractionStatus !== 'completed' && (
-            <div className="w-full p-5 rounded-lg border border-[#FFD6A7] mb-4 bg-[linear-gradient(135deg,_#e0fff4_0%,_#f3e7ff_100%)] dark:bg-[linear-gradient(135deg,#140E09_0%,#1A0F14_100%)] flex items-start gap-4">
+            <div className="w-full p-5 rounded-lg border border-[#FFD6A7] dark:border-[#202020] mb-4 bg-[linear-gradient(135deg,_#e0fff4_0%,_#f3e7ff_100%)] dark:bg-[linear-gradient(135deg,_#202020_0%,_#202020_100%)] flex items-start gap-4">
               <div className="flex items-start gap-4 w-full">
              
                 <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] text-white">
-                <FileText className="w-6 h-6 text-white" />
+                <FileText className="w-6 h-6 text-white dark:text-[#0D0D0D]" />
             </div>
           
        
@@ -1077,15 +1088,15 @@ export default function AISectionPage() {
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2.5">
                       <span className="font-semibold text-gray-900 dark:text-[#a8a29e] text-lg">Audio Extraction</span>
-                      <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-orange-500 text-white font-medium">
+                      <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-orange-500 text-white dark:text-[#0D0D0D] font-medium">
                         {audioExtractionStatus === 'processing' ? 'Processing' : 
-                         audioExtractionStatus === 'completed' ? 'Completed' :
+                         (audioExtractionStatus as AudioExtractionStatus) === 'completed' ? 'Completed' :
                          audioExtractionStatus === 'failed' ? 'Failed' : 'Ready'}
                       </span>
               </div>
 
                
-                    {aiJobId && (
+                    {/* {aiJobId && (
             runs.some(r => r.status === "loading") ||
             runs.some(r => r.status === "stopped") ||
             (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.audioExtraction === 'RUNNING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'PENDING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'WAITING') && accordionAiJobStatus?.jobStatus?.audioExtraction !== 'FAILED') ||
@@ -1098,13 +1109,13 @@ export default function AISectionPage() {
                 onClick={() => handleStopTask(task)}
                 variant="outline"
                 disabled={runs.some(r => r.status === "stopped")}
-                className="bg-red-50 border-red-300 text-red-700 hover:bg-red-100 hover:border-red-400 font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-red-50 dark:bg-[#464545] border-red-300 dark:border-[#4F0000] text-[#FF020E] hover:bg-red-100 hover:border-red-400 font-medium px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <XCircle className="w-4 h-4 mr-2" />
                 {runs.some(r => r.status === "stopped") ? "Task Stopped" : "Stop Task"}
               </Button>
-            )}
-                    {audioExtractionStatus === 'completed' && (
+            )} */}
+                    {(audioExtractionStatus as AudioExtractionStatus) === 'completed' && (
                       <Button
                         onClick={handleStartTranscription}
                         size="sm"
@@ -1116,36 +1127,36 @@ export default function AISectionPage() {
                   </div>
 
            
-                  <div className="flex items-center text-sm text-gray-600 dark:text-[#a8a29e]">
+                  <div className="flex items-center text-sm text-gray-600 dark:text-[#FBFDFF]">
                 <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                <span>Run 1</span>
+                <span>Run {getCurrentActiveRunNumber('transcription')}</span>
                 <span className="mx-2">•</span>
                     <span>{audioExtractionStartTime ? audioExtractionStartTime.toLocaleTimeString() : new Date().toLocaleTimeString()}</span>
-                    {(audioExtractionStatus === 'processing' || audioExtractionStatus === 'completed') && (
+                    {audioExtractionStatus !== 'ready' && audioExtractionStatus !== 'failed' && (
                       <>
                         <span className="mx-2">✨</span>
-                        <span>{Math.round(audioExtractionStatus === 'completed' ? 100 : audioExtractionProgress)}% complete</span>
+                        <span>{Math.round(audioExtractionStatus !== 'processing' ? 100 : audioExtractionProgress)}% complete</span>
                       </>
                     )}
               </div>
 
                
-                  {(audioExtractionStatus === 'processing' || audioExtractionStatus === 'completed') && (
+                  {audioExtractionStatus !== 'ready' && audioExtractionStatus !== 'failed' && (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">Extraction Progress</span>
-                        <span className="text-sm font-medium text-blue-600">{Math.round(audioExtractionStatus === 'completed' ? 100 : audioExtractionProgress)}%</span>
+                        <span className="text-sm font-medium text-gray-700 dark:text-[#F8FAFD]">Extraction Progress</span>
+                        <span className="text-sm font-medium text-blue-600">{Math.round(audioExtractionStatus !== 'processing' ? 100 : audioExtractionProgress)}%</span>
                       </div>
                       
-                      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                        <div 
-                          className="bg-gray-800 h-2 rounded-full transition-all duration-300 ease-out"
-                          style={{ width: `${audioExtractionStatus === 'completed' ? 100 : audioExtractionProgress}%` }}
+                      <div className="w-full bg-gray-200 dark:bg-[#464545] rounded-full h-2 overflow-hidden">
+                        <div  
+                          className="bg-gray-800 dark:bg-[#FFFFFF] h-2 rounded-full transition-all duration-300 ease-out"
+                          style={{ width: `${audioExtractionStatus !== 'processing' ? 100 : audioExtractionProgress}%` }}
                         ></div>
                       </div>
                       
                       {audioExtractionStatus === 'processing' && (
-                        <div className="text-sm text-gray-600 dark:text-[#a8a29e]">
+                        <div className="text-sm text-gray-600 dark:text-[#FDFEFF]">
                           Estimated time remaining: {estimatedTimeRemaining}
                         </div>
                       )}
@@ -1156,7 +1167,7 @@ export default function AISectionPage() {
             </div>
         )}
             {audioExtractionStatus === 'processing' && (
-              <div className="w-full p-5 rounded-lg border border-[#BEDBFF] bg-[#EEF2FF] dark:bg-[#140E09] shadow-sm">
+              <div className="w-full p-5 rounded-lg border border-[#BEDBFF] dark:border-[#181818] bg-[#EEF2FF] dark:bg-[#181818] shadow-sm">
                 <div className="flex items-center justify-center gap-4">
                   
                   <div className="flex flex-col">
@@ -1180,24 +1191,45 @@ export default function AISectionPage() {
             )}
           </>
         )}
+        {task === 'segmentation' && aiJobStatus?.task === 'SEGMENTATION' && aiJobStatus?.status === 'COMPLETED' && (
+            <div className="w-full rounded-xl border border-emerald-200 dark:border-[#0E7145] bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-[#171717] dark:from-[#171717] dark:to-[#171717]">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
+                  <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
+                    <CheckCircle className="w-5 h-5 text-white dark:text-[#0D0D0D]" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2.5">
+                      <div>AI Segmentation</div>
+                      <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white dark:text-[#0D0D0D] font-medium">Complete</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-emerald-600">Run {getCurrentActiveRunNumber('segmentation')}</span>
+                      <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+        )}
+       
         {task === 'transcription' && (
           (accordionAiJobStatus?.jobStatus?.transcription === 'COMPLETED' ||
             (accordionAiJobStatus?.task === 'TRANSCRIPT_GENERATION' && accordionAiJobStatus?.status === 'COMPLETED'))
           ) ? (
-            <div className="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-gradient-to-r dark:from-emerald-800 dark:to-purple-800
-">
+            <div className="rounded-xl border border-emerald-200 dark:border-[#0E7145] bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-[#171717] dark:from-[#171717] dark:to-[#171717]">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
                   <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
-                  <CheckCircle className="w-5 h-5 text-white" />
+                  <CheckCircle className="w-5 h-5 text-white dark:text-[#0D0D0D]" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2.5">
                     <div>AI Transcription</div>
-                    <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white font-medium">Complete</span>
+                    <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white dark:text-[#0D0D0D] font-medium">Complete</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-emerald-600">Run 1</span>
+                    <span className="text-xs text-emerald-600">Run {getCurrentActiveRunNumber('transcription')}</span>
                     <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
                   </div>
                 </div>
@@ -1206,27 +1238,22 @@ export default function AISectionPage() {
             </div>
           ):(
         <div className={`flex items-center gap-3 justify-center`}>
-          {task === 'transcription' && audioExtractionStatus === 'completed' ? (
+          {task === 'transcription' && accordionAiJobStatus?.status === 'COMPLETED' && accordionAiJobStatus?.task === 'AUDIO_EXTRACTION' ? (
             <Button
               onClick={handleStartTranscription}
-              disabled={aiJobStatus?.task === 'TRANSCRIPT_GENERATION' && aiJobStatus?.status === 'RUNNING'}
-              className="px-6 py-3 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              variant="default"
+              disabled={accordionAiJobStatus?.status !== 'COMPLETED' || accordionAiJobStatus?.task !== 'AUDIO_EXTRACTION'}
+              className="px-6 py-3 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white dark:text-[#0D0D0D] font-semibold shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
+              < Play />
               Start Transcription Task
+              <Sparkles/>
             </Button>
-          ) : !(task === 'segmentation' && aiJobStatus?.task === 'SEGMENTATION' && aiJobStatus?.status === 'COMPLETED') && (
+          ) : (
           <Button
             onClick={async () => {
               setQuestionGenParams(localParams);
               setSegParams(localSegParams);
-              
-              if (task === 'transcription') {
-                setAudioExtractionStatus('processing');
-                setAudioExtractionProgress(0);
-                setAudioExtractionStartTime(new Date());
-                setEstimatedTimeRemaining('~2 minutes');
-              }
-              
               if (task === 'upload') {
                 // Use values from store and input fields
                 if (!aiJobId) return;
@@ -1302,15 +1329,15 @@ export default function AISectionPage() {
               }
               handleTask(task, localSegParams, localParams);
             }}
-            disabled={!canRunTask(task) || runs.some(r => r.status === "loading") || (task === 'transcription' && audioExtractionStatus === 'completed')}
-            className="flex items-center justify-between gap-2 bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white font-semibold px-6 py-3 rounded-full shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!canRunTask(task) || runs.some(r => r.status === "loading")}
+            className="flex items-center justify-between gap-2 bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white dark:text-[#0D0D0D] font-semibold px-6 py-3 rounded-full shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-             <Play />
-            {runs.some(r => r.status === 'stopped') ? `Restart ${title}` : `Start ${title}`}
+            <Play />
+            {runs.some(r => r.status === 'stopped') ? `Restart ${title}` :  `Start ${title}`}
+            <Sparkles />
           </Button>
           )}
-           
-          {/* {aiJobId && (
+          {aiJobId && (
             runs.some(r => r.status === "loading") ||
             runs.some(r => r.status === "stopped") ||
             (task === 'transcription' && (accordionAiJobStatus?.jobStatus?.audioExtraction === 'RUNNING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'PENDING' || accordionAiJobStatus?.jobStatus?.audioExtraction === 'WAITING') && accordionAiJobStatus?.jobStatus?.audioExtraction !== 'FAILED') ||
@@ -1328,31 +1355,8 @@ export default function AISectionPage() {
                 <XCircle className="w-4 h-4 mr-2" />
                 {runs.some(r => r.status === "stopped") ? "Task Stopped" : "Stop Task"}
               </Button>
-            )} */}
-          {/* Add three input boxes for segmentation parameters beside the Segmentation button */}
-          {task === 'segmentation' && (
-            aiJobStatus?.task === 'SEGMENTATION' && aiJobStatus?.status === 'COMPLETED' ? (
-              <div className="w-full rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-gradient-to-r dark:from-emerald-800 dark:to-purple-800
-">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
-                  <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
-                  <CheckCircle className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2.5">
-                    <div>AI Segmentation</div>
-                    <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white font-medium">Complete</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-emerald-600">Run 1</span>
-                    <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
-                  </div>
-                </div>
-                </div>
-              </div>
-            </div>
-            ) : (
+            )}
+           {task === 'segmentation' && (
             <div className="flex flex-row gap-3 items-center ml-4 bg-gray-100 dark:bg-gray-800/60 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700">
               {segFields.map(({ key, type }) => (
                 <div key={key} className="flex flex-col items-start min-w-[80px]">
@@ -1375,8 +1379,7 @@ export default function AISectionPage() {
                 </div>
               ))}
             </div>
-          )
-          )}
+         )}
           {/* Add Re-run Transcription button */}
           {task === 'transcription' && jobStatus?.task === 'TRANSCRIPT_GENERATION' && jobStatus?.status === 'COMPLETED' && (
             <Button
@@ -1539,7 +1542,7 @@ export default function AISectionPage() {
                 );
               }
               return (
-                <AccordionItem key={run.id} value={run.id} className="border rounded my-2 last:border-b">
+                <AccordionItem key={run.id} value={run.id} className="border rounded my-2 last:border-b dark:bg-[#202020]">
                   <AccordionTrigger className="flex items-center gap-2 px-2 py-1">
                     <span>Run {index + 1}</span>
                     <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{run.timestamp.toLocaleTimeString()}</span>
@@ -1548,7 +1551,7 @@ export default function AISectionPage() {
                   </AccordionTrigger>
                   <AccordionContent className="px-2 pb-2">
                     {run.parameters && (
-                      <div className="text-sm text-gray-600 dark:text-muted-foreground flex flex-wrap gap-4 mb-2">
+                      <div className="text-sm text-gray-600 dark:text-[#F2F8FF] flex flex-wrap gap-4 mb-2">
                         {task === "segmentation" ? segParamsNodes : readableParams || (
                           <span><strong>Parameters:</strong> {JSON.stringify(run.parameters)}</span>
                         )}
@@ -1575,7 +1578,7 @@ export default function AISectionPage() {
             })}
           </Accordion>
         )}
-        <div className="flex items-center justify-center text-[#6A7282] dark:text-[#a8a29e] text-[11px]">
+        <div className="flex items-center justify-center text-[#6A7282] dark:text-[#FFFFFF] text-[11px]">
         {/* {currentUiStep <= 2 && ( */}
           <>
           {(currentUiStep === 1 && aiJobStatus === null) &&
@@ -2418,20 +2421,20 @@ export default function AISectionPage() {
        {showTranscript && (
         <>
         <div className="flex items-center justify-between mt-4">
-          <p className="flex items-center gap-2"><MessageSquare color="#AD46FF" size={16}/> <span className="text-[#1E2939] text-sm">Generated Transcript</span></p>
+          <p className="flex items-center gap-2"><MessageSquare color="#AD46FF" size={16}/> <span className="text-[#1E2939] text-sm dark:text-[#C6D2E1]">Generated Transcript</span></p>
           <p className="flex items-center gap-2"><CircleCheckBig color="#009966" size={14}/> <span className="text-[#009966] text-xs">AI processing complete</span></p>
         </div>
-          <div className="bg-[linear-gradient(135deg,_rgba(255,255,255,0.8)_0%,_rgba(249,250,251,0.8)_100%)] backdrop-blur-md dark:bg-gray-900 text-gray-900 dark:text-[#a8a29e] p-3 rounded-[14px] max-h-48 overflow-y-auto text-sm border border-[#E5E7EB] dark:border-gray-700 mt-2">
+          <div className="bg-[linear-gradient(135deg,_rgba(255,255,255,0.8)_0%,_rgba(249,250,251,0.8)_100%)] backdrop-blur-md dark:bg-[linear-gradient(135deg,_rgba(58,58,61,0.8)_0%,_rgba(42,42,45,0.8)_100%)] text-gray-900 dark:text-[#F9FBFF] p-3 rounded-[14px] max-h-48 overflow-y-auto text-sm border border-[#E5E7EB] dark:border-gray-700 mt-2">
             {loading && <div className="mt-2">Loading...</div>}
             {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
             {!loading && !error && (
               <div className="flex items-start justify-between gap-1.5">
-                <div className="mt-2 whitespace-pre-line text-[#1E2939] leading-[22.75px] text-[13px]">
+                <div className="mt-2 whitespace-pre-line text-[#1E2939] dark:text-[#F9FBFF] leading-[22.75px] text-[13px]">
                   {transcriptChunks
                     ? transcriptChunks.map((chunk: { text: string }) => chunk.text).join(' ')
                     : transcript}
                 </div>
-                  <div className="bg-[#DBEAFE] text-[#1447E6] rounded-[9px] text-[10px] py-1.5 px-2 w-full max-w-max">
+                  <div className="bg-[#DBEAFE] text-[#1447E6] rounded-[9px] text-[10px] py-1.5 px-2 w-full max-w-max min-w-max dark:bg-[]">
                   AI Generated
                 </div>
               </div>
@@ -2445,7 +2448,7 @@ export default function AISectionPage() {
           {showTranscript ? 'Hide Transcript' : 'Show Transcript'}
         </Button>
         {/* Edit button for transcript run */}
-        <Button size="sm" variant="outline" onClick={() => setEditModalOpen(true)} className="bg-transparent border border-[#DAB2FF] text-[#9810FA] font-medium px-4 py-2 rounded-[12px] shadow-md hover:bg-transparent hover:shadow-lg hover:text-[#9810FA] transition-all duration-300 transform hover:scale-105 btn-beautiful">
+        <Button size="sm" variant="outline" onClick={() => setEditModalOpen(true)} className="bg-transparent dark:bg-[#0D0D0D] border border-[#DAB2FF] dark:border-[#350067] text-[#9810FA] dark:test-[#A329FB] font-medium px-4 py-2 rounded-[12px] shadow-md hover:bg-transparent hover:shadow-lg hover:text-[#9810FA] transition-all duration-300 transform hover:scale-105 btn-beautiful">
           <Pencil />
           Edit
         </Button>
@@ -2487,7 +2490,7 @@ export default function AISectionPage() {
           <Button
             size="sm"
             onClick={onAccept}
-            className="mb-2 bg-[linear-gradient(90deg,_#00D492_0%,_#009966_100%)] text-white rounded-[12px]"
+            className="mb-2 bg-[linear-gradient(90deg,_#00D492_0%,_#009966_100%)] text-white dark:text-[#0D0D0D] rounded-[12px]"
           >
             <Check />
             Accept & Continue
@@ -2705,7 +2708,7 @@ export default function AISectionPage() {
             {!loading && !error && segmentationMap && segmentationMap.length > 0 && segmentationChunks && (
               <>
               <div className="flex items-center justify-between mt-4">
-                <p className="flex items-center gap-2"><Layers color="#00C950" size={20}/> <span className="text-[#1E2939] text-sm font-bold">Generated Segments</span></p>
+                <p className="flex items-center gap-2"><Layers color="#00C950" size={20}/> <span className="text-[#1E2939] text-sm font-bold dark:text-[#C6D2E1]">Generated Segments</span></p>
                 <p className="flex items-center gap-2"><CircleCheckBig color="#009966" size={14}/> <span className="text-[#009966] text-xs">AI processing complete</span></p>
               </div>
               <div className="space-y-2">
@@ -2713,16 +2716,16 @@ export default function AISectionPage() {
                   const start = idx === 0 ? 0 : segmentationMap[idx - 1];
                   const segChunks = segmentationChunks[idx] || [];
                   return (
-                    <div key={idx} className="bg-[linear-gradient(135deg,_rgba(255,255,255,0.8)_0%,_rgba(249,250,251,0.8)_100%)] backdrop-blur-md border border-[#E5E7EB] p-3 rounded-[12px]">
+                    <div key={idx} className="bg-[linear-gradient(135deg,_rgba(255,255,255,0.8)_0%,_rgba(249,250,251,0.8)_100%)] dark:bg-[linear-gradient(135deg,_rgba(13,13,13,0.7)_0%,_rgba(13,13,13,0.7)_100%)] backdrop-blur-md border border-[#E5E7EB] dark:border-[#1F2228] p-3 rounded-[12px]">
                       <div className="flex items-center gap-2.5">
                         <span className="text-white h-7 w-7 flex items-center justify-center bg-[linear-gradient(135deg,_#05DF72_0%,_#2B7FFF_100%)] shadow-[0px_4px_12px_rgba(0,0,0,0.1)] rounded-[10px]">{idx + 1}</span>
                         <p className="flex gap-2.5 items-center">
-                          <span className="flex items-center gap-1 text-[#6A7282] dark:text-[#a8a29e]"><Clock size={12}/>{start.toFixed(2)}s </span>
-                          <span className="text-[#6A7282] dark:text-[#a8a29e]">Duration: {end.toFixed(2)}s</span>
+                          <span className="flex items-center gap-1 text-[#6A7282] dark:text-[#F4F8FF]"><Clock size={12}/>{start.toFixed(2)}s </span>
+                          <span className="text-[#6A7282] dark:text-[#F6F9FF]">Duration: {end.toFixed(2)}s</span>
                         </p>
                       </div>
                       {segChunks.length > 0 ? (
-                        <div className="text-xs text-[#4A5565] dark:text-[#a8a29e] mt-1">
+                        <div className="text-xs text-[#4A5565] dark:text-[#F0F4FA] mt-2.5">
                           {(segChunks as { text: string }[]).map((chunk: { text: string }) => chunk.text).join(' ')}
                         </div>
                       ) : null}
@@ -2845,7 +2848,7 @@ export default function AISectionPage() {
             size="sm"
             variant="outline"
             onClick={handleOpenEditModal}
-            className="bg-transparent border border-[#7BF1A8] text-[#00A63E] font-medium px-4 py-2 rounded-[12px] shadow-md hover:bg-transparent hover:text-[#00A63E] hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
+            className="bg-transparent dark:bg-[#0D0D0D] border border-[#7BF1A8] dark:border-[#7BF1A8] text-[#00A63E] font-medium px-4 py-2 rounded-[12px] shadow-md hover:bg-transparent hover:text-[#00A63E] hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful"
           >
             <Pencil />
             Edit Segments
@@ -2855,7 +2858,7 @@ export default function AISectionPage() {
           <Button
             size="sm"
             onClick={onAccept}
-            className="bg-[linear-gradient(90deg,_#00D492_0%,_#009966_100%)] text-white rounded-[12px]"
+            className="bg-[linear-gradient(90deg,_#00D492_0%,_#009966_100%)] text-white dark:text-[#0D0D0D] rounded-[12px]"
           >
             <Check />
             Accept This Run
@@ -3000,8 +3003,12 @@ export default function AISectionPage() {
     return (
       <div className="space-y-2">
         {showQuestions && (
-          <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-[#a8a29e] p-3 rounded max-h-96 overflow-y-auto text-sm border border-gray-300 dark:border-gray-700 mt-2">
-            <strong>Questions:</strong>
+          <>
+          <div className="flex items-center justify-between mt-4">
+           <p className="flex items-center gap-2"><BookOpen color="#AD46FF" size={20}/> <span className="text-[#1E2939] text-[15px] font-bold dark:text-[#C6D2E1]">Generated Questions</span></p>
+           <p className="flex items-center gap-2"><CircleCheckBig color="#009966" size={14}/> <span className="text-[#009966] text-xs">AI generation complete</span></p>
+          </div>
+          <div className="text-gray-900 dark:text-[#F9FBFF] p-[18px] max-h-96 overflow-y-auto text-sm mt-2">
             {loading && <div className="mt-2">Loading...</div>}
             {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
             {!loading && !error && questions.length > 0 && (
@@ -3011,33 +3018,66 @@ export default function AISectionPage() {
                   let segStart = segIdx === 0 ? 0 : segmentIds[segIdx - 1];
                   let segEnd = q.segmentId;
                   return (
-                    <li key={q.question?.text || idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                        Segment: {typeof segStart === 'number' && typeof segEnd === 'number' ? `${segStart}–${segEnd}s` : 'N/A'} | Type: {q.questionType || q.question?.type || 'N/A'}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="font-semibold flex-1">Q{idx + 1}: {q.question?.text}</div>
-                        <Button size="sm" variant="outline" onClick={() => { setEditingIdx(idx); setEditQuestion(JSON.parse(JSON.stringify(q))); setEditModalOpen(true); }}>
+                    <li key={q.question?.text || idx} className="border border-[#E5E7EB] dark:bg-[#151516] dark:border-[#1F2228] rounded-[12px] p-[18px]">
+                      <div>
+                        <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-2.5">
+                          <div className="font-semibold bg-gradient-to-br from-[#C27AFF] to-[#615FFF] w-[28px] h-[28px] flex items-center justify-center rounded-[8px] text-[#ffffff] dark:text-[#000000]">{idx + 1}</div>
+                          <div className="bg-[#F3E8FF] text-[#9810FA] px-[6px] py-[4px] rounded-[8px]">{q.questionType || q.question?.type || 'N/A'}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                            Segment: {typeof segStart === 'number' && typeof segEnd === 'number' ? `${segStart}–${segEnd}s` : 'N/A'}
+                          </div>
+                        </div>
+                        <Button className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] dark:text-[#a8a29e] font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful" size="sm" variant="secondary" onClick={() => { setEditingIdx(idx); setEditQuestion(JSON.parse(JSON.stringify(q))); setEditModalOpen(true); }}>
                           <Edit className="w-4 h-4" /> Edit
                         </Button>
+                        </div>
+                        <div className="flex-1 text-[13px] text-[#1E2939] dark:text-[#C6D2E1] font-medium leading-[21px] pt-[12px] pb-[14px]">{q.question?.text}</div>
                       </div>
-                      {q.question?.hint && <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Hint: {q.question.hint}</div>}
                       {q.solution && (
-                        <>
-                          <div className="mt-1"><b>Options:</b></div>
-                          <ul className="list-disc ml-6">
-                            {q.solution.incorrectLotItems?.map((opt: any, oIdx: number) => (
-                              <li key={`inc-${oIdx}`} className="text-red-600 dark:text-red-300">{opt.text}</li>
-                            ))}
-                            {q.solution.correctLotItems?.map((opt: any, oIdx: number) => (
-                              <li key={`cor-${oIdx}`} className="text-green-600 dark:text-green-400 font-semibold">{opt.text}</li>
-                            ))}
-                            {q.solution.correctLotItem && (
-                              <li className="text-green-600 dark:text-green-400 font-semibold">{q.solution.correctLotItem.text}</li>
-                            )}
-                          </ul>
-                        </>
+                        <div className="space-y-2.5">
+                          {q.solution.incorrectLotItems?.map((opt: any, oIdx: number) => (
+                            <div 
+                              key={`inc-${oIdx}`} 
+                              className="flex items-center gap-1 p-2 rounded-[9px] bg-[#F8FAFC] dark:bg-[#3A3A3D] text-[#364153] dark:text-[#F7F9FD]"
+                            >
+                              <div className="flex items-center justify-center w-5 h-5 dark:border-gray-500">
+                                <span className="text-[14px] text-[#364153] dark:text-[#F7F9FD]">{String.fromCharCode(65 + oIdx)}</span>
+                              </div>
+                              <span className="text-gray-700 dark:text-gray-300">{opt.text}</span>
+                            </div>
+                          ))}
+                          
+                          {q.solution.correctLotItems?.map((opt: any, oIdx: number) => {
+                            const optionIndex = (q.solution.incorrectLotItems?.length || 0) + oIdx;
+                            return (
+                              <div 
+                                key={`cor-${oIdx}`} 
+                                className="flex items-center gap-3 p-2 rounded bg-[#B9F8CF] dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+                              >
+                                <div className="flex items-center justify-center w-5 h-5">
+                                  <span className="text-[14px] text-[#016630] dark:text-[#141615]">{String.fromCharCode(65 + optionIndex)}</span>
+                                </div>
+                                <span className="text-[#016630] dark:text-green-300 font-semibold">{opt.text}</span>
+                                <span className="text-[#016630] dark:text-green-400 font-bold">✓</span>
+                              </div>
+                            );
+                          })}
+                          
+                          {q.solution.correctLotItem && (
+                            <div className="flex items-center gap-3 p-2 rounded-[9px] bg-[#DBEAFE] text-[#016630] dark:bg-[#21F4B1] border border-[#B9F8CF] dark:border-[#0A5D27]">
+                              <div className="flex items-center justify-center w-5 h-5">
+                                <span className="text-[14px] text-[#016630] dark:text-[#141615]">
+                                  {String.fromCharCode(65 + (q.solution.incorrectLotItems?.length || 0))}
+                                </span>
+                              </div>
+                              <span className="text-[#016630] dark:text-[#141615]">{q.solution.correctLotItem.text}</span>
+                              <span className="text-[#016630] dark:text-[#141615] font-bold">✓</span>
+                            </div>
+                          )}
+                        </div>
                       )}
+                      {q.question?.hint && <div className="mt-2.5 text-xs text-[#6A7282] dark:text-[#F6F9FF] mb-1 bg-[#ECFDF5] dark:bg-transparent p-[8px] rounded-[4px] font-medium"><span className="font-bold">Hint:</span> {q.question.hint}</div>}
                     </li>
                   );
                 })}
@@ -3045,6 +3085,7 @@ export default function AISectionPage() {
             )}
             {!loading && !error && questions.length === 0 && <div className="mt-2">No questions found.</div>}
           </div>
+          </>
         )}
         <div className="w-full flex items-center justify-center gap-2 mt-4">
         <Button size="sm" variant="secondary" onClick={handleShowQuestions} className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] dark:text-[#a8a29e] font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
@@ -3055,7 +3096,7 @@ export default function AISectionPage() {
         <Button
           size="sm"
           variant="outline"
-          className="bg-transparent border border-[#DAB2FF] text-[#9810FA] font-medium px-4 py-2 rounded-[12px] shadow-md hover:bg-transparent hover:shadow-lg hover:text-[#9810FA] transition-all duration-300 transform hover:scale-105 btn-beautiful"
+          className="bg-transparent dark:bg-[#0D0D0D] border border-[#DAB2FF] dark:border-[#350067] text-[#9810FA] font-medium px-4 py-2 rounded-[12px] shadow-md hover:bg-transparent hover:shadow-lg hover:text-[#9810FA] transition-all duration-300 transform hover:scale-105 btn-beautiful"
           onClick={async () => {
             if (!aiJobId) return;
             try {
@@ -3185,7 +3226,7 @@ export default function AISectionPage() {
           <Button
             size="sm"
             onClick={onAccept}
-            className="mb-2 bg-[linear-gradient(90deg,_#00D492_0%,_#009966_100%)] text-white rounded-[12px]"
+            className="mb-2 bg-[linear-gradient(90deg,_#00D492_0%,_#009966_100%)] text-white dark:text-[#0D0D0D] rounded-[12px]"
           >
             <Check />
             Accept & Continue
@@ -3219,7 +3260,10 @@ export default function AISectionPage() {
                       };
                     });
                     await aiSectionAPI.editQuestionData(aiJobId, updatedQuestions, runIndex);
-                    // setEditingQuestion(null);
+                    setQuestionsByRun(prev => ({
+                      ...prev,
+                      [run.id]: updatedQuestions
+                    }));
                     setEditModalOpen(false);
                   } catch (e) {
                     toast.error('Question Updated.');
@@ -3252,14 +3296,14 @@ export default function AISectionPage() {
     if (!aiJobId) {
       return {
         text: "Generate Learning Content with AI",
-        gradient: "from-[#101828] via-[#6E11B0] to-[#A3004C]"
+        gradient: "from-[#101828] via-[#6E11B0] to-[#A3004C] dark:from-[#101828] dark:via-[#FA5460] dark:to-[#A3004C]"
       };
     }
 
     if (!aiJobStatus) {
       return {
         text: "Generate Learning Content with AI",
-        gradient: "from-[#101828] via-[#6E11B0] to-[#A3004C]"
+        gradient: "from-[#101828] via-[#6E11B0] to-[#A3004C] dark:text-[#FA5460]"
       };
     }
 
@@ -3392,7 +3436,7 @@ export default function AISectionPage() {
       </div>
       <div className="max-w-6xl w-full mx-auto px-4">
         {/* AI Section Workflow Inline */}
-        <div className="bg-white dark:bg-card/50 rounded-xl shadow-lg border border-gray-200 dark:border-[#26211E] p-8 mb-8">
+        <div className="bg-white dark:bg-[#202020] rounded-xl shadow-lg border border-gray-200 dark:border-[#26211E] p-8 mb-8">
           <div className="text-center mb-8">
             <div className="flex items-center justify-center mb-3">
               <div className={`rounded-3xl flex items-center justify-center gap-2 ${badge.bgGradient} ${badge.textColor} text-[11px] px-3.5 py-2 w-fit`}>
@@ -3403,28 +3447,28 @@ export default function AISectionPage() {
             <h1 className={`text-3xl font-bold mb-3 bg-gradient-to-r ${heading.gradient} bg-clip-text text-transparent`}>
               {heading.text}
             </h1>
-            <p className="text-[#4A5565] dark:text-[#a8a29e] text-base">
+            <p className="text-[#4A5565] dark:text-[#F9FCFF] text-base">
               {badge.subtitle}
             </p>
           </div>
           {/* Stepper */}
           <Stepper jobStatus={aiJobStatus} />
             {aiJobStatus && (
-              <div className="flex items-center gap-2.5 shadow-xl backdrop-blur bg-white/80 dark:bg-[#140E09] border border-gray-200 dark:border-[#26211E] rounded-[14px] py-2.5 px-4 w-max mb-3.5 text-sm text-gray-900 dark:text-[#a8a29e]">
+              <div className="flex items-center gap-2.5 shadow-xl backdrop-blur bg-white/80 dark:bg-[#464545] border border-gray-200 dark:border-[#26211E] rounded-[14px] py-2.5 px-4 w-max mb-3.5 text-sm text-gray-900 dark:text-[#a8a29e]">
                 <div className={`w-2.5 h-2.5 rounded-full ${
                   aiJobStatus.status === 'RUNNING' ? 'bg-blue-500' :
                   aiJobStatus.status === 'COMPLETED' ? 'bg-green-500' :
                   aiJobStatus.status === 'FAILED' ? 'bg-red-500' :
                   'bg-yellow-500'
                 }`}></div>
-                <span className="font-normal">
+                <span className="font-normal dark:text-[#FBFDFF]">
                   Job Status: {aiJobStatus.status === 'RUNNING' ? 'Processing' :
                         aiJobStatus.status === 'COMPLETED' ? 'Completed' :
                         aiJobStatus.status === 'FAILED' ? 'Failed' :
                         'Pending'}
                 </span>
                 {aiJobDate && (
-                  <span className="ml-2 px-3 py-1 rounded-md bg-green-50 dark:bg-green-900/30 text-[#6A7282] dark:text-[#a8a29e] text-xs font-medium">
+                  <span className="ml-2 px-3 py-1 rounded-md bg-green-50 dark:bg-[#171717] text-[#6A7282] dark:text-[#F8FAFF] text-xs font-medium">
                     Created {new Date(aiJobDate).toLocaleTimeString('en-US', {
                       hour: 'numeric',
                       minute: '2-digit',
@@ -3436,16 +3480,16 @@ export default function AISectionPage() {
             )}
           <div className="space-y-8">
             <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2.5 shadow-xl backdrop-blur bg-white/80 dark:bg-[#140E09] border border-gray-200 dark:border-[#26211E] rounded-[14px] p-[15px] w-full">
+              <div className="flex items-center gap-2.5 shadow-xl backdrop-blur bg-white/80 dark:bg-[#464545] border border-gray-200 dark:border-[#0D0D0D33] rounded-[14px] p-[15px] w-full">
                 <div><YoutubeIcon /></div>
                 <div className="flex flex-col w-full">
-                  <label className="text-[11px] font-medium text-gray-900 dark:text-[#a8a29e] mb-1">Source Video</label>
+                  <label className="text-[11px] font-medium text-gray-900 dark:text-[#C6D2E1] mb-1">Source Video</label>
                   <input
                     type="text"
                     value={youtubeUrl}
                     onChange={e => setYoutubeUrl(e.target.value)}
                     placeholder="Paste YouTube URL here"
-                    className={`text-[11px] px-1.5 py-[3px] rounded-lg bg-[#ECFDF5] dark:bg-green-900/30 text-gray-800 dark:text-[#a8a29e] border border-transparent focus:outline-none w-full ${
+                    className={`text-[11px] px-1.5 py-[3px] rounded-lg bg-[#ECFDF5] dark:bg-[#202020] text-gray-800 dark:text-[#FFFFFF] border border-transparent focus:outline-none w-full ${
                       urlError ? 'border-red-500 bg-red-50 text-red-700' : ''
                     }`}
                     disabled={!!aiJobId}
@@ -3458,7 +3502,7 @@ export default function AISectionPage() {
             <Button
                 onClick={handleCreateJob}
                 disabled={!youtubeUrl || !!aiJobId || isCreatingJob}
-                className="w-full sm:w-auto mt-2 sm:mt-0 bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
+                className="w-full sm:w-auto mt-2 sm:mt-0 bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white dark:text-[#0D0D0D] font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
               >
                 {isCreatingJob ? (
                   <>
@@ -3531,14 +3575,14 @@ export default function AISectionPage() {
                 <div className="space-y-8 mt-8">
                   {/* Transcription Section */}
                   {currentUiStep === 1 && (
-                    <div className=" shadow-xl backdrop-blur bg-white/80 dark:bg-[#140E09] border border-gray-200 dark:border-[#26211E] rounded-[14px] p-[15px] w-full dark:bg-card">
+                    <div className=" shadow-xl backdrop-blur bg-white/80 dark:bg-[#504F4FCC] border border-gray-200 dark:border-[#26211E] rounded-[14px] p-[15px] w-full">
                       <div className="flex items-center gap-3.5 mb-7">
                         <div className="bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] h-12 w-12 rounded-[14px] flex items-center justify-center">
-                          <FileText className="w-6 h-6 text-white" />
+                          <FileText className="w-6 h-6 text-white dark:text-[#0D0D0D]" />
                         </div>
                         <div>
-                          <p className="font-semibold text-xl text-gray-900 dark:text-[#a8a29e]">Audio Extraction</p>
-                          <span className="font-normal text-xs text-[#4A5565] dark:text-[#a8a29e]">Extract high-quality audio from your video</span>
+                          <p className="font-semibold text-xl text-gray-900 dark:text-[#C6D2E1]">Audio Extraction</p>
+                          <span className="font-normal text-xs text-[#4A5565] dark:text-[#F6FAFF]">Extract high-quality audio from your video</span>
                         </div>
                         {/* <TooltipProvider>
                           <Tooltip>
@@ -3588,7 +3632,7 @@ export default function AISectionPage() {
                       />
                       {acceptedRuns.transcription && (
                         <div className="flex justify-center mt-4">
-                          <Button className="bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white" onClick={() => setCurrentUiStep(2)}>Next Step</Button>
+                          <Button className="bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white dark:text-[#0D0D0D]" onClick={() => setCurrentUiStep(2)}>Next Step</Button>
                         </div>
                       )}
                     </div>
@@ -3597,14 +3641,14 @@ export default function AISectionPage() {
                   {/* Segmentation Section */}
                   {
                     currentUiStep === 2 && (
-                      <div className="shadow-xl backdrop-blur bg-white/80 dark:bg-[#140E09] border border-gray-200 rounded-[14px] p-[15px] w-full dark:bg-card dark:border-[#26211E]">
+                      <div className="shadow-xl backdrop-blur bg-white/80 dark:bg-[#151516] border border-gray-200 rounded-[14px] p-[15px] w-full dark:border-[#26211E]">
                       <div className="flex items-center gap-3.5 mb-7">
                         <div className="bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] h-12 w-12 rounded-[14px] flex items-center justify-center">
-                          <FileText className="w-6 h-6 text-white" />
+                          <FileText className="w-6 h-6 text-white dark:text-[#0D0D0D]" />
                         </div>
                         <div>
-                          <p className="font-semibold text-xl text-gray-900 dark:text-[#a8a29e]">AI Segmentation</p>
-                          <span className="font-normal text-xs text-[#4A5565] dark:text-[#a8a29e]">Break content into meaningful sections</span>
+                          <p className="font-semibold text-xl text-gray-900 dark:text-[#C6D2E1]">AI Segmentation</p>
+                          <span className="font-normal text-xs text-[#4A5565] dark:text-[#FCFDFF]">Break content into meaningful sections</span>
                         </div>
                         </div>
                         <TaskAccordion
@@ -3633,7 +3677,7 @@ export default function AISectionPage() {
                         />
                         {acceptedRuns.segmentation && currentUiStep === 2 && (
                           <div className="flex justify-end mt-4">
-                            <Button className="bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white" onClick={() => setCurrentUiStep(3)}>Next Step</Button>
+                            <Button className="bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white dark:text-[#0D0D0D]" onClick={() => setCurrentUiStep(3)}>Next Step</Button>
                           </div>
                         )}
                       </div>
@@ -3642,33 +3686,32 @@ export default function AISectionPage() {
                   {/* Question Generation Section */}
                   {
                     currentUiStep === 3 && (
-                      <div className="shadow-xl backdrop-blur bg-white/80 dark:bg-[#140E09] border border-gray-200 rounded-[14px] p-[15px] w-full dark:bg-card dark:border-[#26211E]">
+                      <div className="shadow-xl backdrop-blur bg-white/80 dark:bg-[#151516] border border-gray-200 rounded-[14px] p-[15px] w-full dark:border-[#26211E]">
                         <div className="mb-4">
                           <div className="flex items-center gap-3.5 mb-7">
                             <div className="bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] h-12 w-12 rounded-[14px] flex items-center justify-center">
-                              <Brain className="w-6 h-6 text-white" />
+                              <Brain className="w-6 h-6 text-white dark:text-[#0D0D0D]" />
                             </div>
                             <div>
-                              <p className="font-semibold text-xl text-gray-900 dark:text-[#a8a29e]">Question Generation Test</p>
-                              <span className="font-normal text-xs text-[#4A5565] dark:text-[#a8a29e]">Automatically generates relevant questions from the segmented transcript.</span>
+                              <p className="font-semibold text-xl text-gray-900 dark:text-[#C6D2E1]">Question Generation Test</p>
+                              <span className="font-normal text-xs text-[#4A5565] dark:text-[#FCFDFF]">Automatically generates relevant questions from the segmented transcript.</span>
                             </div>
                           </div>
                           {
                             aiJobStatus?.task === 'QUESTION_GENERATION' && aiJobStatus?.status === 'COMPLETED' && (
-                              <div className="w-full rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-gradient-to-r dark:from-emerald-800 dark:to-purple-800
-">
+                              <div className="w-full rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-purple-50 dark:bg-[#171717] dark:from-[#171717] dark:to-[#171717] p-5 shadow-sm">
                                 <div className="flex items-center justify-between mb-4">
                                   <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
                                     <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
-                                    <CheckCircle className="w-5 h-5 text-white" />
+                                    <CheckCircle className="w-5 h-5 text-white dark:text-[#0D0D0D]" />
                                   </div>
                                   <div>
                                     <div className="flex items-center gap-2.5">
                                       <div>AI Question Generation</div>
-                                      <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white font-medium">Complete</span>
+                                      <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white dark:text-[#0D0D0D] font-medium">Complete</span>
                                     </div>
                                     <div className="flex items-center gap-3">
-                                      <span className="text-xs text-emerald-600">Run 1</span>
+                                      <span className="text-xs text-emerald-600">Run {getCurrentActiveRunNumber('question')}</span>
                                       <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
                                     </div>
                                   </div>
@@ -3714,7 +3757,7 @@ export default function AISectionPage() {
                         />
                         {acceptedRuns.question && (
                           <div className="flex justify-end mt-4">
-                            <Button className="bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white" onClick={() => setCurrentUiStep(4)}>Next Step</Button>
+                            <Button className="bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white dark:text-[#0D0D0D]" onClick={() => setCurrentUiStep(4)}>Next Step</Button>
                           </div>
                         )}
                       </div>
@@ -3725,7 +3768,7 @@ export default function AISectionPage() {
                 <div className="bg-gray-50 dark:bg-card rounded-xl p-6 shadow-lg border border-gray-200 dark:border-[#26211E] w-full">
                   <div className="flex items-center gap-2 mb-4">
                     <UploadCloud className="w-5 h-5 text-green-600 dark:text-green-400" />
-                    <span className="font-semibold text-xl text-gray-900 dark:text-[#a8a29e]">Upload to Course</span>
+                    <span className="font-semibold text-xl text-gray-900 dark:text-[#C6D2E1]">Upload to Course</span>
                   </div>
                   <TaskAccordion
                     task="upload"
@@ -3756,15 +3799,15 @@ export default function AISectionPage() {
 
                   {
                     currentUiStep === 4 && (
-                      <div className="shadow-xl backdrop-blur bg-white/80 dark:bg-[#140E09] border border-gray-200 rounded-[14px] p-[15px] w-full dark:bg-card dark:border-[#26211E]">
+                      <div className="shadow-xl backdrop-blur bg-white/80 dark:bg-[#151516] border border-gray-200 rounded-[14px] p-[15px] w-full dark:border-[#26211E]">
                         <div className="flex items-center gap-2 mb-4">
                           <div className="flex items-center gap-3.5 mb-7">
                             <div className="bg-[linear-gradient(90deg,#00D492_0%,#2B7FFF_100%)] h-12 w-12 rounded-[14px] flex items-center justify-center">
-                              <Share className="w-6 h-6 text-white"/>
+                              <Share className="w-6 h-6 text-white dark:text-[#0D0D0D]"/>
                             </div>
                             <div>
-                              <p className="font-semibold text-xl text-gray-900 dark:text-[#a8a29e]">Upload & Publish</p>
-                              <span className="font-normal text-xs text-[#4A5565] dark:text-[#a8a29e]">Saves and uploads the processed content with questions for later use.</span>
+                              <p className="font-semibold text-xl text-gray-900 dark:text-[#C6D2E1]">Upload & Publish</p>
+                              <span className="font-normal text-xs text-[#4A5565] dark:text-[#FCFDFF]">Saves and uploads the processed content with questions for later use.</span>
                             </div>
                           </div>
                           {/* <TooltipProvider>
@@ -3786,7 +3829,7 @@ export default function AISectionPage() {
                             <Input
                               value="video_item"
                               readOnly
-                              className="w-full bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+                              className="w-full bg-gray-100 dark:bg-[#3A3A3D] cursor-not-allowed"
                             />
                           </div>
 
@@ -3795,7 +3838,7 @@ export default function AISectionPage() {
                             <Input
                               value="quiz_item"
                               readOnly
-                              className="w-full bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+                              className="w-full bg-gray-100 dark:bg-[#3A3A3D] cursor-not-allowed"
                             />
                           </div>
 
@@ -3805,7 +3848,7 @@ export default function AISectionPage() {
                               type="number"
                               value={1}
                               readOnly
-                              className="w-full bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+                              className="w-full bg-gray-100 dark:bg-[#3A3A3D] cursor-not-allowed"
                             />
                           </div>
                         </div>
@@ -3852,7 +3895,7 @@ export default function AISectionPage() {
                             }
                           }}
                           disabled={!acceptedRuns.question || taskRuns.upload.some(r => r.status === "loading")}
-                          className="w-auto bg-[linear-gradient(90deg,#00D492_0%,#2B7FFF_100%)] text-white font-normal px-6 py-3 rounded-[14px] shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
+                          className="w-auto bg-[linear-gradient(90deg,#00D492_0%,#2B7FFF_100%)] text-white dark:text-[#0D0D0D] font-normal px-6 py-3 rounded-[14px] shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none btn-beautiful"
                         >
                           <Share />
                           Publish Learning Module
@@ -4121,3 +4164,5 @@ async function editSegmentMap(jobId: string, segmentMap: number[], index: number
   if (res.status === 404) throw new Error('Job not found: ' + errMsg);
   throw new Error(errMsg);
 }
+
+
