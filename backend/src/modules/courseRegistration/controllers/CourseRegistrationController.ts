@@ -109,9 +109,9 @@ class CourseRegistrationController {
   }
 
   @OpenAPI({
-    summary: 'Get Data for course Details page',
+    summary: 'Get all request details in instructor side',
     description:
-      'Get all the Data to load in the course details page for student registration.',
+      'Get all the Data to load in the course registration request page in instructor side',
   })
   @Get('/requests/version/:versionId')
   @Authorized()
@@ -127,7 +127,7 @@ class CourseRegistrationController {
   ) {
     const {versionId} = params;
     const {page, limit, status, search, sort} = query;
-
+    console.log("Status from controllee ",status)
     // const courseRegistrationResource = subject(courseRegistrationSubject, {
     //   courseVersionId: new ObjectId(versionId),
     // });

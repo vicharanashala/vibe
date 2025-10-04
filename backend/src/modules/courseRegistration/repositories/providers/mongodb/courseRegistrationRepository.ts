@@ -13,6 +13,7 @@ import {
   NotFoundError,
 } from 'routing-controllers';
 import {GLOBAL_TYPES} from '#root/types.js';
+import { consoleLoggingIntegration } from '@sentry/node';
 
 class CourseRegistrationRepository {
   private courseRegistrationCollection: Collection<ICourseRegistration>;
@@ -63,11 +64,13 @@ class CourseRegistrationRepository {
     session?: ClientSession,
   ) {
     await this.init();
-    const query: any = {versionId, status: 'PENDING'};
+    console.log("filteer ",filter)
+    // const query: any = {versionId, status: 'PENDING'};
+    const query: any = {versionId};
 
-    // if (filter.status && filter.status !== 'ALL') {
-    //   query.status = filter.status;
-    // }
+    if (filter.status && filter.status !== 'ALL') {
+      query.status = filter.status;
+    }
     if (filter.search) {
       query.$or = [
         {'detail.name': {$regex: filter.search, $options: 'i'}},
@@ -85,6 +88,7 @@ class CourseRegistrationRepository {
       .skip(skip)
       .limit(limit)
       .toArray();
+    console.log("result ",result)
     const registrations = result.map(item => ({
       ...item,
       _id: item._id.toString(),
