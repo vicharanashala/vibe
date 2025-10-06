@@ -333,7 +333,9 @@ export function useAnomaliesByCourseItem(
   page: number = 1,
   limit: number = 10,
   sortField?: string,
-  sortOrder: 'asc' | 'desc' = 'desc'
+  sortOrder: 'asc' | 'desc' = 'desc',
+  search?: string,
+  type?: string
 ): {
   data: Anomaly[];
   isLoading: boolean;
@@ -356,7 +358,9 @@ export function useAnomaliesByCourseItem(
           page,
           limit,
           sortField,
-          sortOrder
+          sortOrder,
+          ...(search && { search }),
+          ...(type && { type })
         }
       }
     },

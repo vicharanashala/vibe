@@ -1,5 +1,12 @@
-import {IUser } from '#shared/interfaces/models.js';
-import {MongoClient, ClientSession, ObjectId} from 'mongodb';
+import { IUser } from '#shared/interfaces/models.js';
+import { MongoClient, ClientSession, ObjectId } from 'mongodb';
+
+type UserSearchResult = {
+  _id: ObjectId;
+  firstName: string;
+  lastName: string;
+  email: string;
+};
 
 /**
  * Interface representing a repository for user-related operations.
