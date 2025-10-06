@@ -41,7 +41,7 @@ export type IssueStatus =
   | "DISCARDED"
   | "CLOSED";
 
-export type EntityType ="ALL"| "VIDEO" | "QUIZ" | "ARTICLE" | "QUESTION";
+export type EntityType = "ALL" | "VIDEO" | "QUIZ" | "ARTICLE" | "QUESTION";
 
 export interface IssueStatusHistory {
   status: IssueStatus;
@@ -207,8 +207,8 @@ export default function CourseIssueReports() {
                   ) : (
                     issues?.map((issue: IssueReport, index: number) => {
                       const detail = issue || {};
-                      console.log("Issue ",issue)
-                      console.log("detail",detail)
+                      console.log("Issue ", issue)
+                      console.log("detail", detail)
                       const latestStatus = Array.isArray(issue.status) && issue.status.length > 0
                         ? issue.status[issue.status.length - 1].status
                         : issue.status;
@@ -332,10 +332,10 @@ export function IssueDetailsDialog({
   onClose,
   refetchIssues
 }: IssueDetailsDialogProps) {
- 
-  const [isSubmitting,setIsSubmitting] = useState(false)
-  const {mutateAsync} =useUpdateStudentInterest()
-   if (!issue) return null;
+
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { mutateAsync } = useUpdateStudentInterest()
+  if (!issue) return null;
   const latestStatus =
     Array.isArray(issue.status) && issue.status.length > 0
       ? issue.status[issue.status.length - 1]
@@ -344,7 +344,7 @@ export function IssueDetailsDialog({
     if (isSubmitting) return;
     try {
       setIsSubmitting(true);
-      const result =await mutateAsync({ issueId: issue._id, interest });
+      const result = await mutateAsync({ issueId: issue._id, interest });
       await refetchIssues();
       toast.success(result.message)
       onClose();
@@ -379,13 +379,13 @@ export function IssueDetailsDialog({
                         <Badge
                           variant={
                             latestStatus.status === "RESOLVED" ||
-                            latestStatus.status === "CLOSED"
+                              latestStatus.status === "CLOSED"
                               ? "default"
                               : latestStatus.status === "DISCARDED"
-                              ? "destructive"
-                              : latestStatus.status === "IN_REVIEW"
-                              ? "secondary"
-                              : "outline"
+                                ? "destructive"
+                                : latestStatus.status === "IN_REVIEW"
+                                  ? "secondary"
+                                  : "outline"
                           }
                           className="px-4 py-2 text-sm font-semibold"
                         >
@@ -426,7 +426,7 @@ export function IssueDetailsDialog({
                           minute: "2-digit",
                         })}
                       </p>
-                      
+
                     </div>
                   </div>
 
@@ -439,7 +439,7 @@ export function IssueDetailsDialog({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={ () => handleFeedback("yes")}
+                          onClick={() => handleFeedback("yes")}
                           disabled={isSubmitting}
                           className="flex items-center gap-2 border-primary/20 hover:border-primary hover:bg-primary/5 transition-colors"
                         >

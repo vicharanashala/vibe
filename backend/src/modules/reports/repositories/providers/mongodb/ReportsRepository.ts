@@ -120,7 +120,6 @@ class ReportRepository {
 
     const totalDocuments = countResult[0]?.total ?? 0;
     const totalPages = Math.ceil(totalDocuments / limit);
-    console.log('Total pages: ', totalPages, 'Total doc: ', totalDocuments);
     const result = plainToInstance(ReportResponse, {
       totalDocuments,
       totalPages,
@@ -282,17 +281,34 @@ class ReportRepository {
     query.entityType = filter.sort; 
   }
 
-  const results = await this.reportCollection
-    .find(query, { session })
-    .sort(sortQuery)
-    .skip(skip)
-    .limit(limit)
-    .toArray();
+  // const results = await this.reportCollection
+  //   .find(query, { session })
+  //   .sort(sortQuery)
+  //   .skip(skip)
+  //   .limit(limit)
+  //   .toArray();
 
+  const results = await this.reportCollection
+  .aggregate([
+    { $match: query },
+    {
+      $lookup: {
+        from: "newCourse",          
+        localField: "courseId",    
+        foreignField: "_id",       
+        as: "courseInfo",          
+      },
+    },
+    { $unwind: { path: "$courseInfo", preserveNullAndEmptyArrays: true } },
+    { $sort: sortQuery },
+    { $skip: skip },
+    { $limit: limit },
+  ])
+  .toArray();
   const issues: IReport[] = results.map(item => ({
     ...item,
     _id: item._id?.toString(),
-    courseId: item.courseId?.toString(),
+    courseId: item.courseInfo?.name || '-',
     versionId: item.versionId?.toString(),
     entityId: item.entityId?.toString(),
     reportedBy: item.reportedBy?.toString(),
