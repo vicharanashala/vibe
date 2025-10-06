@@ -21,22 +21,57 @@ import { useCourseStore } from "@/store/course-store";
 import { Pagination } from "@/components/ui/Pagination";
 import { Button } from "@/components/ui/button";
 import { useGetCourseIssueReports } from "@/hooks/hooks";
+import { Textarea } from "@/components/ui/textarea";
+
+// export interface IssueReport {
+//   _id: string;
+//   detail: Record<string, any>;
+//   status: IssueStatus;
+//   createdAt: string;
+// }
+
+// export type IssueStatus = "ALL" | "REPORTED" | "IN_REVIEW" | "RESOLVED" | "DISCARDED" | "CLOSED"
+// export type IssueSort = "ALL" | "VIDEO" | "QUIZ" | "ARTICLE" | "QUESTION";
+export type IssueStatus =
+  | "ALL"
+  | "REPORTED"
+  | "IN_REVIEW"
+  | "RESOLVED"
+  | "DISCARDED"
+  | "CLOSED";
+
+export type EntityType ="ALL"| "VIDEO" | "QUIZ" | "ARTICLE" | "QUESTION";
+
+export interface IssueStatusHistory {
+  status: IssueStatus;
+  comment: string;
+  createdAt: string;
+  createdBy?: string;
+}
 
 export interface IssueReport {
   _id: string;
-  detail: Record<string, any>;
-  status: IssueStatus;
+  courseId: string;
+  versionId: string;
+  entityId: string;
+  entityType: EntityType;
+  reason: string;
+  reportedBy: string;
+  status: IssueStatusHistory[]; // <-- correct
   createdAt: string;
+  updatedAt: string;
 }
 
-export type IssueStatus = "ALL" | "REPORTED" | "IN_REVIEW" | "RESOLVED" | "DISCARDED" | "CLOSED"
-export type IssueSort = "ALL" | "VIDEO" | "QUIZ" | "ARTICLE" | "QUESTION";
-
+export interface IssueReportsResponse {
+  issues: IssueReport[];
+  totalDocuments: number;
+  totalPages: number;
+}
 export default function CourseIssueReports() {
   const [selectedIssue, setSelectedIssue] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<IssueStatus>('ALL');
-  const [issueSort, setIssueSort] = useState<IssueSort>('ALL');
+  const [issueSort, setIssueSort] = useState<EntityType>('ALL');
   const [currentPage, setCurrentPage] = useState(1);
   const { currentCourse } = useCourseStore()
   const versionId = currentCourse?.versionId
@@ -52,7 +87,7 @@ export default function CourseIssueReports() {
   }), [filterStatus, searchTerm, issueSort, currentPage]);
   const { data: issuesData, isLoading, refetch: issuesRefetch } = useGetCourseIssueReports(versionId as string, params);
   const issues = issuesData?.issues || []
-
+  console.log(issues)
   useEffect(() => {
     issuesRefetch();
   }, [params, issuesRefetch]);
@@ -170,7 +205,13 @@ export default function CourseIssueReports() {
                     </TableRow>
                   ) : (
                     issues?.map((issue: IssueReport, index: number) => {
-                      const detail = issue.detail || {};
+                      const detail = issue || {};
+                      console.log("Issue ",issue)
+                      console.log("detail",detail)
+                      const latestStatus = Array.isArray(issue.status) && issue.status.length > 0
+                        ? issue.status[issue.status.length - 1].status
+                        : issue.status;
+                      console.log("latest status ", latestStatus)
                       return (
                         <TableRow
                           key={issue._id}
@@ -185,26 +226,29 @@ export default function CourseIssueReports() {
                           </TableCell>
 
                           <TableCell className="py-4">
-                            {detail.course || '-'}
+                            {detail.courseId || '-'}
                           </TableCell>
 
                           <TableCell className="py-4">
-                            {detail.type || '-'}
+                            {detail.entityType || '-'}
                           </TableCell>
 
                           <TableCell className="py-4">
                             <Badge
                               variant={
-                                issue.status === "RESOLVED" || issue.status === "CLOSED"
+                                latestStatus === "RESOLVED" || latestStatus === "CLOSED"
                                   ? "default"
-                                  : issue.status === "DISCARDED"
+                                  : latestStatus === "DISCARDED"
                                     ? "destructive"
-                                    : issue.status === "IN_REVIEW"
+                                    : latestStatus === "IN_REVIEW"
                                       ? "secondary"
                                       : "outline"
                               }
                             >
-                              {issue.status.charAt(0).toUpperCase() + issue.status.slice(1).toLowerCase()}
+                              {issue.status[0].status.charAt(0).toUpperCase() + issue.status[0].status.slice(1).toLowerCase()}
+                              {/* {latestStatus
+                                ? .charAt(0).toUpperCase() + latestStatus.slice(1).toLowerCase()
+                                : "-"} */}
                             </Badge>
                           </TableCell>
 
@@ -283,51 +327,196 @@ const formatKey = (key: string) => {
     .replace(/^./, (str) => str.toUpperCase());
 };
 
+// export function IssueDetailsDialog({
+//   issue,
+//   onClose,
+// }: IssueDetailsDialogProps) {
+//   if (!issue) return null;
+
+//   return (
+//     <Dialog open={!!issue} onOpenChange={onClose}>
+//       <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto py-8">
+//         <DialogHeader className="pb-4">
+//           <DialogTitle className="flex items-center gap-2 text-xl">
+//             <AlertCircle className="h-5 w-5 text-primary" />
+//             Issue Details
+//           </DialogTitle>
+//         </DialogHeader>
+
+//         <div className="space-y-4">
+//           <Card>
+//             <CardContent className="p-6">
+//               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+//                 {Object.entries(issue).map(([key, value]) => (
+//                   <div key={key} className="flex flex-col">
+//                     <span className="text-xs text-muted-foreground">
+//                       {formatKey(key)}
+//                     </span>
+//                     <span className="font-medium break-words">
+//                       {value as string}
+//                     </span>
+//                   </div>
+//                 ))}
+//               </div>
+
+//               <Separator className="my-4" />
+
+//               <p className="text-sm text-muted-foreground">
+//                 Reported on:{" "}
+//                 {new Date(issue.createdAt).toLocaleString("en-IN", {
+//                   timeZone: "Asia/Kolkata",
+//                   day: "2-digit",
+//                   month: "short",
+//                   year: "numeric",
+//                   hour: "2-digit",
+//                   minute: "2-digit",
+//                 })}
+//               </p>
+//             </CardContent>
+//           </Card>
+//         </div>
+//       </DialogContent>
+//     </Dialog>
+//   );
+// }
+
+
+
+interface IssueDetailsDialogProps {
+  issue: IssueReport | null;
+  onClose: () => void;
+  // onSubmitComment: (id: string, comment: string) => Promise<void>; 
+}
+
 export function IssueDetailsDialog({
   issue,
   onClose,
+  // onSubmitComment,
 }: IssueDetailsDialogProps) {
+  const [comment, setComment] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   if (!issue) return null;
+
+  const latestStatus =
+    Array.isArray(issue.status) && issue.status.length > 0
+      ? issue.status[issue.status.length - 1]
+      : null;
+
+  const handleSubmit = async () => {
+    if (!comment.trim()) return;
+    try {
+      setIsSubmitting(true);
+      // await onSubmitComment(issue._id, comment);
+      setComment("");
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <Dialog open={!!issue} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto py-8">
-        <DialogHeader className="pb-4">
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <AlertCircle className="h-5 w-5 text-primary" />
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto py-8 bg-background">
+        <DialogHeader className="pb-6 border-b border-border">
+          <DialogTitle className="flex items-center gap-3 text-2xl font-bold text-foreground">
+            <AlertCircle className="h-7 w-7 text-destructive/80" />
             Issue Details
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                {Object.entries(issue.detail).map(([key, value]) => (
-                  <div key={key} className="flex flex-col">
-                    <span className="text-xs text-muted-foreground">
-                      {formatKey(key)}
-                    </span>
-                    <span className="font-medium break-words">
-                      {value as string}
-                    </span>
+        <div className="space-y-8 mt-6">
+          {/* Status Section */}
+          {latestStatus && (
+            <div className="space-y-3">
+              <h3 className="text-base font-semibold text-muted-foreground flex items-center gap-2">
+                <BookOpen className="w-4 h-4" />
+                Current Status
+              </h3>
+              <Card className="shadow-md border-l-4 border-primary/20 rounded-xl overflow-hidden">
+                <CardContent className="space-y-4 p-6">
+                  <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
+                    <div className="space-y-3 flex-1">
+                      <div className="flex items-center gap-3">
+                        <label htmlFor="">Current Status </label>
+                        <Badge
+                          variant={
+                            latestStatus.status === "RESOLVED" ||
+                            latestStatus.status === "CLOSED"
+                              ? "default"
+                              : latestStatus.status === "DISCARDED"
+                              ? "destructive"
+                              : latestStatus.status === "IN_REVIEW"
+                              ? "secondary"
+                              : "outline"
+                          }
+                          className="px-4 py-2 text-sm font-semibold"
+                        >
+                          {latestStatus.status}
+                        </Badge>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm text-foreground/80">
+                          <span className="font-semibold text-foreground">Entity Type:</span>{" "}
+                          <span className="text-muted-foreground">{issue.entityType}</span>
+                        </p>
+                        <p className="text-sm text-foreground/80">
+                          <span className="font-semibold text-foreground">Reason:</span>{" "}
+                          <span className="text-muted-foreground">{issue.reason}</span>
+                        </p>
+                      </div>
+                      {latestStatus.comment && (
+                        <Separator className="my-3 bg-border" />
+                      )}
+                      {latestStatus.comment && (
+                        <div className="bg-muted/50 p-3 rounded-md border border-border/20">
+                          <p className="text-sm text-foreground/90 italic">
+                            <span className="font-semibold not-italic">Comment:</span>{" "}
+                            {latestStatus.comment}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground/80 whitespace-nowrap lg:text-right">
+                      <p className="font-medium text-foreground/90">Last Updated</p>
+                      <p className="text-xs font-mono">
+                        {new Date(latestStatus.createdAt).toLocaleString("en-IN", {
+                          timeZone: "Asia/Kolkata",
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                      
+                    </div>
                   </div>
-                ))}
-              </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
-              <Separator className="my-4" />
-
-              <p className="text-sm text-muted-foreground">
-                Reported on:{" "}
-                {new Date(issue.createdAt).toLocaleString("en-IN", {
-                  timeZone: "Asia/Kolkata",
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </p>
+          {/* Textarea */}
+          <Card className="shadow-md border border-border rounded-xl overflow-hidden">
+            <CardContent className="space-y-4 p-6">
+              <label className="text-base font-semibold text-foreground flex items-center gap-2">
+                Add a Comment
+              </label>
+              <Textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Write your comment here..."
+                rows={4}
+                className="resize-none border-border focus-visible:ring-primary/20 focus-visible:border-primary"
+              />
+              <Button
+                onClick={handleSubmit}
+                disabled={!comment.trim() || isSubmitting}
+                className="w-full lg:w-auto px-8 py-2 font-semibold transition-all duration-200 hover:bg-primary/90"
+              >
+                {isSubmitting ? "Submitting..." : "Submit Comment"}
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -336,13 +525,15 @@ export function IssueDetailsDialog({
   );
 }
 
+
+
 interface IssueFiltersProps {
   searchTerm: string;
   setSearchTerm: (val: string) => void;
   filterStatus: IssueStatus;
   setFilterStatus: (val: IssueStatus) => void;
-  issueSort: IssueSort;
-  setIssueSort: (val: IssueSort) => void;
+  issueSort: EntityType;
+  setIssueSort: (val: EntityType) => void;
   setCurrentPage: (page: number) => void;
 }
 
@@ -398,7 +589,7 @@ export function IssueFilters({
 
       <Select
         value={issueSort}
-        onValueChange={(value: IssueSort) => {
+        onValueChange={(value: EntityType) => {
           setIssueSort(value);
           setCurrentPage(1);
         }}

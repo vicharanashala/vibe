@@ -3154,14 +3154,90 @@ export const useGetDynamicFields = (
 };
 
 
-export interface IssueReport {
-  _id: string;
-  detail: Record<string, any>;
+// export interface IssueReport {
+//   _id: string;
+//   detail: Record<string, any>;
+//   status: IssueStatus;
+//   createdAt: string;
+// }
+
+// // export type IssueStatus = "PENDING" | "RESOLVED" | "REJECTED" | "ALL";
+
+// interface Params {
+//   status: IssueStatus;
+//   search: string;
+//   sort: IssueSort;
+//   page: number;
+//   limit: number;
+// }
+
+// interface IssueReportsResponse {
+//   issues: IssueReport[];
+//   totalDocuments: number;
+//   totalPages: number;
+// }
+
+// export const useGetCourseIssueReports = (
+//   versionId: string,
+//   params: Params,
+// ): {
+//   data: IssueReportsResponse;
+//   isLoading: boolean;
+//   error: string | null;
+//   refetch: () => void;
+// } => {
+//   const result = api.useQuery(
+//     "get",
+//     `/reports/student/issues/flag` as any,
+//     {
+//       params: {
+//         query: params,
+//       },
+//     },
+//     {
+//       enabled: !!versionId,
+//     }
+//   );
+//   return {
+//     data: result.data as IssueReportsResponse,
+//     isLoading: result.isLoading,
+//     error: result.error ? result.error.message || "Failed to fetch issue reports" : null,
+//     refetch: result.refetch,
+//   };
+// };
+
+
+export type IssueStatus =
+  | "ALL"
+  | "REPORTED"
+  | "IN_REVIEW"
+  | "RESOLVED"
+  | "DISCARDED"
+  | "CLOSED";
+
+export type IssueSort = "ALL" | "VIDEO" | "QUIZ" | "ARTICLE" | "QUESTION";
+
+export type EntityType = "VIDEO" | "QUIZ" | "ARTICLE" | "QUESTION";
+
+export interface IssueStatusHistory {
   status: IssueStatus;
+  comment: string;
   createdAt: string;
+  createdBy?: string;
 }
 
-// export type IssueStatus = "PENDING" | "RESOLVED" | "REJECTED" | "ALL";
+export interface IssueReport {
+  _id: string;
+  courseId: string;
+  versionId: string;
+  entityId: string;
+  entityType: EntityType;
+  reason: string;
+  reportedBy: string;
+  status: IssueStatusHistory[]; // ✅ fixed: array of objects
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface Params {
   status: IssueStatus;
@@ -3171,7 +3247,7 @@ interface Params {
   limit: number;
 }
 
-interface IssueReportsResponse {
+export interface IssueReportsResponse {
   issues: IssueReport[];
   totalDocuments: number;
   totalPages: number;
@@ -3179,7 +3255,7 @@ interface IssueReportsResponse {
 
 export const useGetCourseIssueReports = (
   versionId: string,
-  params: Params,
+  params: Params
 ): {
   data: IssueReportsResponse;
   isLoading: boolean;
@@ -3188,7 +3264,7 @@ export const useGetCourseIssueReports = (
 } => {
   const result = api.useQuery(
     "get",
-    `/student/issues` as any,
+    `/reports/student/issues/flag` as any,
     {
       params: {
         query: params,
@@ -3198,12 +3274,16 @@ export const useGetCourseIssueReports = (
       enabled: !!versionId,
     }
   );
+
   return {
     data: result.data as IssueReportsResponse,
     isLoading: result.isLoading,
-    error: result.error ? result.error.message || "Failed to fetch issue reports" : null,
+    error: result.error
+      ? result.error.message || "Failed to fetch issue reports"
+      : null,
     refetch: result.refetch,
   };
 };
+
 
 

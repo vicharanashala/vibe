@@ -8,6 +8,7 @@ import {
   IsInt,
   Min,
   IsArray,
+  IsIn,
 } from 'class-validator';
 import {Type} from 'class-transformer';
 import {JSONSchema} from 'class-validator-jsonschema';
@@ -288,6 +289,51 @@ class ReportNotFoundErrorResponse {
   @IsNotEmpty()
   message: string;
 }
+
+export enum IssueStatusEnum {
+  ALL = "ALL",
+  REPORTED = "REPORTED",
+  IN_REVIEW = "IN_REVIEW",
+  RESOLVED = "RESOLVED",
+  DISCARDED = "DISCARDED",
+  CLOSED = "CLOSED"
+}
+
+export enum IssueSortEnum {
+  ALL = "ALL",
+  VIDEO = "VIDEO",
+  QUIZ = "QUIZ",
+  ARTICLE = "ARTICLE",
+  QUESTION = "QUESTION"
+}
+
+export class IssueFilterQuery {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit: number = 10;
+
+  @IsOptional()
+  @IsEnum(IssueStatusEnum)
+  status: IssueStatusEnum = IssueStatusEnum.ALL;
+
+  @IsOptional()
+  @IsString()
+  search: string = '';
+
+  @IsOptional()
+  @IsEnum(IssueSortEnum)
+  sort: IssueSortEnum = IssueSortEnum.ALL;
+}
+
+
 
 export {
   ReportBody,
