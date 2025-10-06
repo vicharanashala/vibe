@@ -237,6 +237,12 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
       } else {
         solutionForBackend = { ...editForm.solution };
       }
+    
+
+      if (editForm.question.type === "NUMERIC_ANSWER_TYPE" && solutionForBackend?.lowerLimit >= solutionForBackend?.upperLimit) {
+          toast.error("Lower limit cannot be greater than or equal to upper limit.");
+          return;
+      }
 
       await updateQuestion.mutateAsync({
         params: { path: { questionId } },
