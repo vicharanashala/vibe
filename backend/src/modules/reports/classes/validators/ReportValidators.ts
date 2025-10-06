@@ -97,6 +97,27 @@ class UpdateReportStatusBody {
   comment: string;
 }
 
+export class ResponseIntersetBody{
+  @JSONSchema({
+    title: 'Flag report Id',
+    description: 'ID ofthe report',
+    example: '64bfcaf6e13e3547e90c5678',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  issueId: ID;
+
+  @JSONSchema({
+    title: 'Student response for flag raised',
+    description: 'Adding the student response for the flag comment',
+    example: 'yes',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  interest:"yes" | "no";
+}
+
 class ReportUpdateParams {
   @JSONSchema({
     description: 'Object ID of the report',

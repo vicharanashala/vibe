@@ -304,6 +304,12 @@ class ReportRepository {
   return { issues, totalDocuments };
 }
 
+async updateInterest(id:string,interest:string,session?:ClientSession){
+  await this.init()
+  const result = await this.reportCollection.findOneAndUpdate({_id:new ObjectId(id)},{$set:{satisfied:interest}},{upsert:true,session})
+  return result
+}
+
 }
 
 export {ReportRepository};

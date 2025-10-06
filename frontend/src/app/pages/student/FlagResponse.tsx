@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertTriangle, AlertCircle, BookOpen, Tag, ListChecks, Calendar, Eye, Hash } from "lucide-react";
+import { Loader2, AlertTriangle, AlertCircle, BookOpen, Tag, ListChecks, Calendar, Eye, Hash, ThumbsDown, ThumbsUp } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
@@ -20,8 +20,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCourseStore } from "@/store/course-store";
 import { Pagination } from "@/components/ui/Pagination";
 import { Button } from "@/components/ui/button";
-import { useGetCourseIssueReports } from "@/hooks/hooks";
-import { Textarea } from "@/components/ui/textarea";
+import { useGetCourseIssueReports, useUpdateStudentInterest } from "@/hooks/hooks";
+import { toast } from "sonner";
+// import { Textarea } from "@/components/ui/textarea";
 
 // export interface IssueReport {
 //   _id: string;
@@ -306,6 +307,7 @@ export default function CourseIssueReports() {
           <IssueDetailsDialog
             issue={selectedIssue}
             onClose={() => setSelectedIssue(null)}
+            refetchIssues={issuesRefetch}
           />
         )}
       </div>
@@ -318,103 +320,38 @@ interface IssueDetailsDialogProps {
   onClose: () => void;
 }
 
-const formatKey = (key: string) => {
-  return key
-    .replace(/([A-Z])/g, " $1")
-    .replace(/_/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/^./, (str) => str.toUpperCase());
-};
-
-// export function IssueDetailsDialog({
-//   issue,
-//   onClose,
-// }: IssueDetailsDialogProps) {
-//   if (!issue) return null;
-
-//   return (
-//     <Dialog open={!!issue} onOpenChange={onClose}>
-//       <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto py-8">
-//         <DialogHeader className="pb-4">
-//           <DialogTitle className="flex items-center gap-2 text-xl">
-//             <AlertCircle className="h-5 w-5 text-primary" />
-//             Issue Details
-//           </DialogTitle>
-//         </DialogHeader>
-
-//         <div className="space-y-4">
-//           <Card>
-//             <CardContent className="p-6">
-//               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-//                 {Object.entries(issue).map(([key, value]) => (
-//                   <div key={key} className="flex flex-col">
-//                     <span className="text-xs text-muted-foreground">
-//                       {formatKey(key)}
-//                     </span>
-//                     <span className="font-medium break-words">
-//                       {value as string}
-//                     </span>
-//                   </div>
-//                 ))}
-//               </div>
-
-//               <Separator className="my-4" />
-
-//               <p className="text-sm text-muted-foreground">
-//                 Reported on:{" "}
-//                 {new Date(issue.createdAt).toLocaleString("en-IN", {
-//                   timeZone: "Asia/Kolkata",
-//                   day: "2-digit",
-//                   month: "short",
-//                   year: "numeric",
-//                   hour: "2-digit",
-//                   minute: "2-digit",
-//                 })}
-//               </p>
-//             </CardContent>
-//           </Card>
-//         </div>
-//       </DialogContent>
-//     </Dialog>
-//   );
-// }
-
-
 
 interface IssueDetailsDialogProps {
   issue: IssueReport | null;
   onClose: () => void;
-  // onSubmitComment: (id: string, comment: string) => Promise<void>; 
+  refetchIssues: () => void;
 }
 
 export function IssueDetailsDialog({
   issue,
   onClose,
-  // onSubmitComment,
+  refetchIssues
 }: IssueDetailsDialogProps) {
-  const [comment, setComment] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  if (!issue) return null;
-
+ 
+  const [isSubmitting,setIsSubmitting] = useState(false)
+  const {mutateAsync} =useUpdateStudentInterest()
+   if (!issue) return null;
   const latestStatus =
     Array.isArray(issue.status) && issue.status.length > 0
       ? issue.status[issue.status.length - 1]
       : null;
-
-  const handleSubmit = async () => {
-    if (!comment.trim()) return;
+  const handleFeedback = async (interest: "yes" | "no") => {
+    if (isSubmitting) return;
     try {
       setIsSubmitting(true);
-      // await onSubmitComment(issue._id, comment);
-      setComment("");
+      const result =await mutateAsync({ issueId: issue._id, interest });
+      await refetchIssues();
+      toast.success(result.message)
       onClose();
     } finally {
       setIsSubmitting(false);
     }
   };
-
   return (
     <Dialog open={!!issue} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto py-8 bg-background">
@@ -438,7 +375,7 @@ export function IssueDetailsDialog({
                   <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
                     <div className="space-y-3 flex-1">
                       <div className="flex items-center gap-3">
-                        <label htmlFor="">Current Status </label>
+                        <label className="font-semibold text-foreground">Current Status </label>
                         <Badge
                           variant={
                             latestStatus.status === "RESOLVED" ||
@@ -492,33 +429,40 @@ export function IssueDetailsDialog({
                       
                     </div>
                   </div>
+
+                  {latestStatus && latestStatus.status !== "REPORTED" && (
+                    <div className="mt-6 pt-4 border-t border-border/50">
+                      <h4 className="text-sm font-semibold text-foreground mb-3">
+                        Are you satisfied with the response?
+                      </h4>
+                      <div className="flex gap-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={ () => handleFeedback("yes")}
+                          disabled={isSubmitting}
+                          className="flex items-center gap-2 border-primary/20 hover:border-primary hover:bg-primary/5 transition-colors"
+                        >
+                          <ThumbsUp className="h-4 w-4 text-primary" />
+                          Yes
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleFeedback("no")}
+                          disabled={isSubmitting}
+                          className="flex items-center gap-2 border-destructive/20 hover:border-destructive hover:bg-destructive/5 transition-colors"
+                        >
+                          <ThumbsDown className="h-4 w-4 text-destructive" />
+                          No
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
           )}
-
-          {/* Textarea */}
-          <Card className="shadow-md border border-border rounded-xl overflow-hidden">
-            <CardContent className="space-y-4 p-6">
-              <label className="text-base font-semibold text-foreground flex items-center gap-2">
-                Add a Comment
-              </label>
-              <Textarea
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="Write your comment here..."
-                rows={4}
-                className="resize-none border-border focus-visible:ring-primary/20 focus-visible:border-primary"
-              />
-              <Button
-                onClick={handleSubmit}
-                disabled={!comment.trim() || isSubmitting}
-                className="w-full lg:w-auto px-8 py-2 font-semibold transition-all duration-200 hover:bg-primary/90"
-              >
-                {isSubmitting ? "Submitting..." : "Submit Comment"}
-              </Button>
-            </CardContent>
-          </Card>
         </div>
       </DialogContent>
     </Dialog>

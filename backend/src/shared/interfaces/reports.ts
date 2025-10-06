@@ -13,6 +13,7 @@ interface IStatus {
     comment: string;
     createdBy?: string | ObjectId;
     createdAt?: Date;
+    response?:string
 }
 
 interface IReport {

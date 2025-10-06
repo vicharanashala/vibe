@@ -117,4 +117,11 @@ export class ReportService extends BaseService {
   });
 }
 
+updateStudentInterset(id:string,interest:string){
+  return this._withTransaction(async session => {
+    const result = await this.reportsRepository.updateInterest(id,interest,session)
+    return result
+  })
+}
+
 }
