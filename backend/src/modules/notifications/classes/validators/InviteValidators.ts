@@ -50,6 +50,17 @@ class CourseAndVersionId {
   versionId: string;
 }
 
+class CourseVersionIdParams {
+  @JSONSchema({
+    description: 'ID of the specific version of the course',
+    type: 'string',
+  })
+  // @IsMongoId()
+  @IsString()
+  @IsNotEmpty()
+  versionId: string;
+}
+
 class InviteQueryParams {
   @IsOptional()
   @IsString()
@@ -284,4 +295,5 @@ export {
   InviteResult,
   InviteIdParams,
   InviteQueryParams,
+  CourseVersionIdParams
 };

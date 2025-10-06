@@ -33,6 +33,7 @@ import {
   User,
   Link,
   Copy,
+  UserCheck,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -1031,6 +1032,20 @@ function VersionCard({
     })
   }
 
+  const goToRegistrations = () => {
+    setCurrentCourse({
+      courseId: courseId,
+      versionId: selectedVersionId ? selectedVersionId : null,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: null,
+    })
+    navigate({
+      to: "/teacher/courses/registration-requests" as any,
+    })
+  }
+
   const viewInstructors = () => {
     // Set course info in store and navigate to instructors page
     setCurrentCourse({
@@ -1364,6 +1379,7 @@ function VersionCard({
                   <UserCog2  className="h-3 w-3 mr-1" />
                   View Instructors
                 </Button>
+               
                 <Button
                   variant="outline"
                   size="sm"
@@ -1372,6 +1388,15 @@ function VersionCard({
                 >
                   <Users className="h-3 w-3 mr-1" />
                   View Students
+                </Button>
+                 <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToRegistrations}
+                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                >
+                  <UserCheck className="h-3 w-3 mr-1" />
+                   Registrations
                 </Button>
                 {/* <Button
           variant="outline"
