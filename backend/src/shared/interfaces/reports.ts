@@ -24,6 +24,7 @@ interface IReport {
     entityType?: EntityType;
     reportedBy?: string | ObjectId;
     reason?: string;
+    satisfied?:string;
     status?: IStatus[];
     createdAt?: Date;
     updatedAt?: Date;
