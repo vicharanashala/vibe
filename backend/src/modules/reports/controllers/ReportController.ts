@@ -40,6 +40,8 @@ import { subject } from '@casl/ability';
 })
 @injectable()
 @JsonController('/reports')
+
+
 class ReportController {
   constructor(
     @inject(REPORT_TYPES.ReportService)

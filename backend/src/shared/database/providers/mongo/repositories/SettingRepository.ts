@@ -2,7 +2,12 @@ import 'reflect-metadata';
 import {Collection, ObjectId, UpdateResult, ClientSession} from 'mongodb';
 import {injectable, inject} from 'inversify';
 import {MongoDatabase} from '../MongoDatabase.js';
-import {ICourseSetting, IUserSetting} from '#shared/interfaces/models.js';
+import {
+  ICourseSetting,
+  IRegistrationSettings,
+  ISettings,
+  IUserSetting,
+} from '#shared/interfaces/models.js';
 import {
   ISettingRepository,
   ProctoringComponent,
@@ -15,6 +20,7 @@ import {
   UserSetting,
 } from '#root/modules/setting/classes/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
+import { NotFoundError } from 'routing-controllers';
 
 /**
  * Implementation of the Settings Repository for MongoDB.
@@ -304,7 +310,7 @@ export class SettingRepository implements ISettingRepository {
         },
       },
       {
-        upsert: true, 
+        upsert: true,
         session,
       },
     );
@@ -339,4 +345,90 @@ export class SettingRepository implements ISettingRepository {
   //     return false;
   //   }
   // }
+
+  async addDefaultRegistrationSettings(
+    courseId: string,
+    courseVersionId: string,
+    settings: IRegistrationSettings[],
+    session?: ClientSession,
+  ): Promise<UpdateResult | null> {
+    await this.init();
+
+    const result = await this.courseSettingsCollection.updateOne(
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+      },
+      {
+        $set: {
+          'settings.registration_settings': settings,
+        },
+      },
+      {session},
+    );
+    return result;
+  }
+
+  async updateRegistrationSettings(
+    courseId: string,
+    versionId: string,
+    schemas: { jsonSchema: any; uiSchema: any },
+    session?: ClientSession,
+  ): Promise<UpdateResult | null> {
+    await this.init();
+
+    const result = await this.courseSettingsCollection.updateOne(
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(versionId),
+      },
+      {
+        $set: {
+          'settings.registration.jsonSchema': schemas.jsonSchema,
+          'settings.registration.uiSchema': schemas.uiSchema
+        },
+      },
+      {session},
+    );
+    return result;
+  }
+
+  async updateRegistrationSchemas(
+  courseId: string,
+  versionId: string,
+  schemas: { jsonSchema?: any; uiSchema?: any }, // Partial update for schemas only
+  session?: ClientSession,
+): Promise<UpdateResult> {
+  await this.init();
+
+  const result = await this.courseSettingsCollection.updateOne(
+    {
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(versionId),
+    },
+    {
+      $set: {
+        'settings.registration.jsonSchema': schemas.jsonSchema,
+        'settings.registration.uiSchema': schemas.uiSchema,
+      },
+    },
+    { session },
+  );
+
+  if (result.matchedCount === 0) {
+    throw new NotFoundError(`Course settings for course ID ${courseId} and version ID ${versionId} not found.`);
+  }
+
+  return result;
 }
+
+async readSettingsSchema(versionId:string,session?:ClientSession){
+  await this.init()
+  const result = await this.courseSettingsCollection.findOne({courseVersionId:new ObjectId(versionId)},{session})
+  const jsonSchema=result.settings.registration.jsonSchema
+  const uiSchema= result.settings.registration.uiSchema
+  return {jsonSchema,uiSchema}
+}
+
+}
+
