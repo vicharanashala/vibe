@@ -23,13 +23,6 @@ interface LotItem {
     explaination: string;
     id: string; // Add unique ID for better tracking
 }
-interface INATSolution {
-  decimalPrecision: number;
-  upperLimit: number;
-  lowerLimit: number;
-  value?: number;
-  expression?: string;
-}
 
 type PRIORITIES = "LOW" | "MEDIUM" | "HIGH"
 
@@ -424,16 +417,17 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                                 onChange={(e) => setQuestionForm(prev => ({ ...prev, upperLimit: parseFloat(e.target.value) || 100 }))}
                                                 />
                                             </div>
+                                            
                                             <div className="flex-1 min-w-[120px]">
-                                                <Label htmlFor="value" className="mb-3">Value</Label>
+                                                <Label htmlFor="value" className="mb-3">Value *</Label>
                                                 <Input
                                                 id="value"
                                                 type="number"
                                                 value={questionForm.value}
-                                                onChange={(e) => setQuestionForm(prev => ({ ...prev, value: parseFloat(e.target.value) || 100 }))}
+                                                onChange={(e) => setQuestionForm(prev => ({ ...prev, value: parseFloat(e.target.value) || 0 }))}
                                                 />
                                             </div>
-                                            <div className="flex-1 min-w-[120px]">
+                                            {/* <div className="flex-1 min-w-[120px]">
                                                 <Label htmlFor="expression" className="mb-3">Expression</Label>
                                                 <Input
                                                 id="expression"
@@ -441,7 +435,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                                 placeholder='Enter expression...'
                                                 onChange={(e) => setQuestionForm(prev => ({ ...prev, expression: e.target.value || "" }))}
                                                 />
-                                            </div>
+                                            </div> */}
                                             </>
                                         )}
 
@@ -451,6 +445,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                             <Input
                                                 id="solutionText"
                                                 type="text"
+                                                placeholder='Enter solution text...'
                                                 value={questionForm.solutionText}
                                                 onChange={(e) => setQuestionForm(prev => ({ ...prev, solutionText: e.target.value }))}
                                             />
@@ -592,6 +587,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                             <Button
                             onClick={handleCreateQuestion}
                             disabled={
+                                createQuestion.isPending ||
                                 !questionForm.text.trim() ||
                                 !questionForm.hint.trim() ||
                                 !questionForm.timeLimitSeconds ||
@@ -614,7 +610,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                 )
                             }
                             >
-                            Create Question
+                            {createQuestion.isPending ? "Creating Question...":"Create Question"}
                             </Button>
                         </div>
                     </DialogContent>

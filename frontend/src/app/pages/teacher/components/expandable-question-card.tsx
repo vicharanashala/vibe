@@ -533,6 +533,20 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
                 className="mt-1"
               />
             </div>
+            <div>
+              <Label htmlFor="value" className="text-sm font-medium">Value</Label>
+              <Input
+                id="value"
+                type="number"
+                min="0"
+                value={editForm?.solution?.value || ''}
+                onChange={(e) => setEditForm({
+                  ...editForm,
+                  solution: { ...editForm.solution, value: parseInt(e.target.value) }
+                })}
+                className="mt-1"
+              />
+            </div>
           </div>
         )}
 
@@ -608,7 +622,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
         </div>
 
         {/* Parameterized Question */}
-        <div className="flex items-center space-x-3">
+        {/* <div className="flex items-center space-x-3">
           <input
             type="checkbox"
             id="isParameterized"
@@ -622,7 +636,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
           <Label htmlFor="isParameterized" className="text-sm cursor-pointer">
             Is Parameterized Question
           </Label>
-        </div>
+        </div> */}
       </div>
     </div>
   );
