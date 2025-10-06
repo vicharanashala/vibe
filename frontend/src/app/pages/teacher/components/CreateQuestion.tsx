@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Trash2, CheckCircle, Circle } from "lucide-react";
 import { useCreateQuestion, useAddQuestionToBank } from '@/hooks/hooks';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
 
 interface CreateQuestionDialogProps {
     showCreateQuestionDialog: boolean;
@@ -22,12 +23,21 @@ interface LotItem {
     explaination: string;
     id: string; // Add unique ID for better tracking
 }
+interface INATSolution {
+  decimalPrecision: number;
+  upperLimit: number;
+  lowerLimit: number;
+  value?: number;
+  expression?: string;
+}
+
+type PRIORITIES = "LOW" | "MEDIUM" | "HIGH"
 
 interface OptionWithSelection extends LotItem {
     isCorrect: boolean;
 }
 
-type QuestionType = 'SELECT_ONE_IN_LOT' | 'SELECT_MANY_IN_LOT';
+type QuestionType = 'SELECT_ONE_IN_LOT' | 'SELECT_MANY_IN_LOT' | 'DESCRIPTIVE' | 'NUMERIC_ANSWER_TYPE';
 
 const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
     showCreateQuestionDialog,
@@ -42,7 +52,13 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
         timeLimitSeconds: 60,
         points: 5,
         options: [] as OptionWithSelection[],
-        priority: 'LOW' as 'LOW' | 'MEDIUM' | 'HIGH'
+        priority: 'LOW' as PRIORITIES,
+        decimalPrecision: 0,
+        upperLimit: 0,
+        lowerLimit: 0,
+        value: 0,
+        expression: "",
+        solutionText: ""
     });
 
     const createQuestion = useCreateQuestion();
@@ -103,6 +119,14 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
         setQuestionForm(prev => {
             let updatedOptions = [...prev.options];
 
+            if ( newType == "DESCRIPTIVE" || newType=="NUMERIC_ANSWER_TYPE" ) {
+                return {
+                    ...prev,
+                    type: newType,
+                    options: []
+                }
+            }
+
             // When switching from SELECT_ONE_IN_LOT to SELECT_MANY_IN_LOT
             if (prev.type === 'SELECT_ONE_IN_LOT' && newType === 'SELECT_MANY_IN_LOT') {
                 // Keep all options as they are - correctness is already set
@@ -138,7 +162,13 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
             timeLimitSeconds: 60,
             points: 5,
             options: [],
-            priority: 'LOW'
+            priority: 'LOW',
+            decimalPrecision: 0,
+            upperLimit: 0,
+            lowerLimit: 0,
+            value: 0,
+            expression: "",
+            solutionText: ""
         });
     };
 
@@ -147,14 +177,16 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
         const correctOptions = questionForm.options.filter(option => option.isCorrect && option.text.trim());
         const incorrectOptions = questionForm.options.filter(option => !option.isCorrect && option.text.trim());
 
+        const isSolOrSml = questionForm.type === "SELECT_ONE_IN_LOT" || questionForm.type === "SELECT_MANY_IN_LOT"
+
         // Validation
-        if (correctOptions.length === 0) {
-            alert('Please select at least one correct answer.');
+        if (isSolOrSml && correctOptions.length === 0) {
+            toast.error('Please select at least one correct answer.');
             return;
         }
 
-        if (incorrectOptions.length === 0) {
-            alert('Please add at least one incorrect option.');
+        if (isSolOrSml && incorrectOptions.length === 0) {
+            toast.error('Please add at least one incorrect option.');
             return;
         }
 
@@ -173,11 +205,44 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                 ...(questionForm.type === 'SELECT_ONE_IN_LOT'
                     ? { correctLotItem: { text: correctOptions[0].text, explaination: correctOptions[0].explaination } }
                     : { correctLotItems: correctOptions.map(({ text, explaination }) => ({ text, explaination })) }
-                )
+                ),
+                decimalPrecision: questionForm.decimalPrecision  || 0,
+                upperLimit: questionForm.upperLimit  || 0,
+                lowerLimit: questionForm.lowerLimit  || 0,
+                value: questionForm.value  || 0,
+                expression: questionForm.expression  || "",
+                solutionText: questionForm.solutionText  || "",
             };
 
             console.log('Creating question:', questionData);
 
+            let solutionData: any = {};
+
+            if (questionData.type === "SELECT_ONE_IN_LOT" || questionData.type === "SELECT_MANY_IN_LOT") {
+                solutionData.incorrectLotItems = questionData.incorrectLotItems;
+
+                if ("correctLotItem" in questionData) {
+                    solutionData.correctLotItem = questionData.correctLotItem;
+                } else if ("correctLotItems" in questionData) {
+                    solutionData.correctLotItems = questionData.correctLotItems;
+                }
+            }
+
+            // For numeric questions
+            else if (questionData.type === "NUMERIC_ANSWER_TYPE") {
+                solutionData = {
+                    decimalPrecision: questionData.decimalPrecision,
+                    upperLimit: questionData.upperLimit,
+                    lowerLimit: questionData.lowerLimit,
+                    value: questionData.value,
+                    expression: questionData.expression,
+                };
+            }
+            else if (questionData.type === "DESCRIPTIVE") {
+                solutionData = {
+                    solutionText: questionData.solutionText ,
+                };
+            }
             const data = await createQuestion.mutateAsync({
                 body: {
                     question: {
@@ -190,11 +255,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                         points: questionData.points,
                         priority: questionData.priority
                     },
-                    solution: {
-                        correctLotItems: questionData.correctLotItems,
-                        incorrectLotItems: questionData.incorrectLotItems,
-                        correctLotItem: questionData.correctLotItem
-                    }
+                    solution: solutionData
                 }
             });
             await addQuestionToBank.mutateAsync({
@@ -248,11 +309,11 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <Label className='mb-3'>Question Type *</Label>
+                                            <Label className='mb-3'>Question Type</Label>
                                             <RadioGroup
                                                 value={questionForm.type}
                                                 onValueChange={(value: QuestionType) => handleTypeChange(value)}
-                                                className="mt-2"
+                                                className="mt-2 grid grid-cols-2 gap-4"
                                             >
                                                 <div className="flex items-center space-x-2">
                                                     <RadioGroupItem value="SELECT_ONE_IN_LOT" id="single" />
@@ -261,6 +322,14 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                                 <div className="flex items-center space-x-2">
                                                     <RadioGroupItem value="SELECT_MANY_IN_LOT" id="multiple" />
                                                     <Label htmlFor="multiple" className="cursor-pointer">Select Multiple Answers</Label>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <RadioGroupItem value="NUMERIC_ANSWER_TYPE" id="nat" />
+                                                    <Label htmlFor="nat" className="cursor-pointer">Numerical Answer</Label>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <RadioGroupItem value="DESCRIPTIVE" id="das" />
+                                                    <Label htmlFor="das" className="cursor-pointer">Descriptive Answer</Label>
                                                 </div>
                                             </RadioGroup>
                                         </div>
@@ -277,156 +346,240 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <Label htmlFor="timeLimit" className='mb-3'>Time Limit (seconds) *</Label>
-                                            <Input
-                                                id="timeLimit"
-                                                type="number"
-                                                min="1"
-                                                value={questionForm.timeLimitSeconds}
-                                                onChange={(e) => setQuestionForm(prev => ({ ...prev, timeLimitSeconds: parseInt(e.target.value) || 60 }))}
-                                            />
+                                    <div>
+                                        <Label htmlFor="timeLimit" className='mb-3'>Time Limit (seconds) *</Label>
+                                        <Input
+                                        id="timeLimit"
+                                        type="number"
+                                        min="1"
+                                        value={questionForm.timeLimitSeconds}
+                                        onChange={(e) => setQuestionForm(prev => ({ ...prev, timeLimitSeconds: parseInt(e.target.value) || 60 }))}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <Label htmlFor="points" className='mb-3'>Points *</Label>
+                                        <Input
+                                        id="points"
+                                        type="number"
+                                        min="1"
+                                        value={questionForm.points}
+                                        onChange={(e) => setQuestionForm(prev => ({ ...prev, points: parseInt(e.target.value) || 1 }))}
+                                        />
+                                    </div>
+
+                                    <div className="col-span-1 md:col-span-2 overflow-hidden transition-all duration-300 ease-in-out transform flex flex-wrap gap-4 items-end mt-4"
+                                        >
+                                        <div className="flex-1 min-w-[150px]">
+                                            <Label htmlFor="priority" className="mb-3">Priority</Label>
+                                            <Select
+                                            value={questionForm.priority}
+                                            
+                                            onValueChange={(value: PRIORITIES) => setQuestionForm(prev => ({ ...prev, priority: value }))}
+                                            >
+                                            <SelectTrigger className={`${
+                                                questionForm.type === "NUMERIC_ANSWER_TYPE" || questionForm.type === "DESCRIPTIVE"
+                                                ? "w-full"
+                                                : "w-[25%]"
+                                            }`}>
+                                                <SelectValue placeholder="Select priority"  />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="LOW">Low</SelectItem>
+                                                <SelectItem value="MEDIUM">Medium</SelectItem>
+                                                <SelectItem value="HIGH">High</SelectItem>
+                                            </SelectContent>
+                                            </Select>
                                         </div>
 
-                                        <div>
-                                            <Label htmlFor="points" className='mb-3'>Points *</Label>
-                                            <Input
-                                                id="points"
+                                        {questionForm.type === "NUMERIC_ANSWER_TYPE" && (
+                                            <>
+                                            <div className="flex-1 min-w-[120px]">
+                                                <Label htmlFor="decimalPrecision" className="mb-3">Decimal Precision</Label>
+                                                <Input
+                                                id="decimalPrecision"
                                                 type="number"
-                                                min="1"
-                                                value={questionForm.points}
-                                                onChange={(e) => setQuestionForm(prev => ({ ...prev, points: parseInt(e.target.value) || 1 }))}
+                                                min="0"
+                                                value={questionForm.decimalPrecision}
+                                                onChange={(e) => setQuestionForm(prev => ({ ...prev, decimalPrecision: parseInt(e.target.value) || 0 }))}
+                                                />
+                                            </div>
+
+                                            <div className="flex-1 min-w-[120px]">
+                                                <Label htmlFor="lowerLimit" className="mb-3">Lower Limit</Label>
+                                                <Input
+                                                id="lowerLimit"
+                                                type="number"
+                                                value={questionForm.lowerLimit}
+                                                onChange={(e) => setQuestionForm(prev => ({ ...prev, lowerLimit: parseFloat(e.target.value) || 0 }))}
+                                                />
+                                            </div>
+
+                                            <div className="flex-1 min-w-[120px]">
+                                                <Label htmlFor="upperLimit" className="mb-3">Upper Limit</Label>
+                                                <Input
+                                                id="upperLimit"
+                                                type="number"
+                                                value={questionForm.upperLimit}
+                                                onChange={(e) => setQuestionForm(prev => ({ ...prev, upperLimit: parseFloat(e.target.value) || 100 }))}
+                                                />
+                                            </div>
+                                            <div className="flex-1 min-w-[120px]">
+                                                <Label htmlFor="value" className="mb-3">Value</Label>
+                                                <Input
+                                                id="value"
+                                                type="number"
+                                                value={questionForm.value}
+                                                onChange={(e) => setQuestionForm(prev => ({ ...prev, value: parseFloat(e.target.value) || 100 }))}
+                                                />
+                                            </div>
+                                            <div className="flex-1 min-w-[120px]">
+                                                <Label htmlFor="expression" className="mb-3">Expression</Label>
+                                                <Input
+                                                id="expression"
+                                                value={questionForm.expression}
+                                                placeholder='Enter expression...'
+                                                onChange={(e) => setQuestionForm(prev => ({ ...prev, expression: e.target.value || "" }))}
+                                                />
+                                            </div>
+                                            </>
+                                        )}
+
+                                        {questionForm.type === "DESCRIPTIVE" && (
+                                            <div className="flex-1 min-w-[250px]">
+                                            <Label htmlFor="solutionText" className="mb-3">Solution Text *</Label>
+                                            <Input
+                                                id="solutionText"
+                                                type="text"
+                                                value={questionForm.solutionText}
+                                                onChange={(e) => setQuestionForm(prev => ({ ...prev, solutionText: e.target.value }))}
                                             />
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="priority" className='mb-3'>Priority *</Label>
-                                            <Select
-                                                value={questionForm.priority}
-                                                onValueChange={(value) => setQuestionForm(prev => ({ ...prev, priority: value }))}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select priority" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="LOW">Low</SelectItem>
-                                                    <SelectItem value="MEDIUM">Medium</SelectItem>
-                                                    <SelectItem value="HIGH">High</SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                            </div>
+                                        )}
                                         </div>
                                     </div>
                                 </CardContent>
                             </Card>
 
-                            {/* Answer Options */}
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-base md:text-lg">Answer Options</CardTitle>
-                                    <p className="text-sm text-muted-foreground">
-                                        {questionForm.type === 'SELECT_ONE_IN_LOT'
-                                            ? 'Select the radio button next to the correct answer'
-                                            : 'Check all correct answers (at least one required)'
-                                        }
-                                    </p>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    {questionForm.options.map((option) => (
-                                        <div key={option.id} className={`border rounded-lg p-4 space-y-3 ${option.isCorrect ? 'bg-green-500/10 border-green-500/20' : 'border-gray-200'
-                                            }`}>
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div className="flex items-center gap-3 flex-1">
-                                                    {questionForm.type === 'SELECT_ONE_IN_LOT' ? (
-                                                        <div
-                                                            className="cursor-pointer"
-                                                            onClick={() => toggleOptionCorrectness(option.id)}
-                                                        >
-                                                            {option.isCorrect ? (
-                                                                <CheckCircle className="h-5 w-5 text-green-600" />
-                                                            ) : (
-                                                                <Circle className="h-5 w-5 text-gray-400" />
-                                                            )}
+                            <div
+                             className={`transition-all duration-300 ease-in-out transform ${
+                                questionForm.type !== "DESCRIPTIVE" && questionForm.type !== "NUMERIC_ANSWER_TYPE"
+                                ? "translate-y-0 opacity-100 max-h-[2000px]"
+                                : "-translate-y-5 opacity-0 max-h-0"
+                            } overflow-hidden`}
+                            >
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="text-base md:text-lg">Answer Options</CardTitle>
+                                        <p className="text-sm text-muted-foreground">
+                                            {questionForm.type === 'SELECT_ONE_IN_LOT'
+                                                ? 'Select the radio button next to the correct answer'
+                                                : 'Check all correct answers (at least one required)'
+                                            }
+                                        </p>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        {questionForm.options.map((option) => (
+                                            <div key={option.id} className={`border rounded-lg p-4 space-y-3 ${option.isCorrect ? 'bg-green-500/10 border-green-500/20' : 'border-gray-200'
+                                                }`}>
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="flex items-center gap-3 flex-1">
+                                                        {questionForm.type === 'SELECT_ONE_IN_LOT' ? (
+                                                            <div
+                                                                className="cursor-pointer"
+                                                                onClick={() => toggleOptionCorrectness(option.id)}
+                                                            >
+                                                                {option.isCorrect ? (
+                                                                    <CheckCircle className="h-5 w-5 text-green-600" />
+                                                                ) : (
+                                                                    <Circle className="h-5 w-5 text-gray-400" />
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <Checkbox
+                                                                checked={option.isCorrect}
+                                                                onCheckedChange={() => toggleOptionCorrectness(option.id)}
+                                                            />
+                                                        )}
+                                                        <div className="flex-1 space-y-2">
+                                                            <Input
+                                                                placeholder="Enter answer option..."
+                                                                value={option.text}
+                                                                onChange={(e) => updateOption(option.id, 'text', e.target.value)}
+                                                            />
                                                         </div>
-                                                    ) : (
-                                                        <Checkbox
-                                                            checked={option.isCorrect}
-                                                            onCheckedChange={() => toggleOptionCorrectness(option.id)}
-                                                        />
-                                                    )}
-                                                    <div className="flex-1 space-y-2">
-                                                        <Input
-                                                            placeholder="Enter answer option..."
-                                                            value={option.text}
-                                                            onChange={(e) => updateOption(option.id, 'text', e.target.value)}
-                                                        />
                                                     </div>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => removeOption(option.id)}
+                                                        className="text-red-500 hover:text-red-700"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
                                                 </div>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => removeOption(option.id)}
-                                                    className="text-red-500 hover:text-red-700"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
+                                                <div>
+                                                    <Label className="text-sm text-gray-600">
+                                                        * Explanation {option.isCorrect ? '(Why this is correct)' : '(Why this is incorrect)'}
+                                                    </Label>
+                                                    <Textarea
+                                                        placeholder={option.isCorrect
+                                                            ? "Explain why this answer is correct..."
+                                                            : "Explain why this answer is incorrect..."
+                                                        }
+                                                        value={option.explaination}
+                                                        onChange={(e) => updateOption(option.id, 'explaination', e.target.value)}
+                                                        className="mt-1"
+                                                    />
+                                                </div>
                                             </div>
-                                            <div>
-                                                <Label className="text-sm text-gray-600">
-                                                    Explanation {option.isCorrect ? '(Why this is correct)' : '(Why this is incorrect)'}
-                                                </Label>
-                                                <Textarea
-                                                    placeholder={option.isCorrect
-                                                        ? "Explain why this answer is correct..."
-                                                        : "Explain why this answer is incorrect..."
-                                                    }
-                                                    value={option.explaination}
-                                                    onChange={(e) => updateOption(option.id, 'explaination', e.target.value)}
-                                                    className="mt-1"
-                                                />
+                                        ))}
+
+                                        {questionForm.options.length === 0 && (
+                                            <div className="text-center py-8 text-muted-foreground text-sm md:text-base">
+                                                No options added yet. Click "Add Option" to get started.
                                             </div>
-                                        </div>
-                                    ))}
+                                        )}
 
-                                    {questionForm.options.length === 0 && (
-                                        <div className="text-center py-8 text-muted-foreground text-sm md:text-base">
-                                            No options added yet. Click "Add Option" to get started.
-                                        </div>
-                                    )}
+                                        <Button
+                                            variant="outline"
+                                            onClick={addOption}
+                                            className="w-full"
+                                        >
+                                            <Plus className="h-4 w-4 mr-2" />
+                                            Add Option
+                                        </Button>
 
-                                    <Button
-                                        variant="outline"
-                                        onClick={addOption}
-                                        className="w-full"
-                                    >
-                                        <Plus className="h-4 w-4 mr-2" />
-                                        Add Option
-                                    </Button>
-
-                                    {/* Validation Messages */}
-                                    {questionForm.options.length > 0 && (
-                                        <div className="text-sm space-y-1">
-                                            {questionForm.options.filter(o => o.isCorrect).length === 0 && (
-                                                <p className="text-red-600">⚠️ Please select at least one correct answer</p>
-                                            )}
-                                            {questionForm.options.filter(o => !o.isCorrect).length === 0 && (
-                                                <p className="text-red-600">⚠️ Please add at least one incorrect option</p>
-                                            )}
-                                            {questionForm.type === 'SELECT_MANY_IN_LOT' &&
-                                                questionForm.options.filter(o => o.isCorrect).length >= 1 &&
-                                                questionForm.options.filter(o => !o.isCorrect).length >= 1 && (
-                                                    <p className="text-green-600">✓ Question is ready to create</p>
+                                        {/* Validation Messages */}
+                                        {questionForm.options.length > 0 && (
+                                            <div className="text-sm space-y-1">
+                                                {questionForm.options.filter(o => o.isCorrect).length === 0 && (
+                                                    <p className="text-red-600">⚠️ Please select at least one correct answer</p>
                                                 )}
-                                            {questionForm.type === 'SELECT_ONE_IN_LOT' &&
-                                                questionForm.options.filter(o => o.isCorrect).length === 1 &&
-                                                questionForm.options.filter(o => !o.isCorrect).length >= 1 && (
-                                                    <p className="text-green-600">✓ Question is ready to create</p>
+                                                {(questionForm.type === 'SELECT_MANY_IN_LOT' || questionForm.type === 'SELECT_ONE_IN_LOT') && questionForm.options.filter((opt)=> opt?.explaination== "").length !==0 &&
+                                                    <p className="text-red-600">⚠️ Please provide an explanation for all answer options.</p>
+                                                }
+                                                {questionForm.options.filter(o => !o.isCorrect).length === 0 && (
+                                                    <p className="text-red-600">⚠️ Please add at least one incorrect option</p>
                                                 )}
-                                            {!questionForm.hint.trim() && (
-                                                <p className="text-red-600">⚠️ Hint is recommended for better clarity</p>
-                                            )}
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
+                                                {questionForm.type === 'SELECT_MANY_IN_LOT' &&
+                                                    questionForm.options.filter(o => o.isCorrect).length >= 1 &&
+                                                    questionForm.options.filter(o => !o.isCorrect).length >= 1 && (
+                                                        <p className="text-green-600">✓ Question is ready to create</p>
+                                                    )}
+                                                {questionForm.type === 'SELECT_ONE_IN_LOT' &&
+                                                    questionForm.options.filter(o => o.isCorrect).length === 1 &&
+                                                    questionForm.options.filter(o => !o.isCorrect).length >= 1 && (
+                                                        <p className="text-green-600">✓ Question is ready to create</p>
+                                                    )}
+                                                {!questionForm.hint.trim() && (
+                                                    <p className="text-red-600">⚠️ Hint is recommended for better clarity</p>
+                                                )}
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </div>
                         </div>
 
                         <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
@@ -437,15 +590,31 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                 Cancel
                             </Button>
                             <Button
-                                onClick={handleCreateQuestion}
-                                disabled={
-                                    !questionForm.text.trim() ||
-                                    questionForm.options.filter(o => o.isCorrect).length === 0 ||
-                                    questionForm.options.filter(o => !o.isCorrect).length === 0
-                                    // questionForm.options.some(o => !o.text.trim())
-                                }
+                            onClick={handleCreateQuestion}
+                            disabled={
+                                !questionForm.text.trim() ||
+                                !questionForm.hint.trim() ||
+                                !questionForm.timeLimitSeconds ||
+                                !questionForm.points ||
+                                !questionForm.priority ||
+
+                                (questionForm.type === "DESCRIPTIVE" && !questionForm.solutionText.trim()) ||
+
+                                (questionForm.type === "NUMERIC_ANSWER_TYPE" &&
+                                (
+                                questionForm.decimalPrecision === undefined ||
+                                questionForm.lowerLimit === undefined ||
+                                questionForm.upperLimit === undefined)
+                                ) ||
+
+                                (questionForm.type !== "DESCRIPTIVE" && questionForm.type !== "NUMERIC_ANSWER_TYPE" &&
+                                (questionForm.options.filter(o => o.isCorrect).length === 0 ||
+                                questionForm.options.filter(o => !o.isCorrect).length === 0) || 
+                                questionForm.options[questionForm.options?.length-1]?.explaination.trim() == ""
+                                )
+                            }
                             >
-                                Create Question
+                            Create Question
                             </Button>
                         </div>
                     </DialogContent>
