@@ -49,10 +49,7 @@ export default function AnomaliesList() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Debug effect to log search state
-  useEffect(() => {
-    console.log('Search state:', { searchQuery, debouncedSearch, isSearching });
-  }, [searchQuery, debouncedSearch, isSearching]);
+
 
   // Handle filter change
   const handleTypeChange = (value: string) => {
