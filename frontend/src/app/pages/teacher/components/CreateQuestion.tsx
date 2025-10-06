@@ -207,6 +207,11 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                 solutionText: questionForm.solutionText  || "",
             };
 
+           if (questionData.type=="NUMERIC_ANSWER_TYPE" && questionData.lowerLimit >= questionData.upperLimit) {
+                toast.error("Lower limit cannot be greater than or equal to upper limit.");
+                return;
+            }
+
             console.log('Creating question:', questionData);
 
             let solutionData: any = {};
