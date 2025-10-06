@@ -1475,11 +1475,11 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
           {/* Edit Question Bank Dialog */}
           <Dialog open={showEditQuestionBankDialog} onOpenChange={setShowEditQuestionBankDialog}>
-            <DialogContent className="w-100">
+            <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>Edit Question Bank Configuration</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4">
+              <div className="space-y-6 mt-5">
                 {/* Bank Info Display */}
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground mb-4">
@@ -1504,14 +1504,14 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                 <div className="space-y-2">
                   <Label htmlFor="editTags">Tags</Label>
                   <div className="space-y-2">
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
                       <Input
                         id="editTags"
                         value={currentTag}
                         onChange={(e) => setCurrentTag(e.target.value)}
                         onKeyPress={handleTagKeyPress}
                         placeholder="Add a tag"
-                        className="w-80"
+                        className="w-full"
                       />
                       <Button
                         type="button"
@@ -1555,7 +1555,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                     value={questionBankEditForm.difficultyLevel}
                     onValueChange={(value) => setQuestionBankEditForm({ ...questionBankEditForm, difficultyLevel: value })}
                   >
-                    <SelectTrigger className="w-80">
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select difficulty level" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1575,7 +1575,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                     value={questionBankEditForm.questionsToSelect}
                     onChange={(e) => setQuestionBankEditForm({ ...questionBankEditForm, questionsToSelect: Number(e.target.value) })}
                     min={1}
-                    className="w-80"
+                    className="w-full"
                     placeholder="Enter number of questions to select"
                   />
                 </div>
