@@ -26,6 +26,7 @@ import {
   ReportFiltersQuery,
   ReportResponse,
   ReportUpdateParams,
+  ResponseIntersetBody,
   UpdateReportStatusBody,
 } from '../classes/index.js';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
@@ -210,31 +211,25 @@ async getMyIssueReports(
   return result;
 }
 
-  // @OpenAPI({
-  //   summary: 'Get filtered reports',
-  //   description: 'Retrieves reports based on filtering criteria',
-  // })
-  // @Authorized()
-  // @Get('/:courseId/:versionId')
-  // @HttpCode(200)
-  // @ResponseSchema(ReportResponse, {isArray: true})
-  // async getMyFlags(
-  //   // @Params() params: GetReportParams,
-  //   @QueryParams() filters: MyFlagFiltersQuery,
-  //   @Ability(getReportAbility) {ability, user},
-  // ): Promise<ReportResponse> {
-  //   // const { courseId, versionId } = params;
-  //   // const reportResource = subject(ReportPermissionSubject.REPORT, { courseId });
-
-  //   // if (!ability.can(ReportsActions.View, reportResource)) {
-  //   //   throw new ForbiddenError(
-  //   //     'You do not have permission to view reports for this course',
-  //   //   );
-  //   // }
-  //   const userId = user?._id;
-  //   const result = await this.reportService.getMyFlags(userId);
-  //   return result;
-  // }
+@OpenAPI({
+    summary: 'Update report status',
+    description: 'Updates the status of an existing report',
+  })
+  @Authorized()
+  @Patch('/student/issues/interest', {transformResponse: true})
+  @HttpCode(200)
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async updateResponseInterset(
+    @Body() body: ResponseIntersetBody,
+    // @Ability(getReportAbility) {ability, user},
+  ): Promise<{message: string}> {
+    const {interest,issueId} = body
+    const result = await this.reportService.updateStudentInterset(issueId as string,interest)
+    return {message: 'Response updated successfully'};
+  }
 }
 
 export {ReportController};

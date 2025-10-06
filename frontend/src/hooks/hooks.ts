@@ -3125,6 +3125,9 @@ export const useGetRegistrationFields = (
   };
 };
 
+
+
+
 export const useGetDynamicFields = (
   versionId: string,
 ): {
@@ -3153,58 +3156,6 @@ export const useGetDynamicFields = (
   };
 };
 
-
-// export interface IssueReport {
-//   _id: string;
-//   detail: Record<string, any>;
-//   status: IssueStatus;
-//   createdAt: string;
-// }
-
-// // export type IssueStatus = "PENDING" | "RESOLVED" | "REJECTED" | "ALL";
-
-// interface Params {
-//   status: IssueStatus;
-//   search: string;
-//   sort: IssueSort;
-//   page: number;
-//   limit: number;
-// }
-
-// interface IssueReportsResponse {
-//   issues: IssueReport[];
-//   totalDocuments: number;
-//   totalPages: number;
-// }
-
-// export const useGetCourseIssueReports = (
-//   versionId: string,
-//   params: Params,
-// ): {
-//   data: IssueReportsResponse;
-//   isLoading: boolean;
-//   error: string | null;
-//   refetch: () => void;
-// } => {
-//   const result = api.useQuery(
-//     "get",
-//     `/reports/student/issues/flag` as any,
-//     {
-//       params: {
-//         query: params,
-//       },
-//     },
-//     {
-//       enabled: !!versionId,
-//     }
-//   );
-//   return {
-//     data: result.data as IssueReportsResponse,
-//     isLoading: result.isLoading,
-//     error: result.error ? result.error.message || "Failed to fetch issue reports" : null,
-//     refetch: result.refetch,
-//   };
-// };
 
 
 export type IssueStatus =
@@ -3287,3 +3238,24 @@ export const useGetCourseIssueReports = (
 
 
 
+export const useUpdateStudentInterest = () => {
+  const result = api.useMutation(
+    "patch",
+    `/reports/student/issues/interest` as any // replace with your real endpoint
+  );
+
+  return {
+    mutate: (data: { issueId: string; interest: "yes" | "no" }) =>
+      result.mutate({ body: data }),
+    mutateAsync: (data: { issueId: string; interest: "yes" | "no" }) =>
+      result.mutateAsync({ body: data }),
+    data: result.data as { message: string } | undefined,
+    error: result.error ? result.error.message || "Failed to submit comment" : null,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+  };
+};
