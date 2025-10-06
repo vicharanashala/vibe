@@ -36,6 +36,8 @@ import StudentRouteGuard from '@/components/StudentRouteGuard'
 import AiWorkflow from '../pages/teacher/AiWorkflow'
 import AnomaliesList from '../pages/teacher/AnomaliesList'
 import CourseInstructors from '../pages/teacher/course-instructors'
+import RegisteredUsers from '../pages/teacher/CourseRegistrationRequests'
+import CourseRegistration from '../pages/student/CourseRegistration'
 
 
 // Root route with error and notFound handling
@@ -225,6 +227,15 @@ const teacherCourseInstructorsRoute = new Route({
   component: CourseInstructors,
 });
 
+// Teacher Course Regstration requests
+const teacherCourseRegistrationRequests = new Route({
+  getParentRoute:() => teacherLayoutRoute,
+  path:'/courses/registration-requests',
+  component:RegisteredUsers
+})
+
+
+
 // Teacher Course Flags route
 const teacherCourseFlagsRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -295,6 +306,12 @@ const studentProfileRoute = new Route({
   component: StudentProfile,
 });
 
+export  const studentCourseInviteRegistration = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path:"/course-registration/$versionId",
+  component: CourseRegistration,
+})
+
 const coursePageRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/student/learn',
@@ -351,11 +368,13 @@ const routeTree = rootRoute.addChildren([
     testAISectionModalRoute,
     teacherCourseAnomaliesRoute,
     teacherCourseInstructorsRoute,
+    teacherCourseRegistrationRequests
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
     studentCoursesRoute,
     studentProfileRoute,
+    studentCourseInviteRegistration
   ]),
   coursePageRoute,
 ]);

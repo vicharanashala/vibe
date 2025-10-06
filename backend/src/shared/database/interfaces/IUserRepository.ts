@@ -16,7 +16,7 @@ export interface IUserRepository {
    * @returns A promise that resolves to the created user.
    */
   create(user: IUser, session?: ClientSession): Promise<string>;
-
+  getUserNamesByIds(userIds:string[],session:ClientSession)
   /**
    * Finds a user by their email.
    * @param email - The email of the user to find.
