@@ -18,7 +18,7 @@ import { AnomalyService } from '../services/AnomalyService.js';
 import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
 import { ANOMALIES_TYPES } from '../types.js';
 import { audioUploadOptions, imageUploadOptions } from '../classes/validators/fileUploadOptions.js';
-import { AnomalyData, AnomalyIdParams, DeleteAnomalyBody, GetAnomalyParams, GetCourseAnomalyParams, GetItemAnomalyParams, GetUserAnomalyParams, NewAnomalyData, StatsQueryParams, PaginationWithSortQuery } from '../classes/validators/AnomalyValidators.js';
+import { AnomalyData, AnomalyIdParams, CourseAnomaliesQuery, DeleteAnomalyBody, GetAnomalyParams, GetCourseAnomalyParams, GetItemAnomalyParams, GetUserAnomalyParams, NewAnomalyData, StatsQueryParams } from '../classes/validators/AnomalyValidators.js';
 import { AnomalyDataResponse, AnomalyStats, FileType } from '../classes/transformers/Anomaly.js';
 import { PaginationQuery } from '#root/shared/index.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
@@ -157,11 +157,11 @@ export class AnomalyController {
   @ResponseSchema(PaginatedResponse, { isArray: false })
   async getCourseAnomalies(
     @Params() params: GetCourseAnomalyParams,
-    @QueryParams() query: PaginationWithSortQuery,
+    @QueryParams() query: CourseAnomaliesQuery,
     @Ability(getAnomalyAbility) {ability}
   ): Promise<PaginatedResponse<AnomalyData>> {
     const { courseId, versionId } = params;
-    const { page = 1, limit = 10, sortField, sortOrder } = query;
+    const { page = 1, limit = 10, sortField, sortOrder, search, type } = query;
     const skip = (page - 1) * limit;
 
     const anomalyRes = subject('Anomaly', { courseId, versionId });
@@ -170,7 +170,16 @@ export class AnomalyController {
     }
 
     const sortOptions = sortField ? { field: sortField, order: sortOrder } : undefined;
-    return this.anomalyService.getCourseAnomalies(courseId, versionId, limit, skip, sortOptions, page);
+    return this.anomalyService.getCourseAnomalies(
+      courseId, 
+      versionId, 
+      limit, 
+      skip, 
+      sortOptions, 
+      search,
+      type,
+      page
+    );
   }
 
   @OpenAPI({
