@@ -305,13 +305,35 @@ class ProgressService extends BaseService {
 
     let percentCompleted = 0;
     if (!isReset) {
-      const totalItems =
+      let totalItems =
         totalItemCount ||
         (await this.itemRepo.CalculateTotalItemsCount(
           courseId,
           courseVersionId,
           session,
         ));
+
+      const courseVersion = await this.courseRepo.readVersion(courseVersionId, session);
+      let blankQuizCount = 0;
+      
+      for (const module of courseVersion.modules || []) {
+        for (const section of module.sections || []) {
+          const itemsGroup = await this.itemRepo.readItemsGroup(
+            section.itemsGroupId.toString(),
+            session,
+          );
+          
+          for (const item of itemsGroup?.items || []) {
+            const isBlank = await this.isBlankQuiz(courseVersionId, item._id.toString());
+            if (isBlank) {
+              blankQuizCount++;
+            }
+          }
+        }
+      }
+      
+      totalItems = totalItems - blankQuizCount;
+      console.log(`[updateEnrollmentProgressPercent] Total: ${totalItems + blankQuizCount}, Blank: ${blankQuizCount}, Effective: ${totalItems}`);
 
       const completedItems =
         completedItemCount ||
@@ -485,8 +507,9 @@ class ProgressService extends BaseService {
     moduleId: string,
     sectionId: string,
     itemId: string,
-    maxDepth: number = 10 
-  ): Promise<{moduleId: string, sectionId: string, itemId: string, completed: boolean} | null> {
+    maxDepth: number = 10,
+    skippedBlankQuizIds: string[] = []
+  ): Promise<{moduleId: string, sectionId: string, itemId: string, completed: boolean, skippedBlankQuizIds: string[]} | null> {
     if (maxDepth <= 0) {
       console.log('Max recursion depth reached in findNextNonBlankItem');
       return null;
@@ -499,11 +522,13 @@ class ProgressService extends BaseService {
         moduleId,
         sectionId,
         itemId,
-        completed: false
+        completed: false,
+        skippedBlankQuizIds
       };
     }
     
     console.log(`Item ${itemId} is a blank quiz, skipping to next item`);
+    skippedBlankQuizIds.push(itemId);
     
     const nextProgress = await this.getNextItemInSequence(courseVersion, moduleId, sectionId, itemId);
     
@@ -512,7 +537,8 @@ class ProgressService extends BaseService {
         moduleId,
         sectionId,
         itemId,
-        completed: true
+        completed: true,
+        skippedBlankQuizIds
       };
     }
     
@@ -521,7 +547,8 @@ class ProgressService extends BaseService {
       nextProgress.moduleId, 
       nextProgress.sectionId, 
       nextProgress.itemId, 
-      maxDepth - 1
+      maxDepth - 1,
+      skippedBlankQuizIds
     );
   }
 
@@ -641,6 +668,7 @@ class ProgressService extends BaseService {
         currentModule: moduleId,
         currentSection: sectionId,
         currentItem: itemId,
+        skippedBlankQuizIds: []
       };
     }
 
@@ -661,6 +689,7 @@ class ProgressService extends BaseService {
         currentModule: moduleId,
         currentSection: sectionId,
         currentItem: itemId,
+        skippedBlankQuizIds: []
       };
     }
 
@@ -673,6 +702,7 @@ class ProgressService extends BaseService {
       currentModule: nextNonBlankItem.moduleId,
       currentSection: nextNonBlankItem.sectionId,
       currentItem: nextNonBlankItem.itemId,
+      skippedBlankQuizIds: nextNonBlankItem.skippedBlankQuizIds || []
     };
     
     console.log('getNewProgress RESULT', result);
@@ -787,6 +817,28 @@ class ProgressService extends BaseService {
         session,
       );
 
+      const courseVersion = await this.courseRepo.readVersion(courseVersionId, session);
+      let blankQuizCount = 0;
+      
+      for (const module of courseVersion.modules || []) {
+        for (const section of module.sections || []) {
+          const itemsGroup = await this.itemRepo.readItemsGroup(
+            section.itemsGroupId.toString(),
+            session,
+          );
+          
+          for (const item of itemsGroup?.items || []) {
+            const isBlank = await this.isBlankQuiz(courseVersionId, item._id.toString());
+            if (isBlank) {
+              blankQuizCount++;
+            }
+          }
+        }
+      }
+      
+      console.log(`Total items: ${totalItems}, Blank quizzes: ${blankQuizCount}`);
+      const effectiveTotalItems = totalItems - blankQuizCount;
+
       const completedItemsArray =
         await this.progressRepository.getCompletedItems(
           userId.toString(),
@@ -807,7 +859,7 @@ class ProgressService extends BaseService {
       return {
         completed: progress.completed,
         percentCompleted: enrollment.percentCompleted,
-        totalItems: totalItems,
+        totalItems: effectiveTotalItems,
         completedItems: completedItemsSet.size,
       };
     });
