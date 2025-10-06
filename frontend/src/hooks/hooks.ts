@@ -25,6 +25,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { VersionWithCourse } from '@/app/pages/student/CourseRegistration';
 import { Registration, RegistrationStatus } from '@/app/pages/teacher/CourseRegistrationRequests';
 import { Field } from '@/app/pages/teacher/components/course-registration-modal';
+import { IssueSort, IssueStatus } from '@/app/pages/student/FlagResponse';
 
 // Add missing ObjectId type
 type ObjectId = string;
@@ -3151,3 +3152,58 @@ export const useGetDynamicFields = (
     refetch: result.refetch,
   };
 };
+
+
+export interface IssueReport {
+  _id: string;
+  detail: Record<string, any>;
+  status: IssueStatus;
+  createdAt: string;
+}
+
+// export type IssueStatus = "PENDING" | "RESOLVED" | "REJECTED" | "ALL";
+
+interface Params {
+  status: IssueStatus;
+  search: string;
+  sort: IssueSort;
+  page: number;
+  limit: number;
+}
+
+interface IssueReportsResponse {
+  issues: IssueReport[];
+  totalDocuments: number;
+  totalPages: number;
+}
+
+export const useGetCourseIssueReports = (
+  versionId: string,
+  params: Params,
+): {
+  data: IssueReportsResponse;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} => {
+  const result = api.useQuery(
+    "get",
+    `/student/issues` as any,
+    {
+      params: {
+        query: params,
+      },
+    },
+    {
+      enabled: !!versionId,
+    }
+  );
+  return {
+    data: result.data as IssueReportsResponse,
+    isLoading: result.isLoading,
+    error: result.error ? result.error.message || "Failed to fetch issue reports" : null,
+    refetch: result.refetch,
+  };
+};
+
+
