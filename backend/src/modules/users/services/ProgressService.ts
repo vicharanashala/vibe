@@ -74,7 +74,7 @@ class ProgressService extends BaseService {
    * Initialize student progress tracking to the first item in the course.
    * Private helper method for the enrollment process.
    */
-  private async initializeProgress(
+  async initializeProgress(
     userId: string,
     courseId: string,
     courseVersionId: string,
