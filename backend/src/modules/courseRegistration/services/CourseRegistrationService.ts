@@ -344,49 +344,62 @@ export class CourseRegistrationService extends BaseService {
       }
 
       const courseId = version.courseId.toString();
-
-      const defaultJsonSchema = {
-        type: 'object',
-        properties: {
-          Name: {
-            type: 'string',
-            title: 'Name',
-            minLength: 1,
-          },
-          Email: {
-            type: 'string',
-            format: 'email',
-            title: 'Email',
-          },
-          phone: {
-            type: 'string',
-            title: 'Phone',
-          },
-        },
-        required: ['Name', 'Email'],
-      };
-
-      const defaultUiSchema = {
-        Name: {
-          'ui:placeholder': 'Enter your Name',
-        },
-        Email: {
-          'ui:placeholder': 'Enter your Email',
-        },
-        Mobile: {
-          'ui:options': {
-            inputType: 'tel',
-          },
-        },
-      };
-
-      await this.settingsRepo.updateRegistrationSchemas(
+      let courseSettings = await this.settingsRepo.readCourseSettings(
         courseId,
         versionId,
-        {jsonSchema: defaultJsonSchema, uiSchema: defaultUiSchema},
         session,
       );
 
+      if (!courseSettings) {
+        throw new NotFoundError(
+          `Course settings for course ID ${courseId} and version ID ${versionId} not found.`,
+        );
+      }
+
+      let {jsonSchema, uiSchema} = courseSettings.settings?.registration || {};
+      if (!jsonSchema || !uiSchema) {
+        const defaultJsonSchema = {
+          type: 'object',
+          properties: {
+            Name: {
+              type: 'string',
+              title: 'Name',
+              minLength: 1,
+            },
+            Email: {
+              type: 'string',
+              format: 'email',
+              title: 'Email',
+            },
+            phone: {
+              type: 'string',
+              title: 'Phone',
+            },
+          },
+          required: ['Name', 'Email'],
+        };
+
+        const defaultUiSchema = {
+          Name: {
+            'ui:placeholder': 'Enter your Name',
+          },
+          Email: {
+            'ui:placeholder': 'Enter your Email',
+          },
+          Mobile: {
+            'ui:options': {
+              inputType: 'tel',
+            },
+          },
+        };
+
+        await this.settingsRepo.updateRegistrationSchemas(
+          courseId,
+          versionId,
+          {jsonSchema: defaultJsonSchema, uiSchema: defaultUiSchema},
+          session,
+        );
+      }
       return {
         totalDocuments,
         totalPages: Math.ceil(totalDocuments / limit),
@@ -567,7 +580,6 @@ export class CourseRegistrationService extends BaseService {
 
         let {jsonSchema, uiSchema} =
           courseSettings.settings?.registration || {};
- 
 
         //   // const defaultUiSchema = {
         //   //   type: 'VerticalLayout',
@@ -586,7 +598,6 @@ export class CourseRegistrationService extends BaseService {
         //   //     },
         //   //   ],
         //   // };
-
 
         return {jsonSchema, uiSchema};
 
