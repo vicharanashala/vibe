@@ -411,10 +411,12 @@ export default function AISectionPage() {
   const [rerunParams, setRerunParams] = useState({ language: 'en', model: 'default' });
 
   const [audioExtractionProgress, setAudioExtractionProgress] = useState(0);
-  type AudioExtractionStatus = 'ready' | 'processing' | 'completed' | 'failed';
+  type AudioExtractionStatus = 'ready' | 'processing' | 'completed' | 'failed' | 'paused';
   const [audioExtractionStatus, setAudioExtractionStatus] = useState<AudioExtractionStatus>('ready');
   const [audioExtractionStartTime, setAudioExtractionStartTime] = useState<Date | null>(null);
   const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState<string>('');
+  const [pausedProgress, setPausedProgress] = useState(0);
+  const [pausedStartTime, setPausedStartTime] = useState<Date | null>(null);
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -604,6 +606,12 @@ export default function AISectionPage() {
           setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
           await aiSectionAPI.postJobTask(aiJobId, 'AUDIO_EXTRACTION');
           setAiWorkflowStep('audio_extraction');
+          
+          setAudioExtractionStatus('processing');
+          setAudioExtractionProgress(pausedProgress);
+          setAudioExtractionStartTime(pausedStartTime || new Date());
+          setEstimatedTimeRemaining('');
+          
           toast.success("Transcription restarted");
           await handleRefreshStatus();
           return;
@@ -630,6 +638,12 @@ export default function AISectionPage() {
         setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
         await aiSectionAPI.postJobTask(aiJobId, 'AUDIO_EXTRACTION');
         setAiWorkflowStep('audio_extraction');
+        
+        setAudioExtractionStatus('processing');
+        setAudioExtractionProgress(audioExtractionStatus === 'paused' ? pausedProgress : 0);
+        setAudioExtractionStartTime(audioExtractionStatus === 'paused' ? pausedStartTime || new Date() : new Date());
+        setEstimatedTimeRemaining('');
+        
         toast.success("Audio extraction started.");
         setTaskRuns(prev => ({
           ...prev,
@@ -1091,7 +1105,9 @@ export default function AISectionPage() {
                       <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-orange-500 text-white dark:text-[#0D0D0D] font-medium">
                         {audioExtractionStatus === 'processing' ? 'Processing' : 
                          (audioExtractionStatus as AudioExtractionStatus) === 'completed' ? 'Completed' :
-                         audioExtractionStatus === 'failed' ? 'Failed' : 'Ready'}
+                         audioExtractionStatus === 'failed' ? 'Failed' : 
+                         audioExtractionStatus === 'paused' ? 'Paused' :
+                         taskRuns.transcription.some(r => r.status === 'stopped') ? 'Stopped' : 'Ready'}
                       </span>
               </div>
 
@@ -1135,7 +1151,7 @@ export default function AISectionPage() {
                     {audioExtractionStatus !== 'ready' && audioExtractionStatus !== 'failed' && (
                       <>
                         <span className="mx-2">✨</span>
-                        <span>{Math.round(audioExtractionStatus !== 'processing' ? 100 : audioExtractionProgress)}% complete</span>
+                        <span>{Math.round((audioExtractionStatus as AudioExtractionStatus) === 'completed' ? 100 : audioExtractionProgress)}% complete</span>
                       </>
                     )}
               </div>
@@ -1145,13 +1161,13 @@ export default function AISectionPage() {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-gray-700 dark:text-[#F8FAFD]">Extraction Progress</span>
-                        <span className="text-sm font-medium text-blue-600">{Math.round(audioExtractionStatus !== 'processing' ? 100 : audioExtractionProgress)}%</span>
+                        <span className="text-sm font-medium text-blue-600">{Math.round((audioExtractionStatus as AudioExtractionStatus) === 'completed' ? 100 : audioExtractionProgress)}%</span>
                       </div>
                       
                       <div className="w-full bg-gray-200 dark:bg-[#464545] rounded-full h-2 overflow-hidden">
                         <div  
                           className="bg-gray-800 dark:bg-[#FFFFFF] h-2 rounded-full transition-all duration-300 ease-out"
-                          style={{ width: `${audioExtractionStatus !== 'processing' ? 100 : audioExtractionProgress}%` }}
+                          style={{ width: `${(audioExtractionStatus as AudioExtractionStatus) === 'completed' ? 100 : audioExtractionProgress}%` }}
                         ></div>
                       </div>
                       
@@ -2011,6 +2027,12 @@ export default function AISectionPage() {
       setAiWorkflowStep('error');
       toast.error('Failed to stop task.');
     } finally {
+      if (task === 'transcription' || !task) {
+        setPausedProgress(audioExtractionProgress);
+        setPausedStartTime(audioExtractionStartTime);
+        setAudioExtractionStatus('paused');
+        setEstimatedTimeRemaining('');
+      }
       const createStoppedRun = (): TaskRun => ({ id: `run-${Date.now()}-${Math.random()}`, timestamp: new Date(), status: 'stopped' });
       if (task) {
         setTaskRuns(prev => {
