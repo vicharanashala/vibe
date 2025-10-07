@@ -2186,25 +2186,25 @@ const isQuestionDecided = (index: number) => {
                 {!isLoading && !error && questions.length > 0 && segmentIds.length > 0 && (
                   <div className="relative">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
                         <Button
-                          variant="outline"
+                          variant="default"
                           size="sm"
                           onClick={handlePreviousSegment}
                           disabled={currentSegmentIndex === 0 || isLocked}
-                          className="h-8 w-8 p-0"
+                          className="h-8 w-8 p-0 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                         >
                           <ChevronLeft className="h-4 w-4" />
                         </Button>
-                        <div className="text-sm font-medium px-2 py-1 bg-muted rounded-md">
+                        <div className="text-sm font-semibold px-4 py-2 bg-primary/10 border border-primary/30 rounded-lg dark:text-primary text-[#000000]">
                           Segment {currentSegmentIndex + 1} of {segmentIds.length}
                         </div>
                         <Button
-                          variant="outline"
+                          variant="default"
                           size="sm"
                           onClick={handleNextSegment}
                           disabled={!hasNextSegment || isLocked}
-                          className="h-8 w-8 p-0"
+                          className="h-8 w-8 p-0 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                         >
                           <ChevronRight className="h-4 w-4" />
                         </Button>
