@@ -49,7 +49,7 @@ export default function AnomaliesList() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-
+// updated code for filter and search feature in anomlaies
 
   // Handle filter change
   const handleTypeChange = (value: string) => {
