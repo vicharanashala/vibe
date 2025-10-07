@@ -5,6 +5,8 @@ import StudentCourses from "@/app/pages/student/courses";
 import StudentProfile from "@/app/pages/student/profile";
 import CoursePage from "@/app/pages/student/course-page";
 import CourseDetails from "../pages/student/CourseRegistration";
+import path from "path";
+import CourseIssueReports from "../pages/student/FlagResponse";
 
 const studentRoutes: RouteObject = {
   path: "/student",
@@ -25,6 +27,10 @@ const studentRoutes: RouteObject = {
     {
       path:"courseDetails",
       element: <CourseDetails />
+    },
+    {
+      path:"issues",
+      element: <CourseIssueReports />
     },
     {
       index: true,
