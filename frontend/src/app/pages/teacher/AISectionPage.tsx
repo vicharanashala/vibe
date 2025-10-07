@@ -300,7 +300,7 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
                         <span className="font-medium">{step.icon}</span>
     )}
     {isActive && <div className="absolute -top-1.5 -right-1 bg-[#2B7FFF] rounded-full h-5 w-5 flex items-center justify-center"><Loader2 className="w-3 h-3 animate-spin text-white dark:text-[#0D0D0D]" /></div>}
-    {isCurrent && jobStatus?.status === 'COMPLETED' && <div className="absolute -top-1.5 -right-1 bg-[#00BC7D] rounded-full h-5 w-5 flex items-center justify-center"><Sparkles className="w-3 h-3 text-white dark:text-[#0D0D0D]" /></div>}
+    {isCompleted && <div className="absolute -top-1.5 -right-1 bg-[#00BC7D] rounded-full h-5 w-5 flex items-center justify-center"><Sparkles className="w-3 h-3 text-white dark:text-[#0D0D0D]" /></div>}
   </div>
 
   {/* Step Label */}
@@ -3046,7 +3046,7 @@ export default function AISectionPage() {
                         <div className="flex items-center gap-2.5">
                           <div className="font-semibold bg-gradient-to-br from-[#C27AFF] to-[#615FFF] w-[28px] h-[28px] flex items-center justify-center rounded-[8px] text-[#ffffff] dark:text-[#000000]">{idx + 1}</div>
                           <div className="bg-[#F3E8FF] text-[#9810FA] px-[6px] py-[4px] rounded-[8px]">{q.questionType || q.question?.type || 'N/A'}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
                             Segment: {typeof segStart === 'number' && typeof segEnd === 'number' ? `${segStart}–${segEnd}s` : 'N/A'}
                           </div>
                         </div>
