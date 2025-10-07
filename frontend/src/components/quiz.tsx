@@ -18,6 +18,7 @@ import type { QuizQuestion, QuizProps, QuizRef, questionBankRef, QuestionRenderV
 import { preprocessMathContent, preprocessRemoveFromOptions } from '@/utils/utils';
 import Loader from './Loader';
 import { Textarea } from './ui/textarea';
+import { error } from 'console';
 
 // Type for Order interface (if not defined elsewhere)
 interface Order {
@@ -589,7 +590,11 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           params: { path: { quizId: processedQuizId, attemptId: attemptId } },
           body: { answers: answersForSaving }
         });
-      } catch (err) {
+      } catch (err:any) {
+        const errorMessage =
+        err?.message || (typeof err === 'string' ? err : null) || 
+      "Failed to save, try again!"; 
+        toast.error(errorMessage);
         console.error('Failed to auto-save progress:', err);
       }
     }
@@ -646,6 +651,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }, [attemptId, quizQuestions, processedQuizId, saveQuiz, convertAnswersToSaveFormat]);
 
   const currentQuestion = quizQuestions[currentQuestionIndex];
+  console.log("QuizQuestions: ", quizQuestions)
 
   const handleAnswer = useCallback((answer: string | number | number[] | string[] | undefined) => {
     if (answer === undefined) return;
@@ -1412,7 +1418,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                 id={`numerical-answer-${currentQuestion.id}`}
                 type="number"
                 step={currentQuestion.decimalPrecision ? `0.${'0'.repeat(currentQuestion.decimalPrecision - 1)}1` : 'any'}
-                value={(answers[currentQuestion.id] as number) || ''}
+                value={(answers[currentQuestion.id] as number) || 0}
                 onChange={(e) => handleAnswer(parseFloat(e.target.value) || 0)}
                 placeholder="Enter a number"
                 className="text-lg"
@@ -1508,19 +1514,35 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         </div>
 
         {/* Show save error if any */}
-        {saveError && (
+        {/* {saveError && !submitError && (
           <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
             <p className="text-sm text-yellow-700 dark:text-yellow-300">
               <strong>Save Error:</strong> {saveError}
             </p>
           </div>
-        )}
+        )} */}
 
         {/* Show submission error if any */}
-        {submitError && currentQuestionIndex === quizQuestions.length - 1 && (
+        {/* {submitError && currentQuestionIndex === quizQuestions.length - 1 && (
           <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
             <p className="text-sm text-red-700 dark:text-red-300">
               <strong>Submission Error:</strong> {submitError}
+            </p>
+          </div>
+        )} */}
+
+        {((submitError && currentQuestionIndex === quizQuestions.length - 1) || saveError) && (
+          <div className="mt-4 p-3 rounded-lg border bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800">
+            <p className="text-sm text-red-700 dark:text-red-300">
+              {saveError ? (
+                <>
+                  <strong>Save Error:</strong> {saveError}
+                </>
+              ) : submitError ? (
+                submitError
+              ) : (
+                'An error occurred.'
+              )}
             </p>
           </div>
         )}
