@@ -125,6 +125,7 @@ export default function CreateCourse() {
             createErrors={createErrors}  
             setCourseDescription={setCourseDescription} 
             setCourseName={setCourseName}
+            setCreateErrors={setCreateErrors}
           />
 
           <CourseVersionMetaForm
@@ -133,6 +134,7 @@ export default function CreateCourse() {
             createErrors={createErrors}  
             setVersionDescription={setVersionDescription} 
             setVersionName={setVersionName}
+            setCreateErrors={setCreateErrors}
           />
 
 
@@ -285,6 +287,7 @@ type CourseMetaFormProps = {
   courseDescription: string;
   setCourseDescription: (value: string) => void;
   createErrors: CreateErrors;
+  setCreateErrors: React.Dispatch<React.SetStateAction<CreateErrors>>;
 };
 
 export const CourseMetaForm: React.FC<CourseMetaFormProps> = ({
@@ -293,6 +296,7 @@ export const CourseMetaForm: React.FC<CourseMetaFormProps> = ({
   createErrors,
   courseDescription,
   setCourseDescription,
+  setCreateErrors,
 }) => {
   return (
     <div className="relative">
@@ -336,6 +340,10 @@ export const CourseMetaForm: React.FC<CourseMetaFormProps> = ({
                 value={courseName}
                 onChange={e => {
                   setCourseName(e.target.value);
+                  // Clear error when user starts typing
+                  if (createErrors.courseName) {
+                    setCreateErrors(prev => ({ ...prev, courseName: "" }));
+                  }
                 }}
               />
               {createErrors?.courseName && (
@@ -362,6 +370,10 @@ export const CourseMetaForm: React.FC<CourseMetaFormProps> = ({
                   onChange={e => {
                     if (e.target.value.length <= MAX_DESCRIPTION_LENGTH) {
                       setCourseDescription(e.target.value);
+                      // Clear error when user starts typing
+                      if (createErrors.courseDescription) {
+                        setCreateErrors(prev => ({ ...prev, courseDescription: "" }));
+                      }
                     }
                   }}
                 />
@@ -396,6 +408,7 @@ type CourseVersionMetaFormProps = {
   versionDescription: string;
   setVersionDescription: (value: string) => void;
   createErrors: CreateErrors;
+  setCreateErrors: React.Dispatch<React.SetStateAction<CreateErrors>>;
 };
 
 const CourseVersionMetaForm: React.FC<CourseVersionMetaFormProps> = ({
@@ -404,6 +417,7 @@ const CourseVersionMetaForm: React.FC<CourseVersionMetaFormProps> = ({
   createErrors,
   versionDescription,
   setVersionDescription,
+  setCreateErrors,
 }) => {
   return (
     <div className="relative">
@@ -470,7 +484,12 @@ const CourseVersionMetaForm: React.FC<CourseVersionMetaFormProps> = ({
                 className="bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300 h-12 text-base"
                 placeholder="e.g., v1.0, Fall 2025, Beta, Initial Release..."
                 value={versionName}
-                onChange={e => setVersionName(e.target.value)}
+                onChange={e => {
+                  setVersionName(e.target.value);
+                  if (createErrors.versionName) {
+                    setCreateErrors(prev => ({ ...prev, versionName: "" }));
+                  }
+                }}
               />
               {createErrors?.versionName && (
                 <ErrorMessage message={createErrors?.versionName} />
@@ -503,6 +522,9 @@ const CourseVersionMetaForm: React.FC<CourseVersionMetaFormProps> = ({
                   onChange={e => {
                     if (e.target.value.length <= MAX_DESCRIPTION_LENGTH) {
                       setVersionDescription(e.target.value);
+                      if (createErrors.versionDescription) {
+                        setCreateErrors(prev => ({ ...prev, versionDescription: "" }));
+                      }
                     }
                   }}
                 />

@@ -451,8 +451,12 @@ export interface ISettings {
   proctors: IProctoringSettings;
   linearProgressionEnabled: boolean;
   // registration_settings?: IRegistrationSettings[];
-  jsonSchema?: any; // JSON Schema object for the form (e.g., { type: 'object', properties: {...} })
-  uiSchema?: any;
+  registration?: {
+    jsonSchema?: any;
+    uiSchema?: any;
+  };
+  // jsonSchema?: any;
+  // uiSchema?: any;
 }
 
 // Interface for user-specific settings.
@@ -586,21 +590,32 @@ export interface AuthenticatedUser {
   enrollments: AuthenticatedUserEnrollements[];
 }
 
+// export interface ICourseRegistration {
+//   _id?: string | ObjectId;
+//   courseId: string;
+//   versionId: string;
+//   userId: string;
+//   detail: {
+//     name: string;
+//     email: string;
+//     mobile: string;
+//     gender: 'MALE' | 'FEMALE' | 'OTHERS';
+//     city: string;
+//     state: string;
+//     category: 'GENERAL' | 'OBC' | 'SE' | 'ST' | 'OTHERS';
+//     university: string;
+//   };
+//   status: 'PENDING' | 'APPROVED' | 'REJECTED';
+//   createdAt?: Date;
+//   updatedAt?: Date;
+// }
+
 export interface ICourseRegistration {
   _id?: string | ObjectId;
-  courseId: string;
-  versionId: string;
-  userId: string;
-  detail: {
-    name: string;
-    email: string;
-    mobile: string;
-    gender: 'MALE' | 'FEMALE' | 'OTHERS';
-    city: string;
-    state: string;
-    category: 'GENERAL' | 'OBC' | 'SE' | 'ST' | 'OTHERS';
-    university: string;
-  };
+  courseId: ID;
+  versionId: ID;
+  userId: ID;
+  detail: Record<string, any>;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   createdAt?: Date;
   updatedAt?: Date;

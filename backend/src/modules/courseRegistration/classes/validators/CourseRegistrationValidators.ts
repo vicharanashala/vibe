@@ -81,7 +81,8 @@ export class RegistrationFilterQuery {
 
   @IsOptional()
   @IsIn(['PENDING', 'APPROVED', 'REJECTED', 'ALL'])
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL' = 'ALL';
+  // status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL' = 'ALL';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL' ;
 
   @IsOptional()
   @IsIn(['older', 'latest'])
@@ -112,7 +113,7 @@ export class BulkUpdateStatusBody {
     description: 'Array of registration IDs to update',
     example: ['68d7c3aaa1291bb31a3739f0', '68d7c3aaa1291bb31a3739f1'],
   })
-  registrationIds?: string[];
+  selected?: string[];
 }
 
 // export class updateSettingsBody {

@@ -14,35 +14,23 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Users, Eye, User, CheckCircle, XCircle, Share2, Check, Copy, Share, RefreshCw, Settings, ListChecks, Hash, Calendar } from "lucide-react";
+import { Loader2, Users, Eye, User, CheckCircle, XCircle, Share2, Check, Copy, Share, RefreshCw,  ListChecks, Hash, Calendar, Settings, FileText, Search, X, FilterIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCourseStore } from "@/store/course-store";
 import { toast } from "sonner";
-import {useBulkUpdateRegistrationStatus, useGetCourseRegistrationRequests, useUpdateRegistrationFields, useUpdateRegistrationStatus } from "@/hooks/hooks";
+import {useBulkUpdateRegistrationStatus, useGetCourseRegistrationRequests, useUpdateRegistrationStatus } from "@/hooks/hooks";
 import { Pagination } from "@/components/ui/Pagination";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import ConfirmationModal from "./components/confirmation-modal";
 import { FormBuilder } from "./components/course-registration-modal";
 
-
-interface RegistrationDetail {
-  name: string;
-  email: string;
-  mobile: string;
-  gender: string;
-  city: string;
-  state: string;
-  category: string;
-  university: string;
-}
-
 export interface Registration {
   _id: string;
-  detail: RegistrationDetail;
-  status: 'pending' | 'approved' | 'rejected';
+  detail: Record<string, any>;
+  status: RegistrationStatus;
   createdAt: string;
 }
 
@@ -57,23 +45,22 @@ export default function CourseRegistrationRequests() {
   const [filterStatus, setFilterStatus] = useState<RegistrationStatus>('ALL');
   const [sortOrder, setSortOrder] = useState<'older' | 'latest'>('latest');
   const [currentPage, setCurrentPage] = useState(1);
-  const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [isCustomOpen, setIsCustomOpen] = useState(false);
   const [showFormBuilder, setShowFormBuilder] = useState(false);
   // for confirmation modal
   const [isSingleApproveOpen, setIsSingleApproveOpen] = useState(false);
   const [isBulkApproveOpen, setIsBulkApproveOpen] = useState(false);
   const [isSingleRejectOpen, setIsSingleRejectOpen] = useState(false);
   const [singleRegistrationId, setSingleRegistrationId] = useState<string | null>(null);
-
+  const [isUnsavedChanges, setIsUnsavedChanges] = useState(false);
+  const [isRefresh, setIsRefresh] = useState(false);
   const { currentCourse } = useCourseStore()
   const versionId = currentCourse?.versionId
 
   const PAGE_LIMIT = 15;
 
   const params = useMemo(() => ({
-    filter: filterStatus,
+    status: filterStatus,
     search: searchTerm,
     sort: sortOrder,
     page: currentPage,
@@ -82,7 +69,6 @@ export default function CourseRegistrationRequests() {
   const { data: registrationsData, isLoading, refetch: registrationsRefetch } = useGetCourseRegistrationRequests(versionId as string, params);
   const { mutateAsync: updateStatus, isPending: isUpdatingStatus } = useUpdateRegistrationStatus();
   const { mutateAsync: updateBulkStatus, isPending: isUpdatingBulkStatus } = useBulkUpdateRegistrationStatus();
-  // const { mutateAsync: updateFields, isPending:isUpdatingFields } = useUpdateRegistrationFields()
   const registrations = registrationsData?.registrations || []
 
   const FRONTEND_URL = window.location.origin;
@@ -109,7 +95,8 @@ ${registrationUrl}`;
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(registrations.map(r => r._id));
+      setSelectedIds(registrations.filter((reg)=> reg.status=="PENDING" )
+      .map(r => r._id));
     } else {
       setSelectedIds([]);
     }
@@ -118,7 +105,16 @@ ${registrationUrl}`;
   const handleBulkApprove = async () => {
     if (isUpdatingBulkStatus || isUpdatingStatus) return;
 
-    const idsToApprove = selectedIds && selectedIds.length > 0 ? selectedIds : [];
+    const allPendingRegistrationIds = registrationsData?.registrations?.filter((reg)=>reg.status=="PENDING").map((reg) => reg._id) || [];
+
+    if (!allPendingRegistrationIds.length) {
+      toast.error("No pending registrations available for approval.");
+      setTimeout(()=>{
+        setIsBulkApproveOpen(false);
+      },1000)
+      return;
+    }
+    const idsToApprove = selectedIds && selectedIds.length > 0 ? selectedIds : allPendingRegistrationIds;
 
     try {
       await updateBulkStatus(idsToApprove);
@@ -133,6 +129,7 @@ ${registrationUrl}`;
       if (idsToApprove.length > 0) setSelectedIds([]);
 
       registrationsRefetch();
+      setIsBulkApproveOpen(false);
     } catch (error: any) {
       toast.error(
         error?.message ||
@@ -148,9 +145,10 @@ ${registrationUrl}`;
       await updateStatus(registrationId, 'APPROVED');
       toast.success('Registration approved successfully');
       registrationsRefetch();
+      setIsSingleApproveOpen(false);
     } catch (error: any) {
       toast.error(error?.message || 'Failed to approve registration. Please try again.');
-    }
+    } 
   }
 
   const handleReject = async (registrationId: string | null) => {
@@ -159,6 +157,7 @@ ${registrationUrl}`;
       await updateStatus(registrationId, 'REJECTED');
       toast.success('Registration rejected successfully');
       registrationsRefetch();
+      setIsSingleRejectOpen(false);
     } catch (error: any) {
       toast.error(error?.message || 'Failed to rejected registration. Please try again.');
     }
@@ -170,6 +169,7 @@ ${registrationUrl}`;
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
+      // Fallback if failed
       const textArea = document.createElement('textarea');
       textArea.value = registrationUrl;
       document.body.appendChild(textArea);
@@ -181,51 +181,43 @@ ${registrationUrl}`;
     }
   };
 
-  // const handleSave = async (fields: Field[]) => {
-  //   const processedFields = fields.map((f) => ({
-  //     label:f.label,
-  //     type:f.type,
-  //     required:f.required,
-  //     options:f.options ?? []
-  //   }))
-  //   try {
-  //     await updateFields(versionId as string,processedFields)
-  //     toast.success('Custom fields saved successfully!');
-  //     setIsCustomOpen(false)
-  //     registrationsRefetch()
-  //   } catch (error:any) {
-  //     toast.error(error?.message || 'Failed to save fields. Please try again.')
-  //   }
-  // }
-
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
   };
 
+  const handleNavigateToRequests = (currentFieldsLength: number, existingFieldsLength: number) => {
+    if(currentFieldsLength > existingFieldsLength){
+      setIsUnsavedChanges(true);
+      return;
+    }
+    setShowFormBuilder(false);
+    setIsUnsavedChanges(false)
+  }
 
   if (showFormBuilder) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto py-4">
-          {/* Back button to return to the registration requests view */}
-          <Button
-            variant="outline"
-            onClick={() => setShowFormBuilder(false)}
-            className="mb-4"
-          >
-            Back to Registrations
-          </Button>
-          <FormBuilder versionId={versionId!} />
-        </div>
-      </div>
+      <>
+        <FormBuilder versionId={versionId!} handleNavigateToRequests={handleNavigateToRequests}/>
+        <ConfirmationModal
+          isOpen={isUnsavedChanges}
+          onClose={() => setIsUnsavedChanges(false)}
+          onConfirm={() => {
+            setShowFormBuilder(false);
+            setIsUnsavedChanges(false);
+          }}
+          title="Unsaved Changes"
+          description="You have unsaved changes. Are you sure you want to leave without saving? Any unsaved changes will be lost."
+          confirmText="Leave"
+          cancelText="Stay"
+          isDestructive={true} 
+        />
+      </>
     );
   }
 
   return (
     <div className="min-h-screen bg-background">
-                                          {/* <FormBuilder versionId={versionId!}/> */}
-
       <ConfirmationModal
         isOpen={isSingleApproveOpen}
         onClose={() => {
@@ -238,7 +230,10 @@ ${registrationUrl}`;
         confirmText="Approve"
         cancelText="Cancel"
         isDestructive={false}
+        isLoading={isUpdatingStatus}
+        loadingText={"Approving..."}
       />
+    
       <ConfirmationModal
         isOpen={isSingleRejectOpen}
         onClose={() => setIsSingleRejectOpen(false)}
@@ -248,6 +243,8 @@ ${registrationUrl}`;
         confirmText="Reject"
         cancelText="Cancel"
         isDestructive={true}
+        isLoading={isUpdatingStatus}
+        loadingText={"Rejecting..."}
       />
       <ConfirmationModal
         isOpen={isBulkApproveOpen}
@@ -258,7 +255,11 @@ ${registrationUrl}`;
         confirmText="Approve All"
         cancelText="Cancel"
         isDestructive={false}
+        isLoading={isUpdatingBulkStatus}
+        loadingText={"Approving..."}
       />
+   
+
       <div className="container mx-auto py-4 space-y-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="space-y-4">
@@ -269,7 +270,7 @@ ${registrationUrl}`;
               Review and manage all pending course registration requests.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          {/* <div className="flex flex-wrap items-center gap-2">
           
 
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -365,62 +366,85 @@ ${registrationUrl}`;
                 : `Approve Selected (${selectedIds.length})`}
             </Button>
 
-              <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => setIsCustomOpen(true)}
-            >
-              <Settings className="h-4 w-4" />
-              Settings
-            </Button>
-
-
-            {/*New Button for form genaration */}
+      
             <Button
               variant="outline"
               size="sm"
               className="gap-2"
               onClick={() => setShowFormBuilder(true)}
             >
-              <Settings className="h-4 w-4" />
-              Generate Form
+              <FileText  className="h-4 w-4" />
+              Build Form
             </Button>
 
             <Button
               variant="outline"
-              onClick={() => registrationsRefetch()}
+              onClick={() =>{
+                setIsRefresh(true)
+                setTimeout(()=> {
+                  setIsRefresh(false);
+                },2000)
+                registrationsRefetch()}}
               disabled={isLoading}
               className="flex items-center gap-2"
             >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-4 h-4 ${(isLoading || isRefresh) ? "animate-spin" : ""}`} />
               Refresh
             </Button>
-          </div>
-
+          </div> */}
+          <RegistrationActions
+            registrationUrl={registrationUrl}
+            registrationMessage={registrationMessage}
+            copyRegistrationUrl={copyRegistrationUrl}
+            copied={copied}
+            selectedIds={selectedIds}
+            isUpdatingBulkStatus={isUpdatingBulkStatus}
+            isUpdatingStatus={isUpdatingStatus}
+            isLoading={isLoading}
+            registrationsRefetch={registrationsRefetch}
+            setIsBulkApproveOpen={setIsBulkApproveOpen}
+            setShowFormBuilder={setShowFormBuilder}
+          />
         </div>
-        <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
-          <div className="flex-1">
+        {/* <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
+          <div className="flex-1 relative">
+            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+              <Search size={20} />
+            </span>
+
             <Input
               placeholder="Search by name or email…"
               value={searchTerm}
-              onChange={e => {
+              onChange={(e) => {
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full"
+              className="w-full pl-10 pr-10" 
             />
+
+            {searchTerm && (
+              <Button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 transform bg-transparent hover:bg-transparent -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                <X size={20} />
+              </Button>
+            )}
           </div>
 
-          {/* <Select
+         <Select
             value={filterStatus}
-            onValueChange={value => {
+            onValueChange={(value) => {
               setFilterStatus(value as RegistrationStatus);
               setCurrentPage(1);
             }}
           >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by status" />
+            <SelectTrigger className="w-[180px] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FilterIcon className="w-4 h-4 text-gray-500" />
+                <SelectValue placeholder="Filter by status" />
+              </div>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All</SelectItem>
@@ -428,27 +452,53 @@ ${registrationUrl}`;
               <SelectItem value="APPROVED">Approved</SelectItem>
               <SelectItem value="REJECTED">Rejected</SelectItem>
             </SelectContent>
-          </Select> */}
+          </Select>
 
           <Select
             value={sortOrder}
-            onValueChange={value => {
-              setSortOrder(value as 'older' | 'latest');
+            onValueChange={(value) => {
+              setSortOrder(value as "older" | "latest");
               setCurrentPage(1);
             }}
           >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Sort by date" />
+            <SelectTrigger className="w-[180px] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-4 h-4 text-gray-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3 6h18M3 12h18M3 18h18"
+                  />
+                </svg>
+
+                <SelectValue placeholder="Sort by date" />
+              </div>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="latest">Latest</SelectItem>
               <SelectItem value="older">Oldest</SelectItem>
             </SelectContent>
           </Select>
-        </div>
+        </div> */}
+        <RegistrationFilters
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          filterStatus={filterStatus}
+          setFilterStatus={setFilterStatus}
+          sortOrder={sortOrder}
+          setSortOrder={setSortOrder}
+          setCurrentPage={setCurrentPage}
+        />
 
         {/* Table */}
-        <Card className="border-0 shadow-lg overflow-hidden">
+        <Card className="border-0 shadow-lg overflow-hidden min-h-[50vh]">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <Table>
@@ -502,7 +552,7 @@ ${registrationUrl}`;
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {isLoading ? (
+                  {(isLoading || isRefresh) ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-12">
                         <div className="flex items-center justify-center space-x-2">
@@ -528,7 +578,7 @@ ${registrationUrl}`;
                       </TableCell>
                     </TableRow>
                   ) : (
-                    registrations?.map((reg: any, index: number) => (
+                    registrations?.map((reg: Registration, index: number) => (
                       <TableRow
                         key={reg._id}
                         className="border-border hover:bg-muted/20 transition-colors duration-200 group"
@@ -537,6 +587,7 @@ ${registrationUrl}`;
                         <TableCell className="pl-6 py-4">
                           <Checkbox
                             checked={selectedIds.includes(reg._id)}
+                            disabled={reg.status !== "PENDING"}
                             onCheckedChange={checked =>
                               handleSelectRow(reg._id, checked as boolean)
                             }
@@ -551,48 +602,50 @@ ${registrationUrl}`;
                           <div className="flex items-center gap-4">
                             <Avatar className="h-10 w-10 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
                               <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
-                                {reg.detail.name
-                                  ? reg.detail.name
-                                    .split(" ")
-                                    .map((part: string) => part[0]?.toUpperCase())
-                                    .join("")
-                                  : "?"}
+                                {(() => {
+                                  const detail = reg.detail || {};
+                                  const key = Object.keys(detail).find(k => k.toLowerCase().includes("name"));
+                                  const value = key ? detail[key] : null;
+
+                                  if (typeof value === "string" && value.trim()) {
+                                    return value
+                                      .split(" ")
+                                      .map((part) => part[0]?.toUpperCase())
+                                      .join("");
+                                  }
+
+                                  return "?";
+                                })()}
                               </AvatarFallback>
                             </Avatar>
 
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold text-foreground truncate text-base md:text-lg">
-                                {reg.detail.name || "Unknown User"}
+                                {(() => {
+                                  const detail = reg.detail || {};
+                                  const key = Object.keys(detail).find(k => k.toLowerCase().includes("name"));
+                                  return key ? detail[key] : "Unknown User";
+                                })()}
                               </p>
 
-                              {reg.detail.email && (
+                              {reg.detail.email || reg.detail.Email && (
                                 <p className="text-xs md:text-sm text-muted-foreground truncate mt-1">
-                                  {reg.detail.email}
+                                  {reg.detail.email || reg.detail.Email}
                                 </p>
                               )}
                             </div>
                           </div>
                         </TableCell>
-                        {/* { 
-                        <TableCell className="py-4">
-                          {reg.createdAt
-                            ? new Date(reg.createdAt).toLocaleDateString("en-US")
-                            : "-"}
-                        </TableCell>
-                        } */}
-
-
+                      
                         <TableCell className="py-4">
                           {reg.createdAt ? (
                             <div className="flex flex-col">
-                              {/* Date */}
                               <span>
                                 {new Date(reg.createdAt).toLocaleDateString("en-IN", {
                                   timeZone: "Asia/Kolkata",
                                 })}
                               </span>
 
-                              {/* Time */}
                               <span className="text-xs text-gray-500">
                                 {new Date(reg.createdAt).toLocaleTimeString("en-IN", {
                                   timeZone: "Asia/Kolkata",
@@ -669,75 +722,6 @@ ${registrationUrl}`;
                       </TableRow>
                     ))
                   )}
-                  {selectedRegistration && (
-                    <Dialog
-                      open={!!selectedRegistration}
-                      onOpenChange={() => setSelectedRegistration(null)}
-                    >
-                      <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto py-8">
-                        <DialogHeader className="pb-4">
-                          <DialogTitle className="flex items-center gap-2 text-xl">
-                            <User className="h-5 w-5 text-primary" />
-                            Registration Details
-                          </DialogTitle>
-                        </DialogHeader>
-
-                        <div className="space-y-4">
-                          <Card>
-                            <CardContent className="p-6">
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                                <div>
-                                  <span className="font-medium">Name:</span>{' '}
-                                  {selectedRegistration.detail.name}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Email:</span>{' '}
-                                  {selectedRegistration.detail.email}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Mobile:</span>{' '}
-                                  {selectedRegistration.detail.mobile}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Gender:</span>{' '}
-                                  {selectedRegistration.detail.gender}
-                                </div>
-                                <div>
-                                  <span className="font-medium">City:</span>{' '}
-                                  {selectedRegistration.detail.city}
-                                </div>
-                                <div>
-                                  <span className="font-medium">State:</span>{' '}
-                                  {selectedRegistration.detail.state}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Category:</span>{' '}
-                                  {selectedRegistration.detail.category}
-                                </div>
-                                <div>
-                                  <span className="font-medium">
-                                    University:
-                                  </span>{' '}
-                                  {selectedRegistration.detail.university}
-                                </div>
-                              </div>
-                              <Separator className="my-4" />
-                              <p className="text-sm text-muted-foreground">
-                                Registered on:{' '}
-                                {new Date(
-                                  selectedRegistration.createdAt,
-                                ).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  year: 'numeric',
-                                })}
-                              </p>
-                            </CardContent>
-                          </Card>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  )}
                 </TableBody>
               </Table>
             </div>
@@ -752,25 +736,377 @@ ${registrationUrl}`;
           />
         )}
 
-        {/* <RegistrationSettingsDialog
-          open={isCustomOpen}
-          onOpenChange={setIsCustomOpen}
-          onSave={handleSave} */}
-          {/* // versionId={versionId as string} */}
-        {/* /> */}
+        {selectedRegistration && (
+          // <Dialog
+          //   open={!!selectedRegistration}
+          //   onOpenChange={() => setSelectedRegistration(null)}
+          // >
+          //   <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto py-8">
+          //     <DialogHeader className="pb-4">
+          //       <DialogTitle className="flex items-center gap-2 text-xl">
+          //         <User className="h-5 w-5 text-primary" />
+          //         Registration Details
+          //       </DialogTitle>
+          //     </DialogHeader>
 
-
-        {/* <Dialog open={isCustomOpen} onOpenChange={setIsCustomOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-semibold">Registration Form Settings</DialogTitle>
-            </DialogHeader>
-            <FormBuilder versionId={versionId!} />
-          </DialogContent>
-        </Dialog> */}
+          //     <div className="space-y-4"> 
+          //       <Card>
+          //         <CardContent className="p-6"> 
+          //           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+          //             {Object.entries(selectedRegistration.detail).map(([key, value]) => (
+          //               <div key={key}> 
+          //                 <span className="font-medium capitalize">{key}:</span>{' '}
+          //                 {value as string}
+          //               </div>
+          //             ))}
+          //           </div>
+          //           <Separator className="my-4" />
+          //           <p className="text-sm text-muted-foreground">
+          //             Registered on:{' '}
+          //             {new Date(
+          //               selectedRegistration.createdAt,
+          //             ).toLocaleDateString('en-US', {
+          //               month: 'short',
+          //               day: 'numeric',
+          //               year: 'numeric',
+          //             })}
+          //           </p>
+          //         </CardContent>
+          //       </Card>
+          //     </div>
+          //   </DialogContent>
+          // </Dialog>
+          <RegistrationDetailsDialog
+            registration={selectedRegistration}
+            onClose={() => setSelectedRegistration(null)}
+          />
+        )}
       </div>
 
     </div>
   );
 }
 
+
+interface RegistrationDetailsDialogProps {
+  registration: Registration | null;
+  onClose: () => void;
+}
+
+const formatKey = (key: string) => {
+  return key
+    .replace(/([A-Z])/g, " $1") 
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^./, (str) => str.toUpperCase());
+};
+
+export function RegistrationDetailsDialog({
+  registration,
+  onClose,
+}: RegistrationDetailsDialogProps) {
+  if (!registration) return null;
+
+  return (
+    <Dialog open={!!registration} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto py-8">
+        <DialogHeader className="pb-4">
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <User className="h-5 w-5 text-primary" />
+            Registration Details
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <Card>
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                {Object.entries(registration.detail).map(([key, value]) => (
+                  <div key={key} className="flex flex-col">
+                    <span className="text-xs text-muted-foreground">
+                      {formatKey(key)}
+                    </span>
+                    <span className="font-medium break-words">
+                      {value as string}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <Separator className="my-4" />
+
+              <p className="text-sm text-muted-foreground">
+                Registered on:{" "}
+                {new Date(registration.createdAt).toLocaleString("en-IN", {
+                  timeZone: "Asia/Kolkata",
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface RegistrationActionsProps {
+  registrationUrl: string;
+  registrationMessage: string;
+  copyRegistrationUrl: () => void;
+  copied: boolean;
+  selectedIds: string[] | undefined;
+  isUpdatingBulkStatus: boolean;
+  isUpdatingStatus: boolean;
+  isLoading: boolean;
+  registrationsRefetch: () => void;
+  setIsBulkApproveOpen: (val: boolean) => void;
+  setShowFormBuilder: (val: boolean) => void;
+}
+
+export const RegistrationActions = ({
+  registrationUrl,
+  registrationMessage,
+  copyRegistrationUrl,
+  copied,
+  selectedIds,
+  isUpdatingBulkStatus,
+  isUpdatingStatus,
+  isLoading,
+  registrationsRefetch,
+  setIsBulkApproveOpen,
+  setShowFormBuilder,
+}: RegistrationActionsProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isRefresh, setIsRefresh] = useState(false);
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" className="gap-2">
+            <Share2 className="h-4 w-4" />
+            Get Registration URL
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold flex items-center gap-2">
+              <Share2 className="h-5 w-5 text-primary" />
+              Student Registration URL
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground leading-relaxed mt-2">
+              Share this URL with students to allow them to view available course versions and submit registration requests.
+            </p>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-6">
+            <div className="relative">
+              <label className="text-sm font-medium text-foreground mb-2 block">
+                Registration URL
+              </label>
+              <div className="flex items-center gap-2 p-3 bg-muted/50 border border-border rounded-lg">
+                <code className="flex-1 text-sm font-mono text-foreground break-all">
+                  {registrationUrl}
+                </code>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={copyRegistrationUrl}
+                  className="h-8 w-8 p-0 flex-shrink-0"
+                >
+                  {copied ? (
+                    <Check className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {copied && (
+              <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                <Check className="h-4 w-4" />
+                URL copied to clipboard successfully!
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-6">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (navigator.share) {
+                    navigator
+                      .share({
+                        title: "Course Registration - Vibe Platform",
+                        text: registrationMessage,
+                      })
+                      .catch((err) => console.error("Error sharing:", err));
+                  } else {
+                    toast.error("Web Share API not supported. Please copy the URL manually.");
+                  }
+                }}
+                className="flex items-center gap-2 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 dark:hover:bg-blue-950 dark:hover:text-blue-300 dark:hover:border-blue-700 transition-colors"
+              >
+                <Share className="h-4 w-4" />
+                <span>Share Link</span>
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Button
+        onClick={() => setIsBulkApproveOpen(true)}
+        disabled={isUpdatingBulkStatus || isUpdatingStatus}
+        variant="outline"
+        className="hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 dark:hover:bg-blue-950 dark:hover:text-blue-300 dark:hover:border-blue-700 transition-colors"
+      >
+        <CheckCircle className="h-4 w-4 mr-2" />
+        {(!selectedIds || selectedIds.length === 0)
+          ? "Approve All"
+          : `Approve Selected (${selectedIds.length})`}
+      </Button>
+
+      <Button
+        variant="outline"
+        size="sm"
+        className="gap-2"
+        onClick={() => setShowFormBuilder(true)}
+      >
+        <FileText className="h-4 w-4" />
+        Build Form
+      </Button>
+
+      <Button
+        variant="outline"
+        onClick={() => {
+          setIsRefresh(true);
+          setTimeout(() => {
+            setIsRefresh(false);
+          }, 2000);
+          registrationsRefetch();
+        }}
+        disabled={isLoading}
+        className="flex items-center gap-2"
+      >
+        <RefreshCw
+          className={`w-4 h-4 ${(isLoading || isRefresh) ? "animate-spin" : ""}`}
+        />
+        Refresh
+      </Button>
+    </div>
+  );
+}
+
+interface RegistrationFiltersProps {
+  searchTerm: string;
+  setSearchTerm: (val: string) => void;
+  filterStatus: RegistrationStatus;
+  setFilterStatus: (val: RegistrationStatus) => void;
+  sortOrder: "older" | "latest";
+  setSortOrder: (val: "older" | "latest") => void;
+  setCurrentPage: (page: number) => void;
+}
+
+export function RegistrationFilters({
+  searchTerm,
+  setSearchTerm,
+  filterStatus,
+  setFilterStatus,
+  sortOrder,
+  setSortOrder,
+  setCurrentPage,
+}: RegistrationFiltersProps) {
+  return (
+    <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
+      <div className="flex-1 relative">
+        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+          <Search size={20} />
+        </span>
+
+        <Input
+          placeholder="Search by name or email…"
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setCurrentPage(1);
+          }}
+          className="w-full pl-10 pr-10"
+        />
+
+        {searchTerm && (
+          <Button
+            type="button"
+            onClick={() => setSearchTerm("")}
+            className="absolute right-3 top-1/2 transform bg-transparent hover:bg-transparent -translate-y-1/2 text-gray-500 hover:text-gray-700"
+          >
+            <X size={20} />
+          </Button>
+        )}
+      </div>
+
+      <Select
+        value={filterStatus}
+        onValueChange={(value: RegistrationStatus) => {
+          setFilterStatus(value);
+          setCurrentPage(1);
+        }}
+      >
+        <SelectTrigger className="w-[180px] flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FilterIcon className="w-4 h-4 text-gray-500" />
+            <SelectValue placeholder="Filter by status" />
+          </div>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">All</SelectItem>
+          <SelectItem value="PENDING">Pending</SelectItem>
+          <SelectItem value="APPROVED">Approved</SelectItem>
+          <SelectItem value="REJECTED">Rejected</SelectItem>
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={sortOrder}
+        onValueChange={(value) => {
+          setSortOrder(value as "older" | "latest");
+          setCurrentPage(1);
+        }}
+      >
+        <SelectTrigger className="w-[180px] flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-4 h-4 text-gray-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 6h18M3 12h18M3 18h18"
+              />
+            </svg>
+
+            <SelectValue placeholder="Sort by date" />
+          </div>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="latest">Latest</SelectItem>
+          <SelectItem value="older">Oldest</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}

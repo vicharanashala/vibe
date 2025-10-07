@@ -30,7 +30,7 @@ import {
   IItemRepository,
   MongoDatabase,
 } from '#root/shared/index.js';
-import { ObjectId } from 'mongodb';
+import { ClientSession, ObjectId } from 'mongodb';
 import { COURSES_TYPES } from '#root/modules/courses/types.js';
 import crypto from 'crypto';
 
@@ -302,15 +302,15 @@ export class InviteService extends BaseService {
 
 
 
-  async courseContentLength(courseId:string,courseVersionId: string){
-    const course = await this.courseRepo.read(courseId);
+  async courseContentLength(courseId:string,courseVersionId: string,session?:ClientSession){
+    const course = await this.courseRepo.read(courseId,session);
       console.log("reached here ")
       if (!course) {
         throw new NotFoundError('Course not found');
       }
 
       // Get Course Version Details
-      const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+      const courseVersion = await this.courseRepo.readVersion(courseVersionId,session);
       if (!courseVersion) {
         throw new NotFoundError('Course version not found');
       }
@@ -336,7 +336,7 @@ export class InviteService extends BaseService {
         )[0];
 
         const itemsGroup = await this.itemRepo.readItemsGroup(
-          firstSection.itemsGroupId.toString(),
+          firstSection.itemsGroupId.toString(),session
         );
 
         if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
