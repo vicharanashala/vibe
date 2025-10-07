@@ -180,17 +180,19 @@ export class AnomalyRepository {
     limit: number,
     skip: number,
     sortOptions?: {field: string; order: 'asc' | 'desc'},
+    search?: string | string[],
+    type?: string,
     session?: ClientSession,
   ): Promise<{data: IAnomalyData[]; total: number}> {
     await this.init();
-    const sort: Record<string, 1 | -1> = {};
-    if (sortOptions?.field) {
+
+    const sort: {[key: string]: 1 | -1} = {};
+    if (sortOptions) {
       sort[sortOptions.field] = sortOptions.order === 'asc' ? 1 : -1;
     } else {
-      sort['createdAt'] = -1;
+      sort.createdAt = -1; // Default sort by createdAt descending
     }
 
-    // normalize ids
     const courseIdVariants = [
       courseId,
       ObjectId.isValid(courseId) ? new ObjectId(courseId) : undefined,
@@ -201,10 +203,35 @@ export class AnomalyRepository {
       ObjectId.isValid(versionId) ? new ObjectId(versionId) : undefined,
     ].filter(Boolean);
 
-    const filter = {
-      courseId: {$in: courseIdVariants},
-      versionId: {$in: versionIdVariants},
+    const filter: any = {
+      $and: [
+        {
+          $or: [
+            {courseId: {$in: courseIdVariants}},
+            {'courseId._id': {$in: courseIdVariants}},
+          ],
+        },
+        {
+          $or: [
+            {versionId: {$in: versionIdVariants}},
+            {'versionId._id': {$in: versionIdVariants}},
+          ],
+        },
+      ],
     };
+
+    // Add type filter
+    if (type) {
+      filter.$and.push({ type });
+    }
+
+    // If user IDs are provided for search, filter by them
+    if (search && Array.isArray(search)) {
+      const userIds = search.map(id => new ObjectId(id));
+      filter.$and.push({
+        userId: { $in: userIds }
+      });
+    }
 
     const [data, total] = await Promise.all([
       this.anomalyCollection
