@@ -1,17 +1,17 @@
-import {injectable, inject} from 'inversify';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {AnomalyRepository} from '../repositories/providers/mongodb/AnomalyRepository.js';
-import {CloudStorageService} from './CloudStorageService.js';
+import { injectable, inject } from 'inversify';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { AnomalyRepository } from '../repositories/providers/mongodb/AnomalyRepository.js';
+import { CloudStorageService } from './CloudStorageService.js';
 import {
   AnomalyData,
   NewAnomalyData,
 } from '../classes/validators/AnomalyValidators.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {ANOMALIES_TYPES} from '../types.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
-import {InternalServerError, NotFoundError} from 'routing-controllers';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { ANOMALIES_TYPES } from '../types.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
+import { InternalServerError, NotFoundError } from 'routing-controllers';
 import {
   AnomalyDataResponse,
   AnomalyStats,
@@ -43,7 +43,7 @@ export class AnomalyService extends BaseService {
     fileType?: FileType,
   ): Promise<AnomalyData> {
     return this._withTransaction(async session => {
-      const {courseId, versionId} = anomalyData;
+      const { courseId, versionId } = anomalyData;
 
       const courseVersion = await this.courseRepo.readVersion(
         versionId.toString(),
@@ -100,6 +100,7 @@ export class AnomalyService extends BaseService {
     limit: number,
     skip: number,
   ): Promise<AnomalyData[]> {
+
     return await this._withTransaction(async session => {
       const anomalies = await this.anomalyRepository.getByUser(
         userId,
@@ -120,16 +121,16 @@ export class AnomalyService extends BaseService {
 
       return anomalies.map(
         a =>
-          ({
-            ...a,
-            _id: a._id.toString(),
-            studentName: user
-              ? `${user.firstName} ${user.lastName || ''}`.trim()
-              : 'Unknown User',
-            studentEmail: user?.email || '',
-            fileName: undefined,
-            fileType: undefined,
-          } as unknown as AnomalyData),
+        ({
+          ...a,
+          _id: a._id.toString(),
+          studentName: user
+            ? `${user.firstName} ${user.lastName || ''}`.trim()
+            : 'Unknown User',
+          studentEmail: user?.email || '',
+          fileName: undefined,
+          fileType: undefined,
+        } as unknown as AnomalyData),
       );
     });
   }
@@ -139,22 +140,50 @@ export class AnomalyService extends BaseService {
     versionId: string,
     limit: number,
     skip: number,
-    sortOptions?: {field: string; order: 'asc' | 'desc'},
+    sortOptions?: { field: string; order: 'asc' | 'desc' },
+    search?: string,
+    type?: string,
     page: number = 1,
   ): Promise<PaginatedResponse<AnomalyData>> {
+    console.log('getCourseAnomalies called with:', {
+      courseId,
+      versionId,
+      limit,
+      skip,
+      sortOptions,
+      search,
+      type,
+      page,
+    });
     return this._withTransaction(async session => {
       const courseVersion = await this.courseRepo.readVersion(versionId);
       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
         throw new NotFoundError('Course version not found');
       }
 
-      const {data: anomalies, total} =
+      // First, get all users that match the search criteria if search is provided
+      let userIdsToSearch: string[] | null = null;
+      if (search?.trim()) {
+        const searchTerm = search.trim();
+        const matchingUsers = await this.userRepo.searchUsers(searchTerm, session);
+        userIdsToSearch = matchingUsers.map(user => user._id.toString());
+
+        // If no users match the search, return empty results
+        if (userIdsToSearch.length === 0) {
+          return new PaginatedResponse<AnomalyData>([], page, 0, limit);
+        }
+      }
+
+      // Get anomalies with potential search filter applied
+      const { data: anomalies, total } =
         await this.anomalyRepository.getAnomaliesByCourse(
           courseId,
           versionId,
           limit,
           skip,
           sortOptions,
+          userIdsToSearch || undefined, // Pass user IDs for filtering if search was performed
+          type,
           session,
         );
 
@@ -166,6 +195,7 @@ export class AnomalyService extends BaseService {
       const users = await this.userRepo.getUsersByIds(userIds);
       const userMap = new Map(users.map(user => [user._id.toString(), user]));
 
+      // Format anomalies with user data
       const formattedAnomalies = anomalies.map(a => {
         const user = userMap.get(a.userId.toString());
         return {
@@ -180,10 +210,24 @@ export class AnomalyService extends BaseService {
         } as unknown as AnomalyData;
       });
 
+      // Calculate the total count after filtering by user IDs if search was performed
+      const resultTotal = search?.trim() && userIdsToSearch
+        ? await this.anomalyRepository.getAnomaliesByCourse(
+          courseId,
+          versionId,
+          0, // limit = 0 to only get the count
+          0, // skip = 0 to get all matching records
+          sortOptions,
+          userIdsToSearch,
+          type,
+          session,
+        ).then(({ total }) => total)
+        : total;
+
       return new PaginatedResponse<AnomalyData>(
         formattedAnomalies,
         page,
-        total,
+        resultTotal,
         limit,
       );
     });
@@ -333,6 +377,6 @@ export class AnomalyService extends BaseService {
     );
     delete result.fileName;
     result._id = result._id.toString();
-    return {...result, fileUrl};
+    return { ...result, fileUrl };
   }
 }

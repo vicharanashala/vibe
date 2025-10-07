@@ -197,4 +197,44 @@ async getUserNamesByIds(userIds: string[],session?:ClientSession) {
       _id: user._id.toString()
     }));
   }
+
+  /**
+   * Searches for users by name or email
+   * @param searchTerm The search term to match against user names or emails
+   * @param session Optional MongoDB session
+   * @returns Promise with array of user search results
+   */
+  async searchUsers(
+    searchTerm: string,
+    session?: ClientSession,
+  ) {
+    await this.init();
+    
+    const searchRegex = new RegExp(searchTerm, 'i');
+    const query = {
+      $or: [
+        { firstName: { $regex: searchRegex } },
+        { lastName: { $regex: searchRegex } },
+        { email: { $regex: searchRegex } },
+      ],
+    };
+
+    const projection = {
+      _id: 1,
+      firstName: 1,
+      lastName: 1,
+      email: 1,
+    };
+
+    const users = await this.usersCollection
+      .find(query, { session, projection })
+      .toArray();
+
+    return users.map(user => ({
+      _id: user._id as ObjectId,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+    }));
+  }
 }
