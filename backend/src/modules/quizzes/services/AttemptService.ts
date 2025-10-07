@@ -30,15 +30,19 @@ import {QuizRepository} from '../repositories/providers/mongodb/QuizRepository.j
 import {AttemptRepository} from '../repositories/providers/mongodb/AttemptRepository.js';
 import {SubmissionRepository} from '../repositories/providers/mongodb/SubmissionRepository.js';
 import {UserQuizMetricsRepository} from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
-import {BaseQuestion} from '../classes/transformers/Question.js';
+import {BaseQuestion, NATQuestion} from '../classes/transformers/Question.js';
 import {UserQuizMetrics} from '../classes/transformers/UserQuizMetrics.js';
 import {Attempt} from '../classes/transformers/Attempt.js';
 import {QuizItem} from '#root/modules/courses/classes/transformers/Item.js';
+import {QuestionRepository} from '../repositories/index.js';
 @injectable()
 class AttemptService extends BaseService {
   constructor(
     @inject(QUIZZES_TYPES.QuizRepo)
     private quizRepository: QuizRepository,
+
+    @inject(QUIZZES_TYPES.QuestionRepo)
+    private questionRepository: QuestionRepository,
 
     @inject(QUIZZES_TYPES.AttemptRepo)
     private attemptRepository: AttemptRepository,
@@ -244,7 +248,7 @@ class AttemptService extends BaseService {
         session,
       );
 
-      const attemptObjectId =  new ObjectId(attemptId)
+      const attemptObjectId = new ObjectId(attemptId);
 
       //6. Update UserQuizMetrics with the new attempt
       metrics.latestAttemptStatus = 'ATTEMPTED';
@@ -307,7 +311,11 @@ class AttemptService extends BaseService {
       const userObjectId = new ObjectId(userId);
       const attemptObjectId = new ObjectId(attemptId);
       if (!isSkipped) {
-        const submission = new Submission(quizObjectId, userObjectId, attemptObjectId);
+        const submission = new Submission(
+          quizObjectId,
+          userObjectId,
+          attemptObjectId,
+        );
         const submissionId = await this.submissionRepository.create(
           submission,
           session,
@@ -318,10 +326,11 @@ class AttemptService extends BaseService {
         metrics.latestAttemptStatus = 'SUBMITTED';
 
         metrics.latestAttemptId = new ObjectId(metrics.latestAttemptId);
-        metrics.latestSubmissionResultId = new ObjectId(metrics.latestSubmissionResultId);
+        metrics.latestSubmissionResultId = new ObjectId(
+          metrics.latestSubmissionResultId,
+        );
         metrics.quizId = new ObjectId(metrics.quizId);
         metrics.userId = new ObjectId(metrics.userId);
-        
 
         const gradingResult = await this._grade(
           attemptId,
@@ -413,6 +422,25 @@ class AttemptService extends BaseService {
       attempt.updatedAt = new Date();
       attempt.userId = new ObjectId(attempt.userId);
       attempt.quizId = new ObjectId(attempt.quizId);
+
+      if (answers?.length) {
+        const {questionId, answer: ans} = answers[0];
+        const question = await this.questionRepository.getById(
+          questionId,
+          session,
+        );
+
+        if (question.type === 'NUMERIC_ANSWER_TYPE') {
+          const submittedAnswer = (ans as {value: number}).value;
+          const {lowerLimit, upperLimit} = question as NATQuestion;
+
+          if (submittedAnswer < lowerLimit || submittedAnswer > upperLimit) {
+            throw new BadRequestError(
+              `Answer should be in the range of ${lowerLimit} - ${upperLimit}`,
+            );
+          }
+        }
+      }
 
       //4. Save the updated attempt
       await this.attemptRepository.update(attemptId, attempt);
