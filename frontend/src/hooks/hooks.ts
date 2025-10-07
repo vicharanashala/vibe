@@ -25,6 +25,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { VersionWithCourse } from '@/app/pages/student/CourseRegistration';
 import { Registration, RegistrationStatus } from '@/app/pages/teacher/CourseRegistrationRequests';
 import { Field } from '@/app/pages/teacher/components/course-registration-modal';
+import { IssueSort, IssueStatus } from '@/app/pages/student/FlagResponse';
 
 // Add missing ObjectId type
 type ObjectId = string;
@@ -3124,6 +3125,9 @@ export const useGetRegistrationFields = (
   };
 };
 
+
+
+
 export const useGetDynamicFields = (
   versionId: string,
 ): {
@@ -3149,5 +3153,109 @@ export const useGetDynamicFields = (
     isLoading: result.isLoading,
     error: result.error ? result.error.message || "Failed to fetch settings schema" : null,
     refetch: result.refetch,
+  };
+};
+
+
+
+export type IssueStatus =
+  | "ALL"
+  | "REPORTED"
+  | "IN_REVIEW"
+  | "RESOLVED"
+  | "DISCARDED"
+  | "CLOSED";
+
+export type IssueSort = "ALL" | "VIDEO" | "QUIZ" | "ARTICLE" | "QUESTION";
+
+export type EntityType = "VIDEO" | "QUIZ" | "ARTICLE" | "QUESTION";
+
+export interface IssueStatusHistory {
+  status: IssueStatus;
+  comment: string;
+  createdAt: string;
+  createdBy?: string;
+}
+
+export interface IssueReport {
+  _id: string;
+  courseId: string;
+  versionId: string;
+  entityId: string;
+  entityType: EntityType;
+  reason: string;
+  reportedBy: string;
+  status: IssueStatusHistory[]; // ✅ fixed: array of objects
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Params {
+  status: IssueStatus;
+  search: string;
+  sort: IssueSort;
+  page: number;
+  limit: number;
+}
+
+export interface IssueReportsResponse {
+  issues: IssueReport[];
+  totalDocuments: number;
+  totalPages: number;
+}
+
+export const useGetCourseIssueReports = (
+  versionId: string,
+  params: Params
+): {
+  data: IssueReportsResponse;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} => {
+  const result = api.useQuery(
+    "get",
+    `/reports/student/issues/flag` as any,
+    {
+      params: {
+        query: params,
+      },
+    },
+    {
+      enabled: !!versionId,
+    }
+  );
+
+  return {
+    data: result.data as IssueReportsResponse,
+    isLoading: result.isLoading,
+    error: result.error
+      ? result.error.message || "Failed to fetch issue reports"
+      : null,
+    refetch: result.refetch,
+  };
+};
+
+
+
+export const useUpdateStudentInterest = () => {
+  const result = api.useMutation(
+    "patch",
+    `/reports/student/issues/interest` as any // replace with your real endpoint
+  );
+
+  return {
+    mutate: (data: { issueId: string; interest: "yes" | "no" }) =>
+      result.mutate({ body: data }),
+    mutateAsync: (data: { issueId: string; interest: "yes" | "no" }) =>
+      result.mutateAsync({ body: data }),
+    data: result.data as { message: string } | undefined,
+    error: result.error ? result.error.message || "Failed to submit comment" : null,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
   };
 };

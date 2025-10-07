@@ -38,6 +38,7 @@ import AnomaliesList from '../pages/teacher/AnomaliesList'
 import CourseInstructors from '../pages/teacher/course-instructors'
 import RegisteredUsers from '../pages/teacher/CourseRegistrationRequests'
 import CourseRegistration from '../pages/student/CourseRegistration'
+import CourseIssueReports from '../pages/student/FlagResponse'
 
 
 // Root route with error and notFound handling
@@ -299,6 +300,14 @@ const studentCoursesRoute = new Route({
   component: StudentCourses,
 });
 
+// student issues routes 
+
+const studentIssuesRoute = new Route({
+  getParentRoute:() => studentLayoutRoute,
+  path:'/issues',
+  component:CourseIssueReports,
+})
+
 // Student profile route
 const studentProfileRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -374,7 +383,8 @@ const routeTree = rootRoute.addChildren([
     studentDashboardRoute,
     studentCoursesRoute,
     studentProfileRoute,
-    studentCourseInviteRegistration
+    studentCourseInviteRegistration,
+    studentIssuesRoute
   ]),
   coursePageRoute,
 ]);
