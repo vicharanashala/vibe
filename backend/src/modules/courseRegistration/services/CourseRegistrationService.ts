@@ -448,6 +448,7 @@ export class CourseRegistrationService extends BaseService {
           status,
           session,
         );
+        if(status==='APPROVED'){
         const THROUGH_INVITE = true;
         await this.enrollmentService.enrollUser(
           data.userId.toString(),
@@ -457,6 +458,7 @@ export class CourseRegistrationService extends BaseService {
           THROUGH_INVITE,
           session,
         );
+      }
         const emailMessage = await this.createStatusEmailMessage(
           data,
           course,
