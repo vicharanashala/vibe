@@ -61,7 +61,10 @@ interface LabelOptions {
   sectionId: string;
 }
 
-
+interface ModuleData {
+  name: string;
+  description: string;
+}
 export default function TeacherCoursePage() {
   const user = useAuthStore().user;
   const { currentCourse, setCurrentCourse } = useCourseStore();
@@ -98,6 +101,11 @@ export default function TeacherCoursePage() {
     title: "",
     description: "",
   });
+
+  const [isEditingModule, setIsEditingModule] = useState(false);
+  const [isEditingSection, setIsEditingSection] = useState(false);
+  const [originalModuleData, setOriginalModuleData] = useState<ModuleData | null>(null);
+  const [originalSectionData, setOriginalSectionData] = useState<{name: string; description: string} | null>(null);
 
 
 
@@ -416,6 +424,8 @@ export default function TeacherCoursePage() {
     }).then((res) => {
       refetchVersion();
       refetchItems();
+      setIsEditingModule(true);
+      setOriginalModuleData({ name: "Untitled Module", description: "Module description" });
     });
   };
 
@@ -695,6 +705,11 @@ export default function TeacherCoursePage() {
                             onClick={() => {
                               toggleModule(module.moduleId);
                               setSelectedEntity({ type: "module", data: module });
+                              setIsEditingModule(false);
+                              setOriginalModuleData({
+                                name: module.name,
+                                description: module.description || ""
+                              });
                             }}
                           >
                             <ChevronRight
@@ -740,6 +755,11 @@ export default function TeacherCoursePage() {
                                           type: "section",
                                           data: section,
                                           parentIds: { moduleId: module.moduleId },
+                                        });
+                                        setIsEditingSection(false);
+                                        setOriginalSectionData({
+                                          name: section.name,
+                                          description: section.description || ""
                                         });
                                       }}
                                     >
@@ -1163,6 +1183,10 @@ export default function TeacherCoursePage() {
                               ? selectedItemData?.item?.name ?? ""
                               : selectedEntity.data?.name ?? ""
                           }
+                          disabled={
+                            (selectedEntity.type === "module" && !isEditingModule) || 
+                            (selectedEntity.type === "section" && !isEditingSection)
+                          }
                           onChange={e => {
                             const value = e.target.value;
                             setSelectedEntity({
@@ -1220,6 +1244,10 @@ export default function TeacherCoursePage() {
                                   ? selectedItemData?.item?.description ?? ""
                                   : selectedEntity.data?.description ?? ""
                               }
+                              disabled={
+                                (selectedEntity.type === "module" && !isEditingModule) || 
+                                (selectedEntity.type === "section" && !isEditingSection)
+                              }
                               onChange={e => {
                                 const value = e.target.value;
                                 
@@ -1254,7 +1282,12 @@ export default function TeacherCoursePage() {
                               placeholder={`Description (max ${MAX_DESCRIPTION_LENGTH} characters)`}
                               rows={5}
                               maxLength={MAX_DESCRIPTION_LENGTH}
-                              className="w-full rounded border px-3 py-2 pr-16 text-sm"
+                              className={`w-full rounded border px-3 py-2 pr-16 text-sm ${
+                                (selectedEntity.type === "module" && !isEditingModule) || 
+                                (selectedEntity.type === "section" && !isEditingSection) 
+                                  ? 'bg-muted/50 border-transparent' 
+                                  : ''
+                              }`}
                             />
                             <div className={`absolute bottom-2 right-2 text-xs ${
                               (selectedEntity.data?.description?.length || 0) >= (MAX_DESCRIPTION_LENGTH * 0.9) 
@@ -1279,7 +1312,17 @@ export default function TeacherCoursePage() {
                             const sectionName = selectedEntity.data.name?.trim();
                             const sectionDescription = selectedEntity.data.description?.trim() ?? "";
                             if (selectedEntity.type === "module") {
-
+                              if (!isEditingModule) {
+                                setIsEditingModule(true);
+                                setOriginalModuleData({
+                                  name: selectedEntity.data.name,
+                                  description: selectedEntity.data.description || ""
+                                });
+                                return;
+                              }
+                              
+                              const moduleName = selectedEntity.data.name?.trim();
+                              const moduleDescription = selectedEntity.data.description?.trim() ?? "";
                               if (!moduleName || !moduleDescription) {
                                 setErrors({
                                   title: !moduleName ? "Module name is required." : "",
@@ -1291,9 +1334,36 @@ export default function TeacherCoursePage() {
                                 });
                                 return;
                               }
-
+                              
+                              setErrors({ title: "", description: "" });
+                              if (versionId) {
+                                updateModuleAsync({
+                                  params: { path: { versionId, moduleId: selectedEntity.data.moduleId } },
+                                  body: {
+                                    name: selectedEntity.data.name,
+                                    description: selectedEntity.data.description || ""
+                                  }
+                                }).then((res) => {
+                                  refetchVersion();
+                                  refetchItems();
+                                  setIsEditingModule(false);
+                                });
+                              }
+                              return;
                             }
+                            
                             if (selectedEntity.type === "section") {
+                              if (!isEditingSection) {
+                                setIsEditingSection(true);
+                                setOriginalSectionData({
+                                  name: selectedEntity.data.name,
+                                  description: selectedEntity.data.description || ""
+                                });
+                                return;
+                              }
+                            const sectionName = selectedEntity.data.name?.trim();
+                            const sectionDescription = selectedEntity.data.description?.trim() ?? "";
+                            
                               if (!sectionName || !sectionDescription) {
                                 setErrors({
                                   title: !sectionName ? "Section name is required." : "",
@@ -1305,21 +1375,8 @@ export default function TeacherCoursePage() {
                                 });
                                 return;
                               }
-
                             }
                             setErrors({ title: "", description: "" });
-                            if (selectedEntity.type === "module" && versionId) {
-                              updateModuleAsync({
-                                params: { path: { versionId, moduleId: selectedEntity.data.moduleId } },
-                                body: {
-                                  name: selectedEntity.data.name,
-                                  description: selectedEntity.data.description || ""
-                                }
-                              }).then((res) => {
-                                refetchVersion();
-                                refetchItems();
-                              });
-                            }
                             if (selectedEntity.type === "section" && versionId && selectedEntity.parentIds?.moduleId) {
                               updateSectionAsync({
                                 params: {
@@ -1336,6 +1393,7 @@ export default function TeacherCoursePage() {
                               }).then((res) => {
                                 refetchVersion();
                                 refetchItems();
+                                setIsEditingSection(false);
                               });
                             }
                             if (selectedEntity.type === "item" && versionId && selectedEntity.parentIds?.moduleId && selectedEntity.parentIds?.sectionId) {
@@ -1360,10 +1418,44 @@ export default function TeacherCoursePage() {
                           }}
                           className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
                         >
-                          Update {selectedEntity.type}
+                          {selectedEntity.type === "module" 
+                        ? (isEditingModule ? 'Save Changes' : `Update ${selectedEntity.type}`)
+                        : (isEditingSection ? 'Save Changes' : `Update ${selectedEntity.type}`)}
                         </Button>
                       )}
 
+                      {((selectedEntity.type === "module" && isEditingModule) || (selectedEntity.type === "section" && isEditingSection)) && (
+                        <Button
+                          variant="outline"
+                          className="border-border bg-background"
+                          onClick={() => {
+                            if (selectedEntity.type === 'module' && originalModuleData) {
+                              setSelectedEntity({
+                                ...selectedEntity,
+                                data: {
+                                  ...selectedEntity.data,
+                                  name: originalModuleData.name,
+                                  description: originalModuleData.description
+                                }
+                              });
+                            setIsEditingModule(false);
+                            } else if (selectedEntity.type === 'section' && originalSectionData) {
+                              setSelectedEntity({
+                                ...selectedEntity,
+                                data: {
+                                  ...selectedEntity.data,
+                                  name: originalSectionData.name,
+                                  description: originalSectionData.description
+                                }
+                              });
+                              setIsEditingSection(false);
+                            }
+                            setErrors({ title: "", description: "" });
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      )}                 
                       {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
                         <Button
                           variant="outline"
@@ -1380,6 +1472,7 @@ export default function TeacherCoursePage() {
                                 });
                                 setSelectedEntity(null);
                                 setExpandedModules(prev => ({ ...prev, [selectedEntity.data.moduleId]: false }));
+                                setIsEditingModule(false);
                               }
                             }
                             if (type === "section" && versionId && parentIds?.moduleId) {
@@ -1392,6 +1485,7 @@ export default function TeacherCoursePage() {
                                 });
                                 setSelectedEntity(null);
                                 setExpandedSections(prev => ({ ...prev, [selectedEntity.data.sectionId]: false }));
+                                setIsEditingSection(false);
                               }
                             }
                             setErrors({ title: "", description: "" });

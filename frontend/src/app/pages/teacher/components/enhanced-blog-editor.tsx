@@ -289,6 +289,36 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
           border-color: #374151 !important;
         }
         
+        /* Inline code styling */
+        [data-yoopta-editor] code,
+        [data-yoopta-editor] .yoopta-code-mark,
+        [data-yoopta-editor] [data-yoopta-mark="code"],
+        code,
+        .yoopta-code-mark,
+        [data-yoopta-mark="code"] {
+          background-color: #f1f5f9 !important;
+          color: #1e293b !important;
+          padding: 0.125rem 0.25rem !important;
+          border-radius: 0.25rem !important;
+          font-family: 'Courier New', monospace !important;
+          font-size: 0.875em !important;
+        }
+        
+        /* Inline code dark mode */
+        .dark [data-yoopta-editor] code,
+        .dark [data-yoopta-editor] .yoopta-code-mark,
+        .dark [data-yoopta-editor] [data-yoopta-mark="code"],
+        .dark code,
+        .dark .yoopta-code-mark,
+        .dark [data-yoopta-mark="code"] {
+          background-color: #374151 !important;
+          color: #f3f4f6 !important;
+          padding: 0.125rem 0.25rem !important;
+          border-radius: 0.25rem !important;
+          font-family: 'Courier New', monospace !important;
+          font-size: 0.875em !important;
+        }
+        
         /* Blockquote dark mode */
         .dark [data-yoopta-editor] .yoopta-blockquote {
           border-left-color: #374151 !important;

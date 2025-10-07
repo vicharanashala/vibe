@@ -17,6 +17,7 @@ import { bufferToHex } from '@/utils/helpers';
 import type { QuizQuestion, QuizProps, QuizRef, questionBankRef, QuestionRenderView, SubmitQuizResponse } from "@/types/quiz.types";
 import { preprocessMathContent, preprocessRemoveFromOptions } from '@/utils/utils';
 import Loader from './Loader';
+import { Textarea } from './ui/textarea';
 
 // Type for Order interface (if not defined elsewhere)
 interface Order {
@@ -1393,9 +1394,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           {currentQuestion.type === 'DESCRIPTIVE' && (
             <div className="space-y-2">
               <Label htmlFor={`descriptive-answer-${currentQuestion.id}`}>Your Answer</Label>
-              <Input
+              <Textarea
                 id={`descriptive-answer-${currentQuestion.id}`}
-                type="text"
                 value={(answers[currentQuestion.id] as string) || ''}
                 onChange={(e) => handleAnswer(e.target.value)}
                 placeholder="Type your answer here"
@@ -1417,10 +1417,11 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                 placeholder="Enter a number"
                 className="text-lg"
               />
-              {currentQuestion.decimalPrecision && (
-                <p className="text-xs">
-                  Decimal precision: {currentQuestion.decimalPrecision} places
-                </p>
+              {currentQuestion.decimalPrecision !== undefined &&
+                currentQuestion.decimalPrecision > 0 && (
+                  <p className="text-xs">
+                    Decimal precision: {currentQuestion.decimalPrecision} places
+                  </p>
               )}
             </div>
           )}

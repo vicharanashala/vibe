@@ -2815,11 +2815,11 @@ type RegistrationBody = {
 export const useSubmitCourseRegistration: () => {
   mutate: (variables: {
     params: { path: { versionId: string } };
-    body: RegistrationBody;
+    body: Record<string, any>;
   }) => void;
   mutateAsync: (variables: {
     params: { path: { versionId: string } };
-    body: RegistrationBody;
+    body: Record<string, any>;
   }) => Promise<{ message: string }>;
   data: { message: string } | undefined;
   error: string | null;
@@ -2845,7 +2845,7 @@ export const useSubmitCourseRegistration: () => {
 
 
 export interface RegistrationRequestQuery {
-  filter?: RegistrationStatus;
+  status?: RegistrationStatus;
   sort?: 'older' | 'latest';
   search?: string;
   limit?: number;
@@ -2856,7 +2856,7 @@ export interface RegistrationRequestQuery {
 
 export const useGetCourseRegistrationRequests = (
   versionId:string,
-  params: RegistrationRequestQuery = {},
+  query: RegistrationRequestQuery = {},
 ): {
   data: {totalDocuments: number, totalPages: number, currentPage: number, registrations: Registration[]};
   isLoading: boolean;
@@ -2869,13 +2869,7 @@ export const useGetCourseRegistrationRequests = (
     {
       params: {
         path:{versionId},
-        query: {
-          filter: params.filter,
-          sort: params.sort,
-          search: params.search,
-          limit: params.limit,
-          page: params.page,
-        },
+        query
       }
     },
     {
@@ -3070,7 +3064,7 @@ export const useCreateRegistrationFields = (versionId: string): {
   status: 'idle' | 'pending' | 'success' | 'error';
 } => {
   // Assuming the endpoint path includes versionId; adjust if needed based on your API structure
-  const result = api.useMutation('put', `/course/registration/settings/version/${versionId}` as any);
+  const result = api.useMutation('put', `/course/registration/build-form/version/${versionId}` as any);
 
   return {
     mutate: (fields) =>
@@ -3107,7 +3101,7 @@ export const useGetRegistrationFields = (
 } => {
   const result = api.useQuery(
     'get',
-    '/course/registration/settings/version/{versionId}' as any,
+    '/course/registration/build-form/version/{versionId}' as any,
     {
       params: {
         path: { versionId },
@@ -3126,6 +3120,34 @@ export const useGetRegistrationFields = (
     error: result.error
       ? result.error.message || 'Failed to fetch registration fields'
       : null,
+    refetch: result.refetch,
+  };
+};
+
+export const useGetDynamicFields = (
+  versionId: string,
+): {
+  data: { jsonSchema: RJSFSchema; uiSchema: Record<string, any> } | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} => {
+  const result = api.useQuery(
+    "get",
+    "/course/registration/form/version/{versionId}" as any, 
+    {
+      params: {
+        path: { versionId },
+      },
+    },
+    {
+      enabled: !!versionId, 
+    }
+  );
+  return {
+    data: result.data as { jsonSchema: RJSFSchema; uiSchema: Record<string, any> } | undefined,
+    isLoading: result.isLoading,
+    error: result.error ? result.error.message || "Failed to fetch settings schema" : null,
     refetch: result.refetch,
   };
 };

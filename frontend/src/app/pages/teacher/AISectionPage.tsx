@@ -42,7 +42,8 @@ import {
   Zap,
   FileMusic,
   Upload,
-  Share
+  Share,
+  BookOpen
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -813,6 +814,17 @@ export default function AISectionPage() {
     }
   };
 
+  const getCurrentActiveRunNumber = (taskType: keyof TaskRuns): number => {
+    const runs = taskRuns[taskType];
+    if (!runs || runs.length === 0) return 1;
+    
+    const latestRun = runs.reduce((latest, current) => 
+      current.timestamp > latest.timestamp ? current : latest
+    );
+    
+    return runs.indexOf(latestRun) + 1;
+  };
+
   const TaskAccordion = React.memo(({
     task,
     title,
@@ -952,7 +964,7 @@ export default function AISectionPage() {
               <div>
                   <div>Audio Extraction</div>
                   <div className="flex items-center gap-3">
-                  <span className="text-xs text-emerald-600">Run 1</span>
+                  <span className="text-xs text-emerald-600">Run {getCurrentActiveRunNumber('transcription')}</span>
                   <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
                   <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white dark:text-[#0D0D0D] font-medium">Complete</span>
                   <span className="text-sm text-emerald-700 font-medium">100% complete</span>
@@ -1117,7 +1129,7 @@ export default function AISectionPage() {
            
                   <div className="flex items-center text-sm text-gray-600 dark:text-[#FBFDFF]">
                 <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                <span>Run 1</span>
+                <span>Run {getCurrentActiveRunNumber('transcription')}</span>
                 <span className="mx-2">•</span>
                     <span>{audioExtractionStartTime ? audioExtractionStartTime.toLocaleTimeString() : new Date().toLocaleTimeString()}</span>
                     {audioExtractionStatus !== 'ready' && audioExtractionStatus !== 'failed' && (
@@ -1192,7 +1204,7 @@ export default function AISectionPage() {
                       <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white dark:text-[#0D0D0D] font-medium">Complete</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-xs text-emerald-600">Run 1</span>
+                      <span className="text-xs text-emerald-600">Run {getCurrentActiveRunNumber('segmentation')}</span>
                       <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
                     </div>
                   </div>
@@ -1217,7 +1229,7 @@ export default function AISectionPage() {
                     <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white dark:text-[#0D0D0D] font-medium">Complete</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-emerald-600">Run 1</span>
+                    <span className="text-xs text-emerald-600">Run {getCurrentActiveRunNumber('transcription')}</span>
                     <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
                   </div>
                 </div>
@@ -2991,8 +3003,12 @@ export default function AISectionPage() {
     return (
       <div className="space-y-2">
         {showQuestions && (
-          <div className="bg-gray-100 dark:bg-[#3A3A3D] text-gray-900 dark:text-[#F9FBFF] p-3 rounded max-h-96 overflow-y-auto text-sm border border-gray-300 dark:border-[#3A3A3D] mt-2">
-            <strong>Questions:</strong>
+          <>
+          <div className="flex items-center justify-between mt-4">
+           <p className="flex items-center gap-2"><BookOpen color="#AD46FF" size={20}/> <span className="text-[#1E2939] text-[15px] font-bold dark:text-[#C6D2E1]">Generated Questions</span></p>
+           <p className="flex items-center gap-2"><CircleCheckBig color="#009966" size={14}/> <span className="text-[#009966] text-xs">AI generation complete</span></p>
+          </div>
+          <div className="text-gray-900 dark:text-[#F9FBFF] p-[18px] max-h-96 overflow-y-auto text-sm mt-2">
             {loading && <div className="mt-2">Loading...</div>}
             {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
             {!loading && !error && questions.length > 0 && (
@@ -3002,33 +3018,66 @@ export default function AISectionPage() {
                   let segStart = segIdx === 0 ? 0 : segmentIds[segIdx - 1];
                   let segEnd = q.segmentId;
                   return (
-                    <li key={q.question?.text || idx} className="border-b border-gray-300 dark:border-gray-700 pb-2">
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                        Segment: {typeof segStart === 'number' && typeof segEnd === 'number' ? `${segStart}–${segEnd}s` : 'N/A'} | Type: {q.questionType || q.question?.type || 'N/A'}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="font-semibold flex-1">Q{idx + 1}: {q.question?.text}</div>
-                        <Button size="sm" variant="outline" onClick={() => { setEditingIdx(idx); setEditQuestion(JSON.parse(JSON.stringify(q))); setEditModalOpen(true); }}>
+                    <li key={q.question?.text || idx} className="border border-[#E5E7EB] dark:bg-[#151516] dark:border-[#1F2228] rounded-[12px] p-[18px]">
+                      <div>
+                        <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-2.5">
+                          <div className="font-semibold bg-gradient-to-br from-[#C27AFF] to-[#615FFF] w-[28px] h-[28px] flex items-center justify-center rounded-[8px] text-[#ffffff] dark:text-[#000000]">{idx + 1}</div>
+                          <div className="bg-[#F3E8FF] text-[#9810FA] px-[6px] py-[4px] rounded-[8px]">{q.questionType || q.question?.type || 'N/A'}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                            Segment: {typeof segStart === 'number' && typeof segEnd === 'number' ? `${segStart}–${segEnd}s` : 'N/A'}
+                          </div>
+                        </div>
+                        <Button className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] dark:text-[#a8a29e] font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful" size="sm" variant="secondary" onClick={() => { setEditingIdx(idx); setEditQuestion(JSON.parse(JSON.stringify(q))); setEditModalOpen(true); }}>
                           <Edit className="w-4 h-4" /> Edit
                         </Button>
+                        </div>
+                        <div className="flex-1 text-[13px] text-[#1E2939] dark:text-[#C6D2E1] font-medium leading-[21px] pt-[12px] pb-[14px]">{q.question?.text}</div>
                       </div>
-                      {q.question?.hint && <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Hint: {q.question.hint}</div>}
                       {q.solution && (
-                        <>
-                          <div className="mt-1"><b>Options:</b></div>
-                          <ul className="list-disc ml-6">
-                            {q.solution.incorrectLotItems?.map((opt: any, oIdx: number) => (
-                              <li key={`inc-${oIdx}`} className="text-red-600 dark:text-red-300">{opt.text}</li>
-                            ))}
-                            {q.solution.correctLotItems?.map((opt: any, oIdx: number) => (
-                              <li key={`cor-${oIdx}`} className="text-green-600 dark:text-green-400 font-semibold">{opt.text}</li>
-                            ))}
-                            {q.solution.correctLotItem && (
-                              <li className="text-green-600 dark:text-green-400 font-semibold">{q.solution.correctLotItem.text}</li>
-                            )}
-                          </ul>
-                        </>
+                        <div className="space-y-2.5">
+                          {q.solution.incorrectLotItems?.map((opt: any, oIdx: number) => (
+                            <div 
+                              key={`inc-${oIdx}`} 
+                              className="flex items-center gap-1 p-2 rounded-[9px] bg-[#F8FAFC] dark:bg-[#3A3A3D] text-[#364153] dark:text-[#F7F9FD]"
+                            >
+                              <div className="flex items-center justify-center w-5 h-5 dark:border-gray-500">
+                                <span className="text-[14px] text-[#364153] dark:text-[#F7F9FD]">{String.fromCharCode(65 + oIdx)}</span>
+                              </div>
+                              <span className="text-gray-700 dark:text-gray-300">{opt.text}</span>
+                            </div>
+                          ))}
+                          
+                          {q.solution.correctLotItems?.map((opt: any, oIdx: number) => {
+                            const optionIndex = (q.solution.incorrectLotItems?.length || 0) + oIdx;
+                            return (
+                              <div 
+                                key={`cor-${oIdx}`} 
+                                className="flex items-center gap-3 p-2 rounded bg-[#B9F8CF] dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+                              >
+                                <div className="flex items-center justify-center w-5 h-5">
+                                  <span className="text-[14px] text-[#016630] dark:text-[#141615]">{String.fromCharCode(65 + optionIndex)}</span>
+                                </div>
+                                <span className="text-[#016630] dark:text-green-300 font-semibold">{opt.text}</span>
+                                <span className="text-[#016630] dark:text-green-400 font-bold">✓</span>
+                              </div>
+                            );
+                          })}
+                          
+                          {q.solution.correctLotItem && (
+                            <div className="flex items-center gap-3 p-2 rounded-[9px] bg-[#DBEAFE] text-[#016630] dark:bg-[#21F4B1] border border-[#B9F8CF] dark:border-[#0A5D27]">
+                              <div className="flex items-center justify-center w-5 h-5">
+                                <span className="text-[14px] text-[#016630] dark:text-[#141615]">
+                                  {String.fromCharCode(65 + (q.solution.incorrectLotItems?.length || 0))}
+                                </span>
+                              </div>
+                              <span className="text-[#016630] dark:text-[#141615]">{q.solution.correctLotItem.text}</span>
+                              <span className="text-[#016630] dark:text-[#141615] font-bold">✓</span>
+                            </div>
+                          )}
+                        </div>
                       )}
+                      {q.question?.hint && <div className="mt-2.5 text-xs text-[#6A7282] dark:text-[#F6F9FF] mb-1 bg-[#ECFDF5] dark:bg-transparent p-[8px] rounded-[4px] font-medium"><span className="font-bold">Hint:</span> {q.question.hint}</div>}
                     </li>
                   );
                 })}
@@ -3036,6 +3085,7 @@ export default function AISectionPage() {
             )}
             {!loading && !error && questions.length === 0 && <div className="mt-2">No questions found.</div>}
           </div>
+          </>
         )}
         <div className="w-full flex items-center justify-center gap-2 mt-4">
         <Button size="sm" variant="secondary" onClick={handleShowQuestions} className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] dark:text-[#a8a29e] font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
@@ -3210,7 +3260,10 @@ export default function AISectionPage() {
                       };
                     });
                     await aiSectionAPI.editQuestionData(aiJobId, updatedQuestions, runIndex);
-                    // setEditingQuestion(null);
+                    setQuestionsByRun(prev => ({
+                      ...prev,
+                      [run.id]: updatedQuestions
+                    }));
                     setEditModalOpen(false);
                   } catch (e) {
                     toast.error('Question Updated.');
@@ -3658,7 +3711,7 @@ export default function AISectionPage() {
                                       <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white dark:text-[#0D0D0D] font-medium">Complete</span>
                                     </div>
                                     <div className="flex items-center gap-3">
-                                      <span className="text-xs text-emerald-600">Run 1</span>
+                                      <span className="text-xs text-emerald-600">Run {getCurrentActiveRunNumber('question')}</span>
                                       <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
                                     </div>
                                   </div>

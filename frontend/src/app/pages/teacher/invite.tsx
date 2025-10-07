@@ -610,6 +610,7 @@ const addInviteRow = () => {
               <Loader2 className="w-6 h-6 animate-spin" /><span className="text-gray-800 dark:text-gray-200 text-sm ms-2">Loading invites ...</span>
             </div>
           ) : invitesData?.invites?.length ? (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -682,7 +683,8 @@ const addInviteRow = () => {
                   </TableRow>
                 ))}
               </TableBody>
-              {invitesData && invitesData?.totalPages > 1 && (
+            </Table>
+             {invitesData && invitesData?.totalPages > 1 && (
                 <Pagination
                   currentPage={currentPage}
                   totalPages={invitesData.totalPages}
@@ -690,7 +692,7 @@ const addInviteRow = () => {
                   onPageChange={handlePageChange}
                 />
               )}
-            </Table>
+              </>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               No invites found for this course version.

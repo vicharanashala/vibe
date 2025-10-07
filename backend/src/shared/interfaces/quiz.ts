@@ -35,6 +35,10 @@ interface INATSolution {
   expression?: string;
 }
 
+interface IDESSolution {
+  solutionText: string;
+}
+
 interface ILotItem {
   _id?: string | ObjectId;
   text: string;
@@ -60,9 +64,7 @@ interface ISMLSolution {
   correctLotItems: ILotItem[];
 }
 
-interface IDESSolution {
-  solutionText: string;
-}
+
 
 type ID = string | ObjectId;
 
