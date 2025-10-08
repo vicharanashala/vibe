@@ -534,8 +534,8 @@ const addInviteRow = () => {
               )}
             </Button>
           </CardTitle>
-          <div className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 mt-5 px-10 mb-2">
-            <div className="relative flex-1 max-w-md">
+          <div className="w-full flex flex-col xl:flex-row md:items-center justify-between gap-4 mt-5 px-4">
+            <div className="relative w-full max-w-md">
             <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg blur-sm"></div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -543,14 +543,19 @@ const addInviteRow = () => {
                 placeholder="Search by student name, email ... "
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value) }}
-                className="pl-10 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
+                className="pl-10 pr-10 w-full bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
               />
+              <X className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground cursor-pointer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setSearchQuery("");
+                }} />
             </div>
             </div>
-          
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground">
+          <div className="flex items-center gap-2 flex-1 min-w-[280px] lg:min-w-0 lg:flex-initial">
+            <div className="flex items-center gap-2 flex-1 min-w-[280px] lg:min-w-0 lg:flex-initial">
+              <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap shrink-0">
                 Filter by Status:
               </label>
               <Select
@@ -560,7 +565,7 @@ const addInviteRow = () => {
                   setCurrentPage(1);
                 }}
               >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full lg:w-[180px]">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -572,9 +577,8 @@ const addInviteRow = () => {
                 </SelectContent>
               </Select>
             </div>
-          
-            <div className="flex items-center gap-2">
-              <label htmlFor="sortFilter" className="text-sm font-medium text-muted-foreground">
+            <div className="flex items-center gap-2 flex-1 min-w-[280px] lg:min-w-0 lg:flex-initial">
+              <label htmlFor="sortFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap shrink-0">
                 Sort by:
               </label>
               <Select
@@ -583,7 +587,7 @@ const addInviteRow = () => {
                   setSort(value === "All" ? "" : value);
                 }}
               >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full lg:w-[180px]">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>

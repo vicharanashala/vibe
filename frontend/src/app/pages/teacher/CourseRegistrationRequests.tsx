@@ -1027,7 +1027,7 @@ export function RegistrationFilters({
   setCurrentPage,
 }: RegistrationFiltersProps) {
   return (
-    <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
+    <div className="flex flex-col lg:flex-row md:items-center gap-4 mb-4">
       <div className="flex-1 relative">
         <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
           <Search size={20} />
@@ -1053,7 +1053,7 @@ export function RegistrationFilters({
           </Button>
         )}
       </div>
-
+      <div className="flex gap-4">
       <Select
         value={filterStatus}
         onValueChange={(value: RegistrationStatus) => {
@@ -1107,6 +1107,7 @@ export function RegistrationFilters({
           <SelectItem value="older">Oldest</SelectItem>
         </SelectContent>
       </Select>
+      </div>
     </div>
   );
 }
