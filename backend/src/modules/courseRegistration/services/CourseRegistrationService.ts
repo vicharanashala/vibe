@@ -72,10 +72,10 @@ export class CourseRegistrationService extends BaseService {
     switch (status) {
       case 'APPROVED':
         greeting = 'Congratulations!';
-        bodyText = `Your registration for the course "${course.name}" has been approved. You can now access the course via our platform.\n\nTo get started, please click the link below:\n${appConfig.origins}/student/courses \n\nWe look forward to your participation!`;
+        bodyText = `Your registration for the course "${course.name}" has been approved. You can now access the course via our platform.\n\nTo get started, please click the link below:\n${appConfig.origins[0]}/student/courses \n\nWe look forward to your participation!`;
         buttonText = 'Access Course';
         // buttonHref = `${appConfig.url}${appConfig.routePrefix}/courses/${course._id.toString()}`;
-        buttonHref = `${appConfig.origins}/student/courses`;
+        buttonHref = `${appConfig.origins[0]}/student/courses`;
         break;
       case 'REJECTED':
         greeting = 'We regret to inform you...';
@@ -371,7 +371,7 @@ export class CourseRegistrationService extends BaseService {
               format: 'email',
               title: 'Email',
             },
-            phone: {
+            Phone: {
               type: 'string',
               title: 'Phone',
             },
@@ -386,10 +386,11 @@ export class CourseRegistrationService extends BaseService {
           Email: {
             'ui:placeholder': 'Enter your Email',
           },
-          Mobile: {
+          Phone: {
             'ui:options': {
               inputType: 'tel',
             },
+            'ui:placeholder': 'Enter your Phone Number',
           },
         };
 
