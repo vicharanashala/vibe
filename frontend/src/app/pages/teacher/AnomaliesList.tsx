@@ -124,33 +124,33 @@ export default function AnomaliesList() {
           </div>
         </div>
 
+        {/* Search Input */}
+        <div className="relative w-full">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search students..."
+            className="w-full pl-10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                setDebouncedSearch(searchQuery.trim());
+                setPage(1);
+              }
+            }}
+          />
+        </div>
+
         {/* Anomalies Table */}
         <Card className="border-0 shadow-lg overflow-hidden px-6">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <Card className="w-full">
                 <CardContent className="p-6">
-                  <div className="flex justify-between items-center mb-6">
+                  <div className="flex md:flex-row flex-col justify-between items-center mb-6">
                     <h2 className="text-2xl font-semibold">Anomalies</h2>
-                    <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-                      {/* Search Input */}
-                      <div className="relative w-full sm:w-64">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="search"
-                          placeholder="Search students..."
-                          className="w-full pl-8"
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              setDebouncedSearch(searchQuery.trim());
-                              setPage(1);
-                            }
-                          }}
-                        />
-                      </div>
-
+                    <div className="flex md:flex-row flex-col gap-4 w-full sm:w-auto md:mt-0 mt-3">
                       {/* Type Filter */}
                       <select
                         value={anomalyType}

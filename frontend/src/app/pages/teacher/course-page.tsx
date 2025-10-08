@@ -197,15 +197,15 @@ export default function TeacherCoursesPage() {
   }
 
   return (
-    <div className="flex-1 overflow-auto p-6 bg-gradient-to-br from-background via-background to-muted/20">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <div className="flex-1 overflow-auto md:p-6 p-3 bg-gradient-to-br from-background via-background to-muted/20">
+      <div className="max-w-6xl mx-auto space-y-8 min-w-0">
         {/* Header Section with Beautiful Design */}
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 rounded-2xl blur-3xl"></div>
-          <div className="relative bg-card/90 backdrop-blur-sm border border-border/50 rounded-2xl p-8">
+          <div className="relative bg-card/90 backdrop-blur-sm border border-border/50 rounded-2xl md:p-8 p-4">
             <div className="lg:flex items-center justify-between">
               <div className="space-y-2">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   <div className="relative">
                     <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-lg blur-sm"></div>
                     <div className="relative bg-gradient-to-r from-primary to-accent p-2 rounded-lg">
@@ -246,7 +246,7 @@ export default function TeacherCoursesPage() {
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-muted/20 to-muted/10 rounded-xl blur-sm"></div>
           <div className="relative bg-card/60 backdrop-blur-sm border border-border/50 rounded-xl p-4">
-            <div className="flex items-center justify-between gap-4">
+            <div className="md:flex flex-row items-center justify-between gap-4">
               <div className="relative flex-1 max-w-md">
                 <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg blur-sm"></div>
                 <div className="relative">
@@ -262,7 +262,7 @@ export default function TeacherCoursesPage() {
                   <X className="h-4 w-4 cursor-pointer" onClick={() => setSearchQuery('')} />
                 </div>
               </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground md:mt-0 mt-3">
                 <BarChart3 className="h-4 w-4" />
                 <span>{uniqueCourses.length} courses</span>
               </div>
@@ -551,7 +551,7 @@ function CourseCard({
     <div className="relative group">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
       <Card
-        className={`relative bg-card/95 backdrop-blur-sm border border-border/50 overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10 ${expandedCourse ? "ring-2 ring-primary/30 shadow-xl shadow-primary/10" : ""
+        className={`relative bg-card/95 backdrop-blur-sm border border-border/50 overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10 min-w-0 ${expandedCourse ? "ring-2 ring-primary/30 shadow-xl shadow-primary/10" : ""
           }`}
       >
         {/* Course Header - Always Visible */}
@@ -560,7 +560,7 @@ function CourseCard({
           onClick={() => !editingCourse && toggleCourse()}
         >
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-          <div className="relative md:flex items-center justify-between">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="flex items-center gap-4 flex-1 min-w-0">
               <div
                 className={`transition-all duration-300 ${expandedCourse ? "rotate-90" : ""}`}
@@ -578,11 +578,11 @@ function CourseCard({
               </div>
 
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3 mb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
                   <CardTitle className="text-lg md:text-xl font-bold text-foreground truncate">
                     {course.name}
                   </CardTitle>
-                  <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary">
+                  <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary w-fit">
                     <FileText className="h-3 w-3 mr-1" />
                     {`${course.versions?.length || 0 } version${course.versions?.length>1?'s':''}`}
                   </Badge>
@@ -1197,18 +1197,20 @@ function VersionCard({
         loadingText="Cloning..."
       />
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-      <Card className="relative bg-card/95 backdrop-blur-sm border-l-4 border-l-primary/40 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300">
+      <Card className="relative bg-card/95 backdrop-blur-sm border-l-4 border-l-primary/40 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 min-w-0">
         <CardContent className="p-4">
           <div className="flex flex-col gap-4">
             {/* Version Header - Always Visible */}
-            <div className="flex flex-col md:flex-row items-start justify-between gap-4">
+            <div className="flex flex-col gap-4">
+            <div className="flex flex-col xl:flex-row lg:items-start lg:justify-between gap-4">
               <div className="flex-1 min-w-0 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex items-center gap-3 flex-wrap">
                     <h4 className="font-semibold text-foreground">{version.version}</h4>
                     <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary text-xs">
                       Version
                     </Badge>
+                  </div>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded-md">
                         <BookOpen className="h-3 w-3" />
@@ -1222,7 +1224,8 @@ function VersionCard({
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-end gap-2 shrink-0 mt-3 md:mt-0">
+                </div>
+                <div className="flex items-center lg:justify-end gap-2 shrink-0 mt-3 md:mt-0 flex-wrap">
                   <ProjectSubmissionsDownloadButton courseId={courseId || ""} versionId={versionId || ""} />
                   <Button
                     variant="outline"
@@ -1465,7 +1468,6 @@ function VersionCard({
         }}
         link={generatedLink}
       />
-          </div>
 </div>
           <ProctoringModal
             open={showProctoringModal}

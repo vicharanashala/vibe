@@ -884,7 +884,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
       {isLoading ? <Loader /> :
         <div className="h-full flex flex-col">
           <div className="border-b">
-            <div className="p-6">
+            <div className="md:p-6 pb-6">
               <div className="lg:flex items-center justify-between">
                 <div>
                   <h1 className="text-xl md:text-2xl font-bold">{selectedItemName || details?.name || 'Quiz Editor'}</h1>
@@ -924,7 +924,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
               isSaving={updateItem.isPending}
             />
 
-            <Tabs value={selectedTab} onValueChange={setSelectedTab} className="px-6 mb-4">
+            <Tabs value={selectedTab} onValueChange={setSelectedTab} className="md:px-6 mb-4">
               <TabsList>
                 <TabsTrigger value="analytics" className="flex items-center gap-2 cursor-pointer">
                   <BarChart3 className="h-4 w-4" />
@@ -1052,7 +1052,9 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                             <CardContent className="px-3">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  <BookOpen className="h-5 w-5 text-muted-foreground" />
+                                  <div className="h-5 w-5">
+                                    <BookOpen className="h-5 w-5 text-muted-foreground" />
+                                  </div>
                                   <div>
                                     <p className=" text-md font-semibold ">{bank.title}</p>
                                     <p className="text-[12px] font-normal">{bank.description}</p>
@@ -1293,8 +1295,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
               </TabsContent>
 
               <TabsContent value="submissions" className="h-full m-0 flex flex-col justify-center items-center">
-                <div className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 mt-5 px-10">
-                  <div className="relative flex-1 max-w-md">
+                <div className="w-full flex flex-col lg:flex-row md:items-center justify-between gap-4 mt-5 px-4">
+                  <div className="relative w-full max-w-md">
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg blur-sm"></div>
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1302,9 +1304,9 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                         placeholder="Search by student name, email ... "
                         value={searchQuery}
                         onChange={(e) => { setSearchQuery(e.target.value) }}
-                        className="pl-10 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
+                        className="pl-10 pr-10 w-full bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
                       />
-                      <X className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground cursor-pointer"
+                 <X className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground cursor-pointer"
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
@@ -1314,8 +1316,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground">
+                    <div className="flex items-center gap-2 flex-1 min-w-[280px] lg:min-w-0 lg:flex-initial">
+                      <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap shrink-0">
                         Filter by Status:
                       </label>
                       <Select
@@ -1325,7 +1327,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                           setCurrentPage(1);
                         }}
                       >
-                        <SelectTrigger className="w-[180px]">
+                        <SelectTrigger className="w-full lg:w-[180px]">
                           <SelectValue placeholder="Select status" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1338,8 +1340,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                       </Select>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <label htmlFor="sortFilter" className="text-sm font-medium text-muted-foreground">
+                    <div className="flex items-center gap-2 flex-1 min-w-[280px] lg:min-w-0 lg:flex-initial">
+                      <label htmlFor="sortFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap shrink-0">
                         Sort by:
                       </label>
                       <Select
@@ -1348,7 +1350,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                           setSort(value);
                         }}
                       >
-                        <SelectTrigger className="w-[180px]">
+                        <SelectTrigger className="w-full lg:w-[180px]">
                           <SelectValue placeholder="Select type" />
                         </SelectTrigger>
                         <SelectContent>
