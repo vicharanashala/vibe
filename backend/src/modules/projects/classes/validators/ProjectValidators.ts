@@ -10,7 +10,6 @@ import {
 
 export class SubmitProjectBody {
   @IsNotEmpty({message: 'Submission URL is required'})
-  @IsUrl({}, {message: 'Submission URL must be a valid URL'})
   submissionURL!: string;
 
   @IsOptional()

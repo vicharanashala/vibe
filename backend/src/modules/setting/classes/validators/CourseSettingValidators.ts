@@ -13,6 +13,8 @@ import {
   ValidationArguments,
   ValidationOptions,
   IsDefined,
+  IsOptional,
+  IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
@@ -51,16 +53,30 @@ export class ProctoringSettingsDto {
   detectors: DetectorSettingsDto[];
 }
 
+
+
 export class SettingsDto {
   @ValidateNested()
   @Type(() => ProctoringSettingsDto)
   proctors: ProctoringSettingsDto;
 
-  @IsDefined()
+  @JSONSchema({
+    description: 'Indicates whether linear progression is enabled',
+    examples:[true,false],
+  })
   @IsBoolean()
   linearProgressionEnabled: boolean;
   // jsonSchema?:any
   // uiSchema?:any
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => Object)
+  @JSONSchema({
+    description: 'Registration settings',
+    type: 'object',
+    nullable:true,
+  })
   registration?: {
     jsonSchema?: any;
     uiSchema?: any;
@@ -104,7 +120,6 @@ export function containsAllDetectors(validationOptions?: ValidationOptions) {
 export class UpdateCourseSettingResponse {
   @JSONSchema({
     description: 'Indicates whether the update was successful',
-    example: true,
     type: 'boolean',
     readOnly: true,
   })

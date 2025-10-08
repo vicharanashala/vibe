@@ -124,10 +124,8 @@ class EmailInvite {
   @JSONSchema({
     description: 'Email address of the user to be invited',
     type: 'string',
-    format: 'email',
     example: 'user@example.com',
   })
-  @IsEmail()
   @IsNotEmpty()
   email: string;
 
@@ -162,7 +160,6 @@ class InviteResult {
   @JSONSchema({
     description: 'Unique identifier for the invite',
     type: 'string',
-    format: 'Mongo Object ID',
     example: '60c72b2f9b1e8d3f4c8b4567',
   })
   @IsString()
@@ -176,7 +173,6 @@ class InviteResult {
     format: 'email',
     example: 'user@example.com',
   })
-  @IsEmail()
   email: string;
 
   @JSONSchema({

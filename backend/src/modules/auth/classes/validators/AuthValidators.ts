@@ -17,7 +17,6 @@ class SignUpBody {
     type: 'string',
     format: 'email',
   })
-  @IsEmail()
   email: string;
 
   @JSONSchema({
@@ -31,7 +30,6 @@ class SignUpBody {
     example: 'SecureP@ssw0rd',
     type: 'string',
     minLength: 8,
-    format: 'password',
     writeOnly: true,
   })
   @IsNotEmpty()
@@ -66,7 +64,6 @@ class GoogleSignUpBody {
     type: 'string',
     format: 'email',
   })
-  @IsEmail()
   email: string;
 
   @JSONSchema({
@@ -111,7 +108,6 @@ class ChangePasswordBody {
 4. **Special symbols** (`! @ # $ % ^ & * ( ) – _ = + [ ] { } | ; : , . ? /`) ',
     example: 'SecureP@ssw0rd',
     type: 'string',
-    format: 'password',
     minLength: 8,
     writeOnly: true,
   })
@@ -127,7 +123,6 @@ class ChangePasswordBody {
 4. **Special symbols** (`! @ # $ % ^ & * ( ) – _ = + [ ] { } | ; : , . ? /`) ',
     example: 'SecureP@ssw0rd',
     type: 'string',
-    format: 'password',
     minLength: 8,
     writeOnly: true,
   })
@@ -152,7 +147,6 @@ class SignUpResponse {
     format: 'email',
     readOnly: true,
   })
-  @IsEmail()
   email: string;
 
   @JSONSchema({
@@ -221,9 +215,9 @@ class AuthErrorResponse {
 class LoginBody {
   @JSONSchema({
     title: 'Email Address',
-    description: 'Email address of the user'
+    description: 'Email address of the user',
+    format:'email'
   })
-  @IsEmail()
   email: string;  
 
   @JSONSchema({

@@ -27,7 +27,6 @@ export class EnrollmentParams {
   @JSONSchema({
     description: 'User ID of the student to enroll',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -37,7 +36,6 @@ export class EnrollmentParams {
   @JSONSchema({
     description: 'ID of the course to enroll in',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -47,7 +45,6 @@ export class EnrollmentParams {
   @JSONSchema({
     description: 'ID of the specific course version to enroll in',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -72,7 +69,6 @@ export class EnrollmentDataResponse {
     description: 'Unique identifier for the enrollment record',
     example: '60d5ec49b3f1c8e4a8f8b8d2',
     type: 'string',
-    format: 'Mongo Object ID',
     readOnly: true,
   })
   @IsString()
@@ -83,7 +79,6 @@ export class EnrollmentDataResponse {
     description: 'Course ID associated with this enrollment',
     example: '60d5ec49b3f1c8e4a8f8b8c2',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -94,7 +89,6 @@ export class EnrollmentDataResponse {
     description: 'Course version ID associated with this enrollment',
     example: '60d5ec49b3f1c8e4a8f8b8c3',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -209,7 +203,6 @@ class UserResponse {
     description: 'Unique identifier for the user',
     example: '60d5ec49b3f1c8e4a8f8b8d2',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -238,11 +231,9 @@ class UserResponse {
     description: 'Email address of the user',
     example: 'user@example.com',
     type: 'string',
-    format: 'email',
   })
   @IsNotEmpty()
   @IsString()
-  @IsEmail()
   email: string;
 }
 

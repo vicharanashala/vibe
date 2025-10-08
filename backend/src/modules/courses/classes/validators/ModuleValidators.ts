@@ -41,7 +41,6 @@ class CreateModuleBody implements Partial<IModule> {
     description: 'Position the new module after this module ID',
     example: '60d5ec49b3f1c8e4a8f8b8c3',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsOptional()
   @IsMongoId()
@@ -57,7 +56,6 @@ class CreateModuleBody implements Partial<IModule> {
     description: 'Position the new module before this module ID',
     example: '60d5ec49b3f1c8e4a8f8b8c4',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsOptional()
   @IsMongoId()
@@ -98,7 +96,6 @@ class MoveModuleBody {
     description: 'Move the module after this module ID',
     example: '60d5ec49b3f1c8e4a8f8b8c3',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsOptional()
   @IsMongoId()
@@ -114,7 +111,6 @@ class MoveModuleBody {
     description: 'Move the module before this module ID',
     example: '60d5ec49b3f1c8e4a8f8b8c4',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsOptional()
   @IsMongoId()
@@ -127,7 +123,6 @@ class CreateModuleParams {
     title: 'Version ID',
     description: 'ID of the course version to which the module will be added',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -139,7 +134,6 @@ class VersionModuleParams {
     title: 'Version ID',
     description: 'ID of the course version containing the module',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -149,7 +143,6 @@ class VersionModuleParams {
     title: 'Module ID',
     description: 'ID of the module to be updated',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()

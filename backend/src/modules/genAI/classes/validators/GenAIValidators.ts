@@ -357,7 +357,6 @@ class GenAIResponse {
   })
   @IsNotEmpty()
   @IsString()
-  @IsUrl()
   url: string;
 }
 // Request body for creating a genAI job
@@ -380,7 +379,6 @@ class JobBody {
   })
   @IsNotEmpty()
   @IsString()
-  @IsUrl()
   url: string;
 
   @JSONSchema({
