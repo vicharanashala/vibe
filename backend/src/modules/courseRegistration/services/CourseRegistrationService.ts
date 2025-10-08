@@ -371,7 +371,7 @@ export class CourseRegistrationService extends BaseService {
               format: 'email',
               title: 'Email',
             },
-            phone: {
+            Phone: {
               type: 'string',
               title: 'Phone',
             },
@@ -386,10 +386,11 @@ export class CourseRegistrationService extends BaseService {
           Email: {
             'ui:placeholder': 'Enter your Email',
           },
-          Mobile: {
+          Phone: {
             'ui:options': {
               inputType: 'tel',
             },
+            'ui:placeholder': 'Enter your Phone Number',
           },
         };
 
