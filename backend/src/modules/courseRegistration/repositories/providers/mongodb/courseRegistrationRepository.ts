@@ -154,21 +154,15 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
     session?: ClientSession,
   ): Promise<number> {
     await this.init();
-    if (registrationIds.length <= 0) {
+    const objectIds = registrationIds.map(id => new ObjectId(id));
       const data = await this.courseRegistrationCollection.updateMany(
-        {_id: {$in: registrationIds}},
+        {_id: {$in: objectIds}},
         {$set: {status: 'APPROVED', updatedAt: new Date()}},
         {session},
       );
       return data.modifiedCount;
-    } else {
-      const data = await this.courseRegistrationCollection.updateMany(
-        {},
-        {$set: {status: 'APPROVED', updatedAt: new Date()}},
-      );
-      return data.modifiedCount;
     }
-  }
+  
 
   async remove(
     userId: string,
