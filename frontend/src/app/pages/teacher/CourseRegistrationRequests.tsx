@@ -115,7 +115,6 @@ ${registrationUrl}`;
       return;
     }
     const idsToApprove = selectedIds && selectedIds.length > 0 ? selectedIds : allPendingRegistrationIds;
-
     try {
       await updateBulkStatus(idsToApprove);
 
@@ -510,6 +509,7 @@ ${registrationUrl}`;
                           selectedIds?.length === registrations?.length &&
                           registrations?.length > 0
                         }
+                        disabled={registrations.filter((item)=> item.status==="PENDING")?.length===0}
                         onCheckedChange={checked =>
                           handleSelectAll(checked as boolean)
                         }
