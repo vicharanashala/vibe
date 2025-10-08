@@ -40,8 +40,7 @@ class CreateSectionBody implements Partial<ISection> {
     title: 'After Section ID',
     description: 'Optional: Place the new section after this section ID',
     example: '60d5ec49b3f1c8e4a8f8b8c3',
-    type: 'string',
-    format: 'Mongo Object ID',
+    type: 'string',  
   })
   @IsOptional()
   @IsMongoId()
@@ -57,7 +56,6 @@ class CreateSectionBody implements Partial<ISection> {
     description: 'Optional: Place the new section before this section ID',
     example: '60d5ec49b3f1c8e4a8f8b8c4',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsOptional()
   @IsMongoId()
@@ -98,7 +96,6 @@ class MoveSectionBody {
     description: 'Move the section after this section ID',
     example: '60d5ec49b3f1c8e4a8f8b8c3',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsOptional()
   @IsMongoId()
@@ -114,7 +111,6 @@ class MoveSectionBody {
     description: 'Move the section before this section ID',
     example: '60d5ec49b3f1c8e4a8f8b8c4',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsOptional()
   @IsMongoId()
@@ -127,7 +123,6 @@ class VersionModuleSectionParams {
     title: 'Version ID',
     description: 'ID of the course version containing the module',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -137,8 +132,7 @@ class VersionModuleSectionParams {
   @JSONSchema({
     title: 'Module ID',
     description: 'ID of the module containing the section',
-    type: 'string',
-    format: 'Mongo Object ID',
+    type: 'string', 
   })
   @IsMongoId()
   @IsString()
@@ -149,7 +143,6 @@ class VersionModuleSectionParams {
     title: 'Section ID',
     description: 'ID of the section',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()

@@ -39,11 +39,9 @@ class VideoDetailsPayloadValidator implements IVideoDetails {
     description: 'Public video URL (e.g., YouTube or Vimeo link)',
     example: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     type: 'string',
-    format: 'uri',
   })
   @IsNotEmpty()
   @IsString()
-  @IsUrl()
   URL: string;
 
   @JSONSchema({

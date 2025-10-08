@@ -39,12 +39,10 @@ class Invite {
     description: 'The email address of the person being invited.',
     example: 'invitee@example.com',
     type: 'string',
-    format: 'email', // Use 'format: "email"' for better OpenAPI documentation
   })
   // @IsNotEmpty()
   @IsOptional()
   @IsString()
-  @IsEmail()
   email: string;
 
   @JSONSchema({
