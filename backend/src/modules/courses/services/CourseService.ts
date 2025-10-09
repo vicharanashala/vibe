@@ -3,7 +3,11 @@ import {USERS_TYPES} from '#root/modules/users/types.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import {IItemRepository} from '#root/shared/index.js';
+import {
+  IItemRepository,
+  ProctoringComponent,
+  SettingRepository,
+} from '#root/shared/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {injectable, inject} from 'inversify';
 import {ObjectId} from 'mongodb';
@@ -11,6 +15,12 @@ import {InternalServerError, NotFoundError} from 'routing-controllers';
 import {CourseVersionService} from './CourseVersionService.js';
 import {CreateCourseVersionBody} from '../classes/index.js';
 import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
+import {SETTING_TYPES} from '#root/modules/setting/types.js';
+import {
+  CourseSetting,
+  CourseSettingService,
+  CreateCourseSettingBody,
+} from '#root/modules/setting/index.js';
 @injectable()
 class CourseService extends BaseService {
   constructor(
@@ -18,6 +28,9 @@ class CourseService extends BaseService {
     private readonly courseRepo: ICourseRepository,
     @inject(USERS_TYPES.ItemRepo)
     private readonly itemRepo: IItemRepository,
+
+    @inject(SETTING_TYPES.SettingRepo)
+    private readonly settingsRepo: SettingRepository,
 
     @inject(GLOBAL_TYPES.CourseVersionService)
     private readonly courseVersionService: CourseVersionService,
@@ -67,7 +80,21 @@ class CourseService extends BaseService {
         false,
         session,
       );
-
+      const defaultSettingsPayload: CreateCourseSettingBody = {
+        courseId,
+        courseVersionId: versionId,
+        settings: {
+          proctors: {
+            detectors: Object.values(ProctoringComponent).map(detector => ({
+              detectorName: detector,
+              settings: {enabled: false, options: {}},
+            })),
+          },
+          linearProgressionEnabled: false,
+        },
+      };
+      const courseSettings = new CourseSetting(defaultSettingsPayload);
+      await this.settingsRepo.createCourseSettings(courseSettings, session);
       return createdCourse;
     });
   }
