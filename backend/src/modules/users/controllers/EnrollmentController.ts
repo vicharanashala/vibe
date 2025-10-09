@@ -49,6 +49,7 @@ import { subject } from '@casl/ability';
 import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
+import { BadRequestErrorResponse } from '#root/shared/index.js';
 
 @OpenAPI({
   tags: ['Enrollments'],
@@ -88,7 +89,7 @@ export class EnrollmentController {
     description: 'User or course version not found',
     statusCode: 404,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid role or User already enrolled',
     statusCode: 400,
   })
@@ -198,7 +199,7 @@ export class EnrollmentController {
     description: 'No enrollments found for the user',
     statusCode: 404,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid page or limit parameters',
     statusCode: 400,
   })
@@ -313,7 +314,7 @@ export class EnrollmentController {
     description: 'No enrollments found for the course version',
     statusCode: 404,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid page or limit parameters',
     statusCode: 400,
   })
@@ -387,7 +388,7 @@ export class EnrollmentController {
   })
   @Authorized()
   @Patch('/enrollments/progress', { transformResponse: true })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
   })

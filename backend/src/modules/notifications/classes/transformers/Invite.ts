@@ -43,6 +43,7 @@ class Invite {
   // @IsNotEmpty()
   @IsOptional()
   @IsString()
+  @IsEmail()
   email: string;
 
   @JSONSchema({

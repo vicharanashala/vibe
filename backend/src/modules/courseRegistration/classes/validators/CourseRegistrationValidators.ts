@@ -18,6 +18,7 @@ export class CourseRegistrationBody {
   @JSONSchema({example: 'John Doe'})
   name: string;
 
+  @IsEmail()
   @IsNotEmpty()
   @JSONSchema({example: 'john@example.com'})
   email: string;

@@ -2,6 +2,7 @@ import {createLogger, format, transports} from 'winston';
 import {
   IsArray,
   IsDefined,
+  IsNotEmpty,
   IsObject,
   IsOptional,
   IsString,
@@ -131,6 +132,49 @@ class BadRequestErrorResponse {
   errors?: ValidationErrorResponse;
 }
 
+
+class InternalServerErrorResponse{
+  @IsString()
+  @IsNotEmpty()
+  @JSONSchema({
+    type: 'string',
+    description: 'Information of the error.',
+    readOnly: true,
+  })
+  message:string
+
+
+  @IsString()
+  @IsNotEmpty()
+  @JSONSchema({
+    type: 'string',
+    description: 'Name of the error.',
+    readOnly: true,
+  })
+  name:string
+}
+class ForbiddenErrorResponse{
+  @IsString()
+  @IsNotEmpty()
+  @JSONSchema({
+    type: 'string',
+    description: 'Information of the error.',
+    readOnly: true,
+  })
+  message:string
+
+
+  @IsString()
+  @IsNotEmpty()
+  @JSONSchema({
+    type: 'string',
+    description: 'Name of the error.',
+    readOnly: true,
+    example:'ForbiddenError'
+  })
+  name:string
+}
+
 @Middleware({type: 'after'})
 export class HttpErrorHandler implements ExpressErrorMiddlewareInterface {
   error(error: any, request: Request, response: Response): void {
@@ -248,4 +292,4 @@ export class HttpErrorHandler implements ExpressErrorMiddlewareInterface {
   }
 }
 
-export {DefaultErrorResponse, ValidationErrorResponse, BadRequestErrorResponse};
+export {DefaultErrorResponse, ValidationErrorResponse, BadRequestErrorResponse, InternalServerErrorResponse,ForbiddenErrorResponse };

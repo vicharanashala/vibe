@@ -126,6 +126,7 @@ class EmailInvite {
     type: 'string',
     example: 'user@example.com',
   })
+  @IsEmail()
   @IsNotEmpty()
   email: string;
 
@@ -173,6 +174,7 @@ class InviteResult {
     format: 'email',
     example: 'user@example.com',
   })
+  @IsEmail()
   email: string;
 
   @JSONSchema({

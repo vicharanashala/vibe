@@ -234,6 +234,7 @@ class UserResponse {
   })
   @IsNotEmpty()
   @IsString()
+  @IsEmail()
   email: string;
 }
 
