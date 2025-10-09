@@ -32,7 +32,7 @@ import {
 import { GenAIService } from '../services/GenAIService.js';
 import { WebhookService } from '../services/WebhookService.js';
 import { GENAI_TYPES } from '../types.js';
-import { BadRequestErrorResponse } from "#root/shared/index.js";
+import { BadRequestErrorResponse, ForbiddenErrorResponse } from "#root/shared/index.js";
 import { Ability } from "#root/shared/functions/AbilityDecorator.js";
 import { getGenAIAbility } from "../abilities/genAIAbilities.js";
 import { subject } from "@casl/ability";
@@ -292,7 +292,7 @@ export class GenAIController {
     description: 'Bad Request Error',
     statusCode: 400,
   })
-  @ResponseSchema(ForbiddenError, {
+  @ResponseSchema(ForbiddenErrorResponse, {
     description: 'Forbidden Error',
     statusCode: 403,
   })
@@ -323,7 +323,7 @@ export class GenAIController {
     description: 'Bad Request Error',
     statusCode: 400,
   })
-  @ResponseSchema(ForbiddenError, {
+  @ResponseSchema(ForbiddenErrorResponse, {
     description: 'Forbidden Error',
     statusCode: 403,
   })
@@ -355,7 +355,7 @@ export class GenAIController {
     description: 'Bad Request Error',
     statusCode: 400,
   })
-  @ResponseSchema(ForbiddenError, {
+  @ResponseSchema(ForbiddenErrorResponse, {
     description: 'Forbidden Error',
     statusCode: 403,
   })

@@ -87,6 +87,7 @@ export class AnomalyData extends NewAnomalyData implements IAnomalyData {
     example: 'john.doe@example.com',
   })
   @IsOptional()
+  @IsEmail()
   studentEmail?: string;
 
   @JSONSchema({

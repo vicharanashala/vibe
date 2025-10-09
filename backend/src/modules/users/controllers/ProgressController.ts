@@ -43,6 +43,8 @@ import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {subject} from '@casl/ability';
 import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
 import {QuizService} from '#root/modules/quizzes/services/index.js';
+import { BadRequestErrorResponse } from '#root/shared/index.js';
+import { InternalServerErrorResponse } from '../../../shared/middleware/errorHandler.js';
 
 @OpenAPI({
   tags: ['Progress'],
@@ -154,7 +156,7 @@ class ProgressController {
     description: 'Progress not found',
     statusCode: 404,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description:
       'courseVersionId, moduleId, sectionId, or itemId do not match user progress',
     statusCode: 400,
@@ -202,12 +204,12 @@ class ProgressController {
     description: 'Progress not found',
     statusCode: 404,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description:
       'courseVersionId, moduleId, sectionId, or itemId do not match user progress',
     statusCode: 400,
   })
-  @ResponseSchema(InternalServerError, {
+  @ResponseSchema(InternalServerErrorResponse, {
     description: 'Failed to stop tracking item',
     statusCode: 500,
   })
@@ -269,7 +271,7 @@ If none are provided, resets to the beginning of the course.`,
     description: 'User not found',
     statusCode: 404,
   })
-  @ResponseSchema(InternalServerError, {
+  @ResponseSchema(InternalServerErrorResponse, {
     description: 'Progress could not be reset',
     statusCode: 500,
   })
@@ -350,7 +352,7 @@ If none are provided, resets to the beginning of the course.`,
     description: 'User not found',
     statusCode: 404,
   })
-  @ResponseSchema(InternalServerError, {
+  @ResponseSchema(InternalServerErrorResponse, {
     description: 'Could not Fetch the Watch Time',
     statusCode: 500,
   })

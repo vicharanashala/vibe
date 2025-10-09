@@ -52,6 +52,7 @@ export class GetUserResponse implements IUser {
     format: 'email',
     readOnly: true,
   })
+  @IsEmail()
   email: string;
 
   @JSONSchema({

@@ -49,6 +49,7 @@ import { QuizActions, getQuizAbility } from '../abilities/quizAbilities.js';
 import { subject } from '@casl/ability';
 import { COURSES_TYPES } from '#root/modules/courses/types.js';
 import { ItemService } from '#root/modules/courses/services/ItemService.js';
+import { BadRequestErrorResponse } from '#root/shared/index.js';
 
 @OpenAPI({
   tags: ['Quiz'],
@@ -75,7 +76,7 @@ class QuizController {
     description: 'Quiz not found',
     statusCode: 404,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid request body or parameters',
     statusCode: 400,
   })
@@ -133,7 +134,7 @@ class QuizController {
     description: 'Quiz not found',
     statusCode: 404,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid request body or parameters',
     statusCode: 400,
   })
@@ -200,7 +201,7 @@ class QuizController {
     description: 'Quiz not found',
     statusCode: 404,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid request parameters',
     statusCode: 400,
   })
@@ -294,7 +295,7 @@ class QuizController {
     description: 'Quiz not found',
     statusCode: 404,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid request parameters',
     statusCode: 400,
   })
@@ -389,7 +390,7 @@ class QuizController {
     description: 'Quiz not found',
     statusCode: 404,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid request parameters',
     statusCode: 400,
   })
@@ -425,7 +426,7 @@ class QuizController {
     description: 'Quiz not found',
     statusCode: 404,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid request parameters',
     statusCode: 400,
   })
@@ -460,7 +461,7 @@ class QuizController {
     description: 'Quiz not found',
     statusCode: 404,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid request parameters',
     statusCode: 400,
   })
@@ -486,7 +487,7 @@ class QuizController {
   @Authorized()
   @Post('/:quizId/submission/:submissionId/score/:score')
   @OnUndefined(200)
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid submission ID or score',
     statusCode: 400,
   })
@@ -517,7 +518,7 @@ class QuizController {
   @Authorized()
   @Post('/:quizId/submission/:submissionId/regrade')
   @OnUndefined(200)
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid submission ID or regrade data',
     statusCode: 400,
   })
@@ -549,7 +550,7 @@ class QuizController {
   @Authorized()
   @Post('/:quizId/submission/:submissionId/question/:questionId/feedback')
   @OnUndefined(200)
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid submission ID or question ID',
     statusCode: 400,
   })
@@ -587,7 +588,7 @@ class QuizController {
   @Authorized()
   @Post('/:quizId/user/:userId/reset-attempts')
   @OnUndefined(200)
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid quiz ID or user ID',
     statusCode: 400,
   })

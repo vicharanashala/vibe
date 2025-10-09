@@ -150,7 +150,7 @@ class CourseRegistrationController {
   })
   @Authorized()
   @Patch('/status/:registrationId', { transformResponse: true })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
   })
@@ -178,7 +178,7 @@ class CourseRegistrationController {
   })
   @Authorized()
   @Patch('/status/update/bulk', { transformResponse: true })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
   })

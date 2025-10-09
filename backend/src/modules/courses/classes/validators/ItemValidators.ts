@@ -42,6 +42,7 @@ class VideoDetailsPayloadValidator implements IVideoDetails {
   })
   @IsNotEmpty()
   @IsString()
+  @IsUrl()
   URL: string;
 
   @JSONSchema({

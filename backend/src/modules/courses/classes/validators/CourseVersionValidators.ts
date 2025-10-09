@@ -1,5 +1,5 @@
 import {ICourseVersion} from '#root/shared/interfaces/models.js';
-import {IsEmpty, IsNotEmpty, IsString, IsMongoId} from 'class-validator';
+import {IsEmpty, IsNotEmpty, IsString, IsMongoId, IsInt} from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 
 class CreateCourseVersionBody implements Partial<ICourseVersion> {
@@ -125,6 +125,7 @@ class CourseVersionNotFoundErrorResponse {
     type: 'integer',
     readOnly: true,
   })
+  @IsInt()
   statusCode: number;
 
   @JSONSchema({
@@ -133,6 +134,7 @@ class CourseVersionNotFoundErrorResponse {
     type: 'string',
     readOnly: true,
   })
+  @IsString()
   message: string;
 
   @JSONSchema({
@@ -141,6 +143,7 @@ class CourseVersionNotFoundErrorResponse {
     type: 'string',
     readOnly: true,
   })
+  @IsString()
   error: string;
 }
 

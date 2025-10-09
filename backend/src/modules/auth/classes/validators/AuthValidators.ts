@@ -17,6 +17,7 @@ class SignUpBody {
     type: 'string',
     format: 'email',
   })
+  @IsEmail()
   email: string;
 
   @JSONSchema({
@@ -64,6 +65,7 @@ class GoogleSignUpBody {
     type: 'string',
     format: 'email',
   })
+  @IsEmail()
   email: string;
 
   @JSONSchema({
@@ -147,6 +149,7 @@ class SignUpResponse {
     format: 'email',
     readOnly: true,
   })
+  @IsEmail()
   email: string;
 
   @JSONSchema({
@@ -218,6 +221,7 @@ class LoginBody {
     description: 'Email address of the user',
     format:'email'
   })
+  @IsEmail()
   email: string;  
 
   @JSONSchema({
