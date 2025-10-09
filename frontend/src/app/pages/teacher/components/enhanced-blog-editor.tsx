@@ -537,6 +537,149 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
     return Math.max(1, Math.ceil(wordCount / wordsPerMinute));
   };
 
+  const convertHTMLToMarkdown = (html: string): string => {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    
+    let markdown = '';
+    
+    const processNode = (node: Node, isListItem: boolean = false): string => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return node.textContent || '';
+      }
+      
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const element = node as Element;
+        const tagName = element.tagName.toLowerCase();
+        
+        switch (tagName) {
+          case 'h1':
+            return `# ${element.textContent || ''}\n\n`;
+          case 'h2':
+            return `## ${element.textContent || ''}\n\n`;
+          case 'h3':
+            return `### ${element.textContent || ''}\n\n`;
+          case 'h4':
+            return `#### ${element.textContent || ''}\n\n`;
+          case 'h5':
+            return `##### ${element.textContent || ''}\n\n`;
+          case 'h6':
+            return `###### ${element.textContent || ''}\n\n`;
+          case 'p':
+            const pContent = Array.from(element.childNodes)
+              .map(child => processNode(child, isListItem))
+              .join('');
+            return isListItem ? pContent : `${pContent}\n\n`;
+          case 'ul':
+            const ulContent = Array.from(element.children)
+              .map(li => {
+                const liText = Array.from(li.childNodes)
+                  .map(child => processNode(child, true))
+                  .join('');
+                return `- ${liText}`;
+              })
+              .join('\n');
+            return `${ulContent}\n\n`;
+          case 'ol':
+            const olContent = Array.from(element.children)
+              .map((li, index) => {
+                const liText = Array.from(li.childNodes)
+                  .map(child => processNode(child, true))
+                  .join('');
+                return `${index + 1}. ${liText}`;
+              })
+              .join('\n');
+            return `${olContent}\n\n`;
+          case 'li':
+            const liContent = Array.from(element.childNodes)
+              .map(child => processNode(child, true))
+              .join('');
+            return liContent;
+          case 'strong':
+          case 'b':
+            return `**${element.textContent || ''}**`;
+          case 'em':
+          case 'i':
+            return `*${element.textContent || ''}*`;
+          case 'code':
+            return `\`${element.textContent || ''}\``;
+          case 'blockquote':
+            return `> ${element.textContent || ''}\n\n`;
+          case 'br':
+            return '\n';
+          case 'hr':
+            return '---\n\n';
+          case 'a':
+            const href = element.getAttribute('href') || '';
+            return `[${element.textContent || ''}](${href})`;
+          case 'img':
+            const src = element.getAttribute('src') || '';
+            const alt = element.getAttribute('alt') || '';
+            return `![${alt}](${src})`;
+          case 'div':
+            const divContent = Array.from(element.childNodes)
+              .map(child => processNode(child, isListItem))
+              .join('');
+            return isListItem ? divContent : `${divContent}\n\n`;
+          default:
+            return Array.from(element.childNodes)
+              .map(child => processNode(child, isListItem))
+              .join('');
+        }
+      }
+      
+      return '';
+    };
+    
+    Array.from(tempDiv.childNodes).forEach(node => {
+      markdown += processNode(node);
+    });
+    
+    return markdown.replace(/\n{3,}/g, '\n\n').trim();
+  };
+
+  const processStructuredContent = (text: string): string => {
+    const lines = text.split('\n');
+    let processedLines: string[] = [];
+    let inList = false;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      if (line.length === 0) {
+        if (inList) {
+          processedLines.push('');
+          inList = false;
+        }
+        continue;
+      }
+      
+      if (line.match(/^[•\-\*]\s+/) || line.match(/^\d+\.\s+/)) {
+        if (!inList) {
+          inList = true;
+        }
+        if (line.match(/^[•\-\*]\s+/)) {
+          processedLines.push(`- ${line.replace(/^[•\-\*]\s+/, '')}`);
+        } else {
+          processedLines.push(line);
+        }
+      } else {
+        if (inList) {
+          processedLines.push('');
+          inList = false;
+        }
+        
+        if (line.match(/^\*\*.*:\*\*$/)) {
+          processedLines.push(line);
+        } else {
+          processedLines.push(line);
+        }
+      }
+    }
+    
+    return processedLines.join('\n');
+  };
+
   const handleContentChange = (value: YooptaContentValue) => {
     if (!isEditMode) return;
     
@@ -548,6 +691,86 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
       estimatedReadTimeInMinutes: readTime,
     }));
   };
+
+  const handleDirectPaste = (event: ClipboardEvent) => {
+    if (!isEditMode) return;
+    
+    event.preventDefault();
+    
+    const clipboardData = event.clipboardData;
+    if (!clipboardData) return;
+    
+    const htmlContent = clipboardData.getData('text/html');
+    const plainText = clipboardData.getData('text/plain');
+    
+    if (htmlContent) {
+      try {
+        const markdownContent = convertHTMLToMarkdown(htmlContent);
+        const newContent = markdown.deserialize(editor, markdownContent);
+        setEditorValue(newContent);
+        editor.setEditorValue(newContent);
+        
+        const serializedContent = markdown.serialize(editor, newContent);
+        const readTime = calculateReadTime(serializedContent);
+        setBlogForm(prev => ({
+          ...prev,
+          estimatedReadTimeInMinutes: readTime,
+        }));
+        
+      } catch (error) {
+        console.error('Error in direct paste:', error);
+        const newContent = markdown.deserialize(editor, plainText);
+        setEditorValue(newContent);
+        editor.setEditorValue(newContent);
+        
+        const serializedContent = markdown.serialize(editor, newContent);
+        const readTime = calculateReadTime(serializedContent);
+        setBlogForm(prev => ({
+          ...prev,
+          estimatedReadTimeInMinutes: readTime,
+        }));
+      }
+    } else if (plainText) {
+      const processedText = processStructuredContent(plainText);
+      const newContent = markdown.deserialize(editor, processedText);
+      setEditorValue(newContent);
+      editor.setEditorValue(newContent);
+      
+      const serializedContent = markdown.serialize(editor, newContent);
+      const readTime = calculateReadTime(serializedContent);
+      setBlogForm(prev => ({
+        ...prev,
+        estimatedReadTimeInMinutes: readTime,
+      }));
+    }
+  };
+
+
+  useEffect(() => {
+    const editorContainer = editorContainerRef.current;
+    if (!editorContainer) return;
+
+    const handlePasteEvent = (event: Event) => {
+      handleDirectPaste(event as ClipboardEvent);
+    };
+
+    if (isEditMode) {
+      editorContainer.addEventListener('paste', handlePasteEvent);
+      
+      const editorContent = editorContainer.querySelector('[contenteditable="true"]');
+      if (editorContent) {
+        editorContent.addEventListener('paste', handlePasteEvent);
+      }
+    }
+
+    return () => {
+      editorContainer.removeEventListener('paste', handlePasteEvent);
+      const editorContent = editorContainer.querySelector('[contenteditable="true"]');
+      if (editorContent) {
+        editorContent.removeEventListener('paste', handlePasteEvent);
+      }
+    };
+  }, [isEditMode, handleDirectPaste]);
 
   if (isLoading) {
     return (
