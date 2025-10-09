@@ -21,6 +21,8 @@ import {
   ICourse,
   ICourseVersion,
   IItemRepository,
+  ProctoringComponent,
+  SettingRepository,
 } from '#root/shared/index.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
@@ -30,6 +32,8 @@ import {SectionService} from './SectionService.js';
 import {ItemService} from './ItemService.js';
 import {cloneModules} from '../utils/cloneModules.js';
 import {getCopyCourseName} from '../utils/getCopyCourseName.js';
+import { SETTING_TYPES } from '#root/modules/setting/types.js';
+import { CourseSetting, CreateCourseSettingBody } from '#root/modules/setting/index.js';
 @injectable()
 export class CourseVersionService extends BaseService {
   constructor(
@@ -43,6 +47,8 @@ export class CourseVersionService extends BaseService {
     private readonly sectionService: SectionService,
     @inject(COURSES_TYPES.ItemService)
     private readonly itemService: ItemService,
+    @inject(SETTING_TYPES.SettingRepo)
+    private readonly settingsRepo: SettingRepository,
     @inject(COURSES_TYPES.ItemRepo)
     private readonly itemRepo: IItemRepository,
     @inject(GLOBAL_TYPES.Database)
@@ -80,22 +86,29 @@ export class CourseVersionService extends BaseService {
       newVersion = instanceToPlain(
         Object.assign(new CourseVersion(), createdVersion),
       ) as CourseVersion;
-
-      // Update course metadata
+      const defaultSettingsPayload: CreateCourseSettingBody = {
+        courseId,
+        courseVersionId: createdVersion._id as string,
+        settings: {
+          proctors: {
+            detectors: Object.values(ProctoringComponent).map(detector => ({
+              detectorName: detector,
+              settings: { enabled: false, options: {} },
+            })),
+          },
+          linearProgressionEnabled: false,
+        },
+      };
+      const courseSettings = new CourseSetting(defaultSettingsPayload);
       course.versions.push(new ObjectId(createdVersion._id));
       course.updatedAt = new Date();
-
-      const updatedCourse = await this.courseRepo.update(
+      const settingsPromise = this.settingsRepo.createCourseSettings(courseSettings, txnSession);
+      const updatedPromise = this.courseRepo.update(
         courseId,
         course,
         txnSession,
       );
-      if (!updatedCourse) {
-        throw new InternalServerError(
-          'Failed to update course with new version.',
-        );
-      }
-
+      await Promise.all([updatedPromise,settingsPromise])
       return newVersion;
     };
 
@@ -118,7 +131,7 @@ export class CourseVersionService extends BaseService {
       const version = instanceToPlain(
         Object.assign(new CourseVersion(), readVersion),
       ) as CourseVersion;
-
+ 
       return version;
     });
   }
