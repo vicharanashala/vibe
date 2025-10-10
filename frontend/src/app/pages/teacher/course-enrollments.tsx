@@ -638,9 +638,9 @@ const {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="flex lg:flex-nowrap flex-wrap gap-6">
           {stats.map((stat) => (
-            <Card key={stat.title} className="border-0 shadow-sm hover:shadow-md transition-shadow">
+            <Card key={stat.title} className="border-0 shadow-sm hover:shadow-md transition-shadow w-full">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -679,9 +679,9 @@ const {
 
         {/* Students Table */}
         <Card className="border-0 shadow-lg overflow-hidden">
-          <CardHeader className="pb-4 bg-gradient-to-r from-card to-muted/20 flex items-center justify-between">
+          <CardHeader className="pb-4 bg-gradient-to-r from-card to-muted/20 flex items-center justify-between lg:flex-nowrap flex-wrap">
             <CardTitle className="text-xl font-medium text-card-foreground">Enrolled Students</CardTitle>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 lg:flex-nowrap flex-wrap gap-3">
               <Button
                 variant="outline"
                 size="sm"

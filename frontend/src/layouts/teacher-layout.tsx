@@ -74,8 +74,8 @@ export default function TeacherLayout() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear">
+      <SidebarInset className="max-w-full overflow-hidden h-screen flex flex-col">
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear sticky top-0 z-50 bg-background">
           <div className="flex w-full items-center justify-between px-4">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="-ml-1" />
@@ -85,10 +85,10 @@ export default function TeacherLayout() {
                 <BreadcrumbList>
                   {breadcrumbs.map((item, index) => (
                     <React.Fragment key={index}>
-                      {index > 0 && <BreadcrumbSeparator />}
+                      {index > 0 && breadcrumbs.length - 1 && <BreadcrumbSeparator />}
                       <BreadcrumbItem>
                         {item.isCurrentPage ? (
-                          <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                          <BreadcrumbPage className="lg:flex md:hidden">{item.label}</BreadcrumbPage>
                         ) : (
                           <BreadcrumbLink href={item.path} asChild>
                             <Link to={item.path}>{item.label}</Link>
@@ -153,7 +153,7 @@ export default function TeacherLayout() {
           </div>
         </header>
 
-        <div className="flex flex-1 flex-col md:p-6 p-4">
+        <div className="flex flex-1 flex-col md:p-6 p-4 max-w-full overflow-auto">
           <Outlet />
         </div>
       </SidebarInset >

@@ -61,6 +61,7 @@ export default function InvitePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sort, setSort] = useState("");
   const [inviteStatus, setInviteStatus] = useState("");
+  const [itemsPerPage, setItemsPerPage] = useState(15);
   const inviteStatusOptions = ['All', 'ACCEPTED', 'PENDING', 'CANCELLED', 'EMAIL_FAILED', 'ALREADY_ENROLLED'];
   const sortOptions = [
     { label: "All Invites", value: "All" },
@@ -75,7 +76,7 @@ export default function InvitePage() {
     error: invitesError,
     refetch: refetchInvites,
   } = useCourseInvites(courseId || "", versionId || "", !!(courseId && versionId), debouncedSearchQuery, 
-      currentPage, 15, inviteStatus, sort);
+      currentPage, itemsPerPage, inviteStatus, sort);
 
   // Add course version data hook to check structure
   const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(versionId || "")
@@ -120,6 +121,11 @@ export default function InvitePage() {
     if (invitesData && newPage >= 1 && newPage <= invitesData.totalPages) {
       setCurrentPage(newPage)
     }
+  }
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage)
+    setCurrentPage(1)
   }
 
   // Function to get the reason why invites can't be sent
@@ -553,8 +559,8 @@ const addInviteRow = () => {
                 }} />
             </div>
             </div>
-          <div className="flex items-center gap-2 flex-1 min-w-[280px] lg:min-w-0 lg:flex-initial">
-            <div className="flex items-center gap-2 flex-1 min-w-[280px] lg:min-w-0 lg:flex-initial">
+          <div className="flex items-center xl:flex-nowrap flex-wrap gap-4">
+            <div className="flex items-center gap-2 lg:min-w-0 lg:flex-initial">
               <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap shrink-0">
                 Filter by Status:
               </label>
@@ -577,7 +583,7 @@ const addInviteRow = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-2 flex-1 min-w-[280px] lg:min-w-0 lg:flex-initial">
+            <div className="flex items-center gap-2 lg:min-w-0 lg:flex-initial">
               <label htmlFor="sortFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap shrink-0">
                 Sort by:
               </label>
@@ -598,6 +604,22 @@ const addInviteRow = () => {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+             <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full sm:w-auto">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground whitespace-nowrap">Show</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                  className="h-8 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                >
+                  <option value={10}>10</option>
+                  <option value={15}>15</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+                <span className="text-sm text-muted-foreground whitespace-nowrap">per page</span>
+              </div>
             </div>
           </div>
         </div>
