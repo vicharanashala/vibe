@@ -398,9 +398,30 @@ class UpdateItemBody implements Partial<IBaseItem> {
 
   @JSONSchema({
     description: 'Details specific to video items',
-    type: 'object',
+    oneOf:[
+      {
+        $ref:"#/components/schemas/VideoDetailsPayloadValidator",
+        title:"Video Details",
+        description:"Details specific to video items"
+      },
+      {
+        $ref:"#/components/schemas/BlogDetailsPayloadValidator",
+        title:"Blog Details",
+        description:"Details specific to blog items"
+      },
+      {
+        $ref:"#/components/schemas/QuizDetailsPayloadValidator",
+        title:"Quiz Details",
+        description:"Details specific to quiz items"
+      },
+      {
+        $ref:"#/components/schemas/ProjectDetailsPayloadValidator",
+        title:"Project Details",
+        description:"Details specific to project items"
+      }
+    ]
   })
-  @ValidateIf(o => o.type !== ItemType.PROJECT)
+  // @ValidateIf(o => o.type !== ItemType.PROJECT)
   @IsNotEmpty()
   @ValidateNested()
   @Type(o => {

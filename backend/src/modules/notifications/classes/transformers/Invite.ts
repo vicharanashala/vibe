@@ -157,6 +157,8 @@ class Invite {
 
 @Expose()
 export class MessageResponse {
+  
+  @IsString()
   @Expose()
   message: string
 }

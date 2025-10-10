@@ -128,7 +128,6 @@ export class EnrollmentDataResponse {
 
   @JSONSchema({
     description: 'Optional course details related to the enrollment',
-    $ref: '#/components/schemas/CourseResponse',
   })
   @IsOptional()
   @ValidateNested()

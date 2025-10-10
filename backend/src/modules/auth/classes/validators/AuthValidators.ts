@@ -100,6 +100,10 @@ class VerifySignUpProviderBody {
 }
 
 class ChangePasswordBody {
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(8)
+  @Matches(/^[A-Za-z ]+$/)
   @JSONSchema({
     title: 'New Password',
     description:
@@ -115,6 +119,10 @@ class ChangePasswordBody {
   })
   newPassword: string;
 
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(8)
+  @Matches(/^[A-Za-z ]+$/)
   @JSONSchema({
     title: 'Confirm New Password',
     description:
