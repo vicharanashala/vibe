@@ -13,7 +13,7 @@ export const Pagination = ({
   if (totalPages <= 1) return null;
 
   return (
-    <div className={`flex items-center justify-between mt-6 ${className || ''}`}>
+    <div className={`flex items-center justify-between mt-6 sm:flex-nowrap flex-wrap gap-3 ${className || ''}`}>
       <p className="text-sm text-muted-foreground">
         Showing page {currentPage} of {totalPages} ({totalDocuments} total items)
       </p>
