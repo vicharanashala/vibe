@@ -197,7 +197,7 @@ export default function TeacherCoursesPage() {
   }
 
   return (
-    <div className="flex-1 overflow-auto md:p-6 p-3 bg-gradient-to-br from-background via-background to-muted/20">
+    <div className="flex-1 md:p-6 p-3 bg-gradient-to-br from-background via-background to-muted/20">
       <div className="max-w-6xl mx-auto space-y-8 min-w-0">
         {/* Header Section with Beautiful Design */}
         <div className="relative">
@@ -579,7 +579,7 @@ function CourseCard({
 
               <div className="flex-1 min-w-0">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-                  <CardTitle className="text-lg md:text-xl font-bold text-foreground truncate">
+                  <CardTitle className="text-lg md:text-xl font-bold text-foreground truncate lg:max-w-full max-w-[220px]">
                     {course.name}
                   </CardTitle>
                   <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary w-fit">

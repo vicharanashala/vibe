@@ -375,7 +375,7 @@ export default function FlaggedList() {
                         </TableCell>
                         <TableCell className="py-6 pr-6 ">
                           {report.latestStatus !== "DISCARDED" && report.latestStatus !== "CLOSED" &&
-                            <div className="flex items-center gap-3 border-2 border-blue-100 dark:border-blue-950 rounded-2xl ">
+                            <div className="flex items-center gap-3 border-2 border-blue-100 dark:border-blue-950 rounded-2xl w-fit">
                               <Button
                                 variant="ghost"
                                 size="sm"

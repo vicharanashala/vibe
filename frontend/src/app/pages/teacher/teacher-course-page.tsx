@@ -661,7 +661,7 @@ export default function TeacherCoursePage() {
           isLoading={false}
         /> */}
         <Sidebar variant="inset" collapsible="icon" className="border-r border-border/40 bg-sidebar/50">
-          <SidebarHeader className="border-b border-border/40">
+          <SidebarHeader>
             <div className="flex items-center gap-3 px-3 py-2">
               <BookOpen className="text-primary" />
               <div>
