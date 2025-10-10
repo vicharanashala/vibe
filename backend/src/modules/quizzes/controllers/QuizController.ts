@@ -445,40 +445,42 @@ class QuizController {
     
     return await this.quizService.getQuizResults(quizId);
   }
-
-  @OpenAPI({
-    summary: 'Get flagged questions for a quiz',
-    description: 'Retrieves all flagged questions for a quiz.',
-  })
-  @Authorized()
-  @Get('/:quizId/flagged')
-  @HttpCode(200)
-  @ResponseSchema(FlaggedQuestionResponse, {
-    description: 'Flagged questions',
-    statusCode: 200,
-  })
-  @ResponseSchema(QuizNotFoundErrorResponse, {
-    description: 'Quiz not found',
-    statusCode: 404,
-  })
-  @ResponseSchema(BadRequestErrorResponse, {
-    description: 'Invalid request parameters',
-    statusCode: 400,
-  })
-  async getFlaggedQues(
-    @Params() params: QuizIdParam,
-    @Ability(getQuizAbility) {ability}
-  ): Promise<FlaggedQuestionResponse> {
-    const {quizId} = params;
-    const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
-    // Build the subject context first
-    const quizSubject = subject('Quiz', { courseId: courseInfo.courseId, versionId: courseInfo.versionId });
+  // TODO: to be implemented
+  // @OpenAPI({
+  //   summary: 'Get flagged questions for a quiz',
+  //   description: 'Retrieves all flagged questions for a quiz.',
+  // })
+  // @Authorized()
+  // @Get('/:quizId/flagged')
+  // @HttpCode(200)
+  // 
+  // // @ResponseSchema(FlaggedQuestionResponse, {
+  // //   description: 'Flagged questions',
+  // //   statusCode: 200,
+  // // })
+  // @OnUndefined(200)
+  // @ResponseSchema(QuizNotFoundErrorResponse, {
+  //   description: 'Quiz not found',
+  //   statusCode: 404,
+  // })
+  // @ResponseSchema(BadRequestErrorResponse, {
+  //   description: 'Invalid request parameters',
+  //   statusCode: 400,
+  // })
+  // async getFlaggedQues(
+  //   @Params() params: QuizIdParam,
+  //   @Ability(getQuizAbility) {ability}
+  // ): Promise<FlaggedQuestionResponse> {
+  //   const {quizId} = params;
+  //   const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
+  //   // Build the subject context first
+  //   const quizSubject = subject('Quiz', { courseId: courseInfo.courseId, versionId: courseInfo.versionId });
     
-    if (!ability.can(QuizActions.View, quizSubject)) {
-      throw new ForbiddenError('You do not have permission to view flagged questions');
-    }
-    return await this.quizService.getFlaggedQuestionsForQuiz(quizId);
-  }
+  //   if (!ability.can(QuizActions.View, quizSubject)) {
+  //     throw new ForbiddenError('You do not have permission to view flagged questions');
+  //   }
+  //   return await this.quizService.getFlaggedQuestionsForQuiz(quizId);
+  // }
 
   @OpenAPI({
     summary: 'Override submission score',

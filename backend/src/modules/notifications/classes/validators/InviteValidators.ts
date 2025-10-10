@@ -233,7 +233,7 @@ class InviteResult {
   @Transform(StringToObjectId.transformer, {toClassOnly: true})
   @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
   @Type(() => Course)
-  @ValidateNested({each: true})
+  @ValidateNested()
   course?: Course;
 
   constructor(

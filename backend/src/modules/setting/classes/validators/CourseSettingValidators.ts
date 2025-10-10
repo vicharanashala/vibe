@@ -53,6 +53,21 @@ export class ProctoringSettingsDto {
   detectors: DetectorSettingsDto[];
 }
 
+export class RegistrationSchema{
+  @IsOptional()
+  @JSONSchema({
+    description: 'Json Schema for Registrstion form',
+    type: 'object',
+  })
+  jsonSchema?: any;
+
+  @JSONSchema({
+    description: 'UI schema for Registration form',
+    type: 'object',
+  })
+  uiSchema?: any;
+}
+
 
 
 export class SettingsDto {
@@ -69,18 +84,13 @@ export class SettingsDto {
   // jsonSchema?:any
   // uiSchema?:any
   @IsOptional()
-  @IsObject()
   @ValidateNested()
-  @Type(() => Object)
+  @Type(() => RegistrationSchema)
   @JSONSchema({
-    description: 'Registration settings',
+    description: 'Schema Information of the registration form',
     type: 'object',
-    nullable:true,
   })
-  registration?: {
-    jsonSchema?: any;
-    uiSchema?: any;
-  };
+  registration?: RegistrationSchema;
 }
 
 @ValidatorConstraint({ async: false })
@@ -221,18 +231,17 @@ export class AddCourseProctoringParams {
 
 // This class represents the validation schema of body for adding proctoring to a course.
 export class AddCourseProctoringBody {
+  
+  @IsNotEmpty()
+  @ValidateNested({each:true})
+  @containsAllDetectors()
   @JSONSchema({
     title: 'Proctoring Component',
     description: 'Component to add to course proctoring',
     enum: Object.values(ProctoringComponent),
-    example: ProctoringComponent.CAMERAMICRO,
   })
-  @IsArray()
-  @IsNotEmpty()
-  @ValidateNested({ each: true })
-  @containsAllDetectors()
   @Type(() => DetectorSettingsDto)
-  detectors: DetectorSettingsDto[];
+  detectors:IDetectorSettings[];
 
 
   @IsDefined()
@@ -398,12 +407,12 @@ export class AddUserProctoringBody {
     enum: Object.values(ProctoringComponent),
     example: ProctoringComponent.CAMERAMICRO,
   })
-  @IsArray()
+
   @IsNotEmpty()
   @ValidateNested({ each: true })
   @containsAllDetectors()
   @Type(() => DetectorSettingsDto)
-  detectors: DetectorSettingsDto[];
+  detectors: IDetectorSettings[];
 }
 
 // This class represents the validation schema of Parameters for removing proctoring from a user Setting.

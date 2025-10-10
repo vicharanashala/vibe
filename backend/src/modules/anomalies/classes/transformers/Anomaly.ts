@@ -1,3 +1,5 @@
+import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { JSONSchema } from 'class-validator-jsonschema';
 import {ObjectId} from 'mongodb';
 
 export enum AnomalyType {
@@ -65,16 +67,34 @@ export class IAnomalyData {
 }
 
 export class AnomalyDataResponse extends IAnomalyData {
+  @IsString()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'URL of the file',
+  })
   fileUrl: string;
 }
 
 export class AnomalyStats {
+  @IsNumber()
   VOICE_DETECTION: number;
+
+  @IsNumber()
   NO_FACE: number;
+
+  @IsNumber()
   MULTIPLE_FACES: number;
+
+  @IsNumber()
   BLUR_DETECTION: number;
+
+  @IsNumber()
   FOCUS: number;
+
+  @IsNumber()
   HAND_GESTURE_DETECTION: number;
+
+  @IsNumber()
   FACE_RECOGNITION: number;
 
   constructor() {
@@ -89,10 +109,16 @@ export class AnomalyStats {
 }
 
 export class PaginatedResponse<T> {
+
   data: T[];
+
+ @IsNumber() 
   currentPage: number;
+ @IsNumber() 
   totalDocuments: number;
+ @IsNumber() 
   totalPages: number;
+ @IsNumber() 
   limit: number;
 
   constructor(
