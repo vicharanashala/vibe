@@ -226,16 +226,25 @@ class BlogDetailsPayloadValidator implements IBlogDetails {
 
   @IsNotEmpty()
   @IsString()
+  @JSONSchema({
+    description:'Content of the blog item'
+  })
   content: string;
 
 
   @IsNotEmpty()
   @IsDecimal()
+  @JSONSchema({
+    description:'Points assigned to the blog interaction'
+  })
   points: number;
 
 
   @IsNotEmpty()
   @IsPositive()
+  @JSONSchema({
+    description:'Estimated time to read the blog in minutes'
+  })
   estimatedReadTimeInMinutes: number;
 }
 

@@ -77,24 +77,52 @@ export class AnomalyDataResponse extends IAnomalyData {
 
 export class AnomalyStats {
   @IsNumber()
+  @JSONSchema({
+    title: 'Number of voice detection anomalies',
+    description: 'Number of voice detection anomalies',
+  })
   VOICE_DETECTION: number;
 
   @IsNumber()
+  @JSONSchema({
+    title: 'Number of no face anomalies',
+    description: 'Number of no face anomalies',
+  })
   NO_FACE: number;
 
   @IsNumber()
+  @JSONSchema({
+    title: 'Number of multiple faces anomalies',
+    description: 'Number of multiple faces anomalies',
+  })
   MULTIPLE_FACES: number;
 
   @IsNumber()
+  @JSONSchema({
+    title: 'Number of blur detection anomalies',
+    description: 'Number of blur detection anomalies',
+  })
   BLUR_DETECTION: number;
 
   @IsNumber()
+  @JSONSchema({
+    title: 'Number of focus anomalies',
+    description: 'Number of focus anomalies',
+  })
   FOCUS: number;
 
   @IsNumber()
+  @JSONSchema({
+    title: 'Number of hand gesture detection anomalies',
+    description: 'Number of hand gesture detection anomalies',
+  })
   HAND_GESTURE_DETECTION: number;
 
   @IsNumber()
+  @JSONSchema({
+    title: 'Number of face recognition anomalies',
+    description: 'Number of face recognition anomalies',
+  })
   FACE_RECOGNITION: number;
 
   constructor() {
@@ -113,10 +141,19 @@ export class PaginatedResponse<T> {
   data: T[];
 
  @IsNumber() 
+  @JSONSchema({
+    description: 'Current page number',
+  })
   currentPage: number;
  @IsNumber() 
+  @JSONSchema({
+    description: 'Total number of documents',
+  })
   totalDocuments: number;
  @IsNumber() 
+  @JSONSchema({
+    description: 'Total number of pages',
+  })
   totalPages: number;
  @IsNumber() 
   limit: number;

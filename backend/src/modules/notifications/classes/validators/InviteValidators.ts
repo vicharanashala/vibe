@@ -260,6 +260,9 @@ class InviteResult {
 }
 
 class InviteResponse {
+  @JSONSchema({
+    description:'Results of the invite'
+  })
   @IsArray()
   @ArrayNotEmpty()
   @ValidateNested({each: true})
@@ -268,10 +271,16 @@ class InviteResponse {
 
   @IsOptional()
   @IsInt()
+  @JSONSchema({
+    description:'total documents returned'
+  })
   totalDocuments?: number;
 
   @IsOptional()
   @IsInt()
+  @JSONSchema({
+    description:'total pages'
+  })
   totalPages?: number;
 
   constructor(

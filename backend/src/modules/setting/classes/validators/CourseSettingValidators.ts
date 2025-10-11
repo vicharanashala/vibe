@@ -246,6 +246,9 @@ export class AddCourseProctoringBody {
 
   @IsDefined()
   @IsBoolean()
+  @JSONSchema({
+    description:'Student should follow the cours linearly if this is enabled'
+  })
   linearProgressionEnabled: boolean;
 
 }
