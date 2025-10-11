@@ -223,36 +223,69 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
 const insertTagAtCursor = (tag: string) => {
   if (!focusedElement) return;
 
-  const fieldId = focusedElement.id;
+  const fieldId = focusedElement.id; // e.g. "questionText", "hint", "option-abc123"
   const start = focusedElement.selectionStart ?? 0;
   const end = focusedElement.selectionEnd ?? 0;
 
-  // ✅ Safely get the value from state (fallback to empty string)
-  const currentValue =
-    (questionForm as any)[fieldId] ?? focusedElement.value ?? "";
+  // If the tag has a closing part like <X></X>, place caret inside it.
+  // Otherwise place caret after the inserted text.
+  const caretOffsetInsideTag = (() => {
+    const closingIdx = tag.indexOf("</");
+    return closingIdx !== -1 ? closingIdx : tag.length;
+  })();
 
-  const newValue =
-    currentValue.slice(0, start) + tag + currentValue.slice(end);
+  // 1) options array: id format "option-<optionId>"
+  if (fieldId.startsWith("option-")) {
+    const optionId = fieldId.replace("option-", "");
+    setQuestionForm((prev: any) => {
+      const updatedOptions = prev.options.map((opt: any) => {
+        if (opt.id !== optionId) return opt;
+        const cur = opt.text ?? "";
+        const newText = cur.slice(0, start) + tag + cur.slice(end);
+        return { ...opt, text: newText };
+      });
+      return { ...prev, options: updatedOptions };
+    });
 
-  // ✅ Update the corresponding state field only if it exists
-  setQuestionForm((prev: any) => ({
-    ...prev,
-    [fieldId]: newValue,
-  }));
+    requestAnimationFrame(() => {
+      const el = document.getElementById(fieldId) as HTMLInputElement | HTMLTextAreaElement | null;
+      if (el) {
+        const pos = start + caretOffsetInsideTag;
+        el.selectionStart = el.selectionEnd = pos;
+        el.focus();
+      }
+    });
 
-  // ✅ Move the cursor after the inserted tag
+    return;
+  }
+
+  // 2) top-level mapping: map element ids to state keys
+  const idToStateKey: Record<string, string> = {
+    questionText: "text", // <--- important mapping
+    hint: "hint",
+    solutionText: "solutionText",
+    // add more mappings if you use different ids
+  };
+
+  const stateKey = idToStateKey[fieldId] ?? fieldId; // fallback to same name
+
+  setQuestionForm((prev: any) => {
+    const currentValue = (prev as any)[stateKey] ?? "";
+    const newValue = currentValue.slice(0, start) + tag + currentValue.slice(end);
+    return { ...prev, [stateKey]: newValue };
+  });
+
+  // restore caret inside tag after render
   requestAnimationFrame(() => {
-    const el = document.getElementById(fieldId) as
-      | HTMLInputElement
-      | HTMLTextAreaElement
-      | null;
+    const el = document.getElementById(fieldId) as HTMLInputElement | HTMLTextAreaElement | null;
     if (el) {
-      const pos = start + tag.length;
+      const pos = start + caretOffsetInsideTag;
       el.selectionStart = el.selectionEnd = pos;
       el.focus();
     }
   });
 };
+
 
 
 
@@ -417,14 +450,14 @@ const insertTagAtCursor = (tag: string) => {
     size="sm"
     onClick={() => insertTagAtCursor("<QParam></QParam>")}
   >
-    Add Qestion param
+    Add Question param
   </Button>
 </div>
 
                                     <div>
                                         <Label htmlFor="questionText" className='mb-3'>Question Text *</Label>
                                         <Textarea
-                                            id="text"
+                                            id="questionText"
                                             placeholder="Enter your question here..."
                                             value={questionForm.text}
                                             onFocus={(e) => setFocusedElement(e.target)}
@@ -605,7 +638,7 @@ const insertTagAtCursor = (tag: string) => {
                                         </p>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
-                                        {questionForm.parameters.map((option) => (
+                                        {questionForm.parameters?.map((option) => (
                                             <div key={option.id} className={`border rounded-lg p-4 space-y-3`}>
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div className="flex items-center gap-3 flex-1">
@@ -655,7 +688,7 @@ const insertTagAtCursor = (tag: string) => {
                                             </div>
                                         ))}
 
-                                        {questionForm.parameters.length === 0 && (
+                                        {questionForm.parameters?.length === 0 && (
                                             <div className="text-center py-8 text-muted-foreground text-sm md:text-base">
                                                {` No parameters added yet. Click "Add Parameter" to get started.`}
                                             </div>
@@ -711,7 +744,7 @@ const insertTagAtCursor = (tag: string) => {
                                     </CardHeader>
                                     <CardContent className="space-y-4">
                                         {questionForm.options.map((option) => (
-                                            <div key={option.id} className={`border rounded-lg p-4 space-y-3 ${option.isCorrect ? 'bg-green-500/10 border-green-500/20' : 'border-gray-200'
+                                            <div key={option.id}  className={`border rounded-lg p-4 space-y-3 ${option.isCorrect ? 'bg-green-500/10 border-green-500/20' : 'border-gray-200'
                                                 }`}>
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div className="flex items-center gap-3 flex-1">
@@ -734,6 +767,7 @@ const insertTagAtCursor = (tag: string) => {
                                                         )}
                                                         <div className="flex-1 space-y-2">
                                                             <Input
+                                                            id={`option-${option.id}`}
                                                                 placeholder="Enter answer option..."
                                                                 value={option.text}
                                                                 onFocus={(e) => setFocusedElement(e.target)}
