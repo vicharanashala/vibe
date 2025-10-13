@@ -234,10 +234,32 @@ export class AnomalyController {
   @OpenAPI({
     summary: 'Delete anomaly',
     description: 'Deletes an anomaly record and its encrypted image',
+    responses: {
+    '200': {
+      description: 'Anomaly deleted successfully (no response body)',
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              message: {
+                type: 'string',
+                example: 'Anomaly deleted successfully. This does not return any data in response.',
+              },
+            },
+          },
+        },
+      },
+    },
+  },
   })
   @Delete('/:id')
   @Authorized()
   @OnUndefined(200)
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
   async deleteAnomaly(
     @Params() params: AnomalyIdParams,
     @Body() body: DeleteAnomalyBody,
