@@ -95,7 +95,6 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
 
   const { data: question, refetch: refetchQuestion } = useQuestionById(questionId);
   const updateQuestion = useUpdateQuestion();
-  console.log('Question data:', question);
 
   // Initialize edit form when question data is loaded
   useEffect(() => {
