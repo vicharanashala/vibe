@@ -210,6 +210,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
             options: [],
             priority: 'LOW',
             decimalPrecision: 0,
+            parameters:[],
             upperLimit: 0,
             lowerLimit: 0,
             value: 0,
@@ -317,7 +318,7 @@ const insertTagAtCursor = (tag: string) => {
                 text: questionForm.text,
                 type: questionForm.type,
                 isParameterized: questionForm.isParameterized,
-                parameters: questionForm.isParameterized ? questionForm.parameters : [],
+                parameters: questionForm.isParameterized?questionForm.parameters:[],
                 hint: questionForm.hint || undefined,
                 timeLimitSeconds: questionForm.timeLimitSeconds,
                 points: questionForm.points,
@@ -375,15 +376,15 @@ const insertTagAtCursor = (tag: string) => {
                         text: questionData.text,
                         type: questionData.type,
                         isParameterized: questionData.isParameterized,
-                        ...(questionData.isParameterized && {
-                            parameters: questionData.parameters.map((param: any) => ({
+                        parameters: questionData.isParameterized
+                            ? questionForm.parameters.map(param => ({
                                 name: param.name,
-                                possibleValues: Array.isArray(param.possibleValues)
-                                    ? param.possibleValues
-                                    : param.possibleValues.split(',').map((v: string) => v.trim()),
+                                possibleValues: typeof param.possibleValues === "string"
+                                    ? param.possibleValues.split(',').map(v => v.trim())
+                                    : param.possibleValues,
                                 type: param.type as "string" | "number"
                             }))
-                        }),
+                            : [],
                         hint: questionData.hint,
                         timeLimitSeconds: questionData.timeLimitSeconds,
                         points: questionData.points,
@@ -430,29 +431,39 @@ const insertTagAtCursor = (tag: string) => {
                                     <CardTitle className="text-base md:text-lg">Question Details</CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
-                                    <div className="flex gap-2 mb-2">
-  <Button
-    variant="outline"
-    size="sm"
-    onClick={() => insertTagAtCursor("<NumExprTex></NumExprTex>")}
-  >
-    Add NumExprTex
-  </Button>
-  <Button
-    variant="outline"
-    size="sm"
-    onClick={() => insertTagAtCursor("<NumExpr></NumExpr>")}
-  >
-    Add Num Expr
-  </Button>
-  <Button
-    variant="outline"
-    size="sm"
-    onClick={() => insertTagAtCursor("<QParam></QParam>")}
-  >
-    Add Question param
-  </Button>
-</div>
+                                    {questionForm.isParameterized&&<div className="flex gap-2 mb-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => insertTagAtCursor("<NumExprTex></NumExprTex>")}
+                                        >
+                                            Add NumExprTex
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => insertTagAtCursor("<NumExpr></NumExpr>")}
+                                        >
+                                            Add Num Expr
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => insertTagAtCursor("<QParam></QParam>")}
+                                        >
+                                            Add Question param
+                                        </Button>
+                                    </div>}
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <Label htmlFor="isParameterized" className="mb-0">Is Parameterized?</Label>
+                                        <Checkbox
+                                            id="isParameterized"
+                                            checked={questionForm.isParameterized}
+                                            onCheckedChange={(checked) =>
+                                                setQuestionForm(prev => ({ ...prev, isParameterized: !!checked }))
+                                            }
+                                        />
+                                    </div>
 
                                     <div>
                                         <Label htmlFor="questionText" className='mb-3'>Question Text *</Label>
@@ -467,7 +478,7 @@ const insertTagAtCursor = (tag: string) => {
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
+                 </div>                       <div>
                                             <Label className='mb-3'>Question Type</Label>
                                             <RadioGroup
                                                 value={questionForm.type}
@@ -503,7 +514,7 @@ const insertTagAtCursor = (tag: string) => {
                                                 onChange={(e) => setQuestionForm(prev => ({ ...prev, hint: e.target.value }))}
                                             />
                                         </div>
-                                    </div>
+                                    
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
@@ -630,7 +641,7 @@ const insertTagAtCursor = (tag: string) => {
                                 : "-translate-y-5 opacity-0 max-h-0"
                             } overflow-hidden`}
                             >
-                             <Card>
+                             {questionForm.isParameterized&&<Card>
                                     <CardHeader>
                                         <CardTitle className="text-base md:text-lg">Parameters</CardTitle>
                                         <p className="text-sm text-muted-foreground">
@@ -731,7 +742,7 @@ const insertTagAtCursor = (tag: string) => {
                                             </div>
                                         )} */}
                                     </CardContent>
-                                </Card>
+                                </Card>}
                                 <Card>
                                     <CardHeader>
                                         <CardTitle className="text-base md:text-lg">Answer Options</CardTitle>
