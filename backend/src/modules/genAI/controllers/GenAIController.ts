@@ -144,6 +144,10 @@ export class GenAIController {
     description: 'Job not found',
     statusCode: 404,
   })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
   async getTaskStatus(@Params() params: TaskStatusParams, @Ability(getGenAIAbility) {ability}) {
     const { id, type } = params;
     const job = await this.genAIService.getJobStatus(id);
@@ -161,6 +165,24 @@ export class GenAIController {
   @OpenAPI({
     summary: 'Approve task to start',
     description: 'Approve the task to start running, optionally with given parameters.',
+    responses: {
+    '200': {
+      description: 'Task approved to start successfully',
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              message: {
+                type: 'string',
+                example: 'Task approved to start successfully, This will not return any data in response',
+              },
+            },
+          },
+        },
+      },
+    },
+  },
   })
   @Post("/:id/tasks/approve/start")
   @Authorized()
@@ -168,6 +190,10 @@ export class GenAIController {
   @ResponseSchema(GenAINotFoundErrorResponse, {
     description: 'Job not found',
     statusCode: 404,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
   })
   async approveStart(@Params() params: GenAIIdParams, @Body() body: ApproveStartBody, @Ability(getGenAIAbility) {ability, user}) {
     const { id } = params;
@@ -185,6 +211,24 @@ export class GenAIController {
   @OpenAPI({
     summary: 'Approve task and continue',
     description: 'Approve the task\'s output and continue to the next task.',
+    responses: {
+    '200': {
+      description: 'Task approved to continue successfully.',
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              message: {
+                type: 'string',
+                example: 'Task approved to continue successfully, This will not return any data in response',
+              },
+            },
+          },
+        },
+      },
+    },
+  },
   })
   @Authorized()
   @OnUndefined(200)
@@ -208,6 +252,24 @@ export class GenAIController {
   @OpenAPI({
     summary: 'Rerun current task',
     description: 'Reruns the current task in the job.',
+    responses: {
+    '200': {
+      description: 'Task rerun successfully.',
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              message: {
+                type: 'string',
+                example: 'Task rerun successfully, This will not return any data in response',
+              },
+            },
+          },
+        },
+      },
+    },
+  },
   })
   @Post("/jobs/:id/tasks/rerun")
   @Authorized()
@@ -232,6 +294,24 @@ export class GenAIController {
   @OpenAPI({
     summary: 'Abort current task',
     description: 'Aborts the current task in the job.',
+    responses: {
+    '200': {
+      description: 'Task aborted successfully.',
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              message: {
+                type: 'string',
+                example: 'Task aborted successfully, This will not return any data in response',
+              },
+            },
+          },
+        },
+      },
+    },
+  },
   })
   @Post("/jobs/:id/tasks/abort")
   @Authorized()
@@ -280,6 +360,24 @@ export class GenAIController {
   @OpenAPI({
     summary: 'Edit segment map',
     description: 'Edits the segment map of a job.',
+    responses: {
+    '200': {
+      description: 'Segment map edited successfully.',
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              message: {
+                type: 'string',
+                example: 'Segment map edited successfully, This will not return any data in response',
+              },
+            },
+          },
+        },
+      },
+    },
+  },
   })
   @Patch("/jobs/:id/edit/segment-map")
   @Authorized()
@@ -311,6 +409,24 @@ export class GenAIController {
   @OpenAPI({
     summary: 'Edit question data',
     description: 'Edits the question data of a job.',
+    responses: {
+    '200': {
+      description: 'Question data edited successfully.',
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              message: {
+                type: 'string',
+                example: 'Question data edited successfully, This will not return any data in response',
+              },
+            },
+          },
+        },
+      },
+    },
+  },
   })
   @Patch("/jobs/:id/edit/question")
   @Authorized()
@@ -343,6 +459,24 @@ export class GenAIController {
   @OpenAPI({
     summary: 'Edit transcript',
     description: 'Edits the transcript of a job.',
+    responses: {
+    '200': {
+      description: 'Transcript edited successfully.',
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              message: {
+                type: 'string',
+                example: 'Transcript edited successfully, This will not return any data in response',
+              },
+            },
+          },
+        },
+      },
+    },
+  },
   })
   @Patch("/jobs/:id/edit/transcript")
   @Authorized()

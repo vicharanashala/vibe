@@ -3,6 +3,9 @@ import {
   ChangePasswordBody,
   LoginBody,
   GoogleSignUpBody,
+  SignUpResponse,
+  ChangePasswordResponse,
+  AuthErrorResponse,
 } from '#auth/classes/validators/AuthValidators.js';
 import {
   IAuthService,
@@ -24,8 +27,9 @@ import {
   OnUndefined,
 } from 'routing-controllers';
 import { AUTH_TYPES } from '#auth/types.js';
-import { OpenAPI } from 'routing-controllers-openapi';
+import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { appConfig } from '#root/config/app.js';
+import { BadRequestErrorResponse } from '#root/shared/index.js';
 
 @OpenAPI({
   tags: ['Authentication'],
@@ -45,7 +49,18 @@ export class AuthController {
   })
   @Post('/signup')
   @HttpCode(201)
-  @OnUndefined(201)
+  @ResponseSchema(SignUpResponse, {
+    description: 'User registered successfully',
+    statusCode: 201,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(AuthErrorResponse, {
+    description: 'Auth Error',
+    statusCode: 401,
+  })
   async signup(@Body() body: SignUpBody,@Req() req:any) {
     const acknowledgedInvites = await this.authService.signup(body);
     console.log("Acknowledged ",acknowledgedInvites)
@@ -62,6 +77,18 @@ export class AuthController {
   })
   @Post('/signup/google')
   @HttpCode(201)
+  @ResponseSchema(SignUpResponse, {
+    description: 'User registered successfully',
+    statusCode: 201,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(AuthErrorResponse, {
+    description: 'Auth Error',
+    statusCode: 401,
+  })
   async googleSignup(@Body() body: GoogleSignUpBody, @Req() req: any) {
     const acknowledgedInvites = await this.authService.googleSignup(body, req.headers.authorization?.split(' ')[1]);
     console.log("Acknoelde google ",acknowledgedInvites)
@@ -77,6 +104,18 @@ export class AuthController {
   })
   @Authorized()
   @Patch('/change-password')
+  @ResponseSchema(ChangePasswordResponse, {
+    description: 'Password changed successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(AuthErrorResponse, {
+    description: 'Auth Error',
+    statusCode: 401,
+  })
   async changePassword(
     @Body() body: ChangePasswordBody,
     @Req() request: AuthenticatedRequest,

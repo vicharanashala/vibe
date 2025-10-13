@@ -87,6 +87,24 @@ class AttemptController {
     summary: 'Save answers for an ongoing attempt',
     description:
       'Saves the current answers for a quiz attempt without submitting.',
+    responses: {
+      '200': {
+        description: 'Answers saved successfully.',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                message: {
+                  type: 'string',
+                  example: 'Answers saved successfully, This will not return any data in response',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   })
   @Authorized()
   @OnUndefined(200)

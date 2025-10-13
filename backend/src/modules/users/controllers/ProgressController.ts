@@ -196,6 +196,24 @@ class ProgressController {
   @OpenAPI({
     summary: 'Stop an item for user progress',
     description: 'Marks the stop of an item for a user in a course version.',
+    responses: {
+      '200': {
+        description: 'Item stopped successfully.',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                message: {
+                  type: 'string',
+                  example: 'Item stopped successfully, This will not return any data in response',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   })
   @Authorized()
   @Post('/progress/courses/:courseId/versions/:versionId/stop')
@@ -263,6 +281,24 @@ If only moduleId is provided, resets to the beginning of the module.
 If moduleId and sectionId are provided, resets to the beginning of the section. 
 If moduleId, sectionId, and itemId are provided, resets to the beginning of the item. 
 If none are provided, resets to the beginning of the course.`,
+    responses: {
+      '200': {
+        description: 'Progress reset successfully.',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                message: {
+                  type: 'string',
+                  example: 'Progress reset successfully, This will not return any data in response',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   })
   @Authorized()
   @Patch('/:userId/progress/courses/:courseId/versions/:versionId/reset')

@@ -170,6 +170,24 @@ class QuestionController {
   @OpenAPI({
     summary: 'Flag a question',
     description: 'Flags a quiz question for review with a reason.',
+    responses: {
+      '200': {
+        description: 'Question flagged successfully.',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                message: {
+                  type: 'string',
+                  example: 'Question flagged successfully, This will not return any data in response',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   })
   @Authorized()
   @Post('/:questionId/flag')
@@ -207,6 +225,24 @@ class QuestionController {
   @OpenAPI({
     summary: 'Resolve a flagged question',
     description: 'Resolves a flagged question by marking it as resolved or rejected.',
+    responses: {
+      '200': {
+        description: 'Flag resolved successfully.',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                message: {
+                  type: 'string',
+                  example: 'Flag resolved successfully, This will not return any data in response',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   })
   @Authorized()
   @Post('/flags/:flagId/resolve')
