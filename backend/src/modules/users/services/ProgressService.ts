@@ -110,34 +110,15 @@ class ProgressService extends BaseService {
       a.order.localeCompare(b.order),
     )[0];
 
-    // Skip blank quizzes
-    console.log('=== INITIALIZE PROGRESS - Finding first non-blank item ===');
-    const firstNonBlankItem = await this.findNextNonBlankItem(
-      courseVersion,
-      firstModule.moduleId.toString(),
-      firstSection.sectionId.toString(),
-      firstItem._id.toString(),
-    );
-
-    if (!firstNonBlankItem) {
-      console.log('No non-blank items found in course - progress cannot be initialized');
-      return null;
-    }
-
-    console.log('First non-blank item found:', {
-      moduleId: firstNonBlankItem.moduleId,
-      sectionId: firstNonBlankItem.sectionId,
-      itemId: firstNonBlankItem.itemId,
-    });
-
-    // Create progress record with first non-blank item
+    // Create progress record with the actual first item
+    // Blank quiz skipping will happen naturally during progression
     return new Progress(
       userId,
       courseId,
       courseVersionId,
-      firstNonBlankItem.moduleId,
-      firstNonBlankItem.sectionId,
-      firstNonBlankItem.itemId,
+      firstModule.moduleId.toString(),
+      firstSection.sectionId.toString(),
+      firstItem._id.toString(),
     );
   }
 
