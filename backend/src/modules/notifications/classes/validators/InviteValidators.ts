@@ -294,6 +294,15 @@ class InviteResponse {
   }
 }
 
+class InviteLinkResponse {
+  @JSONSchema({
+    description:'Invite link',
+  })
+  @IsString()
+  link: string;
+
+}
+
 export {
   InviteBody,
   CourseAndVersionId,
@@ -302,5 +311,6 @@ export {
   InviteResult,
   InviteIdParams,
   InviteQueryParams,
-  CourseVersionIdParams
+  CourseVersionIdParams,
+  InviteLinkResponse
 };

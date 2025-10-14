@@ -154,6 +154,29 @@ class ModuleDataResponse {
     description: 'The updated course version data containing modules',
     type: 'object',
     readOnly: true,
+    example:{
+    "version": {
+        "_id": "68ee228f76e2e45t4t5t4de1e",
+        "courseId": "68d0f72fioy45r01b5",
+        "version": "Version title",
+        "description": "version description ",
+        "modules": [
+            {
+                "moduleId": "68ee2409020303gncb24736e5e",
+                "name": "Untitled Module",
+                "description": "Module description",
+                "order": "0|hzzxcx:",
+                "sections": [],
+                "createdAt": "2025-10-14T10:20:57.770Z",
+                "updatedAt": "2025-10-14T10:20:57.770Z"
+            }
+        ],
+        "totalItems": null,
+        "createdAt": "2025-10-14T10:14:39.363Z",
+        "updatedAt": "2025-10-14T10:20:57.770Z"
+    }
+}
+    ,
   })
   @IsNotEmpty()
   version: ICourseVersion;
@@ -174,6 +197,7 @@ class ModuleDeletedResponse {
     description: 'Deletion confirmation message',
     type: 'string',
     readOnly: true,
+    example: 'Module {moduleId} deleted in version {versionId}',
   })
   @IsNotEmpty()
   message: string;

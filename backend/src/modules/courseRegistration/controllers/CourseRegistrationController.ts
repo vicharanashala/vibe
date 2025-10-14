@@ -22,6 +22,7 @@ import { BadRequestErrorResponse } from '#root/shared/index.js';
 import { CourseVersionIdParams } from '#root/modules/notifications/index.js';
 import {
   BulkUpdateStatusBody,
+  CourseVersionDetailsResponse,
   RegistrationFilterQuery,
   RegistrationParams,
   UpdateRegistrationSchemasBody,
@@ -56,6 +57,10 @@ class CourseRegistrationController {
   @Get('/version/:versionId')
   @HttpCode(200)
   @Authorized()
+  @ResponseSchema(CourseVersionDetailsResponse, {
+    description: 'Course details retrieved successfully',
+    statusCode: 200,
+  })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,

@@ -28,6 +28,8 @@ import {
   EditQuestionData,
   TaskStatusParams,
   EditTranscript,
+  TaskStatus,
+  TaskStatusdetailsResponse,
 } from '../classes/validators/GenAIValidators.js';
 import { GenAIService } from '../services/GenAIService.js';
 import { WebhookService } from '../services/WebhookService.js';
@@ -140,6 +142,9 @@ export class GenAIController {
   @Get("/:id/tasks/:type/status")
   @Authorized()
   @HttpCode(200)
+  @ResponseSchema(TaskStatusdetailsResponse, {
+    description: 'Task status retrieved successfully'
+  })
   @ResponseSchema(GenAINotFoundErrorResponse, {
     description: 'Job not found',
     statusCode: 404,
@@ -336,6 +341,24 @@ export class GenAIController {
   @OpenAPI({
     summary: 'Stop current task',
     description: 'Stops the current task in the job (alias of abort).',
+    responses: {
+      '200': {
+        description: 'Task stopped successfully.',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                message: {
+                  type: 'string',
+                  example: 'Task stopped successfully, This will not return any data in response',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   })
   @Post("/jobs/:id/tasks/stop")
   @Authorized()
@@ -509,8 +532,27 @@ export class GenAIController {
   @OpenAPI({
     summary: 'Get live status updates',
     description: 'Establishes a Server-Sent Events (SSE) connection to receive live status updates for a job.',
+    responses:{
+      200:{
+        description:'Live status updates received successfully',
+        content:{
+          'application/json':{
+            schema:{
+              type:'object',
+              properties:{
+                message:{
+                  type:'string',
+                  example:'Live status updates received successfully, This does not return any data in response',
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   })
   @Get("/:id/live")
+  @Authorized()
   @ResponseSchema(GenAINotFoundErrorResponse, {
     description: 'GenAI not found',
     statusCode: 404,

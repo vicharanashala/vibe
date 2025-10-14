@@ -1,4 +1,4 @@
-import {Type} from 'class-transformer';
+import { Type } from 'class-transformer';
 import {
   IsMongoId,
   IsString,
@@ -12,16 +12,16 @@ import {
   IsOptional,
   IsNumber,
 } from 'class-validator';
-import {JSONSchema} from 'class-validator-jsonschema';
-import {ProgressDataResponse} from './ProgressValidators.js';
+import { JSONSchema } from 'class-validator-jsonschema';
+import { ProgressDataResponse } from './ProgressValidators.js';
 import {
   EnrollmentRole,
   EnrollmentStatus,
   ICourse,
   ID,
 } from '#root/shared/interfaces/models.js';
-import {CourseDataResponse} from '#root/modules/courses/classes/index.js';
-import {ContentCountsValidator} from './ContentCountsValidators.js';
+import { CourseDataResponse } from '#root/modules/courses/classes/index.js';
+import { ContentCountsValidator } from './ContentCountsValidators.js';
 
 export class EnrollmentParams {
   @JSONSchema({
@@ -148,7 +148,7 @@ export class EnrollUserResponseData {
   @JSONSchema({
     description: 'Enrollment data for the user',
     type: 'object',
-    items: {$ref: '#/components/schemas/EnrollmentDataResponse'},
+    items: { $ref: '#/components/schemas/EnrollmentDataResponse' },
   })
   @ValidateNested()
   @Type(() => EnrollmentDataResponse)
@@ -158,7 +158,7 @@ export class EnrollUserResponseData {
   @JSONSchema({
     description: 'Progress data for the user',
     type: 'object',
-    items: {$ref: '#/components/schemas/ProgressDataResponse'},
+    items: { $ref: '#/components/schemas/ProgressDataResponse' },
   })
   @IsNotEmpty()
   @ValidateNested()
@@ -267,6 +267,14 @@ class ProgressResponse {
   percentCompleted: number;
 }
 
+export class UpdateEnrollmentProgressResponse {
+  @IsNumber()
+  totalCount: number;
+
+  @IsNumber()
+  updatedCount: number;
+}
+
 class AllEnrollmentsResponse {
   @JSONSchema({
     description: 'Role of the user',
@@ -302,7 +310,7 @@ class AllEnrollmentsResponse {
   @JSONSchema({
     description: 'User data associated with the enrollment',
     type: 'object',
-    items: {$ref: '#/components/schemas/EnrolledUserResponseData'},
+    items: { $ref: '#/components/schemas/EnrolledUserResponseData' },
   })
   @IsNotEmpty()
   @ValidateNested()
@@ -312,7 +320,7 @@ class AllEnrollmentsResponse {
   @JSONSchema({
     description: 'Progress data for the user in the course',
     type: 'object',
-    items: {$ref: '#/components/schemas/ProgressDataResponse'},
+    items: { $ref: '#/components/schemas/ProgressDataResponse' },
   })
   @IsNotEmpty()
   @ValidateNested()
@@ -351,11 +359,11 @@ export class EnrollmentResponse {
   @JSONSchema({
     description: 'Array of enrollment data for the user',
     type: 'array',
-    items: {$ref: '#/components/schemas/EnrollmentDataResponse'},
+    items: { $ref: '#/components/schemas/EnrollmentDataResponse' },
   })
   @IsNotEmpty()
   @IsArray()
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @Type(() => EnrollmentDataResponse)
   enrollments: EnrollmentDataResponse[];
 
@@ -373,11 +381,11 @@ export class CourseVersionEnrollmentResponse {
   @JSONSchema({
     description: 'Array of enrollment data for the course version',
     type: 'array',
-    items: {$ref: '#/components/schemas/AllEnrollmentsResponse'},
+    items: { $ref: '#/components/schemas/AllEnrollmentsResponse' },
   })
   @IsNotEmpty()
   @IsArray()
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @Type(() => AllEnrollmentsResponse)
   enrollments: AllEnrollmentsResponse[];
   totalDocuments: number;
@@ -413,4 +421,5 @@ export const ENROLLMENT_VALIDATORS = [
   EnrollmentDataResponse,
   EnrollmentResponse,
   EnrollmentNotFoundErrorResponse,
+  UpdateEnrollmentProgressResponse
 ];
