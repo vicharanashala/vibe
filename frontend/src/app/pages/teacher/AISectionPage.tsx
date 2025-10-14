@@ -248,7 +248,7 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
   const progressPercentage = getStepProgress();
 
   return (
-    <div className="relative mb-12 px-4">
+    <div className="relative mb-12 px-1 sm:px-4">
       {/* Single continuous progress line */}
       <div className="absolute left-0 top-5 w-full h-[3px] bg-gray-300 dark:bg-[#FCFDFF] overflow-hidden">
         {progressPercentage > 0 && (
@@ -259,7 +259,7 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
         )}
       </div>
       
-      <div className="flex items-center relative z-10">
+      <div className="flex items-start relative z-10 justify-between gap-0.5 sm:gap-2">
       {WORKFLOW_STEPS.map((step, idx) => {
         const status = getStepStatus(jobStatus, step.key);
         const isCurrent = step.key === activeStep;
@@ -272,12 +272,12 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
 
         return (
           <React.Fragment key={step.key}>
-            <div className="relative flex-1 flex justify-center">
-          <div className="flex flex-col items-center">
+            <div className="relative flex flex-col items-center min-w-0 flex-1">
+          <div className="flex flex-col items-center w-full">
              {/* Step Circle */}
            <div className={`
       relative flex items-center justify-center
-      w-11 h-11 rounded-[14px] transition-all duration-300 z-10
+      w-9 h-9 sm:w-11 sm:h-11 rounded-[14px] transition-all duration-300 z-10
       ${isCompleted 
         ? 'bg-[linear-gradient(135deg,_#00D492_0%,_#009966_100%)] text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.1),_0px_10px_15px_-3px_rgba(0,0,0,0.1)]' 
         : isActive 
@@ -289,23 +289,23 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
               : 'bg-gray-200 dark:bg-[#464545] text-gray-600 dark:text-[#FFFFFF]'}
     `}>
                       {isCompleted ? (
-                        <CheckCircle className="w-6 h-6 dark:text-[#0D0D0D]" />
+                        <CheckCircle className="w-3 h-3 sm:w-6 sm:h-6 dark:text-[#0D0D0D]" />
                       ) : isActive ? (
-                        <span>{step.icon}</span>
+                        <span className="text-xs sm:text-base">{step.icon}</span>
                       ) : isFailed ? (
-                        <XCircle className="w-6 h-6" />
+                        <XCircle className="w-3 h-3 sm:w-6 sm:h-6" />
                       ) : isStopped ? (
-                        <PauseCircle className="w-6 h-6" />
+                        <PauseCircle className="w-3 h-3 sm:w-6 sm:h-6" />
                       ) : (
-                        <span className="font-medium">{step.icon}</span>
+                        <span className="font-medium text-xs sm:text-base">{step.icon}</span>
     )}
-    {isActive && <div className="absolute -top-1.5 -right-1 bg-[#2B7FFF] rounded-full h-5 w-5 flex items-center justify-center"><Loader2 className="w-3 h-3 animate-spin text-white dark:text-[#0D0D0D]" /></div>}
-    {isCompleted && <div className="absolute -top-1.5 -right-1 bg-[#00BC7D] rounded-full h-5 w-5 flex items-center justify-center"><Sparkles className="w-3 h-3 text-white dark:text-[#0D0D0D]" /></div>}
+    {isActive && <div className="absolute -top-0.5 -right-0.5 sm:-top-1.5 sm:-right-1 bg-[#2B7FFF] rounded-full h-3 w-3 sm:h-5 sm:w-5 flex items-center justify-center"><Loader2 className="w-1.5 h-1.5 sm:w-3 sm:h-3 animate-spin text-white dark:text-[#0D0D0D]" /></div>}
+    {isCompleted && <div className="absolute -top-0.5 -right-0.5 sm:-top-1.5 sm:-right-1 bg-[#00BC7D] rounded-full h-3 w-3 sm:h-5 sm:w-5 flex items-center justify-center"><Sparkles className="w-1.5 h-1.5 sm:w-3 sm:h-3 text-white dark:text-[#0D0D0D]" /></div>}
   </div>
 
   {/* Step Label */}
-  <div className="mt-2 flex flex-col items-center">
-    <div className={`text-sm font-medium
+  <div className="mt-1 sm:mt-2 flex flex-col items-center w-full px-0 sm:px-1">
+    <div className={`text-[9px] lg:text-sm sm:text-xs md:text-[10px] font-medium text-center leading-tight max-w-full break-words
         ${isCompleted 
           ? 'text-[#009966]' 
           : isActive 
@@ -320,11 +320,11 @@ const Stepper = React.memo(({ jobStatus }: { jobStatus: any }) => {
     </div>
 
     {/* Status Text */}
-    <div className="mt-1 h-4 text-xs">
-      {isActive && <span className="text-[#2B7FFF] dark:text-blue-400 bg-[#EEF2FF] dark:bg-[#171717] py-1 px-1.5 rounded-[10px] flex gap-1 items-center"><Zap size={14} className="text-yellow-500 dark:text-yellow-400"/> Processing</span>}
-      {isCompleted && <span className="text-[#00BC7D] dark:text-green-400 bg-[#ECFDF5] dark:bg-[#171717] py-1 px-1.5 rounded-[10px] flex gap-1 items-center"><Check size={14} className="text-green-600 dark:text-green-400" /> Complete</span>}
-      {isFailed && <span className="text-red-600 dark:text-red-400 bg-[#ffe9ea] dark:bg-[#171717] py-1 px-1.5 rounded-[10px] flex gap-1 items-center"><X size={14} className="text-red-600 dark:text-red-400" /> Failed</span>}
-      {isStopped && <span className="text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-[#171717] py-1 px-1.5 rounded-[10px] flex gap-1 items-center"><PauseCircle size={14} className="text-orange-600 dark:text-orange-400" /> Stopped</span>}
+    <div className="mt-0.5 sm:mt-1 h-3 sm:h-4 text-[9px] sm:text-xs">
+      {isActive && <span className="text-[#2B7FFF] dark:text-blue-400 bg-[#EEF2FF] dark:bg-[#171717] py-0.5 px-1 sm:py-1 sm:px-1.5 rounded-[6px] sm:rounded-[10px] flex gap-0.5 sm:gap-1 items-center"><Zap size={8} className="text-yellow-500 dark:text-yellow-400 sm:w-3.5 sm:h-3.5"/> <span className="hidden lg:inline">Processing</span><span className="sm:hidden">Proc</span></span>}
+      {isCompleted && <span className="text-[#00BC7D] dark:text-green-400 bg-[#ECFDF5] dark:bg-[#171717] py-0.5 px-1 sm:py-1 sm:px-1.5 rounded-[6px] sm:rounded-[10px] flex gap-0.5 sm:gap-1 items-center"><Check size={8} className="text-green-600 dark:text-green-400 sm:w-3.5 sm:h-3.5" /> <span className="hidden lg:inline">Complete</span><span className="sm:hidden">Done</span></span>}
+      {isFailed && <span className="text-red-600 dark:text-red-400 bg-[#ffe9ea] dark:bg-[#171717] py-0.5 px-1 sm:py-1 sm:px-1.5 rounded-[6px] sm:rounded-[10px] flex gap-0.5 sm:gap-1 items-center"><X size={8} className="text-red-600 dark:text-red-400 sm:w-3.5 sm:h-3.5" /> <span className="hidden lg:inline">Failed</span><span className="sm:hidden">Fail</span></span>}
+      {isStopped && <span className="text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-[#171717] py-0.5 px-1 sm:py-1 sm:px-1.5 rounded-[6px] sm:rounded-[10px] flex gap-0.5 sm:gap-1 items-center"><PauseCircle size={8} className="text-orange-600 dark:text-orange-400 sm:w-3.5 sm:h-3.5" /> <span className="hidden lg:inline">Stopped</span><span className="sm:hidden">Stop</span></span>}
     </div>
   </div>
   </div>
@@ -932,30 +932,30 @@ export default function AISectionPage() {
       <div className="space-y-[28px]">
         {/* Always show transcription parameter inputs for 'transcription' task */}
         {task === 'transcription' && audioExtractionStatus !== 'completed' && (
-          <div className="flex flex-row gap-5 mb-4">
-            <div className="flex-1 flex flex-col items-start">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 lg:gap-5 mb-4">
+            <div className="flex-1 flex flex-col items-start min-w-0">
               <label className="mb-2.5 flex items-center text-sm font-medium text-gray-700 dark:text-[#a8a29e]">
-                <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                Processing Language
+                <span className="w-2 h-2 bg-blue-500 rounded-full mr-2 flex-shrink-0"></span>
+                <span className="truncate">Processing Language</span>
               </label>
               <select
                 value={rerunParams.language}
                 onChange={e => setRerunParams(p => ({ ...p, language: e.target.value }))}
-                className="w-full px-4 py-2 rounded-full border border-gray-200 dark:border-[#26211E] bg-white dark:bg-[#202020] shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
+                className="w-full px-3 sm:px-4 py-2 rounded-full border border-gray-200 dark:border-[#26211E] bg-white dark:bg-[#202020] shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
               >
                 <option value="en">English</option>
                 <option value="hi">Hindi</option>
               </select>
             </div>
-            <div className="flex-1 flex flex-col items-start">
+            <div className="flex-1 flex flex-col items-start min-w-0">
               <label className="mb-2.5 flex items-center text-sm font-medium text-gray-700 dark:text-[#a8a29e]">
-                <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
-                AI Model
+                <span className="w-2 h-2 bg-purple-500 rounded-full mr-2 flex-shrink-0"></span>
+                <span className="truncate">AI Model</span>
               </label>
               <select
                 value={rerunParams.model}
                 onChange={e => setRerunParams(p => ({ ...p, model: e.target.value }))}
-                className="w-full px-4 py-2 rounded-full border border-gray-200 dark:border-[#26211E] bg-white dark:bg-[#202020] shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
+                className="w-full px-3 sm:px-4 py-2 rounded-full border border-gray-200 dark:border-[#26211E] bg-white dark:bg-[#202020] shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
               >
                 <option value="default">default</option>
                 {/* Add more models as needed */}
@@ -972,12 +972,14 @@ export default function AISectionPage() {
             <div className="rounded-xl border border-emerald-200 dark:border-[#0E7145] bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-[#171717] dark:from-[#171717] dark:to-[#171717]">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
-                <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
-                <CheckCircle className="w-5 h-5 text-white dark:text-[#0D0D0D]" />
-              </div>
+                <div>
+                  <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
+                  <CheckCircle className="w-5 h-5 text-white dark:text-[#0D0D0D]" />
+                </div>
+                </div>
               <div>
                   <div>Audio Extraction</div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex lg:flex-nowrap flex-wrap items-center gap-3">
                   <span className="text-xs text-emerald-600">Run {getCurrentActiveRunNumber('transcription')}</span>
                   <span className="text-sm text-gray-600 dark:text-[#a8a29e]">{new Date().toLocaleTimeString()}</span>
                   <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white dark:text-[#0D0D0D] font-medium">Complete</span>
@@ -988,7 +990,7 @@ export default function AISectionPage() {
                 
               </div>
               <div className="rounded-lg border border-emerald-100 dark:border-transparent bg-white/60 dark:bg-[#464545] backdrop-blur-md p-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 text-sm">
                   <div>
                     <div className="text-gray-500 dark:text-[#FAFCFF]">Duration</div>
                     <div className="text-gray-800 font-medium dark:text-[#FAFCFF]">12:48 minutes</div>
@@ -1092,8 +1094,10 @@ export default function AISectionPage() {
             <div className="w-full p-5 rounded-lg border border-[#FFD6A7] dark:border-[#202020] mb-4 bg-[linear-gradient(135deg,_#e0fff4_0%,_#f3e7ff_100%)] dark:bg-[linear-gradient(135deg,_#202020_0%,_#202020_100%)] flex items-start gap-4">
               <div className="flex items-start gap-4 w-full">
              
-                <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] text-white">
+            <div>
+              <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] text-white">
                 <FileText className="w-6 h-6 text-white dark:text-[#0D0D0D]" />
+              </div>
             </div>
           
        
@@ -1143,16 +1147,20 @@ export default function AISectionPage() {
                   </div>
 
            
-                  <div className="flex items-center text-sm text-gray-600 dark:text-[#FBFDFF]">
+                  <div className="flex lg:flex-nowrap flex-wrap items-center text-sm text-gray-600 dark:text-[#FBFDFF] lg:mb-0 mb-1">
+                <div className="flex items-center">
                 <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
                 <span>Run {getCurrentActiveRunNumber('transcription')}</span>
-                <span className="mx-2">•</span>
-                    <span>{audioExtractionStartTime ? audioExtractionStartTime.toLocaleTimeString() : new Date().toLocaleTimeString()}</span>
+                </div>
+              <div>
+              <span className="mx-2">•</span>
+              <span>{audioExtractionStartTime ? audioExtractionStartTime.toLocaleTimeString() : new Date().toLocaleTimeString()}</span>
+              </div>
                     {audioExtractionStatus !== 'ready' && audioExtractionStatus !== 'failed' && (
-                      <>
+                      <div>
                         <span className="mx-2">✨</span>
                         <span>{Math.round((audioExtractionStatus as AudioExtractionStatus) === 'completed' ? 100 : audioExtractionProgress)}% complete</span>
-                      </>
+                      </div>
                     )}
               </div>
 
@@ -1211,8 +1219,10 @@ export default function AISectionPage() {
             <div className="w-full rounded-xl border border-emerald-200 dark:border-[#0E7145] bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-[#171717] dark:from-[#171717] dark:to-[#171717]">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
-                  <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
-                    <CheckCircle className="w-5 h-5 text-white dark:text-[#0D0D0D]" />
+                  <div>
+                    <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
+                      <CheckCircle className="w-5 h-5 text-white dark:text-[#0D0D0D]" />
+                    </div>
                   </div>
                   <div>
                     <div className="flex items-center gap-2.5">
@@ -1236,9 +1246,11 @@ export default function AISectionPage() {
             <div className="rounded-xl border border-emerald-200 dark:border-[#0E7145] bg-gradient-to-r from-emerald-50 to-purple-50 p-5 shadow-sm dark:bg-[#171717] dark:from-[#171717] dark:to-[#171717]">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
-                  <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
-                  <CheckCircle className="w-5 h-5 text-white dark:text-[#0D0D0D]" />
-                </div>
+                  <div>
+                    <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
+                      <CheckCircle className="w-5 h-5 text-white dark:text-[#0D0D0D]" />
+                    </div>
+                  </div>
                 <div>
                   <div className="flex items-center gap-2.5">
                     <div>AI Transcription</div>
@@ -1253,7 +1265,7 @@ export default function AISectionPage() {
               </div>
             </div>
           ):(
-        <div className={`flex items-center gap-3 justify-center`}>
+        <div className={`flex lg:flex-nowrap flex-wrap items-center gap-3 justify-center`}>
           {task === 'transcription' && accordionAiJobStatus?.status === 'COMPLETED' && accordionAiJobStatus?.task === 'AUDIO_EXTRACTION' ? (
             <Button
               onClick={handleStartTranscription}
@@ -1346,7 +1358,7 @@ export default function AISectionPage() {
               handleTask(task, localSegParams, localParams);
             }}
             disabled={!canRunTask(task) || runs.some(r => r.status === "loading")}
-            className="flex items-center justify-between gap-2 bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white dark:text-[#0D0D0D] font-semibold px-6 py-3 rounded-full shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center justify-between gap-2 bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white dark:text-[#0D0D0D] font-semibold px-4 sm:px-6 py-3 rounded-full shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Play />
             {runs.some(r => r.status === 'stopped') ? `Restart ${title}` :  `Start ${title}`}
@@ -1373,9 +1385,9 @@ export default function AISectionPage() {
               </Button>
             )}
            {task === 'segmentation' && (
-            <div className="flex flex-row gap-3 items-center ml-4 bg-gray-100 dark:bg-gray-800/60 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700">
+            <div className="flex flex-col sm:flex-row gap-3 items-center ml-0 sm:ml-4 bg-gray-100 dark:bg-gray-800/60 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700">
               {segFields.map(({ key, type }) => (
-                <div key={key} className="flex flex-col items-start min-w-[80px]">
+                <div key={key} className="flex flex-col items-start min-w-0 flex-1">
                   <label
                     htmlFor={`seg-${key}`}
                     className="text-[11px] font-semibold mb-1 text-gray-700 dark:text-[#a8a29e]"
@@ -2450,7 +2462,7 @@ export default function AISectionPage() {
             {loading && <div className="mt-2">Loading...</div>}
             {error && <div className="mt-2 text-red-600 dark:text-red-400">{error}</div>}
             {!loading && !error && (
-              <div className="flex items-start justify-between gap-1.5">
+              <div className="flex lg:flex-nowrap flex-wrap-reverse items-start justify-between gap-1.5">
                 <div className="mt-2 whitespace-pre-line text-[#1E2939] dark:text-[#F9FBFF] leading-[22.75px] text-[13px]">
                   {transcriptChunks
                     ? transcriptChunks.map((chunk: { text: string }) => chunk.text).join(' ')
@@ -2464,7 +2476,7 @@ export default function AISectionPage() {
           </div>
           </>
         )}
-      <div className="space-y-2 flex gap-2.5 items-center justify-center mt-4">
+      <div className="space-y-2 flex lg:flex-nowrap flex-wrap gap-2.5 items-center justify-center mt-4">
         <Button size="sm" variant="secondary" onClick={handleShowTranscript} className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] dark:text-[#a8a29e] font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
           {showTranscript ? <EyeOff /> : <Eye />}
           {showTranscript ? 'Hide Transcript' : 'Show Transcript'}
@@ -2773,7 +2785,7 @@ export default function AISectionPage() {
             {!loading && !error && (!segmentationMap || segmentationMap.length === 0) && segments.length === 0 && <div className="mt-2">No segments found.</div>}
           </div>
         )}
-      <div className="flex gap-2.5 justify-center mt-4">
+      <div className="flex lg:flex-nowrap flex-wrap gap-2.5 justify-center mt-4">
         <div>
           <Button
             size="sm"
@@ -3109,7 +3121,7 @@ export default function AISectionPage() {
           </div>
           </>
         )}
-        <div className="w-full flex items-center justify-center gap-2 mt-4">
+        <div className="w-full flex lg:flex-nowrap flex-wrap items-center justify-center gap-2 mt-4">
         <Button size="sm" variant="secondary" onClick={handleShowQuestions} className="bg-transparent border border-[#D1D5DC] text-[#0A0A0A] dark:text-[#a8a29e] font-medium px-4 py-2 rounded-[12px] shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 btn-beautiful">
           {showQuestions ? <EyeOff /> : <Eye />}
           {showQuestions ? 'Hide Questions' : 'Show Questions'}
@@ -3456,9 +3468,9 @@ export default function AISectionPage() {
       <div className="mb-4">
         <Button className="bg-primary text-primary-foreground" onClick={() => navigate({ to: "/teacher/courses/view" })}>Back</Button>
       </div>
-      <div className="max-w-6xl w-full mx-auto px-4">
+      <div className="max-w-6xl w-full mx-auto px-2 sm:px-4">
         {/* AI Section Workflow Inline */}
-        <div className="bg-white dark:bg-[#202020] rounded-xl shadow-lg border border-gray-200 dark:border-[#26211E] p-8 mb-8">
+        <div className="bg-white dark:bg-[#202020] rounded-xl shadow-lg border border-gray-200 dark:border-[#26211E] p-4 sm:p-6 lg:p-8 mb-8">
           <div className="text-center mb-8">
             <div className="flex items-center justify-center mb-3">
               <div className={`rounded-3xl flex items-center justify-center gap-2 ${badge.bgGradient} ${badge.textColor} text-[11px] px-3.5 py-2 w-fit`}>
@@ -3501,7 +3513,7 @@ export default function AISectionPage() {
               </div>
             )}
           <div className="space-y-8">
-            <div className="flex items-center gap-6">
+            <div className="flex lg:flex-nowrap flex-wrap items-center gap-6">
               <div className="flex items-center gap-2.5 shadow-xl backdrop-blur bg-white/80 dark:bg-[#464545] border border-gray-200 dark:border-[#0D0D0D33] rounded-[14px] p-[15px] w-full">
                 <div><YoutubeIcon /></div>
                 <div className="flex flex-col w-full">
@@ -3599,8 +3611,10 @@ export default function AISectionPage() {
                   {currentUiStep === 1 && (
                     <div className=" shadow-xl backdrop-blur bg-white/80 dark:bg-[#504F4FCC] border border-gray-200 dark:border-[#26211E] rounded-[14px] p-[15px] w-full">
                       <div className="flex items-center gap-3.5 mb-7">
-                        <div className="bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] h-12 w-12 rounded-[14px] flex items-center justify-center">
-                          <FileText className="w-6 h-6 text-white dark:text-[#0D0D0D]" />
+                        <div>
+                          <div className="bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] h-12 w-12 rounded-[14px] flex items-center justify-center">
+                            <FileText className="w-6 h-6 text-white dark:text-[#0D0D0D]" />
+                          </div>
                         </div>
                         <div>
                           <p className="font-semibold text-xl text-gray-900 dark:text-[#C6D2E1]">Audio Extraction</p>
@@ -3665,8 +3679,10 @@ export default function AISectionPage() {
                     currentUiStep === 2 && (
                       <div className="shadow-xl backdrop-blur bg-white/80 dark:bg-[#151516] border border-gray-200 rounded-[14px] p-[15px] w-full dark:border-[#26211E]">
                       <div className="flex items-center gap-3.5 mb-7">
-                        <div className="bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] h-12 w-12 rounded-[14px] flex items-center justify-center">
-                          <FileText className="w-6 h-6 text-white dark:text-[#0D0D0D]" />
+                        <div>
+                          <div className="bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] h-12 w-12 rounded-[14px] flex items-center justify-center">
+                            <FileText className="w-6 h-6 text-white dark:text-[#0D0D0D]" />
+                          </div>
                         </div>
                         <div>
                           <p className="font-semibold text-xl text-gray-900 dark:text-[#C6D2E1]">AI Segmentation</p>
@@ -3711,8 +3727,10 @@ export default function AISectionPage() {
                       <div className="shadow-xl backdrop-blur bg-white/80 dark:bg-[#151516] border border-gray-200 rounded-[14px] p-[15px] w-full dark:border-[#26211E]">
                         <div className="mb-4">
                           <div className="flex items-center gap-3.5 mb-7">
-                            <div className="bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] h-12 w-12 rounded-[14px] flex items-center justify-center">
-                              <Brain className="w-6 h-6 text-white dark:text-[#0D0D0D]" />
+                            <div>
+                              <div className="bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] h-12 w-12 rounded-[14px] flex items-center justify-center">
+                                <Brain className="w-6 h-6 text-white dark:text-[#0D0D0D]" />
+                              </div>
                             </div>
                             <div>
                               <p className="font-semibold text-xl text-gray-900 dark:text-[#C6D2E1]">Question Generation Test</p>
@@ -3724,9 +3742,11 @@ export default function AISectionPage() {
                               <div className="w-full rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-purple-50 dark:bg-[#171717] dark:from-[#171717] dark:to-[#171717] p-5 shadow-sm">
                                 <div className="flex items-center justify-between mb-4">
                                   <div className="flex items-center gap-2 text-gray-900 dark:text-[#a8a29e] font-semibold text-lg">
-                                    <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
-                                    <CheckCircle className="w-5 h-5 text-white dark:text-[#0D0D0D]" />
-                                  </div>
+                                    <div>
+                                      <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white">
+                                        <CheckCircle className="w-5 h-5 text-white dark:text-[#0D0D0D]" />
+                                      </div>
+                                    </div>
                                   <div>
                                     <div className="flex items-center gap-2.5">
                                       <div>AI Question Generation</div>
@@ -3824,8 +3844,10 @@ export default function AISectionPage() {
                       <div className="shadow-xl backdrop-blur bg-white/80 dark:bg-[#151516] border border-gray-200 rounded-[14px] p-[15px] w-full dark:border-[#26211E]">
                         <div className="flex items-center gap-2 mb-4">
                           <div className="flex items-center gap-3.5 mb-7">
+                            <div>
                             <div className="bg-[linear-gradient(90deg,#00D492_0%,#2B7FFF_100%)] h-12 w-12 rounded-[14px] flex items-center justify-center">
                               <Share className="w-6 h-6 text-white dark:text-[#0D0D0D]"/>
+                            </div>
                             </div>
                             <div>
                               <p className="font-semibold text-xl text-gray-900 dark:text-[#C6D2E1]">Upload & Publish</p>

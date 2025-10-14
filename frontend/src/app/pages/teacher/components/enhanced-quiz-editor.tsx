@@ -373,8 +373,6 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   let { data: questionBanks, refetch: refetchQuestionBanks } = useGetAllQuestionBanksForQuiz(quizId || '');
   const { data: selectedBankData, refetch: refetchSelectedBank } = useQuestionBankById(selectedQuestionBank || '');
 
-  console.log("selected Question bank ID", selectedQuestionBank);
-
   // Mutations
   const createQuestionBank = useCreateQuestionBank();
   const addQuestionBankToQuiz = useAddQuestionBankToQuiz();
