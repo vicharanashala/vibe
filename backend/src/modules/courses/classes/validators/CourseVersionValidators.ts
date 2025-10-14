@@ -159,17 +159,22 @@ class CreateCourseVersionResponse {
   @JSONSchema({
     description: 'The updated course object',
     type: 'object',
+    example:
+    {
+    "_id": "68ee228f54e2f6908d54de1r",
+    "courseId": "68d0f72fd802390872101b5",
+    "version": "Version title",
+    "description": "Version description",
+    "modules": [],
+    "totalItems": null,
+    "createdAt": "2025-10-14T10:14:39.363Z",
+    "updatedAt": "2025-10-14T10:14:39.363Z"
+}
+    ,
     readOnly: true,
   })
   course: Record<string, any>;
 
-  @IsNotEmpty()
-  @JSONSchema({
-    description: 'The created version object',
-    type: 'object',
-    readOnly: true,
-  })
-  version: Record<string, any>;
 }
 
 class UpdateCourseVersionParams {
@@ -224,7 +229,7 @@ class CopyCourseVersionParams {
 }
 class CopyCourseVersionResponse {
   @IsString()
-  @JSONSchema({ description: 'Success message' })
+  @JSONSchema({ description: 'Success message',example: 'Course version copied successfully' })
   message!: string;
 }
 export {

@@ -227,7 +227,7 @@ class BlogDetailsPayloadValidator implements IBlogDetails {
   @IsNotEmpty()
   @IsString()
   @JSONSchema({
-    description:'Content of the blog item'
+    description: 'Content of the blog item'
   })
   content: string;
 
@@ -235,7 +235,7 @@ class BlogDetailsPayloadValidator implements IBlogDetails {
   @IsNotEmpty()
   @IsDecimal()
   @JSONSchema({
-    description:'Points assigned to the blog interaction'
+    description: 'Points assigned to the blog interaction'
   })
   points: number;
 
@@ -243,7 +243,7 @@ class BlogDetailsPayloadValidator implements IBlogDetails {
   @IsNotEmpty()
   @IsPositive()
   @JSONSchema({
-    description:'Estimated time to read the blog in minutes'
+    description: 'Estimated time to read the blog in minutes'
   })
   estimatedReadTimeInMinutes: number;
 }
@@ -318,7 +318,7 @@ class CreateItemBody implements Partial<IBaseItem> {
     description: 'Type of the item: VIDEO, BLOG, or QUIZ',
     example: 'VIDEO',
     type: 'string',
-    enum: ['VIDEO', 'BLOG', 'QUIZ','PROJECT'],
+    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT'],
   })
   @IsEnum(ItemType)
   @IsNotEmpty()
@@ -399,7 +399,7 @@ class UpdateItemBody implements Partial<IBaseItem> {
     description: 'Type of the item: VIDEO, BLOG, QUIZ or PROJECT',
     example: 'VIDEO',
     type: 'string',
-    enum: ['VIDEO', 'BLOG', 'QUIZ','PROJECT'],
+    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT'],
   })
   @IsEnum(ItemType)
   @IsNotEmpty()
@@ -407,26 +407,26 @@ class UpdateItemBody implements Partial<IBaseItem> {
 
   @JSONSchema({
     description: 'Details specific to video items',
-    oneOf:[
+    oneOf: [
       {
-        $ref:"#/components/schemas/VideoDetailsPayloadValidator",
-        title:"Video Details",
-        description:"Details specific to video items"
+        $ref: "#/components/schemas/VideoDetailsPayloadValidator",
+        title: "Video Details",
+        description: "Details specific to video items"
       },
       {
-        $ref:"#/components/schemas/BlogDetailsPayloadValidator",
-        title:"Blog Details",
-        description:"Details specific to blog items"
+        $ref: "#/components/schemas/BlogDetailsPayloadValidator",
+        title: "Blog Details",
+        description: "Details specific to blog items"
       },
       {
-        $ref:"#/components/schemas/QuizDetailsPayloadValidator",
-        title:"Quiz Details",
-        description:"Details specific to quiz items"
+        $ref: "#/components/schemas/QuizDetailsPayloadValidator",
+        title: "Quiz Details",
+        description: "Details specific to quiz items"
       },
       {
-        $ref:"#/components/schemas/ProjectDetailsPayloadValidator",
-        title:"Project Details",
-        description:"Details specific to project items"
+        $ref: "#/components/schemas/ProjectDetailsPayloadValidator",
+        title: "Project Details",
+        description: "Details specific to project items"
       }
     ]
   })
@@ -693,6 +693,7 @@ class DeletedItemResponse {
     description: 'The deleted item data',
     type: 'object',
     readOnly: true,
+    example: { "deletedItemId": "68ee280e1f1beg90c14b68ba" }
   })
   @IsNotEmpty()
   deletedItem: Record<string, any>;
@@ -701,6 +702,13 @@ class DeletedItemResponse {
     description: 'The updated items group after deletion',
     type: 'object',
     readOnly: true,
+    example: {
+      "itemsGroup": {
+        "_id": "68ee26547f26e0acc3dff10c",
+        "items": [],
+        "sectionId": "68ee26547f26e0acc3dff10b"
+      }
+    }
   })
   @IsNotEmpty()
   updatedItemsGroup: Record<string, any>;

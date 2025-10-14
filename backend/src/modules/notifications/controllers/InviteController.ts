@@ -21,6 +21,7 @@ import {
   CourseAndVersionId,
   InviteBody,
   InviteIdParams,
+  InviteLinkResponse,
   InviteQueryParams,
   InviteResponse,
   InviteResult,
@@ -107,6 +108,14 @@ export class InviteController {
     summary: 'Generate bulk invite link',
     description:
       'Generates a link that allows multiple students to join a course version within 1 week.',
+  })
+  @ResponseSchema(InviteLinkResponse, {
+    description: 'Invite link generated successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid input data',
+    statusCode: 400,
   })
   async generateInviteLink(
     @Params() params: CourseAndVersionId,
@@ -222,6 +231,10 @@ export class InviteController {
     description: 'List of pending invites for the User',
     statusCode: 200,
   })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid input data',
+    statusCode: 400,
+  })
   async getInvitesForUser(
     @Ability(getInviteAbility) {ability},
     @CurrentUser() user: {_id: string},
@@ -241,6 +254,10 @@ export class InviteController {
   @ResponseSchema(MessageResponse, {
     description: 'Invite resent successfully',
     statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid input data',
+    statusCode: 400,
   })
   async resendInvite(
     @Params() params: InviteIdParams,
@@ -272,6 +289,10 @@ export class InviteController {
   @ResponseSchema(MessageResponse, {
     description: 'Invite cancelled successfully',
     statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid input data',
+    statusCode: 400,
   })
   async cancelInvite(
     @Params() params: InviteIdParams,

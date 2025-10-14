@@ -9,6 +9,7 @@ import {
   IsNumber,
   IsObject,
   IsString,
+  ValidateNested,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 
@@ -180,4 +181,44 @@ export class UpdateRegistrationSchemasBody {
   @IsObject()
   @JSONSchema({ description: "Dynamic UI Schema for the form" })
   uiSchema: Record<string, any>;
+}
+
+class CourseVersionDetailsObject {
+  @IsString()
+  id:string;
+
+  @IsString()
+  courseId:string;
+
+  @IsObject()
+  course:object;
+
+  @IsString()
+  version:string;
+
+  @IsString()
+  description:string;
+
+  @IsArray()
+  modules:Array<any>;
+
+  @IsNumber()
+  totalItems:number;
+
+  @IsString()
+  createdAt:string;
+
+  @IsString()
+  updatedAt:string;
+
+  @IsArray()
+  instructors:Array<any>;
+}
+
+export class CourseVersionDetailsResponse {
+  @ValidateNested()
+  @Type(() => CourseVersionDetailsObject)
+  @IsObject()
+  @JSONSchema({ description: "Course Version Details" })
+  courseVersionDetails:CourseVersionDetailsObject[];
 }

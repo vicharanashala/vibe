@@ -833,6 +833,35 @@ class EditTranscript {
   index: number;
 }
 
+class TaskStatusdetailsResponse{
+  @JSONSchema({
+    title: 'Task Status Details',
+    description: 'Additional data related to the task status',
+    type: 'object',
+    oneOf: [
+      {
+        $ref: '#/components/schemas/audioData',
+      },
+      {
+        $ref: '#/components/schemas/trascriptGenerationData',
+      },
+      {
+        $ref: '#/components/schemas/segmentationData',
+      },
+      {
+        $ref: '#/components/schemas/questionGenerationData',
+      },
+      {
+        $ref: '#/components/schemas/contentUploadData',
+      },
+    ],
+  })
+  @IsObject()
+  @ValidateNested({each:true})
+  @Type(() => Object)
+  data: audioData[] | trascriptGenerationData[] | segmentationData[] | questionGenerationData[] | contentUploadData[];
+}
+
 export {
   JobType,
   GenAIResponse,
@@ -848,6 +877,7 @@ export {
   EditSegmentMapBody,
   EditQuestionData,
   EditTranscript,
+  TaskStatusdetailsResponse,
 };
 
 export const GENAI_VALIDATORS = [
@@ -864,4 +894,5 @@ export const GENAI_VALIDATORS = [
   EditSegmentMapBody,
   EditQuestionData,
   EditTranscript,
+  TaskStatusdetailsResponse,
 ];

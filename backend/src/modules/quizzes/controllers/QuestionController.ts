@@ -138,6 +138,24 @@ class QuestionController {
   @OpenAPI({
     summary: 'Delete a question',
     description: 'Deletes a quiz question by its ID.',
+    responses: {
+      '204': {
+        description: 'Question deleted successfully',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                message: {
+                  type: 'string',
+                  example: 'Question deleted successfully, This will not return any data in response',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   })
   @Authorized()
   @Delete('/:questionId')

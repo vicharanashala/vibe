@@ -17,6 +17,7 @@ import {
   EnrollmentNotFoundErrorResponse,
   CourseVersionEnrollmentResponse,
   EnrollmentStatisticsResponse,
+  UpdateEnrollmentProgressResponse,
 } from '#users/classes/validators/EnrollmentValidators.js';
 import { QuizScoresExportResponseDto } from '../dtos/QuizScoresExportDto.js';
 import { EnrollmentService } from '#users/services/EnrollmentService.js';
@@ -50,6 +51,7 @@ import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepos
 import { GLOBAL_TYPES } from '#root/types.js';
 import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 import { BadRequestErrorResponse } from '#root/shared/index.js';
+import { QuizNotFoundErrorResponse } from '#root/modules/quizzes/classes/index.js';
 
 @OpenAPI({
   tags: ['Enrollments'],
@@ -388,6 +390,10 @@ export class EnrollmentController {
   })
   @Authorized()
   @Patch('/enrollments/progress', { transformResponse: true })
+  @ResponseSchema(UpdateEnrollmentProgressResponse, {
+    description: 'Enrollment progress updated successfully',
+    statusCode: 200,
+  })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
@@ -467,20 +473,20 @@ export class EnrollmentController {
   @OpenAPI({
     summary: 'Export quiz scores for all students in a course version',
     description: 'Returns quiz scores for all students in the specified course version',
-    responses: {
-      '200': {
-        description: 'Quiz scores exported successfully',
-      },
-      '403': {
-        description: 'Forbidden - User does not have permission to view quiz scores',
-      },
-      '404': {
-        description: 'Course or version not found',
-      },
-    },
   })
   //TODO:  We should update this Param to Params in both frontend and backend
-  @ResponseSchema(QuizScoresExportResponseDto)
+  @ResponseSchema(QuizScoresExportResponseDto,{
+    description: 'Quiz scores exported successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(QuizNotFoundErrorResponse, {
+    description: 'Course or version not found',
+    statusCode: 404,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid request parameters',
+    statusCode: 400,
+  })
   async exportQuizScores(
     @Param('courseId') courseId: string,
     @Param('versionId') versionId: string,

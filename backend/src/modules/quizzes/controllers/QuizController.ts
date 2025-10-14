@@ -386,6 +386,14 @@ class QuizController {
     description: 'Quiz details',
     statusCode: 200,
   })
+  @ResponseSchema(QuizNotFoundErrorResponse, {
+    description: 'Quiz not found',
+    statusCode: 404,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid request parameters',
+    statusCode: 400,
+  })
   async getQuizDetails(
     @Params() params: QuizIdParam,
     @Ability(getQuizAbility) {ability}
@@ -412,6 +420,14 @@ class QuizController {
   @ResponseSchema(QuizAnalyticsResponse, {
     description: 'Quiz analytics',
     statusCode: 200,
+  })
+  @ResponseSchema(QuizNotFoundErrorResponse, {
+    description: 'Quiz not found',
+    statusCode: 404,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid request parameters',
+    statusCode: 400,
   })
   async getQuizAnalytics(
     @Params() params: QuizIdParam,

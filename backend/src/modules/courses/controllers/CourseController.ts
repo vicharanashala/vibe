@@ -56,6 +56,7 @@ export class CourseController {
   @HttpCode(201)
   @ResponseSchema(CourseDataResponse, {
     description: 'Course created successfully',
+    statusCode:201
   })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
@@ -144,6 +145,7 @@ Accessible to:
   @Patch('/:courseId', { transformResponse: true })
   @ResponseSchema(CourseDataResponse, {
     description: 'Course updated successfully',
+    statusCode:200
   })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
@@ -177,6 +179,40 @@ Accessible to:
   @OpenAPI({
     summary: 'Delete a course',
     description: 'Deletes a course by ID.',
+    responses:{
+      200:{
+        description:'Course deleted successfully, This does not return any data in response',
+        content:{
+          'application/json':{
+            schema:{
+              type:'object',
+              properties:{
+                message:{
+                  type:'string',
+                  example:'Course deleted successfully, This does not return any data in response',
+                }
+              }
+            }
+          }
+        }
+      },
+      204:{
+        description:'Course deleted successfully',
+        content:{
+          'application/json':{
+            schema:{
+              type:'object',
+              properties:{
+                message:{
+                  type:'string',
+                  example:'Course deleted successfully, This does not return any data in response',
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   })
   @Authorized()
   @Delete('/:courseId', { transformResponse: true })
@@ -212,6 +248,24 @@ Accessible to:
     summary: 'Update Course Version Total Item Count',
     description:
       'Updates the total item count for a specific course version by ID.',
+    responses:{
+      200:{
+        description:'Course version total item count updated successfully',
+        content:{
+          'application/json':{
+            schema:{
+              type:'object',
+              properties:{
+                message:{
+                  type:'string',
+                  example:'Course version total item count updated successfully, This does not return any data in response',
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   })
   @Authorized()
   @Patch('/version/total-item-count', { transformResponse: true })

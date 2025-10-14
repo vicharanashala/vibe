@@ -15,7 +15,7 @@ import {
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { AnomalyService } from '../services/AnomalyService.js';
-import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
+import { BadRequestErrorResponse, InternalServerErrorResponse } from '#shared/middleware/errorHandler.js';
 import { ANOMALIES_TYPES } from '../types.js';
 import { audioUploadOptions, imageUploadOptions } from '../classes/validators/fileUploadOptions.js';
 import { AnomalyData, AnomalyIdParams, CourseAnomaliesQuery, DeleteAnomalyBody, GetAnomalyParams, GetCourseAnomalyParams, GetItemAnomalyParams, GetUserAnomalyParams, NewAnomalyData, StatsQueryParams } from '../classes/validators/AnomalyValidators.js';
@@ -25,6 +25,7 @@ import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { getAnomalyAbility } from '../abilities/anomalyAbilities.js';
 import { subject } from '@casl/ability';
 import { PaginatedResponse } from '../classes/transformers/Anomaly.js';
+import { UserNotFoundErrorResponse } from '#root/modules/users/classes/index.js';
 
 @OpenAPI({
   tags: ['Anomalies'],
@@ -108,7 +109,18 @@ export class AnomalyController {
   })
   @Get('/:anomalyId/course/:courseId/version/:versionId')
   @Authorized()
-  @ResponseSchema(AnomalyDataResponse)
+  @ResponseSchema(AnomalyDataResponse,{
+    description: 'Anomaly retrieved successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(UserNotFoundErrorResponse, {
+    description: 'User not found',
+    statusCode: 404,
+  })
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Could not Fetch the Anomaly',
+    statusCode: 500,
+  })
   async getAnomaly(
     @Params() params: GetAnomalyParams,
     @Ability(getAnomalyAbility) {ability}
@@ -129,7 +141,18 @@ export class AnomalyController {
   })
   @Get('/course/:courseId/version/:versionId/user/:userId')
   @Authorized()
-  @ResponseSchema(AnomalyData)
+  @ResponseSchema(AnomalyData,{
+    description: 'Anomalies retrieved successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(UserNotFoundErrorResponse, {
+    description: 'User not found',
+    statusCode: 404,
+  })
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Could not Fetch the Anomalies',
+    statusCode: 500,
+  })
   async getUserAnomalies(
     @Params() params: GetUserAnomalyParams,
     @QueryParams() query: PaginationQuery,
@@ -154,7 +177,13 @@ export class AnomalyController {
   })
   @Get('/course/:courseId/version/:versionId')
   @Authorized()
-  @ResponseSchema(PaginatedResponse, { isArray: false })
+  @ResponseSchema(PaginatedResponse, { isArray: false ,
+    description: 'Anomalies retrieved successfully',
+    statusCode: 200,})
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Could not Fetch the Anomalies',
+    statusCode: 500,
+  })
   async getCourseAnomalies(
     @Params() params: GetCourseAnomalyParams,
     @QueryParams() query: CourseAnomaliesQuery,
@@ -188,7 +217,14 @@ export class AnomalyController {
   })
   @Get('/course/:courseId/version/:versionId/item/:itemId')
   @Authorized()
-  @ResponseSchema(AnomalyData)
+  @ResponseSchema(AnomalyData,{
+    description: 'Anomalies retrieved successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Could not Fetch the Anomalies',
+    statusCode: 500,
+  })
   async getItemAnomalies(
     @Params() params: GetItemAnomalyParams,
     @QueryParams() query: PaginationQuery,
@@ -214,7 +250,10 @@ export class AnomalyController {
   })
   @Get('/course/:courseId/version/:versionId/stats')
   @Authorized()
-  @ResponseSchema(AnomalyStats)
+  @ResponseSchema(AnomalyStats,{
+    description:'Anomaly statistics retrieved successfully',
+    statusCode:200
+  })
   async getAnomalyStats(
     @Params() params: GetCourseAnomalyParams,
     @QueryParams() query: StatsQueryParams,
