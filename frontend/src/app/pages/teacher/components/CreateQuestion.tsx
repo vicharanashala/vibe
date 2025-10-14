@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Trash2, CheckCircle, Circle } from "lucide-react";
 import { useCreateQuestion, useAddQuestionToBank } from '@/hooks/hooks';
@@ -44,11 +45,10 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
     setShowCreateQuestionDialog,
     selectedBankId
 }) => {
-    const [focusedElement, setFocusedElement] = useState<HTMLInputElement | HTMLTextAreaElement | null>(null);
     const [questionForm, setQuestionForm] = useState({
         text: '',
         type: 'SELECT_ONE_IN_LOT' as QuestionType,
-        isParameterized: true,
+        isParameterized: false,
         hint: '',
         timeLimitSeconds: 60,
         points: 5,
@@ -120,6 +120,35 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
 
     /*Functions to handle parameters change */
 
+    const renderParameterControls = (fieldId: string) => {
+        if (!questionForm.isParameterized) return null;
+        
+        return (
+            <div className="flex gap-2 mb-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => insertTagAtCursor(fieldId, "<NumExprTex></NumExprTex>")}
+                >
+                    Add NumExprTex
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => insertTagAtCursor(fieldId, "<NumExpr></NumExpr>")}
+                >
+                    Add Num Expr
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => insertTagAtCursor(fieldId, "<QParam></QParam>")}
+                >
+                    Add Question param
+                </Button>
+            </div>
+        );
+    };
     
     const addParameter = () => {
         setQuestionForm(prev => ({
@@ -221,12 +250,12 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
 
     /*Function to handle adding tags*/
 
-const insertTagAtCursor = (tag: string) => {
-  if (!focusedElement) return;
+const insertTagAtCursor = (fieldId: string, tag: string) => {
+    const element = document.getElementById(fieldId) as HTMLInputElement | HTMLTextAreaElement | null;
+    if (!element) return;
 
-  const fieldId = focusedElement.id; // e.g. "questionText", "hint", "option-abc123"
-  const start = focusedElement.selectionStart ?? 0;
-  const end = focusedElement.selectionEnd ?? 0;
+    const start = element.selectionStart ?? 0;
+    const end = element.selectionEnd ?? 0;
 
   // If the tag has a closing part like <X></X>, place caret inside it.
   // Otherwise place caret after the inserted text.
@@ -431,32 +460,10 @@ const insertTagAtCursor = (tag: string) => {
                                     <CardTitle className="text-base md:text-lg">Question Details</CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
-                                    {questionForm.isParameterized&&<div className="flex gap-2 mb-2">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => insertTagAtCursor("<NumExprTex></NumExprTex>")}
-                                        >
-                                            Add NumExprTex
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => insertTagAtCursor("<NumExpr></NumExpr>")}
-                                        >
-                                            Add Num Expr
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => insertTagAtCursor("<QParam></QParam>")}
-                                        >
-                                            Add Question param
-                                        </Button>
-                                    </div>}
+                                    <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3 mb-2">
                                         <Label htmlFor="isParameterized" className="mb-0">Is Parameterized?</Label>
-                                        <Checkbox
+                                        <Switch
                                             id="isParameterized"
                                             checked={questionForm.isParameterized}
                                             onCheckedChange={(checked) =>
@@ -464,14 +471,15 @@ const insertTagAtCursor = (tag: string) => {
                                             }
                                         />
                                     </div>
+                                    </div>
 
                                     <div>
                                         <Label htmlFor="questionText" className='mb-3'>Question Text *</Label>
+                                        {renderParameterControls("questionText")}
                                         <Textarea
                                             id="questionText"
                                             placeholder="Enter your question here..."
                                             value={questionForm.text}
-                                            onFocus={(e) => setFocusedElement(e.target)}
                                             onChange={(e) => setQuestionForm(prev => ({ ...prev, text: e.target.value }))}
                                             className="min-h-[80px]"
                                         />
@@ -506,11 +514,11 @@ const insertTagAtCursor = (tag: string) => {
 
                                         <div>
                                             <Label htmlFor="hint" className='mb-3'>Hint *</Label>
+                                            {renderParameterControls("hint")}
                                             <Input
                                                 id="hint"
                                                 placeholder="Enter a hint for students..."
                                                 value={questionForm.hint}
-                                                onFocus={(e) => setFocusedElement(e.target)}
                                                 onChange={(e) => setQuestionForm(prev => ({ ...prev, hint: e.target.value }))}
                                             />
                                         </div>
@@ -777,11 +785,11 @@ const insertTagAtCursor = (tag: string) => {
                                                             />
                                                         )}
                                                         <div className="flex-1 space-y-2">
+                                                            {renderParameterControls(`option-${option.id}`)}
                                                             <Input
                                                             id={`option-${option.id}`}
                                                                 placeholder="Enter answer option..."
                                                                 value={option.text}
-                                                                onFocus={(e) => setFocusedElement(e.target)}
                                                                 onChange={(e) => updateOption(option.id, 'text', e.target.value)}
                                                             />
                                                         </div>
@@ -804,7 +812,6 @@ const insertTagAtCursor = (tag: string) => {
                                                             ? "Explain why this answer is correct..."
                                                             : "Explain why this answer is incorrect..."
                                                         }
-                                                        onFocus={(e) => setFocusedElement(e.target)}
                                                         value={option.explaination}
                                                         onChange={(e) => updateOption(option.id, 'explaination', e.target.value)}
                                                         className="mt-1"
