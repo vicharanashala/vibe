@@ -44,6 +44,7 @@ import { FlagModal } from "@/components/FlagModal";
 import { EntityType } from "@/types/flag.types";
 import { toast } from "sonner";
 import ItemContainer from "@/components/Item-container";
+import logo from "../../../../public/img/vibe_logo_img.ico"
 
 // Helper function to get icon for item type
 const getItemIcon = (type: string) => {
@@ -1033,7 +1034,7 @@ export default function CoursePage() {
               <div className="flex items-center gap-3">
                 <div className="h-8 w-8 rounded-lg overflow-hidden">
                   <img
-                    src="https://continuousactivelearning.github.io/vibe/img/logo.png"
+                    src={logo}
                     alt="Vibe Logo"
                     className="h-8 w-8 object-contain"
                   />
