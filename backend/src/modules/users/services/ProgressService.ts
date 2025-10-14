@@ -165,8 +165,6 @@ class ProgressService extends BaseService {
       a.order.localeCompare(b.order),
     )[0];
 
-    // Skip blank quizzes 
-    console.log('=== INITIALIZE PROGRESS TO MODULE - Finding first non-blank item ===');
     const firstNonBlankItem = await this.findNextNonBlankItem(
       courseVersion,
       module.moduleId.toString(),
@@ -175,17 +173,9 @@ class ProgressService extends BaseService {
     );
 
     if (!firstNonBlankItem) {
-      console.log('No non-blank items found in module - progress cannot be initialized');
       return null; 
     }
 
-    console.log('First non-blank item in module found:', {
-      moduleId: firstNonBlankItem.moduleId,
-      sectionId: firstNonBlankItem.sectionId,
-      itemId: firstNonBlankItem.itemId,
-    });
-
-    // Create progress record with first non-blank item
     return new Progress(
       userId,
       courseId,
@@ -240,8 +230,6 @@ class ProgressService extends BaseService {
       a.order.localeCompare(b.order),
     )[0];
 
-    // Skip blank quizzes 
-    console.log('=== INITIALIZE PROGRESS TO SECTION - Finding first non-blank item ===');
     const firstNonBlankItem = await this.findNextNonBlankItem(
       courseVersion,
       module.moduleId.toString(),
@@ -250,17 +238,9 @@ class ProgressService extends BaseService {
     );
 
     if (!firstNonBlankItem) {
-      console.log('No non-blank items found in section - progress cannot be initialized');
       return null; 
     }
 
-    console.log('First non-blank item in section found:', {
-      moduleId: firstNonBlankItem.moduleId,
-      sectionId: firstNonBlankItem.sectionId,
-      itemId: firstNonBlankItem.itemId,
-    });
-
-    // Create progress record with first non-blank item
     return new Progress(
       userId,
       courseId,
@@ -318,8 +298,6 @@ class ProgressService extends BaseService {
       throw new NotFoundError('Item not found in the specified section.');
     }
 
-    // Skip blank quizzes 
-    console.log('=== INITIALIZE PROGRESS TO ITEM - Finding non-blank item from:', itemId);
     const firstNonBlankItem = await this.findNextNonBlankItem(
       courseVersion,
       module.moduleId.toString(),
@@ -328,17 +306,9 @@ class ProgressService extends BaseService {
     );
 
     if (!firstNonBlankItem) {
-      console.log('No non-blank items found starting from specified item - progress cannot be initialized');
       return null; 
     }
 
-    console.log('Non-blank item found:', {
-      moduleId: firstNonBlankItem.moduleId,
-      sectionId: firstNonBlankItem.sectionId,
-      itemId: firstNonBlankItem.itemId,
-    });
-
-    // Create progress record with first non-blank item
     return new Progress(
       userId,
       courseId,
@@ -380,6 +350,7 @@ class ProgressService extends BaseService {
           userId,
           courseId,
           courseVersionId,
+          session,
         ));
 
       percentCompleted = Math.round(
@@ -521,22 +492,16 @@ class ProgressService extends BaseService {
    */
   private async isBlankQuiz(versionId: string, itemId: string): Promise<boolean> {
     try {
-      console.log(`Checking if item ${itemId} is blank quiz...`);
       const item = await this.itemRepo.readItem(versionId, itemId);
       
       if (!item || item.type !== 'QUIZ') {
-        console.log(`Item ${itemId} is not a quiz (type: ${item?.type})`);
         return false;
       }
-      
 
       const quizItem = item as any; 
-      
       const isBlank = !quizItem.details?.questionBankRefs || quizItem.details.questionBankRefs.length === 0;
-      console.log(`Item ${itemId} is ${isBlank ? 'BLANK' : 'NOT BLANK'} quiz - questionBankRefs:`, quizItem.details?.questionBankRefs);
       return isBlank;
     } catch (error) {
-      console.log('Error checking if item is blank quiz:', error.message);
       return false; 
     }
   }
@@ -550,7 +515,6 @@ class ProgressService extends BaseService {
     skippedBlankQuizIds: string[] = []
   ): Promise<{moduleId: string, sectionId: string, itemId: string, completed: boolean, skippedBlankQuizIds: string[]} | null> {
     if (maxDepth <= 0) {
-      console.log('Max recursion depth reached in findNextNonBlankItem');
       return null;
     }
 
@@ -566,7 +530,6 @@ class ProgressService extends BaseService {
       };
     }
     
-    console.log(`Item ${itemId} is a blank quiz, skipping to next item`);
     skippedBlankQuizIds.push(itemId);
     
     const nextProgress = await this.getNextItemInSequence(courseVersion, moduleId, sectionId, itemId);
@@ -688,18 +651,13 @@ class ProgressService extends BaseService {
     itemId: string,
     userId: string,
   ) {
-    console.log(`=== getNewProgress CALLED ===`);
-    console.log(`Progressing from item: ${itemId} in module: ${moduleId}, section: ${sectionId}`);
-    
     const completedItems = await this.progressRepository.getCompletedItems(
       userId,
       courseVersion.courseId.toString(),
       courseVersion._id.toString(),
     );
 
-    console.log('Getting next item in sequence...');
     const nextSequenceItem = await this.getNextItemInSequence(courseVersion, moduleId, sectionId, itemId);
-    console.log('Next sequence item:', nextSequenceItem);
     
     if (!nextSequenceItem) {
       return {
@@ -711,18 +669,14 @@ class ProgressService extends BaseService {
       };
     }
 
-    // Now find the next non-blank item, automatically skipping blank quizzes
-    console.log('Finding next non-blank item...');
     const nextNonBlankItem = await this.findNextNonBlankItem(
       courseVersion,
       nextSequenceItem.moduleId,
       nextSequenceItem.sectionId,
       nextSequenceItem.itemId
     );
-    console.log('Next non-blank item:', nextNonBlankItem);
 
     if (!nextNonBlankItem) {
-      console.log('No more non-blank items, course complete');
       return {
         completed: true,
         currentModule: moduleId,
@@ -736,17 +690,13 @@ class ProgressService extends BaseService {
       return null;
     }
 
-    const result = {
+    return {
       completed: nextNonBlankItem.completed,
       currentModule: nextNonBlankItem.moduleId,
       currentSection: nextNonBlankItem.sectionId,
       currentItem: nextNonBlankItem.itemId,
       skippedBlankQuizIds: nextNonBlankItem.skippedBlankQuizIds || []
     };
-    
-    console.log('getNewProgress RESULT', result);
-    console.log('Skipped blank quiz IDs:', result.skippedBlankQuizIds);
-    return result;
   }
 
   private isValidWatchTime(watchTime: IWatchTime, item: Item) {
@@ -887,7 +837,23 @@ class ProgressService extends BaseService {
     userId: string | ObjectId,
     courseId: string,
     courseVersionId: string,
+    existingSession?: ClientSession,  
   ): Promise<number> {
+    if (existingSession) {
+      await this.verifyDetails(userId, courseId, courseVersionId);
+
+      const completedItemsArray =
+        await this.progressRepository.getCompletedItems(
+          userId.toString(),
+          courseId,
+          courseVersionId,
+          existingSession,
+        );
+
+      const completedItemsSet = new Set(completedItemsArray);
+      return completedItemsSet.size;
+    }
+
     return this._withTransaction(async session => {
       // Verify if the user, course, and course version exist
       await this.verifyDetails(userId, courseId, courseVersionId);
@@ -997,8 +963,6 @@ class ProgressService extends BaseService {
     attemptId?: string,
     isSkipped?: boolean,
   ): Promise<void> {
-    console.log(`updateProgress CALLED`);
-    console.log(`User: ${userId}, Item: ${itemId}, Module: ${moduleId}, Section: ${sectionId}`);
     return this._withTransaction(async session => {
       await this.verifyDetails(userId, courseId, courseVersionId);
 
@@ -1011,7 +975,6 @@ class ProgressService extends BaseService {
         itemId,
       );
 
-      // Check if the watch time is greater than the item duration
       const item = await this.itemRepo.readItem(
         courseVersionId,
         itemId,
@@ -1074,14 +1037,6 @@ class ProgressService extends BaseService {
         session,
       );
 
-      //  for updating enrollment progress percent
-      await this.updateEnrollmentProgressPercent(
-        userId,
-        courseId,
-        courseVersionId,
-        session,
-      );
-
       // Get the new progress
       const newProgress = await this.getNewProgress(
         courseVersion,
@@ -1091,14 +1046,11 @@ class ProgressService extends BaseService {
         userId,
       );
       if (!newProgress) {
-        console.log('User has already completed the next item');
         return;
       }
       
       if (newProgress.skippedBlankQuizIds && newProgress.skippedBlankQuizIds.length > 0) {
-        console.log(`Marking ${newProgress.skippedBlankQuizIds.length} blank quiz(es) as completed:`, newProgress.skippedBlankQuizIds);
         for (const blankQuizId of newProgress.skippedBlankQuizIds) {
-          // Create a watch time record to mark the blank quiz as completed
           await this.progressRepository.startItemTracking(
             userId,
             courseId,
@@ -1126,8 +1078,14 @@ class ProgressService extends BaseService {
           }
         }
       }
+
+      await this.updateEnrollmentProgressPercent(
+        userId,
+        courseId,
+        courseVersionId,
+        session,
+      );
       
-      // Update the progress
       const updatedProgress = await this.progressRepository.updateProgress(
         userId,
         courseId,
