@@ -434,6 +434,10 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
             resetForm();
             setShowCreateQuestionDialog(false);
         } catch (error) {
+            const err: any = error;
+            const serverMessage = err?.response?.data?.message || err?.response?.message ||err?.data?.message || err?.message;
+            const friendlyMessage = serverMessage;
+            toast.error(friendlyMessage);
             console.error('Failed to create question:', error);
         }
     };
