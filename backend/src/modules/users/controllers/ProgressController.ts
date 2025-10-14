@@ -384,6 +384,10 @@ If none are provided, resets to the beginning of the course.`,
     '/:userId/watchTime/course/:courseId/version/:versionId/item/:itemId/type/:type',
   )
   @HttpCode(200)
+  @ResponseSchema(WatchTimeResponse, {
+    description: 'Watch time fetched successfully',
+    statusCode: 200,
+  })
   @ResponseSchema(UserNotFoundErrorResponse, {
     description: 'User not found',
     statusCode: 404,
@@ -430,10 +434,35 @@ If none are provided, resets to the beginning of the course.`,
   @OpenAPI({
     summary: 'Get Total Watch Time of User',
     description: `Gets the Total Watch Time of the User`,
+    responses:{
+      '200':{
+        description: 'Total watch time fetched successfully',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'number',
+              example: 10,
+            },
+          },
+        },
+      },
+    }
   })
   @Authorized()
   @Get('/watchtime/total')
   @HttpCode(200)
+  @ResponseSchema(Number, {
+    description: 'Total watch time fetched successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(UserNotFoundErrorResponse, {
+    description: 'User not found',
+    statusCode: 404,
+  })
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Could not Fetch the Total Watch Time',
+    statusCode: 500,
+  })
   async getTotalWatchtimeOfUser(
     @Ability(getProgressAbility) {user},
   ): Promise<number> {
