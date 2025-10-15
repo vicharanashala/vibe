@@ -4,6 +4,9 @@ import { ItemScope, createAbilityBuilder } from './types.js';
 import { getFromContainer, InternalServerError } from "routing-controllers";
 import { ProgressService } from "#root/modules/users/services/ProgressService.js";
 import { CourseSettingService } from "#root/modules/setting/services/CourseSettingService.js";
+import { GLOBAL_TYPES } from "#root/types.js";
+import { MongoDatabase } from "#root/shared/database/providers/mongo/MongoDatabase.js";
+import { ObjectId } from "mongodb";
 
 // Actions
 export enum ItemActions {
@@ -55,6 +58,10 @@ export async function setupItemAbilities(
 
                 
                 const linearProgressionEnabled = courseSettings?.settings?.linearProgressionEnabled ?? true;
+                
+                console.log('LINEAR PROGRESSION DEBUG');
+                console.log('courseSettings:', JSON.stringify(courseSettings, null, 2));
+                console.log('linearProgressionEnabled:', linearProgressionEnabled);
 
                 const progress = await progressService.getUserProgress(user.userId, enrollment.courseId, enrollment.versionId);
 
@@ -66,18 +73,33 @@ export async function setupItemAbilities(
                 }
 
                 const allowedItemIds = [...completedItems];
-                allowedItemIds.push(progress.currentItem.toString());
+                const currentItemId = progress.currentItem.toString();
+                
+                if (!allowedItemIds.includes(currentItemId)) {
+                    allowedItemIds.push(currentItemId);
+                }
+
 
                 const itemBounded: { courseId: string, versionId: string, itemId?: any } = {
                     courseId: enrollment.courseId,
                     versionId: enrollment.versionId,
                 };
                 
-                // Grant permission to view items that are in the allowed list
+                console.log('allowedItemIds before filtering:', allowedItemIds);
+                console.log('progress.currentItem:', progress.currentItem);
+                console.log('completedItems:', completedItems);
+                
                 if (linearProgressionEnabled) {
+                    console.log('LINEAR PROGRESSION IS ENABLED - applying proper restrictions');
+                    
                     itemBounded.itemId = { $in: allowedItemIds };
+                    
+                    console.log('Applied linear progression restrictions:', allowedItemIds);
+                } else {
+                    console.log('LINEAR PROGRESSION IS DISABLED - no restrictions applied');
                 }
 
+                console.log('Final itemBounded for STUDENT:', JSON.stringify(itemBounded, null, 2));
                 can(ItemActions.View, 'Item', itemBounded);
                 break;
             case 'INSTRUCTOR':

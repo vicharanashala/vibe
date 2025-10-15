@@ -119,13 +119,34 @@ export class EnrollmentService extends BaseService {
       );
       let initialProgress = null;
       if (createdEnrollment.role == 'STUDENT') {
-        initialProgress = await this.initializeProgress(
+        const progressData = await this.progressService.initializeProgress(
           userId,
           courseId,
           courseVersionId,
           courseVersion,
-          session,
         );
+        
+        if (progressData) {
+          initialProgress = await this.progressRepo.createProgress(
+            {
+              userId: new ObjectId(userId),
+              courseId: new ObjectId(courseId),
+              courseVersionId: new ObjectId(courseVersionId),
+              currentModule: new ObjectId(progressData.currentModule.toString()),
+              currentSection: new ObjectId(progressData.currentSection.toString()),
+              currentItem: new ObjectId(progressData.currentItem.toString()),
+              completed: false,
+            },
+            session,
+          );
+          
+          console.log('=== ENROLLMENT: Progress created successfully ===', {
+            userId,
+            currentItem: progressData.currentItem.toString(),
+          });
+        } else {
+          console.log('=== ENROLLMENT: No progress data returned - course may have no valid items ===');
+        }
       }
 
       return {
@@ -440,59 +461,6 @@ export class EnrollmentService extends BaseService {
    * Initialize student progress tracking to the first item in the course.
    * Private helper method for the enrollment process.
    */
-  private async initializeProgress(
-    userId: string,
-    courseId: string,
-    courseVersionId: string,
-    courseVersion: ICourseVersion,
-    session: ClientSession,
-  ) {
-    // Get the first module, section, and item
-    if (!courseVersion.modules || courseVersion.modules.length === 0) {
-      return null; // No modules to track progress for
-    }
-
-    const firstModule = courseVersion.modules.sort((a, b) =>
-      a.order.localeCompare(b.order),
-    )[0];
-
-    if (!firstModule.sections || firstModule.sections.length === 0) {
-      return null; // No sections to track progress for
-    }
-
-    const firstSection = firstModule.sections.sort((a, b) =>
-      a.order.localeCompare(b.order),
-    )[0];
-
-    // Get the first item from the itemsGroup
-    const itemsGroup = await this.itemRepo.readItemsGroup(
-      firstSection.itemsGroupId.toString(),
-      session,
-    );
-
-    if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
-      return null; // No items to track progress for
-    }
-
-    const firstItem = itemsGroup.items.sort((a, b) =>
-      a.order.localeCompare(b.order),
-    )[0];
-
-    // Create progress record
-    return await this.enrollmentRepo.createProgress(
-      {
-        userId: new ObjectId(userId),
-        courseId: new ObjectId(courseId),
-        courseVersionId: new ObjectId(courseVersionId),
-        currentModule: firstModule.moduleId,
-        currentSection: firstSection.sectionId,
-        currentItem: firstItem._id,
-        completed: false,
-      },
-      session,
-    );
-  }
-
   async bulkUpdateAllEnrollments(
     courseId?: string,
   ): Promise<{totalCount: number; updatedCount: number}> {
