@@ -92,17 +92,17 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
   if (variant === 'dashboard') {
     return (
-      <Card className={`dark:bg-[#4b341e4b] border border-border overflow-hidden flex flex-row student-card-hover p-0 ${className || ''}`}>
-        <div className="w-24 h-auto sm:w-32 flex-shrink-0 flex items-center justify-center">
+      <Card className={`dark:bg-[#4b341e4b] border border-border overflow-hidden flex flex-col sm:flex-row student-card-hover p-0 ${className || ''}`}>
+        <div className="w-full h-40 sm:h-auto sm:w-32 flex-shrink-0 flex items-center justify-center">
           <ImageWithFallback
             src="https://us.123rf.com/450wm/warat42/warat422108/warat42210800253/173451733-charts-graph-with-analysis-business-financial-data-white-clipboard-checklist-smartphone-wallet.jpg?ver=6"
             alt={enrollment?.course?.name || `Course ${index + 1}`}
             aspectRatio="aspect-square"
-            className="rounded-l-lg w-full h-full"
+            className="w-full h-full object-cover rounded-t-lg sm:rounded-l-lg sm:rounded-t-none"
           />
         </div>
-        <CardContent className="p-3 pl-0 flex flex-col flex-1">
-          <div className="flex items-start justify-between flex-wrap gap-2 mb-2">
+        <CardContent className="p-3 sm:pl-0 flex flex-col flex-1">
+          <div className="flex items-start justify-between xl:flex-row flex-col gap-2 mb-2">
             <div className="flex items-center">
               <Badge className="bg-secondary/70 text-secondary-foreground border-0 font-normal">
                 Course
@@ -114,15 +114,15 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               )}
             </div>
             <div className="text-sm text-muted-foreground">
-              <div className="flex flex-col sm:flex-row sm:gap-8">
-                <div className="flex items-center gap-2 mb-1 sm:mb-0">
+              <div className="flex flex-col xl:flex-row gap-3 xl:gap-4">
+                <div className="flex lg:flex-nowrap flex-wrap items-center gap-2 mb-1 xl:mb-0">
                   <span>Content</span>
                   <div className="flex items-center gap-1">
                     <FileText className="h-4 w-4" />
                     {videoCount} videos , {quizCount} quizzes , {articleCount} articles , {projectCount} project
                   </div>
                 </div>
-                <div className="flex items-center gap-2 mb-1 sm:mb-0">
+                <div className="flex items-center gap-2 mb-1 xl:mb-0">
                   <span>Completion</span>
                   <div className="flex items-center gap-2">
                     <div className="w-16 h-2 bg-secondary rounded-full overflow-hidden">
@@ -162,17 +162,17 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 ? 'Start your learning journey'
                 : 'Continue Learning'}
           </p>
-          <div className="mt-auto flex gap-2">
+          <div className="mt-auto flex flex-col sm:flex-row gap-2">
             <Button
               variant={progress === 0 ? "default" : isCompleted ? "secondary" : "default"}
-              className={progress === 0 ? "" : isCompleted ? "" : "border-accent hover:bg-accent/10"}
+              className={`${progress === 0 ? "" : isCompleted ? "" : "border-accent hover:bg-accent/10"} w-full sm:w-auto`}
               onClick={handleContinue}
             >
               {progress === 0 ? 'Start' : progress >= 100 ? 'Completed' : 'Continue'}
             </Button>
             <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline">View Details</Button>
+                <Button variant="outline" className="w-full sm:w-auto">View Details</Button>
               </DialogTrigger>
               <DialogContent className="max-w-3xl max-h-full flex flex-col">
                 <DialogHeader>

@@ -12,9 +12,9 @@ export const StatCard = ({ icon, value, label, className }: StatCardProps) => {
         shadow-lg
         rounded-2xl
         flex flex-row items-center p-4 gap-4
-        w-[180px] h-[100px]
-        min-w-[180px] max-w-[180px]
-        min-h-[100px] max-h-[100px]
+        h-[100px]
+        w-full min-w-0 max-w-none
+        sm:w-[180px] sm:min-w-[180px] sm:max-w-[180px]
         transform hover:scale-105 transition-transform duration-300
         ${className || ''}
       `}
