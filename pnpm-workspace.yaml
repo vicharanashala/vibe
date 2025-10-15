@@ -2,3 +2,16 @@ packages:
   - frontend
   - backend
   - docs
+
+onlyBuiltDependencies:
+  - '@firebase/util'
+  - '@parcel/watcher'
+  - '@sentry-internal/node-cpu-profiler'
+  - '@sentry/cli'
+  - '@swc/core'
+  - '@tailwindcss/oxide'
+  - '@tensorflow/tfjs-node'
+  - bcrypt
+  - core-js
+  - core-js-pure
+  - esbuild

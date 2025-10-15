@@ -1,0 +1,16 @@
+{
+	"image": "mcr.microsoft.com/devcontainers/universal:2",
+	"features": {
+		"ghcr.io/va-h/devcontainers-features/uv:1": {},
+		"ghcr.io/bartventer/arch-devcontainer-features/gcloud-cli:1": {},
+		"ghcr.io/devcontainers-extra/features/firebase-cli:2": {},
+		"ghcr.io/devcontainers-extra/features/poetry:2": {},
+		"ghcr.io/devcontainers-extra/features/tailscale:1": {},
+		"ghcr.io/devcontainers-extra/features/vercel-cli:1": {},
+		"ghcr.io/devcontainers-extra/features/vscode-cli:1": {},
+		"ghcr.io/devcontainers-extra/features/vscode-server:1": {},
+		"ghcr.io/devcontainers-extra/features/vue-cli:2": {},
+		"ghcr.io/devcontainers-extra/features/youtube-dl:2": {},
+		"ghcr.io/devcontainers-extra/features/yt-dlp:2": {}
+	}
+}
