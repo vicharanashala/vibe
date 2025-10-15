@@ -114,11 +114,11 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               )}
             </div>
             <div className="text-sm text-muted-foreground">
-              <div className="flex flex-col xl:flex-row gap-3 xl:gap-4">
+              <div className="flex flex-col xl:flex-row gap-3 2xl:gap-8 xl:gap-4">
                 <div className="flex lg:flex-nowrap flex-wrap items-center gap-2 mb-1 xl:mb-0">
                   <span>Content</span>
                   <div className="flex items-center gap-1">
-                    <FileText className="h-4 w-4" />
+                    <div><FileText className="h-4 w-4" /></div>
                     {videoCount} videos , {quizCount} quizzes , {articleCount} articles , {projectCount} project
                   </div>
                 </div>
@@ -174,8 +174,8 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full sm:w-auto">View Details</Button>
               </DialogTrigger>
-              <DialogContent className="max-w-3xl max-h-full flex flex-col">
-                <DialogHeader>
+              <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 max-h-full flex flex-col">
+                <DialogHeader className="mb-3 text-left">
                   <DialogTitle>Course Details</DialogTitle>
                 </DialogHeader>
                 <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[700px] overflow-y-auto">

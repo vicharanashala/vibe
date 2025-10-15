@@ -1276,7 +1276,7 @@ export default function CoursePage() {
           </Sidebar>
 
           {/* Main Content Area */}
-          <SidebarInset className="flex-1 bg-gradient-to-br from-background via-background to-background/95">
+          <SidebarInset className="flex-1 bg-gradient-to-br from-background via-background to-background/95 peer-data-[variant=inset]:!m-0">
             <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border/20 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 px-4">
               <SidebarTrigger className="-ml-1 h-8 w-8 rounded-md hover:bg-accent/10 transition-colors" />
               <Separator orientation="vertical" className="mr-2 h-4" />

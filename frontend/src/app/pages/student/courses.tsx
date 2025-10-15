@@ -131,11 +131,11 @@ export default function StudentCourses() {
               </div>
             </div>
             <TabsList className="md:w-fit w-full">
-              <TabsTrigger value="enrolled">
+              <TabsTrigger value="enrolled" className="cursor-pointer">
                 Enrolled ({isLoading ? "..." : activeEnrollments.length})
               </TabsTrigger>
-              <TabsTrigger value="available">Available</TabsTrigger>
-              <TabsTrigger value="completed">
+              <TabsTrigger value="available" className="cursor-pointer">Available</TabsTrigger>
+              <TabsTrigger value="completed" className="cursor-pointer">
                 Completed ({isLoading ? "..." : completedEnrollments.length})
               </TabsTrigger>
             </TabsList>

@@ -577,7 +577,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertTriangle, AlertCircle, BookOpen, Tag, ListChecks, Calendar, Eye, Hash, ThumbsDown, ThumbsUp, Clock, MessageSquare, User } from "lucide-react";
+import { Loader2, AlertTriangle, AlertCircle, BookOpen, Tag, ListChecks, Calendar, Eye, Hash, ThumbsDown, ThumbsUp, Clock, MessageSquare, User, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
@@ -1188,7 +1188,7 @@ export function IssueFilters({
     <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
       <div className="flex-1 relative">
         <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-          <Eye size={20} />
+          <Search size={16}/>
         </span>
 
         <Input
