@@ -1,4 +1,5 @@
-import { ID, IWatchTime, ObjectIdToString, StringToObjectId } from "#root/shared/index.js";
+import { IWatchTime, ObjectIdToString, StringToObjectId } from "#root/shared/index.js";
+import type { ID } from "#root/shared/index.js";
 import { Expose, Transform } from "class-transformer"; 
 
 @Expose()

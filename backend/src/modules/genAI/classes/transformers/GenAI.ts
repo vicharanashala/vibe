@@ -1,4 +1,4 @@
-import { ID } from "#root/shared/index.js";
+import type { ID } from "#root/shared/index.js";
 
 // Enum for job types
 export enum JobType {

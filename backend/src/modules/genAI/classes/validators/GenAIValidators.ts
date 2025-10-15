@@ -1,4 +1,4 @@
-import { ID } from '#root/shared/interfaces/models.js';
+import type { ID } from '#root/shared/interfaces/models.js';
 import {
   IsNotEmpty,
   IsString,

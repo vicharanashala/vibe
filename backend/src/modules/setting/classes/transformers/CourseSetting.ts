@@ -305,7 +305,7 @@ import {
   ObjectIdToString,
   StringToObjectId,
 } from '#shared/constants/transformerConstants.js';
-import { ID } from '#shared/index.js';
+import type { ID } from '#shared/index.js';
 import { ProctoringComponent } from '#shared/database/index.js';
 import { ICourseSetting, IDetectorSettings } from '#shared/interfaces/models.js';
 import { JSONSchema } from 'class-validator-jsonschema';
