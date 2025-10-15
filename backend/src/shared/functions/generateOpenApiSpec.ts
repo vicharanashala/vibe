@@ -273,6 +273,7 @@ export function generateOpenAPISpec(
           'Course Modules',
           'Course Sections',
           'Course Items',
+          'CourseRegistration'
         ],
       },
       {

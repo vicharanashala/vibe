@@ -1,5 +1,5 @@
 import {ID, IProgress, ItemType} from '#root/shared/interfaces/models.js';
-import {Expose} from 'class-transformer';
+import {Expose, Type} from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -9,6 +9,7 @@ import {
   IsBoolean,
   IsNumber,
   IsEnum,
+  ValidateNested,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {WatchTime} from '../transformers/WatchTime.js';
@@ -540,6 +541,8 @@ export class WatchTimeResponse {
     type: 'array',
   })
   @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => WatchTime)
   watchTime: WatchTime[];
 
   @JSONSchema({

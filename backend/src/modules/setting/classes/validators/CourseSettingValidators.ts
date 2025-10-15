@@ -15,6 +15,7 @@ import {
   IsDefined,
   IsOptional,
   IsObject,
+  IsNumber,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
@@ -136,6 +137,7 @@ export class UpdateCourseSettingResponse {
   @IsBoolean()
   success: boolean;
 }
+
 
 export class SettingNotFoundErrorResponse {
   @JSONSchema({
@@ -464,4 +466,39 @@ export class RemoveUserProctoringBody {
   @IsNotEmpty()
   @IsEnum(ProctoringComponent)
   detectorName: ProctoringComponent;
+}
+
+export class UpdateSettingResponse {
+  
+  @JSONSchema({
+    description: 'Indicates whether the update was successful',
+    type: 'boolean',
+    readOnly: true,
+  })
+  @IsBoolean()
+  acknowledged: boolean;
+
+  @JSONSchema({
+    description: 'Number of documents modified',
+    type: 'number',
+    readOnly: true,
+  })
+  @IsNumber()
+  modifiedCount: number;
+
+  @JSONSchema({
+    description: 'Number of documents upserted',
+    type: 'number',
+    readOnly: true,
+  })
+  @IsNumber()
+  upsertedCount: number;
+
+  @JSONSchema({
+    description: 'Number of documents matched',
+    type: 'number',
+    readOnly: true,
+  })
+  @IsNumber()
+  matchedCount: number;
 }
