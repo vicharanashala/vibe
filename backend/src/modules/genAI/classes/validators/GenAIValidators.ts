@@ -833,6 +833,7 @@ class EditTranscript {
   index: number;
 }
 
+// TODO : To be modified for later
 class TaskStatusdetailsResponse{
   @JSONSchema({
     title: 'Task Status Details',
@@ -857,9 +858,9 @@ class TaskStatusdetailsResponse{
     ],
   })
   @IsObject()
-  @ValidateNested({each:true})
+  @ValidateNested()
   @Type(() => Object)
-  data: audioData[] | trascriptGenerationData[] | segmentationData[] | questionGenerationData[] | contentUploadData[];
+  data: audioData | trascriptGenerationData | segmentationData | questionGenerationData | contentUploadData;
 }
 
 export {
