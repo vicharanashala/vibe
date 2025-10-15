@@ -28,6 +28,7 @@ export default function StudentLayout() {
   const [showInvites, setShowInvites] = useState(false);
   const [confirmLogout,setConfirmLogout] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const invitesRef = useRef<HTMLDivElement | null>(null);
 
   const handleLogout = () => {
     logout()
@@ -61,6 +62,33 @@ setPendingInvites(result.invites)
           getUserInvites();
         
       }, [user])
+
+  useEffect(() => {
+    if (!showInvites) return;
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (invitesRef.current && target && !invitesRef.current.contains(target)) {
+        setShowInvites(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowInvites(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown, { passive: true } as any);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown as any);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showInvites]);
 
   // console.log('Current user role:', user?.role);
 
@@ -152,7 +180,7 @@ setPendingInvites(result.invites)
           </div>
 
           <div className="flex items-center gap-2 lg:gap-4 sm:gap-2">
-            <div className="relative">
+            <div className="relative" ref={invitesRef}>
               <Button
                 variant="ghost"
                 size="sm"
