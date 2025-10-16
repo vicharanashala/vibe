@@ -632,6 +632,7 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                                         {questionForm.type === "DESCRIPTIVE" && (
                                             <div className="flex-1 min-w-[250px]">
                                             <Label htmlFor="solutionText" className="mb-3">Solution Text *</Label>
+                                            {renderParameterControls("solutionText")}
                                             <Input
                                                 id="solutionText"
                                                 type="text"
