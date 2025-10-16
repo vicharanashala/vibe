@@ -56,25 +56,8 @@ export class UserController {
 
   @OpenAPI({
     summary: 'Edit user information',
-    description: 'Edit user information like first and last name.',
-    responses: {
-      '200': {
-        description: 'User information edited successfully.',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              properties: {
-                message: {
-                  type: 'string',
-                  example: 'User information edited successfully, This will not return any data in response',
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+    description: `Edit user information like first and last name.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @Patch('/edit')
@@ -97,25 +80,8 @@ export class UserController {
 
   @OpenAPI({
     summary: 'Make a user an admin',
-    description: 'Promotes a user to admin status based on the provided user ID.',
-    responses: {
-      '200': {
-        description: 'User made admin successfully.',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              properties: {
-                message: {
-                  type: 'string',
-                  example: 'User made admin successfully, This will not return any data in response',
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+    description: `Promotes a user to admin status based on the provided user ID.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @Post('/make-admin/:userId')

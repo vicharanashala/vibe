@@ -6,6 +6,7 @@ import {
   SignUpResponse,
   ChangePasswordResponse,
   AuthErrorResponse,
+  LoginResponse,
 } from '#auth/classes/validators/AuthValidators.js';
 import {
   IAuthService,
@@ -135,6 +136,18 @@ export class AuthController {
   }
 
   @Post('/login')
+  @ResponseSchema(LoginResponse, {
+    description: 'User logged in successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(AuthErrorResponse, {
+    description: 'Auth Error',
+    statusCode: 401,
+  })
   async login(@Body() body: LoginBody) {
     const { email, password } = body;
     const data = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${appConfig.firebase.apiKey}`, {

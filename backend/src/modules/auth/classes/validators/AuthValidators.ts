@@ -7,7 +7,7 @@ import {
   Matches,
   IsOptional,
 } from 'class-validator';
-import {JSONSchema} from 'class-validator-jsonschema';
+import { JSONSchema } from 'class-validator-jsonschema';
 
 class SignUpBody {
   @JSONSchema({
@@ -227,21 +227,74 @@ class LoginBody {
   @JSONSchema({
     title: 'Email Address',
     description: 'Email address of the user',
-    format:'email'
+    format: 'email'
   })
   @IsEmail()
-  email: string;  
+  email: string;
 
   @JSONSchema({
     title: 'Password',
     description: 'Password for account authentication',
-    example:'SecureP@ssw0rd',
+    example: 'SecureP@ssw0rd',
     minLength: 8,
     writeOnly: true
   })
   @IsNotEmpty()
   @MinLength(8)
   password: string;
+}
+
+
+
+class LoginResponse {
+
+  @JSONSchema({
+    description: 'Local ID of the user',
+    example: 'cKy6H2O04PgTh8O3DpUXjgJYUr53',
+    type: 'string',
+  })
+  @IsString()
+  localId: string
+
+  @JSONSchema({
+    description: 'Email address of the user',
+    example: 'user@example.com',
+    type: 'string',
+    format: 'email',
+  })
+  @IsString()
+  email: string
+
+  @JSONSchema({
+    description: 'Display name of the user',
+    example: 'John Doe',
+    type: 'string',
+  })
+  @IsString()
+  displayName: string
+
+  @JSONSchema({
+    description: 'ID token of the user',
+    example: 'cKy6H2O04PgTh8O3DpUXjgJYUr53',
+    type: 'string',
+  })
+  @IsString()
+  idToken: string
+
+  @JSONSchema({
+    description: 'Refresh token of the user',
+    example: 'cKy6H2O04PgTh8O3DpUXjgJYUr53',
+    type: 'string',
+  })
+  @IsString()
+  refreshToken: string
+
+  @JSONSchema({
+    description: 'Expiry time of the ID token',
+    example: '3600',
+    type: 'number',
+  })
+  expiresIn: Number
 }
 
 export const AUTH_VALIDATORS = [
@@ -254,6 +307,7 @@ export const AUTH_VALIDATORS = [
   TokenVerificationResponse,
   AuthErrorResponse,
   LoginBody,
+  LoginResponse
 ];
 
 export {
@@ -266,4 +320,5 @@ export {
   TokenVerificationResponse,
   AuthErrorResponse,
   LoginBody,
+  LoginResponse
 };

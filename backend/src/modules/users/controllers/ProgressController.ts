@@ -15,6 +15,7 @@ import {
   WatchTimeParams,
   CompletedProgressResponse,
   WatchTimeResponse,
+  TotalWatchTimeResponse,
 } from '#users/classes/validators/ProgressValidators.js';
 import {ProgressService} from '#users/services/ProgressService.js';
 import {USERS_TYPES} from '#users/types.js';
@@ -195,25 +196,8 @@ class ProgressController {
 
   @OpenAPI({
     summary: 'Stop an item for user progress',
-    description: 'Marks the stop of an item for a user in a course version.',
-    responses: {
-      '200': {
-        description: 'Item stopped successfully.',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              properties: {
-                message: {
-                  type: 'string',
-                  example: 'Item stopped successfully, This will not return any data in response',
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+    description: `Marks the stop of an item for a user in a course version.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @Post('/progress/courses/:courseId/versions/:versionId/stop')
@@ -280,25 +264,9 @@ class ProgressController {
 If only moduleId is provided, resets to the beginning of the module. 
 If moduleId and sectionId are provided, resets to the beginning of the section. 
 If moduleId, sectionId, and itemId are provided, resets to the beginning of the item. 
-If none are provided, resets to the beginning of the course.`,
-    responses: {
-      '200': {
-        description: 'Progress reset successfully.',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              properties: {
-                message: {
-                  type: 'string',
-                  example: 'Progress reset successfully, This will not return any data in response',
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+If none are provided, resets to the beginning of the course.<br/>
+It returns an empty body with a 200 status code.
+`,
   })
   @Authorized()
   @Patch('/:userId/progress/courses/:courseId/versions/:versionId/reset')
@@ -434,24 +402,11 @@ If none are provided, resets to the beginning of the course.`,
   @OpenAPI({
     summary: 'Get Total Watch Time of User',
     description: `Gets the Total Watch Time of the User`,
-    responses:{
-      '200':{
-        description: 'Total watch time fetched successfully',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'number',
-              example: 10,
-            },
-          },
-        },
-      },
-    }
   })
   @Authorized()
   @Get('/watchtime/total')
   @HttpCode(200)
-  @ResponseSchema(Number, {
+  @ResponseSchema(TotalWatchTimeResponse, {
     description: 'Total watch time fetched successfully',
     statusCode: 200,
   })

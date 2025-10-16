@@ -137,25 +137,8 @@ class QuestionController {
 
   @OpenAPI({
     summary: 'Delete a question',
-    description: 'Deletes a quiz question by its ID.',
-    responses: {
-      '204': {
-        description: 'Question deleted successfully',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              properties: {
-                message: {
-                  type: 'string',
-                  example: 'Question deleted successfully, This will not return any data in response',
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+    description: `Deletes a quiz question by its ID.<br/>
+    It returns an empty body with a 204 status code.`,
   })
   @Authorized()
   @Delete('/:questionId')
@@ -187,25 +170,8 @@ class QuestionController {
 
   @OpenAPI({
     summary: 'Flag a question',
-    description: 'Flags a quiz question for review with a reason.',
-    responses: {
-      '200': {
-        description: 'Question flagged successfully.',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              properties: {
-                message: {
-                  type: 'string',
-                  example: 'Question flagged successfully, This will not return any data in response',
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+    description: `Flags a quiz question for review with a reason.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @Post('/:questionId/flag')
@@ -242,25 +208,8 @@ class QuestionController {
 
   @OpenAPI({
     summary: 'Resolve a flagged question',
-    description: 'Resolves a flagged question by marking it as resolved or rejected.',
-    responses: {
-      '200': {
-        description: 'Flag resolved successfully.',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              properties: {
-                message: {
-                  type: 'string',
-                  example: 'Flag resolved successfully, This will not return any data in response',
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+    description: `Resolves a flagged question by marking it as resolved or rejected.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @Post('/flags/:flagId/resolve')

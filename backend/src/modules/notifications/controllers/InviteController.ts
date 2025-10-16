@@ -28,7 +28,7 @@ import {
 } from '../classes/validators/InviteValidators.js';
 import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
 import {NOTIFICATIONS_TYPES} from '../types.js';
-import {MessageResponse} from '../classes/index.js';
+import {CancelInviteResponse, MessageResponse, ResendInviteResponse} from '../classes/index.js';
 import {appConfig} from '#root/config/app.js';
 import {inviteRedirectTemplate} from '../redirectTemplate.js';
 import {InviteActions, getInviteAbility} from '../abilities/inviteAbilities.js';
@@ -151,16 +151,15 @@ export class InviteController {
   @OpenAPI({
     summary: 'Process Invite',
     description:
-      'Process an invite given an inviteId and send a response before redirecting the user.',
-    responses: {
-      '200': {
-        description: 'JSON response with redirect information',
-      },
-    },
+      `Process an invite given an inviteId and send a response before redirecting the user.`,
   })
   @ResponseSchema(MessageResponse, {
     description: 'Invite processed successfully',
     statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid invite id',
+    statusCode: 400,
   })
   async processInvites(
     @Params() params: InviteIdParams,
@@ -251,7 +250,7 @@ export class InviteController {
     summary: 'Resend Invite',
     description: 'Resend an invite email to the user.',
   })
-  @ResponseSchema(MessageResponse, {
+  @ResponseSchema(ResendInviteResponse, {
     description: 'Invite resent successfully',
     statusCode: 200,
   })
@@ -286,7 +285,7 @@ export class InviteController {
     summary: 'Cancel Invite',
     description: 'Cancel an existing invite.',
   })
-  @ResponseSchema(MessageResponse, {
+  @ResponseSchema(CancelInviteResponse, {
     description: 'Invite cancelled successfully',
     statusCode: 200,
   })

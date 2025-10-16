@@ -160,8 +160,39 @@ export class MessageResponse {
   
   @IsString()
   @Expose()
+  @JSONSchema({
+    title: 'Message',
+    description: 'The message to be displayed',
+    example: 'It return Dynamic html Template',
+    type: 'string',
+  })
   message: string
 }
 
+@Expose()
+export class ResendInviteResponse {
+  
+  @IsString()
+  @Expose()
+  @JSONSchema({
+    title: 'Message',
+    description: 'The message to be displayed',
+    example: 'Invite resent successfully',
+    type: 'string',
+  })
+  message: string
+}
 
+export class CancelInviteResponse{
+
+  @IsString()
+  @Expose()
+  @JSONSchema({
+    title: 'Message',
+    description: 'The message to be displayed',
+    example: 'Invite has been cancelled successfully.',
+    type: 'string',
+  })
+  message: string
+}
 export {Invite};
