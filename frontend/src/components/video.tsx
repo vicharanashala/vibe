@@ -227,6 +227,32 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
                 setVideoEnded(false);
                 progressStartedRef.current = true;
               }
+            } else if (window.YT && event.data === window.YT.PlayerState.ENDED) {
+              // Video naturally ended (when no endTimeSeconds constraint)
+              setPlaying(false);
+              if (!progressStoppedRef.current && watchItemIdRef.current && currentCourse) {
+                const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
+                if (watchItemId) {
+                  stopItem.mutate({
+                    params: {
+                      path: {
+                        courseId: currentCourse.courseId,
+                        courseVersionId: currentCourse.versionId ?? '',
+                      },
+                    },
+                    body: {
+                      watchItemId,
+                      itemId: currentCourse.itemId ?? '',
+                      moduleId: currentCourse.moduleId ?? '',
+                      sectionId: currentCourse.sectionId ?? '',
+                    }
+                  });
+                }
+                if (onNext) {
+                  onNext();
+                }
+                progressStoppedRef.current = true;
+              }
             } else {
               setPlaying(false);
             }
@@ -246,7 +272,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
     // Cleanup when component unmounts or URL changes
     return () => {
       // Stop if started but not yet stopped
-      if (!progressStoppedRef.current && watchItemIdRef.current) {
+      if (!progressStoppedRef.current && watchItemIdRef.current && currentCourse) {
         stopItem.mutate({
           params: {
             path: {
@@ -256,7 +282,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
           },
           body: {
             watchItemId: watchItemIdRef.current,
-            itemId: currentCourse.itemId,
+            itemId: currentCourse.itemId ?? '',
             moduleId: currentCourse.moduleId ?? '',
             sectionId: currentCourse.sectionId ?? '',
           },
@@ -328,22 +354,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
           }
 
           // Enforce endTime constraint
-          if (endTimeSeconds > 0 && !progressStoppedRef.current && time >= endTimeSeconds - 1) {
+          if (endTimeSeconds > 0 && !progressStoppedRef.current && time >= endTimeSeconds - 1 && currentCourse) {
             const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
-            console.log({
-              params: {
-                path: {
-                  courseId: currentCourse.courseId,
-                  courseVersionId: currentCourse.versionId ?? '',
-                },
-              },
-              body: {
-                watchItemId,
-                itemId: currentCourse.itemId,
-                moduleId: currentCourse.moduleId ?? '',
-                sectionId: currentCourse.sectionId ?? '',
-              }
-            });
 
             if (watchItemId) {
               stopItem.mutate({
@@ -355,13 +367,41 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
                 },
                 body: {
                   watchItemId,
-                  itemId: currentCourse.itemId,
+                  itemId: currentCourse.itemId ?? '',
                   moduleId: currentCourse.moduleId ?? '',
                   sectionId: currentCourse.sectionId ?? '',
                 }
               });
             }
-            onNext();
+            if (onNext) {
+              onNext();
+            }
+            progressStoppedRef.current = true;
+          }
+          
+          // Handle videos without endTime constraint that reach near completion
+          if (endTimeSeconds === 0 && duration > 0 && !progressStoppedRef.current && time >= duration - 2 && currentCourse) {
+            const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
+
+            if (watchItemId) {
+              stopItem.mutate({
+                params: {
+                  path: {
+                    courseId: currentCourse.courseId,
+                    courseVersionId: currentCourse.versionId ?? '',
+                  },
+                },
+                body: {
+                  watchItemId,
+                  itemId: currentCourse.itemId ?? '',
+                  moduleId: currentCourse.moduleId ?? '',
+                  sectionId: currentCourse.sectionId ?? '',
+                }
+              });
+            }
+            if (onNext) {
+              onNext();
+            }
             progressStoppedRef.current = true;
           }
           if (endTimeSeconds > 0 && time >= endTimeSeconds) {

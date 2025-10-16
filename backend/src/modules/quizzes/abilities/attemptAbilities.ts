@@ -81,8 +81,11 @@ export async function setupAttemptAbilities(
           const attemptBounded: {quizId?: any} = {};
           
           if (linearProgressionEnabled) {
-              // Grant permission for attempts on quizzes that correspond to allowed items
+            console.log('ATTEMPT ABILITIES: Linear progression enabled - applying proper quiz attempt restrictions');
+            console.log('ATTEMPT ABILITIES: allowedItemIds:', allowedItemIds);
+            
             attemptBounded.quizId = {$in: allowedItemIds};
+            console.log('ATTEMPT ABILITIES: Applied quiz restrictions matching item abilities');
           }
           can(AttemptActions.Start, 'Attempt', attemptBounded);
           can(AttemptActions.Save, 'Attempt', attemptBounded);
