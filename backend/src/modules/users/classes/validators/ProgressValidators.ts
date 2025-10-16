@@ -554,6 +554,16 @@ export class WatchTimeResponse {
   quizMetrics?: UserQuizMetrics;
 }
 
+export class TotalWatchTimeResponse{
+  @JSONSchema({
+    description: 'Total watch time of the user',
+    example: 120,
+    type: 'number',
+  })
+  @IsNumber()
+  totalWatchTime: number;
+}
+
 export const PROGRESS_VALIDATORS = [
   GetUserProgressParams,
   StartItemBody,

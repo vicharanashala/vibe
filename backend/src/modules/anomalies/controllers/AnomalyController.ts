@@ -272,25 +272,9 @@ export class AnomalyController {
 
   @OpenAPI({
     summary: 'Delete anomaly',
-    description: 'Deletes an anomaly record and its encrypted image',
-    responses: {
-    '200': {
-      description: 'Anomaly deleted successfully (no response body)',
-      content: {
-        'application/json': {
-          schema: {
-            type: 'object',
-            properties: {
-              message: {
-                type: 'string',
-                example: 'Anomaly deleted successfully. This does not return any data in response.',
-              },
-            },
-          },
-        },
-      },
-    },
-  },
+    description: `Deletes an anomaly record and its encrypted image<br/>
+    It returns an empty body with a 200 status code.`,
+    
   })
   @Delete('/:id')
   @Authorized()

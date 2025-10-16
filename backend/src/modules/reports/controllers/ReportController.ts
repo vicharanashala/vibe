@@ -64,7 +64,7 @@ class ReportController {
               properties: {
                 message: {
                   type: 'string',
-                  example: 'Flag submitted successfully, This will not return any data in response',
+                  example: 'Flag submitted successfully',
                 },
               },
             },
@@ -115,7 +115,7 @@ class ReportController {
               properties: {
                 message: {
                   type: 'string',
-                  example: 'Flag updated successfully, This will not return any data in response',
+                  example: 'Flag updated successfully',
                 },
               },
             },
@@ -270,7 +270,7 @@ async getMyIssueReports(
               properties: {
                 message: {
                   type: 'string',
-                  example: 'Flag updated successfully, This will not return any data in response',
+                  example: 'Response updated successfully',
                 },
               },
             },

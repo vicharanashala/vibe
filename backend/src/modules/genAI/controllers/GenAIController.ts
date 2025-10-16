@@ -169,25 +169,8 @@ export class GenAIController {
 
   @OpenAPI({
     summary: 'Approve task to start',
-    description: 'Approve the task to start running, optionally with given parameters.',
-    responses: {
-    '200': {
-      description: 'Task approved to start successfully',
-      content: {
-        'application/json': {
-          schema: {
-            type: 'object',
-            properties: {
-              message: {
-                type: 'string',
-                example: 'Task approved to start successfully, This will not return any data in response',
-              },
-            },
-          },
-        },
-      },
-    },
-  },
+    description: `Approve the task to start running, optionally with given parameters.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Post("/:id/tasks/approve/start")
   @Authorized()
@@ -215,25 +198,8 @@ export class GenAIController {
 
   @OpenAPI({
     summary: 'Approve task and continue',
-    description: 'Approve the task\'s output and continue to the next task.',
-    responses: {
-    '200': {
-      description: 'Task approved to continue successfully.',
-      content: {
-        'application/json': {
-          schema: {
-            type: 'object',
-            properties: {
-              message: {
-                type: 'string',
-                example: 'Task approved to continue successfully, This will not return any data in response',
-              },
-            },
-          },
-        },
-      },
-    },
-  },
+    description: `Approve the task\'s output and continue to the next task.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @OnUndefined(200)
@@ -256,25 +222,8 @@ export class GenAIController {
 
   @OpenAPI({
     summary: 'Rerun current task',
-    description: 'Reruns the current task in the job.',
-    responses: {
-    '200': {
-      description: 'Task rerun successfully.',
-      content: {
-        'application/json': {
-          schema: {
-            type: 'object',
-            properties: {
-              message: {
-                type: 'string',
-                example: 'Task rerun successfully, This will not return any data in response',
-              },
-            },
-          },
-        },
-      },
-    },
-  },
+    description: `Reruns the current task in the job.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Post("/jobs/:id/tasks/rerun")
   @Authorized()
@@ -298,25 +247,9 @@ export class GenAIController {
 
   @OpenAPI({
     summary: 'Abort current task',
-    description: 'Aborts the current task in the job.',
-    responses: {
-    '200': {
-      description: 'Task aborted successfully.',
-      content: {
-        'application/json': {
-          schema: {
-            type: 'object',
-            properties: {
-              message: {
-                type: 'string',
-                example: 'Task aborted successfully, This will not return any data in response',
-              },
-            },
-          },
-        },
-      },
-    },
-  },
+    description: `Aborts the current task in the job.<br/>
+    It returns an empty body with a 200 status code.`,
+    
   })
   @Post("/jobs/:id/tasks/abort")
   @Authorized()
@@ -340,25 +273,9 @@ export class GenAIController {
 
   @OpenAPI({
     summary: 'Stop current task',
-    description: 'Stops the current task in the job (alias of abort).',
-    responses: {
-      '200': {
-        description: 'Task stopped successfully.',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              properties: {
-                message: {
-                  type: 'string',
-                  example: 'Task stopped successfully, This will not return any data in response',
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+    description: `Stops the current task in the job (alias of abort).<br/>
+    It returns an empty body with a 200 status code.`,
+    
   })
   @Post("/jobs/:id/tasks/stop")
   @Authorized()
@@ -382,25 +299,8 @@ export class GenAIController {
 
   @OpenAPI({
     summary: 'Edit segment map',
-    description: 'Edits the segment map of a job.',
-    responses: {
-    '200': {
-      description: 'Segment map edited successfully.',
-      content: {
-        'application/json': {
-          schema: {
-            type: 'object',
-            properties: {
-              message: {
-                type: 'string',
-                example: 'Segment map edited successfully, This will not return any data in response',
-              },
-            },
-          },
-        },
-      },
-    },
-  },
+    description: `Edits the segment map of a job.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Patch("/jobs/:id/edit/segment-map")
   @Authorized()
@@ -431,25 +331,8 @@ export class GenAIController {
 
   @OpenAPI({
     summary: 'Edit question data',
-    description: 'Edits the question data of a job.',
-    responses: {
-    '200': {
-      description: 'Question data edited successfully.',
-      content: {
-        'application/json': {
-          schema: {
-            type: 'object',
-            properties: {
-              message: {
-                type: 'string',
-                example: 'Question data edited successfully, This will not return any data in response',
-              },
-            },
-          },
-        },
-      },
-    },
-  },
+    description: `Edits the question data of a job.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Patch("/jobs/:id/edit/question")
   @Authorized()
@@ -481,25 +364,8 @@ export class GenAIController {
 
   @OpenAPI({
     summary: 'Edit transcript',
-    description: 'Edits the transcript of a job.',
-    responses: {
-    '200': {
-      description: 'Transcript edited successfully.',
-      content: {
-        'application/json': {
-          schema: {
-            type: 'object',
-            properties: {
-              message: {
-                type: 'string',
-                example: 'Transcript edited successfully, This will not return any data in response',
-              },
-            },
-          },
-        },
-      },
-    },
-  },
+    description: `Edits the transcript of a job.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Patch("/jobs/:id/edit/transcript")
   @Authorized()
@@ -531,25 +397,7 @@ export class GenAIController {
 
   @OpenAPI({
     summary: 'Get live status updates',
-    description: 'Establishes a Server-Sent Events (SSE) connection to receive live status updates for a job.',
-    responses:{
-      200:{
-        description:'Live status updates received successfully',
-        content:{
-          'application/json':{
-            schema:{
-              type:'object',
-              properties:{
-                message:{
-                  type:'string',
-                  example:'Live status updates received successfully, This does not return any data in response',
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+    description: 'Establishes a Server-Sent Events (SSE) connection to receive live status updates for a job.<br/> It returns an empty body with a 200 status code.',
   })
   @Get("/:id/live")
   @Authorized()

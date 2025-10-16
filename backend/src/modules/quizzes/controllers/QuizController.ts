@@ -67,25 +67,8 @@ class QuizController {
 
   @OpenAPI({
     summary: 'Add a question bank to a quiz',
-    description: 'Associates a question bank with a quiz.',
-    responses: {
-      '200': {
-        description: 'Question bank added successfully.',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              properties: {
-                message: {
-                  type: 'string',
-                  example: 'Question bank added successfully, This will not return any data in response',
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+    description: `Associates a question bank with a quiz.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @Post('/:quizId/bank')
@@ -116,25 +99,8 @@ class QuizController {
 
   @OpenAPI({
     summary: 'Remove a question bank from a quiz',
-    description: 'Removes the association of a question bank from a quiz.',
-    responses: {
-      '200': {
-        description: 'Question bank removed successfully.',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              properties: {
-                message: {
-                  type: 'string',
-                  example: 'Question bank removed successfully, This will not return any data in response',
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+    description: `Removes the association of a question bank from a quiz.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @Delete('/:quizId/bank/:questionBankId')
@@ -165,25 +131,8 @@ class QuizController {
 
   @OpenAPI({
     summary: 'Edit question bank configuration for a quiz',
-    description: 'Updates the configuration of a question bank within a quiz.',
-    responses: {
-      '200': {
-        description: 'Question bank configuration updated successfully.',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              properties: {
-                message: {
-                  type: 'string',
-                  example: 'Question bank configuration updated successfully, This will not return any data in response',
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+    description: `Updates the configuration of a question bank within a quiz.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @Patch('/:quizId/bank')
@@ -558,25 +507,8 @@ class QuizController {
 
   @OpenAPI({
     summary: 'Override submission score',
-    description: 'Overrides the score for a specific quiz submission.',
-    responses: {
-      '200': {
-        description: 'Submission score updated successfully.',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              properties: {
-                message: {
-                  type: 'string',
-                  example: 'Submission score updated successfully, This will not return any data in response',
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+    description: `Overrides the score for a specific quiz submission.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @Post('/:quizId/submission/:submissionId/score/:score')
@@ -607,25 +539,8 @@ class QuizController {
 
   @OpenAPI({
     summary: 'Regrade a quiz submission',
-    description: 'Regrades a quiz submission with new grading results.',
-    responses: {
-      '200': {
-        description: 'Submission regraded successfully.',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              properties: {
-                message: {
-                  type: 'string',
-                  example: 'Submission regraded successfully, This will not return any data in response',
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+    description: `Regrades a quiz submission with new grading results.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @Post('/:quizId/submission/:submissionId/regrade')
@@ -657,25 +572,8 @@ class QuizController {
 
   @OpenAPI({
     summary: 'Add feedback to a question in a submission',
-    description: 'Adds feedback to a specific question in a quiz submission.',
-    responses: {
-      '200': {
-        description: 'Feedback added successfully.',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              properties: {
-                message: {
-                  type: 'string',
-                  example: 'Feedback added successfully, This will not return any data in response',
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+    description: `Adds feedback to a specific question in a quiz submission.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @Post('/:quizId/submission/:submissionId/question/:questionId/feedback')
@@ -713,25 +611,8 @@ class QuizController {
 
   @OpenAPI({
     summary: 'Reset available attempts for a user on a quiz',
-    description: 'Resets the number of available attempts for a user on a specific quiz.',
-    responses: {
-      '200': {
-        description: 'Available attempts reset successfully.',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              properties: {
-                message: {
-                  type: 'string',
-                  example: 'Available attempts reset successfully, This will not return any data in response',
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+    description: `Resets the number of available attempts for a user on a specific quiz.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @Post('/:quizId/user/:userId/reset-attempts')

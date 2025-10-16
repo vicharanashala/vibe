@@ -178,45 +178,12 @@ Accessible to:
 
   @OpenAPI({
     summary: 'Delete a course',
-    description: 'Deletes a course by ID.',
-    responses:{
-      200:{
-        description:'Course deleted successfully, This does not return any data in response',
-        content:{
-          'application/json':{
-            schema:{
-              type:'object',
-              properties:{
-                message:{
-                  type:'string',
-                  example:'Course deleted successfully, This does not return any data in response',
-                }
-              }
-            }
-          }
-        }
-      },
-      204:{
-        description:'Course deleted successfully',
-        content:{
-          'application/json':{
-            schema:{
-              type:'object',
-              properties:{
-                message:{
-                  type:'string',
-                  example:'Course deleted successfully, This does not return any data in response',
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+    description: `Deletes a course by ID<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @Delete('/:courseId', { transformResponse: true })
-  @OnUndefined(204)
+  @OnUndefined(200)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
@@ -247,25 +214,7 @@ Accessible to:
   @OpenAPI({
     summary: 'Update Course Version Total Item Count',
     description:
-      'Updates the total item count for a specific course version by ID.',
-    responses:{
-      200:{
-        description:'Course version total item count updated successfully',
-        content:{
-          'application/json':{
-            schema:{
-              type:'object',
-              properties:{
-                message:{
-                  type:'string',
-                  example:'Course version total item count updated successfully, This does not return any data in response',
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+      'Updates the total item count for a specific course version by ID.<br/> It returns an empty body with a 200 status code.',
   })
   @Authorized()
   @Patch('/version/total-item-count', { transformResponse: true })

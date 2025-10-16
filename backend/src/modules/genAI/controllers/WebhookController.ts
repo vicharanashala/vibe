@@ -18,26 +18,8 @@ import { SseService } from '../services/sseService.js';
 
 @OpenAPI({
   tags: ['Webhook'],
-  description: 'Webhook endpoints for AI server communication',
-  security: [{ apiKey: [] }],
-  responses: {
-    '200': {
-      description: 'Webhook processed successfully.',
-      content: {
-        'application/json': {
-          schema: {
-            type: 'object',
-            properties: {
-              message: {
-                type: 'string',
-                example: 'Webhook processed successfully, This will not return any data in response',
-              },
-            },
-          },
-        },
-      },
-    },
-  },
+  description: 'Webhook endpoints for AI server communication,<br/> It returns an empty body with a 200 status code.',
+  security: [{ apiKey: [] }]
 })
 @injectable()
 @JsonController('/genAI/webhook')
