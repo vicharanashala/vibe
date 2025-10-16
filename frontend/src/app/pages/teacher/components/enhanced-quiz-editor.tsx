@@ -291,6 +291,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   const [selectedGradeStatus, setSelectedGradeStatus] = useState<GradingSystemStatus>("All");
   const [sort, setSort] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<string>("All");
   const [typeFilter, setTypeFilter] = useState<string>("All");
 
@@ -308,7 +309,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   if (!quizId) {
     console.error("Failed to fetch submission because quizId is ", quizId)
   }
-  const { data: submissionsData, refetch, isLoading: submissionsLoading } = useQuizSubmissions(quizId!, selectedGradeStatus, searchQuery, sort, currentPage, limit, selectedTab);
+  const { data: submissionsData, refetch, isLoading: submissionsLoading } = useQuizSubmissions(quizId!, selectedGradeStatus, debouncedSearchQuery, sort, currentPage, limit, selectedTab);
   const { theme } = useTheme();
 
   const submissions = submissionsData?.data;
@@ -316,6 +317,18 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   useEffect(() => {
     refetch();
   }, [selectedTab]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const timerId = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 400);
+
+    return () => clearTimeout(timerId);
+  }, [searchQuery]);
 
   const handlePageChange = (newPage: number) => {
     if (submissionsData && newPage >= 1 && newPage <= submissionsData.totalPages) {
