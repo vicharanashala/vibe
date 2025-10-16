@@ -1142,11 +1142,11 @@ export default function TeacherCoursePage() {
                 <div className="md:hidden">
                   <SidebarTrigger />
                 </div>
-                <h2 className="text-lg font-semibold">Course Editor</h2>
+                <h2 className="sm:text-lg text-sm font-semibold">Course Editor</h2>
               </div>
               {versionData && (
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary px-4 py-2 text-base font-semibold">
+                  <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary px-4 py-2 sm:text-base text-sm font-semibold">
                     Version: {(versionData as any)?.version || (versionData as any)?.name || 'Unknown'}
                   </Badge>
                 </div>
