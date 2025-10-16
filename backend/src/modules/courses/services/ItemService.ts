@@ -390,13 +390,41 @@ export class ItemService extends BaseService {
         version.totalItems = totalItems;
 
         // Step 4: Update progress for all users in parallel
-        await this.progressService.updateEnrollmentProgressPercentBulk(
-          enrollments,
-          courseId,
-          versionId,
-          version.totalItems,
-          session,
+        const bulkOps = await Promise.all(
+          enrollments.map(async enrollment => {
+            const userId = enrollment.userId.toString();
+            const completedItemsArray = await this.progressRepo.getCompletedItems(
+              userId,
+              courseId,
+              versionId,
+              session,
+            );
+            const completedItemsCount = completedItemsArray.length;
+            const percentCompleted = totalItems > 0 
+              ? Math.min(Math.round((completedItemsCount / totalItems) * 100), 100)
+              : 0;
+
+            return {
+              updateOne: {
+                filter: {
+                  userId: new ObjectId(userId),
+                  courseId: new ObjectId(courseId),
+                  courseVersionId: new ObjectId(versionId),
+                },
+                update: {
+                  $set: {
+                    percentCompleted,
+                    updatedAt: new Date(),
+                  },
+                },
+              },
+            };
+          }),
         );
+
+        if (bulkOps.length > 0) {
+          await this.enrollmentRepo.bulkUpdateEnrollments(bulkOps, session);
+        }
 
         // Step 5: Update version
         const updatedVersion = await this.courseRepo.updateVersion(

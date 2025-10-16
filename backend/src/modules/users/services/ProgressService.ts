@@ -418,7 +418,9 @@ class ProgressService extends BaseService {
     completedItems: number,
   ): number {
     if (!totalItems || totalItems === 0) return 0;
-    return ((completedItems ?? 0) / totalItems) * 100;
+    const safeCompletedItems = Math.min(completedItems ?? 0, totalItems);
+    const progress = (safeCompletedItems / totalItems) * 100;
+    return Math.min(progress, 100);
   }
 
   private async verifyDetails(
