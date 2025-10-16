@@ -82,9 +82,9 @@ function DashboardContent() {
   return (
     <>
       {/* Greeting and Stat Cards in two separate flex boxes */}
-      <div className="flex flex-col md:flex-row justify-between items-start mb-8 px-4 sm:px-6 lg:px-8 xl:px-0 gap-6 transition-all duration-300">
+      <div className="flex flex-col lg:flex-row justify-between items-start mb-8 px-0 sm:px-6 lg:px-8 xl:px-0 gap-6 transition-all duration-300">
         {/* Left: Greeting Box */}
-        <div className="flex-1 bg-background rounded-lg p-6">
+        <div className="flex-1 bg-background rounded-lg lg:px-6 py-6 px-0">
           <h1 className="text-3xl font-bold mb-1">
             {greeting}, {studentName} 👋
           </h1>
@@ -93,21 +93,21 @@ function DashboardContent() {
           </p>
         </div>
         {/* Right: Stat Cards */}
-        <div className="flex flex-col sm:flex-row gap-4 items-center w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row gap-4 items-stretch w-full sm:w-auto">
           <StatCard icon="🏆" value={`${totalEnrollments}`} label="Enrolled Courses" />
           <StatCard icon="⏱️" value={`${(watchtimeData / 3600 || 0).toFixed(2)}h`} label="Study Time" />
           <StatCard icon="🎓" value={`${totalProgress}%`} label="Overall Progress" />
         </div>
       </div>
       {/* Announcement Banner */}
-      <div className="mb-2 px-4 sm:px-6 lg:px-8 xl:px-0 transition-all duration-300">
+      <div className="mb-2 px-0 sm:px-6 lg:px-8 xl:px-0 transition-all duration-300">
         <AnnouncementBanner
           title="Achievement Unlocked!"
           description="Congratulations! You've earned the 'Quick Learner' badge by completing 5 lessons in a single day."
         />
       </div>
       {/* Main content and sidebar */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-0 py-6 flex flex-col md:flex-row gap-6 transition-all duration-300">
+      <div className="container mx-auto px-0 sm:px-6 lg:px-8 xl:px-0 py-6 flex flex-col lg:flex-row gap-6 transition-all duration-300">
         <main className="flex-1">
           <CourseSection
             title="In progress learning content"
@@ -144,7 +144,7 @@ function DashboardContent() {
             }}
           />
         </main>
-        <aside className="w-full md:w-80">
+        <aside className="w-full lg:w-80">
           <div className="sticky top-6">
             <DashboardSidebar enrollments={enrollments} />
           </div>

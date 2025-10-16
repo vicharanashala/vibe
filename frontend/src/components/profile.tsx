@@ -100,7 +100,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
 
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+    <div className="flex flex-1 flex-col gap-4 md:p-4 pt-0">
       <div className="flex flex-col space-y-6">
         <section className="flex flex-col space-y-2">
           <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">Profile</h1>
@@ -112,11 +112,11 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
           title={"Confirm Logout"}
           description="Are you sure you want to log out? You will need to sign in again to access your dashboard."
         />
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid lg:gap-6 lg:gap-y-0 gap-y-6 lg:grid-cols-3 md:grid-cols-1">
           {/* Profile Picture & Basic Info */}
           <Card className="relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20" />
-            <CardContent className="relative p-6">
+            <div className="absolute inset-0 bg-card text-card-foreground" />
+            <CardContent className="relative xl:p-6 lg:p-2 p-6">
               <div className="flex flex-col items-center space-y-6">
                 <div className="relative">
                   <Avatar className="h-28 w-28 ring-4 ring-white dark:ring-gray-800 shadow-xl">
@@ -125,7 +125,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                       {avatarFallback.toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="absolute -bottom-2 -right-2">
+                  <div className="absolute -bottom-2 right-4">
                     <Badge variant="secondary" className="text-xs px-3 py-1 bg-white dark:bg-gray-800 shadow-lg border">
                       {displayRole}
                     </Badge>
@@ -135,7 +135,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                 <div className="text-center space-y-2">
                   <h3 className="font-bold text-xl">{displayName}</h3>
                   <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
-                    <Mail className="h-4 w-4" />
+                    <div className="xl:flex lg:hidden flex"><Mail className="h-4 w-4" /></div>
                     {displayEmail}
                   </p>
                 </div>
@@ -207,7 +207,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-4">
                   {/* First Name */}
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
                     <label className="text-sm font-medium text-muted-foreground">First Name</label>
                     <Button variant={"ghost"} size={"icon"} onClick={() => setEditField("firstName")}>
                       <Pencil className="h-4 w-4" />
@@ -225,7 +225,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                   )}
 
                   {/* Last Name */}
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
                     <label className="text-sm font-medium text-muted-foreground">Last Name</label>
                     <Button variant={"ghost"} size={"icon"} onClick={() => setEditField("lastName")}>
                       <Pencil className="h-4 w-4" />
@@ -249,7 +249,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                       <Mail className="h-3 w-3" />
                       Email Address
                     </label>
-                    <p className="text-base font-medium mt-1 break-all">{displayEmail}</p>
+                    <p className="md:text-base text-sm font-medium mt-1 break-all">{displayEmail}</p>
                   </div>
                 </div>
               </div>
