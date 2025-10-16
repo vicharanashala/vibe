@@ -124,7 +124,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
         if (!questionForm.isParameterized) return null;
         
         return (
-            <div className="flex gap-2 mb-2">
+            <div className="flex md:flex-row flex-col gap-2 mb-2">
                 <Button
                     variant="outline"
                     size="sm"
@@ -452,18 +452,18 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                             Add Question
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
+                    <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm xl:max-w-5xl lg:max-w-3xl sm:max-w-2xl mx-auto px-4 max-h-[90vh] sm:max-h-[85vh] flex flex-col overflow-hidden">
+                        <DialogHeader className="mb-3 text-left flex-shrink-0">
                             <DialogTitle>Create New Question</DialogTitle>
                         </DialogHeader>
 
-                        <div className="space-y-6 mt-4">
+                        <div className="space-y-6 mt-4 flex-1 overflow-y-auto">
                             {/* Basic Question Info */}
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="text-base md:text-lg">Question Details</CardTitle>
                                 </CardHeader>
-                                <CardContent className="space-y-4">
+                                <CardContent className="px-4 space-y-4">
                                     <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3 mb-2">
                                         <Label htmlFor="isParameterized" className="mb-0">Is Parameterized?</Label>
@@ -495,7 +495,7 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                                             <RadioGroup
                                                 value={questionForm.type}
                                                 onValueChange={(value: QuestionType) => handleTypeChange(value)}
-                                                className="mt-2 grid grid-cols-2 gap-4"
+                                                className="mt-2 grid md:grid-cols-2 grid-cols-1 gap-4"
                                             >
                                                 <div className="flex items-center space-x-2">
                                                     <RadioGroupItem value="SELECT_ONE_IN_LOT" id="single" />
@@ -550,10 +550,10 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                                         onChange={(e) => setQuestionForm(prev => ({ ...prev, points: parseInt(e.target.value) || 1 }))}
                                         />
                                     </div>
-
-                                    <div className="col-span-1 md:col-span-2 overflow-hidden transition-all duration-300 ease-in-out transform flex flex-wrap gap-4 items-end mt-4"
+</div>
+                                    <div className="col-span-1 lg:col-span-2 overflow-hidden transition-all duration-300 ease-in-out transform flex flex-wrap gap-4 items-end mt-4"
                                         >
-                                        <div className="flex-1 min-w-[150px]">
+                                        <div className="flex-1 xl:min-w-[150px] min-w-full">
                                             <Label htmlFor="priority" className="mb-3">Priority</Label>
                                             <Select
                                             value={questionForm.priority}
@@ -643,19 +643,13 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                                             </div>
                                         )}
                                         </div>
-                                    </div>
+                                    
                                 </CardContent>
                             </Card>
 
-                            <div
-                             className={`transition-all duration-300 ease-in-out transform ${
-                                questionForm.type !== "DESCRIPTIVE" && questionForm.type !== "NUMERIC_ANSWER_TYPE"
-                                ? "translate-y-0 opacity-100 max-h-[2000px]"
-                                : "-translate-y-5 opacity-0 max-h-0"
-                            } overflow-hidden`}
-                            >
-                             {questionForm.isParameterized&&<Card>
-                                    <CardHeader>
+                            {questionForm.isParameterized && (
+                                <Card>
+                                    <CardHeader className='px-4'>
                                         <CardTitle className="text-base md:text-lg">Parameters</CardTitle>
                                         <p className="text-sm text-muted-foreground">
                                             {`Enter the values for each parameter used in the question text.`}
@@ -755,7 +749,16 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                                             </div>
                                         )} */}
                                     </CardContent>
-                                </Card>}
+                                </Card>
+                            )}
+
+                            <div
+                             className={`transition-all duration-300 ease-in-out transform ${
+                                questionForm.type !== "DESCRIPTIVE" && questionForm.type !== "NUMERIC_ANSWER_TYPE"
+                                ? "translate-y-0 opacity-100 max-h-[2000px]"
+                                : "-translate-y-5 opacity-0 max-h-0"
+                            } overflow-hidden`}
+                            >
                                 <Card>
                                     <CardHeader>
                                         <CardTitle className="text-base md:text-lg">Answer Options</CardTitle>
@@ -766,7 +769,7 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                                             }
                                         </p>
                                     </CardHeader>
-                                    <CardContent className="space-y-4">
+                                    <CardContent className="px-4 space-y-4">
                                         {questionForm.options.map((option) => (
                                             <div key={option.id}  className={`border rounded-lg p-4 space-y-3 ${option.isCorrect ? 'bg-green-500/10 border-green-500/20' : 'border-gray-200'
                                                 }`}>
@@ -872,7 +875,7 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                             </div>
                         </div>
 
-                        <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+                        <div className="flex justify-end gap-2 mt-6 pt-4 border-t flex-shrink-0">
                             <Button variant="outline" onClick={() => {
                                 setShowCreateQuestionDialog(false);
                                 resetForm();
