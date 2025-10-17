@@ -270,12 +270,20 @@ export class EnrollmentService extends BaseService {
 
         const [contentCountsMap, watchedItemsMap] = await Promise.all([
           this.enrollmentRepo.getContentCountsForVersions(versionIds),
-          this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
+          this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys, session),
         ]);
 
         return enrollments.map(enr => {
           const versionIdStr = enr.courseVersionId.toString();
           const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}`;
+
+          const completedItems = watchedItemsMap.get(watchedKey) || 0;
+          const totalItems = contentCountsMap.get(versionIdStr)?.totalItems || 0;
+          
+          const safeCompletedItems = Math.min(completedItems, totalItems);
+          const calculatedPercent = totalItems > 0 
+            ? Math.min(Math.round((safeCompletedItems / totalItems) * 100), 100)
+            : 0;
 
           return {
             _id: enr._id.toString(),
@@ -285,14 +293,14 @@ export class EnrollmentService extends BaseService {
             status: enr.status,
             enrollmentDate: new Date(enr.enrollmentDate),
             course: this.filterCourseVersions(enr.course, enrolledVersionIds),
-            percentCompleted: enr.percentCompleted || 0,
+            percentCompleted: calculatedPercent,
             contentCounts: contentCountsMap.get(versionIdStr) || {
               totalItems: 0,
               videos: 0,
               quizzes: 0,
               articles: 0,
             },
-            completedItems: watchedItemsMap.get(watchedKey) || 0,
+            completedItems: completedItems,
           };
         });
       }

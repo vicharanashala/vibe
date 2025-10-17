@@ -353,9 +353,10 @@ class ProgressService extends BaseService {
           session,
         ));
 
-      percentCompleted = Math.round(
-        (totalItems > 0 ? completedItems / totalItems : 0) * 100,
-      );
+      const safeCompletedItems = Math.min(completedItems, totalItems);
+      percentCompleted = totalItems > 0 
+        ? Math.min(Math.round((safeCompletedItems / totalItems) * 100), 100)
+        : 0;
     }
 
     await this.enrollmentRepo.updateProgressPercentById(
@@ -381,6 +382,7 @@ class ProgressService extends BaseService {
           userId,
           courseId,
           versionId,
+          session,
         );
 
         return {

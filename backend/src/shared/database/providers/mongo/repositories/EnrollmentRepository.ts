@@ -603,6 +603,7 @@ export class EnrollmentRepository {
       courseId: ObjectId;
       courseVersionId: ObjectId;
     }[],
+    session?: ClientSession,
   ): Promise<Map<string, number>> {
     const matchConditions = entries.map(e => ({
       userId: e.userId,
@@ -629,7 +630,8 @@ export class EnrollmentRepository {
             count: { $size: '$itemIds' },
           },
         },
-      ])
+      ],
+      { session })
       .toArray();
 
     const map = new Map<string, number>();
