@@ -1,10 +1,10 @@
-import {ClientSession} from 'mongodb';
+import { ClientSession } from 'mongodb';
 import {
   IProjectSubmission,
   IProjectSubmissionWithUser,
 } from '../repositories/model.js';
-import {SubmitProjectBody} from '../classes/validators/ProjectValidators.js';
-import {ID} from '#root/shared/index.js';
+import { SubmitProjectBody } from '../classes/validators/ProjectValidators.js';
+import { ID } from '#root/shared/index.js';
 
 export interface IProjectSubmissionRepository {
   getByUser(
@@ -25,6 +25,14 @@ export interface IProjectSubmissionRepository {
     courseId: string,
     courseVersionId: string,
     userId: string,
+    submissionURL: string,
+    comment: string,
+    session?: ClientSession,
+  ): Promise<ID>;
+
+
+  update(
+    submissionId: string,
     submissionURL: string,
     comment: string,
     session?: ClientSession,
