@@ -1198,14 +1198,14 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
     <div className="space-y-6">
       <div>
         <div className="pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="flex lg:flex-row flex-col gap-3 items-center justify-between">
+            <div className="flex items-center gap-3 w-full">
               <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/20">
                 <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <CardTitle className="text-xl">{selectedItemName}</CardTitle>
-                <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-4 mt-1 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
                     <span>{blogForm.estimatedReadTimeInMinutes} min read</span>
@@ -1220,7 +1220,7 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex lg:flex-nowrap flex-wrap items-center gap-2 justify-center">
               {isEditMode ? (
                 <>
                   <Button
