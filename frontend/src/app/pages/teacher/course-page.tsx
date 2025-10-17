@@ -71,6 +71,7 @@ import ConfirmationModal from "./components/confirmation-modal"
 
 export default function TeacherCoursesPage() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const queryClient = useQueryClient()
 
@@ -82,7 +83,7 @@ export default function TeacherCoursesPage() {
     isLoading: enrollmentsLoading,
     error: enrollmentsError,
     refetch,
-  } = useUserEnrollments(currentPage, 10, !!token, searchQuery, role) // Use pagination with 10 items per page
+  } = useUserEnrollments(currentPage, 10, !!token, debouncedSearchQuery, role) // Use pagination with 10 items per page
 
 
   const enrollments = enrollmentsResponse?.enrollments || []
@@ -116,6 +117,14 @@ export default function TeacherCoursesPage() {
   // Reset page to 1 when search query changes
   useEffect(() => {
     setCurrentPage(1)
+  }, [searchQuery])
+
+  useEffect(() => {
+    const timerId = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery)
+    }, 400)
+
+    return () => clearTimeout(timerId)
   }, [searchQuery])
 
   // Filter courses based on search query

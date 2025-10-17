@@ -408,7 +408,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
     return (
         <>
             {isLoading ? <Loader /> :
-                <div className={`bg-background ${url && "mt-45"} rounded-lg border p-6 min-w-[700px] backdrop-blur-md bg-background/80`}>
+                <div className={`bg-background ${url && "mt-45"} rounded-lg border p-6 xl:min-w-[700px] backdrop-blur-md bg-background/80`}>
                     <div className="mb-4 flex justify-between items-center">
                         <h2 className="text-lg font-semibold">
                             {action === "add" && "Add Video"}
@@ -536,10 +536,10 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                         msUserSelect: 'none',
                                         flexShrink: 0,
                                     }}
-                                    className="md:flex items-center justify-start relative gap-2"
+                                    className="xl:flex items-center justify-start relative gap-2"
                                 >
                                     <div className="flex flex-col gap-2">
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center lg:gap-2 gap-6 lg:flex-row flex-col">
                                             <div>
                                                 <div className="flex items-center gap-2">
                                                     <label className="font-medium mr-2">Start Time (mm:ss):</label>
@@ -585,7 +585,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                         </div>
                                     </div>
                                     {/* Go to Start/End Buttons */}
-                                    <div className="mt-4 md:mt-0" style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                                    <div className="mt-4 xl:mt-0 justify-center" style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
                                         <Button
                                             variant="secondary"
                                             size="sm"
