@@ -344,7 +344,9 @@ export class EnrollmentController {
       throw new BadRequestError('Page and limit must be positive integers.');
     }
 
-    const skip = search && search.trim() !== '' ? 0 : (page - 1) * limit;
+    // const skip = search && search.trim() !== '' ? 0 : (page - 1) * limit;
+
+    const skip = (page - 1) * limit;
 
     const enrollmentsData =
       await this.enrollmentService.getCourseVersionEnrollments(

@@ -294,10 +294,10 @@ const {
   };
 
   useEffect(() => {
-    if (searchQuery !== debouncedSearch) {
-      setIsSearching(true);
-    }
+    setIsSearching(true);
     const handler = setTimeout(() => {
+      // Reset to first page when search term changes
+      setCurrentPage(1);
       setDebouncedSearch(searchQuery);
       setIsSearching(false);
     }, 300);
@@ -305,7 +305,7 @@ const {
     return () => {
       clearTimeout(handler);
     };
-  }, [searchQuery, debouncedSearch]);
+  }, [searchQuery]);
 
   // Fetch enrollments data
   const {
@@ -332,7 +332,7 @@ const {
   const unenrollMutation = useUnenrollUser()
 
   // Pagination state
-  const totalDocuments = studentEnrollments?.totalDocuments || 0
+  const totalDocuments = enrollmentsData?.totalDocuments || 0
   const totalPages = enrollmentsData?.totalPages || 1
 
 

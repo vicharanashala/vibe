@@ -108,23 +108,23 @@ export class EnrollmentRepository {
     );
   }
 
-  async getInstructorIdsByVersion(courseId: string, versionId: string,session?:ClientSession) {
+  async getInstructorIdsByVersion(courseId: string, versionId: string, session?: ClientSession) {
     await this.init()
-  console.log("CourseId and versionId from getInstructors ",courseId,versionId)
-  const enrollments = await this.enrollmentCollection
-    .find(
-      {
-        courseId:new ObjectId(courseId),
-        courseVersionId: new ObjectId(versionId),
-        role: 'INSTRUCTOR',
-        status: 'ACTIVE'
-      },
-      { projection: { userId: 1, _id: 0 },session } // only return userId
-    )
-    .toArray();
-  console.log("enrollments ",enrollments)
-  return enrollments.map(enrollment => enrollment.userId);
-}
+    console.log("CourseId and versionId from getInstructors ", courseId, versionId)
+    const enrollments = await this.enrollmentCollection
+      .find(
+        {
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(versionId),
+          role: 'INSTRUCTOR',
+          status: 'ACTIVE'
+        },
+        { projection: { userId: 1, _id: 0 }, session } // only return userId
+      )
+      .toArray();
+    console.log("enrollments ", enrollments)
+    return enrollments.map(enrollment => enrollment.userId);
+  }
 
   async updateProgressPercentById(
     enrollmentId: string,
@@ -170,7 +170,7 @@ export class EnrollmentRepository {
       if (!newEnrollment) {
         throw new NotFoundError('Newly created enrollment not found');
       }
-      console.log("new enrollment ",newEnrollment)
+      console.log("new enrollment ", newEnrollment)
       return newEnrollment;
     } catch (error) {
       throw new InternalServerError(
@@ -733,15 +733,24 @@ export class EnrollmentRepository {
 
     // search
     if (search && search.trim() !== '') {
+      const searchTerm = search.trim();
       aggregationPipeline.push({
         $match: {
           $or: [
-            { 'userInfo.firstName': { $regex: search, $options: 'i' } },
-            { 'userInfo.email': { $regex: search, $options: 'i' } },
+            { firstName: { $regex: searchTerm, $options: 'i' } },
+            { lastName: { $regex: searchTerm, $options: 'i' } },
+            { email: { $regex: searchTerm, $options: 'i' } },
           ],
         },
       });
     }
+
+    // Get the total count with search applied
+    const countPipeline = [...aggregationPipeline, { $count: 'total' }];
+    const countResult = await this.enrollmentCollection
+      .aggregate<{ total: number }>(countPipeline, { session })
+      .next();
+    const totalDocuments = countResult?.total || 0;
 
     // sorting
     aggregationPipeline.push({ $sort: sortField });
@@ -750,22 +759,23 @@ export class EnrollmentRepository {
     aggregationPipeline.push({ $skip: skip }, { $limit: limit });
 
     // count separately
-    const totalDocuments = await this.enrollmentCollection.countDocuments(
-      matchStage,
-    );
+    // const totalDocuments = await this.enrollmentCollection.countDocuments(
+    //   matchStage,
+    // );
+
+
     const enrollments = await this.enrollmentCollection
       .aggregate(aggregationPipeline, { session })
       .toArray();
 
-    const totalPages =
-      typeof limit === 'number' && limit > 0
-        ? Math.ceil(totalDocuments / limit)
-        : 1;
+    const totalPages = limit > 0
+      ? Math.ceil(totalDocuments / limit)
+      : 1;
 
     return {
       totalDocuments,
       totalPages,
-      currentPage: Math.floor(skip / limit) + 1,
+      currentPage: limit > 0 ? Math.floor(skip / limit) + 1 : 1,
       enrollments,
     };
   }
@@ -892,15 +902,15 @@ export class EnrollmentRepository {
   }
 
   //new method to get instructors 
-//   async getInstructorIdsByVersion(courseId:string, versionId:strin) {
-//   const enrollments = await this.enrollmentCollection.find({
-//     courseId,
-//     courseVersionId: versionId,
-//     role: 'INSTRUCTOR',
-//     status: 'ACTIVE'
-//   }).select('userId').lean();
-//   return enrollments.map(enrollment => enrollment.userId);
-// }
+  //   async getInstructorIdsByVersion(courseId:string, versionId:strin) {
+  //   const enrollments = await this.enrollmentCollection.find({
+  //     courseId,
+  //     courseVersionId: versionId,
+  //     role: 'INSTRUCTOR',
+  //     status: 'ACTIVE'
+  //   }).select('userId').lean();
+  //   return enrollments.map(enrollment => enrollment.userId);
+  // }
 
 
 
