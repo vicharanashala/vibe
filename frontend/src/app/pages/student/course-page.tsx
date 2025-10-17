@@ -1004,7 +1004,7 @@ export default function CoursePage() {
   return (
     <>
       <Dialog open={showProctorDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-lg w-[calc(100%-2rem)] max-w-full">
           <DialogHeader>
             <DialogTitle className="text-lg font-extrabold">Declaration</DialogTitle>
           </DialogHeader>

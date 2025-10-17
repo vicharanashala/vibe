@@ -5,7 +5,7 @@ const MAX_DESCRIPTION_LENGTH = 1000;
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
-  SidebarInset, SidebarProvider, SidebarTrigger, SidebarFooter
+  SidebarInset, SidebarProvider, SidebarTrigger, SidebarFooter, useSidebar
 } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -65,12 +65,32 @@ interface ModuleData {
   name: string;
   description: string;
 }
-export default function TeacherCoursePage() {
+function TeacherCourseContent() {
   const user = useAuthStore().user;
   const { currentCourse, setCurrentCourse } = useCourseStore();
   // Use correct keys for course/version IDs
   const courseId = currentCourse?.courseId;
   const versionId = currentCourse?.versionId;
+
+  const { setOpen, setOpenMobile } = useSidebar();
+
+  const checkScreenSize = () => {
+    return window.innerWidth <= 425;
+  };
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width >= 768) {
+        setOpen(true);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, [setOpen]);
 
   // Fetch course version data (modules, sections, items)
   const { data: versionData, refetch: refetchVersion, isLoading } = useCourseVersionById(versionId || "");
@@ -646,9 +666,7 @@ export default function TeacherCoursePage() {
   }, [modules])
 
   return (
-    <SidebarProvider defaultOpen={true}>
-
-      <div className="flex h-screen w-full">
+    <div className="flex h-screen w-full">
 
         {/* <ConfirmationModal
           isOpen={true}
@@ -660,7 +678,7 @@ export default function TeacherCoursePage() {
           isDestructive={true}
           isLoading={false}
         /> */}
-        <Sidebar variant="inset" collapsible="icon" className="border-r border-border/40 bg-sidebar/50">
+         <Sidebar variant="inset" collapsible="icon" className="border-r border-border/40 bg-sidebar/50 lg:data-[state=collapsed]:w-16">
           <SidebarHeader>
             <div className="flex items-center gap-3 px-3 py-2">
               <BookOpen className="text-primary" />
@@ -848,6 +866,11 @@ export default function TeacherCoursePage() {
                                                           itemsGroupId: section.itemsGroupId,
                                                         },
                                                       });
+
+                                                      if (checkScreenSize() && (item.type === 'VIDEO' || item.type === 'QUIZ' || item.type === 'BLOG')) {
+                                                        setOpenMobile(false);
+                                                        setOpen(false);
+                                                      }
                                                     }
                                                     }
                                                   >
@@ -1771,6 +1794,20 @@ export default function TeacherCoursePage() {
           setQuizWizardOpen={setQuizWizardOpen}
         />
       </div>
+  );
+}
+
+export default function TeacherCoursePage() {
+  const [initialScreenSize, setInitialScreenSize] = useState<boolean | null>(null);
+  
+  useEffect(() => {
+    const width = window.innerWidth;
+    setInitialScreenSize(width >= 768);
+  }, []);
+
+  return (
+    <SidebarProvider defaultOpen={initialScreenSize ?? true}>
+      <TeacherCourseContent />
     </SidebarProvider>
   );
 }
