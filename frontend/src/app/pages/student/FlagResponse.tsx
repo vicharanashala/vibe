@@ -577,7 +577,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertTriangle, AlertCircle, BookOpen, Tag, ListChecks, Calendar, Eye, Hash, ThumbsDown, ThumbsUp, Clock, MessageSquare, User, Search } from "lucide-react";
+import { Loader2, AlertTriangle, AlertCircle, BookOpen, Tag, ListChecks, Calendar, Eye, Hash, ThumbsDown, ThumbsUp, Clock, MessageSquare, User, Search, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
@@ -636,6 +636,7 @@ export interface IssueReportsResponse {
 export default function CourseIssueReports() {
   const [selectedIssue, setSelectedIssue] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<IssueStatus>('ALL');
   const [issueSort, setIssueSort] = useState<EntityType>('ALL');
   const [currentPage, setCurrentPage] = useState(1);
@@ -646,17 +647,28 @@ export default function CourseIssueReports() {
 
   const params = useMemo(() => ({
     status: filterStatus,
-    search: searchTerm,
+    search: debouncedSearchTerm,
     sort: issueSort,
     page: currentPage,
     limit: PAGE_LIMIT,
-  }), [filterStatus, searchTerm, issueSort, currentPage]);
+  }), [filterStatus, debouncedSearchTerm, issueSort, currentPage]);
   const { data: issuesData, isLoading, refetch: issuesRefetch } = useGetCourseIssueReports(versionId as string, params);
   const issues = issuesData?.issues || []
   console.log(issues)
   useEffect(() => {
     issuesRefetch();
   }, [params, issuesRefetch]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
@@ -1199,6 +1211,14 @@ export function IssueFilters({
             setCurrentPage(1);
           }}
           className="w-full pl-10 pr-10"
+        />
+        <X 
+          className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setSearchTerm("");
+          }} 
         />
       </div>
 

@@ -25,12 +25,16 @@ export default function StudentCourses() {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchQuery);
       setIsSearching(false);
-    }, 300);
+    }, 400);
 
     return () => {
       clearTimeout(handler);
     };
   }, [searchQuery, debouncedSearch]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   // Get the current user from auth store
   const { isAuthenticated, token } = useAuthStore();
