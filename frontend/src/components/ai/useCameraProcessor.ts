@@ -12,6 +12,7 @@ const useCameraProcessor = (frameRate = 3) => {
   const [faces, setFaces] = useState<faceDetection.Face[]>([]);
   const cameraProcessorRef = useRef<CameraProcessor | null>(null);
   const workerRef = useRef<Worker | null>(null);
+  const modelReadyRef = useRef(false); // Add a ref to track model readiness without causing re-renders
 
   useEffect(() => {
     const initializeCamera = async () => {
@@ -62,6 +63,7 @@ const useCameraProcessor = (frameRate = 3) => {
       workerRef.current.terminate();
       workerRef.current = null;
       setModelReady(false);
+      modelReadyRef.current = false;
       setFaces([]);
     }
 
@@ -81,14 +83,15 @@ const useCameraProcessor = (frameRate = 3) => {
     };
 
     workerRef.current.onerror = (error) => {
-      // console.error("[useCameraProcessor] Worker error:", error);
+      console.error("[useCameraProcessor] Worker error:", error);
     };
 
     workerRef.current.postMessage({ type: "INIT" });
 
     // ✅ ML Processor function
     const processWithML: MLProcessor = (image) => {
-      if (!workerRef.current || !modelReady) return;
+      // if (!workerRef.current || !modelReady) return;
+      if (!workerRef.current || !modelReadyRef.current) return;
       try {
         workerRef.current.postMessage({ type: "DETECT_FACES", image }, [image]);
       } catch (error) {
@@ -103,8 +106,10 @@ const useCameraProcessor = (frameRate = 3) => {
         workerRef.current.terminate();
         workerRef.current = null;
       }
+      modelReadyRef.current = false;
     };
-  }, [modelReady]);
+  }, []);
+  // }, [modelReady]);
 
   return { videoRef, modelReady, faces, imageSrcs };
 };
