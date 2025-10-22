@@ -20,7 +20,7 @@ import { useCourseStore } from '@/store/course-store';
 import type { FloatingVideoProps } from '@/types/video.types';
 import { useReportAnomalyAudio, useReportAnomalyImage } from '@/hooks/hooks';
 
-let flag = 0;
+// let flag = 0;
 function FloatingVideo({
   isVisible = true,
   setDoGesture,
@@ -49,8 +49,7 @@ function FloatingVideo({
    const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
-
-
+  const [isVideoActive, setIsVideoActive] = useState(false);
 
   // Original aspect ratio (maintain the initial component ratio)
   const ORIGINAL_ASPECT_RATIO = 320 / 280; // width / height from initial size
@@ -70,8 +69,22 @@ function FloatingVideo({
   const [isThumbsUpChallenge, setIsThumbsUpChallenge] = useState(false);
   const [thumbsUpCountdown, setThumbsUpCountdown] = useState(0);
   const [lastChallengeTime, setLastChallengeTime] = useState(Date.now());
+
+  // Reset anomaly points when component mounts or visibility changes
+  useEffect(() => {
+    setContiguousAnomalyPoints(0);
+    setPenaltyPoints(0);
+    setAnomaly(false);
+    setRewindVid(false);
+    setPauseVid(false);
+  }, [setRewindVid, setPauseVid]);
+
   // Get our videoRef and face data from the custom hook
   const { videoRef, modelReady, faces } = useCameraProcessor(1);
+
+  // Use refs to track initialization without causing re-renders
+  const faceDetectorsKeyRef = useRef(0);
+  const initializedRef = useRef(false);
 
   // Helper function to check if a specific proctoring component is enabled
   const isComponentEnabled = useCallback((componentName: string): boolean => {
@@ -92,7 +105,6 @@ function FloatingVideo({
   const isFaceRecognitionEnabled = isComponentEnabled('faceRecognition');
   const isRighClickDisabled = isComponentEnabled("rightClickDisabled");
   const isFocusEnabled = false; //isComponentEnabled('focus');
-
 
   // Log enabled components for debugging
   // useEffect(() => {
@@ -131,12 +143,23 @@ function FloatingVideo({
 
   // Store current media stream
   const [currentStream, setCurrentStream] = useState<MediaStream | null>(null);
-  const [faceDetectorsKey, setFaceDetectorsKey] = useState(0);
+  // const [faceDetectorsKey, setFaceDetectorsKey] = useState(0);
   const [aiComponentsKey, setAiComponentsKey] = useState(0);
-  if (flag === 0) {
-    setFaceDetectorsKey(prev => prev + 1);
-    flag++;
-  }
+  // if (flag === 0) {
+  //   setFaceDetectorsKey(prev => prev + 1);
+  //   flag++;
+  // }
+
+  // Use the ref value for the key
+  const currentFaceDetectorsKey = faceDetectorsKeyRef.current;
+
+   // Initialize face detectors key once on mount
+  useEffect(() => {
+    if (!initializedRef.current) {
+      faceDetectorsKeyRef.current += 1;
+      initializedRef.current = true;
+    }
+  }, []);
 
   useEffect(() => {
   if (modelReady) {
@@ -340,7 +363,8 @@ const lastCalledRef = useRef<number>(0);
 
       // Reset all AI components by incrementing their keys
       setAiComponentsKey(prev => prev + 1);
-      setFaceDetectorsKey(prev => prev + 1);
+      faceDetectorsKeyRef.current += 1;
+      // setFaceDetectorsKey(prev => prev + 1);
 
       // Get new stream with standard configuration
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -386,9 +410,31 @@ const lastCalledRef = useRef<number>(0);
 
   // Update penalty score every second when anomalies are detected
   useEffect(() => {
+
+    // Don't run anomaly detection if camera isn't ready or no video stream
+    // if (!readyToDetect || !videoRef.current || !videoRef.current.srcObject) {
+    //   return;
+    // }
+
+    // const interval = setInterval(() => {
+    //   if (!readyToDetect || !videoRef.current || !videoRef.current.srcObject) {
+    //     return;
+    //   }
+    
+    if (!readyToDetect || !videoRef.current || !isVideoActive) {
+    if (contiguousAnomalyPoints > 0) {
+      setContiguousAnomalyPoints(0); // Reset when video is not active
+      }
+    return;
+    }
+
     const interval = setInterval(() => {
-       if (!readyToDetect){ return; // 🚀 Skip anomaly detection until warmed up
-   }let newPenaltyPoints = 0;
+    if (!readyToDetect || !videoRef.current || !isVideoActive) {
+      return;
+    }
+      //  if (!readyToDetect){ return; // 🚀 Skip anomaly detection until warmed up
+      // }
+      let newPenaltyPoints = 0;
       let newPenaltyType = "";
       setAnomalies(['']);
 
@@ -402,7 +448,7 @@ const lastCalledRef = useRef<number>(0);
       }
 
       // Condition 2: If faces count is not exactly 1 (only if face count detection is enabled)
-      if (facesCount !== 1 && isFaceCountDetectionEnabled) {
+      if (facesCount !== 1 && isFaceCountDetectionEnabled && modelReady) {
         setRewindVid(true);
         setPauseVid(true);
         setAnomalies([...anomalies, "faceCountDetection"]);
@@ -479,6 +525,7 @@ const lastCalledRef = useRef<number>(0);
     pauseVid,
     setPauseVid,
     contiguousAnomalyPoints,
+    modelReady,
   ]);
   const min = 2 * 60 * 1000;
   const max = 5 * 60 * 1000;
@@ -668,6 +715,51 @@ const lastCalledRef = useRef<number>(0);
       document.body.style.webkitUserSelect = '';
     };
   }, [isDragging, isResizing, handleMouseMove]);
+
+
+  // Monitor video stream state
+useEffect(() => {
+  const video = videoRef.current;
+  if (!video) return;
+
+  const checkStreamState = () => {
+    const hasStream = !!video.srcObject;
+    const isPlaying = !video.paused && !video.ended && video.readyState > 2;
+    const isActive = hasStream && isPlaying;
+    setIsVideoActive(isActive);
+    
+    // Debug log
+    if (!isActive) {
+      console.log('[FloatingVideo] Video not active:', {
+        hasStream,
+        isPlaying,
+        paused: video.paused,
+        ended: video.ended,
+        readyState: video.readyState
+      });
+    }
+  };
+
+  // Check initially
+  checkStreamState();
+
+  // Set up interval to check stream state
+  const interval = setInterval(checkStreamState, 2000);
+
+  // Listen for video events
+  video.addEventListener('play', checkStreamState);
+  video.addEventListener('pause', checkStreamState);
+  video.addEventListener('ended', checkStreamState);
+  video.addEventListener('loadedmetadata', checkStreamState);
+
+  return () => {
+    clearInterval(interval);
+    video.removeEventListener('play', checkStreamState);
+    video.removeEventListener('pause', checkStreamState);
+    video.removeEventListener('ended', checkStreamState);
+    video.removeEventListener('loadedmetadata', checkStreamState);
+  };
+}, [videoRef]);
 
   // Enhanced video lifecycle management
   useEffect(() => {
@@ -1084,14 +1176,27 @@ const lastCalledRef = useRef<number>(0);
         )}
         {(isFaceCountDetectionEnabled || isFaceRecognitionEnabled || isFocusEnabled) && (
           <FaceDetectors 
-            key={`face-${faceDetectorsKey}`}
+            key={`face-${faceDetectorsKeyRef.current}`}
             faces={faces} 
-            setIsFocused={()=>{}} // CHANGE THIS LATER.
+            setIsFocused={()=>{}}
             videoRef={videoRef}
             onRecognitionResult={handleFaceRecognitionResult}
-            // onDebugInfoUpdate={handleFaceRecognitionDebugUpdate}
-            settings={isFaceCountDetectionEnabled, isFaceRecognitionEnabled, isFocusEnabled}
+            settings={{
+              isFaceCountDetectionEnabled,
+              isFaceRecognitionEnabled, 
+              isFocusEnabled
+            }}
           />
+  
+          // <FaceDetectors 
+          //   key={`face-${faceDetectorsKey}`}
+          //   faces={faces} 
+          //   setIsFocused={()=>{}} // CHANGE THIS LATER.
+          //   videoRef={videoRef}
+          //   onRecognitionResult={handleFaceRecognitionResult}
+          //   // onDebugInfoUpdate={handleFaceRecognitionDebugUpdate}
+          //   settings={isFaceCountDetectionEnabled, isFaceRecognitionEnabled, isFocusEnabled}
+          // />
         )}
       </div>
 

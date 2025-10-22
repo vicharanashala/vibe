@@ -10,6 +10,14 @@ import * as faceDetection from "@tensorflow-models/face-detection";
 let detector: faceDetection.FaceDetector | null = null;
 let lastLogTime = 0;
 
+// Add at the top of your worker file
+console.log("Worker started successfully");
+
+// Add error handling
+self.onerror = (error) => {
+  console.error("Worker global error:", error);
+};
+
 async function initializeModel() {
   const backends = tf.engine().registry;
   const availableBackends = Object.keys(backends);
