@@ -83,7 +83,6 @@ export class AnomalyData extends NewAnomalyData implements IAnomalyData {
   @JSONSchema({
     description: 'Email of the student who triggered the anomaly',
     type: 'string',
-    format: 'email',
     readOnly: true,
     example: 'john.doe@example.com',
   })

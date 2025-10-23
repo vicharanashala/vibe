@@ -1,3 +1,3 @@
 > `const` **authModuleControllers**: `Function`[]
 
-Defined in: [auth/index.ts:26](https://github.com/AgamW017/vibe/blob/f011e99553eb05654c723a04e5f8a64502953f7a/backend/src/modules/auth/index.ts#L26)
+Defined in: [auth/index.ts:26](https://github.com/continuousactivelearning/vibe/blob/1b9d3e1101c04bda4a7e060f348b31b3e05aab7b/backend/src/modules/auth/index.ts#L26)

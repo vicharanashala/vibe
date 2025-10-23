@@ -21,11 +21,15 @@ import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { BadRequestErrorResponse } from '#root/shared/index.js';
 import { CourseVersionIdParams } from '#root/modules/notifications/index.js';
 import {
+  AllRegistrationsResponse,
   BulkUpdateStatusBody,
+  CourseVersionDetailsResponse,
   RegistrationFilterQuery,
   RegistrationParams,
   UpdateRegistrationSchemasBody,
   UpdateStatusBody,
+  updateStatusBulkResponse,
+  updateStatusResponse,
 } from '../classes/index.js';
 import {
   CourseRegistrationActions,
@@ -33,6 +37,7 @@ import {
   getCourseRegistrationAbility,
 } from '../abilities/CourseRegistrationAbilities.js';
 import { subject } from '@casl/ability';
+import { UpdateCourseSettingResponse, UpdateSettingResponse } from '#root/modules/setting/index.js';
 
 @OpenAPI({
   tags: ['CourseRegistration'],
@@ -56,6 +61,10 @@ class CourseRegistrationController {
   @Get('/version/:versionId')
   @HttpCode(200)
   @Authorized()
+  @ResponseSchema(CourseVersionDetailsResponse, {
+    description: 'Course details retrieved successfully',
+    statusCode: 200,
+  })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
@@ -73,6 +82,26 @@ class CourseRegistrationController {
   @OpenAPI({
     summary: 'Form Submission for User Course Registration',
     description: 'Details submitted from users for the course registration.',
+    responses:
+    {
+      '201': {
+        description: 'Course registration created successfully',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+              result:{type:'String',
+                example:'60d5ec49b3f1c8e4a8f8b8d1'
+              }
+
+              },
+            },
+          },
+        },
+      },
+    },
+  
   })
   @Authorized()
   @Post('/version/:versionId')
@@ -110,6 +139,10 @@ class CourseRegistrationController {
   @Get('/requests/version/:versionId')
   @Authorized()
   @HttpCode(200)
+  @ResponseSchema(AllRegistrationsResponse, {
+    description: 'All registrations retrieved successfully',
+    statusCode: 200,
+  })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
@@ -150,7 +183,11 @@ class CourseRegistrationController {
   })
   @Authorized()
   @Patch('/status/:registrationId', { transformResponse: true })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(updateStatusResponse, {
+    description: 'Registration status updated successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
   })
@@ -178,7 +215,11 @@ class CourseRegistrationController {
   })
   @Authorized()
   @Patch('/status/update/bulk', { transformResponse: true })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(updateStatusBulkResponse, {
+    description: 'Registration status updated successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
   })
@@ -198,6 +239,14 @@ class CourseRegistrationController {
 
   @Get('/build-form/version/:versionId')
   @Authorized()
+  @ResponseSchema(UpdateRegistrationSchemasBody, {
+    description: 'Registration settings retrieved successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
   async getSettings(
     @Params() params: CourseVersionIdParams,
     @Ability(getCourseRegistrationAbility) { ability },
@@ -219,6 +268,14 @@ class CourseRegistrationController {
 
   @Put('/build-form/version/:versionId')
   @Authorized()
+  @ResponseSchema(UpdateSettingResponse, {
+    description: 'Registration settings updated successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
   async updateSettings(
     @Params() params: CourseVersionIdParams,
     @Body() body: UpdateRegistrationSchemasBody,
@@ -244,6 +301,10 @@ class CourseRegistrationController {
   @Get('/form/version/:versionId')
   @Authorized()
   @HttpCode(200)
+  @ResponseSchema(UpdateRegistrationSchemasBody, {
+    description: 'Course details retrieved successfully',
+    statusCode: 200,
+  })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,

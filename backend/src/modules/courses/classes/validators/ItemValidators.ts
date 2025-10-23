@@ -39,7 +39,6 @@ class VideoDetailsPayloadValidator implements IVideoDetails {
     description: 'Public video URL (e.g., YouTube or Vimeo link)',
     example: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     type: 'string',
-    format: 'uri',
   })
   @IsNotEmpty()
   @IsString()
@@ -227,16 +226,25 @@ class BlogDetailsPayloadValidator implements IBlogDetails {
 
   @IsNotEmpty()
   @IsString()
+  @JSONSchema({
+    description: 'Content of the blog item'
+  })
   content: string;
 
 
   @IsNotEmpty()
   @IsDecimal()
+  @JSONSchema({
+    description: 'Points assigned to the blog interaction'
+  })
   points: number;
 
 
   @IsNotEmpty()
   @IsPositive()
+  @JSONSchema({
+    description: 'Estimated time to read the blog in minutes'
+  })
   estimatedReadTimeInMinutes: number;
 }
 
@@ -310,7 +318,7 @@ class CreateItemBody implements Partial<IBaseItem> {
     description: 'Type of the item: VIDEO, BLOG, or QUIZ',
     example: 'VIDEO',
     type: 'string',
-    enum: ['VIDEO', 'BLOG', 'QUIZ','PROJECT'],
+    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT'],
   })
   @IsEnum(ItemType)
   @IsNotEmpty()
@@ -391,7 +399,7 @@ class UpdateItemBody implements Partial<IBaseItem> {
     description: 'Type of the item: VIDEO, BLOG, QUIZ or PROJECT',
     example: 'VIDEO',
     type: 'string',
-    enum: ['VIDEO', 'BLOG', 'QUIZ','PROJECT'],
+    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT'],
   })
   @IsEnum(ItemType)
   @IsNotEmpty()
@@ -399,9 +407,30 @@ class UpdateItemBody implements Partial<IBaseItem> {
 
   @JSONSchema({
     description: 'Details specific to video items',
-    type: 'object',
+    oneOf: [
+      {
+        $ref: "#/components/schemas/VideoDetailsPayloadValidator",
+        title: "Video Details",
+        description: "Details specific to video items"
+      },
+      {
+        $ref: "#/components/schemas/BlogDetailsPayloadValidator",
+        title: "Blog Details",
+        description: "Details specific to blog items"
+      },
+      {
+        $ref: "#/components/schemas/QuizDetailsPayloadValidator",
+        title: "Quiz Details",
+        description: "Details specific to quiz items"
+      },
+      {
+        $ref: "#/components/schemas/ProjectDetailsPayloadValidator",
+        title: "Project Details",
+        description: "Details specific to project items"
+      }
+    ]
   })
-  @ValidateIf(o => o.type !== ItemType.PROJECT)
+  // @ValidateIf(o => o.type !== ItemType.PROJECT)
   @IsNotEmpty()
   @ValidateNested()
   @Type(o => {
@@ -664,6 +693,7 @@ class DeletedItemResponse {
     description: 'The deleted item data',
     type: 'object',
     readOnly: true,
+    example: { "deletedItemId": "68ee280e1f1beg90c14b68ba" }
   })
   @IsNotEmpty()
   deletedItem: Record<string, any>;
@@ -672,6 +702,13 @@ class DeletedItemResponse {
     description: 'The updated items group after deletion',
     type: 'object',
     readOnly: true,
+    example: {
+      "itemsGroup": {
+        "_id": "68ee26547f26e0acc3dff10c",
+        "items": [],
+        "sectionId": "68ee26547f26e0acc3dff10b"
+      }
+    }
   })
   @IsNotEmpty()
   updatedItemsGroup: Record<string, any>;

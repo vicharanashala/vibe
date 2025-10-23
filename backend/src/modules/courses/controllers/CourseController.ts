@@ -56,6 +56,7 @@ export class CourseController {
   @HttpCode(201)
   @ResponseSchema(CourseDataResponse, {
     description: 'Course created successfully',
+    statusCode:201
   })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
@@ -144,6 +145,7 @@ Accessible to:
   @Patch('/:courseId', { transformResponse: true })
   @ResponseSchema(CourseDataResponse, {
     description: 'Course updated successfully',
+    statusCode:200
   })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
@@ -176,11 +178,12 @@ Accessible to:
 
   @OpenAPI({
     summary: 'Delete a course',
-    description: 'Deletes a course by ID.',
+    description: `Deletes a course by ID<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @Delete('/:courseId', { transformResponse: true })
-  @OnUndefined(204)
+  @OnUndefined(200)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
@@ -211,7 +214,7 @@ Accessible to:
   @OpenAPI({
     summary: 'Update Course Version Total Item Count',
     description:
-      'Updates the total item count for a specific course version by ID.',
+      'Updates the total item count for a specific course version by ID.<br/> It returns an empty body with a 200 status code.',
   })
   @Authorized()
   @Patch('/version/total-item-count', { transformResponse: true })

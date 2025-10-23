@@ -86,7 +86,8 @@ class AttemptController {
   @OpenAPI({
     summary: 'Save answers for an ongoing attempt',
     description:
-      'Saves the current answers for a quiz attempt without submitting.',
+      `Saves the current answers for a quiz attempt without submitting.<br/>
+      It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @OnUndefined(200)

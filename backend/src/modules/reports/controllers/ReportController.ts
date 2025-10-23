@@ -19,6 +19,7 @@ import {ReportService} from '../services/ReportService.js';
 import {
   GetReportParams,
   IssueFilterQuery,
+  IssueReportResponse,
   // MyFlagFiltersQuery,
   Report,
   ReportBody,
@@ -53,6 +54,24 @@ class ReportController {
   @OpenAPI({
     summary: 'Create a new report',
     description: 'Creates a new report in the system.',
+    responses:{
+      '201': {
+        description: 'Report created successfully',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                message: {
+                  type: 'string',
+                  example: 'Flag submitted successfully',
+                },
+              },
+            },
+          },
+        },
+      },
+    }
   })
   @Authorized()
   @Post('/', {transformResponse: true})
@@ -80,12 +99,30 @@ class ReportController {
 
     const report = new Report(body, reportedBy);
     await this.reportService.createReport(report);
-    return {message: 'Flad submitted successfully'};
+    return {message: 'Flag submitted successfully'};
   }
 
   @OpenAPI({
     summary: 'Update report status',
     description: 'Updates the status of an existing report',
+    responses:{
+      '200': {
+        description: 'Report status updated successfully',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                message: {
+                  type: 'string',
+                  example: 'Flag updated successfully',
+                },
+              },
+            },
+          },
+        },
+      },
+    }
   })
   @Authorized()
   @Patch('/:reportId', {transformResponse: true})
@@ -125,6 +162,10 @@ class ReportController {
   @Get('/:courseId/:versionId')
   @HttpCode(200)
   @ResponseSchema(ReportResponse, {isArray: true})
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid request parameters',
+    statusCode: 400,
+  })
   async getFilteredReports(
     @Params() params: GetReportParams,
     @QueryParams() filters: ReportFiltersQuery,
@@ -187,6 +228,11 @@ class ReportController {
 @Get('/student/issues/flag')
 @Authorized()
 @HttpCode(200)
+@ResponseSchema(IssueReportResponse, {isArray: true,
+  description: 'Returns reports submitted by the logged-in user with filters, search, sorting, and pagination',
+  statusCode:200
+}
+)
 @ResponseSchema(BadRequestErrorResponse, {
   description: 'Bad Request Error',
   statusCode: 400,
@@ -214,6 +260,24 @@ async getMyIssueReports(
 @OpenAPI({
     summary: 'Update report status',
     description: 'Updates the status of an existing report',
+    responses:{
+      '200': {
+        description: 'Report status updated successfully',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                message: {
+                  type: 'string',
+                  example: 'Response updated successfully',
+                },
+              },
+            },
+          },
+        },
+      },
+    }
   })
   @Authorized()
   @Patch('/student/issues/interest', {transformResponse: true})
