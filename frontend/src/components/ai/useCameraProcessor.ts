@@ -55,6 +55,8 @@ const useCameraProcessor = (frameRate = 3) => {
     };
   }, [frameRate]);
 
+  
+
   useEffect(() => {
     if (!cameraProcessorRef.current) return;
 

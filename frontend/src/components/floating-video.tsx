@@ -210,14 +210,20 @@ const lastCalledRef = useRef<number>(0);
       }
       lastCalledRef.current = now;
 
-
-
       if (anomaly && anomalyType !== "voiceDetection") {
-        const video = videoRef.current;
-        if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
-          console.log("Video not ready for screenshot");
-          return;
-        }
+      const video = videoRef.current;
+      if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+        console.log("Video not ready for screenshot");
+        return;
+      }
+      
+      // Add validation for course data
+      if (!courseStore.currentCourse?.courseId || 
+          !courseStore.currentCourse?.versionId || 
+          !courseStore.currentCourse?.itemId) {
+        console.log("Missing course data, skipping image report");
+        return;
+      }
 
         // to convert binary to File type
         function dataURLtoFile(dataurl: string, filename: string) {
@@ -244,11 +250,41 @@ const lastCalledRef = useRef<number>(0);
         const screenshot = canvas.toDataURL("image/png");
         const imageFile = dataURLtoFile(screenshot, "image");
 
+        // report anomaly type checking
+        let reportAnomalyType: AnomalyType;
+        if (anomalyType === "blurDetection") {
+          reportAnomalyType = AnomalyType.BLUR_DETECTION;
+        } else if (anomalyType === "faceCountDetection") {
+          // Differentiate between no face and multiple faces
+          if (facesCount === 0) {
+            reportAnomalyType = AnomalyType.NO_FACE;
+          } else if (facesCount > 1) {
+            reportAnomalyType = AnomalyType.MULTIPLE_FACES;
+          } else {
+            console.log("Invalid face count for anomaly reporting");
+            return;
+          }
+        } else {
+          console.log("Unknown anomaly type:", anomalyType);
+          return;
+        }
+
+        // let reportAnomalyType;
+        // if (anomalyType == "blurDetection") reportAnomalyType = "BLUR_DETECTION";
+        // if (anomalyType == "faceCountDetection") {
+        //   // Differentiate between no face and multiple faces
+        //   if (facesCount === 0) {
+        //     reportAnomalyType = "NO_FACE";
+        //   } else if (facesCount > 1) {
+        //     reportAnomalyType = "MULTIPLE_FACES";
+        //   }
+        // }
+
         // report anomaly type checking 
-        let reportAnomalyType;
-        if (anomalyType == "blurDetection") reportAnomalyType = "BLUR_DETECTION";
-        if (anomalyType == "faceCountDetection") reportAnomalyType = "MULTIPLE_FACES";
-        if (facesCount === 0) reportAnomalyType = "NO_FACE";
+        // let reportAnomalyType;
+        // if (anomalyType == "blurDetection") reportAnomalyType = "BLUR_DETECTION";
+        // if (anomalyType == "faceCountDetection") reportAnomalyType = "MULTIPLE_FACES";
+        // if (facesCount === 0) reportAnomalyType = "NO_FACE";
 
         // // Log for debugging
         // console.log("Image File", imageFile);
@@ -408,6 +444,26 @@ const lastCalledRef = useRef<number>(0);
     setFacesCount(faces.length);
   }, [faces, modelReady]);
 
+  // Debug face detection
+  useEffect(() => {
+    if (faces.length > 0) {
+      console.log('👤 [FloatingVideo] Faces detected:', {
+        count: faces.length,
+        details: faces.map(face => ({
+          // TensorFlow face detection properties
+          box: {
+            x: face.box?.xMin,
+            y: face.box?.yMin, 
+            width: face.box?.width,
+            height: face.box?.height
+          }
+        }))
+      });
+    } else if (modelReady && isVideoActive) {
+      console.log('❌ [FloatingVideo] No faces detected (camera active)');
+    }
+  }, [faces, modelReady, isVideoActive]);
+
   // Update penalty score every second when anomalies are detected
   useEffect(() => {
 
@@ -440,20 +496,32 @@ const lastCalledRef = useRef<number>(0);
 
       // Condition 1: If speaking is detected (only if voice detection is enabled)
       if (isSpeaking === "Yes" && isVoiceDetectionEnabled) {
-        // setRewindVid(true);
         setPauseVid(true);
         setAnomalies([...anomalies, "voiceDetection"]);
         newPenaltyType = "Speaking";
         newPenaltyPoints += 1;
       }
 
-      // Condition 2: If faces count is not exactly 1 (only if face count detection is enabled)
-      if (facesCount !== 1 && isFaceCountDetectionEnabled && modelReady) {
-        setRewindVid(true);
-        setPauseVid(true);
-        setAnomalies([...anomalies, "faceCountDetection"]);
-        newPenaltyType = "Faces Count";
-        newPenaltyPoints += 1;
+      // Condition 2: Handle different face count scenarios separately (only if face count detection is enabled)
+      if (isFaceCountDetectionEnabled && modelReady) {
+        if (facesCount === 0) {
+          // No faces detected - this might be normal during initialization
+          // Only penalize if we're sure the camera is active and should see a face
+          if (isVideoActive && readyToDetect) {
+            setPauseVid(true); // Just pause, don't rewind
+            setAnomalies([...anomalies, "faceCountDetection"]);
+            newPenaltyType = "No Face Detected";
+            newPenaltyPoints += 1;
+          }
+        } else if (facesCount > 1) {
+          // Multiple faces detected - this is an anomaly
+          setRewindVid(true);
+          setPauseVid(true);
+          setAnomalies([...anomalies, "faceCountDetection"]);
+          newPenaltyType = "Multiple Faces";
+          newPenaltyPoints += 2; // More severe penalty for multiple faces
+        }
+        // facesCount === 1 is normal, no penalty
       }
 
       // Condition 3: If the screen is blurred (only if blur detection is enabled)
@@ -469,6 +537,38 @@ const lastCalledRef = useRef<number>(0);
         newPenaltyType = "Focus";
         newPenaltyPoints += 1;
       }
+
+      // // Condition 1: If speaking is detected (only if voice detection is enabled)
+      // if (isSpeaking === "Yes" && isVoiceDetectionEnabled) {
+      //   // setRewindVid(true);
+      //   setPauseVid(true);
+      //   setAnomalies([...anomalies, "voiceDetection"]);
+      //   newPenaltyType = "Speaking";
+      //   newPenaltyPoints += 1;
+      // }
+
+      // // Condition 2: If faces count is not exactly 1 (only if face count detection is enabled)
+      // if (facesCount !== 1 && isFaceCountDetectionEnabled && modelReady) {
+      //   setRewindVid(true);
+      //   setPauseVid(true);
+      //   setAnomalies([...anomalies, "faceCountDetection"]);
+      //   newPenaltyType = "Faces Count";
+      //   newPenaltyPoints += 1;
+      // }
+
+      // // Condition 3: If the screen is blurred (only if blur detection is enabled)
+      // if (isBlur === "Yes" && isBlurDetectionEnabled) {
+      //   setAnomalies([...anomalies, "blurDetection"]);
+      //   newPenaltyType = "Blur";
+      //   newPenaltyPoints += 1;
+      // }
+
+      // // Condition 4: If not focused (only if focus tracking is enabled)
+      // if (!isFocused && isFocusEnabled) {
+      //   setAnomalies([...anomalies, "focus"]);
+      //   newPenaltyType = "Focus";
+      //   newPenaltyPoints += 1;
+      // }
       // console.log("[anomaly]",anomalies);
 
       // If there are any new penalty points, increment the cumulative score
@@ -716,29 +816,59 @@ const lastCalledRef = useRef<number>(0);
     };
   }, [isDragging, isResizing, handleMouseMove]);
 
+  // Comprehensive face detection debug
+  useEffect(() => {
+    console.log('🔍 [FloatingVideo] FACE DETECTION DEBUG:', {
+      // TensorFlow detection
+      tensorFlowFaces: faces.length,
+      tensorFlowFacesCount: facesCount,
+      
+      // Face-api.js recognition  
+      recognizedFacesCount: recognizedFaces.length,
+      
+      // System states
+      modelReady,
+      isVideoActive,
+      readyToDetect,
+      
+      // Video status
+      videoReady: videoRef.current?.readyState,
+      videoWidth: videoRef.current?.videoWidth,
+      videoHeight: videoRef.current?.videoHeight,
+      hasStream: !!videoRef.current?.srcObject
+    });
+
+    // Log actual face data if available
+    if (faces.length > 0) {
+      console.log('👤 TensorFlow Face Details:', faces);
+    }
+    if (recognizedFaces.length > 0) {
+      console.log('🎭 Face-api Recognition Details:', recognizedFaces);
+    }
+  }, [faces, facesCount, recognizedFaces, modelReady, isVideoActive, readyToDetect]);
 
   // Monitor video stream state
-useEffect(() => {
-  const video = videoRef.current;
-  if (!video) return;
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
 
-  const checkStreamState = () => {
-    const hasStream = !!video.srcObject;
-    const isPlaying = !video.paused && !video.ended && video.readyState > 2;
-    const isActive = hasStream && isPlaying;
-    setIsVideoActive(isActive);
-    
-    // Debug log
-    if (!isActive) {
-      console.log('[FloatingVideo] Video not active:', {
-        hasStream,
-        isPlaying,
-        paused: video.paused,
-        ended: video.ended,
-        readyState: video.readyState
-      });
-    }
-  };
+    const checkStreamState = () => {
+      const hasStream = !!video.srcObject;
+      const isPlaying = !video.paused && !video.ended && video.readyState > 2;
+      const isActive = hasStream && isPlaying;
+      setIsVideoActive(isActive);
+      
+      // Debug log
+      if (!isActive) {
+        console.log('[FloatingVideo] Video not active:', {
+          hasStream,
+          isPlaying,
+          paused: video.paused,
+          ended: video.ended,
+          readyState: video.readyState
+        });
+      }
+    };
 
   // Check initially
   checkStreamState();
