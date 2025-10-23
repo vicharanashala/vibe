@@ -13,6 +13,9 @@ import {
   ValidationArguments,
   ValidationOptions,
   IsDefined,
+  IsOptional,
+  IsObject,
+  IsNumber,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
@@ -51,20 +54,44 @@ export class ProctoringSettingsDto {
   detectors: DetectorSettingsDto[];
 }
 
+export class RegistrationSchema{
+  @IsOptional()
+  @JSONSchema({
+    description: 'Json Schema for Registrstion form',
+    type: 'object',
+  })
+  jsonSchema?: any;
+
+  @JSONSchema({
+    description: 'UI schema for Registration form',
+    type: 'object',
+  })
+  uiSchema?: any;
+}
+
+
+
 export class SettingsDto {
   @ValidateNested()
   @Type(() => ProctoringSettingsDto)
   proctors: ProctoringSettingsDto;
 
-  @IsDefined()
+  @JSONSchema({
+    description: 'Indicates whether linear progression is enabled',
+    examples:[true,false],
+  })
   @IsBoolean()
   linearProgressionEnabled: boolean;
   // jsonSchema?:any
   // uiSchema?:any
-  registration?: {
-    jsonSchema?: any;
-    uiSchema?: any;
-  };
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RegistrationSchema)
+  @JSONSchema({
+    description: 'Schema Information of the registration form',
+    type: 'object',
+  })
+  registration?: RegistrationSchema;
 }
 
 @ValidatorConstraint({ async: false })
@@ -104,13 +131,13 @@ export function containsAllDetectors(validationOptions?: ValidationOptions) {
 export class UpdateCourseSettingResponse {
   @JSONSchema({
     description: 'Indicates whether the update was successful',
-    example: true,
     type: 'boolean',
     readOnly: true,
   })
   @IsBoolean()
   success: boolean;
 }
+
 
 export class SettingNotFoundErrorResponse {
   @JSONSchema({
@@ -206,22 +233,24 @@ export class AddCourseProctoringParams {
 
 // This class represents the validation schema of body for adding proctoring to a course.
 export class AddCourseProctoringBody {
+  
+  @IsNotEmpty()
+  @ValidateNested({each:true})
+  @containsAllDetectors()
   @JSONSchema({
     title: 'Proctoring Component',
     description: 'Component to add to course proctoring',
     enum: Object.values(ProctoringComponent),
-    example: ProctoringComponent.CAMERAMICRO,
   })
-  @IsArray()
-  @IsNotEmpty()
-  @ValidateNested({ each: true })
-  @containsAllDetectors()
   @Type(() => DetectorSettingsDto)
-  detectors: DetectorSettingsDto[];
+  detectors:IDetectorSettings[];
 
 
   @IsDefined()
   @IsBoolean()
+  @JSONSchema({
+    description:'Student should follow the cours linearly if this is enabled'
+  })
   linearProgressionEnabled: boolean;
 
 }
@@ -383,12 +412,12 @@ export class AddUserProctoringBody {
     enum: Object.values(ProctoringComponent),
     example: ProctoringComponent.CAMERAMICRO,
   })
-  @IsArray()
+
   @IsNotEmpty()
   @ValidateNested({ each: true })
   @containsAllDetectors()
   @Type(() => DetectorSettingsDto)
-  detectors: DetectorSettingsDto[];
+  detectors: IDetectorSettings[];
 }
 
 // This class represents the validation schema of Parameters for removing proctoring from a user Setting.
@@ -437,4 +466,39 @@ export class RemoveUserProctoringBody {
   @IsNotEmpty()
   @IsEnum(ProctoringComponent)
   detectorName: ProctoringComponent;
+}
+
+export class UpdateSettingResponse {
+  
+  @JSONSchema({
+    description: 'Indicates whether the update was successful',
+    type: 'boolean',
+    readOnly: true,
+  })
+  @IsBoolean()
+  acknowledged: boolean;
+
+  @JSONSchema({
+    description: 'Number of documents modified',
+    type: 'number',
+    readOnly: true,
+  })
+  @IsNumber()
+  modifiedCount: number;
+
+  @JSONSchema({
+    description: 'Number of documents upserted',
+    type: 'number',
+    readOnly: true,
+  })
+  @IsNumber()
+  upsertedCount: number;
+
+  @JSONSchema({
+    description: 'Number of documents matched',
+    type: 'number',
+    readOnly: true,
+  })
+  @IsNumber()
+  matchedCount: number;
 }
