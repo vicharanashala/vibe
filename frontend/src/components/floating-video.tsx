@@ -9,14 +9,9 @@ import FaceDetectors from './ai/FaceDetectors';
 import FaceRecognitionOverlay from './ai/FaceRecognitionOverlay';
 // import FaceRecognitionIntegrated from '../ai-components/FaceRecognitionIntegrated';
 import useCameraProcessor from './ai/useCameraProcessor';
-
-
 import { AnomalyType } from '@/types/reportanomaly.types';
-
 import { useAuthStore } from '@/store/auth-store';
-
 import { useCourseStore } from '@/store/course-store';
-
 import type { FloatingVideoProps } from '@/types/video.types';
 import { useReportAnomalyAudio, useReportAnomalyImage } from '@/hooks/hooks';
 
@@ -51,6 +46,10 @@ function FloatingVideo({
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const [isVideoActive, setIsVideoActive] = useState(false);
 
+  // Grace period state for anomaly detection
+  const [anomalyDetectionStartTime, setAnomalyDetectionStartTime] = useState<number | null>(null);
+  const gracePeriod = 10000; // 10 seconds grace period
+
   // Original aspect ratio (maintain the initial component ratio)
   const ORIGINAL_ASPECT_RATIO = 320 / 280; // width / height from initial size
 
@@ -77,6 +76,7 @@ function FloatingVideo({
     setAnomaly(false);
     setRewindVid(false);
     setPauseVid(false);
+    setAnomalyDetectionStartTime(null);
   }, [setRewindVid, setPauseVid]);
 
   // Get our videoRef and face data from the custom hook
@@ -85,6 +85,14 @@ function FloatingVideo({
   // Use refs to track initialization without causing re-renders
   const faceDetectorsKeyRef = useRef(0);
   const initializedRef = useRef(false);
+
+   // Set grace period start time when ready
+  useEffect(() => {
+    if (modelReady && isVideoActive && readyToDetect && !anomalyDetectionStartTime) {
+      setAnomalyDetectionStartTime(Date.now());
+      console.log("⏰ Anomaly detection grace period started");
+    }
+  }, [modelReady, isVideoActive, readyToDetect, anomalyDetectionStartTime]);
 
   // Helper function to check if a specific proctoring component is enabled
   const isComponentEnabled = useCallback((componentName: string): boolean => {
@@ -444,6 +452,21 @@ const lastCalledRef = useRef<number>(0);
     setFacesCount(faces.length);
   }, [faces, modelReady]);
 
+  // Debug why TensorFlow sees 0 faces
+  useEffect(() => {
+    console.log('🔍 TensorFlow Face Detection Debug:', {
+      facesCount,
+      modelReady,
+      isVideoActive,
+      videoReady: videoRef.current?.readyState,
+      videoDimensions: {
+        width: videoRef.current?.videoWidth,
+        height: videoRef.current?.videoHeight
+      },
+      hasStream: !!videoRef.current?.srcObject
+    });
+  }, [facesCount, modelReady, isVideoActive]);
+
   // Debug face detection
   useEffect(() => {
     if (faces.length > 0) {
@@ -465,7 +488,7 @@ const lastCalledRef = useRef<number>(0);
   }, [faces, modelReady, isVideoActive]);
 
   // Update penalty score every second when anomalies are detected
-  useEffect(() => {
+  // useEffect(() => {
 
     // Don't run anomaly detection if camera isn't ready or no video stream
     // if (!readyToDetect || !videoRef.current || !videoRef.current.srcObject) {
@@ -476,19 +499,32 @@ const lastCalledRef = useRef<number>(0);
     //   if (!readyToDetect || !videoRef.current || !videoRef.current.srcObject) {
     //     return;
     //   }
-    
+  
+    // Update penalty score every second when anomalies are detected
+    useEffect(() => {
     if (!readyToDetect || !videoRef.current || !isVideoActive) {
-    if (contiguousAnomalyPoints > 0) {
-      setContiguousAnomalyPoints(0); // Reset when video is not active
+      if (contiguousAnomalyPoints > 0) {
+        setContiguousAnomalyPoints(0); // Reset when video is not active
       }
-    return;
+      return;
+    }
+
+    // Grace period check
+    const currentTime = Date.now();
+    const isInGracePeriod = anomalyDetectionStartTime && 
+                            (currentTime - anomalyDetectionStartTime < gracePeriod);
+    
+    if (isInGracePeriod) {
+      const remainingGrace = gracePeriod - (currentTime - anomalyDetectionStartTime);
+      console.log(`⏳ In grace period: ${Math.ceil(remainingGrace / 1000)}s remaining`);
+      return; // Skip anomaly detection during grace period
     }
 
     const interval = setInterval(() => {
     if (!readyToDetect || !videoRef.current || !isVideoActive) {
       return;
     }
-      //  if (!readyToDetect){ return; // 🚀 Skip anomaly detection until warmed up
+      //  if (!readyToDetect){ return; // Skip anomaly detection until warmed up
       // }
       let newPenaltyPoints = 0;
       let newPenaltyType = "";
@@ -626,7 +662,11 @@ const lastCalledRef = useRef<number>(0);
     setPauseVid,
     contiguousAnomalyPoints,
     modelReady,
+    anomalyDetectionStartTime,
+    gracePeriod
   ]);
+
+
   const min = 2 * 60 * 1000;
   const max = 5 * 60 * 1000;
   // Random thumbs-up challenge system - only run if gesture detection is enabled
@@ -963,6 +1003,12 @@ const lastCalledRef = useRef<number>(0);
     setIsCollapsed(!isCollapsed);
   };
 
+  // Calculate grace period remaining
+  const currentTime = Date.now();
+  const isInGracePeriod = anomalyDetectionStartTime && 
+                          (currentTime - anomalyDetectionStartTime < gracePeriod);
+  const remainingGrace = isInGracePeriod ? gracePeriod - (currentTime - anomalyDetectionStartTime) : 0;
+
   const floatingVideoContent = (
     <div
       ref={containerRef}
@@ -984,6 +1030,14 @@ const lastCalledRef = useRef<number>(0);
       }}
       onMouseDown={isPoppedOut ? handleMouseDown : undefined}
     >
+
+      {/* Grace period status display */}
+      {isInGracePeriod && (
+        <div className="absolute top-2 left-2 bg-blue-500 text-white px-2 py-1 rounded text-xs z-50">
+          ⏳ Calibrating: {Math.ceil(remainingGrace / 1000)}s
+        </div>
+      )}
+
       {/* Header - Anomaly state */}
       {isAnomaliesDetected && (
         <div className="bg-green-600 text-white px-3 py-1 flex justify-between items-center text-sm min-h-[34px]">

@@ -156,6 +156,13 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
     }
   }, [pauseVid, playing]);
 
+  // Debug anomalies
+  // useEffect(() => {
+  //   if (anomalies && anomalies.length > 0) {
+  //     console.log('🔍 [Video] Current anomalies:', anomalies);
+  //   }
+  // }, [anomalies]);
+
   function handleSendStartItem() {
     if (!currentCourse?.itemId) return;
     startItem.mutate({
@@ -674,7 +681,9 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
 
           {/* Anomaly Overlay */}
 
-          {(rewindVid || doGesture || pauseVid) && (
+          {(rewindVid || doGesture || (pauseVid && !anomalies?.includes("faceCountDetection"))) && (
+
+          // {(rewindVid || doGesture || pauseVid) && ( ----- to be uncommented later
 
             <div
 
@@ -896,7 +905,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
 
                           <div style={{ marginBottom: 6 }}>
 
-                            <strong>Don't speak!!</strong>
+                            <strong>Don't speak!</strong>
 
                           </div>
 
@@ -906,7 +915,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
 
                           <div style={{ marginBottom: 6 }}>
 
-                            <strong>Only one face!!</strong>
+                            <strong>Only one face!</strong>
 
                           </div>
 
@@ -916,7 +925,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
 
                           <div style={{ marginBottom: 6 }}>
 
-                            <strong>Keep your camera clear!!</strong>
+                            <strong>Keep your camera clear!</strong>
 
                           </div>
 
@@ -926,7 +935,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
 
                           <div style={{ marginBottom: 6 }}>
 
-                            <strong>Stay focused!!</strong>
+                            <strong>Stay focused!</strong>
 
                           </div>
 
