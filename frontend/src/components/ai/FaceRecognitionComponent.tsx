@@ -156,14 +156,19 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
 
     const loadKnownFaces = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_BASE_URL}/activity/known-faces`);
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        // Known Faces API call commented out temporarily - since it's unavailable
+        // const response = await fetch(`${import.meta.env.VITE_BASE_URL}/activity/known-faces`);
+
+        // if (!response.ok) {
+        //   throw new Error(`HTTP error! status: ${response.status}`);
+        // }
         
-        const data = await response.json();
-        const peopleData = data.faces || [];
+        // const data = await response.json();
+        // const peopleData = data.faces || [];
+
+        // Temporary placeholder for peopleData until API is restored
+        const peopleData: Array<{label: string; imagePaths: string[]}> = [];
         
         if (!Array.isArray(peopleData)) {
           console.error('[FaceRecognitionComponent] API response is not an array:', peopleData);
