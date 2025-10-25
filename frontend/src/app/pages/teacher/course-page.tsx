@@ -568,7 +568,7 @@ function CourseCard({
           className="cursor-pointer hover:bg-accent/20 transition-all duration-300 relative overflow-hidden"
           onClick={() => !editingCourse && toggleCourse()}
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events:none"></div>
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="flex items-center gap-4 flex-1 min-w-0">
               <div
