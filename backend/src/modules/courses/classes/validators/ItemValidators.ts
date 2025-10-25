@@ -89,7 +89,6 @@ class QuizDetailsPayloadValidator
     minimum: 0,
     maximum: 1,
   })
-  @IsPositive()
   @IsNumber()
   @Min(0)
   @Max(1)
