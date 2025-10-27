@@ -68,6 +68,15 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   // Track if rewind has been processed to prevent multiple triggers
   const rewindProcessedRef = useRef(false);
 
+  // Ensure video doesn't autoplay accidentally
+  useEffect(() => {
+    if (playerReady && playerRef.current) {
+      // Force pause when player becomes ready
+      playerRef.current.pauseVideo();
+      console.log('🔒 Safety: Video forced to paused state');
+    }
+  }, [playerReady]);
+
   useEffect(() => {
     playerRef.current?.setPlaybackRate(playbackRate);
   }, [playbackRate, playerRef, videoId, iframeRef, playerReady, currentTime]);
@@ -82,7 +91,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
       player.playVideo();
       setTimeout(() => {playerRef.current?.setPlaybackRate?.(playbackRate);}, 50);
     }
-  }, [playing]);
+  }, [playing, readyToDetect]);
 
   const handleBackward = () => {
     const player = playerRef.current;
@@ -191,8 +200,12 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   // Load YouTube IFrame API
   useEffect(() => {
     if(!readyToDetect) return;
+
     function createPlayer() {
       if (!iframeRef.current || !videoId) return;
+
+      console.log('Creating YouTube player - camera permissions granted');
+      
       playerRef.current = new window.YT!.Player(iframeRef.current, {
         videoId,
         playerVars: {
@@ -225,6 +238,9 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
             setMaxTime(startTimeSeconds);
             event.target.seekTo(startTimeSeconds, true);
             onDurationChange?.(dur);
+            event.target.pauseVideo();
+            setPlaying(false);
+            console.log('YouTube player ready - video paused by default');
           },
           onStateChange: (event: { data: number; target: YTPlayerInstance }) => {
             if (window.YT && event.data === window.YT.PlayerState.PLAYING) {
@@ -278,6 +294,9 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
 
     // Cleanup when component unmounts or URL changes
     return () => {
+
+      console.log('Cleaning up YouTube player');
+
       // Stop if started but not yet stopped
       if (!progressStoppedRef.current && watchItemIdRef.current && currentCourse) {
         stopItem.mutate({
@@ -306,7 +325,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
         playerRef.current = null;
       }
     };
-  }, [videoId, startTimeSeconds,readyToDetect]);
+  }, [videoId, startTimeSeconds, readyToDetect]);
 
   // Handle keyboard events including space for play/pause
   useEffect(() => {
