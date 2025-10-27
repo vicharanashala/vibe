@@ -564,20 +564,15 @@ function CourseCard({
           }`}
       >
         {/* Course Header - Always Visible */}
-        <CardHeader
-          className="cursor-pointer hover:bg-accent/20 transition-all duration-300 relative overflow-hidden"
-          onClick={() => !editingCourse && toggleCourse()}
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events:none"></div>
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div className="flex items-center gap-4 flex-1 min-w-0">
-              <div
-                className={`transition-all duration-300 ${expandedCourse ? "rotate-90" : ""}`}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  toggleCourse()
-                }}
+        <CardHeader className="relative hover:bg-accent/20 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+            <div>
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div 
+                className="flex items-center gap-4 flex-1 min-w-0 cursor-pointer"
+                onClick={() => !editingCourse && toggleCourse()}
               >
+                <div className={`transition-all duration-300 ${expandedCourse ? "rotate-90" : ""}`}>
                 <div className="relative">
                   <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/20 rounded-full blur-sm"></div>
                   <div className="relative bg-gradient-to-r from-primary to-accent p-1.5 rounded-full">
@@ -645,6 +640,7 @@ function CourseCard({
                 )}
                 Delete
               </Button>
+            </div>
             </div>
           </div>
         </CardHeader>
