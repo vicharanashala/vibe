@@ -26,7 +26,7 @@ function FloatingVideo({
   setPauseVid,
   setAnomalies,
   readyToDetect,
-                setReadyToDetect,
+  setReadyToDetect,
   anomalies = []
 }: FloatingVideoProps): JSX.Element | null {
   const containerRef = useRef<HTMLDivElement>(null);
