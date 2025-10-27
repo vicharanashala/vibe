@@ -30,6 +30,7 @@ import {QUIZZES_TYPES} from '#quizzes/types.js';
 import {QuestionProcessor} from '#quizzes/question-processing/QuestionProcessor.js';
 import { QuestionActions, getQuestionAbility } from '../abilities/questionAbilities.js';
 import { subject } from '@casl/ability';
+import { BadRequestErrorResponse, ForbiddenErrorResponse } from '#root/shared/index.js';
 
 @OpenAPI({
   tags: ['Questions'],
@@ -53,7 +54,7 @@ class QuestionController {
     description: 'Question created successfully',
     statusCode: 201,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Question creation failed due to invalid body',
     statusCode: 400,
   })
@@ -84,7 +85,7 @@ class QuestionController {
   @ResponseSchema(QuestionResponse, {
     description: 'Question retrieved successfully',
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid question id',
     statusCode: 400,
   })
@@ -136,12 +137,13 @@ class QuestionController {
 
   @OpenAPI({
     summary: 'Delete a question',
-    description: 'Deletes a quiz question by its ID.',
+    description: `Deletes a quiz question by its ID.<br/>
+    It returns an empty body with a 204 status code.`,
   })
   @Authorized()
   @Delete('/:questionId')
   @OnUndefined(204)
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid question id',
     statusCode: 400,
   })
@@ -168,16 +170,17 @@ class QuestionController {
 
   @OpenAPI({
     summary: 'Flag a question',
-    description: 'Flags a quiz question for review with a reason.',
+    description: `Flags a quiz question for review with a reason.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @Post('/:questionId/flag')
   @OnUndefined(200)
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid question id or reason',
     statusCode: 400,
   })
-  @ResponseSchema(ForbiddenError, {
+  @ResponseSchema(ForbiddenErrorResponse, {
     description: 'You do not have permission to flag this question',
     statusCode: 403,
   })
@@ -205,16 +208,17 @@ class QuestionController {
 
   @OpenAPI({
     summary: 'Resolve a flagged question',
-    description: 'Resolves a flagged question by marking it as resolved or rejected.',
+    description: `Resolves a flagged question by marking it as resolved or rejected.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @Post('/flags/:flagId/resolve')
   @OnUndefined(200)
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid flag id or status',
     statusCode: 400,
   })
-  @ResponseSchema(ForbiddenError, {
+  @ResponseSchema(ForbiddenErrorResponse, {
     description: 'You do not have permission to resolve this flag',
     statusCode: 403,
   })
