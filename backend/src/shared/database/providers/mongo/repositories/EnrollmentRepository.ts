@@ -884,6 +884,7 @@ export class EnrollmentRepository {
         {
           courseId: new ObjectId(courseId),
           courseVersionId: new ObjectId(courseVersionId),
+          status: "ACTIVE"
         },
         { session },
       )

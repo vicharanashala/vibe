@@ -1,30 +1,30 @@
-import {COURSES_TYPES} from '#courses/types.js';
-import {InviteStatus} from '#root/modules/notifications/index.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
-import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { COURSES_TYPES } from '#courses/types.js';
+import { InviteStatus } from '#root/modules/notifications/index.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
+import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   EnrollmentRole,
   EnrollmentStatus,
   ICourseVersion,
   IEnrollment,
 } from '#root/shared/interfaces/models.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
-import {Enrollment} from '#users/classes/transformers/Enrollment.js';
-import {EnrollmentStats, USERS_TYPES} from '#users/types.js';
-import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId, OptionalId} from 'mongodb';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { EnrollmentRepository } from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import { Enrollment } from '#users/classes/transformers/Enrollment.js';
+import { EnrollmentStats, USERS_TYPES } from '#users/types.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, ObjectId, OptionalId } from 'mongodb';
 import {
   BadRequestError,
   InternalServerError,
   NotFoundError,
 } from 'routing-controllers';
-import {ProgressService} from './ProgressService.js';
-import {InviteRepository, ProgressRepository} from '#root/shared/index.js';
-import {EnrollmentDataResponse} from '../classes/index.js';
+import { ProgressService } from './ProgressService.js';
+import { InviteRepository, ProgressRepository } from '#root/shared/index.js';
+import { EnrollmentDataResponse } from '../classes/index.js';
 
 import {
   QuizScoresExportResponseDto,
@@ -34,10 +34,10 @@ import {
   ANOMALIES_TYPES,
   AnomalyRepository,
 } from '#root/modules/anomalies/index.js';
-import {GENAI_TYPES} from '#root/modules/genAI/types.js';
-import {GenAIRepository} from '#root/modules/genAI/repositories/providers/mongodb/GenAIRepository.js';
-import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
-import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
+import { GENAI_TYPES } from '#root/modules/genAI/types.js';
+import { GenAIRepository } from '#root/modules/genAI/repositories/providers/mongodb/GenAIRepository.js';
+import { NOTIFICATIONS_TYPES } from '#root/modules/notifications/types.js';
+import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 import {
   AttemptRepository,
   QuestionBankRepository,
@@ -122,7 +122,7 @@ export class EnrollmentService extends BaseService {
       // }
 
       if (existingEnrollment && throughInvite) {
-        return {status: 'ALREADY_ENROLLED' as InviteStatus};
+        return { status: 'ALREADY_ENROLLED' as InviteStatus };
       }
 
       if (existingEnrollment && !throughInvite) {
@@ -514,7 +514,7 @@ export class EnrollmentService extends BaseService {
 
   async bulkUpdateAllEnrollments(
     courseId?: string,
-  ): Promise<{totalCount: number; updatedCount: number}> {
+  ): Promise<{ totalCount: number; updatedCount: number }> {
     const BATCH_SIZE = 5000;
 
     // 1. Get courses (all or specific one)
@@ -571,8 +571,8 @@ export class EnrollmentService extends BaseService {
 
             bulkOperations.push({
               updateOne: {
-                filter: {_id: new ObjectId(enrollment._id)},
-                update: {$set: {percentCompleted}},
+                filter: { _id: new ObjectId(enrollment._id) },
+                update: { $set: { percentCompleted } },
               },
             });
 
@@ -584,8 +584,7 @@ export class EnrollmentService extends BaseService {
                 );
                 updatedCount += bulkOperations.length;
                 console.log(
-                  `✅ Batch ${++batchCount}: Updated ${
-                    bulkOperations.length
+                  `✅ Batch ${++batchCount}: Updated ${bulkOperations.length
                   } enrollments`,
                 );
                 bulkOperations.length = 0;
@@ -620,11 +619,11 @@ export class EnrollmentService extends BaseService {
       });
     }
 
-    return {totalCount, updatedCount};
+    return { totalCount, updatedCount };
   }
 
   async bulkUpdateIdConversion(
-    collection:
+    collection?:
       | 'anomaly_records'
       | 'genAI_jobs'
       | 'invites'
@@ -636,50 +635,58 @@ export class EnrollmentService extends BaseService {
       | 'quiz_submission_results'
       | 'quizzes'
       | 'user_quiz_metrics'
-      | 'quiz_attempts'
+      | 'quiz_attempts',
   ): Promise<void> {
     try {
       const BATCH_SIZE = 1000;
-      const handlers: Record<
-        typeof collection,
-        () => Promise<{updated: number}>
-      > = {
-        anomaly_records: () =>
-          this.anomalyRepository.bulkConvertIds(BATCH_SIZE),
+
+      const handlers = {
+        anomaly_records: () => this.anomalyRepository.bulkConvertIds(BATCH_SIZE),
         genAI_jobs: () => this.genAIRepository.bulkConvertIds(BATCH_SIZE),
         invites: () => this.inviteRepo.bulkConvertIds(BATCH_SIZE),
         itemsGroup: () => this.itemRepo.bulkConvertIds(BATCH_SIZE),
-        job_task_status: () =>
-          this.genAIRepository.bulkConvertTaskIds(BATCH_SIZE),
+        job_task_status: () => this.genAIRepository.bulkConvertTaskIds(BATCH_SIZE),
         newCourse: () => this.courseRepo.bulkConvertIds(BATCH_SIZE),
-        newCourseVersion: () =>
-          this.courseRepo.bulkConvertVersionIds(BATCH_SIZE),
-        questionBanks: () =>
-          this.questionBankRepository.bulkConvertIds(BATCH_SIZE),
-        quiz_submission_results: () =>
-          this.submissionRepo.bulkConvertIds(BATCH_SIZE),
+        newCourseVersion: () => this.courseRepo.bulkConvertVersionIds(BATCH_SIZE),
+        questionBanks: () => this.questionBankRepository.bulkConvertIds(BATCH_SIZE),
+        quiz_submission_results: () => this.submissionRepo.bulkConvertIds(BATCH_SIZE),
         quizzes: () => this.quizRepo.bulkConvertIds(BATCH_SIZE),
-        user_quiz_metrics: () =>
-          this.userQuizMetricsRepo.bulkConvertIds(BATCH_SIZE),
+        user_quiz_metrics: () => this.userQuizMetricsRepo.bulkConvertIds(BATCH_SIZE),
         quiz_attempts: () => this.attemptRepo.bulkConvertIds(BATCH_SIZE),
-      };
+      } as const;
 
-      const handler = handlers[collection];
+      const collections = collection ? [collection] : Object.keys(handlers) as Array<keyof typeof handlers>;
 
-      if (!handler) {
-        throw new InternalServerError(
-          `No bulk conversion handler for ${collection}`,
-        );
+      let totalUpdated = 0;
+      console.log(
+        collection
+          ? `Starting bulk ID conversion for '${collection}'...\n`
+          : `Starting bulk ID conversion for ALL collections...\n`,
+      );
+
+      for (const col of collections) {
+        const handler = handlers[col];
+        if (!handler) {
+          console.warn(`⚠️ No handler defined for '${col}', skipping.`);
+          continue;
+        }
+
+        try {
+          const { updated } = await handler();
+          totalUpdated += updated;
+          console.log(`✅ ${col}: ${updated} documents updated.`);
+        } catch (err) {
+          console.error(`❌ Failed to update '${col}':`, err);
+        }
       }
 
-      await handler();
-      console.log(`Completed bulk ID conversion for ${collection}`);
+      console.log(`\n🎯 Bulk ID conversion completed.`);
+      console.log(`Total documents updated: ${totalUpdated}`);
     } catch (error) {
-      throw new InternalServerError(
-        `Failed to bulk update ${collection}. Error: ${error}`,
-      );
+      throw new InternalServerError(`Bulk ID conversion failed. Error: ${error}`);
     }
   }
+
   async getNonStudentEnrollmentsByCourseVersion(
     courseId: string,
     courseVersionId: string,
@@ -693,7 +700,7 @@ export class EnrollmentService extends BaseService {
     });
   }
   async bulkEnrollUsers(
-    existingEnrolledUsersWithRoles: {userId: string; role: EnrollmentRole}[],
+    existingEnrolledUsersWithRoles: { userId: string; role: EnrollmentRole }[],
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
@@ -716,11 +723,11 @@ export class EnrollmentService extends BaseService {
       const enrollmentsToCreate: OptionalId<IEnrollment>[] = [];
       const results: any[] = [];
 
-      for (const {userId, role} of existingEnrolledUsersWithRoles) {
+      for (const { userId, role } of existingEnrolledUsersWithRoles) {
         const userExists = await this.userRepo.findById(userId, session);
 
         if (!userExists) {
-          results.push({userId, error: 'User not found'});
+          results.push({ userId, error: 'User not found' });
           continue;
         }
 

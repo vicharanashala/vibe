@@ -398,7 +398,7 @@ export class EnrollmentController {
 
   ) {
     const { courseId } = query;
-    const updatedEnrollment = await this.enrollmentService.bulkUpdateAllEnrollments(courseId);
+    const updatedEnrollment = await this.enrollmentService.bulkUpdateAllEnrollments();
     return updatedEnrollment;
   }
 
