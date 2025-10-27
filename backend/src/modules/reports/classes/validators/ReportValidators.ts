@@ -333,12 +333,18 @@ export class IssueFilterQuery {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @JSONSchema({
+    description:'number of pages to be shown'
+  })
   page: number = 1;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @JSONSchema({
+    description:'limit of entries displayed in single page'
+  })
   limit: number = 10;
 
   @IsOptional()
@@ -354,6 +360,46 @@ export class IssueFilterQuery {
   sort: IssueSortEnum = IssueSortEnum.ALL;
 }
 
+class IssueReportResponse{
+  @JSONSchema({
+    description: 'Array of issue reports',
+ 
+  })
+  @IsNotEmpty()
+  @IsArray()
+  @ValidateNested({each: true})
+  @Type(() => Array<IReport>)
+  issues: IReport[];
+
+  @JSONSchema({
+    description: 'Total number of issue reports',
+    example: 100,
+    type: 'integer',
+  })
+  @IsNotEmpty()
+  @IsInt()
+  totalDocuments: number;
+
+  @JSONSchema({
+    description: 'Total number of pages in the response',
+    example: 10,
+    type: 'integer',
+  })
+  @IsNotEmpty()
+  @IsInt()
+  totalPages: number;
+
+  @JSONSchema({
+    description: 'Current page number in the response',
+    example: 1,
+    type: 'integer',
+  })
+  @IsNotEmpty()
+  @IsInt()
+  currentPage: number;
+}
+
+
 
 
 export {
@@ -362,6 +408,7 @@ export {
   ReportUpdateParams,
   ReportDataResponse,
   ReportNotFoundErrorResponse,
+  IssueReportResponse,
 };
 
 export const REPORT_VALIDATORS = [
@@ -372,4 +419,5 @@ export const REPORT_VALIDATORS = [
   ReportDataResponse,
   ReportNotFoundErrorResponse,
   ReportResponse,
+  IssueReportResponse,
 ];
