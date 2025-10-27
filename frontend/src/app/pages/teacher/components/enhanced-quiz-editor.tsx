@@ -936,7 +936,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
             />
 
             <Tabs value={selectedTab} onValueChange={setSelectedTab} className="md:px-6 mb-4">
-              <TabsList>
+              <TabsList className="lg:w-fit w-full overflow-x-auto no-scrollbar">
                 <TabsTrigger value="analytics" className="flex items-center gap-2 cursor-pointer">
                   <BarChart3 className="h-4 w-4" />
                   Analytics
@@ -1041,17 +1041,17 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
               </Card> */}
             </div>
             <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-              <TabsContent value="questions" className="h-full m-0 md:ms-7 mt-2">
-                <div className="h-full md:flex">
+              <TabsContent value="questions" className="h-full m-0 xl:ms-7 mt-2">
+                <div className="h-full lg:flex gap-5">
                   {/* Question Banks Sidebar */}
-                  <div className="md:w-80 border-r rounded  bg-muted/50 mt-1">
+                  <div className="lg:w-80 border-r rounded  bg-muted/50 mt-1">
                     <CreateQuestionBankDialog
                       showCreateBankDialog={showCreateBankDialog}
                       setShowCreateBankDialog={setShowCreateBankDialog}
                       quizId={quizId}
                     />
                     {/* List of question banks */}
-                    <ScrollArea className="h-[calc(100vh-200px)]">
+                    <ScrollArea className="lg:h-[calc(100vh-200px)] h-auto">
                       <div className="p-4 space-y-2">
                         {questionBanks?.map((bank: any) => (
                           <Card
@@ -1125,7 +1125,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                           selectedBankId={selectedQuestionBank}
                         />
                         <ScrollArea className="flex-1">
-                          <div className="p-4 space-y-4">
+                          <div className="xl:p-4 py-4 space-y-4">
                             {selectedBankData?.questions?.map((questionId: string) => (
                               <ExpandableQuestionCard
                                 key={questionId}
