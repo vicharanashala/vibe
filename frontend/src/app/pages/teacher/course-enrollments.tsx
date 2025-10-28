@@ -81,7 +81,7 @@ function EnrollmentProgress(props: { progress: number }) {
   // Support both direct number and object prop
   const progress = props.progress;
   return (
-    <div className={`flex  items-center gap-4 w-40 ${getProgressBg(progress)}`}>
+    <div className={`flex  items-center gap-4 sm:w-40 w-full ${getProgressBg(progress)}`}>
       <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden shadow-inner">
         <div
           className={`h-full rounded-full bg-gradient-to-r ${getProgressColor(progress)}`}
@@ -895,7 +895,7 @@ const {
 
         {/* Enhanced View Progress Modal */}
         {isViewProgressDialogOpen && selectedUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
             {/* Enhanced Backdrop */}
             <div
               className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
@@ -917,7 +917,7 @@ const {
               </div>
 
               {/* Enhanced Student Info */}
-              <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-muted/30 to-muted/10 rounded-xl border border-border">
+              <div className="flex flex-wrap items-center gap-4 p-6 bg-gradient-to-r from-muted/30 to-muted/10 rounded-xl border border-border">
                 <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md">
                   <AvatarImage src={selectedUser.avatar || "/placeholder.svg"} alt={selectedUser.name} />
                   <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold">
@@ -927,11 +927,11 @@ const {
                       .join("")}
                   </AvatarFallback>
                 </Avatar>
-                <div className="min-w-0 flex-1">
+                <div className="flex-1">
                   <p className="font-medium text-card-foreground truncate text-base md:text-lg">{selectedUser.name}</p>
                   <p className="text-muted-foreground truncate">{selectedUser.email}</p>
                 </div>
-                <div className="text-right">
+                <div className="text-right sm:w-auto w-full">
                   <p className="text-sm text-muted-foreground mb-2">Course Progress</p>
                   <EnrollmentProgress progress={(selectedUser.progress || 0)} />
                 </div>
@@ -1033,14 +1033,14 @@ const {
 
         {/* Enhanced Remove Student Confirmation Modal */}
         {isRemoveDialogOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
             <div
               className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
               onClick={() => setIsRemoveDialogOpen(false)}
             />
-            <div className="relative bg-card border border-border rounded-2xl shadow-2xl max-w-lg w-full mx-4 p-10 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+            <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-card-foreground">Remove Student</h2>
+                <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Remove Student</h2>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1061,7 +1061,7 @@ const {
                 </p>
 
                 <div className="flex gap-4 p-6 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl">
-                  <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                  <div><AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" /></div>
                   <div className="text-sm text-red-800 dark:text-red-200">
                     <strong>Warning:</strong> This action cannot be undone. The student will lose access to the course
                     version and all their progress data.
@@ -1099,14 +1099,14 @@ const {
 
         {/* Enhanced Reset Progress Modal */}
         {isResetDialogOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
             <div
               className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
               onClick={() => setIsResetDialogOpen(false)}
             />
-            <div className="relative bg-card border border-border rounded-2xl shadow-2xl max-w-3xl w-full mx-4 p-8 space-y-6 max-h-[90vh] overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+            <div className="relative bg-card border border-border rounded-2xl shadow-2xl max-w-3xl w-full mx-4 sm:p-8 p-4 space-y-6 max-h-[90vh] overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-card-foreground">Reset Student Progress</h2>
+                <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Reset Student Progress</h2>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1154,7 +1154,7 @@ const {
                     </SelectTrigger>
                     <SelectContent className="bg-card border-border cursor-pointer">
                       <SelectItem value="course" className="cursor-pointer">
-                        <div className="flex items-center gap-3 py-3 px-2">
+                        <div className="flex items-center sm:gap-3 gap-1 py-3 sm:px-2">
                           <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                           <div>
                             <div className="font-semibold">Entire Course Version</div>
@@ -1163,7 +1163,7 @@ const {
                         </div>
                       </SelectItem>
                       <SelectItem value="module" className="cursor-pointer" >
-                        <div className="flex items-center gap-3 py-3 px-2">
+                        <div className="flex items-center sm:gap-3 gap-1 py-3 sm:px-2">
                           <List className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                           <div>
                             <div className="font-semibold">Specific Module</div>
@@ -1172,7 +1172,7 @@ const {
                         </div>
                       </SelectItem>
                       <SelectItem value="section" className="cursor-pointer" >
-                        <div className="flex items-center gap-3 py-3 px-2">
+                        <div className="flex items-center sm:gap-3 gap-1 py-3 sm:px-2">
                           <FileText className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                           <div>
                             <div className="font-semibold">Specific Section</div>
@@ -1181,7 +1181,7 @@ const {
                         </div>
                       </SelectItem>
                       <SelectItem value="item" className="cursor-pointer" >
-                        <div className="flex items-center gap-3 py-3 px-2">
+                        <div className="flex items-center sm:gap-3 gap-1 py-3 sm:px-2">
                           <Play className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                           <div>
                             <div className="font-semibold">Specific Item</div>
