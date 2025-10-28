@@ -68,14 +68,38 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   // Track if rewind has been processed to prevent multiple triggers
   const rewindProcessedRef = useRef(false);
 
-  // Ensure video doesn't autoplay accidentally
+  // Track if we've already auto-played the video
+  const hasAutoPlayedRef = useRef(false)
+
+  // Track grace period completion
+  const [gracePeriodCompleted, setGracePeriodCompleted] = useState(false);
+
+  // Wait 10 seconds after readyToDetect becomes true (to match FloatingVideo's grace period)
   useEffect(() => {
-    if (playerReady && playerRef.current) {
-      // Force pause when player becomes ready
-      playerRef.current.pauseVideo();
-      console.log('🔒 Safety: Video forced to paused state');
+    if (readyToDetect && !gracePeriodCompleted) {
+      console.log('⏳ Video: Starting 10-second grace period to match FloatingVideo');
+      const timer = setTimeout(() => {
+        setGracePeriodCompleted(true);
+        console.log('✅ Video: Grace period completed, ready for auto-play');
+      }, 10000); // 10 seconds to match FloatingVideo's grace period
+      
+      return () => clearTimeout(timer);
     }
-  }, [playerReady]);
+  }, [readyToDetect, gracePeriodCompleted]);
+
+  // Reset when video changes
+  useEffect(() => {
+    setGracePeriodCompleted(false);
+  }, [videoId]);
+
+  // // Ensure video doesn't autoplay accidentally
+  // useEffect(() => {
+  //   if (playerReady && playerRef.current) {
+  //     // Force pause when player becomes ready
+  //     playerRef.current.pauseVideo();
+  //     console.log('🔒 Safety: Video forced to paused state');
+  //   }
+  // }, [playerReady]);
 
   useEffect(() => {
     playerRef.current?.setPlaybackRate(playbackRate);
@@ -165,6 +189,91 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
     }
   }, [pauseVid, playing]);
 
+  // Autoplay: Wait for grace period completion
+  useEffect(() => {
+    const player = playerRef.current;
+    
+    // Only auto-play if ALL conditions are perfect:
+    // 1. Player is ready
+    // 2. Camera permissions granted AND grace period completed
+    // 3. Video is not already playing
+    // 4. Not blocked by any anomalies
+    // 5. We haven't auto-played yet
+    if (playerReady && 
+        readyToDetect && 
+        gracePeriodCompleted && // Wait for grace period
+        player && 
+        !playing && 
+        !pauseVid && 
+        !rewindVid && 
+        !doGesture &&
+        !hasAutoPlayedRef.current) {
+      
+      console.log('🎬 Auto-playing video: Grace period completed, all conditions met');
+      
+      const timer = setTimeout(() => {
+        if (playerRef.current && 
+            !playing && 
+            !pauseVid && 
+            !rewindVid && 
+            !doGesture) {
+          
+          playerRef.current.playVideo();
+          setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
+          hasAutoPlayedRef.current = true;
+          console.log('✅ Video auto-played successfully after grace period');
+        }
+      }, 1000); // 1 second final delay
+      
+      return () => clearTimeout(timer);
+    }
+  }, [playerReady, readyToDetect, gracePeriodCompleted, playing, pauseVid, rewindVid, doGesture]);
+
+  // Autoplay: Only trigger once when everything becomes ready
+  // useEffect(() => {
+  //   const player = playerRef.current;
+    
+  //   // Only auto-play if ALL conditions are perfect:
+  //   // 1. Player is ready
+  //   // 2. Camera permissions granted (readyToDetect = true after grace period)
+  //   // 3. Video is not already playing
+  //   // 4. Not blocked by any anomalies (pauseVid, rewindVid, doGesture)
+  //   // 5. We haven't auto-played yet
+  //   if (playerReady && 
+  //       readyToDetect && 
+  //       player && 
+  //       !playing && 
+  //       !pauseVid && 
+  //       !rewindVid && 
+  //       !doGesture &&
+  //       !hasAutoPlayedRef.current) {
+      
+  //     console.log('🎬 Auto-playing video: All conditions met');
+      
+  //     // Small delay to ensure everything is settled
+  //     const timer = setTimeout(() => {
+  //       if (playerRef.current && 
+  //           !playing && 
+  //           !pauseVid && 
+  //           !rewindVid && 
+  //           !doGesture) {
+          
+  //         playerRef.current.playVideo();
+  //         setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
+  //         hasAutoPlayedRef.current = true;
+  //         console.log('✅ Video auto-played successfully');
+  //       }
+  //     }, 1000); // 1 second delay
+      
+  //     return () => clearTimeout(timer);
+  //   }
+  // }, [playerReady, readyToDetect, playing, pauseVid, rewindVid, doGesture]);
+
+  // // Reset auto-play flag when video changes
+  // useEffect(() => {
+  //   hasAutoPlayedRef.current = false;
+  // }, [videoId]);
+
   // Debug anomalies
   // useEffect(() => {
   //   if (anomalies && anomalies.length > 0) {
@@ -239,8 +348,12 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
             event.target.seekTo(startTimeSeconds, true);
             onDurationChange?.(dur);
             event.target.pauseVideo();
-            setPlaying(false);
-            console.log('YouTube player ready - video paused by default');
+            // setPlaying(false);
+            // console.log('YouTube player ready - video paused by default');
+
+            // Don't auto-pause here - let the autoplay logic handle it
+            console.log('✅ YouTube player ready - waiting for camera to be ready');
+
           },
           onStateChange: (event: { data: number; target: YTPlayerInstance }) => {
             if (window.YT && event.data === window.YT.PlayerState.PLAYING) {
@@ -513,8 +626,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
       }}>
         {/* Video Container */}
       <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-  {!readyToDetect ? (
-    // Show preparing message before player is ready
+  
+   {!readyToDetect ? (  // Show preparing message before player is ready 
     <div
       style={{
         width: '100%',
