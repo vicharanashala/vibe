@@ -894,13 +894,13 @@ export const RegistrationActions = ({
             Get Registration URL
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-w-sm max-[425px]:w-[90vw]">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold flex items-center gap-2">
+            <DialogTitle className="text-xl font-semibold flex items-center gap-3">
               <Share2 className="h-5 w-5 text-primary" />
-              Student Registration URL
+              <div className="xl:text-lg lg:text-sm text-base">Student Registration URL</div>
             </DialogTitle>
-            <p className="text-sm text-muted-foreground leading-relaxed mt-2">
+            <p className="text-sm text-muted-foreground leading-relaxed mt-2 text-start">
               Share this URL with students to allow them to view available course versions and submit registration requests.
             </p>
           </DialogHeader>
