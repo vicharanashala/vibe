@@ -79,7 +79,8 @@ function generateDefaultItemNames(items: any[]) {
 // Accepts either a number (percent or fraction) or an object with a progress property
 function EnrollmentProgress(props: { progress: number }) {
   // Support both direct number and object prop
-  const progress = props.progress;
+  const progress = Math.min(100, Math.max(0, props.progress)); // Ensure progress is between 0-100
+  // const progress = props.progress;
   return (
     <div className={`flex  items-center gap-4 w-40 ${getProgressBg(progress)}`}>
       <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden shadow-inner">
