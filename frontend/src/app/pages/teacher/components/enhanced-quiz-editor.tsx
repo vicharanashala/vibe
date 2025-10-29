@@ -1488,9 +1488,9 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
           {/* Edit Question Bank Dialog */}
           <Dialog open={showEditQuestionBankDialog} onOpenChange={setShowEditQuestionBankDialog}>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="md:max-w-[500px] max-w-sm max-[425px]:w-[90vw]">
               <DialogHeader>
-                <DialogTitle>Edit Question Bank Configuration</DialogTitle>
+                <DialogTitle className='flex items-start sm:text-lg text-base'>Edit Question Bank Configuration</DialogTitle>
               </DialogHeader>
               <div className="space-y-6 mt-5">
                 {/* Bank Info Display */}

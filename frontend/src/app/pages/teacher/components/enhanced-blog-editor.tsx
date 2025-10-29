@@ -285,20 +285,74 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
         .dark [data-yoopta-editor] .yoopta-action-menu,
         .dark [data-yoopta-editor] .yoopta-action-menu *,
         .dark .yoopta-action-menu,
-        .dark .yoopta-action-menu * {
+        .dark .yoopta-action-menu *,
+        .dark [data-yoopta-editor] [class*="action-menu"],
+        .dark [class*="action-menu"],
+        .dark [data-yoopta-editor] [class*="ActionMenu"],
+        .dark [class*="ActionMenu"] {
           background-color: #1f2937 !important;
           color: #ffffff !important;
           border-color: #374151 !important;
         }
         
         .dark [data-yoopta-editor] .yoopta-action-menu-item,
-        .dark .yoopta-action-menu-item {
+        .dark .yoopta-action-menu-item,
+        .dark [data-yoopta-editor] [class*="action-menu-item"],
+        .dark [class*="action-menu-item"],
+        .dark [data-yoopta-editor] [class*="ActionMenu"] li,
+        .dark [class*="ActionMenu"] li,
+        .dark [data-yoopta-editor] [class*="ActionMenu"] div,
+        .dark [class*="ActionMenu"] div {
           background-color: #1f2937 !important;
           color: #ffffff !important;
         }
         
         .dark [data-yoopta-editor] .yoopta-action-menu-item:hover,
-        .dark .yoopta-action-menu-item:hover {
+        .dark .yoopta-action-menu-item:hover,
+        .dark [data-yoopta-editor] [class*="action-menu-item"]:hover,
+        .dark [class*="action-menu-item"]:hover,
+        .dark [data-yoopta-editor] [class*="ActionMenu"] li:hover,
+        .dark [class*="ActionMenu"] li:hover,
+        .dark [data-yoopta-editor] [class*="ActionMenu"] div:hover,
+        .dark [class*="ActionMenu"] div:hover {
+          background-color: #374151 !important;
+          color: #ffffff !important;
+        }
+        
+        /* Force override any white backgrounds in action menus */
+        .dark [data-yoopta-editor] *[style*="background-color: white"],
+        .dark [data-yoopta-editor] *[style*="background-color: #fff"],
+        .dark [data-yoopta-editor] *[style*="background-color: #ffffff"],
+        .dark [class*="action-menu"] *[style*="background-color: white"],
+        .dark [class*="action-menu"] *[style*="background-color: #fff"],
+        .dark [class*="action-menu"] *[style*="background-color: #ffffff"],
+        .dark [class*="ActionMenu"] *[style*="background-color: white"],
+        .dark [class*="ActionMenu"] *[style*="background-color: #fff"],
+        .dark [class*="ActionMenu"] *[style*="background-color: #ffffff"] {
+          background-color: #1f2937 !important;
+          color: #ffffff !important;
+        }
+        
+        /* Specific targeting for dropdown menus */
+        .dark [data-yoopta-editor] [role="menu"],
+        .dark [data-yoopta-editor] [role="menuitem"],
+        .dark [role="menu"],
+        .dark [role="menuitem"],
+        .dark [data-yoopta-editor] .dropdown-menu,
+        .dark .dropdown-menu,
+        .dark [data-yoopta-editor] .menu,
+        .dark .menu {
+          background-color: #1f2937 !important;
+          color: #ffffff !important;
+          border-color: #374151 !important;
+        }
+        
+        .dark [data-yoopta-editor] [role="menuitem"]:hover,
+        .dark [role="menuitem"]:hover,
+        .dark [data-yoopta-editor] .dropdown-menu li:hover,
+        .dark .dropdown-menu li:hover,
+        .dark [data-yoopta-editor] .menu li:hover,
+        .dark .menu li:hover {
           background-color: #374151 !important;
           color: #ffffff !important;
         }
