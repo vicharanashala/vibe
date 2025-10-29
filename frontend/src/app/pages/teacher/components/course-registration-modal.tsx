@@ -551,7 +551,7 @@ export const FormBuilder = ({ versionId,  handleNavigateToRequests }: { versionI
             </Card>
 
           
-            <div className="flex flex-col lg:flex-row lg:gap-1 gap-3 flex-1 lg:pb-0 pb-6">
+            <div className="flex flex-col lg:flex-row lg:gap-1 gap-3 flex-1 pb-6">
               <Card className="flex-1 lg:flex-[2] flex flex-col min-w-0">
                 <CardHeader className="sm:px-6 px-4 pb-2 border-b">
                   <div className="flex items-center justify-between">
