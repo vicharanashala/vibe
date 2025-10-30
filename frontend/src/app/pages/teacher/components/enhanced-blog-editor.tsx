@@ -171,6 +171,56 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
     }
   };
 
+  const manuallyFixYooptaElements = () => {
+    // Fix action menu SVG icons
+    const actionMenuIcons = document.querySelectorAll('.yoopta-action-menu-list-content [class*="yoo-action-menu-bg-"] svg');
+    actionMenuIcons.forEach(svg => {
+      if (svg instanceof HTMLElement) {
+        svg.style.color = '#ffffff';
+        svg.style.stroke = '#ffffff';
+      }
+    });
+
+    // Fix upload button
+    const uploadButtons = document.querySelectorAll('[class*="yoo-image-bg-"]');
+    uploadButtons.forEach(button => {
+      if (button instanceof HTMLElement) {
+        button.style.background = '#374151';
+        button.style.backgroundColor = '#374151';
+        button.style.color = '#ffffff';
+        
+        // Fix SVG inside button
+        const svg = button.querySelector('svg');
+        if (svg instanceof HTMLElement) {
+          svg.style.color = '#ffffff';
+        }
+        
+        // Fix text inside button
+        const spans = button.querySelectorAll('span');
+        spans.forEach(span => {
+          if (span instanceof HTMLElement) {
+            span.style.color = '#ffffff';
+          }
+        });
+      }
+    });
+
+    // Fix any yoo-image modal containers
+    const imageModals = document.querySelectorAll('[class*="yoo-image-z-"]');
+    imageModals.forEach(modal => {
+      if (modal instanceof HTMLElement) {
+        modal.style.background = '#1f2937';
+        modal.style.color = '#ffffff';
+      }
+    });
+
+    // Fix the specific overlay
+    const overlay = document.querySelector('.yoo-image-z-\\[100\\]');
+    if (overlay instanceof HTMLElement) {
+      overlay.style.background = 'rgba(0, 0, 0, 0.5)';
+    }
+};
+
   useEffect(() => {
     if (editor && !editorValue) {
       try {
@@ -523,6 +573,104 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
          .dark [data-yoopta-editor] h6 {
            color: #000000 !important;
          }
+
+         /* NEW */
+         /* Action Menu */
+        .dark div.yoopta-action-menu-list-content {
+          background: #1f2937 !important;
+          color: #ffffff !important;
+          border: 1px solid #374151 !important;
+        }
+        
+        .dark div.yoopta-action-menu-list-content > div {
+          background: #1f2937 !important;
+          color: #ffffff !important;
+        }
+        
+        .dark div.yoopta-action-menu-list-content button[data-action-menu-item="true"] {
+          background: #1f2937 !important;
+          color: #ffffff !important;
+        }
+        
+        .dark div.yoopta-action-menu-list-content button[data-action-menu-item="true"]:hover {
+          background: #374151 !important;
+        }
+        
+        /* Fix white icon backgrounds in action menu using attribute selector */
+        .dark div.yoopta-action-menu-list-content [class*="yoo-action-menu-bg-"] {
+          background: #374151 !important;
+          border-color: #4b5563 !important;
+        }
+        
+        /* Make SVG icons visible in action menu */
+        .dark div.yoopta-action-menu-list-content [class*="yoo-action-menu-bg-"] svg {
+          color: #ffffff !important;
+          stroke: #ffffff !important;
+        }
+        
+        .dark div.yoopta-action-menu-list-content [class*="yoo-action-menu-text-"] {
+          color: #ffffff !important;
+        }
+        
+        .dark div.yoopta-action-menu-list-content [class*="yoo-action-menu-text-muted-"] {
+          color: #9ca3af !important;
+        }
+
+        /* Image Upload - Use attribute selectors for complex class names */
+        .dark [class*="yoo-image-bg-"] {
+          background: #374151 !important;
+          background-color: #374151 !important;
+        }
+        
+        .dark [class*="yoo-image-text-"] {
+          color: #ffffff !important;
+        }
+        
+        .dark [class*="hover:yoo-image-bg-"]:hover {
+          background: #4b5563 !important;
+          background-color: #4b5563 !important;
+        }
+        
+        /* Make the upload button SVG visible */
+        .dark [class*="yoo-image-bg-"] svg {
+          color: #ffffff !important;
+        }
+        
+        /* Target any yoo-image- classes for the modal */
+        .dark [class*="yoo-image-z-"] {
+          background: #1f2937 !important;
+          color: #ffffff !important;
+        }
+
+        /* Fix overlay background */
+          [style*="position: fixed"][style*="top: 0px"] {
+            background: rgba(0, 0, 0, 0.5) !important;
+        }
+
+        /* Nuclear option - target ANY element that could be an overlay */
+        body > * {
+          background: transparent !important;
+        }
+        
+        /* Specifically target file input overlays */
+        input[type="file"] {
+          background: transparent !important;
+        }
+        
+        /* Target any backdrop elements */
+        [data-backdrop], [role="presentation"], [aria-hidden="true"] {
+          background: transparent !important;
+        }
+
+        /* Fix the specific overlay - the yoo-image-z-[100] element */
+        .dark .yoo-image-z-\\[100\\] {
+          background: rgba(0, 0, 0, 0.5) !important;
+        }
+        
+        /* Make the modal content (the white box) dark */
+        .dark .yoo-image-z-\\[100\\] [class*="yoo-image-bg-"] {
+          background: #1f2937 !important;
+        }
       `;
       
       const existingStyle = document.getElementById('yoopta-dark-mode-styles');
@@ -534,48 +682,97 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
     };
 
     applyDarkModeStyles();
+    manuallyFixYooptaElements();
 
-    const timeoutId = setTimeout(applyDarkModeStyles, 100);
-
-    const observer = new MutationObserver((mutations) => {
-      let shouldReapply = false;
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'childList') {
-          mutation.addedNodes.forEach((node) => {
-            if (node.nodeType === Node.ELEMENT_NODE) {
-              const element = node as Element;
-              if (element.classList.contains('yoopta-toolbar') || 
-                  element.querySelector('.yoopta-toolbar') ||
-                  element.getAttribute('data-yoopta-toolbar') ||
-                  element.classList.toString().includes('toolbar')) {
-                shouldReapply = true;
-              }
+  const observer = new MutationObserver((mutations) => {
+    let needsFix = false;
+    
+    for (const mutation of mutations) {
+      if (mutation.type === 'childList') {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            const element = node as Element;
+            
+            // Check for any Yoopta elements
+            if (element.classList.contains('yoopta-action-menu-list-content') ||
+                element.classList.contains('yoo-image-z-[100]') ||
+                element.querySelector('[class*="yoo-image-bg-"]') ||
+                element.querySelector('[class*="yoo-action-menu-bg-"]')) {
+              needsFix = true;
+              break;
             }
-          });
+          }
         }
-      });
+      }
+    }
+    
+    if (needsFix) {
+      console.log('Yoopta elements detected, applying fixes');
+      applyDarkModeStyles();
+      setTimeout(manuallyFixYooptaElements, 50);
+      setTimeout(manuallyFixYooptaElements, 150); // Double check
+    }
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+
+  // Also run periodically to catch any missed elements
+  const intervalId = setInterval(manuallyFixYooptaElements, 1000);
+
+  return () => {
+    observer.disconnect();
+    clearInterval(intervalId);
+    const styleToRemove = document.getElementById('yoopta-dark-mode-styles');
+    if (styleToRemove) {
+      styleToRemove.remove();
+    }
+  };
+}, []);
+
+
+
+  //   const observer = new MutationObserver((mutations) => {
+  //     let shouldReapply = false;
+  //     mutations.forEach((mutation) => {
+  //       if (mutation.type === 'childList') {
+  //         mutation.addedNodes.forEach((node) => {
+  //           if (node.nodeType === Node.ELEMENT_NODE) {
+  //             const element = node as Element;
+  //             if (element.classList.contains('yoopta-toolbar') || 
+  //                 element.querySelector('.yoopta-toolbar') ||
+  //                 element.getAttribute('data-yoopta-toolbar') ||
+  //                 element.classList.toString().includes('toolbar')) {
+  //               shouldReapply = true;
+  //             }
+  //           }
+  //         });
+  //       }
+  //     });
       
-      if (shouldReapply) {
-        setTimeout(applyDarkModeStyles, 50);
-      }
-    });
+  //     if (shouldReapply) {
+  //       setTimeout(applyDarkModeStyles, 50);
+  //     }
+  //   });
 
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['class', 'data-yoopta-toolbar']
-    });
+  //   observer.observe(document.body, {
+  //     childList: true,
+  //     subtree: true,
+  //     attributes: true,
+  //     attributeFilter: ['class', 'data-yoopta-toolbar']
+  //   });
 
-    return () => {
-      clearTimeout(timeoutId);
-      observer.disconnect();
-      const styleToRemove = document.getElementById('yoopta-dark-mode-styles');
-      if (styleToRemove) {
-        styleToRemove.remove();
-      }
-    };
-  }, []);
+  //   return () => {
+  //     clearTimeout(timeoutId);
+  //     observer.disconnect();
+  //     const styleToRemove = document.getElementById('yoopta-dark-mode-styles');
+  //     if (styleToRemove) {
+  //       styleToRemove.remove();
+  //     }
+  //   };
+  // }, []);
 
   const updateItem = useUpdateCourseItem();
 
