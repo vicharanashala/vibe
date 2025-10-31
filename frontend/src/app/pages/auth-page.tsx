@@ -353,8 +353,29 @@ export default function AuthPage() {
                   </button>
                 </div>
               </div>
-              <div className="w-full sm:w-[500px] h-48 sm:h-72 md:h-[420px] bg-[#857B7B] rounded-lg overflow-hidden">Demo video</div>
-            </div>
+              <div className="w-full sm:w-[500px] h-48 sm:h-72 md:h-[420px] rounded-lg overflow-hidden bg-black">
+                <iframe
+                  title="ViBe demo"
+                  className="w-full h-full"
+                  src={(function(){
+                    // Replace the string below with your YouTube URL (watch or share link)
+                    const youtubeUrl = "https://youtu.be/8ytNdYlK-BU?feature=shared";
+                    try {
+                      const u = new URL(youtubeUrl);
+                      const v = u.searchParams.get("v");
+                      if (v) return `https://www.youtube.com/embed/${v}`;
+                      if (u.hostname === "youtu.be") return `https://www.youtube.com/embed${u.pathname}`;
+                      return youtubeUrl; // already an embed URL or fallback
+                    } catch {
+                      return youtubeUrl;
+                    }
+                  })()}
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  loading="lazy"
+                />
+              </div></div>
           </div>
         </div>
         <div className="bg-[#ffffff]">
@@ -368,6 +389,7 @@ export default function AuthPage() {
               <div>
                   <button className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
                     Explore Demo
+                    
                   </button>
               </div>
             </div>
