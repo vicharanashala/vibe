@@ -1620,10 +1620,10 @@ function TeacherCourseContent() {
                             try {
                               await updateCourseItemAsync({
                                 params: { path: { versionId, itemId: projectId } },
-                                body: { name, description, type: 'PROJECT' }
+                                body: { name, description, details: { name, description }, type: 'PROJECT' }
                               });
                               refetchVersion();
-                              refetchItems();
+                              refetchItems();``
                               refetchItem();
                               toast.success("Project updated successfully");
                             } catch (err) {

@@ -1490,7 +1490,7 @@ export interface components {
              * @example BLOG
              * @enum {string}
              */
-            type?: "VIDEO" | "QUIZ" | "BLOG";
+            type?: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT";
             /**
              * After Item ID
              * Format: Mongo Object ID
