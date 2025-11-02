@@ -366,7 +366,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   const [quizSettingsForm, setQuizSettingsForm] = useState<QuizSettingsForm>({
     name: '',
     description: '',
-    passThreshold: 0.7,
+    passThreshold: 0,
     maxAttempts: 3,
     quizType: 'NO_DEADLINE',
     approximateTimeToComplete: '00:05:00',
@@ -405,7 +405,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
       setQuizSettingsForm({
         name: details.name || '',
         description: details.description || '',
-        passThreshold: details.details.passThreshold || 0.7,
+        passThreshold: details.details.passThreshold || 0,
         maxAttempts: details.details.maxAttempts || 3,
         quizType: details.details.quizType || 'NO_DEADLINE',
         approximateTimeToComplete: details.details.approximateTimeToComplete || '00:05:00',
