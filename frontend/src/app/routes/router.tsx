@@ -39,6 +39,7 @@ import CourseInstructors from '../pages/teacher/course-instructors'
 import RegisteredUsers from '../pages/teacher/CourseRegistrationRequests'
 import CourseRegistration from '../pages/student/CourseRegistration'
 import CourseIssueReports from '../pages/student/FlagResponse'
+import LoginPage from '../pages/LoginPage'
 
 
 // Root route with error and notFound handling
@@ -356,11 +357,17 @@ const testAISectionModalRoute = new Route({
   path: '/test-ai-section-modal',
   component: AISectionPage,
 });
+export const loginRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/login',
+  component: LoginPage,
+})
 
 // Create the router with the route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
   authRoute,
+  loginRoute,
   teacherLayoutRoute.addChildren([
     // teacherDashboardRoute,
     teacherCreateArticleRoute,

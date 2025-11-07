@@ -402,9 +402,21 @@ export default function AuthPage() {
                 <h3 className="text-[#1F2937] text-[36px] font-bold leading-10 mb-[84px]">Transform Your Learning Experience</h3>
                 <div className="flex flex-1 flex-col justify-center">
                   <div className={`mr-auto w-full ${showAuthForm ? 'md:max-w-[612px]' : 'lg:max-w-3xs max-w-full '} space-y-8`}>
+                  <div>
+                  <button
+                   onClick={() => {
+                  navigate({ to: "/login" })
+                   }}
+                   className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
+                  Continue To Login
+                  </button>
+                </div>
+                  
+                           
+                          
                     {!showAuthForm ? (
                       <>
-                        <div className="space-y-4 flex lg:flex-col md:flex-row flex-col justify-between">
+                        {/*<div className="space-y-4 flex lg:flex-col md:flex-row flex-col justify-between">
                           <Button 
                             onClick={() => {
                               setActiveRole('student');
@@ -430,7 +442,7 @@ export default function AuthPage() {
                               Continue as a Instructor
                             </span>
                           </Button>
-                        </div>
+                          </div>*/}
                       </>
                     ) : (
                       <>
