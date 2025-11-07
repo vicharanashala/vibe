@@ -449,7 +449,7 @@ export default function AISectionPage() {
   // Add state for question generation parameters
   const [questionGenParams, setQuestionGenParams] = useState<QuestionGenParams>({
     model: 'deepseek-r1:70b',
-    SOL: 1,
+    SOL: 2,
     SML: 0,
     NAT: 0,
     DES: 0,
