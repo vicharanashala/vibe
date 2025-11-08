@@ -22,10 +22,10 @@ const TabsContext = createContext<{
   onValueChange?: (value: string) => void;
 }>({ value: "" });
 
-const links={
-  GITHUB:'https://github.com/vicharanashala/vibe.git',
-  DEMO_VIDEO:"https://www.youtube.com/watch?v=8ytNdYlK-BU"
-  
+const links = {
+  GITHUB: 'https://github.com/vicharanashala/vibe.git',
+  DEMO_VIDEO: "https://www.youtube.com/watch?v=8ytNdYlK-BU"
+
 }
 
 // Create simplified versions of missing components
@@ -235,7 +235,7 @@ export default function AuthPage() {
 
   //SignUp
 
-  const {mutateAsync: signupMutation, error: signupError, isError:isSignUpError} = useSignup();
+  const { mutateAsync: signupMutation, error: signupError, isError: isSignUpError } = useSignup();
 
   // New function for handling signup
   const handleEmailSignup = async () => {
@@ -307,9 +307,9 @@ export default function AuthPage() {
           ...formErrors,
           auth: message || "Failed to create account. Please try again.",
           email: Object.values(signupError?.errors?.find((e: any) => e.property === 'email')?.constraints || {}).join(', ') || "",
-          fullName: 
-            (Object.values(signupError?.errors?.find((e: any) => e.property === 'firstName')?.constraints || {}).join(', ') + 
-            (Object.values(signupError?.errors?.find((e: any) => e.property === 'lastName')?.constraints || {}).join(', '))).trim() || "",
+          fullName:
+            (Object.values(signupError?.errors?.find((e: any) => e.property === 'firstName')?.constraints || {}).join(', ') +
+              (Object.values(signupError?.errors?.find((e: any) => e.property === 'lastName')?.constraints || {}).join(', '))).trim() || "",
           password: Object.values(signupError?.errors?.find((e: any) => e.property === 'password')?.constraints || {}).join(', ') || ""
         });
       }
@@ -353,9 +353,12 @@ export default function AuthPage() {
               <div className="max-w-[560px] flex flex-col space-y-4">
                 <h3 className="text-[#1F2937] text-[36px] font-bold leading-10">Empowering Education for All</h3>
                 <p className="text-[#4B5563] text-base font-normal leading-[26px]">Connect, collaborate, and grow with our innovative educational platform designed for the next generation</p>
-                <div>
+                <div className="flex gap-3">
                   <button onClick={() => window.open(links.DEMO_VIDEO, '_blank')} className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
                     Explore Demo
+                  </button>
+                  <button onClick={() => {navigate({ to: "/login" })}} className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
+                    Get Started
                   </button>
                 </div>
               </div>
@@ -363,7 +366,7 @@ export default function AuthPage() {
                 <iframe
                   title="ViBe demo"
                   className="w-full h-full"
-                  src={(function(){
+                  src={(function () {
                     // Replace the string below with your YouTube URL (watch or share link)
                     const youtubeUrl = links.DEMO_VIDEO;
                     try {
@@ -387,39 +390,39 @@ export default function AuthPage() {
         <div className="bg-[#ffffff]">
           <div className="flex lg:flex-row flex-col items-center w-full max-w-[1280px] mx-auto py-16 px-4 sm:px-6">
             <div className="w-full lg:w-auto">
-              <img src={classroom} alt="classroom image" className="w-full h-auto"/>
+              <img src={classroom} alt="classroom image" className="w-full h-auto" />
             </div>
             <div className="max-w-[560px] ml-auto flex flex-col mt-8 lg:mt-0">
               <h3 className="text-[#1F2937] text-[36px] font-bold leading-10 mb-16">Why Choose ViBe?</h3>
               <p className="text-[#4B5563] text-base font-normal leading-[26px] mb-4">ViBe is an online learning platform that helps students stay engaged. It uses smart checks, quick quizzes, and flexible tools to make learning more active and honest.</p>
               <div>
-                  <button onClick={() => window.open(links.DEMO_VIDEO, '_blank')} className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
-                    Explore Demo
-                    
-                  </button>
+                <button onClick={() => window.open(links.DEMO_VIDEO, '_blank')} className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
+                  Explore Demo
+
+                </button>
               </div>
             </div>
           </div>
         </div>
         <div className="bg-[#F3EFFB]">
           <div className="flex lg:flex-row flex-col items-center w-full max-w-[1280px] mx-auto py-16 px-4 sm:px-6">
-              <div className="w-full justify-between flex lg:flex-row flex-col items-center">
+            <div className="w-full justify-between flex lg:flex-row flex-col items-center">
               <div className="max-w-[560px] flex flex-col">
                 <h3 className="text-[#1F2937] text-[36px] font-bold leading-10 mb-[84px]">Transform Your Learning Experience</h3>
                 <div className="flex flex-1 flex-col justify-center">
                   <div className={`mr-auto w-full ${showAuthForm ? 'md:max-w-[612px]' : 'lg:max-w-3xs max-w-full '} space-y-8`}>
-                  <div>
-                  <button
-                   onClick={() => {
-                  navigate({ to: "/login" })
-                   }}
-                   className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
-                  Continue To Login
-                  </button>
-                </div>
-                  
-                           
-                          
+                    <div>
+                      <button
+                        onClick={() => {
+                          navigate({ to: "/login" })
+                        }}
+                        className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
+                        Continue To Login
+                      </button>
+                    </div>
+
+
+
                     {!showAuthForm ? (
                       <>
                         {/*<div className="space-y-4 flex lg:flex-col md:flex-row flex-col justify-between">
@@ -452,15 +455,15 @@ export default function AuthPage() {
                       </>
                     ) : (
                       <>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="text-muted-foreground hover:!bg-[#C393E2] -ml-2 mb-3.5"
                           onClick={() => setShowAuthForm(false)}
                         >
                           ← Back
                         </Button>
-                        
+
                         <Card className="relative overflow-hidden bg-[#F3E4FC] border-0 rounded-[8px] pt-[75px] pb-[34px]">
                           {!isSignUp ? (
                             <div>
@@ -714,7 +717,7 @@ export default function AuthPage() {
                               <CardFooter className="pt-5 md:px-20 px-5">
                                 <div className="flex flex-col sm:flex-row items-stretch gap-2 w-full">
                                   <div className="flex-1 bg-white text-[#6B7280] text-base font-medium rounded-md flex items-center justify-center px-3 sm:px-4 whitespace-nowrap">
-                                   Already have an account?
+                                    Already have an account?
                                   </div>
                                   <button
                                     onClick={toggleSignUpMode}
@@ -734,7 +737,7 @@ export default function AuthPage() {
                 </div>
               </div>
               <div>
-                <img src={learningImg} alt="learning image" className="w-full h-auto mt-8 lg:mt-0"/>
+                <img src={learningImg} alt="learning image" className="w-full h-auto mt-8 lg:mt-0" />
               </div>
             </div>
           </div>
@@ -742,29 +745,29 @@ export default function AuthPage() {
         <div className="bg-[#ffffff]">
           <div className="flex lg:flex-row flex-col items-center w-full max-w-[1280px] mx-auto py-16 px-4 sm:px-6">
             <div className="w-full lg:w-auto">
-              <img src={innovators} alt="innovators image" className="w-full h-auto"/>
+              <img src={innovators} alt="innovators image" className="w-full h-auto" />
             </div>
             <div className="max-w-[560px] ml-auto flex flex-col space-y-4 mt-8 lg:mt-0">
               <h3 className="text-[#1F2937] text-[36px] font-bold leading-10">Join a Community of Innovators</h3>
               <p className="text-[#4B5563] text-base font-normal leading-[26px]">Learn how ViBe is reshaping education through collaboration and technology, empowering learners to thrive.</p>
               <div>
-                  <button onClick={() => window.open(links.GITHUB, '_blank')} className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
-                    GitHub Link
-                  </button>
+                <button onClick={() => window.open(links.GITHUB, '_blank')} className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
+                  GitHub Link
+                </button>
               </div>
             </div>
           </div>
         </div>
         <div className="bg-[#F3EFFB]">
-           <div className="w-full max-w-[1280px] mx-auto py-16 px-4 sm:px-6">
-              <h3 className="text-[#1F2937] text-2xl sm:text-3xl md:text-[36px] font-bold leading-10 mb-[52px]">A Collaboration Between</h3>
-              <div className="flex flex-wrap items-center gap-8 sm:gap-12 lg:gap-[96px]">
-                <img src={collabration} alt="collabration Logo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
-                <img src={ugcLogo} alt="ugcLogo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
-                <img src={annam} alt="annam Logo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
-                <img src={dled} alt="dled Logo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
-              </div>
-           </div>
+          <div className="w-full max-w-[1280px] mx-auto py-16 px-4 sm:px-6">
+            <h3 className="text-[#1F2937] text-2xl sm:text-3xl md:text-[36px] font-bold leading-10 mb-[52px]">A Collaboration Between</h3>
+            <div className="flex flex-wrap items-center gap-8 sm:gap-12 lg:gap-[96px]">
+              <img src={collabration} alt="collabration Logo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
+              <img src={ugcLogo} alt="ugcLogo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
+              <img src={annam} alt="annam Logo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
+              <img src={dled} alt="dled Logo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
+            </div>
+          </div>
         </div>
         <div className="bg-[#000000]">
           <div className="w-full max-w-[1280px] mx-auto py-16 px-6 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
@@ -778,9 +781,9 @@ export default function AuthPage() {
               </div>
               <div className="flex flex-col space-y-2 text-white text-base font-semibold leading-6">
                 <a href="#">Home</a>
-                <a href="#">About Us</a>
-                <a href="#">Resources</a>
-                <a href="#">Contact Us</a>
+                <a href="https://github.com/vicharanashala/vibe/blob/combined-updates/README.md" target="_blank">About Us</a>
+                <a href="https://github.com/vicharanashala/vibe" target="_blank">Resources</a>
+                <a href="https://github.com/vicharanashala/vibe" target="_blank">Contact Us</a>
               </div>
             </div>
             <div className="bg-[#F3E4FC] p-8 rounded-[8px] w-full max-w-[608px] ml-auto">
