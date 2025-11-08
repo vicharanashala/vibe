@@ -24,7 +24,8 @@ const TabsContext = createContext<{
 
 const links = {
   GITHUB: 'https://github.com/vicharanashala/vibe.git',
-  DEMO_VIDEO: "https://www.youtube.com/watch?v=8ytNdYlK-BU"
+  DEMO_VIDEO: "https://www.youtube.com/watch?v=8ytNdYlK-BU",,
+  ABOUT_US:"https://github.com/vicharanashala/vibe/blob/combined-updates/README.md"
 
 }
 
@@ -781,9 +782,9 @@ export default function AuthPage() {
               </div>
               <div className="flex flex-col space-y-2 text-white text-base font-semibold leading-6">
                 <a href="#">Home</a>
-                <a href="https://github.com/vicharanashala/vibe/blob/combined-updates/README.md" target="_blank">About Us</a>
-                <a href="https://github.com/vicharanashala/vibe" target="_blank">Resources</a>
-                <a href="https://github.com/vicharanashala/vibe" target="_blank">Contact Us</a>
+                <a href={links.ABOUT_US} target="_blank">About Us</a>
+                <a href= {links.GITHUB} target="_blank">Resources</a>
+                <a href= {links.GITHUB} target="_blank">Contact Us</a>
               </div>
             </div>
             <div className="bg-[#F3E4FC] p-8 rounded-[8px] w-full max-w-[608px] ml-auto">
