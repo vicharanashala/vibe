@@ -23,7 +23,7 @@ const TabsContext = createContext<{
 }>({ value: "" });
 
 const links={
-  GITHUB:'',
+  GITHUB:'https://github.com/vicharanashala/vibe.git',
   DEMO_VIDEO:"https://www.youtube.com/watch?v=8ytNdYlK-BU"
   
 }
