@@ -22,6 +22,12 @@ const TabsContext = createContext<{
   onValueChange?: (value: string) => void;
 }>({ value: "" });
 
+const links={
+  GITHUB:'',
+  DEMO_VIDEO:"https://www.youtube.com/watch?v=8ytNdYlK-BU"
+  
+}
+
 // Create simplified versions of missing components
 const Tabs = ({ defaultValue, className, children, value, onValueChange }: {
   defaultValue: string;
@@ -348,7 +354,7 @@ export default function AuthPage() {
                 <h3 className="text-[#1F2937] text-[36px] font-bold leading-10">Empowering Education for All</h3>
                 <p className="text-[#4B5563] text-base font-normal leading-[26px]">Connect, collaborate, and grow with our innovative educational platform designed for the next generation</p>
                 <div>
-                  <button className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
+                  <button onClick={() => window.open(links.DEMO_VIDEO, '_blank')} className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
                     Explore Demo
                   </button>
                 </div>
@@ -359,7 +365,7 @@ export default function AuthPage() {
                   className="w-full h-full"
                   src={(function(){
                     // Replace the string below with your YouTube URL (watch or share link)
-                    const youtubeUrl = "https://youtu.be/8ytNdYlK-BU?feature=shared";
+                    const youtubeUrl = links.DEMO_VIDEO;
                     try {
                       const u = new URL(youtubeUrl);
                       const v = u.searchParams.get("v");
@@ -387,7 +393,7 @@ export default function AuthPage() {
               <h3 className="text-[#1F2937] text-[36px] font-bold leading-10 mb-16">Why Choose ViBe?</h3>
               <p className="text-[#4B5563] text-base font-normal leading-[26px] mb-4">ViBe is an online learning platform that helps students stay engaged. It uses smart checks, quick quizzes, and flexible tools to make learning more active and honest.</p>
               <div>
-                  <button className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
+                  <button onClick={() => window.open(links.DEMO_VIDEO, '_blank')} className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
                     Explore Demo
                     
                   </button>
@@ -402,9 +408,21 @@ export default function AuthPage() {
                 <h3 className="text-[#1F2937] text-[36px] font-bold leading-10 mb-[84px]">Transform Your Learning Experience</h3>
                 <div className="flex flex-1 flex-col justify-center">
                   <div className={`mr-auto w-full ${showAuthForm ? 'md:max-w-[612px]' : 'lg:max-w-3xs max-w-full '} space-y-8`}>
+                  <div>
+                  <button
+                   onClick={() => {
+                  navigate({ to: "/login" })
+                   }}
+                   className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
+                  Continue To Login
+                  </button>
+                </div>
+                  
+                           
+                          
                     {!showAuthForm ? (
                       <>
-                        <div className="space-y-4 flex lg:flex-col md:flex-row flex-col justify-between">
+                        {/*<div className="space-y-4 flex lg:flex-col md:flex-row flex-col justify-between">
                           <Button 
                             onClick={() => {
                               setActiveRole('student');
@@ -430,7 +448,7 @@ export default function AuthPage() {
                               Continue as a Instructor
                             </span>
                           </Button>
-                        </div>
+                          </div>*/}
                       </>
                     ) : (
                       <>
@@ -730,7 +748,7 @@ export default function AuthPage() {
               <h3 className="text-[#1F2937] text-[36px] font-bold leading-10">Join a Community of Innovators</h3>
               <p className="text-[#4B5563] text-base font-normal leading-[26px]">Learn how ViBe is reshaping education through collaboration and technology, empowering learners to thrive.</p>
               <div>
-                  <button className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
+                  <button onClick={() => window.open(links.GITHUB, '_blank')} className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
                     GitHub Link
                   </button>
               </div>
