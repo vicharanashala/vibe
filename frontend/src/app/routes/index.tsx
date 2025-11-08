@@ -5,6 +5,7 @@ import studentRoutes from "./student-routes";
 import { useAuthStore } from "@/store/auth-store";
 import { JSX } from "react";
 import React from "react";
+import LoginPage from "../pages/LoginPage";
 
 // ✅ Role-Based Route Guard using Zustand
 function ProtectedRoute({ role, children }: { role: "teacher" | "student"; children: JSX.Element }) {
@@ -52,6 +53,7 @@ export default function AppRoutes() {
                 </Route>
 
                 <Route path="/" element={<Navigate to="/auth" />} />
+                <Route path="/login" element={<LoginPage/>}/>
             </Routes>
         </BrowserRouter>
     );
