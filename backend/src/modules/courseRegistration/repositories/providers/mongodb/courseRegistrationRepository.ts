@@ -179,6 +179,10 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
       {session},
     );
   }
+
+  async deleteRegistrationByVersionId(versionId: string, session?: ClientSession) {
+    await this.init();
+  }
 }
 
 export {CourseRegistrationRepository};

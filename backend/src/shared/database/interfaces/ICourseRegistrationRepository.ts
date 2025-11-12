@@ -30,4 +30,5 @@ export interface ICourseRegistrationRepository {
     session?: ClientSession,
   ): Promise<number>;
   remove(userId:string,courseId:string,versionId:string,session?:ClientSession)
+  deleteRegistrationByVersionId(versionId: string, session?: ClientSession)
 }

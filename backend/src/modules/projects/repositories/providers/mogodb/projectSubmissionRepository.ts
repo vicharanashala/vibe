@@ -186,4 +186,18 @@ export class ProjectSubmissionRepository
     );
     return result.deletedCount > 0;
   }
+
+  async deleteProjectSubmissionByVersionId(
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+    const result = await this._projectSubmissionCollection.deleteMany(
+      {
+        courseVersionId: new ObjectId(versionId),
+      },
+      { session },
+    );
+    return result.deletedCount > 0;
+  }
 }

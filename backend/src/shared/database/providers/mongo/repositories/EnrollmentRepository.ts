@@ -1677,6 +1677,27 @@ export class EnrollmentRepository {
     }
   }
 
+  async deleteEnrollmentByVersionId(
+    versionId: string,
+    session?: ClientSession,
+  ) {
+    try {
+      const versionObjectId = new ObjectId(versionId);
+
+      const result = await this.enrollmentCollection.deleteMany(
+        {
+          courseVersionId: versionObjectId,
+        },
+        { session },
+      );
+
+      return result.deletedCount;
+    } catch (error) {
+      console.error('Failed to delete enrollments:', error);
+      throw new Error('Failed to delete enrollments for the course version');
+    }
+  }
+
   async createEnrollments(
     enrollments: OptionalId<IEnrollment>[],
     session?: ClientSession,

@@ -215,4 +215,9 @@ export class InviteRepository {
 
     return { invites: normalizedInvites, totalDocuments, totalPages };
   }
+
+  async deleteInviteByVersionId(versionId: string, session?: ClientSession){
+    await this.init();
+    await this.inviteCollection.deleteMany({courseVersionId: new ObjectId(versionId)}, {session})
+    }
 }
