@@ -7,7 +7,7 @@ import {COURSES_TYPES} from '#courses/types.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {QuestionBankRepository} from '../repositories/providers/mongodb/QuestionBankRepository.js';
 import {QuestionRepository} from '../repositories/providers/mongodb/QuestionRepository.js';
-import {CourseRepository} from '#root/shared/database/providers/mongo/repositories/CourseRepository.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {IQuestionBank} from '#root/shared/interfaces/quiz.js';
 import {IQuestionBankRef} from '#root/shared/interfaces/models.js';
@@ -23,7 +23,7 @@ class QuestionBankService extends BaseService {
     private readonly questionRepository: QuestionRepository,
 
     @inject(GLOBAL_TYPES.CourseRepo)
-    private readonly courseRepository: CourseRepository,
+    private readonly courseRepository: ICourseRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,

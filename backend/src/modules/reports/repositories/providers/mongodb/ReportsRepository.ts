@@ -326,6 +326,12 @@ async updateInterest(id:string,interest:string,session?:ClientSession){
   return result
 }
 
+async deleteReportByVersionId(versionId:string,session?:ClientSession){
+  await this.init()
+  const result = await this.reportCollection.deleteMany({versionId:new ObjectId(versionId)},{session})
+  return result
+}
+
 }
 
 export {ReportRepository};

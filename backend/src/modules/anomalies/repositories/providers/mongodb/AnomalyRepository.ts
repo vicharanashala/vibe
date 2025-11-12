@@ -436,4 +436,21 @@ export class AnomalyRepository {
     // );
     return result.deletedCount > 0;
   }
+
+  async deleteAnomalyByVersionId(
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+    const normalizeId = (id: string) =>
+      ObjectId.isValid(id) ? [id, new ObjectId(id)] : [id];
+
+    const result = await this.anomalyCollection.deleteMany(
+      {
+        versionId: {$in: normalizeId(versionId)},
+      },
+      {session},
+    );
+    return result.deletedCount > 0;
+  }
 }

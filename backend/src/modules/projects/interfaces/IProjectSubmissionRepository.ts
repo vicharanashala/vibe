@@ -43,4 +43,9 @@ export interface IProjectSubmissionRepository {
     courseVersionId: string,
     session?: ClientSession,
   ): Promise<boolean>;
+
+  deleteProjectSubmissionByVersionId(
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<boolean>;
 }

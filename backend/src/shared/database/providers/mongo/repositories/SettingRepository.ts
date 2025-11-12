@@ -430,5 +430,11 @@ async readSettingsSchema(versionId:string,session?:ClientSession){
   return {jsonSchema,uiSchema}
 }
 
+async deleteCourseSettingsbyVersionId(versionId:string,session?:ClientSession){
+  await this.init()
+  const result = await this.courseSettingsCollection.deleteOne({courseVersionId:new ObjectId(versionId)},{session})
+  return result.deletedCount>0;
+}
+
 }
 
