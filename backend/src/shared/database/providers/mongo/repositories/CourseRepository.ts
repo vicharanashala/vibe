@@ -193,10 +193,11 @@ export class CourseRepository implements ICourseRepository {
       await this.deleteVersion(courseId, versionId, itemGroupsIds, session);
     }
 
-    await this.enrollmentCollection.deleteMany(
-      { courseId: new ObjectId(courseId) },
-      { session },
-    );
+    // handled in while deleting all version of it
+    // await this.enrollmentCollection.deleteMany(
+    //   { courseId: new ObjectId(courseId) },
+    //   { session },
+    // );
 
     // 3. Finally, delete the Course document itself
     const deleteCourseResult = await this.courseCollection.deleteOne(
