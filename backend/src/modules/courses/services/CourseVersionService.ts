@@ -191,6 +191,12 @@ export class CourseVersionService extends BaseService {
         throw new NotFoundError(`Course with ID ${courseId} not found.`);
       }
 
+      const versionsCount=course.versions.length;
+      if(versionsCount===1){
+        const results=await this.courseRepo.delete(courseId,session);
+        return true;
+      }
+
       const itemGroupsIds = readCourseVersion.modules.flatMap(module =>
         module.sections.map(section => new ObjectId(section.itemsGroupId)),
       );

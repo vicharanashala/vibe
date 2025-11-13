@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react" 
+import React from "react"
 import { useState, useEffect, use } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,12 +20,12 @@ import {
   Trash2,
   Loader2,
   Users,
-  UserCog2 ,
+  UserCog2,
   Sparkles,
   GraduationCap,
   BookOpenIcon,
   Settings2,
-  MailPlus ,
+  MailPlus,
   Clock,
   BarChart3,
   RotateCcw,
@@ -566,81 +566,81 @@ function CourseCard({
         {/* Course Header - Always Visible */}
         <CardHeader className="relative hover:bg-accent/20 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
-            <div>
+          <div>
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div 
+              <div
                 className="flex items-center gap-4 flex-1 min-w-0 cursor-pointer"
                 onClick={() => !editingCourse && toggleCourse()}
               >
                 <div className={`transition-all duration-300 ${expandedCourse ? "rotate-90" : ""}`}>
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/20 rounded-full blur-sm"></div>
-                  <div className="relative bg-gradient-to-r from-primary to-accent p-1.5 rounded-full">
-                    <ChevronRight className="h-4 w-4 text-primary-foreground" />
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/20 rounded-full blur-sm"></div>
+                    <div className="relative bg-gradient-to-r from-primary to-accent p-1.5 rounded-full">
+                      <ChevronRight className="h-4 w-4 text-primary-foreground" />
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-                  <CardTitle className="text-lg md:text-xl font-bold text-foreground truncate lg:max-w-full max-w-[220px]">
-                    {course.name}
-                  </CardTitle>
-                  <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary w-fit">
-                    <FileText className="h-3 w-3 mr-1" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                    <CardTitle className="text-lg md:text-xl font-bold text-foreground truncate lg:max-w-full max-w-[220px]">
+                      {course.name}
+                    </CardTitle>
+                    <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary w-fit">
+                      <FileText className="h-3 w-3 mr-1" />
                     {`${course.versions?.length || 0 } version${course.versions?.length>1?'s':''}`}
-                  </Badge>
-                </div>
+                    </Badge>
+                  </div>
 
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    {/* <span>Last updated {course.updatedAt? `${formatDateTime(course.updatedAt,true)}` :"recently"}</span> */}
-                    <span>Last updated {getUpdateMessage(course.updatedAt)}</span>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      {/* <span>Last updated {course.updatedAt? `${formatDateTime(course.updatedAt,true)}` :"recently"}</span> */}
+                      <span>Last updated {getUpdateMessage(course.updatedAt)}</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex items-center justify-end gap-2 shrink-0 mt-3 md:mt-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (!expandedCourse) toggleCourse()
-                  startEditing()
-                }}
-                className="h-9 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300"
-                disabled={updateCourseMutation.isPending}
-              >
-                {updateCourseMutation.isPending ? (
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                ) : (
-                  <Edit3 className="h-3 w-3 mr-1" />
-                )}
-                Edit
-              </Button>
+              <div className="flex items-center justify-end gap-2 shrink-0 mt-3 md:mt-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (!expandedCourse) toggleCourse()
+                    startEditing()
+                  }}
+                  className="h-9 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300"
+                  disabled={updateCourseMutation.isPending}
+                >
+                  {updateCourseMutation.isPending ? (
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  ) : (
+                    <Edit3 className="h-3 w-3 mr-1" />
+                  )}
+                  Edit
+                </Button>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (!expandedCourse) toggleCourse()
-                  deleteCourse()
-                }}
-                className="h-9 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-300"
-                disabled={deleteCourseMutation.isPending}
-              >
-                {deleteCourseMutation.isPending ? (
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                ) : (
-                  <Trash2 className="h-3 w-3 mr-1" />
-                )}
-                Delete
-              </Button>
-            </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (!expandedCourse) toggleCourse()
+                    deleteCourse()
+                  }}
+                  className="h-9 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-300"
+                  disabled={deleteCourseMutation.isPending}
+                >
+                  {deleteCourseMutation.isPending ? (
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3 w-3 mr-1" />
+                  )}
+                  Delete
+                </Button>
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -719,9 +719,9 @@ function CourseCard({
                         </div>
                         <div className={`text-xs ${
                           editingValues.description.length >= MAX_DESCRIPTION_LENGTH * 0.9 
-                            ? 'text-destructive' 
-                            : 'text-muted-foreground'
-                        }`}>
+                          ? 'text-destructive'
+                          : 'text-muted-foreground'
+                          }`}>
                           {editingValues.description.length}/{MAX_DESCRIPTION_LENGTH}
                         </div>
                       </div>
@@ -858,6 +858,7 @@ function CourseCard({
                         courseId={courseIdHex}
                         onInvalidate={onInvalidate}
                         deleteVersionMutation={deleteVersionMutation}
+                        versionCount={course?.versions?.length}
                       />
                     </div>
                   ))
@@ -873,6 +874,7 @@ function CourseCard({
                         courseId={courseIdHex}
                         onInvalidate={onInvalidate}
                         deleteVersionMutation={deleteVersionMutation}
+                        versionCount={course?.versions?.length}
                       />
                     </div>
                   ))
@@ -910,12 +912,14 @@ function VersionCard({
   courseId,
   onInvalidate,
   deleteVersionMutation,
+  versionCount,
 }: {
   versionData?: components['schemas']['CourseVersionDataResponse'];
   versionId?: string
   courseId: string
   onInvalidate: () => void
   deleteVersionMutation: any
+  versionCount: number
 }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -990,15 +994,20 @@ function VersionCard({
       setEditingVersion(false)
       setEditingValues({ version: "", description: "" })
       setEditingErrors({ version: "", description: "" })
-      onInvalidate() 
+      onInvalidate()
     } catch (error) {
       console.error("Failed to update version:", error)
     }
   }
 
   const deleteVersion = async () => {
-    if (!confirm("Are you sure you want to delete this version? This action cannot be undone.")) {
-      return
+
+    const confirmMessage = versionCount === 1
+      ? "This is the last version of this course. Deleting it will also delete the entire course. Are you sure you want to continue?"
+      : "Are you sure you want to delete this version? This action cannot be undone.";
+
+    if (!confirm(confirmMessage)) {
+      return;
     }
 
     try {
@@ -1019,6 +1028,8 @@ function VersionCard({
       onInvalidate() // Also invalidate parent queries
     } catch (error) {
       console.error("Failed to delete version:", error)
+      // Show error toast to user
+      toast.error("Failed to delete version. Please try again.");
     }
   }
 
@@ -1128,7 +1139,7 @@ function VersionCard({
       const result = await generateLinkMutation.mutateAsync({
         params: { path: { courseId: courseId, versionId: selectedVersionId } },
       });
-      setGeneratedLink(result.link); 
+      setGeneratedLink(result.link);
       setShowLinkModal(true);
       toast.success('Link generated successfully!');
     } catch (error) {
@@ -1136,31 +1147,31 @@ function VersionCard({
       toast.error('Failed to generate link. Please try again.');
     }
   };
-    const handleCopy = async () => {
-      try {
-        if (!courseId || !selectedVersionId) {
-          toast.error('Failed to find course or version id, try agian!');
-          return;
-        }
-        await copyEntireCourseVersion({
-          params: {path: {courseId, courseVersionId: selectedVersionId}},
-        });
-        queryClient.invalidateQueries({
-          queryKey: ['get', '/users/enrollments'],
-          exact: false,
-        });
-        toast.success('Version successfully copied');
-      } catch (error: any) {
-        console.log('Error: ', error);
-        if (error?.name === 'ForbiddenError') {
-          toast.error('Only administrators can clone this course version');
-        } else {
-          toast.error('Failed to clone version');
-        }
-      } finally {
-        setIsCopyModalOpen(false);
+  const handleCopy = async () => {
+    try {
+      if (!courseId || !selectedVersionId) {
+        toast.error('Failed to find course or version id, try agian!');
+        return;
       }
-    };
+      await copyEntireCourseVersion({
+        params: { path: { courseId, courseVersionId: selectedVersionId } },
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['get', '/users/enrollments'],
+        exact: false,
+      });
+      toast.success('Version successfully copied');
+    } catch (error: any) {
+      console.log('Error: ', error);
+      if (error?.name === 'ForbiddenError') {
+        toast.error('Only administrators can clone this course version');
+      } else {
+        toast.error('Failed to clone version');
+      }
+    } finally {
+      setIsCopyModalOpen(false);
+    }
+  };
 
 
   if (versionLoading) {
@@ -1197,7 +1208,7 @@ function VersionCard({
         description="This will create a clone of the entire course version, including all modules and sections. Only instructor enrollments will be retained. You can edit the cloned version independently. Note: Only administrators can use this feature."
         confirmText="Clone"
         cancelText="Cancel"
-        isDestructive={false} 
+        isDestructive={false}
         isLoading={copyVersionIsPending}
         loadingText="Cloning..."
       />
@@ -1207,15 +1218,15 @@ function VersionCard({
           <div className="flex flex-col gap-4">
             {/* Version Header - Always Visible */}
             <div className="flex flex-col gap-4">
-            <div className="flex flex-col xl:flex-row lg:items-start lg:justify-between gap-4">
-              <div className="flex-1 min-w-0 space-y-2">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <h4 className="font-semibold text-foreground">{version.version}</h4>
-                    <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary text-xs">
-                      Version
-                    </Badge>
-                  </div>
+              <div className="flex flex-col xl:flex-row lg:items-start lg:justify-between gap-4">
+                <div className="flex-1 min-w-0 space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <h4 className="font-semibold text-foreground">{version.version}</h4>
+                      <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary text-xs">
+                        Version
+                      </Badge>
+                    </div>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded-md">
                         <BookOpen className="h-3 w-3" />
@@ -1235,7 +1246,7 @@ function VersionCard({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setIsCopyModalOpen(true)} 
+                    onClick={() => setIsCopyModalOpen(true)}
                     className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
                     disabled={copyVersionIsPending}
                   >
@@ -1244,131 +1255,131 @@ function VersionCard({
                     ) : (
                       <Copy className="h-3 w-3 mr-1" />
                     )}
-                   Clone 
+                    Clone
                   </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={startEditingVersion}
-                      className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
-                      disabled={updateVersionMutation.isPending}
-                    >
-                      {updateVersionMutation.isPending ? (
-                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      ) : (
-                        <Edit3 className="h-3 w-3 mr-1" />
-                      )}
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={deleteVersion}
-                      className="h-8 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-300 text-xs"
-                      disabled={deleteVersionMutation.isPending}
-                    >
-                      {deleteVersionMutation.isPending ? (
-                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-3 w-3 mr-1" />
-                      )}
-                      Delete
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={startEditingVersion}
+                    className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                    disabled={updateVersionMutation.isPending}
+                  >
+                    {updateVersionMutation.isPending ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <Edit3 className="h-3 w-3 mr-1" />
+                    )}
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={deleteVersion}
+                    className="h-8 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-300 text-xs"
+                    disabled={deleteVersionMutation.isPending}
+                  >
+                    {deleteVersionMutation.isPending ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3 w-3 mr-1" />
+                    )}
+                    Delete
+                  </Button>
                 </div>
+              </div>
 
-                {/* Version Description Section - Show in edit mode or if description exists */}
-                {(editingVersion || version?.description) && (
-                  <div className="space-y-4">
-                    <h4 className="text-base font-semibold text-foreground flex items-center gap-2">
-                      <div className="w-1 h-4 bg-gradient-to-b from-primary to-accent rounded-full"></div>
-                      Version Details
-                    </h4>
-                    {editingVersion ? (
-                      <div className="space-y-4">
-                        <div>
-                          <label className="text-sm font-light text-foreground mb-2 block">Version Name *</label>
-                          <Input
-                            value={editingValues.version}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              setEditingValues((prev: { version: string; description: string }) => ({
-                                ...prev,
-                                version: value,
-                              }))
-                              if (!value.trim()) {
-                                setEditingErrors(errors => ({ ...errors, version: "Version name is required." }));
-                              } else {
-                                setEditingErrors(errors => ({ ...errors, version: '' }));
-                              }
-                            }}
-                            className="border-primary/30 focus:border-primary bg-background"
-                            placeholder="Version name"
-                          />
-                          {editingErrors.version && (
-                            <div className="text-xs text-red-500 mt-2">{editingErrors.version}</div>
+              {/* Version Description Section - Show in edit mode or if description exists */}
+              {(editingVersion || version?.description) && (
+                <div className="space-y-4">
+                  <h4 className="text-base font-semibold text-foreground flex items-center gap-2">
+                    <div className="w-1 h-4 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+                    Version Details
+                  </h4>
+                  {editingVersion ? (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-sm font-light text-foreground mb-2 block">Version Name *</label>
+                        <Input
+                          value={editingValues.version}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setEditingValues((prev: { version: string; description: string }) => ({
+                              ...prev,
+                              version: value,
+                            }))
+                            if (!value.trim()) {
+                              setEditingErrors(errors => ({ ...errors, version: "Version name is required." }));
+                            } else {
+                              setEditingErrors(errors => ({ ...errors, version: '' }));
+                            }
+                          }}
+                          className="border-primary/30 focus:border-primary bg-background"
+                          placeholder="Version name"
+                        />
+                        {editingErrors.version && (
+                          <div className="text-xs text-red-500 mt-2">{editingErrors.version}</div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="text-sm font-light text-foreground mb-2 block">Description *</label>
+                        <Textarea
+                          value={editingValues.description}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setEditingValues((prev: { version: string; description: string }) => ({
+                              ...prev,
+                              description: value,
+                            }))
+                            // Validation
+                            if (!value.trim()) {
+                              setEditingErrors(errors => ({ ...errors, description: "Version description is required." }));
+                            } else {
+                              setEditingErrors(errors => ({ ...errors, description: '' }));
+                            }
+                          }}
+                          className="min-h-[120px] border-primary/30 focus:border-primary bg-background resize-none"
+                          placeholder="Version description"
+                        />
+                        {editingErrors.description && (
+                          <div className="text-xs text-red-500 mt-2">{editingErrors.description}</div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          onClick={saveEditingVersion}
+                          size="sm"
+                          disabled={updateVersionMutation.isPending}
+                          className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
+                        >
+                          {updateVersionMutation.isPending ? (
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          ) : (
+                            <Save className="h-3 w-3 mr-1" />
                           )}
-                        </div>
-                        <div>
-                          <label className="text-sm font-light text-foreground mb-2 block">Description *</label>
-                          <Textarea
-                            value={editingValues.description}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              setEditingValues((prev: { version: string; description: string }) => ({
-                                ...prev,
-                                description: value,
-                              }))
-                              // Validation
-                              if (!value.trim()) {
-                                setEditingErrors(errors => ({ ...errors, description: "Version description is required." }));
-                              } else {
-                                setEditingErrors(errors => ({ ...errors, description: '' }));
-                              }
-                            }}
-                            className="min-h-[120px] border-primary/30 focus:border-primary bg-background resize-none"
-                            placeholder="Version description"
-                          />
-                          {editingErrors.description && (
-                            <div className="text-xs text-red-500 mt-2">{editingErrors.description}</div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            onClick={saveEditingVersion}
-                            size="sm"
-                            disabled={updateVersionMutation.isPending}
-                            className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
-                          >
-                            {updateVersionMutation.isPending ? (
-                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                            ) : (
-                              <Save className="h-3 w-3 mr-1" />
-                            )}
-                            Save Changes
-                          </Button>
-                          <Button onClick={cancelEditingVersion} variant="outline" size="sm" className="border-border bg-background">
-                            <X className="h-3 w-3 mr-1" />
-                            Cancel
-                          </Button>
+                          Save Changes
+                        </Button>
+                        <Button onClick={cancelEditingVersion} variant="outline" size="sm" className="border-border bg-background">
+                          <X className="h-3 w-3 mr-1" />
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    version?.description && (
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-gradient-to-r from-accent/20 to-primary/20 rounded-lg blur-sm"></div>
+                        <div className="relative bg-accent/10 rounded-lg p-4 border border-accent/30">
+                          <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{version.description}</p>
                         </div>
                       </div>
-                    ) : (
-                      version?.description && (
-                        <div className="relative">
-                          <div className="absolute inset-0 bg-gradient-to-r from-accent/20 to-primary/20 rounded-lg blur-sm"></div>
-                          <div className="relative bg-accent/10 rounded-lg p-4 border border-accent/30">
-                            <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{version.description}</p>
-                          </div>
-                        </div>
-                      )
-                    )}
-                  </div>
-                )}
+                    )
+                  )}
+                </div>
+              )}
 
               <div className="flex items-center flex-wrap justify-start gap-2 shrink-0 pl-2 mt-4 pt-2 md:mt-0">
-                
-               
+
+
 
                 <Button variant="outline" size="sm" onClick={viewAnomalies} className="h-7 text-xs cursor-pointer">
                   <Eye className="h-3 w-3 mr-1" />
@@ -1384,10 +1395,10 @@ function VersionCard({
                   onClick={viewInstructors}
                   className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
                 >
-                  <UserCog2  className="h-3 w-3 mr-1" />
+                  <UserCog2 className="h-3 w-3 mr-1" />
                   View Instructors
                 </Button>
-               
+
                 <Button
                   variant="outline"
                   size="sm"
@@ -1397,14 +1408,14 @@ function VersionCard({
                   <Users className="h-3 w-3 mr-1" />
                   View Students
                 </Button>
-                 <Button
+                <Button
                   variant="outline"
                   size="sm"
                   onClick={goToRegistrations}
                   className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
                 >
                   <UserCheck className="h-3 w-3 mr-1" />
-                   Registrations
+                  Registrations
                 </Button>
                 {/* <Button
           variant="outline"
@@ -1435,11 +1446,11 @@ function VersionCard({
                   onClick={sendInvites}
                   className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
                 >
-                  <MailPlus  className="h-3 w-3 mr-1" />
+                  <MailPlus className="h-3 w-3 mr-1" />
                   Send Invites
                 </Button>
-                
-               
+
+
                 <Button
                   variant="outline"
                   size="sm"
@@ -1455,8 +1466,8 @@ function VersionCard({
               </div>
             </div>
 
-      
-          
+
+
             <ProctoringModal
               open={showProctoringModal}
               onClose={() => setShowProctoringModal(false)}
@@ -1466,14 +1477,14 @@ function VersionCard({
             />
 
             <LinkModal
-        open={showLinkModal}
-        onClose={() => {
-          setShowLinkModal(false);
-          setGeneratedLink(''); // Optional: Clear link on close
-        }}
-        link={generatedLink}
-      />
-</div>
+              open={showLinkModal}
+              onClose={() => {
+                setShowLinkModal(false);
+                setGeneratedLink(''); // Optional: Clear link on close
+              }}
+              link={generatedLink}
+            />
+          </div>
           <ProctoringModal
             open={showProctoringModal}
             onClose={() => setShowProctoringModal(false)}
@@ -1481,12 +1492,12 @@ function VersionCard({
             courseVersionId={versionId}
             isNew={false}
           />
-          
+
         </CardContent>
-        </Card>
-      </div>
-     
-    
+      </Card>
+    </div>
+
+
   )
 }
 
