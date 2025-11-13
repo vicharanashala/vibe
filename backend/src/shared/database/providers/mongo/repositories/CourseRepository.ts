@@ -373,36 +373,37 @@ export class CourseRepository implements ICourseRepository {
         throw new InternalServerError('Failed to update course');
       }
 
-      // delete watch time
-      await this.progressRepo.deleteWatchTimeByVersionId(versionId, session);
+      await Promise.all([
+        // delete watch time
+        this.progressRepo.deleteWatchTimeByVersionId(versionId, session),
 
-      // delete enrollment
-      await this.enrollmentRepo.deleteEnrollmentByVersionId(versionId, session);
+        // delete enrollment
+        this.enrollmentRepo.deleteEnrollmentByVersionId(versionId, session),
 
-      // delete anomaly
-      await this.anomalyRepository.deleteAnomalyByVersionId(versionId, session);
+        // delete anomaly
+        this.anomalyRepository.deleteAnomalyByVersionId(versionId, session),
 
-      // delete settings
-      await this.settingsRepo.deleteCourseSettingsbyVersionId(versionId, session);
+        // delete settings
+        this.settingsRepo.deleteCourseSettingsbyVersionId(versionId, session),
 
-      // delete course registration
-      await this.courseRegistrationRepo.deleteRegistrationByVersionId(versionId, session);
+        // delete course registration
+        this.courseRegistrationRepo.deleteRegistrationByVersionId(versionId, session),
 
-      // delete invite
-      await this.inviteRepo.deleteInviteByVersionId(versionId,session)
+        // delete invite
+        this.inviteRepo.deleteInviteByVersionId(versionId, session),
 
-      // delete progress
-      await this.progressRepo.deleteProgressByVersionId(versionId, session);
+        // delete progress
+        this.progressRepo.deleteProgressByVersionId(versionId, session),
 
-      // delete project submission
-      await this.projectSubmissionRepo.deleteProjectSubmissionByVersionId(versionId, session);
+        // delete project submission
+        this.projectSubmissionRepo.deleteProjectSubmissionByVersionId(versionId, session),
 
-      // delete question bank
-      await this.questionBankRepository.deleteQuestionBankByVersionId(versionId, session);
+        // delete question bank
+        this.questionBankRepository.deleteQuestionBankByVersionId(versionId, session),
 
-      // delete report
-      await this.reportsRepository.deleteReportByVersionId(versionId, session);
-
+        // delete report
+        this.reportsRepository.deleteReportByVersionId(versionId, session),
+      ])
 
       // 3. Cascade Delete item groups
       const itemDeletionResult = await this.itemsGroupCollection.deleteMany(
