@@ -1,21 +1,21 @@
-import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
+import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
 import {
   CreateCourseVersionBody,
   UpdateCourseVersionBody,
 } from '#courses/classes/validators/CourseVersionValidators.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {instanceToPlain} from 'class-transformer';
-import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId} from 'mongodb';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { instanceToPlain } from 'class-transformer';
+import { injectable, inject } from 'inversify';
+import { ClientSession, ObjectId } from 'mongodb';
 import {
   NotFoundError,
   InternalServerError,
   BadRequestError,
 } from 'routing-controllers';
-import {Course, Module} from '../classes/index.js';
+import { Course, Module } from '../classes/index.js';
 import {
   EnrollmentRole,
   ICourse,
@@ -24,16 +24,18 @@ import {
   ProctoringComponent,
   SettingRepository,
 } from '#root/shared/index.js';
-import {USERS_TYPES} from '#root/modules/users/types.js';
-import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
-import {COURSES_TYPES} from '../types.js';
-import {ModuleService} from './ModuleService.js';
-import {SectionService} from './SectionService.js';
-import {ItemService} from './ItemService.js';
-import {cloneModules} from '../utils/cloneModules.js';
-import {getCopyCourseName} from '../utils/getCopyCourseName.js';
+import { USERS_TYPES } from '#root/modules/users/types.js';
+import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
+import { COURSES_TYPES } from '../types.js';
+import { ModuleService } from './ModuleService.js';
+import { SectionService } from './SectionService.js';
+import { ItemService } from './ItemService.js';
+import { cloneModules } from '../utils/cloneModules.js';
+import { getCopyCourseName } from '../utils/getCopyCourseName.js';
 import { SETTING_TYPES } from '#root/modules/setting/types.js';
 import { CourseSetting, CreateCourseSettingBody } from '#root/modules/setting/index.js';
+import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
+import { QuestionBankRepository, QuestionRepository } from '#root/modules/quizzes/repositories/index.js';
 @injectable()
 export class CourseVersionService extends BaseService {
   constructor(
@@ -51,6 +53,10 @@ export class CourseVersionService extends BaseService {
     private readonly settingsRepo: SettingRepository,
     @inject(COURSES_TYPES.ItemRepo)
     private readonly itemRepo: IItemRepository,
+    @inject(QUIZZES_TYPES.QuestionRepo)
+    private readonly questionRepository: QuestionRepository,
+    @inject(QUIZZES_TYPES.QuestionBankRepo)
+    private readonly questionBankRepo: QuestionBankRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -108,7 +114,7 @@ export class CourseVersionService extends BaseService {
         course,
         txnSession,
       );
-      await Promise.all([updatedPromise,settingsPromise])
+      await Promise.all([updatedPromise, settingsPromise])
       return newVersion;
     };
 
@@ -131,7 +137,7 @@ export class CourseVersionService extends BaseService {
       const version = instanceToPlain(
         Object.assign(new CourseVersion(), readVersion),
       ) as CourseVersion;
- 
+
       return version;
     });
   }
@@ -191,9 +197,9 @@ export class CourseVersionService extends BaseService {
         throw new NotFoundError(`Course with ID ${courseId} not found.`);
       }
 
-      const versionsCount=course.versions.length;
-      if(versionsCount===1){
-        const results=await this.courseRepo.delete(courseId,session);
+      const versionsCount = course.versions.length;
+      if (versionsCount === 1) {
+        const results = await this.courseRepo.delete(courseId, session);
         return true;
       }
 
@@ -298,11 +304,16 @@ export class CourseVersionService extends BaseService {
         }
         const newVersionIdStr = newCourseVersion._id.toString();
         const itemRepo = this.itemRepo;
+        const questionBankRepo = this.questionBankRepo;
+        const questionRepo = this.questionRepository;
 
         const newModules = await cloneModules(
           currentModules,
           courseVersionId,
           itemRepo,
+          questionBankRepo,
+          questionRepo,
+          newCourse._id.toString(),
           session,
         );
         await this.courseRepo.addModulesToVersion(
