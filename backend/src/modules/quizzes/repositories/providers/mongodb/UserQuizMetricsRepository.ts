@@ -68,6 +68,11 @@ class UserQuizMetricsRepository {
       latestAttemptId: result.latestAttemptId?.toString() || null,
       latestSubmissionResultId:
         result.latestSubmissionResultId?.toString() || null,
+      attempts: result.attempts.map(attempt => ({
+        ...attempt,
+        attemptId: attempt.attemptId?.toString(),
+        submissionResultId: attempt.submissionResultId?.toString() || null,
+      })),
     };
   }
 
