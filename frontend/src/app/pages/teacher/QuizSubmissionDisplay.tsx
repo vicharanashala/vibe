@@ -330,7 +330,7 @@ export function QuizSubmissionDisplay({ userId, quizId, itemName }: QuizSubmissi
           <div className="space-y-2 max-h-60 overflow-y-auto">
             {quizMetrics.attempts.map((attempt, index) => {
               const isSelected = submissionData && submissionData.attemptId === attempt.attemptId
-              const isSubmitted = false
+              const isSubmitted = Boolean(attempt.submissionResultId)
               return (
                 <div
                   key={attempt.attemptId}
@@ -356,7 +356,7 @@ export function QuizSubmissionDisplay({ userId, quizId, itemName }: QuizSubmissi
                         <p className="text-sm text-muted-foreground">ID: {attempt.attemptId}</p>
                       </div>
                     </div>
-                    {/* <div className="text-right">
+                    <div className="text-right">
                       {isSubmitted ? (
                         <Badge variant="outline" className="text-xs">
                           Submitted
@@ -364,7 +364,7 @@ export function QuizSubmissionDisplay({ userId, quizId, itemName }: QuizSubmissi
                       ) : (
                         <Badge variant="secondary" className="text-xs">Not Submitted</Badge>
                       )}
-                    </div> */}
+                    </div>
                   </div>
                 </div>
               )
