@@ -658,17 +658,8 @@ class QuizController {
     statusCode: 404,
   })
   async updateMissingSubmissionResultIds(
-    @Params() params: QuizIdParam,
     @Ability(getQuizAbility) {ability}
   ): Promise<void> {
-    const {quizId} = params;
-    const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
-    // Build the subject context first
-    const quizSubject = subject('Quiz', { courseId: courseInfo.courseId, versionId: courseInfo.versionId });
-    
-    if (!ability.can(QuizActions.ModifySubmissions, quizSubject)) {
-      throw new ForbiddenError('You do not have permission to update missing submission result IDs');
-    }
     await this.quizService.updateMissingSubmissionResultIds();
   }
 }

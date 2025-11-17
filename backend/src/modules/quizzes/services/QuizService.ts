@@ -592,19 +592,19 @@ class QuizService extends BaseService {
             totalCount++;
 
             // 6. Process batch if reached BATCH_SIZE
-            // if (bulkOperations.length >= BATCH_SIZE) {
-            //   await this._withTransaction(async session => {
-            //     await this.userQuizMetricsRepo.bulkUpdateMetrics(
-            //       bulkOperations,
-            //       session
-            //     );
-            //     updatedCount += bulkOperations.length;
-            //     console.log(
-            //       `✅ Batch ${++batchCount}: Updated ${bulkOperations.length} attempts`
-            //     );
-            //     bulkOperations.length = 0; // Clear the batch
-            //   });
-            // }
+            if (bulkOperations.length >= BATCH_SIZE) {
+              await this._withTransaction(async session => {
+                await this.userQuizMetricsRepo.bulkUpdateMetrics(
+                  bulkOperations,
+                  session
+                );
+                updatedCount += bulkOperations.length;
+                console.log(
+                  `✅ Batch ${++batchCount}: Updated ${bulkOperations.length} attempts`
+                );
+                bulkOperations.length = 0; // Clear the batch
+              });
+            }
           } catch (err) {
             console.error(
               `Failed to process attempt ${attempt.attemptId} in metric ${metric._id}`,
@@ -615,18 +615,18 @@ class QuizService extends BaseService {
       }
 
       // 7. Process any remaining operations
-      // if (bulkOperations.length > 0) {
-      //   await this._withTransaction(async session => {
-      //     await this.userQuizMetricsRepo.bulkUpdateMetrics(
-      //       bulkOperations,
-      //       session
-      //     );
-      //     updatedCount += bulkOperations.length;
-      //     console.log(
-      //       `✅ Final batch: Updated ${bulkOperations.length} attempts`
-      //     );
-      //   });
-      // }
+      if (bulkOperations.length > 0) {
+        await this._withTransaction(async session => {
+          await this.userQuizMetricsRepo.bulkUpdateMetrics(
+            bulkOperations,
+            session
+          );
+          updatedCount += bulkOperations.length;
+          console.log(
+            `✅ Final batch: Updated ${bulkOperations.length} attempts`
+          );
+        });
+      }
 
       return { totalCount, updatedCount };
     } catch (error) {
