@@ -1,16 +1,16 @@
-import {injectable, inject} from 'inversify';
-import {ObjectId} from 'mongodb';
-import {NotFoundError, InternalServerError} from 'routing-controllers';
-import {QUIZZES_TYPES} from '../types.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {AttemptRepository} from '../repositories/providers/mongodb/AttemptRepository.js';
-import {SubmissionRepository} from '../repositories/providers/mongodb/SubmissionRepository.js';
-import {QuizRepository} from '../repositories/providers/mongodb/QuizRepository.js';
-import {QuestionBankRepository} from '../repositories/providers/mongodb/QuestionBankRepository.js';
-import {UserQuizMetricsRepository} from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
-import {IQuestionBankRef} from '#root/shared/interfaces/models.js';
+import { injectable, inject } from 'inversify';
+import { ObjectId } from 'mongodb';
+import { NotFoundError, InternalServerError } from 'routing-controllers';
+import { QUIZZES_TYPES } from '../types.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { AttemptRepository } from '../repositories/providers/mongodb/AttemptRepository.js';
+import { SubmissionRepository } from '../repositories/providers/mongodb/SubmissionRepository.js';
+import { QuizRepository } from '../repositories/providers/mongodb/QuizRepository.js';
+import { QuestionBankRepository } from '../repositories/providers/mongodb/QuestionBankRepository.js';
+import { UserQuizMetricsRepository } from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
+import { IQuestionBankRef } from '#root/shared/interfaces/models.js';
 import {
   IGradingResult,
   IQuestionAnswerFeedback,
@@ -18,8 +18,8 @@ import {
   ISubmissionWithUser,
   PaginatedSubmissions,
 } from '../interfaces/grading.js';
-import {GetQuizSubmissionsQuery, QuestionBankRef} from '../classes/index.js';
-import {QuestionBankService} from './QuestionBankService.js';
+import { GetQuizSubmissionsQuery, QuestionBankRef } from '../classes/index.js';
+import { QuestionBankService } from './QuestionBankService.js';
 @injectable()
 class QuizService extends BaseService {
   constructor(
@@ -280,7 +280,7 @@ class QuizService extends BaseService {
   async getQuestionPerformanceStats(quizId: string): Promise<
     {
       questionId: string;
-      correctRate: number; 
+      correctRate: number;
       averageScore: number;
       message?: string;
     }[]
@@ -303,14 +303,14 @@ class QuizService extends BaseService {
 
       const stats: Record<
         string,
-        {correct: number; total: number; score: number}
+        { correct: number; total: number; score: number }
       > = Object.create(null);
 
       for (const submission of submissions.data) {
         for (const feedback of submission.gradingResult?.overallFeedback ??
           []) {
           const qid = feedback.questionId.toString();
-          if (!stats[qid]) stats[qid] = {correct: 0, total: 0, score: 0};
+          if (!stats[qid]) stats[qid] = { correct: 0, total: 0, score: 0 };
 
           stats[qid].total += 1;
           if (feedback.status === 'CORRECT') stats[qid].correct += 1;
@@ -319,7 +319,7 @@ class QuizService extends BaseService {
       }
 
       return Object.entries(stats).map(
-        ([questionId, {correct, total, score}]) => ({
+        ([questionId, { correct, total, score }]) => ({
           questionId,
           correctRate: total ? correct / total : 0,
           averageScore: total ? score / total : 0,
@@ -548,6 +548,93 @@ class QuizService extends BaseService {
       await this.userQuizMetricsRepo.update(userId, metrics, session);
     });
   }
+
+  async updateMissingSubmissionResultIds(): Promise<{ totalCount: number; updatedCount: number }> {
+    const BATCH_SIZE = 100;
+    const bulkOperations = [];
+    let batchCount = 0;
+    let totalCount = 0;
+    let updatedCount = 0;
+
+    try {
+      // 1. Find all metrics with attempts that need updates
+      const metricsCursor =await this.userQuizMetricsRepo.findWithMissingSubmissionIds();
+
+      // 2. Process each metric
+      while (await metricsCursor.hasNext()) {
+        const metric = await metricsCursor.next();
+        if (!metric) continue;
+
+        // 3. Process each attempt in the metric
+        for (const attempt of metric.attempts) {
+          if (attempt.submissionResultId) continue; // Skip if already has submissionResultId
+
+          try {
+            // 4. Find corresponding submission
+            const submission = await this.submissionRepo.findByAttemptId(attempt.attemptId);
+            if (!submission) continue;
+
+            // 5. Add to bulk operations
+            bulkOperations.push({
+              updateOne: {
+                filter: {
+                  _id: metric._id,
+                  'attempts.attemptId': attempt.attemptId
+                },
+                update: {
+                  $set: {
+                    'attempts.$.submissionResultId': new ObjectId(submission._id)
+                  }
+                }
+              }
+            });
+
+            totalCount++;
+
+            // 6. Process batch if reached BATCH_SIZE
+            // if (bulkOperations.length >= BATCH_SIZE) {
+            //   await this._withTransaction(async session => {
+            //     await this.userQuizMetricsRepo.bulkUpdateMetrics(
+            //       bulkOperations,
+            //       session
+            //     );
+            //     updatedCount += bulkOperations.length;
+            //     console.log(
+            //       `✅ Batch ${++batchCount}: Updated ${bulkOperations.length} attempts`
+            //     );
+            //     bulkOperations.length = 0; // Clear the batch
+            //   });
+            // }
+          } catch (err) {
+            console.error(
+              `Failed to process attempt ${attempt.attemptId} in metric ${metric._id}`,
+              err
+            );
+          }
+        }
+      }
+
+      // 7. Process any remaining operations
+      // if (bulkOperations.length > 0) {
+      //   await this._withTransaction(async session => {
+      //     await this.userQuizMetricsRepo.bulkUpdateMetrics(
+      //       bulkOperations,
+      //       session
+      //     );
+      //     updatedCount += bulkOperations.length;
+      //     console.log(
+      //       `✅ Final batch: Updated ${bulkOperations.length} attempts`
+      //     );
+      //   });
+      // }
+
+      return { totalCount, updatedCount };
+    } catch (error) {
+      console.error('Error in updateMissingSubmissionResultIds:', error);
+      throw error;
+    }
+  }
+
 }
 
-export {QuizService};
+export { QuizService };

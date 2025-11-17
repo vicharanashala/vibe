@@ -639,6 +639,38 @@ class QuizController {
     }
     await this.quizService.resetAvailableAttempts(quizId, userId);
   }
+
+
+  @OpenAPI({
+    summary: 'Update missing submission result IDs for a quiz',
+    description: `Updates missing submission result IDs for a specific quiz.<br/>
+    It returns an empty body with a 200 status code.`,
+  })
+  @Authorized()
+  @Patch('/update-missing-submission-result-ids')
+  @OnUndefined(200)
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid quiz ID',
+    statusCode: 400,
+  })
+  @ResponseSchema(QuizNotFoundErrorResponse, {
+    description: 'Quiz not found',
+    statusCode: 404,
+  })
+  async updateMissingSubmissionResultIds(
+    @Params() params: QuizIdParam,
+    @Ability(getQuizAbility) {ability}
+  ): Promise<void> {
+    const {quizId} = params;
+    const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
+    // Build the subject context first
+    const quizSubject = subject('Quiz', { courseId: courseInfo.courseId, versionId: courseInfo.versionId });
+    
+    if (!ability.can(QuizActions.ModifySubmissions, quizSubject)) {
+      throw new ForbiddenError('You do not have permission to update missing submission result IDs');
+    }
+    await this.quizService.updateMissingSubmissionResultIds();
+  }
 }
 
 export {QuizController};
