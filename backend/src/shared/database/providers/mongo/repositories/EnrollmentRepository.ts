@@ -1295,7 +1295,7 @@ export class EnrollmentRepository {
    * @param versionId The ID of the course version
    * @returns Array of modules with their sections and associated quiz IDs
    */
-  private async getQuizIdsByModulesAndSections(versionId: string): Promise<
+  async getQuizIdsByModulesAndSections(versionId: string): Promise<
     Array<{
       moduleId: string;
       moduleName: string;
