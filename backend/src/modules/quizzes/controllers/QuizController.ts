@@ -648,7 +648,7 @@ class QuizController {
     It returns an empty body with a 200 status code.`,
   })
   @Authorized()
-  @Patch('/update-missing-submission-result-ids/:courseId')
+  @Patch('/update-missing-submission-result-ids')
   @OnUndefined(200)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid quiz ID',
@@ -659,11 +659,9 @@ class QuizController {
     statusCode: 404,
   })
   async updateMissingSubmissionResultIds(
-   @Params() params:CourseIdParams ,
     @Ability(getQuizAbility) {ability}  
   ): Promise<void> {
-    const courseId = params.courseId;
-    await this.quizService.updateMissingSubmissionResultIds(courseId);
+    await this.quizService.updateMissingSubmissionResultIds();
   }
 }
 

@@ -206,7 +206,7 @@ export function QuizSubmissionDisplay({ userId, quizId, itemName }: QuizSubmissi
           <Separator />
           <h6 className="font-medium text-foreground flex items-center gap-2">
             <FileText className="h-4 w-4" />
-            Latest  Submission Details
+            Submission Details
             {quizMetrics?.attempts && quizMetrics.attempts.length > 1 && (
               <span className="ml-2 text-xs text-muted-foreground">(Click an attempt below to view its stats)</span>
             )}
