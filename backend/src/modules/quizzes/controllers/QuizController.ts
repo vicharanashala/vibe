@@ -50,6 +50,7 @@ import { subject } from '@casl/ability';
 import { COURSES_TYPES } from '#root/modules/courses/types.js';
 import { ItemService } from '#root/modules/courses/services/ItemService.js';
 import { BadRequestErrorResponse } from '#root/shared/index.js';
+import { CourseIdParams } from '#root/modules/courses/classes/index.js';
 
 @OpenAPI({
   tags: ['Quiz'],
@@ -647,7 +648,7 @@ class QuizController {
     It returns an empty body with a 200 status code.`,
   })
   @Authorized()
-  @Patch('/update-missing-submission-result-ids')
+  @Patch('/update-missing-submission-result-ids/:courseId')
   @OnUndefined(200)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid quiz ID',
@@ -658,9 +659,11 @@ class QuizController {
     statusCode: 404,
   })
   async updateMissingSubmissionResultIds(
-    @Ability(getQuizAbility) {ability}
+   @Params() params:CourseIdParams ,
+    @Ability(getQuizAbility) {ability}  
   ): Promise<void> {
-    await this.quizService.updateMissingSubmissionResultIds();
+    const courseId = params.courseId;
+    await this.quizService.updateMissingSubmissionResultIds(courseId);
   }
 }
 

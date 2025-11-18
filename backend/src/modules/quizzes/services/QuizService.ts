@@ -20,6 +20,8 @@ import {
 } from '../interfaces/grading.js';
 import { GetQuizSubmissionsQuery, QuestionBankRef } from '../classes/index.js';
 import { QuestionBankService } from './QuestionBankService.js';
+import { EnrollmentRepository, ICourseRepository } from '#root/shared/index.js';
+import { USERS_TYPES } from '#root/modules/users/types.js';
 @injectable()
 class QuizService extends BaseService {
   constructor(
@@ -43,6 +45,12 @@ class QuizService extends BaseService {
 
     @inject(QUIZZES_TYPES.UserQuizMetricsRepo)
     public readonly userQuizMetricsRepo: UserQuizMetricsRepository,
+
+    @inject(GLOBAL_TYPES.CourseRepo)
+    private readonly courseRepo: ICourseRepository,
+
+    @inject(USERS_TYPES.EnrollmentRepo)
+    private readonly enrollmentRepo: EnrollmentRepository,
   ) {
     super(database);
   }
@@ -549,32 +557,101 @@ class QuizService extends BaseService {
     });
   }
 
-  async updateMissingSubmissionResultIds(): Promise<{ totalCount: number; updatedCount: number }> {
+  async updateMissingSubmissionResultIds(courseId: string): Promise<{ totalCount: number; updatedCount: number }> {
+    console.log(`[updateMissingSubmissionResultIds] Starting process for course: ${courseId}`);
     const BATCH_SIZE = 100;
     const bulkOperations = [];
     let batchCount = 0;
     let totalCount = 0;
     let updatedCount = 0;
+    const quizIds = new Set<string>();
 
     try {
-      // 1. Find all metrics with attempts that need updates
-      const metricsCursor =await this.userQuizMetricsRepo.findWithMissingSubmissionIds();
+      console.log(`[updateMissingSubmissionResultIds] Fetching course versions for course: ${courseId}`);
+      // 1. Get all quiz items for the course
+      const courseVersions = await this.courseRepo.read(courseId);
+      if (!courseVersions.versions || courseVersions.versions.length === 0) {
+        console.warn(`[updateMissingSubmissionResultIds] No versions found for course ${courseId}`);
+        return { totalCount: 0, updatedCount: 0 };
+      }
 
-      // 2. Process each metric
+      // Get all quiz IDs from all versions of the course
+      console.log(`[updateMissingSubmissionResultIds] Processing ${courseVersions.versions.length} course versions`);
+      for (const version of courseVersions.versions) {
+        console.log(`[updateMissingSubmissionResultIds] Processing version: ${version}`);
+        const quizIdsFromVersion = await this.enrollmentRepo.getQuizIdsByModulesAndSections(version.toString());
+        console.log(`[updateMissingSubmissionResultIds] Found ${quizIdsFromVersion.length} modules in version ${version}`);
+        
+        for (const module of quizIdsFromVersion) {
+          for (const section of module.sections) {
+            section.quizIds.forEach(quizId => {
+              quizIds.add(quizId);
+              console.log(`[updateMissingSubmissionResultIds] Added quiz ID: ${quizId} from section ${section.sectionId}`);
+            });
+          }
+        }
+      }
+      if (quizIds.size === 0) {
+        console.warn(`[updateMissingSubmissionResultIds] No quiz items found in course ${courseId}`);
+        return { totalCount: 0, updatedCount: 0 };
+      }
+      
+      console.log(`[updateMissingSubmissionResultIds] Found ${quizIds.size} unique quiz items in course ${courseId}`);
+      console.log(`[updateMissingSubmissionResultIds] Quiz IDs: ${Array.from(quizIds).join(', ')}`);
+  } catch(error) {
+    console.error(`[updateMissingSubmissionResultIds] Error getting quiz items for course ${courseId}:`, error);
+    return { totalCount: 0, updatedCount: 0 };
+  }
+
+    try {
+      console.log(`[updateMissingSubmissionResultIds] Starting to find metrics with missing submission IDs`);
+      // 2. Find all metrics with attempts that need updates, filtered by course quiz IDs
+      const metricsCursor = await this.userQuizMetricsRepo.findWithMissingSubmissionIds();
+      console.log(`[updateMissingSubmissionResultIds] Found metrics cursor, starting processing`);
+
+      let metricsProcessed = 0;
+      let attemptsProcessed = 0;
+      let metricsSkipped = 0;
+      let submissionsNotFound = 0;
+
+      // 3. Process each metric
       while (await metricsCursor.hasNext()) {
         const metric = await metricsCursor.next();
-        if (!metric) continue;
+        metricsProcessed++;
+        
+        if (!metric) {
+          metricsSkipped++;
+          continue;
+        }
 
-        // 3. Process each attempt in the metric
+        const quizIdStr = metric.quizId?.toString();
+        if (!quizIdStr || !quizIds.has(quizIdStr)) {
+          metricsSkipped++;
+          if (metricsProcessed % 100 === 0) {
+            console.log(`[updateMissingSubmissionResultIds] Processed ${metricsProcessed} metrics, ${metricsSkipped} skipped (not in course), ${totalCount} updates queued`);
+          }
+          continue;
+        }
+
+        // 4. Process each attempt in the metric
         for (const attempt of metric.attempts) {
-          if (attempt.submissionResultId) continue; // Skip if already has submissionResultId
+          attemptsProcessed++;
+          
+          if (attempt.submissionResultId) {
+            continue; // Skip if already has submissionResultId
+          }
 
           try {
-            // 4. Find corresponding submission
+            // 5. Find corresponding submission
+            console.log(`[updateMissingSubmissionResultIds] Processing attempt ${attempt.attemptId} for quiz ${quizIdStr}`);
             const submission = await this.submissionRepo.findByAttemptId(attempt.attemptId);
-            if (!submission) continue;
+            if (!submission) {
+              console.log(`[updateMissingSubmissionResultIds] No submission found for attempt ${attempt.attemptId}`);
+              submissionsNotFound++;
+              continue;
+            }
 
-            // 5. Add to bulk operations
+            // 6. Add to bulk operations
             bulkOperations.push({
               updateOne: {
                 filter: {
@@ -591,23 +668,26 @@ class QuizService extends BaseService {
 
             totalCount++;
 
-            // 6. Process batch if reached BATCH_SIZE
+            // 7. Process batch if reached BATCH_SIZE
             if (bulkOperations.length >= BATCH_SIZE) {
+              console.log(`[updateMissingSubmissionResultIds] Processing batch of ${bulkOperations.length} updates`);
               await this._withTransaction(async session => {
-                await this.userQuizMetricsRepo.bulkUpdateMetrics(
+                const result = await this.userQuizMetricsRepo.bulkUpdateMetrics(
                   bulkOperations,
                   session
                 );
                 updatedCount += bulkOperations.length;
                 console.log(
-                  `✅ Batch ${++batchCount}: Updated ${bulkOperations.length} attempts`
+                  `[updateMissingSubmissionResultIds] ✅ Batch ${++batchCount}: Updated ${bulkOperations.length} attempts. ` +
+                  `Total updated: ${updatedCount}/${totalCount} (${Math.round((updatedCount / totalCount) * 100)}%)`
                 );
+                console.log("results from bulk write in for loop", result)
                 bulkOperations.length = 0; // Clear the batch
               });
             }
           } catch (err) {
             console.error(
-              `Failed to process attempt ${attempt.attemptId} in metric ${metric._id}`,
+              `[updateMissingSubmissionResultIds] Failed to process attempt ${attempt.attemptId} in metric ${metric._id}:`,
               err
             );
           }
@@ -616,25 +696,38 @@ class QuizService extends BaseService {
 
       // 7. Process any remaining operations
       if (bulkOperations.length > 0) {
+        console.log(`[updateMissingSubmissionResultIds] Processing final batch of ${bulkOperations.length} updates`);
         await this._withTransaction(async session => {
-          await this.userQuizMetricsRepo.bulkUpdateMetrics(
+          const result = await this.userQuizMetricsRepo.bulkUpdateMetrics(
             bulkOperations,
             session
           );
           updatedCount += bulkOperations.length;
           console.log(
-            `✅ Final batch: Updated ${bulkOperations.length} attempts`
+            `[updateMissingSubmissionResultIds] ✅ Final batch: Updated ${bulkOperations.length} attempts. ` +
+            `Total updated: ${updatedCount}/${totalCount} (100%)`
           );
+          console.log("results of bulk write from extra batches, outside loop",result);
         });
       }
 
+      console.log(`[updateMissingSubmissionResultIds] Process completed. Summary:`);
+      console.log(`- Metrics processed: ${metricsProcessed}`);
+      console.log(`- Metrics skipped (not in course): ${metricsSkipped}`);
+      console.log(`- Attempts processed: ${attemptsProcessed}`);
+      console.log(`- Submissions not found: ${submissionsNotFound}`);
+      console.log(`- Total updates queued: ${totalCount}`);
+      console.log(`- Total updates applied: ${updatedCount}`);
+      console.log(`- Batches processed: ${batchCount + (bulkOperations.length > 0 ? 1 : 0)}`);
+      console.log(`[updateMissingSubmissionResultIds] Process completed for course: ${courseId}`);
+
       return { totalCount, updatedCount };
-    } catch (error) {
-      console.error('Error in updateMissingSubmissionResultIds:', error);
+    } catch(error) {
+      console.error('[updateMissingSubmissionResultIds] Error in updateMissingSubmissionResultIds:', error);
       throw error;
     }
-  }
-
 }
+}
+
 
 export { QuizService };
