@@ -557,51 +557,51 @@ class QuizService extends BaseService {
     });
   }
 
-  async updateMissingSubmissionResultIds(courseId: string): Promise<{ totalCount: number; updatedCount: number }> {
-    console.log(`[updateMissingSubmissionResultIds] Starting process for course: ${courseId}`);
+  async updateMissingSubmissionResultIds(): Promise<{ totalCount: number; updatedCount: number }> {
+    console.log(`[updateMissingSubmissionResultIds] Starting process for entire collection`)
     const BATCH_SIZE = 100;
     const bulkOperations = [];
     let batchCount = 0;
     let totalCount = 0;
     let updatedCount = 0;
-    const quizIds = new Set<string>();
+    // const quizIds = new Set<string>();
 
-    try {
-      console.log(`[updateMissingSubmissionResultIds] Fetching course versions for course: ${courseId}`);
-      // 1. Get all quiz items for the course
-      const courseVersions = await this.courseRepo.read(courseId);
-      if (!courseVersions.versions || courseVersions.versions.length === 0) {
-        console.warn(`[updateMissingSubmissionResultIds] No versions found for course ${courseId}`);
-        return { totalCount: 0, updatedCount: 0 };
-      }
+  //   try {
+  //     console.log(`[updateMissingSubmissionResultIds] Fetching course versions for course`);
+  //     // 1. Get all quiz items for the course
+  //     // const courseVersions = await this.courseRepo.read(courseId);
+  //     // if (!courseVersions.versions || courseVersions.versions.length === 0) {
+  //     //   console.warn(`[updateMissingSubmissionResultIds] No versions found for course ${courseId}`);
+  //     //   return { totalCount: 0, updatedCount: 0 };
+  //     // }
 
-      // Get all quiz IDs from all versions of the course
-      console.log(`[updateMissingSubmissionResultIds] Processing ${courseVersions.versions.length} course versions`);
-      for (const version of courseVersions.versions) {
-        console.log(`[updateMissingSubmissionResultIds] Processing version: ${version}`);
-        const quizIdsFromVersion = await this.enrollmentRepo.getQuizIdsByModulesAndSections(version.toString());
-        console.log(`[updateMissingSubmissionResultIds] Found ${quizIdsFromVersion.length} modules in version ${version}`);
+  //     // Get all quiz IDs from all versions of the course
+  //     console.log(`[updateMissingSubmissionResultIds] Processing ${courseVersions.versions.length} course versions`);
+  //     for (const version of courseVersions.versions) {
+  //       console.log(`[updateMissingSubmissionResultIds] Processing version: ${version}`);
+  //       const quizIdsFromVersion = await this.enrollmentRepo.getQuizIdsByModulesAndSections(version.toString());
+  //       console.log(`[updateMissingSubmissionResultIds] Found ${quizIdsFromVersion.length} modules in version ${version}`);
         
-        for (const module of quizIdsFromVersion) {
-          for (const section of module.sections) {
-            section.quizIds.forEach(quizId => {
-              quizIds.add(quizId);
-              console.log(`[updateMissingSubmissionResultIds] Added quiz ID: ${quizId} from section ${section.sectionId}`);
-            });
-          }
-        }
-      }
-      if (quizIds.size === 0) {
-        console.warn(`[updateMissingSubmissionResultIds] No quiz items found in course ${courseId}`);
-        return { totalCount: 0, updatedCount: 0 };
-      }
+  //       for (const module of quizIdsFromVersion) {
+  //         for (const section of module.sections) {
+  //           section.quizIds.forEach(quizId => {
+  //             quizIds.add(quizId);
+  //             console.log(`[updateMissingSubmissionResultIds] Added quiz ID: ${quizId} from section ${section.sectionId}`);
+  //           });
+  //         }
+  //       }
+  //     }
+  //     if (quizIds.size === 0) {
+  //       console.warn(`[updateMissingSubmissionResultIds] No quiz items found in course ${courseId}`);
+  //       return { totalCount: 0, updatedCount: 0 };
+  //     }
       
-      console.log(`[updateMissingSubmissionResultIds] Found ${quizIds.size} unique quiz items in course ${courseId}`);
-      console.log(`[updateMissingSubmissionResultIds] Quiz IDs: ${Array.from(quizIds).join(', ')}`);
-  } catch(error) {
-    console.error(`[updateMissingSubmissionResultIds] Error getting quiz items for course ${courseId}:`, error);
-    return { totalCount: 0, updatedCount: 0 };
-  }
+  //     console.log(`[updateMissingSubmissionResultIds] Found ${quizIds.size} unique quiz items in course ${courseId}`);
+  //     console.log(`[updateMissingSubmissionResultIds] Quiz IDs: ${Array.from(quizIds).join(', ')}`);
+  // } catch(error) {
+  //   console.error(`[updateMissingSubmissionResultIds] Error getting quiz items for course ${courseId}:`, error);
+  //   return { totalCount: 0, updatedCount: 0 };
+  // }
 
     try {
       console.log(`[updateMissingSubmissionResultIds] Starting to find metrics with missing submission IDs`);
@@ -624,26 +624,26 @@ class QuizService extends BaseService {
           continue;
         }
 
-        const quizIdStr = metric.quizId?.toString();
-        if (!quizIdStr || !quizIds.has(quizIdStr)) {
-          metricsSkipped++;
-          if (metricsProcessed % 100 === 0) {
-            console.log(`[updateMissingSubmissionResultIds] Processed ${metricsProcessed} metrics, ${metricsSkipped} skipped (not in course), ${totalCount} updates queued`);
-          }
-          continue;
-        }
+        // const quizIdStr = metric.quizId?.toString();
+        // if (!quizIdStr || !quizIds.has(quizIdStr)) {
+        //   metricsSkipped++;
+        //   if (metricsProcessed % 100 === 0) {
+        //     console.log(`[updateMissingSubmissionResultIds] Processed ${metricsProcessed} metrics, ${metricsSkipped} skipped (not in course), ${totalCount} updates queued`);
+        //   }
+        //   continue;
+        // }
 
         // 4. Process each attempt in the metric
         for (const attempt of metric.attempts) {
           attemptsProcessed++;
           
-          if (attempt.submissionResultId) {
-            continue; // Skip if already has submissionResultId
-          }
+          // if (attempt.submissionResultId) {
+          //   continue; // Skip if already has submissionResultId
+          // }
 
           try {
             // 5. Find corresponding submission
-            console.log(`[updateMissingSubmissionResultIds] Processing attempt ${attempt.attemptId} for quiz ${quizIdStr}`);
+            console.log(`[updateMissingSubmissionResultIds] Processing attempt ${attempt.attemptId}`);
             const submission = await this.submissionRepo.findByAttemptId(attempt.attemptId);
             if (!submission) {
               console.log(`[updateMissingSubmissionResultIds] No submission found for attempt ${attempt.attemptId}`);
@@ -712,14 +712,14 @@ class QuizService extends BaseService {
       }
 
       console.log(`[updateMissingSubmissionResultIds] Process completed. Summary:`);
-      console.log(`- Metrics processed: ${metricsProcessed}`);
-      console.log(`- Metrics skipped (not in course): ${metricsSkipped}`);
+      console.log(`- Total metrics processed: ${metricsProcessed}`);
+      console.log(`- Metrics skipped (invalid): ${metricsSkipped}`);
       console.log(`- Attempts processed: ${attemptsProcessed}`);
       console.log(`- Submissions not found: ${submissionsNotFound}`);
       console.log(`- Total updates queued: ${totalCount}`);
       console.log(`- Total updates applied: ${updatedCount}`);
       console.log(`- Batches processed: ${batchCount + (bulkOperations.length > 0 ? 1 : 0)}`);
-      console.log(`[updateMissingSubmissionResultIds] Process completed for course: ${courseId}`);
+      console.log(`[updateMissingSubmissionResultIds] Process completed for entire collection`);
 
       return { totalCount, updatedCount };
     } catch(error) {
