@@ -1205,7 +1205,7 @@ function TeacherCourseContent() {
                       {isLoading ? (
                         <span className="inline-block h-4 w-32 bg-muted rounded animate-pulse"></span>
                       ) : (
-                        "Pedagogy and Practice: Strategies for the Modern Educator (Copy)" || 'Untitled Course'
+                        courseData?.name || 'Untitled Course'
                       )}
                     </h2>
                   </div>
