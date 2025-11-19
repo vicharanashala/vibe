@@ -696,8 +696,8 @@ function TeacherCourseContent() {
       <ResizablePanel 
         defaultSize={20}
         minSize={20}
-        maxSize={40}
-        className={`min-w-[280px] max-w-[400px] ${isMobileSidebarOpen ? 'fixed inset-y-0 left-0 z-50 w-[280px]' : 'hidden md:block'}`}
+        maxSize={60}
+        className={`${isMobileSidebarOpen ? 'fixed inset-y-0 left-0 z-50 w-[280px]' : 'hidden md:block'}`}
       >
         <div className="h-full overflow-hidden border-r border-border/40 bg-sidebar/50">
           <Sidebar variant="sidebar" collapsible="none" className="h-screen w-full">
