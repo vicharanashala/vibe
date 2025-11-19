@@ -22,7 +22,8 @@ import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
   BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus, Sparkles,
-  X, FolderKanban
+  X, FolderKanban,
+  Menu
 } from "lucide-react";
 
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -30,7 +31,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Home, GraduationCap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById, useQuizDetails, useQuizAnalytics, useQuizPerformance, useQuizResults, useMoveModule, useMoveSection, useMoveItem, useUpdateCourseItem } from "@/hooks/hooks";
+import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById, useQuizDetails, useQuizAnalytics, useQuizPerformance, useQuizResults, useMoveModule, useMoveSection, useMoveItem, useUpdateCourseItem, useCourseById } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import VideoModal from "./components/Video-modal";
 import EnhancedQuizEditor from "./components/enhanced-quiz-editor";
@@ -95,6 +96,10 @@ function TeacherCourseContent() {
 
   // Fetch course version data (modules, sections, items)
   const { data: versionData, refetch: refetchVersion, isLoading } = useCourseVersionById(versionId || "");
+
+  // fetch course data
+  const {data:courseData}=useCourseById(courseId||"")
+  
   // Some APIs return modules directly, some wrap in 'version'. Try both.
   // @ts-ignore
   const modules = (versionData as any)?.modules || (versionData as any)?.version?.modules || [];
@@ -128,7 +133,7 @@ function TeacherCourseContent() {
   const [originalModuleData, setOriginalModuleData] = useState<ModuleData | null>(null);
   const [originalSectionData, setOriginalSectionData] = useState<{ name: string; description: string } | null>(null);
 
-
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -667,7 +672,7 @@ function TeacherCourseContent() {
   }, [modules])
 
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-screen w-full">
+    <ResizablePanelGroup direction="horizontal" className="h-full w-full">
       {/* <div className="flex h-screen w-full"> */}
 
       {/* <ConfirmationModal
@@ -680,13 +685,22 @@ function TeacherCourseContent() {
           isDestructive={true}
           isLoading={false}
         /> */}
-      <ResizablePanel defaultSize={15}
-        minSize={19}
+      {/* Mobile Sidebar Overlay */}
+      {isMobileSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
+      
+      <ResizablePanel 
+        defaultSize={20}
+        minSize={20}
         maxSize={40}
-        className="min-w-[250px] max-w-[500px]"
+        className={`min-w-[280px] max-w-[400px] ${isMobileSidebarOpen ? 'fixed inset-y-0 left-0 z-50 w-[280px]' : 'hidden md:block'}`}
       >
         <div className="h-full overflow-hidden border-r border-border/40 bg-sidebar/50">
-          <Sidebar variant="sidebar" collapsible="none" className="h-full w-full">
+          <Sidebar variant="sidebar" collapsible="none" className="h-screen w-full">
             <SidebarHeader>
               <div className="flex items-center gap-3 px-3 py-2">
                 <BookOpen className="text-primary" />
@@ -1166,21 +1180,44 @@ function TeacherCourseContent() {
           </Sidebar>
         </div>
       </ResizablePanel>
-      <ResizableHandle />
-      <ResizablePanel defaultSize={76}>
+      <ResizableHandle className="hidden md:flex" />
+      <ResizablePanel defaultSize={80} className="min-w-0">
         {/* Course Editor Area */}
         <SidebarInset className="flex-1 bg-background overflow-y-auto">
-          <div className="w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="md:hidden">
-                  <SidebarTrigger />
+          <div className="w-full p-4 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+                  className="md:hidden shrink-0"
+                >
+                  <Menu className="h-7 w-7" />
+                  <span className="sr-only">Toggle Menu</span>
+                </Button>
+                
+                <div className="flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-lg border min-w-0 flex-1 sm:flex-none sm:min-w-[200px]">
+                  <GraduationCap className="h-4 w-4 text-primary flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground whitespace-nowrap">Course</p>
+                    <h2 className="text-sm font-medium leading-tight truncate">
+                      {isLoading ? (
+                        <span className="inline-block h-4 w-32 bg-muted rounded animate-pulse"></span>
+                      ) : (
+                        "Pedagogy and Practice: Strategies for the Modern Educator (Copy)" || 'Untitled Course'
+                      )}
+                    </h2>
+                  </div>
                 </div>
-                <h2 className="sm:text-lg text-sm font-semibold">Course Editor</h2>
               </div>
+              
               {versionData && (
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary px-4 py-2 sm:text-base text-sm font-semibold">
+                <div className="flex items-center">
+                  <Badge 
+                    variant="outline" 
+                    className="bg-primary/10 border-primary/20 text-primary px-3 py-1.5 text-xs sm:text-sm font-medium whitespace-nowrap"
+                  >
                     Version: {(versionData as any)?.version || (versionData as any)?.name || 'Unknown'}
                   </Badge>
                 </div>
