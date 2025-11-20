@@ -24,6 +24,7 @@ export class ItemRepository implements IItemRepository {
   private quizCollection: Collection<QuizItem>;
   private blogCollection: Collection<BlogItem>;
   private projectCollection: Collection<ProjectItem>;
+  private feedbackFormCollection: Collection<ProjectItem>;
 
   constructor(
     @inject(GLOBAL_TYPES.Database)
@@ -186,6 +187,9 @@ async getItemsCountByGroupIds(groupIds: string[],session?:ClientSession) {
       case ItemType.PROJECT:
         collection = this.projectCollection;
         break;
+      case ItemType.FEEDBACK:
+        collection == this.feedbackFormCollection;
+        break
       default:
         throw new Error(`Unsupported item type: ${(item as any).type}`);
     }

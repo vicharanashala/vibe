@@ -1,7 +1,7 @@
-import { calculateNewOrder } from '#courses/utils/calculateNewOrder.js';
+import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
 
-import { Expose, Transform, Type } from 'class-transformer';
-import { ObjectId } from 'mongodb';
+import {Expose, Transform, Type} from 'class-transformer';
+import {ObjectId} from 'mongodb';
 
 import {
   ObjectIdToString,
@@ -13,14 +13,15 @@ import {
   IQuizDetails,
   IVideoDetails,
   IBlogDetails,
+  IFeedBackFormDetails,
 } from '#root/shared/interfaces/models.js';
 
 export type Item = QuizItem | VideoItem | BlogItem | ProjectItem;
 
 class QuizItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
@@ -51,8 +52,8 @@ class QuizItem {
 
 class VideoItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
@@ -83,8 +84,8 @@ class VideoItem {
 
 class BlogItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
@@ -113,10 +114,49 @@ class BlogItem {
   }
 }
 
+class FeedBackFormItem {
+  @Expose()
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  _id?: ID;
+
+  @Expose()
+  name: string;
+
+  @Expose()
+  description: string;
+
+  @Expose()
+  isOptional: boolean;
+  
+  @Expose()
+  type: ItemType = ItemType.FEEDBACK;
+
+  @Expose()
+  details: IFeedBackFormDetails;
+
+  constructor(
+    name: string,
+    description: string,
+    _id: ID,
+    details?: IFeedBackFormDetails,
+  ) {
+    this._id = _id;
+    this.type = ItemType.FEEDBACK;
+    this.name = name;
+    this.isOptional = false;
+    this.description = description;
+
+    if (details) {
+      this.details = details;
+    }
+  }
+}
+
 class ProjectItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
@@ -134,6 +174,7 @@ class ProjectItem {
     this.type = ItemType.PROJECT;
     this.name = name;
     this.description = description;
+
     if (details) {
       this.details = details;
     }
@@ -142,8 +183,8 @@ class ProjectItem {
 
 class ItemBase {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   itemId?: ID;
 
   @Expose()
@@ -190,12 +231,27 @@ class ItemBase {
           // For PROJECT, prefer details.name/description if present (for consistency with validation)
           let pname = itemBody.name;
           let pdesc = itemBody.description;
-          if (itemBody.details && (itemBody.details.name || itemBody.details.description)) {
+          if (
+            itemBody.details &&
+            (itemBody.details.name || itemBody.details.description)
+          ) {
             pname = itemBody.details.name || pname;
             pdesc = itemBody.details.description || pdesc;
           }
-          this.itemDetails = new ProjectItem(pname, pdesc, this.itemId, itemBody.details);
+          this.itemDetails = new ProjectItem(
+            pname,
+            pdesc,
+            this.itemId,
+            itemBody.details,
+          );
           break;
+        case ItemType.FEEDBACK:
+          this.itemDetails = new FeedBackFormItem(
+            itemBody.name,
+            itemBody.description,
+            this.itemId,
+            itemBody.feedbackFormDetails,
+          );
         default:
           break;
       }
@@ -217,8 +273,8 @@ class ItemBase {
 
 class ItemRef {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
@@ -236,8 +292,8 @@ class ItemRef {
 
 class ItemsGroup {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
@@ -245,8 +301,8 @@ class ItemsGroup {
   items: ItemRef[];
 
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   sectionId: ID;
 
   constructor(sectionId?: ID, items?: ItemRef[]) {
@@ -255,4 +311,13 @@ class ItemsGroup {
   }
 }
 
-export { ItemBase, ItemsGroup, ItemRef, QuizItem, VideoItem, BlogItem, ProjectItem };
+export {
+  ItemBase,
+  ItemsGroup,
+  ItemRef,
+  QuizItem,
+  VideoItem,
+  BlogItem,
+  ProjectItem,
+  FeedBackFormItem,
+};
