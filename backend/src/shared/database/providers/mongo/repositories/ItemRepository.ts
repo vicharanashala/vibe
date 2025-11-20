@@ -14,6 +14,7 @@ import {
   BlogItem,
   ProjectItem,
   Item,
+  FeedBackFormItem,
 } from '#courses/classes/transformers/Item.js';
 import {UpdateItemBody} from '#root/modules/courses/classes/index.js';
 
@@ -24,7 +25,7 @@ export class ItemRepository implements IItemRepository {
   private quizCollection: Collection<QuizItem>;
   private blogCollection: Collection<BlogItem>;
   private projectCollection: Collection<ProjectItem>;
-  private feedbackFormCollection: Collection<ProjectItem>;
+  private feedbackFormCollection: Collection<FeedBackFormItem>;
 
   constructor(
     @inject(GLOBAL_TYPES.Database)
@@ -43,6 +44,7 @@ export class ItemRepository implements IItemRepository {
     this.projectCollection = await this.db.getCollection<ProjectItem>(
       'projects',
     );
+    this.feedbackFormCollection= await this.db.getCollection<FeedBackFormItem>('feedback_forms')
   }
   
 
@@ -188,7 +190,7 @@ async getItemsCountByGroupIds(groupIds: string[],session?:ClientSession) {
         collection = this.projectCollection;
         break;
       case ItemType.FEEDBACK:
-        collection == this.feedbackFormCollection;
+        collection = this.feedbackFormCollection;
         break
       default:
         throw new Error(`Unsupported item type: ${(item as any).type}`);
