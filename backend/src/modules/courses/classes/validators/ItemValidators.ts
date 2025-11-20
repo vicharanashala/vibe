@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import {Type} from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -19,9 +19,14 @@ import {
   IsEnum,
   IsArray,
 } from 'class-validator';
-import { JSONSchema } from 'class-validator-jsonschema';
-import { CourseVersion } from '../transformers/CourseVersion.js';
-import { Item, ItemRef, ItemsGroup } from '../transformers/Item.js';
+import {JSONSchema} from 'class-validator-jsonschema';
+import {CourseVersion} from '../transformers/CourseVersion.js';
+import {
+  FeedBackFormItem,
+  Item,
+  ItemRef,
+  ItemsGroup,
+} from '../transformers/Item.js';
 import {
   IVideoDetails,
   IQuizDetails,
@@ -30,8 +35,9 @@ import {
   ItemType,
   ID,
   IProjectDetails,
+  IFeedBackFormDetails,
 } from '#root/shared/interfaces/models.js';
-import { OnlyOneId } from './customValidators.js';
+import {OnlyOneId} from './customValidators.js';
 
 class VideoDetailsPayloadValidator implements IVideoDetails {
   @JSONSchema({
@@ -81,7 +87,8 @@ class VideoDetailsPayloadValidator implements IVideoDetails {
 }
 
 class QuizDetailsPayloadValidator
-  implements Omit<IQuizDetails, 'questionBankRefs'> {
+  implements Omit<IQuizDetails, 'questionBankRefs'>
+{
   @JSONSchema({
     description: 'Minimum percentage required to pass, between 0 and 1',
     example: 0.7,
@@ -96,7 +103,6 @@ class QuizDetailsPayloadValidator
   passThreshold: number; // 0-1
 
   @JSONSchema({
-
     description:
       'Maximum number of attempts allowed for the quiz, -1 for unlimited',
     example: 3,
@@ -218,35 +224,44 @@ class QuizDetailsPayloadValidator
 }
 
 class BlogDetailsPayloadValidator implements IBlogDetails {
-
   @IsEmpty()
   tags: string[];
-
 
   @IsNotEmpty()
   @IsString()
   @JSONSchema({
-    description: 'Content of the blog item'
+    description: 'Content of the blog item',
   })
   content: string;
-
 
   @IsNotEmpty()
   @IsDecimal()
   @JSONSchema({
-    description: 'Points assigned to the blog interaction'
+    description: 'Points assigned to the blog interaction',
   })
   points: number;
-
 
   @IsNotEmpty()
   @IsPositive()
   @JSONSchema({
-    description: 'Estimated time to read the blog in minutes'
+    description: 'Estimated time to read the blog in minutes',
   })
   estimatedReadTimeInMinutes: number;
 }
 
+class FeedBackFormPayloadValidator implements IFeedBackFormDetails {
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'JSON Schema for the feedback form',
+  })
+  jsonSchema: Record<string, any>;
+
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'UI Schema for the feedback form',
+  })
+  uiSchema: Record<string, any>;
+}
 
 // Add this class to fix the missin g reference error
 class ProjectDetailsPayloadValidator implements IProjectDetails {
@@ -270,8 +285,6 @@ class ProjectDetailsPayloadValidator implements IProjectDetails {
   @IsString()
   description: string;
 }
-
-
 
 class CreateItemBody implements Partial<IBaseItem> {
   @JSONSchema({
@@ -317,7 +330,7 @@ class CreateItemBody implements Partial<IBaseItem> {
     description: 'Type of the item: VIDEO, BLOG, or QUIZ',
     example: 'VIDEO',
     type: 'string',
-    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT'],
+    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT', 'FEEDBACK'],
   })
   @IsEnum(ItemType)
   @IsNotEmpty()
@@ -352,6 +365,16 @@ class CreateItemBody implements Partial<IBaseItem> {
   @ValidateNested()
   @Type(() => QuizDetailsPayloadValidator)
   quizDetails?: QuizDetailsPayloadValidator;
+
+  @JSONSchema({
+    description: 'Details specific to feedback form items',
+    type: 'object',
+  })
+  @ValidateIf(o => o.type === ItemType.FEEDBACK)
+  @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => FeedBackFormPayloadValidator)
+  feedbackFormDetails?: FeedBackFormPayloadValidator;
 }
 
 class UpdateItemBody implements Partial<IBaseItem> {
@@ -408,26 +431,26 @@ class UpdateItemBody implements Partial<IBaseItem> {
     description: 'Details specific to video items',
     oneOf: [
       {
-        $ref: "#/components/schemas/VideoDetailsPayloadValidator",
-        title: "Video Details",
-        description: "Details specific to video items"
+        $ref: '#/components/schemas/VideoDetailsPayloadValidator',
+        title: 'Video Details',
+        description: 'Details specific to video items',
       },
       {
-        $ref: "#/components/schemas/BlogDetailsPayloadValidator",
-        title: "Blog Details",
-        description: "Details specific to blog items"
+        $ref: '#/components/schemas/BlogDetailsPayloadValidator',
+        title: 'Blog Details',
+        description: 'Details specific to blog items',
       },
       {
-        $ref: "#/components/schemas/QuizDetailsPayloadValidator",
-        title: "Quiz Details",
-        description: "Details specific to quiz items"
+        $ref: '#/components/schemas/QuizDetailsPayloadValidator',
+        title: 'Quiz Details',
+        description: 'Details specific to quiz items',
       },
       {
-        $ref: "#/components/schemas/ProjectDetailsPayloadValidator",
-        title: "Project Details",
-        description: "Details specific to project items"
-      }
-    ]
+        $ref: '#/components/schemas/ProjectDetailsPayloadValidator',
+        title: 'Project Details',
+        description: 'Details specific to project items',
+      },
+    ],
   })
   // @ValidateIf(o => o.type !== ItemType.PROJECT)
   @IsNotEmpty()
@@ -448,7 +471,11 @@ class UpdateItemBody implements Partial<IBaseItem> {
         throw new Error(`Unknown item type: ${itemType}`);
     }
   })
-  details?: VideoDetailsPayloadValidator | BlogDetailsPayloadValidator | QuizDetailsPayloadValidator | ProjectDetailsPayloadValidator;
+  details?:
+    | VideoDetailsPayloadValidator
+    | BlogDetailsPayloadValidator
+    | QuizDetailsPayloadValidator
+    | ProjectDetailsPayloadValidator;
 }
 
 class MoveItemBody {
@@ -652,7 +679,7 @@ class ItemsGroupResponse implements ItemsGroup {
   })
   @IsNotEmpty()
   @Type(() => ItemRefResponse)
-  @ValidateNested({ each: true })
+  @ValidateNested({each: true})
   @IsArray()
   items: ItemRef[];
 
@@ -671,7 +698,7 @@ class ItemDataResponse {
     description: 'The item data',
     type: 'object',
     readOnly: true,
-    items: { $ref: '#/components/schemas/ItemGroupResponse' }
+    items: {$ref: '#/components/schemas/ItemGroupResponse'},
   })
   @IsNotEmpty()
   @ValidateNested()
@@ -692,7 +719,7 @@ class DeletedItemResponse {
     description: 'The deleted item data',
     type: 'object',
     readOnly: true,
-    example: { "deletedItemId": "68ee280e1f1beg90c14b68ba" }
+    example: {deletedItemId: '68ee280e1f1beg90c14b68ba'},
   })
   @IsNotEmpty()
   deletedItem: Record<string, any>;
@@ -702,12 +729,12 @@ class DeletedItemResponse {
     type: 'object',
     readOnly: true,
     example: {
-      "itemsGroup": {
-        "_id": "68ee26547f26e0acc3dff10c",
-        "items": [],
-        "sectionId": "68ee26547f26e0acc3dff10b"
-      }
-    }
+      itemsGroup: {
+        _id: '68ee26547f26e0acc3dff10c',
+        items: [],
+        sectionId: '68ee26547f26e0acc3dff10b',
+      },
+    },
   })
   @IsNotEmpty()
   updatedItemsGroup: Record<string, any>;
@@ -743,4 +770,4 @@ export const ITEM_VALIDATORS = [
   ItemDataResponse,
   DeletedItemResponse,
   GetItemParams,
-]
+];
