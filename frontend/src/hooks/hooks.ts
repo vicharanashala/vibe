@@ -901,8 +901,8 @@ export function useItemsBySectionId(versionId: string, moduleId: string, section
 
 // POST /courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items
 export function useCreateItem(): {
-  mutate: (variables: { params: { path: { versionId: string, moduleId: string, sectionId: string } }, body: components['schemas']['CreateItemBody'] }) => void,
-  mutateAsync: (variables: { params: { path: { versionId: string, moduleId: string, sectionId: string } }, body: components['schemas']['CreateItemBody'] }) => Promise<components['schemas']['ItemDataResponse']>,
+  mutate: (variables: { params: { path: { versionId: string, moduleId: string, sectionId: string } }, body: any }) => void,
+  mutateAsync: (variables: { params: { path: { versionId: string, moduleId: string, sectionId: string } }, body: any}) => Promise<components['schemas']['ItemDataResponse']>,
   data: components['schemas']['ItemDataResponse'] | undefined,
   error: string | null,
   isPending: boolean,
@@ -3261,5 +3261,76 @@ export const useUpdateStudentInterest = () => {
     isIdle: result.isIdle,
     reset: result.reset,
     status: result.status,
+  };
+};
+
+export const useCreateFeedbackFormFields = (feedbackId: string): {
+  mutate: (fields: any) => void;
+  mutateAsync: (fields: any) => Promise<{ message: string }>;
+  data: { message: string } | undefined;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} => {
+
+  const result = api.useMutation('put', `/course/registration/build-form/version/${feedbackId}` as any);
+  return {
+    mutate: (fields) =>
+      result.mutate({
+        body: fields ,
+      }),
+
+    mutateAsync: (fields) =>
+      result.mutateAsync({
+        body:fields,
+      }),
+
+    data: result.data as { message: string } | undefined,
+    error: result.error
+      ? result.error.message || 'Failed to update registration fields'
+      : null,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+  };
+};
+
+export const useGetFeedbackFormFields = (
+  versionId: string,
+): {
+  data: { jsonSchema: RJSFSchema; uiSchema: Record<string, any> } | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} => {
+  const result = api.useQuery(
+    'get',
+    '/course/registration/build-form/version/{versionId}' as any,
+    {
+      params: {
+        path: { versionId },
+      },
+    },
+    {
+      enabled: !!versionId,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    }
+  );
+
+  return {
+    data: result.data as { jsonSchema: RJSFSchema; uiSchema: Record<string, any> } | undefined,
+    isLoading: result.isLoading,
+    error: result.error
+      ? result.error.message || 'Failed to fetch registration fields'
+      : null,
+    refetch: result.refetch,
   };
 };
