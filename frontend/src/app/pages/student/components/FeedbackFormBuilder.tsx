@@ -147,7 +147,7 @@ interface FeedbackFormBuilderProps {
   // Get selected field
   const selectedField = fields.find((f) => f.id === selectedFieldId);
 
-  const [feildIdToDelete, setFieldIdToDelete] = useState("")
+  const [fieldIdToDelete, setFieldIdToDelete] = useState("")
   
 //   const { mutateAsync: updateFields, isPending: isUpdatingFields } = useCreateFeedbackFormFields(feedbackId as string); 
 //   const { data: fetchedSchemas, isLoading: fetchLoading, error: fetchError,refetch } = useGetFeedbackFormFields(feedbackId as string);
@@ -202,8 +202,8 @@ useEffect(() => {
 
   // Delete a field
   const deleteField = () => {
-    setFields(fields.filter((f) => f.id !== feildIdToDelete));
-    if (selectedFieldId === feildIdToDelete) {
+    setFields(fields.filter((f) => f.id !== fieldIdToDelete));
+    if (selectedFieldId === fieldIdToDelete) {
       setSelectedFieldId(null);
     }
     setFieldIdToDelete("")
@@ -443,24 +443,6 @@ useEffect(() => {
     return populatedFields;
   };
 
-
-  const handleSubmit = async () => {
-    // if (isUpdatingFields) return;
-    // try {
-    //   const { jsonSchema, uiSchema } = buildSchemas();
-    //   await updateFields({ jsonSchema, uiSchema });
-    //   refetch()
-    //   toast.success('Form submitted successfully!');
-    // } catch (error) {
-    //   console.error('Error submitting form:', error);
-    //   toast.error('Something went wrong while submitting the form!');
-    // } finally {
-    //   setIsConfirmationModalOpen(false);
-    //   // setShowFormBuilder(false)
-    // }
-  };
-
-  // Added early return for loading state
   if (isLoading) {
     return (
       <div className="p-6 flex items-center justify-center">
@@ -505,10 +487,10 @@ useEffect(() => {
               isDestructive={false}
             //   isLoading={isUpdatingFields}
               loadingText="Submitting..."
-            />
+            /> */}
 
             <ConfirmationModal
-              isOpen={!!feildIdToDelete}
+              isOpen={!!fieldIdToDelete}
               onClose={() => setFieldIdToDelete("")}
               onConfirm={deleteField}
               title="Delete Field"
@@ -516,7 +498,7 @@ useEffect(() => {
               confirmText="Delete"
               cancelText="Cancel"
               isDestructive={true}
-            /> */}
+            />
 
             <div className="flex flex-col lg:gap-1 gap-3 h-[110vh]">
             <Card className="flex-shrink-0">
