@@ -1097,8 +1097,8 @@ if (type === "feedback") {
           },
           body: {
             type: "FEEDBACK",
-            name: "Feedback Formmmm",
-            description: "Collect student feedback",
+            name: "Feedback Form",
+            description: "Submit your feedback about the previous video/quiz",
             feedbackFormDetails:{
                jsonSchema: {
           type: 'object',
