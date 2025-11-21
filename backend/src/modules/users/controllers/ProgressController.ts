@@ -220,9 +220,7 @@ class ProgressController {
     @Body() body: StopItemBody,
     @Ability(getProgressAbility) {ability, user},
   ): Promise<void> {
-    console.log('STOP ITEM ENDPOINT CALLED');
-    console.log('Params:', params);
-    console.log('Body:', body);
+
     
     const {courseId, versionId} = params;
     const {itemId, sectionId, moduleId, watchItemId, attemptId, isSkipped} =

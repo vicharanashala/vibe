@@ -261,7 +261,6 @@ export class ItemRepository implements IItemRepository {
       throw new InternalServerError(`Version ${courseVersionId} not found.`);
     }
 
-
     for (const module of courseVersion.modules) {
       for (const section of module.sections) {
         const itemsGroup = await this.readItemsGroup(
@@ -406,6 +405,13 @@ export class ItemRepository implements IItemRepository {
     } else if (itemsGroup.items[itemIndex].type === ItemType.PROJECT) {
       await this.projectCollection.deleteOne(
         {_id: new ObjectId(itemId)},
+        {session},
+      );
+    } else if (itemsGroup.items[itemIndex].type === ItemType.FEEDBACK) {
+      await this.feedbackFormCollection.deleteOne(
+        {
+          _id: new ObjectId(itemId),
+        },
         {session},
       );
     } else {
