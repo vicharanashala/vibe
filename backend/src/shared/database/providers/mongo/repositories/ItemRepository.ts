@@ -292,6 +292,10 @@ export class ItemRepository implements IItemRepository {
                 _id: new ObjectId(found._id),
               })) as ProjectItem;
               break;
+            case ItemType.FEEDBACK:
+              item = (await this.feedbackFormCollection.findOne({
+                _id: new ObjectId(found._id),
+              })) as FeedBackFormItem;
             default:
               throw new InternalServerError(`Unknown item type: ${found.type}`);
           }
