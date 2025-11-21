@@ -70,7 +70,7 @@ export default function FeedbackFormEditor({
       });
     }
   }, [details]);
-  console.log('details ',details)
+  console.log('details ', details)
   const handleEdit = () => setIsEditMode(true);
 
   const handleCancel = () => {
@@ -117,6 +117,7 @@ export default function FeedbackFormEditor({
       toast.success("Form saved successfully!");
       onRefetch();
       setFormBuilder(false); // Close builder after save
+      setIsEditMode(false);
     } catch (err) {
       toast.error("Failed to save form");
     }
@@ -304,9 +305,9 @@ export default function FeedbackFormEditor({
                 isSaving={updateItem.isPending}
                 onCancel={() => setFormBuilder(false)} />} */}
 
-<Dialog open={formBuilder} onOpenChange={setFormBuilder}>
-  <DialogContent
-    className="
+              <Dialog open={formBuilder} onOpenChange={setFormBuilder}>
+                <DialogContent
+                  className="
       max-w-[95vw]     /* nearly full width */
       w-full 
       h-[90vh]         /* tall but not full height */
@@ -320,28 +321,28 @@ export default function FeedbackFormEditor({
       fade-in-0 
       zoom-in-95
     "
-  >
-    {/* Sticky Header */}
-    <DialogHeader className="p-5 border-b sticky top-0 bg-card z-20">
-      <DialogTitle className="text-xl font-semibold">
-        Build Feedback Form
-      </DialogTitle>
-      <p className="text-sm text-muted-foreground">
-        Customize your form layout and fields.
-      </p>
-    </DialogHeader>
+                >
+                  {/* Sticky Header */}
+                  <DialogHeader className="p-5 border-b sticky top-0 bg-card z-20">
+                    <DialogTitle className="text-xl font-semibold">
+                      Build Feedback Form
+                    </DialogTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Customize your form layout and fields.
+                    </p>
+                  </DialogHeader>
 
-    {/* Scrollable Body */}
-    <div className="p-6 overflow-y-auto h-full">
-      <FeedbackFormBuilder
-        fetchedSchemas={details?.item?.details}
-        onSave={handleSaveSchemas}
-        isSaving={updateItem.isPending}
-        onCancel={() => setFormBuilder(false)}
-      />
-    </div>
-  </DialogContent>
-</Dialog>
+                  {/* Scrollable Body */}
+                  <div className="p-6 overflow-y-auto h-full">
+                    <FeedbackFormBuilder
+                      fetchedSchemas={details?.item?.details}
+                      onSave={handleSaveSchemas}
+                      isSaving={updateItem.isPending}
+                      onCancel={() => setFormBuilder(false)}
+                    />
+                  </div>
+                </DialogContent>
+              </Dialog>
 
 
 

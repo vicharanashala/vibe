@@ -478,7 +478,7 @@ useEffect(() => {
 
         
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent ">
-              Feedback Form Builder
+              Form Builder
             </h1>
             <TooltipProvider>
                 <Tooltip>
