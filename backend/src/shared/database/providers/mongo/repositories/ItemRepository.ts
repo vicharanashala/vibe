@@ -261,6 +261,7 @@ export class ItemRepository implements IItemRepository {
       throw new InternalServerError(`Version ${courseVersionId} not found.`);
     }
 
+
     for (const module of courseVersion.modules) {
       for (const section of module.sections) {
         const itemsGroup = await this.readItemsGroup(
@@ -269,8 +270,13 @@ export class ItemRepository implements IItemRepository {
         const found = itemsGroup.items.find(i => i._id.toString() === itemId);
 
         if (found) {
-          let item: Item = null;
+          console.log(
+            await this.feedbackFormCollection.findOne({
+              _id: new ObjectId(found._id),
+            }),
+          );
 
+          let item: Item = null;
           switch (found.type) {
             case ItemType.VIDEO:
               item = (await this.videoCollection.findOne({
@@ -296,9 +302,12 @@ export class ItemRepository implements IItemRepository {
               item = (await this.feedbackFormCollection.findOne({
                 _id: new ObjectId(found._id),
               })) as FeedBackFormItem;
+              break;
             default:
               throw new InternalServerError(`Unknown item type: ${found.type}`);
           }
+
+          console.log('Item: ', item);
 
           return item;
         }
