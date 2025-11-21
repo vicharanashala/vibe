@@ -209,7 +209,7 @@ function TeacherCourseContent() {
     shouldFetchItem ? versionId : '',
     shouldFetchItem ? selectedEntity?.data?._id : ''
   );
-
+  console.log("selectedItemData",selectedItemData)
   // Sync controlled state with selectedItemData for PROJECT edit
   useEffect(() => {
     if (selectedEntity?.type === 'item' && selectedEntity.data.type === 'PROJECT') {
@@ -569,7 +569,7 @@ if (type === "feedback") {
           body: {
             type: typeMap[type],
             name: "Feedback Form",
-            description: "Collect student feedback",
+            description: "Submit your feedback about the previous video/quiz",
             feedbackFormDetails:{
                jsonSchema: {
           type: 'object',
@@ -1897,8 +1897,37 @@ if (type === "feedback") {
                       />
                     )}
 
-                    {selectedEntity.type === "item" && selectedEntity.data.type === "FEEDBACK" && (
-  <FeedbackFormEditor />
+                    {/* {selectedEntity.type === "item" && selectedEntity.data.type === "FEEDBACK" && (
+                    
+  <FeedbackFormEditor  />
+)} */}
+
+
+{selectedEntity.type === "item" && selectedEntity.data.type === "FEEDBACK" && (
+  <FeedbackFormEditor
+    isLoading={isLoading}
+    selectedItemName={selectedItem.name}
+    feedbackId={selectedEntity.data._id}
+    moduleId={selectedEntity.parentIds?.moduleId || ""}
+    sectionId={selectedEntity.parentIds?.sectionId || ""}
+    courseId={courseId!}
+    courseVersionId={versionId!}
+    details={selectedItemData}
+    onRefetch={() => {
+      refetchVersion();
+      refetchItems();
+      refetchItem();
+    }}
+    onDelete={() => {
+      deleteItemAsync({
+        params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
+      }).then(() => {
+        refetchVersion();
+        refetchItems();
+      });
+      setSelectedEntity(null);
+    }}
+  />
 )}
                   </div>
                 </div>
