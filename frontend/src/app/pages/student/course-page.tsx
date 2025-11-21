@@ -97,13 +97,13 @@ export default function CoursePage() {
           const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
           streamRef.current = stream;
         } catch (err) {
-          alert("Please allow camera and microphone access to continue. You will be redirected to the dashboard if access is denied.");
-          try {
-            const retryStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            streamRef.current = retryStream;
-          } catch (err) {
-            router.navigate({ to: '/student' });
-          }
+          // alert("Please allow camera and microphone access to continue. You will be redirected to the dashboard if access is denied.");
+          // try {
+          //   const retryStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          //   streamRef.current = retryStream;
+          // } catch (err) {
+          //   router.navigate({ to: '/student' });
+          // }
         }
       }
       if (!showProctorDialog) {
