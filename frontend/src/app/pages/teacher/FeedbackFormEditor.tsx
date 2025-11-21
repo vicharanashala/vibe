@@ -290,20 +290,19 @@ export default function FeedbackFormEditor({
             </div>
 
             <div className="text-center py-12 text-muted-foreground border-2 border-dashed border-border rounded-lg">
-              {/* <FileText className="h-12 w-12 mx-auto mb-4 opacity-30" /> */}
               {details &&
-                <Form
-                  schema={details?.item?.details?.jsonSchema}
-                  validator={validator}
-                  uiSchema={details?.item?.details?.uiSchema}
-                  onSubmit={onSubmit}
-                  disabled={isSubmitting}
-                />}
-
-              {/* {formBuilder && <FeedbackFormBuilder fetchedSchemas={details?.item?.details}
-                onSave={handleSaveSchemas}
-                isSaving={updateItem.isPending}
-                onCancel={() => setFormBuilder(false)} />} */}
+                <div className="overflow-y-auto max-h-[70vh] pr-2">
+                  <div className="max-w-lg mx-auto w-full space-y-4">
+                    <Form
+                      schema={details?.item?.details?.jsonSchema}
+                      validator={validator}
+                      uiSchema={details?.item?.details?.uiSchema}
+                      onSubmit={onSubmit}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
+              }
 
               <Dialog open={formBuilder} onOpenChange={setFormBuilder}>
                 <DialogContent
