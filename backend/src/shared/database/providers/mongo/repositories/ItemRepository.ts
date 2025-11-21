@@ -44,9 +44,10 @@ export class ItemRepository implements IItemRepository {
     this.projectCollection = await this.db.getCollection<ProjectItem>(
       'projects',
     );
-    this.feedbackFormCollection= await this.db.getCollection<FeedBackFormItem>('feedback_forms')
+    this.feedbackFormCollection = await this.db.getCollection<FeedBackFormItem>(
+      'feedback_forms',
+    );
   }
-  
 
   // Methods for ItemsGroup operations
   async createItemsGroup(
@@ -54,7 +55,7 @@ export class ItemRepository implements IItemRepository {
     session?: ClientSession,
   ): Promise<ItemsGroup> {
     await this.init();
-    
+
     const result = await this.itemsGroupCollection.insertOne(itemsGroup, {
       session,
     });
@@ -75,26 +76,26 @@ export class ItemRepository implements IItemRepository {
     ) as ItemsGroup;
   }
 
-//   async getItemsCountByGroupIds(groupIds:string[]) {
-//   const itemGroups = await this.itemsGroupCollection.find({ _id: { $in: groupIds } }).select('items').lean();
-//   return itemGroups.reduce((total, group) => total + (group.items ? group.items.length : 0), 0);
-// }
+  //   async getItemsCountByGroupIds(groupIds:string[]) {
+  //   const itemGroups = await this.itemsGroupCollection.find({ _id: { $in: groupIds } }).select('items').lean();
+  //   return itemGroups.reduce((total, group) => total + (group.items ? group.items.length : 0), 0);
+  // }
 
-async getItemsCountByGroupIds(groupIds: string[],session?:ClientSession) {
-  await this.init();
-  const itemGroups = await this.itemsGroupCollection
-    .find(
-      { _id: { $in: groupIds.map(id => new ObjectId(id)) } }, 
-      { projection: { items: 1 },session} // only return `items`
-    )
-    .toArray();
-  console.log("Items group ",ItemsGroup)
+  async getItemsCountByGroupIds(groupIds: string[], session?: ClientSession) {
+    await this.init();
+    const itemGroups = await this.itemsGroupCollection
+      .find(
+        {_id: {$in: groupIds.map(id => new ObjectId(id))}},
+        {projection: {items: 1}, session}, // only return `items`
+      )
+      .toArray();
+    console.log('Items group ', ItemsGroup);
 
-  return itemGroups.reduce(
-    (total, group) => total + (group.items ? group.items.length : 0),
-    0
-  );
-}
+    return itemGroups.reduce(
+      (total, group) => total + (group.items ? group.items.length : 0),
+      0,
+    );
+  }
 
   async readItemsGroup(
     itemsGroupId: string,
@@ -191,7 +192,7 @@ async getItemsCountByGroupIds(groupIds: string[],session?:ClientSession) {
         break;
       case ItemType.FEEDBACK:
         collection = this.feedbackFormCollection;
-        break
+        break;
       default:
         throw new Error(`Unsupported item type: ${(item as any).type}`);
     }
@@ -326,6 +327,8 @@ async getItemsCountByGroupIds(groupIds: string[],session?:ClientSession) {
         break;
       case ItemType.PROJECT:
         collection = this.projectCollection;
+      case ItemType.FEEDBACK:
+        collection = this.feedbackFormCollection;
         break;
       default:
         throw new InternalServerError(

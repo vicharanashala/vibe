@@ -421,7 +421,7 @@ class UpdateItemBody implements Partial<IBaseItem> {
     description: 'Type of the item: VIDEO, BLOG, QUIZ or PROJECT',
     example: 'VIDEO',
     type: 'string',
-    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT'],
+    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT', 'FEEDBACK'],
   })
   @IsEnum(ItemType)
   @IsNotEmpty()
@@ -467,6 +467,8 @@ class UpdateItemBody implements Partial<IBaseItem> {
         return QuizDetailsPayloadValidator;
       case ItemType.PROJECT:
         return ProjectDetailsPayloadValidator;
+      case ItemType.FEEDBACK:
+        return FeedBackFormPayloadValidator;
       default:
         throw new Error(`Unknown item type: ${itemType}`);
     }
@@ -475,7 +477,8 @@ class UpdateItemBody implements Partial<IBaseItem> {
     | VideoDetailsPayloadValidator
     | BlogDetailsPayloadValidator
     | QuizDetailsPayloadValidator
-    | ProjectDetailsPayloadValidator;
+    | ProjectDetailsPayloadValidator
+    | FeedBackFormPayloadValidator;
 }
 
 class MoveItemBody {
