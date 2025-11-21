@@ -12,6 +12,8 @@ import Form from '@rjsf/shadcn';
 import validator from "@rjsf/validator-ajv8";
 import { useUpdateCourseItem } from '@/hooks/hooks';
 import FeedbackFormBuilder from '../student/components/FeedbackFormBuilder';
+import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface FeedbackFormEditorProps {
   isLoading?: boolean;
@@ -41,7 +43,7 @@ export default function FeedbackFormEditor({
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [formBuilder,setFormBuilder] =useState(false)
+  const [formBuilder, setFormBuilder] = useState(false)
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -68,7 +70,7 @@ export default function FeedbackFormEditor({
       });
     }
   }, [details]);
-
+  console.log('details ',details)
   const handleEdit = () => setIsEditMode(true);
 
   const handleCancel = () => {
@@ -86,7 +88,39 @@ export default function FeedbackFormEditor({
       });
     }
   };
+  const handleSaveSchemas = async (schemas: { jsonSchema: any; uiSchema: any }) => {
+    setForm(prev => ({
+      ...prev,
+      details: {
+        jsonSchema: schemas.jsonSchema,
+        uiSchema: schemas.uiSchema,
+      }
+    }));
 
+    try {
+      await updateItem.mutateAsync({
+        params: {
+          path: {
+            versionId: courseVersionId,
+            itemId: feedbackId,
+          },
+        },
+        body: {
+          ...form,
+          details: {
+            jsonSchema: schemas.jsonSchema,
+            uiSchema: schemas.uiSchema,
+          }
+        },
+      });
+
+      toast.success("Form saved successfully!");
+      onRefetch();
+      setFormBuilder(false); // Close builder after save
+    } catch (err) {
+      toast.error("Failed to save form");
+    }
+  };
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -99,6 +133,7 @@ export default function FeedbackFormEditor({
         },
         body: form,
       });
+      toast.success("Feedback Form updated successfully")
       onRefetch();
       setIsEditMode(false);
     } catch (err) {
@@ -245,7 +280,7 @@ export default function FeedbackFormEditor({
                 className="gap-2"
                 onClick={() => setFormBuilder(true)}
                 // onClick={() => alert('Form builder coming soon!')} // replace later
-                
+
                 disabled={!isEditMode} // optional: only enable in edit mode
               >
                 <Sparkles className="h-4 w-4" />
@@ -264,7 +299,52 @@ export default function FeedbackFormEditor({
                   disabled={isSubmitting}
                 />}
 
-                {formBuilder &&<FeedbackFormBuilder fetchedSchemas={details?.item?.details}/>}
+              {/* {formBuilder && <FeedbackFormBuilder fetchedSchemas={details?.item?.details}
+                onSave={handleSaveSchemas}
+                isSaving={updateItem.isPending}
+                onCancel={() => setFormBuilder(false)} />} */}
+
+<Dialog open={formBuilder} onOpenChange={setFormBuilder}>
+  <DialogContent
+    className="
+      max-w-[95vw]     /* nearly full width */
+      w-full 
+      h-[90vh]         /* tall but not full height */
+      p-0 
+      overflow-hidden  /* keeps inner scroll clean */
+      rounded-xl 
+      shadow-2xl
+      border 
+      bg-card
+      animate-in 
+      fade-in-0 
+      zoom-in-95
+    "
+  >
+    {/* Sticky Header */}
+    <DialogHeader className="p-5 border-b sticky top-0 bg-card z-20">
+      <DialogTitle className="text-xl font-semibold">
+        Build Feedback Form
+      </DialogTitle>
+      <p className="text-sm text-muted-foreground">
+        Customize your form layout and fields.
+      </p>
+    </DialogHeader>
+
+    {/* Scrollable Body */}
+    <div className="p-6 overflow-y-auto h-full">
+      <FeedbackFormBuilder
+        fetchedSchemas={details?.item?.details}
+        onSave={handleSaveSchemas}
+        isSaving={updateItem.isPending}
+        onCancel={() => setFormBuilder(false)}
+      />
+    </div>
+  </DialogContent>
+</Dialog>
+
+
+
             </div>
           </div>
         </div>

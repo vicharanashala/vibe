@@ -123,8 +123,21 @@ const FIELD_TYPES = [
   { type: 'url' as FieldType, label: 'URL', icon: Link },
   // { type: 'file' as FieldType, label: 'File Upload', icon: FileText },
 ];
-
- const FeedbackFormBuilder = ({fetchedSchemas}:{fetchedSchemas:any}) => {
+interface FeedbackFormBuilderProps {
+  fetchedSchemas?: {
+    jsonSchema?: any;
+    uiSchema?: any;
+  };
+  onSave: (schemas: { jsonSchema: any; uiSchema: any }) => Promise<void>;
+  isSaving?: boolean;
+  onCancel?: () => void;
+}
+ const FeedbackFormBuilder = ({ 
+  fetchedSchemas, 
+  onSave, 
+  isSaving = false,
+  onCancel 
+}: FeedbackFormBuilderProps) => {
   const [fields, setFields] = useState<FormField[]>([]);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -140,27 +153,24 @@ const FIELD_TYPES = [
 //   const { data: fetchedSchemas, isLoading: fetchLoading, error: fetchError,refetch } = useGetFeedbackFormFields(feedbackId as string);
 
   // Added useEffect to populate fields from fetched schemas on mount or when data changes
-  useEffect(() => {
-    if (fetchedSchemas) {
-      setIsLoading(true); // Set loading while fetching
-    }
+useEffect(() => {
+  if (!fetchedSchemas) {
+    setFields([]);
+    setIsLoading(false);
+    return;
+  }
 
-    if (!fetchedSchemas) {
-      toast.error('Failed to load existing form fields'); // Show error toast if fetch fails
-      setIsLoading(false);
-      return;
-    }
+  const { jsonSchema, uiSchema } = fetchedSchemas;
 
-    if (fetchedSchemas && (fetchedSchemas.jsonSchema || fetchedSchemas.uiSchema)) {
-      // Convert fetched schemas back to fields
-      const populatedFields = schemasToFields(fetchedSchemas.jsonSchema, fetchedSchemas.uiSchema);
-      setFields(populatedFields); 
-    } else {
-      setFields([]); // Ensure empty if no data
-    }
+  if (jsonSchema || uiSchema) {
+    const populatedFields = schemasToFields(jsonSchema || { properties: {} }, uiSchema || {});
+    setFields(populatedFields);
+  } else {
+    setFields([]);
+  }
 
-    setIsLoading(false); // End loading
-  }, [fetchedSchemas]);
+  setIsLoading(false);
+}, [fetchedSchemas]);
 
   // Add a new field to the form
   const addField = (type: FieldType) => {
@@ -484,7 +494,7 @@ const FIELD_TYPES = [
             </div>
           </div>
           <div className="sm:p-6 p-4">
-            <ConfirmationModal
+            {/* <ConfirmationModal
               isOpen={isConfirmationModalOpen}
               onClose={() => setIsConfirmationModalOpen(false)}
               onConfirm={handleSubmit}
@@ -506,7 +516,7 @@ const FIELD_TYPES = [
               confirmText="Delete"
               cancelText="Cancel"
               isDestructive={true}
-            />
+            /> */}
 
             <div className="flex flex-col lg:gap-1 gap-3 h-[110vh]">
             <Card className="flex-shrink-0">
@@ -574,9 +584,10 @@ const FIELD_TYPES = [
                       <form
                         className="space-y-4"
                         onSubmit={(e) => {
-                          setIsConfirmationModalOpen(true)
-                          e.preventDefault()
-                        }}
+    e.preventDefault();
+    const { jsonSchema, uiSchema } = buildSchemas();
+    onSave({ jsonSchema, uiSchema });
+  }}
                       >
                         {fields.map((field, index) => (
                           <div
@@ -792,10 +803,18 @@ const FIELD_TYPES = [
                           </div>
                         ))}
 
-                        <Button type="submit" className="w-full h-9">
+                        {/* <Button type="submit" className="w-full h-9">
                           <FileText className="w-4 h-4 mr-2" />
                           Submit Form
-                        </Button>
+                        </Button> */}
+
+                        <Button 
+  type="submit" 
+  className="w-full h-9"
+  disabled={isSaving}
+>
+  {isSaving ? "Saving Changes..." : "Save Form Changes"}
+</Button>
                       </form>
                     )}
                   </ScrollArea>
