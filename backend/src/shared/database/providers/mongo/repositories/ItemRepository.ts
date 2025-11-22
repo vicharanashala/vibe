@@ -354,6 +354,9 @@ export class ItemRepository implements IItemRepository {
         $set: {
           name: item.name,
           description: item.description,
+          ...(item.type === ItemType.FEEDBACK && {
+            isOptional: item.isOptional,
+          }),
           details: item?.details,
         },
       },

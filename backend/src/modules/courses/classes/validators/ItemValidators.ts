@@ -418,14 +418,6 @@ class UpdateItemBody implements Partial<IBaseItem> {
   beforeItemId?: string;
 
   @JSONSchema({
-    description: 'if the item is optional',
-    example: '60d5ec49b3f1c8e4a8f8b8c3',
-    type: 'boolean',
-  })
-  @IsBoolean()
-  isOptional:boolean
-
-  @JSONSchema({
     description: 'Type of the item: VIDEO, BLOG, QUIZ or PROJECT',
     example: 'VIDEO',
     type: 'string',
@@ -434,6 +426,13 @@ class UpdateItemBody implements Partial<IBaseItem> {
   @IsEnum(ItemType)
   @IsNotEmpty()
   type: ItemType;
+
+  @ValidateIf(o => o.type === ItemType.FEEDBACK)
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'isOptional field is required only for Feedback type items',
+  })
+  isOptional?: boolean;
 
   @JSONSchema({
     description: 'Details specific to video items',
