@@ -454,14 +454,14 @@ class SubmitFeedbackBody {
   })
   courseVersionId: string;
 
-  @IsOptional()
-  @IsBoolean()
-  @JSONSchema({
-    description: 'Whether the student skipped the feedback form',
-    type: 'boolean',
-    example: false,
-  })
-  isSkipped?: boolean;
+  // @IsOptional()
+  // @IsBoolean()
+  // @JSONSchema({
+  //   description: 'Whether the student skipped the feedback form',
+  //   type: 'boolean',
+  //   example: false,
+  // })
+  // isSkipped?: boolean;
 }
 
 class QuestionRenderView extends Question implements IQuestionRenderView {
