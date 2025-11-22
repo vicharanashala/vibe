@@ -27,10 +27,13 @@ import {
   SubmitAttemptResponse,
   GetAttemptResponse,
   AttemptNotFoundErrorResponse,
+  SubmitFeedbackParams,
+  SubmitFeedbackBody,
 } from '#quizzes/classes/validators/QuizValidator.js';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
 import {IAttempt} from '#quizzes/interfaces/index.js';
 import {BadRequestErrorResponse} from '#root/shared/index.js';
+import {getCourseAbility} from '#root/modules/courses/abilities/courseAbilities.js';
 
 @OpenAPI({
   tags: ['Quiz Attempts'],
@@ -85,8 +88,7 @@ class AttemptController {
 
   @OpenAPI({
     summary: 'Save answers for an ongoing attempt',
-    description:
-      `Saves the current answers for a quiz attempt without submitting.<br/>
+    description: `Saves the current answers for a quiz attempt without submitting.<br/>
       It returns an empty body with a 200 status code.`,
   })
   @Authorized()
@@ -144,8 +146,8 @@ class AttemptController {
     @Body() body: QuestionAnswersBody,
     @Ability(getAttemptAbility) {ability, user},
   ): Promise<SubmitAttemptResponse> {
-    const { quizId, attemptId } = params;
-    const { isSkipped, answers } = body;
+    const {quizId, attemptId} = params;
+    const {isSkipped, answers} = body;
     const userId = user._id.toString();
 
     // Build subject context first
@@ -166,6 +168,55 @@ class AttemptController {
     );
     return result as SubmitAttemptResponse;
   }
+
+  @OpenAPI({
+    summary: 'Submit feedback for an item',
+    description:
+      'Submits the feedback form response for a given item and stores the results.',
+  })
+  @Authorized()
+  @Post('/:itemId/feedback/submit')
+  @HttpCode(200)
+  @ResponseSchema(SubmitAttemptResponse, {
+    description: 'Feedback submitted successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid feedback submission request',
+    statusCode: 400,
+  })
+  @ResponseSchema(AttemptNotFoundErrorResponse, {
+    description: 'Attempt or feedback form not found',
+    statusCode: 404,
+  })
+  async submitFeedback(
+    @Params() params: SubmitFeedbackParams,
+    @Body() body: SubmitFeedbackBody,
+    @Ability(getCourseAbility) {ability, user},
+  ): Promise<boolean> {
+    const {feedbackFormId} = params;
+    const {
+      details,
+      isSkipped,
+      courseId,
+      courseVersionId,
+      previousItemId,
+      previousItemType,
+    } = body;
+    const userId = user._id.toString();
+
+    return await this.attemptService.submitFeedBackForm(
+      userId,
+      courseId,
+      courseVersionId,
+      feedbackFormId,
+      previousItemId,
+      previousItemType,
+      details,
+      isSkipped,
+    );
+  }
+  
 
   @OpenAPI({
     summary: 'Get details of a quiz attempt',

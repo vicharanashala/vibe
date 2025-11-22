@@ -128,7 +128,7 @@ class FeedBackFormItem {
 
   @Expose()
   isOptional: boolean;
-  
+
   @Expose()
   type: ItemType = ItemType.FEEDBACK;
 
@@ -150,6 +150,67 @@ class FeedBackFormItem {
     if (details) {
       this.details = details;
     }
+  }
+}
+
+class FeedbackSubmissionItem {
+  @Expose()
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  _id?: ID;
+
+  @Expose()
+  userId: ID;
+
+  @Expose()
+  courseId: ID;
+
+  @Expose()
+  courseVersionId: ID;
+
+  @Expose()
+  previousItemId: ID;
+
+  @Expose()
+  previousItemType: ItemType;
+
+  @Expose()
+  feedbackFormId: ID;
+
+  @Expose()
+  details: Record<string, any>;
+
+  @Expose()
+  isSkipped: boolean;
+
+  @Expose()
+  createdAt: Date;
+
+  @Expose()
+  updatedAt: Date;
+
+  constructor(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    previousItemId: string,
+    previousItemType: ItemType,
+    feedbackFormId: string,
+    details: Record<string, any>,
+    isSkipped: boolean = false,
+    _id?: ID,
+  ) {
+    this._id = _id;
+    this.userId = userId;
+    this.courseId = courseId;
+    this.courseVersionId = courseVersionId;
+    this.previousItemId = previousItemId;
+    this.previousItemType = previousItemType;
+    this.feedbackFormId = feedbackFormId;
+    this.details = details;
+    this.isSkipped = isSkipped;
+    this.createdAt = new Date();
+    this.updatedAt = new Date();
   }
 }
 
@@ -320,4 +381,5 @@ export {
   BlogItem,
   ProjectItem,
   FeedBackFormItem,
+  FeedbackSubmissionItem,
 };

@@ -32,6 +32,7 @@ import {
   IsBoolean,
   IsIn,
   IsEmpty,
+  IsObject,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {ObjectId} from 'mongodb';
@@ -128,6 +129,18 @@ class SubmitAttemptParams {
     example: '60d21b4667d0d8992e610c99',
   })
   attemptId: string;
+}
+
+class SubmitFeedbackParams {
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'ID of the quiz',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c85',
+  })
+  feedbackFormId: string;
+
 }
 
 class GetAttemptResponse implements IAttempt {
@@ -403,6 +416,61 @@ class QuestionAnswersBody {
     description: 'Whether this attempt is skipped',
     type: 'boolean',
     example: true,
+  })
+  isSkipped?: boolean;
+}
+class SubmitFeedbackBody {
+  @IsObject()
+  @JSONSchema({
+    description:
+      'Dynamic key-value pairs submitted by the student as feedback.',
+    type: 'object',
+  })
+  details: Record<string, any>;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'ID of the course',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c99',
+  })
+  courseId: string;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'ID of the previous course item (video, quiz, etc.)',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c99',
+  })
+  previousItemId: string;
+
+  @IsEnum(ItemType)
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'Type of the previous item (video, quiz, blog, etc.)',
+    type: 'string',
+    enum: Object.values(ItemType),
+    example: ItemType.VIDEO,
+  })
+  previousItemType: ItemType;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'ID of the course version',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c99',
+  })
+  courseVersionId: string;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Whether the student skipped the feedback form',
+    type: 'boolean',
+    example: false,
   })
   isSkipped?: boolean;
 }
@@ -1532,6 +1600,8 @@ export {
   CreateAttemptParams,
   SaveAttemptParams,
   SubmitAttemptParams,
+  SubmitFeedbackParams,
+  SubmitFeedbackBody,
   CreateAttemptResponse,
   SubmitAttemptResponse,
   GetAttemptResponse,

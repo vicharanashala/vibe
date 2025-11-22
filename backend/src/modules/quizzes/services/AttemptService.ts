@@ -18,7 +18,7 @@ import {
   getSelectedItemTexts,
 } from '#quizzes/utils/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
-import {BaseService, MongoDatabase} from '#shared/index.js';
+import {BaseService, ItemType, MongoDatabase} from '#shared/index.js';
 import {injectable, inject} from 'inversify';
 import {ClientSession, ObjectId} from 'mongodb';
 import {NotFoundError, BadRequestError} from 'routing-controllers';
@@ -33,8 +33,12 @@ import {UserQuizMetricsRepository} from '../repositories/providers/mongodb/UserQ
 import {BaseQuestion, NATQuestion} from '../classes/transformers/Question.js';
 import {UserQuizMetrics} from '../classes/transformers/UserQuizMetrics.js';
 import {Attempt} from '../classes/transformers/Attempt.js';
-import {QuizItem} from '#root/modules/courses/classes/transformers/Item.js';
+import {
+  FeedbackSubmissionItem,
+  QuizItem,
+} from '#root/modules/courses/classes/transformers/Item.js';
 import {QuestionRepository} from '../repositories/index.js';
+import {FeedbackRepository} from '../repositories/providers/mongodb/FeedbackRepository.js';
 @injectable()
 class AttemptService extends BaseService {
   constructor(
@@ -58,6 +62,9 @@ class AttemptService extends BaseService {
 
     @inject(QUIZZES_TYPES.QuestionBankService)
     private questionBankService: QuestionBankService,
+
+    @inject(QUIZZES_TYPES.FeedbackRepo)
+    private feedbackRepository: FeedbackRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
@@ -377,6 +384,66 @@ class AttemptService extends BaseService {
         );
         return null;
       }
+    });
+  }
+
+  async submitFeedBackForm(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    feedbackFormId: string,
+    previousItemId: string,
+    previousItemType: ItemType,
+    details: Record<string, any>,
+    isSkipped?: boolean,
+  ): Promise<boolean> {
+    return this._withTransaction(async session => {
+      // const previousItemId = '';
+      // const previousItemType = 'VIDEO' as ItemType;
+
+      if (previousItemType == 'FEEDBACK') {
+        throw new BadRequestError("You can't submit feedback for this item");
+      }
+      const feedbackForm = await this.feedbackRepository.getFormById(
+        feedbackFormId,
+        session,
+      );
+
+      if (!feedbackForm) {
+        throw new NotFoundError(`Feedback form ${feedbackFormId} not found`);
+      }
+      const existingSubmission =
+        await this.feedbackRepository.findByUserAndPreviousItem(
+          userId.toString(),
+          previousItemId.toString(),
+          session,
+        );
+
+      if (existingSubmission) {
+        throw new BadRequestError(
+          `You have already submitted feedback for this item ${previousItemId}`,
+        );
+      }
+
+      const newFeedbackSubmission: FeedbackSubmissionItem = {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        details,
+        feedbackFormId: new ObjectId(feedbackFormId),
+        isSkipped,
+        previousItemId: new ObjectId(previousItemId),
+        previousItemType,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      await this.feedbackRepository.createFeedback(
+        newFeedbackSubmission,
+        session,
+      );
+
+      return true;
     });
   }
 
