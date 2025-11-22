@@ -26,6 +26,7 @@ import { VersionWithCourse } from '@/app/pages/student/CourseRegistration';
 import { Registration, RegistrationStatus } from '@/app/pages/teacher/CourseRegistrationRequests';
 import { Field } from '@/app/pages/teacher/components/course-registration-modal';
 import { IssueSort, IssueStatus } from '@/app/pages/student/FlagResponse';
+import { ISubmitFeedbackBody } from '@/components/Item-container';
 
 // Add missing ObjectId type
 type ObjectId = string;
@@ -3332,5 +3333,45 @@ export const useGetFeedbackFormFields = (
       ? result.error.message || 'Failed to fetch registration fields'
       : null,
     refetch: result.refetch,
+  };
+};
+
+
+export const useSubmitFeedback = (itemId:string): {
+  mutate: (body: ISubmitFeedbackBody) => void;
+  mutateAsync: (body: ISubmitFeedbackBody) => Promise<{ message: string }>;
+  data: { message: string } | undefined;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} => {
+
+  const result = api.useMutation('post', `/quizzes/${itemId}/feedback/submit` as any);
+  
+  return {
+    mutate: (body) =>
+      result.mutate({
+        body: body,
+      }),
+
+    mutateAsync: (body) =>
+      result.mutateAsync({
+        body: body,
+      }),
+
+    data: result.data as { message: string } | undefined,
+    error: result.error
+      ? result.error.message || 'Failed to submit feedback'
+      : null,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
   };
 };

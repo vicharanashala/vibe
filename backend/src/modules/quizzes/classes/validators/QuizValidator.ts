@@ -437,7 +437,7 @@ class SubmitFeedbackBody {
   courseId: string;
 
   @IsMongoId()
-  @IsNotEmpty()
+  @IsOptional()
   @JSONSchema({
     description: 'ID of the second which feedback form belongs to',
     type: 'string',
