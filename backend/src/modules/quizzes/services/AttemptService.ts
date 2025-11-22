@@ -402,46 +402,62 @@ class AttemptService extends BaseService {
     courseVersionId: string,
     feedbackFormId: string,
     details: Record<string, any>,
-    isSkipped?: boolean,
-  ): Promise<boolean> {
+  ): Promise<string> {
     return this._withTransaction(async session => {
-
+      // 1. Validate Item Group
       const ItemsGroup = await this.itemRepo.findItemsGroupByItemId(
         feedbackFormId,
         session,
       );
 
       if (!ItemsGroup)
-        throw new NotFoundError('Not item group founded for this item');
+        throw new NotFoundError(
+          'No item group found for the provided feedback form.',
+        );
 
       const items = ItemsGroup.items;
+
+      // 2. Find feedback item
       const feedbackIndex = items.findIndex(
         item => item._id.toString() === feedbackFormId,
       );
 
       if (feedbackIndex === -1)
-        throw new NotFoundError('Feedback item not found');
+        throw new NotFoundError(
+          'Feedback form item not found inside the item group.',
+        );
+
+      // 3. Find previous item
       const previousItem = items[feedbackIndex - 1];
 
       if (!previousItem)
         throw new NotFoundError(
-          'No previous item found for this feedback item',
+          'No previous learning item exists before this feedback form.',
         );
 
       const previousItemId = previousItem._id.toString();
       const previousItemType = previousItem.type;
 
-      if (previousItemType == 'FEEDBACK') {
-        throw new BadRequestError("You can't submit feedback for this item");
+      // 4. Prevent feedback on feedback items
+      if (previousItemType === 'FEEDBACK') {
+        throw new BadRequestError(
+          'Feedback cannot be submitted for a previous feedback item.',
+        );
       }
+
+      // 5. Validate the feedback form
       const feedbackForm = await this.feedbackRepository.getFormById(
         feedbackFormId,
         session,
       );
 
       if (!feedbackForm) {
-        throw new NotFoundError(`Feedback form ${feedbackFormId} not found`);
+        throw new NotFoundError(
+          `Feedback form with ID ${feedbackFormId} does not exist.`,
+        );
       }
+
+      // 6. Check if the user already submitted feedback for this specific item
       const existingSubmission =
         await this.feedbackRepository.findByUserAndPreviousItem(
           userId.toString(),
@@ -451,17 +467,17 @@ class AttemptService extends BaseService {
 
       if (existingSubmission) {
         throw new BadRequestError(
-          `You have already submitted feedback for this item ${previousItemId}`,
+          `You have already submitted feedback for the previous item (${previousItemType}).`,
         );
       }
 
+      // 7. Create new feedback submission record
       const newFeedbackSubmission: FeedbackSubmissionItem = {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
         details,
         feedbackFormId: new ObjectId(feedbackFormId),
-        isSkipped,
         previousItemId: new ObjectId(previousItemId),
         previousItemType,
         createdAt: new Date(),
@@ -473,7 +489,7 @@ class AttemptService extends BaseService {
         session,
       );
 
-      return true;
+      return 'Your feedback has been submitted successfully. Thank you for your response!';
     });
   }
 
