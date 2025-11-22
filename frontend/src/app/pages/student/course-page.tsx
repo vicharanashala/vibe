@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
@@ -84,43 +85,43 @@ export default function CoursePage() {
   const { getSettings, settingLoading: proctoringLoading } = useGetProcotoringSettings();
 
   const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
-  const [isFlagSubmitted,setIsFlagSubmitted] = useState(false);
-  const {mutateAsync:submitFlagAsyncMutate,isPending} = useSubmitFlag();
+  const [isFlagSubmitted, setIsFlagSubmitted] = useState(false);
+  const { mutateAsync: submitFlagAsyncMutate, isPending } = useSubmitFlag();
 
   const streamRef = useRef<MediaStream | null>(null);
-  
+
   // Check for microphone and camera access, otherwise redirect to dashboard
-    useEffect(() => {
-        async function checkMediaPermissions() {
-          try {
-          // Try to get both camera and microphone access
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-          streamRef.current = stream;
+  useEffect(() => {
+    async function checkMediaPermissions() {
+      try {
+        // Try to get both camera and microphone access
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        streamRef.current = stream;
+      } catch (err) {
+        alert("Please allow camera and microphone access to continue. You will be redirected to the dashboard if access is denied.");
+        try {
+          const retryStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          streamRef.current = retryStream;
         } catch (err) {
-          alert("Please allow camera and microphone access to continue. You will be redirected to the dashboard if access is denied.");
-          try {
-            const retryStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            streamRef.current = retryStream;
-          } catch (err) {
-            router.navigate({ to: '/student' });
-          }
+          router.navigate({ to: '/student' });
         }
       }
-      if (!showProctorDialog) {
-        checkMediaPermissions();
-      }
-      return () => {
+    }
+    if (!showProctorDialog) {
+      checkMediaPermissions();
+    }
+    return () => {
       // Clean up media tracks on unmount or navigation
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
         setTimeout(() => {
           window.location.reload();
-        },1500)
+        }, 1500)
       }
     };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [showProctorDialog]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showProctorDialog]);
 
   // Get the setCurrentCourse function from the store
   const { setCurrentCourse } = useCourseStore();
@@ -160,7 +161,7 @@ export default function CoursePage() {
   const [anomalies, setAnomalies] = useState<string[]>([]);
   const [isQuizSkipped, setIsQuizSkipped] = useState(false);
   const [readyToDetect, setReadyToDetect] = useState(false);
-  
+
 
   // State to track when we're waiting for next section items to load
   const [waitingForNextSection, setWaitingForNextSection] = useState<{
@@ -179,7 +180,7 @@ export default function CoursePage() {
   } | null>(null);
 
   // Fetch course version data
-  const { data: courseVersionData, isLoading: versionLoading, error: versionError ,refetch: refetchVersion} =
+  const { data: courseVersionData, isLoading: versionLoading, error: versionError, refetch: refetchVersion } =
     useCourseVersionById(VERSION_ID);
 
   // Fetch user progress
@@ -222,10 +223,10 @@ export default function CoursePage() {
 
   // Separate effect for handling item errors - prevents circular dependencies
   useEffect(() => {
-    if(!itemError) return;
+    if (!itemError) return;
     console.error('Current item error:', itemError);
     // if (itemError === "Firebase ID token has expired. Get a fresh ID token from your client app and try again (auth/id-token-expired). See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.")
-    if(itemError.includes("auth/id-token-expired")){
+    if (itemError.includes("auth/id-token-expired")) {
       logout();
       Navigate({ to: '/auth' });
       return;
@@ -270,7 +271,7 @@ export default function CoursePage() {
   useEffect(() => {
     async function fetch() {
       const data = await getSettings(COURSE_ID, VERSION_ID);
-      console.log("Current proctoring data: ",data);
+      console.log("Current proctoring data: ", data);
       setProctoringData(data);
     }
     fetch();
@@ -300,30 +301,30 @@ export default function CoursePage() {
 
   // Handle navigation to next section after items are loaded
   useEffect(() => {
-    if (waitingForNextSection && 
-        sectionItems[waitingForNextSection.sectionId] && 
-        sectionItems[waitingForNextSection.sectionId].length > 0) {
-      
+    if (waitingForNextSection &&
+      sectionItems[waitingForNextSection.sectionId] &&
+      sectionItems[waitingForNextSection.sectionId].length > 0) {
+
       const firstItem = sectionItems[waitingForNextSection.sectionId][0];
-      
+
       // Clear waiting state
       setWaitingForNextSection(null);
-      
+
       // Navigate to the first item of the newly loaded section
       setSelectedModuleId(waitingForNextSection.moduleId);
       setSelectedSectionId(waitingForNextSection.sectionId);
       setSelectedItemId(firstItem._id);
-      
+
       // Auto-expand the module and section
       setExpandedModules(prev => ({ ...prev, [waitingForNextSection.moduleId]: true }));
       setExpandedSections(prev => ({ ...prev, [waitingForNextSection.sectionId]: true }));
-      
+
       // Update course store navigation
       updateCourseNavigation(waitingForNextSection.moduleId, waitingForNextSection.sectionId, firstItem._id);
-      
+
       // Clear loading state
       setIsNavigatingToNext(false);
-      
+
       console.log('Successfully navigated to next section:', waitingForNextSection.sectionId);
     }
   }, [sectionItems, waitingForNextSection, updateCourseNavigation]);
@@ -334,7 +335,7 @@ export default function CoursePage() {
   }, [quizPassed]);
   // Add a flag to track if initial load from progress is complete
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-  
+
   // Track the last known progress data to detect resets
   const [lastProgressData, setLastProgressData] = useState<any>(null);
 
@@ -345,47 +346,47 @@ export default function CoursePage() {
       const currentModule = progressData.currentModule;
       const currentSection = progressData.currentSection;
       const currentItem = progressData.currentItem;
-      
+
       const lastModule = lastProgressData.currentModule;
       const lastSection = lastProgressData.currentSection;
       const lastItem = lastProgressData.currentItem;
-      
+
       // If we've moved to a different module/section/item that suggests a reset
       const hasProgressChanged = (
         currentModule !== lastModule ||
         currentSection !== lastSection ||
         currentItem !== lastItem
       );
-      
+
       if (hasProgressChanged) {
         console.log('Progress reset detected, clearing cached section items');
-        
+
         // Clear all cached section items to force fresh load
         setSectionItems({});
-        
+
         // Clear waiting states
         setWaitingForNextSection(null);
-        
+
         // Update selected items
         setSelectedModuleId(currentModule);
         setSelectedSectionId(currentSection);
         setSelectedItemId(currentItem);
-        
+
         // Auto-expand the module and section
         setExpandedModules(prev => ({ ...prev, [currentModule]: true }));
         setExpandedSections(prev => ({ ...prev, [currentSection]: true }));
-        
+
         // Set active section to fetch items fresh
         setActiveSectionInfo({
           moduleId: currentModule,
           sectionId: currentSection
         });
-        
+
         // Update the course store with the current progress
         updateCourseNavigation(currentModule, currentSection, currentItem);
       }
     }
-    
+
     // Update last known progress data
     setLastProgressData(progressData);
   }, [progressData, lastProgressData, updateCourseNavigation]);
@@ -436,22 +437,22 @@ export default function CoursePage() {
   // Flag handling function
   const handleFlagSubmit = async (reason: string) => {
     try {
-      if(!currentItem){
-        console.warn("Current item not founded",currentItem);
+      if (!currentItem) {
+        console.warn("Current item not founded", currentItem);
         return;
       }
       const submitFlagBody = {
-        courseId:COURSE_ID,
-        versionId:VERSION_ID,
-        entityId:currentItem._id,
-        entityType:currentItem.type as EntityType,
+        courseId: COURSE_ID,
+        versionId: VERSION_ID,
+        entityId: currentItem._id,
+        entityType: currentItem.type as EntityType,
         reason,
       }
-      await submitFlagAsyncMutate({body:submitFlagBody})
-      toast.success("Flag submitted successfully", {position: 'top-right'})
-    } catch(error:any){
+      await submitFlagAsyncMutate({ body: submitFlagBody })
+      toast.success("Flag submitted successfully", { position: 'top-right' })
+    } catch (error: any) {
       toast.error(error?.message || "Failed to submit flag", { position: 'top-right' });
-    } finally{
+    } finally {
       setIsFlagSubmitted(true);
       setIsFlagModalOpen(false);
     }
@@ -704,7 +705,7 @@ export default function CoursePage() {
       if ((nextItem as any).needsLoading) {
         const { moduleId, sectionId } = nextItem;
         console.log('Next section items need loading. Triggering load for:', { moduleId, sectionId });
-        
+
         // Store current valid item before switching
         if (selectedItemId && selectedSectionId && selectedModuleId) {
           setPreviousValidItem({
@@ -713,13 +714,13 @@ export default function CoursePage() {
             itemId: selectedItemId
           });
         }
-        
+
         // Set waiting state to track when items are loaded
         setWaitingForNextSection({ moduleId, sectionId });
-        
+
         // Trigger loading of next section items
         setActiveSectionInfo({ moduleId, sectionId });
-        
+
         // Keep loading state active (will be cleared when navigation completes)
         return;
       }
@@ -764,7 +765,7 @@ export default function CoursePage() {
 
       // Update the course store with the next item
       updateCourseNavigation(moduleId, sectionId, itemId);
-      
+
       console.log('Successfully navigated to next item:', { moduleId, sectionId, itemId });
     } catch (error) {
       console.error('Error navigating to next item:', error);
@@ -958,9 +959,9 @@ export default function CoursePage() {
     }
   }, [selectedItemId]);
 
-  useEffect(()=>{
+  useEffect(() => {
     refetchVersion();
-  },[courseVersionData]);
+  }, [courseVersionData]);
 
   if (versionLoading || progressLoading || proctoringLoading) {
     return (
@@ -1024,7 +1025,7 @@ export default function CoursePage() {
           </div>
         </DialogContent>
       </Dialog>
-      
+
       <SidebarProvider defaultOpen={true}>
         <div className="flex h-screen w-full">
           {/* Enhanced Course Navigation Sidebar */}
@@ -1085,10 +1086,17 @@ export default function CoursePage() {
                               }`}
                           />
                           <div className="flex-1 text-left min-w-0 ml-2">
-                            <div className="font-medium text-xs truncate" title={module.name}>
-                              {module.name.length > 34 ? `${module.name.substring(0, 31)}...` : module.name}
-                            </div>
-                            <div className="text-[10px] text-muted-fore</div>ground truncate">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="font-medium text-xs truncate">
+                                  {module.name.length > 34 ? `${module.name.substring(0, 31)}...` : module.name}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="right" align="center">
+                                {module.name}
+                              </TooltipContent>
+                            </Tooltip>
+                            <div className="text-[10px] text-muted-foreground truncate">
                               {module.sections?.length || 0} sections
                             </div>
                           </div>
@@ -1113,8 +1121,17 @@ export default function CoursePage() {
                                       className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 ${isSectionExpanded ? 'rotate-90' : ''
                                         }`}
                                     />
-                                    <div className="font-medium truncate flex-1 min-w-0 ml-2" title={section.name}>
-                                      {section.name.length > 27 ? `${section.name.substring(0, 24)}...` : section.name}
+                                    <div className="font-medium truncate flex-1 min-w-0 ml-2">
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <div className="font-medium text-xs truncate">
+                                            {section.name.length > 27 ? `${section.name.substring(0, 24)}...` : section.name}
+                                          </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="right" align="center">
+                                          {section.name}
+                                        </TooltipContent>
+                                      </Tooltip>
                                     </div>
                                   </SidebarMenuSubButton>
 
@@ -1403,28 +1420,28 @@ export default function CoursePage() {
                   </Card>
                 )}
               </div>
-                <FlagModal
-                  open={isFlagModalOpen}
-                  onOpenChange={setIsFlagModalOpen}
-                  onSubmit={handleFlagSubmit}
-                  isSubmitting={isPending}
-                />
+              <FlagModal
+                open={isFlagModalOpen}
+                onOpenChange={setIsFlagModalOpen}
+                onSubmit={handleFlagSubmit}
+                isSubmitting={isPending}
+              />
               {currentItem ? (
                 <div className="relative z-10 h-full flex flex-col mb-2  sm:mb-1">
-                {!isFlagSubmitted &&
-                  <div className="flex justify-end mb-1 me-10">
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      className="text-xs gap-1"
-                      title="Flag this content"
-                      onClick={()=>setIsFlagModalOpen(true)}
-                    >
-                      <FlagTriangleRightIcon className="h-4 w-4" />
-                      <span className="max-sm:hidden">Submit Flag</span>
-                    </Button>
+                  {!isFlagSubmitted &&
+                    <div className="flex justify-end mb-1 me-10">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="text-xs gap-1"
+                        title="Flag this content"
+                        onClick={() => setIsFlagModalOpen(true)}
+                      >
+                        <FlagTriangleRightIcon className="h-4 w-4" />
+                        <span className="max-sm:hidden">Submit Flag</span>
+                      </Button>
                     </div>
-                   }
+                  }
                   {currentItem?.type === 'PROJECT' ? (
                     <StudentProjectItem
                       item={currentItem}
@@ -1442,14 +1459,14 @@ export default function CoursePage() {
                       attemptId={attemptId || undefined}
                       setAttemptId={setAttemptId}
                       rewindVid={rewindVid}
-                       readyToDetect={readyToDetect}
+                      readyToDetect={readyToDetect}
                       pauseVid={pauseVid}
                       displayNextLesson={false}
                       setQuizPassed={setQuizPassed}
                       anomalies={anomalies}
                       keyboardLockEnabled={!isFlagModalOpen}
-                      linearProgressionEnabled = {proctoringData?.settings.linearProgressionEnabled || true}
-                      setIsQuizSkipped= {setIsQuizSkipped}
+                      linearProgressionEnabled={proctoringData?.settings.linearProgressionEnabled || true}
+                      setIsQuizSkipped={setIsQuizSkipped}
                     />
                   )}
 

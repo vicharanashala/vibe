@@ -696,7 +696,7 @@ function TeacherCourseContent() {
       <ResizablePanel 
         defaultSize={20}
         minSize={20}
-        maxSize={60}
+        maxSize={50}
         className={`${isMobileSidebarOpen ? 'fixed inset-y-0 left-0 z-50 w-[280px]' : 'hidden md:block'}`}
       >
         <div className="h-full overflow-hidden border-r border-border/40 bg-sidebar/50">
@@ -807,7 +807,7 @@ function TeacherCourseContent() {
                                           className={`h-3 w-3 transition-transform ${expandedSections[section.sectionId] ? "rotate-90" : ""
                                             }`}
                                         />
-                                        <span className="ml-2 truncate max-w-[100px] block">{section.name} </span>
+                                        <span className="ml-2 truncate w-[100%] block">{section.name} </span>
                                       </SidebarMenuSubButton>
 
                                       {expandedSections[section.sectionId] && (
@@ -1100,7 +1100,7 @@ function TeacherCourseContent() {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="ml-4 mt-2 w-[50%] h-6 text-xs"
+                                  className="ml-4 mt-2 w-[220px] h-6 text-xs"
                                   onClick={() => handleAddSection(module.moduleId)}
                                 >
                                   <Plus className="h-3 w-3 mr-1" />
@@ -1113,7 +1113,7 @@ function TeacherCourseContent() {
                       ))}
 
                     <div className="px-2 pt-3">
-                      <Button size="sm" className="w-[50%]  text-xs" onClick={handleAddModule}>
+                      <Button size="sm" className="w-[250px]  text-xs" onClick={handleAddModule}>
                         <Plus className="h-3 w-3 mr-1" />
                         Add Module
                       </Button>
