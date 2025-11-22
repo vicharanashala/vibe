@@ -140,7 +140,6 @@ class SubmitFeedbackParams {
     example: '60d21b4667d0d8992e610c85',
   })
   itemId: string;
-
 }
 
 class GetAttemptResponse implements IAttempt {
@@ -440,21 +439,11 @@ class SubmitFeedbackBody {
   @IsMongoId()
   @IsNotEmpty()
   @JSONSchema({
-    description: 'ID of the previous course item (video, quiz, etc.)',
+    description: 'ID of the second which feedback form belongs to',
     type: 'string',
     example: '60d21b4667d0d8992e610c99',
   })
-  previousItemId: string;
-
-  @IsEnum(ItemType)
-  @IsNotEmpty()
-  @JSONSchema({
-    description: 'Type of the previous item (video, quiz, blog, etc.)',
-    type: 'string',
-    enum: Object.values(ItemType),
-    example: ItemType.VIDEO,
-  })
-  previousItemType: ItemType;
+  sectionId?: string;
 
   @IsMongoId()
   @IsNotEmpty()
