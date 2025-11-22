@@ -18,7 +18,12 @@ import {
   getSelectedItemTexts,
 } from '#quizzes/utils/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
-import {BaseService, ItemType, MongoDatabase} from '#shared/index.js';
+import {
+  BaseService,
+  IItemRepository,
+  ItemType,
+  MongoDatabase,
+} from '#shared/index.js';
 import {injectable, inject} from 'inversify';
 import {ClientSession, ObjectId} from 'mongodb';
 import {NotFoundError, BadRequestError} from 'routing-controllers';
@@ -39,6 +44,7 @@ import {
 } from '#root/modules/courses/classes/transformers/Item.js';
 import {QuestionRepository} from '../repositories/index.js';
 import {FeedbackRepository} from '../repositories/providers/mongodb/FeedbackRepository.js';
+import {COURSES_TYPES} from '#root/modules/courses/types.js';
 @injectable()
 class AttemptService extends BaseService {
   constructor(
@@ -65,6 +71,9 @@ class AttemptService extends BaseService {
 
     @inject(QUIZZES_TYPES.FeedbackRepo)
     private feedbackRepository: FeedbackRepository,
+
+    @inject(COURSES_TYPES.ItemRepo)
+    private readonly itemRepo: IItemRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
@@ -392,14 +401,35 @@ class AttemptService extends BaseService {
     courseId: string,
     courseVersionId: string,
     feedbackFormId: string,
-    previousItemId: string,
-    previousItemType: ItemType,
     details: Record<string, any>,
     isSkipped?: boolean,
   ): Promise<boolean> {
     return this._withTransaction(async session => {
-      // const previousItemId = '';
-      // const previousItemType = 'VIDEO' as ItemType;
+
+      const ItemsGroup = await this.itemRepo.findItemsGroupByItemId(
+        feedbackFormId,
+        session,
+      );
+
+      if (!ItemsGroup)
+        throw new NotFoundError('Not item group founded for this item');
+
+      const items = ItemsGroup.items;
+      const feedbackIndex = items.findIndex(
+        item => item._id.toString() === feedbackFormId,
+      );
+
+      if (feedbackIndex === -1)
+        throw new NotFoundError('Feedback item not found');
+      const previousItem = items[feedbackIndex - 1];
+
+      if (!previousItem)
+        throw new NotFoundError(
+          'No previous item found for this feedback item',
+        );
+
+      const previousItemId = previousItem._id.toString();
+      const previousItemType = previousItem.type;
 
       if (previousItemType == 'FEEDBACK') {
         throw new BadRequestError("You can't submit feedback for this item");
