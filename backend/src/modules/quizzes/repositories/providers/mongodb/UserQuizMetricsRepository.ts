@@ -68,6 +68,11 @@ class UserQuizMetricsRepository {
       latestAttemptId: result.latestAttemptId?.toString() || null,
       latestSubmissionResultId:
         result.latestSubmissionResultId?.toString() || null,
+      attempts: result.attempts.map(attempt => ({
+        ...attempt,
+        attemptId: attempt.attemptId?.toString(),
+        submissionResultId: attempt.submissionResultId?.toString() || null,
+      })),
     };
   }
 
@@ -173,6 +178,57 @@ class UserQuizMetricsRepository {
       latestSubmissionResultId:
         doc.latestSubmissionResultId?.toString() || null,
     }));
+  }
+
+
+  async findWithMissingSubmissionIds(session?: ClientSession) {
+    await this.init();
+    try {
+
+      const pipeline = [
+        { $unwind: '$attempts' },
+        {
+          $match: {
+            $or: [
+              { 'attempts.submissionResultId': { $exists: false } },
+              { 'attempts.submissionResultId': null }
+            ]
+          }
+        },
+        {
+          $group: {
+            _id: '$_id',
+            userId: { $first: '$userId' },
+            quizId: { $first: '$quizId' },
+            attempts: { $push: '$attempts' }
+          }
+        }
+      ];
+      return this.userQuizMetricsCollection.aggregate(pipeline, { session })
+
+
+    } catch (error) {
+      throw new InternalServerError(
+        'Failed to find user quiz metrics with missing submission IDs.\n More Details: ' + error,
+      );
+    }
+  }
+
+  async bulkUpdateMetrics(
+    operations: any[],
+    session?: ClientSession
+  ): Promise<void> {
+    await this.init();
+    try {
+      const result = await this.userQuizMetricsCollection.bulkWrite(operations, {
+        session,
+      });
+      console.log(`UserQuizMetrics bulk update result: ${JSON.stringify(result)}`);
+    } catch (error) {
+      throw new InternalServerError(
+        'Failed to bulk update user quiz metrics.\n More Details: ' + error,
+      );
+    }
   }
 }
 
