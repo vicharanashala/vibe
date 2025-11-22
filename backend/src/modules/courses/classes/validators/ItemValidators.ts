@@ -418,14 +418,6 @@ class UpdateItemBody implements Partial<IBaseItem> {
   beforeItemId?: string;
 
   @JSONSchema({
-    description: 'if the item is optional',
-    example: '60d5ec49b3f1c8e4a8f8b8c3',
-    type: 'boolean',
-  })
-  @IsBoolean()
-  isOptional:boolean
-
-  @JSONSchema({
     description: 'Type of the item: VIDEO, BLOG, QUIZ or PROJECT',
     example: 'VIDEO',
     type: 'string',
