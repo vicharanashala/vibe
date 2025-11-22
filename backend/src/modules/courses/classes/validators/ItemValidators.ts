@@ -427,6 +427,13 @@ class UpdateItemBody implements Partial<IBaseItem> {
   @IsNotEmpty()
   type: ItemType;
 
+  @ValidateIf(o => o.type === ItemType.FEEDBACK)
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'isOptional field is required only for Feedback type items',
+  })
+  isOptional?: boolean;
+
   @JSONSchema({
     description: 'Details specific to video items',
     oneOf: [
