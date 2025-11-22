@@ -194,7 +194,7 @@ class AttemptController {
     @Body() body: SubmitFeedbackBody,
     @Ability(getCourseAbility) {ability, user},
   ): Promise<boolean> {
-    const {feedbackFormId} = params;
+    const {itemId} = params;
     const {
       details,
       isSkipped,
@@ -209,14 +209,14 @@ class AttemptController {
       userId,
       courseId,
       courseVersionId,
-      feedbackFormId,
+      itemId,
       previousItemId,
       previousItemType,
       details,
       isSkipped,
     );
   }
-  
+
 
   @OpenAPI({
     summary: 'Get details of a quiz attempt',
