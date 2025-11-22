@@ -193,7 +193,7 @@ class AttemptController {
     @Params() params: SubmitFeedbackParams,
     @Body() body: SubmitFeedbackBody,
     @Ability(getCourseAbility) {ability, user},
-  ): Promise<boolean> {
+  ): Promise<string> {
     const {itemId} = params;
     const {details, isSkipped, courseId, courseVersionId, sectionId} = body;
     const userId = user._id.toString();

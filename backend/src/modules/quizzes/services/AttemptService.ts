@@ -403,7 +403,7 @@ class AttemptService extends BaseService {
     feedbackFormId: string,
     details: Record<string, any>,
     isSkipped?: boolean,
-  ): Promise<boolean> {
+  ): Promise<string> {
     return this._withTransaction(async session => {
 
       const ItemsGroup = await this.itemRepo.findItemsGroupByItemId(
@@ -473,7 +473,7 @@ class AttemptService extends BaseService {
         session,
       );
 
-      return true;
+      return 'Feedback form successfully submitted, Thankyou.';
     });
   }
 
