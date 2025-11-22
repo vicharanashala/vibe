@@ -139,7 +139,7 @@ const FeedbackForm = ({
       }
     });
   }
-  const handleSubmit = async (formData: any) => {
+  const handleSubmit = async ({formData}:any ) => {
     const payload: ISubmitFeedbackBody = {
       details: formData,
       courseId: currentCourse?.courseId || '',
@@ -172,9 +172,23 @@ const FeedbackForm = ({
 
 
   const handleSkip = () => {
-    if (onSkip) {
-      onSkip();
+      // onSkip();
+      stopItem.mutate({
+    params: {
+      path: {
+        courseId: currentCourse!.courseId,
+        courseVersionId: currentCourse!.versionId ?? '',
+      },
+    },
+    body: {
+      watchItemId: watchItemId ?? '',
+      itemId: currentCourse!.itemId ?? '',
+      moduleId: currentCourse!.moduleId ?? '',
+      sectionId: currentCourse!.sectionId ?? '',
     }
+  });
+  onNext()
+    
   };
 
   // Custom form template to match shadcn styling
