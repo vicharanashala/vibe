@@ -195,7 +195,7 @@ class AttemptController {
     @Ability(getCourseAbility) {ability, user},
   ): Promise<string> {
     const {itemId} = params;
-    const {details, isSkipped, courseId, courseVersionId, sectionId} = body;
+    const {details, courseId, courseVersionId, sectionId} = body;
     const userId = user._id.toString();
 
     return await this.attemptService.submitFeedBackForm(
@@ -204,7 +204,7 @@ class AttemptController {
       courseVersionId,
       itemId,
       details,
-      isSkipped,
+      // isSkipped,
     );
   }
 

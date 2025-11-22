@@ -180,8 +180,8 @@ class FeedbackSubmissionItem {
   @Expose()
   details: Record<string, any>;
 
-  @Expose()
-  isSkipped: boolean;
+  // @Expose()
+  // isSkipped: boolean;
 
   @Expose()
   createdAt: Date;
@@ -197,7 +197,6 @@ class FeedbackSubmissionItem {
     previousItemType: ItemType,
     feedbackFormId: string,
     details: Record<string, any>,
-    isSkipped: boolean = false,
     _id?: ID,
   ) {
     this._id = _id;
@@ -208,7 +207,7 @@ class FeedbackSubmissionItem {
     this.previousItemType = previousItemType;
     this.feedbackFormId = feedbackFormId;
     this.details = details;
-    this.isSkipped = isSkipped;
+    // this.isSkipped = isSkipped;
     this.createdAt = new Date();
     this.updatedAt = new Date();
   }

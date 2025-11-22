@@ -402,7 +402,7 @@ class AttemptService extends BaseService {
     courseVersionId: string,
     feedbackFormId: string,
     details: Record<string, any>,
-    isSkipped?: boolean,
+    // isSkipped?: boolean,
   ): Promise<string> {
     return this._withTransaction(async session => {
 
@@ -421,6 +421,7 @@ class AttemptService extends BaseService {
 
       if (feedbackIndex === -1)
         throw new NotFoundError('Feedback item not found');
+
       const previousItem = items[feedbackIndex - 1];
 
       if (!previousItem)
@@ -461,7 +462,7 @@ class AttemptService extends BaseService {
         courseVersionId: new ObjectId(courseVersionId),
         details,
         feedbackFormId: new ObjectId(feedbackFormId),
-        isSkipped,
+        // isSkipped,
         previousItemId: new ObjectId(previousItemId),
         previousItemType,
         createdAt: new Date(),
