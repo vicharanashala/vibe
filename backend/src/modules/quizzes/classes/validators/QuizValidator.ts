@@ -135,11 +135,11 @@ class SubmitFeedbackParams {
   @IsMongoId()
   @IsNotEmpty()
   @JSONSchema({
-    description: 'ID of the quiz',
+    description: 'ID of the feedback form',
     type: 'string',
     example: '60d21b4667d0d8992e610c85',
   })
-  feedbackFormId: string;
+  itemId: string;
 
 }
 
