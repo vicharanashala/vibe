@@ -5,6 +5,7 @@ import Article from './article';
 import ProjectItem from '../app/pages/teacher/components/ProjectItem';
 import type { ArticleRef } from "@/types/article.types";
 import type { ItemContainerProps, ItemContainerRef } from '@/types/item-container.types';
+import FeedbackForm from '@/app/pages/student/components/FeedbackForm';
 
 
 const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, onPrevVideo, isProgressUpdating,readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson,keyboardLockEnabled,setIsQuizSkipped, linearProgressionEnabled}, ref) => {
@@ -21,7 +22,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
 
   const renderContent = () => {
     const itemType = item.type.toLowerCase();
-
+    console.log("itemType ",itemType)
     switch (itemType) {
       case 'video':
         return <Video
@@ -96,6 +97,19 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           onNext={onNext}
           isProgressUpdating={isProgressUpdating}
         />;
+      case 'feedback':
+        return <FeedbackForm
+        title={item.name}
+        description={item.description}
+        isOptional={item.isOptional}
+        jsonSchema={item?.details?.jsonSchema}
+        uiSchema={item?.details?.uiSchema}
+        onSubmit={(data:any) => {
+          console.log("feedback sumbitted ",data)
+          onNext()
+        }}
+        isSubmitting={isProgressUpdating}
+        />
 
       default:
         return (
