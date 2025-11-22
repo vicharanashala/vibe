@@ -1450,6 +1450,9 @@ export default function CoursePage() {
                       keyboardLockEnabled={!isFlagModalOpen}
                       linearProgressionEnabled = {proctoringData?.settings.linearProgressionEnabled || true}
                       setIsQuizSkipped= {setIsQuizSkipped}
+                      courseId={COURSE_ID}
+                      versionId={VERSION_ID}
+                      sectionId={sectionId}
                     />
                   )}
 
