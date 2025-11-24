@@ -3375,3 +3375,15 @@ export const useSubmitFeedback = (itemId:string): {
     status: result.status,
   };
 };
+
+
+
+  
+  let navigationQueue = Promise.resolve();
+
+export function enqueueNavigation(fn: () => Promise<void>) {
+  navigationQueue = navigationQueue.then(fn).catch(err => {
+    console.error("Navigation error:", err);
+  });
+  return navigationQueue;
+}

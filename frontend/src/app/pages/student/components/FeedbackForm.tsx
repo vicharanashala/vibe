@@ -113,9 +113,22 @@ const FeedbackForm = ({
   const { currentCourse, setWatchItemId } = useCourseStore();
   const submitFeedback = useSubmitFeedback(currentCourse?.itemId || '')
   const watchItemId = watchItemIdRef.current
+
+  // useEffect(() => {
+  //   handleSendStartItem()
+  // }, [])
   useEffect(() => {
-    handleSendStartItem()
-  }, [])
+  if (!currentCourse?.itemId) return;
+  if (!currentCourse?.moduleId) return;
+  if (!currentCourse?.sectionId) return;
+
+  handleSendStartItem();
+}, [
+  currentCourse?.itemId,
+  currentCourse?.moduleId,
+  currentCourse?.sectionId
+]);
+
   useEffect(() => {
     if (startItem.data?.watchItemId) {
       watchItemIdRef.current = startItem.data.watchItemId;
@@ -139,35 +152,73 @@ const FeedbackForm = ({
       }
     });
   }
-  const handleSubmit = async ({formData}:any ) => {
-    const payload: ISubmitFeedbackBody = {
-      details: formData,
-      courseId: currentCourse?.courseId || '',
-      courseVersionId: currentCourse?.versionId || '',
-      isSkipped: false
-    };
+  // const handleSubmit = async ({formData}:any ) => {
+  //   const payload: ISubmitFeedbackBody = {
+  //     details: formData,
+  //     courseId: currentCourse?.courseId || '',
+  //     courseVersionId: currentCourse?.versionId || '',
+  //     isSkipped: false
+  //   };
 
-    try {
-      await submitFeedback.mutateAsync(payload);
-        stopItem.mutate({
-    params: {
-      path: {
-        courseId: currentCourse!.courseId,
-        courseVersionId: currentCourse!.versionId ?? '',
+  //   try {
+  //     await submitFeedback.mutateAsync(payload);
+  //       stopItem.mutate({
+  //   params: {
+  //     path: {
+  //       courseId: currentCourse!.courseId,
+  //       courseVersionId: currentCourse!.versionId ?? '',
+  //     },
+  //   },
+  //   body: {
+  //     watchItemId: watchItemId ?? '',
+  //     itemId: currentCourse!.itemId ?? '',
+  //     moduleId: currentCourse!.moduleId ?? '',
+  //     sectionId: currentCourse!.sectionId ?? '',
+  //   }
+  // });
+  //     onNext(); 
+  //   } catch (err) {
+  //     console.error("Feedback submit failed:", err);
+  //   }
+  // }
+
+  const handleSubmit = async ({ formData }: any) => {
+  const payload: ISubmitFeedbackBody = {
+    details: formData,
+    courseId: currentCourse?.courseId || "",
+    courseVersionId: currentCourse?.versionId || "",
+    isSkipped: false,
+  };
+  
+
+  try {
+    // 1️⃣ If this fails, it immediately goes to catch
+    await submitFeedback.mutateAsync(payload);
+
+    // 2️⃣ Only runs if submitFeedback succeeded
+    await stopItem.mutateAsync({
+      params: {
+        path: {
+          courseId: currentCourse!.courseId,
+          courseVersionId: currentCourse!.versionId ?? "",
+        },
       },
-    },
-    body: {
-      watchItemId: watchItemId ?? '',
-      itemId: currentCourse!.itemId ?? '',
-      moduleId: currentCourse!.moduleId ?? '',
-      sectionId: currentCourse!.sectionId ?? '',
-    }
-  });
-      onNext(); 
-    } catch (err) {
-      console.error("Feedback submit failed:", err);
-    }
+      body: {
+        watchItemId: watchItemId ?? "",
+        itemId: currentCourse!.itemId ?? "",
+        moduleId: currentCourse!.moduleId ?? "",
+        sectionId: currentCourse!.sectionId ?? "",
+      },
+    });
+
+    // 3️⃣ Only when both succeed
+    onNext();
+
+  } catch (err) {
+    console.error("Feedback submit or stop failed:", err);
   }
+};
+
 
 
 
