@@ -1,6 +1,6 @@
-import { ObjectId } from 'mongodb';
-import { ProctoringComponent } from '../database/index.js';
-import { Type } from 'class-transformer';
+import {ObjectId} from 'mongodb';
+import {ProctoringComponent} from '../database/index.js';
+import {Type} from 'class-transformer';
 import {
   IsOptional,
   IsInt,
@@ -8,9 +8,9 @@ import {
   IsString,
   IsIn,
   isString,
-  IsEnum
+  IsEnum,
 } from 'class-validator';
-import { Priority } from './quiz.js';
+import {Priority} from './quiz.js';
 
 export interface IUser {
   _id?: string | ObjectId | null;
@@ -44,6 +44,8 @@ export interface ICourseVersion {
   description: string;
   modules: IModule[];
   totalItems?: number;
+  isDeleted?: boolean;
+  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -54,6 +56,8 @@ export interface IModule {
   description: string;
   order: string;
   sections: ISection[];
+  isDeleted?: boolean;
+  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -64,6 +68,8 @@ export interface ISection {
   description: string;
   order: string;
   itemsGroupId?: ID;
+  isDeleted?: boolean;
+  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -81,6 +87,8 @@ export interface IItem {
   createdAt: Date;
   type: 'VIDEO' | 'QUIZ' | 'BLOG';
   itemId: string;
+  isDeleted?: boolean;
+  deletedAt?: Date;
 }
 
 export interface IVideoItem {
@@ -404,8 +412,8 @@ export interface IInvite {
   courseId: string | ObjectId;
   courseVersionId: string | ObjectId;
   token: string;
-  type:InviteType;
-  usedount?:number;
+  type: InviteType;
+  usedount?: number;
   action: InviteActionType;
   Invitestatus: InviteStatusType;
   createdAt: Date;
@@ -454,7 +462,7 @@ export interface ICourseSetting {
 
 export enum SortOrder {
   ASC = 'asc',
-  DESC = 'desc'
+  DESC = 'desc',
 }
 
 export interface SortOptions {
