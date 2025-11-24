@@ -436,6 +436,29 @@ class SubmissionRepository {
     console.log("Percentage is ",Math.round(result[0].averagePercentage * 10) / 10)
     return 0;
 }
+
+async findByAttemptId(
+  attemptId: ObjectId | string,
+  session?: ClientSession
+) {
+  await this.init();
+  if(!attemptId){
+    return;
+  }
+  try {
+    const result = await this.submissionResultCollection.findOne(
+      { attemptId: new ObjectId(attemptId) },
+    { session }
+    )
+
+    return result;
+  } catch (error) {
+    throw new InternalServerError(
+        'Failed to find submission results ' + error,
+      );
+  }
+
+}
 }
 
 export {SubmissionRepository};
