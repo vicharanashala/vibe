@@ -1,26 +1,30 @@
-import { COURSES_TYPES } from '#courses/types.js';
-import { InviteStatus } from '#root/modules/notifications/index.js';
-import { BaseService } from '#root/shared/classes/BaseService.js';
-import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
-import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
-import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {COURSES_TYPES} from '#courses/types.js';
+import {InviteStatus} from '#root/modules/notifications/index.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
+import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   EnrollmentRole,
   EnrollmentStatus,
   ICourseVersion,
   IEnrollment,
 } from '#root/shared/interfaces/models.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { EnrollmentRepository } from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
-import { Enrollment } from '#users/classes/transformers/Enrollment.js';
-import { EnrollmentStats, USERS_TYPES } from '#users/types.js';
-import { injectable, inject } from 'inversify';
-import { ClientSession, ObjectId, OptionalId } from 'mongodb';
-import { BadRequestError, NotFoundError, InternalServerError } from 'routing-controllers';
-import { ProgressService } from './ProgressService.js';
-import { ProgressRepository, InviteRepository } from '#root/shared/index.js';
-import { EnrollmentDataResponse } from '../classes/index.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import {Enrollment} from '#users/classes/transformers/Enrollment.js';
+import {EnrollmentStats, USERS_TYPES} from '#users/types.js';
+import {injectable, inject} from 'inversify';
+import {ClientSession, ObjectId, OptionalId} from 'mongodb';
+import {
+  BadRequestError,
+  NotFoundError,
+  InternalServerError,
+} from 'routing-controllers';
+import {ProgressService} from './ProgressService.js';
+import {ProgressRepository, InviteRepository} from '#root/shared/index.js';
+import {EnrollmentDataResponse} from '../classes/index.js';
 import {
   QuizScoresExportResponseDto,
   StudentQuizScoreDto,
@@ -86,11 +90,13 @@ export class EnrollmentService extends BaseService {
       // }
 
       if (existingEnrollment && throughInvite) {
-        return { status: 'ALREADY_ENROLLED' as InviteStatus };
+        return {status: 'ALREADY_ENROLLED' as InviteStatus};
       }
 
       if (existingEnrollment && !throughInvite) {
-        throw new BadRequestError('User is already enrolled in this course version');
+        throw new BadRequestError(
+          'User is already enrolled in this course version',
+        );
       }
 
       const enrollmentData = {
@@ -119,7 +125,7 @@ export class EnrollmentService extends BaseService {
       }
 
       return {
-        status: "ENROLLED" as const,
+        status: 'ENROLLED' as const,
         enrollment: createdEnrollment,
         progress: initialProgress,
         role: role,
@@ -220,6 +226,8 @@ export class EnrollmentService extends BaseService {
       const enrolledVersionIds = new Set(
         enrollments.map(e => e.courseVersionId.toString()),
       );
+
+      console.log('Enrolled Version IDs:', enrolledVersionIds);
 
       if (role === 'STUDENT') {
         const versionIds = Array.from(enrolledVersionIds).map(
@@ -397,17 +405,23 @@ export class EnrollmentService extends BaseService {
   }
 
   async processBulkInvite(userId: string, inviteId: string): Promise<void> {
-    const invite = await this.inviteRepo.findInviteById(inviteId)
+    const invite = await this.inviteRepo.findInviteById(inviteId);
     if (!invite) {
-      throw new Error("Bulk Invite Not Found")
+      throw new Error('Bulk Invite Not Found');
     }
-    const result = await this.enrollUser(userId, invite.courseId.toString(), invite.courseVersionId.toString(), invite.role, true)
+    const result = await this.enrollUser(
+      userId,
+      invite.courseId.toString(),
+      invite.courseVersionId.toString(),
+      invite.role,
+      true,
+    );
     if (!result) {
-      throw new InternalServerError("Failed to enroll user from Bulk Invite")
+      throw new InternalServerError('Failed to enroll user from Bulk Invite');
     }
-    if (result.status === "ENROLLED") {
-      invite.usedCount = (invite.usedCount || 0) + 1
-      await this.inviteRepo.updateInvite(inviteId, invite)
+    if (result.status === 'ENROLLED') {
+      invite.usedCount = (invite.usedCount || 0) + 1;
+      await this.inviteRepo.updateInvite(inviteId, invite);
     }
   }
 
@@ -470,7 +484,7 @@ export class EnrollmentService extends BaseService {
 
   async bulkUpdateAllEnrollments(
     courseId?: string,
-  ): Promise<{ totalCount: number; updatedCount: number }> {
+  ): Promise<{totalCount: number; updatedCount: number}> {
     const BATCH_SIZE = 5000;
 
     // 1. Get courses (all or specific one)
@@ -527,8 +541,8 @@ export class EnrollmentService extends BaseService {
 
             bulkOperations.push({
               updateOne: {
-                filter: { _id: new ObjectId(enrollment._id) },
-                update: { $set: { percentCompleted } },
+                filter: {_id: new ObjectId(enrollment._id)},
+                update: {$set: {percentCompleted}},
               },
             });
 
@@ -540,7 +554,8 @@ export class EnrollmentService extends BaseService {
                 );
                 updatedCount += bulkOperations.length;
                 console.log(
-                  `✅ Batch ${++batchCount}: Updated ${bulkOperations.length
+                  `✅ Batch ${++batchCount}: Updated ${
+                    bulkOperations.length
                   } enrollments`,
                 );
                 bulkOperations.length = 0;
@@ -575,7 +590,7 @@ export class EnrollmentService extends BaseService {
       });
     }
 
-    return { totalCount, updatedCount };
+    return {totalCount, updatedCount};
   }
 
   async getNonStudentEnrollmentsByCourseVersion(
@@ -591,7 +606,7 @@ export class EnrollmentService extends BaseService {
     });
   }
   async bulkEnrollUsers(
-    existingEnrolledUsersWithRoles: { userId: string; role: EnrollmentRole }[],
+    existingEnrolledUsersWithRoles: {userId: string; role: EnrollmentRole}[],
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
@@ -614,11 +629,11 @@ export class EnrollmentService extends BaseService {
       const enrollmentsToCreate: OptionalId<IEnrollment>[] = [];
       const results: any[] = [];
 
-      for (const { userId, role } of existingEnrolledUsersWithRoles) {
+      for (const {userId, role} of existingEnrolledUsersWithRoles) {
         const userExists = await this.userRepo.findById(userId, session);
 
         if (!userExists) {
-          results.push({ userId, error: 'User not found' });
+          results.push({userId, error: 'User not found'});
           continue;
         }
 

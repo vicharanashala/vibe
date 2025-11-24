@@ -17,8 +17,11 @@ import {ICourseVersion} from '#root/shared/interfaces/models.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {GLOBAL_TYPES} from '../../../types.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import { COURSES_TYPES } from '../types.js';
-import { ICourseRepository, IItemRepository } from '#root/shared/database/interfaces/index.js';
+import {COURSES_TYPES} from '../types.js';
+import {
+  ICourseRepository,
+  IItemRepository,
+} from '#root/shared/database/interfaces/index.js';
 
 @injectable()
 export class ModuleService extends BaseService {

@@ -75,8 +75,9 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
-    await this.watchTimeCollection.deleteMany(
+    await this.watchTimeCollection.updateMany(
       {itemId: new ObjectId(itemId)},
+      {$set: {isDeleted: true, deletedAt: new Date()}},
       {session},
     );
   }
