@@ -141,6 +141,8 @@ export class ItemService extends BaseService {
 
       const courseId = version.courseId.toString();
 
+      console.log(item.itemDetails);
+
       // Step 3: Run multiple async operations in parallel
       const [
         createdItemDetailsPersistenceResult,

@@ -258,6 +258,8 @@ export class EnrollmentService extends BaseService {
         enrollments.map(e => e.courseVersionId.toString()),
       );
 
+      console.log('Enrolled Version IDs:', enrolledVersionIds);
+
       if (role === 'STUDENT') {
         const versionIds = Array.from(enrolledVersionIds).map(
           id => new ObjectId(id),
