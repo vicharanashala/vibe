@@ -36,6 +36,10 @@ import StudentRouteGuard from '@/components/StudentRouteGuard'
 import AiWorkflow from '../pages/teacher/AiWorkflow'
 import AnomaliesList from '../pages/teacher/AnomaliesList'
 import CourseInstructors from '../pages/teacher/course-instructors'
+import RegisteredUsers from '../pages/teacher/CourseRegistrationRequests'
+import CourseRegistration from '../pages/student/CourseRegistration'
+import CourseIssueReports from '../pages/student/FlagResponse'
+import LoginPage from '../pages/LoginPage'
 
 
 // Root route with error and notFound handling
@@ -225,6 +229,15 @@ const teacherCourseInstructorsRoute = new Route({
   component: CourseInstructors,
 });
 
+// Teacher Course Regstration requests
+const teacherCourseRegistrationRequests = new Route({
+  getParentRoute:() => teacherLayoutRoute,
+  path:'/courses/registration-requests',
+  component:RegisteredUsers
+})
+
+
+
 // Teacher Course Flags route
 const teacherCourseFlagsRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -288,12 +301,26 @@ const studentCoursesRoute = new Route({
   component: StudentCourses,
 });
 
+// student issues routes 
+
+const studentIssuesRoute = new Route({
+  getParentRoute:() => studentLayoutRoute,
+  path:'/issues',
+  component:CourseIssueReports,
+})
+
 // Student profile route
 const studentProfileRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
   path: '/profile',
   component: StudentProfile,
 });
+
+export  const studentCourseInviteRegistration = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path:"/course-registration/$versionId",
+  component: CourseRegistration,
+})
 
 const coursePageRoute = new Route({
   getParentRoute: () => rootRoute,
@@ -330,11 +357,17 @@ const testAISectionModalRoute = new Route({
   path: '/test-ai-section-modal',
   component: AISectionPage,
 });
+export const loginRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/login',
+  component: LoginPage,
+})
 
 // Create the router with the route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
   authRoute,
+  loginRoute,
   teacherLayoutRoute.addChildren([
     // teacherDashboardRoute,
     teacherCreateArticleRoute,
@@ -351,11 +384,14 @@ const routeTree = rootRoute.addChildren([
     testAISectionModalRoute,
     teacherCourseAnomaliesRoute,
     teacherCourseInstructorsRoute,
+    teacherCourseRegistrationRequests
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
     studentCoursesRoute,
     studentProfileRoute,
+    studentCourseInviteRegistration,
+    studentIssuesRoute
   ]),
   coursePageRoute,
 ]);

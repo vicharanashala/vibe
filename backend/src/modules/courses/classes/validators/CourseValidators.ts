@@ -109,9 +109,17 @@ class CourseIdParams {
 
 export class CourseVersionParams {
   @IsMongoId()
+  @JSONSchema({
+    title: 'Course ID',
+    description: 'Object ID of the course',
+  })
   courseId: string;
 
   @IsMongoId()
+  @JSONSchema({
+    description: 'Object ID of the course version',
+    type: 'string',
+  })
   courseVersionId: string;
 }
 class CourseDataResponse implements ICourse {

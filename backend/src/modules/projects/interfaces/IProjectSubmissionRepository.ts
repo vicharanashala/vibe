@@ -1,15 +1,16 @@
-import {ClientSession} from 'mongodb';
+import { ClientSession } from 'mongodb';
 import {
   IProjectSubmission,
   IProjectSubmissionWithUser,
 } from '../repositories/model.js';
-import {SubmitProjectBody} from '../classes/validators/ProjectValidators.js';
-import {ID} from '#root/shared/index.js';
+import { SubmitProjectBody } from '../classes/validators/ProjectValidators.js';
+import { ID } from '#root/shared/index.js';
 
 export interface IProjectSubmissionRepository {
   getByUser(
     userId: string,
     versionId: string,
+    courseId: string,
     session?: ClientSession,
   ): Promise<IProjectSubmission | null>;
 
@@ -28,4 +29,23 @@ export interface IProjectSubmissionRepository {
     comment: string,
     session?: ClientSession,
   ): Promise<ID>;
+
+
+  update(
+    submissionId: string,
+    submissionURL: string,
+    comment: string,
+    session?: ClientSession,
+  ): Promise<ID>;
+
+  deleteByUserAndVersion(
+    userId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<boolean>;
+
+  deleteProjectSubmissionByVersionId(
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<boolean>;
 }

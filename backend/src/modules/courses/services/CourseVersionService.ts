@@ -1,35 +1,41 @@
-import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
+import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
 import {
   CreateCourseVersionBody,
   UpdateCourseVersionBody,
 } from '#courses/classes/validators/CourseVersionValidators.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {instanceToPlain} from 'class-transformer';
-import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId} from 'mongodb';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { instanceToPlain } from 'class-transformer';
+import { injectable, inject } from 'inversify';
+import { ClientSession, ObjectId } from 'mongodb';
 import {
   NotFoundError,
   InternalServerError,
   BadRequestError,
 } from 'routing-controllers';
-import {Course, Module} from '../classes/index.js';
+import { Course, Module } from '../classes/index.js';
 import {
   EnrollmentRole,
   ICourse,
   ICourseVersion,
   IItemRepository,
+  ProctoringComponent,
+  SettingRepository,
 } from '#root/shared/index.js';
-import {USERS_TYPES} from '#root/modules/users/types.js';
-import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
-import {COURSES_TYPES} from '../types.js';
-import {ModuleService} from './ModuleService.js';
-import {SectionService} from './SectionService.js';
-import {ItemService} from './ItemService.js';
-import {cloneModules} from '../utils/cloneModules.js';
-import {getCopyCourseName} from '../utils/getCopyCourseName.js';
+import { USERS_TYPES } from '#root/modules/users/types.js';
+import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
+import { COURSES_TYPES } from '../types.js';
+import { ModuleService } from './ModuleService.js';
+import { SectionService } from './SectionService.js';
+import { ItemService } from './ItemService.js';
+import { cloneModules } from '../utils/cloneModules.js';
+import { getCopyCourseName } from '../utils/getCopyCourseName.js';
+import { SETTING_TYPES } from '#root/modules/setting/types.js';
+import { CourseSetting, CreateCourseSettingBody } from '#root/modules/setting/index.js';
+import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
+import { QuestionBankRepository, QuestionRepository } from '#root/modules/quizzes/repositories/index.js';
 @injectable()
 export class CourseVersionService extends BaseService {
   constructor(
@@ -43,8 +49,14 @@ export class CourseVersionService extends BaseService {
     private readonly sectionService: SectionService,
     @inject(COURSES_TYPES.ItemService)
     private readonly itemService: ItemService,
+    @inject(SETTING_TYPES.SettingRepo)
+    private readonly settingsRepo: SettingRepository,
     @inject(COURSES_TYPES.ItemRepo)
     private readonly itemRepo: IItemRepository,
+    @inject(QUIZZES_TYPES.QuestionRepo)
+    private readonly questionRepository: QuestionRepository,
+    @inject(QUIZZES_TYPES.QuestionBankRepo)
+    private readonly questionBankRepo: QuestionBankRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -80,22 +92,29 @@ export class CourseVersionService extends BaseService {
       newVersion = instanceToPlain(
         Object.assign(new CourseVersion(), createdVersion),
       ) as CourseVersion;
-
-      // Update course metadata
+      const defaultSettingsPayload: CreateCourseSettingBody = {
+        courseId,
+        courseVersionId: createdVersion._id as string,
+        settings: {
+          proctors: {
+            detectors: Object.values(ProctoringComponent).map(detector => ({
+              detectorName: detector,
+              settings: { enabled: false, options: {} },
+            })),
+          },
+          linearProgressionEnabled: false,
+        },
+      };
+      const courseSettings = new CourseSetting(defaultSettingsPayload);
       course.versions.push(new ObjectId(createdVersion._id));
       course.updatedAt = new Date();
-
-      const updatedCourse = await this.courseRepo.update(
+      const settingsPromise = this.settingsRepo.createCourseSettings(courseSettings, txnSession);
+      const updatedPromise = this.courseRepo.update(
         courseId,
         course,
         txnSession,
       );
-      if (!updatedCourse) {
-        throw new InternalServerError(
-          'Failed to update course with new version.',
-        );
-      }
-
+      await Promise.all([updatedPromise, settingsPromise])
       return newVersion;
     };
 
@@ -176,6 +195,12 @@ export class CourseVersionService extends BaseService {
       const course = await this.courseRepo.read(courseId);
       if (!course) {
         throw new NotFoundError(`Course with ID ${courseId} not found.`);
+      }
+
+      const versionsCount = course.versions.length;
+      if (versionsCount === 1) {
+        const results = await this.courseRepo.delete(courseId, session);
+        return true;
       }
 
       const itemGroupsIds = readCourseVersion.modules.flatMap(module =>
@@ -279,11 +304,16 @@ export class CourseVersionService extends BaseService {
         }
         const newVersionIdStr = newCourseVersion._id.toString();
         const itemRepo = this.itemRepo;
+        const questionBankRepo = this.questionBankRepo;
+        const questionRepo = this.questionRepository;
 
         const newModules = await cloneModules(
           currentModules,
           courseVersionId,
           itemRepo,
+          questionBankRepo,
+          questionRepo,
+          newCourse._id.toString(),
           session,
         );
         await this.courseRepo.addModulesToVersion(

@@ -8,6 +8,7 @@ import {
   IsInt,
   Min,
   IsArray,
+  IsIn,
 } from 'class-validator';
 import {Type} from 'class-transformer';
 import {JSONSchema} from 'class-validator-jsonschema';
@@ -94,6 +95,27 @@ class UpdateReportStatusBody {
   @IsNotEmpty()
   @IsString()
   comment: string;
+}
+
+export class ResponseIntersetBody{
+  @JSONSchema({
+    title: 'Flag report Id',
+    description: 'ID ofthe report',
+    example: '64bfcaf6e13e3547e90c5678',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  issueId: ID;
+
+  @JSONSchema({
+    title: 'Student response for flag raised',
+    description: 'Adding the student response for the flag comment',
+    example: 'yes',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  interest:"yes" | "no";
 }
 
 class ReportUpdateParams {
@@ -289,12 +311,104 @@ class ReportNotFoundErrorResponse {
   message: string;
 }
 
+export enum IssueStatusEnum {
+  ALL = "ALL",
+  REPORTED = "REPORTED",
+  IN_REVIEW = "IN_REVIEW",
+  RESOLVED = "RESOLVED",
+  DISCARDED = "DISCARDED",
+  CLOSED = "CLOSED"
+}
+
+export enum IssueSortEnum {
+  ALL = "ALL",
+  VIDEO = "VIDEO",
+  QUIZ = "QUIZ",
+  ARTICLE = "ARTICLE",
+  QUESTION = "QUESTION"
+}
+
+export class IssueFilterQuery {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @JSONSchema({
+    description:'number of pages to be shown'
+  })
+  page: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @JSONSchema({
+    description:'limit of entries displayed in single page'
+  })
+  limit: number = 10;
+
+  @IsOptional()
+  @IsEnum(IssueStatusEnum)
+  status: IssueStatusEnum = IssueStatusEnum.ALL;
+
+  @IsOptional()
+  @IsString()
+  search: string = '';
+
+  @IsOptional()
+  @IsEnum(IssueSortEnum)
+  sort: IssueSortEnum = IssueSortEnum.ALL;
+}
+
+class IssueReportResponse{
+  @JSONSchema({
+    description: 'Array of issue reports',
+ 
+  })
+  @IsNotEmpty()
+  @IsArray()
+  @ValidateNested({each: true})
+  @Type(() => Array<IReport>)
+  issues: IReport[];
+
+  @JSONSchema({
+    description: 'Total number of issue reports',
+    example: 100,
+    type: 'integer',
+  })
+  @IsNotEmpty()
+  @IsInt()
+  totalDocuments: number;
+
+  @JSONSchema({
+    description: 'Total number of pages in the response',
+    example: 10,
+    type: 'integer',
+  })
+  @IsNotEmpty()
+  @IsInt()
+  totalPages: number;
+
+  @JSONSchema({
+    description: 'Current page number in the response',
+    example: 1,
+    type: 'integer',
+  })
+  @IsNotEmpty()
+  @IsInt()
+  currentPage: number;
+}
+
+
+
+
 export {
   ReportBody,
   UpdateReportStatusBody,
   ReportUpdateParams,
   ReportDataResponse,
   ReportNotFoundErrorResponse,
+  IssueReportResponse,
 };
 
 export const REPORT_VALIDATORS = [
@@ -305,4 +419,5 @@ export const REPORT_VALIDATORS = [
   ReportDataResponse,
   ReportNotFoundErrorResponse,
   ReportResponse,
+  IssueReportResponse,
 ];

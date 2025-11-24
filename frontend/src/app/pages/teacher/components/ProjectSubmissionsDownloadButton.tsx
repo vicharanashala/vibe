@@ -70,7 +70,7 @@ export const ProjectSubmissionsDownloadButton: React.FC<ProjectSubmissionsDownlo
   };
 
   return (
-    <div style={{ margin: '16px 0' }}>
+    <div>
       {projectSubmissions && projectSubmissions.userInfo?.length > 0 ? (
         <PDFDownloadLink
           document={<ProjectSubmissionsPDF {...projectSubmissions} projectName={projectName} />}

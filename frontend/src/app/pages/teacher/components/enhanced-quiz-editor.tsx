@@ -291,6 +291,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   const [selectedGradeStatus, setSelectedGradeStatus] = useState<GradingSystemStatus>("All");
   const [sort, setSort] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<string>("All");
   const [typeFilter, setTypeFilter] = useState<string>("All");
 
@@ -308,7 +309,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   if (!quizId) {
     console.error("Failed to fetch submission because quizId is ", quizId)
   }
-  const { data: submissionsData, refetch, isLoading: submissionsLoading } = useQuizSubmissions(quizId!, selectedGradeStatus, searchQuery, sort, currentPage, limit, selectedTab);
+  const { data: submissionsData, refetch, isLoading: submissionsLoading } = useQuizSubmissions(quizId!, selectedGradeStatus, debouncedSearchQuery, sort, currentPage, limit, selectedTab);
   const { theme } = useTheme();
 
   const submissions = submissionsData?.data;
@@ -316,6 +317,18 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   useEffect(() => {
     refetch();
   }, [selectedTab]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const timerId = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 400);
+
+    return () => clearTimeout(timerId);
+  }, [searchQuery]);
 
   const handlePageChange = (newPage: number) => {
     if (submissionsData && newPage >= 1 && newPage <= submissionsData.totalPages) {
@@ -353,7 +366,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   const [quizSettingsForm, setQuizSettingsForm] = useState<QuizSettingsForm>({
     name: '',
     description: '',
-    passThreshold: 0.7,
+    passThreshold: 0,
     maxAttempts: 3,
     quizType: 'NO_DEADLINE',
     approximateTimeToComplete: '00:05:00',
@@ -372,8 +385,6 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   // Fetch data
   let { data: questionBanks, refetch: refetchQuestionBanks } = useGetAllQuestionBanksForQuiz(quizId || '');
   const { data: selectedBankData, refetch: refetchSelectedBank } = useQuestionBankById(selectedQuestionBank || '');
-
-  console.log("selected Question bank ID", selectedQuestionBank);
 
   // Mutations
   const createQuestionBank = useCreateQuestionBank();
@@ -394,7 +405,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
       setQuizSettingsForm({
         name: details.name || '',
         description: details.description || '',
-        passThreshold: details.details.passThreshold || 0.7,
+        passThreshold: details.details.passThreshold || 0,
         maxAttempts: details.details.maxAttempts || 3,
         quizType: details.details.quizType || 'NO_DEADLINE',
         approximateTimeToComplete: details.details.approximateTimeToComplete || '00:05:00',
@@ -884,7 +895,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
       {isLoading ? <Loader /> :
         <div className="h-full flex flex-col">
           <div className="border-b">
-            <div className="p-6">
+            <div className="md:p-6 pb-6">
               <div className="lg:flex items-center justify-between">
                 <div>
                   <h1 className="text-xl md:text-2xl font-bold">{selectedItemName || details?.name || 'Quiz Editor'}</h1>
@@ -924,17 +935,17 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
               isSaving={updateItem.isPending}
             />
 
-            <Tabs value={selectedTab} onValueChange={setSelectedTab} className="px-6 mb-4">
-              <TabsList>
-                <TabsTrigger value="analytics" className="flex items-center gap-2">
+            <Tabs value={selectedTab} onValueChange={setSelectedTab} className="md:px-6 mb-4">
+              <TabsList className="lg:w-fit w-full overflow-x-auto no-scrollbar">
+                <TabsTrigger value="analytics" className="flex items-center gap-2 cursor-pointer">
                   <BarChart3 className="h-4 w-4" />
                   Analytics
                 </TabsTrigger>
-                <TabsTrigger value="questions" className="flex items-center gap-2">
+                <TabsTrigger value="questions" className="flex items-center gap-2 cursor-pointer">
                   <HelpCircle className="h-4 w-4" />
                   Questions
                 </TabsTrigger>
-                <TabsTrigger value="submissions" className="flex items-center gap-2">
+                <TabsTrigger value="submissions" className="flex items-center gap-2 cursor-pointer">
                   <Users className="h-4 w-4" />
                   Submissions
                 </TabsTrigger>
@@ -1030,17 +1041,17 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
               </Card> */}
             </div>
             <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-              <TabsContent value="questions" className="h-full m-0 md:ms-7 mt-2">
-                <div className="h-full md:flex">
+              <TabsContent value="questions" className="h-full m-0 xl:ms-7 mt-2">
+                <div className="h-full lg:flex gap-5">
                   {/* Question Banks Sidebar */}
-                  <div className="md:w-80 border-r rounded  bg-muted/50 mt-1">
+                  <div className="lg:w-80 border-r rounded  bg-muted/50 mt-1">
                     <CreateQuestionBankDialog
                       showCreateBankDialog={showCreateBankDialog}
                       setShowCreateBankDialog={setShowCreateBankDialog}
                       quizId={quizId}
                     />
                     {/* List of question banks */}
-                    <ScrollArea className="h-[calc(100vh-200px)]">
+                    <ScrollArea className="lg:h-[calc(100vh-200px)] h-auto">
                       <div className="p-4 space-y-2">
                         {questionBanks?.map((bank: any) => (
                           <Card
@@ -1052,7 +1063,9 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                             <CardContent className="px-3">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  <BookOpen className="h-5 w-5 text-muted-foreground" />
+                                  <div className="h-5 w-5">
+                                    <BookOpen className="h-5 w-5 text-muted-foreground" />
+                                  </div>
                                   <div>
                                     <p className=" text-md font-semibold ">{bank.title}</p>
                                     <p className="text-[12px] font-normal">{bank.description}</p>
@@ -1112,7 +1125,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                           selectedBankId={selectedQuestionBank}
                         />
                         <ScrollArea className="flex-1">
-                          <div className="p-4 space-y-4">
+                          <div className="xl:p-4 py-4 space-y-4">
                             {selectedBankData?.questions?.map((questionId: string) => (
                               <ExpandableQuestionCard
                                 key={questionId}
@@ -1293,8 +1306,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
               </TabsContent>
 
               <TabsContent value="submissions" className="h-full m-0 flex flex-col justify-center items-center">
-                <div className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 mt-5 px-10">
-                  <div className="relative flex-1 max-w-md">
+                <div className="w-full flex flex-col lg:flex-row md:items-center justify-between gap-4 mt-5 px-4">
+                  <div className="relative w-full max-w-md">
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg blur-sm"></div>
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1302,9 +1315,9 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                         placeholder="Search by student name, email ... "
                         value={searchQuery}
                         onChange={(e) => { setSearchQuery(e.target.value) }}
-                        className="pl-10 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
+                        className="pl-10 pr-10 w-full bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
                       />
-                      <X className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground cursor-pointer"
+                 <X className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground cursor-pointer"
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
@@ -1314,8 +1327,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground">
+                    <div className="flex items-center gap-2 flex-1 min-w-[280px] lg:min-w-0 lg:flex-initial">
+                      <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap shrink-0">
                         Filter by Status:
                       </label>
                       <Select
@@ -1325,7 +1338,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                           setCurrentPage(1);
                         }}
                       >
-                        <SelectTrigger className="w-[180px]">
+                        <SelectTrigger className="w-full lg:w-[180px]">
                           <SelectValue placeholder="Select status" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1338,8 +1351,8 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                       </Select>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <label htmlFor="sortFilter" className="text-sm font-medium text-muted-foreground">
+                    <div className="flex items-center gap-2 flex-1 min-w-[280px] lg:min-w-0 lg:flex-initial">
+                      <label htmlFor="sortFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap shrink-0">
                         Sort by:
                       </label>
                       <Select
@@ -1348,7 +1361,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                           setSort(value);
                         }}
                       >
-                        <SelectTrigger className="w-[180px]">
+                        <SelectTrigger className="w-full lg:w-[180px]">
                           <SelectValue placeholder="Select type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1475,11 +1488,11 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
           {/* Edit Question Bank Dialog */}
           <Dialog open={showEditQuestionBankDialog} onOpenChange={setShowEditQuestionBankDialog}>
-            <DialogContent className="w-100">
+            <DialogContent className="md:max-w-[500px] max-w-sm max-[425px]:w-[90vw]">
               <DialogHeader>
-                <DialogTitle>Edit Question Bank Configuration</DialogTitle>
+                <DialogTitle className='flex items-start sm:text-lg text-base'>Edit Question Bank Configuration</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4">
+              <div className="space-y-6 mt-5">
                 {/* Bank Info Display */}
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground mb-4">
@@ -1504,14 +1517,14 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                 <div className="space-y-2">
                   <Label htmlFor="editTags">Tags</Label>
                   <div className="space-y-2">
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
                       <Input
                         id="editTags"
                         value={currentTag}
                         onChange={(e) => setCurrentTag(e.target.value)}
                         onKeyPress={handleTagKeyPress}
                         placeholder="Add a tag"
-                        className="w-80"
+                        className="w-full"
                       />
                       <Button
                         type="button"
@@ -1555,7 +1568,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                     value={questionBankEditForm.difficultyLevel}
                     onValueChange={(value) => setQuestionBankEditForm({ ...questionBankEditForm, difficultyLevel: value })}
                   >
-                    <SelectTrigger className="w-80">
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select difficulty level" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1575,7 +1588,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                     value={questionBankEditForm.questionsToSelect}
                     onChange={(e) => setQuestionBankEditForm({ ...questionBankEditForm, questionsToSelect: Number(e.target.value) })}
                     min={1}
-                    className="w-80"
+                    className="w-full"
                     placeholder="Enter number of questions to select"
                   />
                 </div>

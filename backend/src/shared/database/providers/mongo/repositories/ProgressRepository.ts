@@ -523,6 +523,14 @@ class ProgressRepository {
 
     return result;
   }
+
+  async deleteProgressByVersionId(versionId: string, session?: ClientSession) {
+    await this.init();
+    await this.progressCollection.deleteMany(
+      {courseVersionId: new ObjectId(versionId)},
+      {session},
+    );
+  }
 }
 
 export {ProgressRepository};

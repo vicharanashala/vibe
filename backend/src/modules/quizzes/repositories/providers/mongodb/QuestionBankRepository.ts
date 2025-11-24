@@ -161,6 +161,18 @@ class QuestionBankRepository {
       courseVersionId: bank.courseVersionId?.toString(),
     }));
   }
+
+  async deleteQuestionBankByVersionId(
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+    const result = await this.questionBankCollection.deleteMany(
+      {courseVersionId: new ObjectId(versionId)},
+      {session},
+    );
+    return result.deletedCount>0;
+  }
 }
 
 export {QuestionBankRepository};

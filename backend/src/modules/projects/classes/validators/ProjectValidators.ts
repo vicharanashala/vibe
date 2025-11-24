@@ -7,13 +7,20 @@ import {
   IsNotEmpty,
   IsArray,
 } from 'class-validator';
+import { JSONSchema } from 'class-validator-jsonschema';
 
 export class SubmitProjectBody {
+  @JSONSchema({
+    description:'Submitted URL from student'
+  })
   @IsNotEmpty({message: 'Submission URL is required'})
   @IsUrl({}, {message: 'Submission URL must be a valid URL'})
   submissionURL!: string;
 
   @IsOptional()
+  @JSONSchema({
+    description:'Comment submitted by student from project'
+  })
   comment?: string;
 
   @IsNotEmpty({message: 'sectionId is required'})

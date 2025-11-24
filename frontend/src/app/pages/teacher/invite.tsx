@@ -61,6 +61,7 @@ export default function InvitePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sort, setSort] = useState("");
   const [inviteStatus, setInviteStatus] = useState("");
+  const [itemsPerPage, setItemsPerPage] = useState(15);
   const inviteStatusOptions = ['All', 'ACCEPTED', 'PENDING', 'CANCELLED', 'EMAIL_FAILED', 'ALREADY_ENROLLED'];
   const sortOptions = [
     { label: "All Invites", value: "All" },
@@ -75,7 +76,7 @@ export default function InvitePage() {
     error: invitesError,
     refetch: refetchInvites,
   } = useCourseInvites(courseId || "", versionId || "", !!(courseId && versionId), debouncedSearchQuery, 
-      currentPage, 15, inviteStatus, sort);
+      currentPage, itemsPerPage, inviteStatus, sort);
 
   // Add course version data hook to check structure
   const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(versionId || "")
@@ -120,6 +121,11 @@ export default function InvitePage() {
     if (invitesData && newPage >= 1 && newPage <= invitesData.totalPages) {
       setCurrentPage(newPage)
     }
+  }
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage)
+    setCurrentPage(1)
   }
 
   // Function to get the reason why invites can't be sent
@@ -534,8 +540,8 @@ const addInviteRow = () => {
               )}
             </Button>
           </CardTitle>
-          <div className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 mt-5 px-10 mb-2">
-            <div className="relative flex-1 max-w-md">
+          <div className="w-full flex flex-col xl:flex-row md:items-center justify-between gap-4 mt-5 px-4">
+            <div className="relative w-full max-w-md">
             <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg blur-sm"></div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -543,14 +549,19 @@ const addInviteRow = () => {
                 placeholder="Search by student name, email ... "
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value) }}
-                className="pl-10 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
+                className="pl-10 pr-10 w-full bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
               />
+              <X className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground cursor-pointer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setSearchQuery("");
+                }} />
             </div>
             </div>
-          
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground">
+          <div className="flex items-center xl:flex-nowrap flex-wrap gap-4">
+            <div className="flex items-center gap-2 lg:min-w-0 lg:flex-initial">
+              <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap shrink-0">
                 Filter by Status:
               </label>
               <Select
@@ -560,7 +571,7 @@ const addInviteRow = () => {
                   setCurrentPage(1);
                 }}
               >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full lg:w-[180px]">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -572,9 +583,8 @@ const addInviteRow = () => {
                 </SelectContent>
               </Select>
             </div>
-          
-            <div className="flex items-center gap-2">
-              <label htmlFor="sortFilter" className="text-sm font-medium text-muted-foreground">
+            <div className="flex items-center gap-2 lg:min-w-0 lg:flex-initial">
+              <label htmlFor="sortFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap shrink-0">
                 Sort by:
               </label>
               <Select
@@ -583,7 +593,7 @@ const addInviteRow = () => {
                   setSort(value === "All" ? "" : value);
                 }}
               >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full lg:w-[180px]">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -594,6 +604,22 @@ const addInviteRow = () => {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+             <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full sm:w-auto">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground whitespace-nowrap">Show</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                  className="h-8 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                >
+                  <option value={10}>10</option>
+                  <option value={15}>15</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+                <span className="text-sm text-muted-foreground whitespace-nowrap">per page</span>
+              </div>
             </div>
           </div>
         </div>
@@ -610,6 +636,7 @@ const addInviteRow = () => {
               <Loader2 className="w-6 h-6 animate-spin" /><span className="text-gray-800 dark:text-gray-200 text-sm ms-2">Loading invites ...</span>
             </div>
           ) : invitesData?.invites?.length ? (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -682,7 +709,8 @@ const addInviteRow = () => {
                   </TableRow>
                 ))}
               </TableBody>
-              {invitesData && invitesData?.totalPages > 1 && (
+            </Table>
+             {invitesData && invitesData?.totalPages > 1 && (
                 <Pagination
                   currentPage={currentPage}
                   totalPages={invitesData.totalPages}
@@ -690,7 +718,7 @@ const addInviteRow = () => {
                   onPageChange={handlePageChange}
                 />
               )}
-            </Table>
+              </>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               No invites found for this course version.

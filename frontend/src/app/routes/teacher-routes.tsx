@@ -14,6 +14,7 @@ import AddCoursePage from "@/app/pages/teacher/AddCoursePage";
 import InvitePage from "../pages/teacher/invite";
 import AISectionPage from "@/app/pages/teacher/AISectionPage";
 import AnomaliesList from "../pages/teacher/AnomaliesList";
+import RegisteredUsers from "../pages/teacher/CourseRegistrationRequests";
 
 const teacherRoutes: RouteObject = {
   path: "/teacher",
@@ -83,6 +84,9 @@ const teacherRoutes: RouteObject = {
     {
       path: "ai-section",
       element: <AISectionPage />, // Page for generating sections using AI
+    },{
+      path:"requests",
+      element: <RegisteredUsers />
     }
   ],
 };
