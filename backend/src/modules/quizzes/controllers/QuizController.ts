@@ -50,6 +50,7 @@ import { subject } from '@casl/ability';
 import { COURSES_TYPES } from '#root/modules/courses/types.js';
 import { ItemService } from '#root/modules/courses/services/ItemService.js';
 import { BadRequestErrorResponse } from '#root/shared/index.js';
+import { CourseIdParams } from '#root/modules/courses/classes/index.js';
 
 @OpenAPI({
   tags: ['Quiz'],
@@ -638,6 +639,29 @@ class QuizController {
       throw new ForbiddenError('You do not have permission to reset quiz attempts');
     }
     await this.quizService.resetAvailableAttempts(quizId, userId);
+  }
+
+
+  @OpenAPI({
+    summary: 'Update missing submission result IDs for a quiz',
+    description: `Updates missing submission result IDs for a specific quiz.<br/>
+    It returns an empty body with a 200 status code.`,
+  })
+  @Authorized()
+  @Patch('/update-missing-submission-result-ids')
+  @OnUndefined(200)
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid quiz ID',
+    statusCode: 400,
+  })
+  @ResponseSchema(QuizNotFoundErrorResponse, {
+    description: 'Quiz not found',
+    statusCode: 404,
+  })
+  async updateMissingSubmissionResultIds(
+    @Ability(getQuizAbility) {ability}  
+  ): Promise<void> {
+    await this.quizService.updateMissingSubmissionResultIds();
   }
 }
 
