@@ -12,7 +12,7 @@ import classroom from "../../../public/img/classroom.svg";
 import learningImg from "../../../public/img/learning-img.svg";
 import innovators from "../../../public/img/innovators.svg";
 import collabration from "../../../public/img/collabration.svg";
-import dled from "../../../public/img/dled.svg";
+import vledLogo from "../../../public/img/vled-logo.png";
 import ugcLogo from "../../../public/img/ugc_logo.png";
 import annam from "../../../public/img/annam.png";
 
@@ -337,13 +337,13 @@ export default function AuthPage() {
 
       <div>
         {/* Left Side - Hero Section with Logos - Mobile & Desktop */}
-        <div className="flex flex-col justify-center bg-[#F3EFFB] relative lg:flex-1 px-4 sm:px-6">
+        <div className="flex flex-col justify-center bg-[rgb(240,248,250)] relative lg:flex-1 px-4 sm:px-6">
 
           {/* Center Section with Content - Perfectly Centered */}
           <div className="flex flex-col justify-center space-y-10 w-full max-w-[1280px] mx-auto py-16 px-0 sm:px-2">
             {/* Main Text Content */}
             <div className="text-center space-y-6">
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-[#111827] font-bold tracking-tight leading-tight">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-[rgb(208,123,37)] font-bold tracking-tight leading-tight">
                 Welcome to the Future of Learning
               </h1>
               {/* <p className="text-xl lg:text-2xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
@@ -352,13 +352,13 @@ export default function AuthPage() {
             </div>
             <div className="w-full justify-between flex lg:flex-row flex-col items-center gap-6">
               <div className="max-w-[560px] flex flex-col space-y-4">
-                <h3 className="text-[#1F2937] text-[36px] font-bold leading-10">Empowering Education for All</h3>
-                <p className="text-[#4B5563] text-base font-normal leading-[26px]">Connect, collaborate, and grow with our innovative educational platform designed for the next generation</p>
+                <h3 className="text-[rgb(25,90,105)] text-[36px] font-bold leading-10">Empowering Education for All</h3>
+                <p className="text-[rgb(52,152,169)] text-base font-normal leading-[26px]">Connect, collaborate, and grow with our innovative educational platform designed for the next generation</p>
                 <div className="flex gap-3">
-                  <button onClick={() => window.open(links.DEMO_VIDEO, '_blank')} className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
+                  <button onClick={() => window.open(links.DEMO_VIDEO, '_blank')} className="text-base px-7 py-3 rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300">
                     Explore Demo
                   </button>
-                  <button onClick={() => {navigate({ to: "/login" })}} className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
+                  <button onClick={() => {navigate({ to: "/login" })}} className="text-base px-7 py-3 rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300">
                     Get Started
                   </button>
                 </div>
@@ -394,10 +394,10 @@ export default function AuthPage() {
               <img src={classroom} alt="classroom image" className="w-full h-auto" />
             </div>
             <div className="max-w-[560px] ml-auto flex flex-col mt-8 lg:mt-0">
-              <h3 className="text-[#1F2937] text-[36px] font-bold leading-10 mb-16">Why Choose ViBe?</h3>
-              <p className="text-[#4B5563] text-base font-normal leading-[26px] mb-4">ViBe is an online learning platform that helps students stay engaged. It uses smart checks, quick quizzes, and flexible tools to make learning more active and honest.</p>
+              <h3 className="text-[rgb(25,90,105)] text-[36px] font-bold leading-10 mb-16">Why Choose ViBe?</h3>
+              <p className="text-[rgb(52,152,169)] text-base font-normal leading-[26px] mb-4">ViBe is an online learning platform that helps students stay engaged. It uses smart checks, quick quizzes, and flexible tools to make learning more active and honest.</p>
               <div>
-                <button onClick={() => window.open(links.DEMO_VIDEO, '_blank')} className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
+                <button onClick={() => window.open(links.DEMO_VIDEO, '_blank')} className="text-base px-7 py-3 rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300">
                   Explore Demo
 
                 </button>
@@ -405,11 +405,11 @@ export default function AuthPage() {
             </div>
           </div>
         </div>
-        <div className="bg-[#F3EFFB]">
+        <div className="bg-[rgb(224,242,246)]">
           <div className="flex lg:flex-row flex-col items-center w-full max-w-[1280px] mx-auto py-16 px-4 sm:px-6">
             <div className="w-full justify-between flex lg:flex-row flex-col items-center">
               <div className="max-w-[560px] flex flex-col">
-                <h3 className="text-[#1F2937] text-[36px] font-bold leading-10 mb-[84px]">Transform Your Learning Experience</h3>
+                <h3 className="text-[rgb(25,90,105)] text-[36px] font-bold leading-10 mb-[84px]">Transform Your Learning Experience</h3>
                 <div className="flex flex-1 flex-col justify-center">
                   <div className={`mr-auto w-full ${showAuthForm ? 'md:max-w-[612px]' : 'lg:max-w-3xs max-w-full '} space-y-8`}>
                     <div>
@@ -417,7 +417,7 @@ export default function AuthPage() {
                         onClick={() => {
                           navigate({ to: "/login" })
                         }}
-                        className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
+                        className="text-base px-7 py-3 rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300">
                         Continue To Login
                       </button>
                     </div>
@@ -459,17 +459,17 @@ export default function AuthPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-muted-foreground hover:!bg-[#C393E2] -ml-2 mb-3.5"
+                          className="text-muted-foreground hover:!bg-[rgb(102,187,205)] -ml-2 mb-3.5"
                           onClick={() => setShowAuthForm(false)}
                         >
                           ← Back
                         </Button>
 
-                        <Card className="relative overflow-hidden bg-[#F3E4FC] border-0 rounded-[8px] pt-[75px] pb-[34px]">
+                        <Card className="relative overflow-hidden bg-[rgb(240,248,250)] border-0 rounded-[8px] pt-[75px] pb-[34px]">
                           {!isSignUp ? (
                             <div>
                               <CardHeader>
-                                <CardTitle className="text-3xl md:text-4xl text-center text-[#000000] font-bold leading-tight mb-10 md:mb-[60px]">Welcome Back</CardTitle>
+                                <CardTitle className="text-3xl md:text-4xl text-center text-[rgb(25,90,105)] font-bold leading-tight mb-10 md:mb-[60px]">Welcome Back</CardTitle>
                               </CardHeader>
 
                               <CardContent className="space-y-10 md:px-20 px-5">
@@ -519,7 +519,7 @@ export default function AuthPage() {
                                 </div>
                                 <div className="w-full max-w-[294px] mx-auto">
                                   <Button
-                                    className="w-full h-16 text-lg mb-0 font-medium !bg-[#C393E2] text-white hover:from-primary/90 hover:to-primary/70"
+                                    className="w-full h-16 text-lg mb-0 font-semibold !bg-[rgba(228,143,57,1)] hover:!bg-[rgb(208,123,37)] text-white shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300"
                                     onClick={handleEmailLogin}
                                     disabled={loading}
                                   >
@@ -529,7 +529,7 @@ export default function AuthPage() {
 
                                 <div className="relative my-6">
                                   <div className="relative flex justify-center text-xs uppercase">
-                                    <span className="text-[#980DF1] text-xl font-semibold">
+                                    <span className="text-[rgb(52,152,169)] text-xl font-semibold">
                                       OR
                                     </span>
                                   </div>
@@ -537,7 +537,7 @@ export default function AuthPage() {
                                 <div className="w-full max-w-[294px] mx-auto">
                                   <Button
                                     variant="outline"
-                                    className="w-full h-16 text-lg font-medium !bg-[#C393E2] text-white border-0 hover:bg-muted/50 transition-all duration-200"
+                                    className="w-full h-16 text-lg font-semibold !bg-[rgba(228,143,57,1)] hover:!bg-[rgb(208,123,37)] text-white border-0 shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300"
                                     onClick={handleGoogleLogin}
                                     disabled={loading}
                                   >
@@ -559,7 +559,7 @@ export default function AuthPage() {
                                   </div>
                                   <button
                                     onClick={toggleSignUpMode}
-                                    className="py-3 px-[29px] text-base rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-semibold flex flex-row lg:flex-col items-center justify-center leading-[24px] transition-all duration-200 gap-1 lg:gap-0"
+                                    className="py-3 px-[29px] text-base rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 flex flex-row lg:flex-col items-center justify-center leading-[24px] transition-all duration-300 gap-1 lg:gap-0"
                                   >
                                     <span>Sign</span>
                                     <span>Up</span>
@@ -570,7 +570,7 @@ export default function AuthPage() {
                           ) : (
                             <div>
                               <CardHeader>
-                                <CardTitle className="text-3xl md:text-4xl text-center text-[#000000] font-bold leading-tight mb-10 md:mb-[60px]">Create {activeRole === 'student' ? 'Student' : 'Instructor'} Account</CardTitle>
+                                <CardTitle className="text-3xl md:text-4xl text-center text-[rgb(25,90,105)] font-bold leading-tight mb-10 md:mb-[60px]">Create {activeRole === 'student' ? 'Student' : 'Instructor'} Account</CardTitle>
                               </CardHeader>
 
                               <CardContent className="space-y-5 md:px-20 px-5">
@@ -631,12 +631,12 @@ export default function AuthPage() {
                                   {password && (
                                     <div className="space-y-2">
                                       <div className="flex items-center justify-between">
-                                        <span className="text-xs text-[#4B5563]">Password strength</span>
+                                        <span className="text-xs text-[rgb(52,152,169)]">Password strength</span>
                                         <span className={cn(
                                           "text-xs font-medium",
                                           passwordStrength.value <= 25 && "text-red-500",
                                           passwordStrength.value > 25 && passwordStrength.value <= 50 && "text-yellow-500",
-                                          passwordStrength.value > 50 && passwordStrength.value <= 75 && "text-blue-500",
+                                          passwordStrength.value > 50 && passwordStrength.value <= 75 && "text-[rgb(52,152,169)]",
                                           passwordStrength.value > 75 && "text-green-500"
                                         )}>
                                           {passwordStrength.label}
@@ -651,32 +651,32 @@ export default function AuthPage() {
                                           style={{ width: `${passwordStrength.value}%` }}
                                         />
                                       </div>
-                                      <div className="grid grid-cols-2 gap-1 text-xs text-[#4B5563]">
+                                      <div className="grid grid-cols-2 gap-1 text-xs text-[rgb(52,152,169)]">
                                         <div className="flex items-center gap-1">
                                           <Check className={cn(
                                             "h-3 w-3",
-                                            password.length >= 8 ? 'text-green-500' : 'text-[#4B5563]'
+                                            password.length >= 8 ? 'text-green-500' : 'text-[rgb(52,152,169)]'
                                           )} />
                                           8+ characters
                                         </div>
                                         <div className="flex items-center gap-1">
                                           <Check className={cn(
                                             "h-3 w-3",
-                                            /[A-Z]/.test(password) ? 'text-green-500' : 'text-[#4B5563]'
+                                            /[A-Z]/.test(password) ? 'text-green-500' : 'text-[rgb(52,152,169)]'
                                           )} />
                                           Uppercase
                                         </div>
                                         <div className="flex items-center gap-1">
                                           <Check className={cn(
                                             "h-3 w-3",
-                                            /\d/.test(password) ? 'text-green-500' : 'text-[#4B5563]'
+                                            /\d/.test(password) ? 'text-green-500' : 'text-[rgb(52,152,169)]'
                                           )} />
                                           Numbers
                                         </div>
                                         <div className="flex items-center gap-1">
                                           <Check className={cn(
                                             "h-3 w-3",
-                                            /[!@#$%^&*(),.?":{}|<>]/.test(password) ? 'text-green-500' : 'text-[#4B5563]'
+                                            /[!@#$%^&*(),.?":{}|<>]/.test(password) ? 'text-green-500' : 'text-[rgb(52,152,169)]'
                                           )} />
                                           Special chars
                                         </div>
@@ -706,7 +706,7 @@ export default function AuthPage() {
                                 </div>
                                 <div className="w-full max-w-[294px] mx-auto">
                                   <Button
-                                    className="w-full h-16 text-lg font-medium !bg-[#C393E2] text-white border-0 hover:bg-muted/50 transition-all duration-200"
+                                    className="w-full h-16 text-lg font-semibold !bg-[rgba(228,143,57,1)] hover:!bg-[rgb(208,123,37)] text-white border-0 shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300"
                                     onClick={handleEmailSignup}
                                     disabled={!passwordsMatch || passwordStrength.value < 50 || loading}
                                   >
@@ -722,7 +722,7 @@ export default function AuthPage() {
                                   </div>
                                   <button
                                     onClick={toggleSignUpMode}
-                                    className="py-3 px-[29px] text-base rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-semibold flex flex-row lg:flex-col items-center justify-center leading-[24px] transition-all duration-200 gap-1 lg:gap-0"
+                                    className="py-3 px-[29px] text-base rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 flex flex-row lg:flex-col items-center justify-center leading-[24px] transition-all duration-300 gap-1 lg:gap-0"
                                   >
                                     <span>Sign</span>
                                     <span>in</span>
@@ -749,28 +749,28 @@ export default function AuthPage() {
               <img src={innovators} alt="innovators image" className="w-full h-auto" />
             </div>
             <div className="max-w-[560px] ml-auto flex flex-col space-y-4 mt-8 lg:mt-0">
-              <h3 className="text-[#1F2937] text-[36px] font-bold leading-10">Join a Community of Innovators</h3>
-              <p className="text-[#4B5563] text-base font-normal leading-[26px]">Learn how ViBe is reshaping education through collaboration and technology, empowering learners to thrive.</p>
+              <h3 className="text-[rgb(25,90,105)] text-[36px] font-bold leading-10">Join a Community of Innovators</h3>
+              <p className="text-[rgb(52,152,169)] text-base font-normal leading-[26px]">Learn how ViBe is reshaping education through collaboration and technology, empowering learners to thrive.</p>
               <div>
-                <button onClick={() => window.open(links.GITHUB, '_blank')} className="text-base px-6 py-3 rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium shadow-md transition-all duration-200">
+                <button onClick={() => window.open(links.GITHUB, '_blank')} className="text-base px-7 py-3 rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300">
                   GitHub Link
                 </button>
               </div>
             </div>
           </div>
         </div>
-        <div className="bg-[#F3EFFB]">
+        <div className="bg-[rgb(240,248,250)]">
           <div className="w-full max-w-[1280px] mx-auto py-16 px-4 sm:px-6">
-            <h3 className="text-[#1F2937] text-2xl sm:text-3xl md:text-[36px] font-bold leading-10 mb-[52px]">A Collaboration Between</h3>
+            <h3 className="text-[rgb(25,90,105)] text-2xl sm:text-3xl md:text-[36px] font-bold leading-10 mb-[52px]">A Collaboration Between</h3>
             <div className="flex flex-wrap items-center gap-8 sm:gap-12 lg:gap-[96px]">
               <img src={collabration} alt="collabration Logo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
               <img src={ugcLogo} alt="ugcLogo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
               <img src={annam} alt="annam Logo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
-              <img src={dled} alt="dled Logo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
+              <img src={vledLogo} alt="VLED Logo" className="w-[220px] sm:w-[260px] h-auto object-contain" />
             </div>
           </div>
         </div>
-        <div className="bg-[#000000]">
+        <div className="bg-gradient-to-br from-[rgb(25,90,105)] to-[rgb(40,120,135)]">
           <div className="w-full max-w-[1280px] mx-auto py-16 px-6 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
               <div className="space-y-4">
@@ -787,17 +787,17 @@ export default function AuthPage() {
                 <a href= {links.GITHUB} target="_blank">Contact Us</a>
               </div>
             </div>
-            <div className="bg-[#F3E4FC] p-8 rounded-[8px] w-full max-w-[608px] ml-auto">
-              <h4 className="text-[#111827] text-base font-bold mb-4">
+            <div className="bg-[rgb(240,248,250)] p-8 rounded-[8px] w-full max-w-[608px] ml-auto">
+              <h4 className="text-[rgb(25,90,105)] text-base font-bold mb-4">
                 Sign up for updates and insights.
               </h4>
               <div className="flex lg:flex-row flex-col items-stretch gap-2">
                 <input
                   type="email"
                   placeholder="Your email address"
-                  className="flex-1 px-4 py-3 placeholder:text-[#9CA3AF] text-[#000000] rounded-md bg-[#FFFFFF] border border-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#C58BF2]"
+                  className="flex-1 px-4 py-3 placeholder:text-[#9CA3AF] text-[rgb(25,90,105)] rounded-md bg-[#FFFFFF] border border-[rgb(102,187,205)] focus:outline-none focus:ring-2 focus:ring-[rgb(52,152,169)]"
                 />
-                <button className="py-3 px-[29px] rounded-md bg-[#C58BF2] hover:bg-[#b07ae0] text-white font-medium flex flex-row lg:flex-col items-center justify-center leading-[24px] transition-all duration-200 gap-1 md:gap-0">
+                <button className="py-3 px-[29px] rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 flex flex-row lg:flex-col items-center justify-center leading-[24px] transition-all duration-300 gap-1 md:gap-0">
                   <span>Sign</span>
                   <span>Up</span>
                 </button>
