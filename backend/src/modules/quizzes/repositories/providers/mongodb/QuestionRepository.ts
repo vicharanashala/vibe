@@ -145,6 +145,66 @@ class QuestionRepository {
     }
     return result;
   }
+
+
+  async bulkConvertIds(batchSize=100):Promise<{updated:number}>{
+    await this.init();
+    const cursor = this.flaggedQuestionCollection.find({}).project({
+      _id: 1,
+      questionId: 1,
+      flaggedBy: 1,
+      resolvedBy: 1
+    });
+    let bulkOps: any[] = [];
+    let totalUpdated = 0;
+
+    while (await cursor.hasNext()) {
+      const flaggedQuestion = await cursor.next();
+      if (!flaggedQuestion) continue;
+
+      const updateFields: Record<string, any> = {};
+      
+      // Convert questionId to ObjectId if it's a string
+      if (flaggedQuestion.questionId && typeof flaggedQuestion.questionId === 'string') {
+        updateFields.questionId = new ObjectId(flaggedQuestion.questionId);
+      }
+      
+      // Convert flaggedBy to ObjectId if it's a string
+      if (flaggedQuestion.flaggedBy && typeof flaggedQuestion.flaggedBy === 'string') {
+        updateFields.flaggedBy = new ObjectId(flaggedQuestion.flaggedBy);
+      }
+      
+      // Convert resolvedBy to ObjectId if it's a string
+      if (flaggedQuestion.resolvedBy && typeof flaggedQuestion.resolvedBy === 'string') {
+        updateFields.resolvedBy = new ObjectId(flaggedQuestion.resolvedBy);
+      }
+
+      // Only add to bulkOps if there are fields to update
+      if (Object.keys(updateFields).length > 0) {
+        bulkOps.push({
+          updateOne: {
+            filter: {_id: flaggedQuestion._id},
+            update: {$set: updateFields},
+          },
+        });
+      }
+
+      // Execute batch if we've reached the batch size
+      if (bulkOps.length >= batchSize) {
+        await this.flaggedQuestionCollection.bulkWrite(bulkOps);
+        totalUpdated += bulkOps.length;
+        bulkOps = [];
+      }
+    }
+
+    // Process any remaining operations
+    if (bulkOps.length > 0) {
+      await this.flaggedQuestionCollection.bulkWrite(bulkOps);
+      totalUpdated += bulkOps.length;
+    }
+
+    return {updated: totalUpdated};
+  }
 }
 
 export {QuestionRepository};

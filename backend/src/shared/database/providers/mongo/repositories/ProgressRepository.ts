@@ -518,6 +518,73 @@ class ProgressRepository {
 
     return result;
   }
+
+  async bulkConvertIds(batchSize: number=100): Promise<{updated: number}> {
+    await this.init();
+    const cursor = this.progressCollection.find({}).project({
+      _id: 1,
+      userId: 1,
+      courseId: 1,
+      courseVersionId: 1,
+      currentModule: 1,
+      currentSection: 1,
+      currentItem: 1
+    });
+    let bulkOps: any[] = [];
+    let totalUpdated = 0;
+
+    while (await cursor.hasNext()) {
+      const progress = (await cursor.next()) as IProgress;
+      if (!progress) continue;
+
+      const updateFields: Record<string, any> = {};
+      
+      // Convert existing fields
+      if (progress.userId && typeof progress.userId === 'string') {
+        updateFields.userId = new ObjectId(progress.userId);
+      }
+      if (progress.courseId && typeof progress.courseId === 'string') {
+        updateFields.courseId = new ObjectId(progress.courseId);
+      }
+      if (progress.courseVersionId && typeof progress.courseVersionId === 'string') {
+        updateFields.courseVersionId = new ObjectId(progress.courseVersionId);
+      }
+      
+      // Convert progress tracking fields
+      if (progress.currentModule && typeof progress.currentModule === 'string') {
+        updateFields.currentModule = new ObjectId(progress.currentModule);
+      }
+      if (progress.currentSection && typeof progress.currentSection === 'string') {
+        updateFields.currentSection = new ObjectId(progress.currentSection);
+      }
+      if (progress.currentItem && typeof progress.currentItem === 'string') {
+        updateFields.currentItem = new ObjectId(progress.currentItem);
+      }
+
+      if (Object.keys(updateFields).length > 0) {
+        bulkOps.push({
+          updateOne: {
+            filter: {_id: progress._id},
+            update: {$set: updateFields}
+          }
+        });
+      }
+
+      if (bulkOps.length >= batchSize) {
+        const result = await this.progressCollection.bulkWrite(bulkOps);
+        totalUpdated += result.modifiedCount;
+        bulkOps = [];
+      }
+    }
+
+    if (bulkOps.length > 0) {
+      const result = await this.progressCollection.bulkWrite(bulkOps);
+      totalUpdated += result.modifiedCount;
+    }
+
+    console.log(`Updated ${totalUpdated} progress documents`);
+    return {updated: totalUpdated};
+  }
 }
 
 export {ProgressRepository};

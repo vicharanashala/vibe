@@ -692,76 +692,95 @@ export class CourseRepository implements ICourseRepository {
   }
 
   async bulkConvertVersionIds(batchSize = 100): Promise<{updated: number}> {
-    try {
-      await this.init();
+    await this.init();
+    const cursor = this.courseVersionCollection.find({}).project({
+      _id: 1,
+      courseId: 1,
+      modules: 1
+    });
 
-      const cursor = this.courseVersionCollection.find(
-        {},
-        {
-          projection: {_id: 1, courseId: 1, modules: 1},
-        },
-      );
+    let bulkOps: any[] = [];
+    let totalUpdated = 0;
 
-      let bulkOps: any[] = [];
-      let totalUpdated = 0;
+    while (await cursor.hasNext()) {
+      const version = await cursor.next();
+      if (!version) continue;
 
-      while (await cursor.hasNext()) {
-        const version = await cursor.next();
-        if (!version) continue;
+      let needsUpdate = false;
+      const updateFields: Record<string, any> = {};
 
-        let needsUpdate = false;
+      // Convert courseId if it's a string
+      if (version.courseId && typeof version.courseId === 'string') {
+        updateFields.courseId = new ObjectId(version.courseId);
+        needsUpdate = true;
+      }
 
-        let updatedCourseId = version.courseId;
-        if (version.courseId && typeof version.courseId === 'string') {
-          updatedCourseId = new ObjectId(version.courseId);
-          needsUpdate = true;
-        }
+      // Process modules and sections
+      if (Array.isArray(version.modules)) {
+        const updatedModules = version.modules.map((mod: any) => {
+          const updatedModule: any = {...mod};
+          
+          // Convert moduleId if it's a string
+          if (mod.moduleId && typeof mod.moduleId === 'string') {
+            updatedModule.moduleId = new ObjectId(mod.moduleId);
+            needsUpdate = true;
+          }
 
-        const updatedModules = (version.modules || []).map((mod: any) => {
-          const updatedSections = (mod.sections || []).map((sec: any) => {
-            const updatedSection = {...sec};
-            if (sec.itemsGroupId && typeof sec.itemsGroupId === 'string') {
-              updatedSection.itemsGroupId = new ObjectId(sec.itemsGroupId);
-              needsUpdate = true;
-            }
-            return updatedSection;
-          });
-          return {...mod, sections: updatedSections};
+          // Process sections
+          if (Array.isArray(mod.sections)) {
+            const updatedSections = mod.sections.map((sec: any) => {
+              const updatedSection = {...sec};
+              
+              // Convert sectionId if it's a string
+              if (sec.sectionId && typeof sec.sectionId === 'string') {
+                updatedSection.sectionId = new ObjectId(sec.sectionId);
+                needsUpdate = true;
+              }
+              
+              // Convert itemsGroupId if it's a string
+              if (sec.itemsGroupId && typeof sec.itemsGroupId === 'string') {
+                updatedSection.itemsGroupId = new ObjectId(sec.itemsGroupId);
+                needsUpdate = true;
+              }
+              
+              return updatedSection;
+            });
+            updatedModule.sections = updatedSections;
+          }
+          
+          return updatedModule;
         });
-
+        
         if (needsUpdate) {
-          bulkOps.push({
-            updateOne: {
-              filter: {_id: version._id},
-              update: {
-                $set: {
-                  courseId: updatedCourseId,
-                  modules: updatedModules,
-                },
-              },
-            },
-          });
-        }
-
-        if (bulkOps.length >= batchSize) {
-          const result = await this.courseVersionCollection.bulkWrite(bulkOps);
-          totalUpdated += result.modifiedCount;
-          bulkOps = [];
+          updateFields.modules = updatedModules;
         }
       }
 
-      if (bulkOps.length > 0) {
+      if (needsUpdate) {
+        bulkOps.push({
+          updateOne: {
+            filter: {_id: version._id},
+            update: {$set: updateFields}
+          }
+        });
+      }
+
+      if (bulkOps.length >= batchSize) {
         const result = await this.courseVersionCollection.bulkWrite(bulkOps);
         totalUpdated += result.modifiedCount;
+        bulkOps = [];
       }
-
-      return {updated: totalUpdated};
-    } catch (error) {
-      throw new InternalServerError(
-        `Failed newCourseVersion ID conversion. More/ ${error}`,
-      );
     }
+
+    if (bulkOps.length > 0) {
+      const result = await this.courseVersionCollection.bulkWrite(bulkOps);
+      totalUpdated += result.modifiedCount;
+    }
+
+    console.log(`Updated ${totalUpdated} course versions`);
+    return {updated: totalUpdated};
   }
+
   async addNewCourseVersionToCourse(
     courseId: string,
     versionId: string,

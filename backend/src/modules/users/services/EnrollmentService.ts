@@ -41,6 +41,7 @@ import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 import {
   AttemptRepository,
   QuestionBankRepository,
+  QuestionRepository,
   QuizRepository,
   SubmissionRepository,
   UserQuizMetricsRepository,
@@ -56,8 +57,10 @@ export class EnrollmentService extends BaseService {
     private readonly enrollmentRepo: EnrollmentRepository,
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
-    @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
-    @inject(COURSES_TYPES.ItemRepo) private readonly itemRepo: IItemRepository,
+    @inject(GLOBAL_TYPES.UserRepo)
+    private readonly userRepo: IUserRepository,
+    @inject(COURSES_TYPES.ItemRepo)
+    private readonly itemRepo: IItemRepository,
     @inject(USERS_TYPES.ProgressRepo)
     private readonly progressRepo: ProgressRepository,
     @inject(ANOMALIES_TYPES.AnomalyRepository)
@@ -76,6 +79,8 @@ export class EnrollmentService extends BaseService {
     private userQuizMetricsRepo: UserQuizMetricsRepository,
     @inject(QUIZZES_TYPES.AttemptRepo)
     private attemptRepo: AttemptRepository,
+    @inject(QUIZZES_TYPES.QuestionRepo)
+    private readonly questionRepo: QuestionRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
@@ -635,7 +640,9 @@ export class EnrollmentService extends BaseService {
       | 'quiz_submission_results'
       | 'quizzes'
       | 'user_quiz_metrics'
-      | 'quiz_attempts',
+      | 'quiz_attempts'
+      | 'flagged_questions'
+      | 'progress',
   ): Promise<void> {
     try {
       const BATCH_SIZE = 1000;
@@ -653,6 +660,8 @@ export class EnrollmentService extends BaseService {
         quizzes: () => this.quizRepo.bulkConvertIds(BATCH_SIZE),
         user_quiz_metrics: () => this.userQuizMetricsRepo.bulkConvertIds(BATCH_SIZE),
         quiz_attempts: () => this.attemptRepo.bulkConvertIds(BATCH_SIZE),
+        flagged_questions: () => this.questionRepo.bulkConvertIds(BATCH_SIZE),
+        progress: () => this.progressRepo.bulkConvertIds(BATCH_SIZE),
       } as const;
 
       const collections = collection ? [collection] : Object.keys(handlers) as Array<keyof typeof handlers>;

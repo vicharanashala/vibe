@@ -3,12 +3,12 @@ import {
   ISubmissionWithUser,
   PaginatedSubmissions,
 } from '#quizzes/interfaces/grading.js';
-import {MongoDatabase} from '#shared/database/providers/mongo/MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {injectable, inject} from 'inversify';
-import {Collection, ClientSession, ObjectId} from 'mongodb';
-import {InternalServerError} from 'routing-controllers';
-import {GetQuizSubmissionsQuery} from '#root/modules/quizzes/classes/index.js';
+import { MongoDatabase } from '#shared/database/providers/mongo/MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { injectable, inject } from 'inversify';
+import { Collection, ClientSession, ObjectId } from 'mongodb';
+import { InternalServerError } from 'routing-controllers';
+import { GetQuizSubmissionsQuery } from '#root/modules/quizzes/classes/index.js';
 
 @injectable()
 class SubmissionRepository {
@@ -17,7 +17,7 @@ class SubmissionRepository {
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
-  ) {}
+  ) { }
 
   private async init() {
     this.submissionResultCollection = await this.db.getCollection<ISubmission>(
@@ -62,9 +62,9 @@ class SubmissionRepository {
       : null;
 
     const filter: any = {
-      quizId: {$in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])]},
-      userId: {$in: [userIdStr, ...(userIdObj ? [userIdObj] : [])]},
-      attemptId: {$in: [attemptIdStr, ...(attemptIdObj ? [attemptIdObj] : [])]},
+      quizId: { $in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])] },
+      userId: { $in: [userIdStr, ...(userIdObj ? [userIdObj] : [])] },
+      attemptId: { $in: [attemptIdStr, ...(attemptIdObj ? [attemptIdObj] : [])] },
     };
 
     const result = await this.submissionResultCollection.findOne(filter, {
@@ -102,7 +102,7 @@ class SubmissionRepository {
       : null;
     const filter: any = {
       _id: new ObjectId(submissionId),
-      quizId: {$in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])]},
+      quizId: { $in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])] },
     };
 
     const result = await this.submissionResultCollection.findOne(filter, {
@@ -133,9 +133,9 @@ class SubmissionRepository {
   ): Promise<ISubmission> {
     await this.init();
     const result = await this.submissionResultCollection.findOneAndUpdate(
-      {_id: new ObjectId(submissionId)},
-      {$set: updateData},
-      {returnDocument: 'after', session},
+      { _id: new ObjectId(submissionId) },
+      { $set: updateData },
+      { returnDocument: 'after', session },
     );
     return result;
   }
@@ -152,9 +152,9 @@ class SubmissionRepository {
 
     const count = await this.submissionResultCollection.countDocuments(
       {
-        quizId: {$in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])]},
+        quizId: { $in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])] },
       },
-      {session},
+      { session },
     );
     // const count = await this.submissionResultCollection.countDocuments(
     //   {quizId},
@@ -170,13 +170,13 @@ class SubmissionRepository {
   ): Promise<PaginatedSubmissions> {
     await this.init();
 
-    const {search, gradeStatus, sort = 'DATE_DESC', currentPage, limit} = query;
+    const { search, gradeStatus, sort = 'DATE_DESC', currentPage, limit } = query;
     const quizIdStr = quizId.toString();
     const quizIdObj = ObjectId.isValid(quizIdStr)
       ? new ObjectId(quizIdStr)
       : null;
     const matchStage: any = {
-      quizId: {$in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])]},
+      quizId: { $in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])] },
     };
 
     if (gradeStatus && gradeStatus !== 'All') {
@@ -186,15 +186,15 @@ class SubmissionRepository {
     const sortStage: Record<string, 1 | -1> = (() => {
       switch (sort) {
         case 'date_asc':
-          return {submittedAt: 1};
+          return { submittedAt: 1 };
         case 'date_desc':
-          return {submittedAt: -1};
+          return { submittedAt: -1 };
         case 'score_asc':
-          return {'gradingResult.totalScore': 1};
+          return { 'gradingResult.totalScore': 1 };
         case 'score_desc':
-          return {'gradingResult.totalScore': -1};
+          return { 'gradingResult.totalScore': -1 };
         default:
-          return {submittedAt: -1};
+          return { submittedAt: -1 };
       }
     })();
 
@@ -204,7 +204,7 @@ class SubmissionRepository {
       },
       {
         $addFields: {
-          userId: {$toObjectId: '$userId'},
+          userId: { $toObjectId: '$userId' },
         },
       },
       {
@@ -224,7 +224,7 @@ class SubmissionRepository {
       {
         $addFields: {
           userId: {
-            _id: {$toString: '$userInfo._id'},
+            _id: { $toString: '$userInfo._id' },
             firstName: '$userInfo.firstName',
             lastName: '$userInfo.lastName',
             email: '$userInfo.email',
@@ -237,26 +237,26 @@ class SubmissionRepository {
       aggregationPipeline.push({
         $match: {
           $or: [
-            {'userInfo.firstName': {$regex: search, $options: 'i'}},
-            {'userInfo.email': {$regex: search, $options: 'i'}},
+            { 'userInfo.firstName': { $regex: search, $options: 'i' } },
+            { 'userInfo.email': { $regex: search, $options: 'i' } },
           ],
         },
       });
     }
 
-    aggregationPipeline.push({$sort: sortStage});
+    aggregationPipeline.push({ $sort: sortStage });
 
     let totalCount = 0;
     if (typeof currentPage === 'number' && typeof limit === 'number') {
       const skip = (currentPage - 1) * limit;
-      aggregationPipeline.push({$skip: skip}, {$limit: limit});
+      aggregationPipeline.push({ $skip: skip }, { $limit: limit });
       totalCount = await this.submissionResultCollection.countDocuments(
         matchStage,
       );
     }
 
     const data = await this.submissionResultCollection
-      .aggregate(aggregationPipeline, {session})
+      .aggregate(aggregationPipeline, { session })
       .toArray();
 
     const totalPages =
@@ -293,10 +293,10 @@ class SubmissionRepository {
 
     const count = await this.submissionResultCollection.countDocuments(
       {
-        quizId: {$in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])]},
+        quizId: { $in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])] },
         'gradingResult.gradingStatus': 'PASSED',
       },
-      {session},
+      { session },
     );
     // const count = await this.submissionResultCollection.countDocuments(
     //   {quizId, 'gradingResult.gradingStatus': 'PASSED'},
@@ -325,10 +325,10 @@ class SubmissionRepository {
 
     await this.submissionResultCollection.deleteMany(
       {
-        userId: {$in: [userIdStr, ...(userIdObj ? [userIdObj] : [])]},
-        attemptId: {$in: [...attemptIdsStr, ...attemptIdsObj]},
+        userId: { $in: [userIdStr, ...(userIdObj ? [userIdObj] : [])] },
+        attemptId: { $in: [...attemptIdsStr, ...attemptIdsObj] },
       },
-      {session},
+      { session },
     );
 
     // await this.submissionResultCollection.deleteMany(
@@ -353,17 +353,17 @@ class SubmissionRepository {
         [
           {
             $match: {
-              quizId: {$in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])]},
+              quizId: { $in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])] },
             },
           },
           {
             $group: {
               _id: null,
-              averageScore: {$avg: '$gradingResult.totalScore'},
+              averageScore: { $avg: '$gradingResult.totalScore' },
             },
           },
         ],
-        {session},
+        { session },
       )
       .toArray();
     // const result = await this.submissionResultCollection
@@ -384,14 +384,20 @@ class SubmissionRepository {
     return 0;
   }
 
-  async bulkConvertIds(batchSize = 500): Promise<{updated: number}> {
+  async bulkConvertIds(batchSize = 500): Promise<{ updated: number }> {
     try {
       await this.init();
 
       const cursor = this.submissionResultCollection.find(
         {},
         {
-          projection: {_id: 1, quizId: 1, userId: 1, attemptId: 1},
+          projection: {
+            _id: 1,
+            quizId: 1,
+            userId: 1,
+            attemptId: 1,
+            'gradingResult.overallFeedback': 1
+          },
         },
       );
 
@@ -403,35 +409,48 @@ class SubmissionRepository {
         if (!submission) continue;
 
         let needsUpdate = false;
+        const updateFields: Record<string, any> = {};
 
-        let updatedQuizId = submission.quizId;
         if (submission.quizId && typeof submission.quizId === 'string') {
-          updatedQuizId = new ObjectId(submission.quizId);
+          updateFields.quizId = new ObjectId(submission.quizId);
           needsUpdate = true;
         }
 
-        let updatedUserId = submission.userId;
         if (submission.userId && typeof submission.userId === 'string') {
-          updatedUserId = new ObjectId(submission.userId);
+          updateFields.userId = new ObjectId(submission.userId);
           needsUpdate = true;
         }
 
-        let updatedAttemptId = submission.attemptId;
         if (submission.attemptId && typeof submission.attemptId === 'string') {
-          updatedAttemptId = new ObjectId(submission.attemptId);
+          updateFields.attemptId = new ObjectId(submission.attemptId);
           needsUpdate = true;
         }
+
+        // Convert questionId in gradingResult.overallFeedback
+        if (submission.gradingResult?.overallFeedback?.length > 0) {
+          const updatedFeedback = submission.gradingResult.overallFeedback.map((feedback: any) => {
+            if (feedback.questionId && typeof feedback.questionId === 'string') {
+              needsUpdate = true;
+              return {
+                ...feedback,
+                questionId: new ObjectId(feedback.questionId)
+              };
+            }
+            return feedback;
+          });
+
+          if (needsUpdate) {
+            updateFields['gradingResult.overallFeedback'] = updatedFeedback;
+          }
+        }
+
 
         if (needsUpdate) {
           bulkOps.push({
             updateOne: {
-              filter: {_id: submission._id},
+              filter: { _id: submission._id },
               update: {
-                $set: {
-                  quizId: updatedQuizId,
-                  userId: updatedUserId,
-                  attemptId: updatedAttemptId,
-                },
+                $set: updateFields,
               },
             },
           });
@@ -451,17 +470,19 @@ class SubmissionRepository {
         totalUpdated += result.modifiedCount;
       }
 
-      return {updated: totalUpdated};
+      return { updated: totalUpdated };
     } catch (error) {
       throw new InternalServerError(
         `Failed quiz_submission_results ID conversion. More/ ${error}`,
       );
     }
   }
+
+  
   async getAveragePercentageByQuizId(
     quizId: string,
     session?: ClientSession,
-): Promise<number> {
+  ): Promise<number> {
     await this.init();
 
     // Fetch quiz to get maxScore
@@ -472,44 +493,44 @@ class SubmissionRepository {
 
     const quizIdStr = quizId.toString();
     const quizIdObj = ObjectId.isValid(quizIdStr)
-        ? new ObjectId(quizIdStr)
-        : null;
+      ? new ObjectId(quizIdStr)
+      : null;
 
     const result = await this.submissionResultCollection
-        .aggregate(
-            [
-                {
-                    $match: {
-                        quizId: { $in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])] },
-                    },
-                },
-                {
-                    $project: {
-                        percentage: {
-                            $multiply: [
-                                { $divide: ['$gradingResult.totalScore', "$gradingResult.totalMaxScore"] },
-                                100,
-                            ],
-                        },
-                    },
-                },
-                {
-                    $group: {
-                        _id: null,
-                        averagePercentage: { $avg: '$percentage' },
-                    },
-                },
-            ],
-            { session },
-        )
-        .toArray();
+      .aggregate(
+        [
+          {
+            $match: {
+              quizId: { $in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])] },
+            },
+          },
+          {
+            $project: {
+              percentage: {
+                $multiply: [
+                  { $divide: ['$gradingResult.totalScore', "$gradingResult.totalMaxScore"] },
+                  100,
+                ],
+              },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              averagePercentage: { $avg: '$percentage' },
+            },
+          },
+        ],
+        { session },
+      )
+      .toArray();
 
     if (result.length > 0 && result[0].averagePercentage !== null) {
-        return Math.round(result[0].averagePercentage * 10) / 10; 
+      return Math.round(result[0].averagePercentage * 10) / 10;
     }
-    console.log("Percentage is ",Math.round(result[0].averagePercentage * 10) / 10)
+    console.log("Percentage is ", Math.round(result[0].averagePercentage * 10) / 10)
     return 0;
-}
+  }
 }
 
-export {SubmissionRepository};
+export { SubmissionRepository };
