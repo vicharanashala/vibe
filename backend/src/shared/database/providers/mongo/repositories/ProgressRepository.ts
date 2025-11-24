@@ -39,7 +39,6 @@ class ProgressRepository {
   ): Promise<string[]> {
     await this.init();
 
-
     const distinctItemIds = await this.watchTimeCollection.distinct(
       'itemId',
       {
@@ -51,7 +50,6 @@ class ProgressRepository {
     );
 
     return distinctItemIds.map(id => id.toString());
-
   }
 
   async getAllWatchTime(
@@ -60,8 +58,8 @@ class ProgressRepository {
   ): Promise<IWatchTime[]> {
     await this.init();
     const result = await this.watchTimeCollection
-      .find({userId: new ObjectId(userId)}, {session})
-      .toArray();   
+      .find({userId: new ObjectId(userId), isDeleted: {$ne: true}}, {session})
+      .toArray();
     return result.map(item => ({
       ...item,
       _id: item._id.toString(),
@@ -77,8 +75,9 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
-    await this.watchTimeCollection.deleteMany(
+    await this.watchTimeCollection.updateMany(
       {itemId: new ObjectId(itemId)},
+      {$set: {isDeleted: true, deletedAt: new Date()}},
       {session},
     );
   }
@@ -138,16 +137,17 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
-    const result = await this.watchTimeCollection.deleteMany(
+    const result = await this.watchTimeCollection.updateMany(
       {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
+      {$set: {isDeleted: true, deletedAt: new Date()}},
       {session},
     );
 
-    if (result?.deletedCount === 0) {
+    if (result?.modifiedCount === 0) {
       console.log(
         `No watch time records found for course version ID: ${courseVersionId}, user ID: ${userId} and course ID: ${courseId}`,
       );
@@ -162,11 +162,12 @@ class ProgressRepository {
   ): Promise<{deletedCount: number; remainingCount: number}> {
     await this.init();
 
-    const deleteResult = await this.watchTimeCollection.deleteMany(
+    const deleteResult = await this.watchTimeCollection.updateMany(
       {
         userId: new ObjectId(userId),
         itemId: new ObjectId(itemId),
       },
+      {$set: {isDeleted: true, deletedAt: new Date()}},
       {session},
     );
 
@@ -306,6 +307,7 @@ class ProgressRepository {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
+        isDeleted: {$ne: true},
       },
       {
         session,
@@ -320,12 +322,13 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
-    await this.progressCollection.deleteOne(
+    await this.progressCollection.updateOne(
       {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
+      {$set: {isDeleted: true, deletedAt: new Date()}},
       {
         session,
       },
@@ -338,7 +341,7 @@ class ProgressRepository {
   ): Promise<IProgress | null> {
     await this.init();
     return await this.progressCollection.findOne(
-      {_id: new ObjectId(id)},
+      {_id: new ObjectId(id), isDeleted: {$ne: true}},
       {
         session,
       },
@@ -521,15 +524,13 @@ class ProgressRepository {
     return result;
   }
 
-
-  async deleteProgressByVersionId(versionId: string, session?: ClientSession){
+  async deleteProgressByVersionId(versionId: string, session?: ClientSession) {
     await this.init();
     await this.progressCollection.deleteMany(
       {courseVersionId: new ObjectId(versionId)},
-      {session}
-    )
-}
-
+      {session},
+    );
+  }
 }
 
 export {ProgressRepository};

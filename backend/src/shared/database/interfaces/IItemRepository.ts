@@ -62,6 +62,9 @@ export interface IItemRepository {
     versionId: string,
     session?: ClientSession,
   ): Promise<number>;
+
+  cascadeDeleteItem(session?: ClientSession): Promise<void>;
+
   // createVideoDetails(details: IVideoDetails): Promise<string>;
   // createQuizDetails(details: IQuizDetails): Promise<string>;
   // createBlogDetails(details: IBlogDetails): Promise<string>;

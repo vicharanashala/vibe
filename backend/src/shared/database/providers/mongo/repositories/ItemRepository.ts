@@ -7,6 +7,7 @@ import {injectable, inject} from 'inversify';
 import {Collection, ClientSession, ObjectId} from 'mongodb';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
 import {MongoDatabase} from '../MongoDatabase.js';
+import {IQuestionBank} from '#root/shared/interfaces/quiz.js';
 import {
   ItemsGroup,
   VideoItem,
@@ -24,6 +25,8 @@ export class ItemRepository implements IItemRepository {
   private quizCollection: Collection<QuizItem>;
   private blogCollection: Collection<BlogItem>;
   private projectCollection: Collection<ProjectItem>;
+  private questionBankCollection: Collection<IQuestionBank>;
+  private questionsCollection: Collection<any>;
 
   constructor(
     @inject(GLOBAL_TYPES.Database)
@@ -42,6 +45,10 @@ export class ItemRepository implements IItemRepository {
     this.projectCollection = await this.db.getCollection<ProjectItem>(
       'projects',
     );
+    this.questionBankCollection = await this.db.getCollection<IQuestionBank>(
+      'questionBanks',
+    );
+    this.questionsCollection = await this.db.getCollection('questions');
   }
   
 
@@ -98,13 +105,48 @@ async getItemsCountByGroupIds(groupIds: string[],session?:ClientSession) {
     session?: ClientSession,
   ): Promise<ItemsGroup> {
     await this.init();
+    console.log('Reading ItemsGroup with ID:', itemsGroupId);
     const itemsGroup = await this.itemsGroupCollection.findOne(
-      {_id: new ObjectId(itemsGroupId)},
+      {_id: new ObjectId(itemsGroupId), isDeleted: {$ne: true}},
       {session},
     );
     if (!itemsGroup) {
       throw new NotFoundError(`ItemsGroup ${itemsGroupId} not found.`);
     }
+
+    // Lookup items to check if they are deleted
+    const filteredItems = [];
+    for (const item of itemsGroup.items) {
+      let collection: Collection<any>;
+      switch (item.type) {
+        case ItemType.VIDEO:
+          collection = this.videoCollection;
+          break;
+        case ItemType.QUIZ:
+          collection = this.quizCollection;
+          break;
+        case ItemType.BLOG:
+          collection = this.blogCollection;
+          break;
+        case ItemType.PROJECT:
+          collection = this.projectCollection;
+          break;
+        default:
+          throw new InternalServerError(
+            `Unsupported item type: ${(item as any).type}`,
+          );
+      }
+      const existingItem = await collection.findOne(
+        {_id: new ObjectId(item._id), isDeleted: {$ne: true}},
+        {session},
+      );
+      if (existingItem) {
+        filteredItems.push(item);
+      }
+    }
+
+    itemsGroup.items = filteredItems;
+
     return instanceToPlain(
       Object.assign(new ItemsGroup(), itemsGroup),
     ) as ItemsGroup;
@@ -268,21 +310,25 @@ async getItemsCountByGroupIds(groupIds: string[],session?:ClientSession) {
             case ItemType.VIDEO:
               item = (await this.videoCollection.findOne({
                 _id: new ObjectId(found._id),
+                isDeleted: {$ne: true},
               })) as VideoItem;
               break;
             case ItemType.QUIZ:
               item = (await this.quizCollection.findOne({
                 _id: new ObjectId(found._id),
+                isDeleted: {$ne: true},
               })) as QuizItem;
               break;
             case ItemType.BLOG:
               item = (await this.blogCollection.findOne({
                 _id: new ObjectId(found._id),
+                isDeleted: {$ne: true},
               })) as BlogItem;
               break;
             case ItemType.PROJECT:
               item = (await this.projectCollection.findOne({
                 _id: new ObjectId(found._id),
+                isDeleted: {$ne: true},
               })) as ProjectItem;
               break;
             default:
@@ -367,23 +413,74 @@ async getItemsCountByGroupIds(groupIds: string[],session?:ClientSession) {
     }
     // Delete the item from the appropriate collection based on its type
     if (itemsGroup.items[itemIndex].type === ItemType.VIDEO) {
-      await this.videoCollection.deleteOne(
+      await this.videoCollection.updateOne(
         {_id: new ObjectId(itemId)},
+        {$set: {isDeleted: true, deletedAt: new Date()}},
         {session},
       );
     } else if (itemsGroup.items[itemIndex].type === ItemType.QUIZ) {
-      await this.quizCollection.deleteOne(
-        {_id: new ObjectId(itemId)},
+      const itemObjectId = new ObjectId(itemId);
+      const now = new Date();
+
+      // 1. Fetch quizItem
+      const quizItem = await this.quizCollection.findOne(
+        {_id: itemObjectId},
         {session},
       );
+
+      if (!quizItem) {
+        throw new NotFoundError(`Quiz item ${itemId} not found.`);
+      }
+
+      // 2. Soft delete quiz item
+      await this.quizCollection.updateOne(
+        {_id: itemObjectId},
+        {$set: {isDeleted: true, deletedAt: now}},
+        {session},
+      );
+
+      // 3. Extract questionBankIds
+      const questionBankIds = quizItem.details.questionBankRefs.map(
+        qb => new ObjectId(qb.bankId),
+      );
+
+      // 4. Soft delete the question banks
+      await this.questionBankCollection.updateMany(
+        {_id: {$in: questionBankIds}},
+        {$set: {isDeleted: true, deletedAt: now}},
+        {session},
+      );
+
+      // 5. Pull all questionIds
+      const questionBanks = await this.questionBankCollection
+        .find(
+          {_id: {$in: questionBankIds}},
+          {projection: {questions: 1}, session},
+        )
+        .toArray();
+
+      const questionIds = questionBanks
+        .flatMap(qb => qb.questions || [])
+        .map(qid => new ObjectId(qid));
+
+      // skip update if none
+      if (questionIds.length > 0) {
+        await this.questionsCollection.updateMany(
+          {_id: {$in: questionIds}},
+          {$set: {isDeleted: true, deletedAt: now}},
+          {session},
+        );
+      }
     } else if (itemsGroup.items[itemIndex].type === ItemType.BLOG) {
-      await this.blogCollection.deleteOne(
+      await this.blogCollection.updateOne(
         {_id: new ObjectId(itemId)},
+        {$set: {isDeleted: true, deletedAt: new Date()}},
         {session},
       );
     } else if (itemsGroup.items[itemIndex].type === ItemType.PROJECT) {
-      await this.projectCollection.deleteOne(
+      await this.projectCollection.updateOne(
         {_id: new ObjectId(itemId)},
+        {$set: {isDeleted: true, deletedAt: new Date()}},
         {session},
       );
     } else {
@@ -392,11 +489,13 @@ async getItemsCountByGroupIds(groupIds: string[],session?:ClientSession) {
       );
     }
     itemsGroup.items.splice(itemIndex, 1);
-    await this.itemsGroupCollection.updateOne(
-      {_id: new ObjectId(itemGroupsId)},
-      {$set: {items: itemsGroup.items}},
-      {session},
-    );
+    /*
+      await this.itemsGroupCollection.updateOne(
+        {_id: new ObjectId(itemGroupsId)},
+        {$set: {items: itemsGroup.items}},
+        {session},
+      );
+    */
     return itemsGroup;
   }
 
@@ -522,6 +621,116 @@ async getItemsCountByGroupIds(groupIds: string[],session?:ClientSession) {
         );
       }
       return updatedVersion.totalItems;
+    }
+  }
+
+  private async deleteAndReturnIds(
+    collection: Collection<any>,
+    filter: any,
+    session?: ClientSession,
+  ): Promise<ObjectId[]> {
+    const docs = await collection
+      .find(filter, {projection: {_id: 1}, session})
+      .toArray();
+
+    if (docs.length === 0) return [];
+
+    const ids = docs.map(doc => doc._id);
+    await collection.deleteMany({_id: {$in: ids}}, {session});
+
+    return ids;
+  }
+
+  async cascadeDeleteItem(session?: ClientSession): Promise<void> {
+    // cascade delete items with date difference exceeding 30 days
+    await this.init();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const deletedFilter = {
+      isDeleted: true,
+      deletedAt: {$lte: thirtyDaysAgo},
+    };
+
+    // Delete videos
+    try {
+      // Leaf Items in the hierarchy
+      const videoIds = await this.deleteAndReturnIds(
+        this.videoCollection,
+        deletedFilter,
+        session,
+      );
+      const blogIds = await this.deleteAndReturnIds(
+        this.blogCollection,
+        deletedFilter,
+        session,
+      );
+      const projectIds = await this.deleteAndReturnIds(
+        this.projectCollection,
+        deletedFilter,
+        session,
+      );
+
+      const quizzes = await this.questionsCollection
+        .find(deletedFilter, {session})
+        .toArray();
+
+      const quizIds = quizzes.map(q => q._id);
+
+      const bankIds = quizzes.flatMap(q =>
+        q.details.questionBankRefs.map(b => new ObjectId(b.bankId)),
+      );
+
+      const questionBanks = await this.questionBankCollection
+        .find({_id: {$in: bankIds}}, {projection: {questions: 1}, session})
+        .toArray();
+
+      const questionIds = questionBanks.flatMap(qb =>
+        qb.questions.map(qid => new ObjectId(qid)),
+      );
+
+      if (questionIds.length) {
+        await this.questionsCollection.deleteMany(
+          {_id: {$in: questionIds}},
+          {session},
+        );
+      }
+
+      // Delete question banks
+      if (bankIds.length) {
+        await this.questionBankCollection.deleteMany(
+          {_id: {$in: bankIds}},
+          {session},
+        );
+      }
+
+      // Delete quizzes
+      if (quizIds.length) {
+        await this.quizCollection.deleteMany({_id: {$in: quizIds}}, {session});
+      }
+
+      // Remove references from ItemsGroup
+
+      const allItemIds = [...videoIds, ...blogIds, ...projectIds, ...quizIds];
+
+      if (allItemIds.length) {
+        await this.itemsGroupCollection.updateMany(
+          {'items._id': {$in: allItemIds}},
+          {
+            $pull: {
+              items: {
+                _id: {$in: allItemIds},
+              },
+            },
+          },
+          {session},
+        );
+      }
+
+      // Independent soft deletion causes dangling children.
+      // i.e child is deleted but parent is not deleted.
+    } catch (error) {
+      console.error('Error during cascading video deletion:', error);
     }
   }
 }
