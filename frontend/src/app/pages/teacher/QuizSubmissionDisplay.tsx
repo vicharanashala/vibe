@@ -336,7 +336,7 @@ export function QuizSubmissionDisplay({ userId, quizId, itemName }: QuizSubmissi
                   key={attempt.attemptId}
                   className={`p-3 bg-card border border-border rounded-lg transition cursor-pointer relative ${
                     isSubmitted ? 'hover:bg-primary/10' : 'opacity-60 cursor-not-allowed'
-                  } ${isSelected ? 'bg-primary/10 border-primary shadow-md' : ''}`}
+                    } ${isSelected ? 'bg-primary/10 border-primary shadow-md' : ''}`}
                   onClick={() => {
                     if (isSubmitted && attempt.submissionResultId) {
                       setSelectedSubmissionResultId(attempt.submissionResultId.toString())

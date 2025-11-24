@@ -15,6 +15,7 @@ import {
   WatchTimeParams,
   CompletedProgressResponse,
   WatchTimeResponse,
+  TotalWatchTimeResponse,
 } from '#users/classes/validators/ProgressValidators.js';
 import {ProgressService} from '#users/services/ProgressService.js';
 import {USERS_TYPES} from '#users/types.js';
@@ -43,6 +44,8 @@ import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {subject} from '@casl/ability';
 import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
 import {QuizService} from '#root/modules/quizzes/services/index.js';
+import { BadRequestErrorResponse } from '#root/shared/index.js';
+import { InternalServerErrorResponse } from '../../../shared/middleware/errorHandler.js';
 
 @OpenAPI({
   tags: ['Progress'],
@@ -154,7 +157,7 @@ class ProgressController {
     description: 'Progress not found',
     statusCode: 404,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description:
       'courseVersionId, moduleId, sectionId, or itemId do not match user progress',
     statusCode: 400,
@@ -193,7 +196,8 @@ class ProgressController {
 
   @OpenAPI({
     summary: 'Stop an item for user progress',
-    description: 'Marks the stop of an item for a user in a course version.',
+    description: `Marks the stop of an item for a user in a course version.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @Post('/progress/courses/:courseId/versions/:versionId/stop')
@@ -202,12 +206,12 @@ class ProgressController {
     description: 'Progress not found',
     statusCode: 404,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description:
       'courseVersionId, moduleId, sectionId, or itemId do not match user progress',
     statusCode: 400,
   })
-  @ResponseSchema(InternalServerError, {
+  @ResponseSchema(InternalServerErrorResponse, {
     description: 'Failed to stop tracking item',
     statusCode: 500,
   })
@@ -216,6 +220,10 @@ class ProgressController {
     @Body() body: StopItemBody,
     @Ability(getProgressAbility) {ability, user},
   ): Promise<void> {
+    console.log('STOP ITEM ENDPOINT CALLED');
+    console.log('Params:', params);
+    console.log('Body:', body);
+    
     const {courseId, versionId} = params;
     const {itemId, sectionId, moduleId, watchItemId, attemptId, isSkipped} =
       body;
@@ -260,7 +268,9 @@ class ProgressController {
 If only moduleId is provided, resets to the beginning of the module. 
 If moduleId and sectionId are provided, resets to the beginning of the section. 
 If moduleId, sectionId, and itemId are provided, resets to the beginning of the item. 
-If none are provided, resets to the beginning of the course.`,
+If none are provided, resets to the beginning of the course.<br/>
+It returns an empty body with a 200 status code.
+`,
   })
   @Authorized()
   @Patch('/:userId/progress/courses/:courseId/versions/:versionId/reset')
@@ -269,7 +279,7 @@ If none are provided, resets to the beginning of the course.`,
     description: 'User not found',
     statusCode: 404,
   })
-  @ResponseSchema(InternalServerError, {
+  @ResponseSchema(InternalServerErrorResponse, {
     description: 'Progress could not be reset',
     statusCode: 500,
   })
@@ -346,11 +356,15 @@ If none are provided, resets to the beginning of the course.`,
     '/:userId/watchTime/course/:courseId/version/:versionId/item/:itemId/type/:type',
   )
   @HttpCode(200)
+  @ResponseSchema(WatchTimeResponse, {
+    description: 'Watch time fetched successfully',
+    statusCode: 200,
+  })
   @ResponseSchema(UserNotFoundErrorResponse, {
     description: 'User not found',
     statusCode: 404,
   })
-  @ResponseSchema(InternalServerError, {
+  @ResponseSchema(InternalServerErrorResponse, {
     description: 'Could not Fetch the Watch Time',
     statusCode: 500,
   })
@@ -396,6 +410,18 @@ If none are provided, resets to the beginning of the course.`,
   @Authorized()
   @Get('/watchtime/total')
   @HttpCode(200)
+  @ResponseSchema(TotalWatchTimeResponse, {
+    description: 'Total watch time fetched successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(UserNotFoundErrorResponse, {
+    description: 'User not found',
+    statusCode: 404,
+  })
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Could not Fetch the Total Watch Time',
+    statusCode: 500,
+  })
   async getTotalWatchtimeOfUser(
     @Ability(getProgressAbility) {user},
   ): Promise<number> {

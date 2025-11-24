@@ -14,7 +14,7 @@ export interface IItemRepository {
     itemId: string,
     session?: ClientSession,
   ): Promise<ItemsGroup | null>;
-
+  getItemsCountByGroupIds(groupIds:string[],session?:ClientSession)
   createItemsGroup(
     itemsGroup: ItemsGroup,
     session?: ClientSession,

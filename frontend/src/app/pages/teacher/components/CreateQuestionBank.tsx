@@ -121,11 +121,11 @@ const CreateQuestionBankDialog: React.FC<CreateQuestionBankDialogProps> = ({
                             <Plus className="h-4 w-4" />
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
-                        <DialogHeader>
+                    <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm sm:max-w-[500px] mx-auto px-4 max-h-[90vh] sm:max-h-[85vh] flex flex-col overflow-hidden">
+                        <DialogHeader className="mb-3 text-left flex-shrink-0">
                             <DialogTitle>Create Question Bank</DialogTitle>
                         </DialogHeader>
-                        <div className="space-y-6 mt-5">
+                        <div className="space-y-6 mt-5 flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                             {/* Title Field */}
                             <div className="space-y-2">
                                 <Label htmlFor="bankTitle mb-3">Title *</Label>
@@ -219,7 +219,7 @@ const CreateQuestionBankDialog: React.FC<CreateQuestionBankDialogProps> = ({
                         </div>
 
                         {/* Dialog Actions */}
-                        <div className="flex justify-end gap-2 mt-6">
+                        <div className="flex justify-end gap-2 mt-6 flex-shrink-0 pt-4">
                             <Button
                                 variant="outline"
                                 onClick={() => handleDialogChange(false)}

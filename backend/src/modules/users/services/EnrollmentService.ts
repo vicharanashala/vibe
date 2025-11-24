@@ -29,6 +29,8 @@ import {
   QuizScoresExportResponseDto,
   StudentQuizScoreDto,
 } from '../dtos/QuizScoresExportDto.js';
+import {COURSE_REGISTRATION_TYPES} from '#root/modules/courseRegistration/types.js';
+import {ICourseRegistrationRepository} from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
 
 @injectable()
 export class EnrollmentService extends BaseService {
@@ -39,6 +41,8 @@ export class EnrollmentService extends BaseService {
     private readonly courseRepo: ICourseRepository,
     @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
     @inject(COURSES_TYPES.ItemRepo) private readonly itemRepo: IItemRepository,
+    @inject(COURSE_REGISTRATION_TYPES.CourseRegistrationRepository)
+    private courseRegistrationRepo: ICourseRegistrationRepository,
     @inject(USERS_TYPES.ProgressService)
     private readonly progressService: ProgressService,
     @inject(GLOBAL_TYPES.InviteRepo)
@@ -115,13 +119,34 @@ export class EnrollmentService extends BaseService {
       );
       let initialProgress = null;
       if (createdEnrollment.role == 'STUDENT') {
-        initialProgress = await this.initializeProgress(
+        const progressData = await this.progressService.initializeProgress(
           userId,
           courseId,
           courseVersionId,
           courseVersion,
-          session,
         );
+        
+        if (progressData) {
+          initialProgress = await this.progressRepo.createProgress(
+            {
+              userId: new ObjectId(userId),
+              courseId: new ObjectId(courseId),
+              courseVersionId: new ObjectId(courseVersionId),
+              currentModule: new ObjectId(progressData.currentModule.toString()),
+              currentSection: new ObjectId(progressData.currentSection.toString()),
+              currentItem: new ObjectId(progressData.currentItem.toString()),
+              completed: false,
+            },
+            session,
+          );
+          
+          console.log('=== ENROLLMENT: Progress created successfully ===', {
+            userId,
+            currentItem: progressData.currentItem.toString(),
+          });
+        } else {
+          console.log('=== ENROLLMENT: No progress data returned - course may have no valid items ===');
+        }
       }
 
       return {
@@ -161,9 +186,9 @@ export class EnrollmentService extends BaseService {
         courseId,
         courseVersionId,
       );
-      if (!existingEnrollment) {
-        throw new Error('User is not enrolled in this course version');
-      }
+      // if (!existingEnrollment) {
+      //   throw new Error('User is not enrolled in this course version');
+      // }
 
       return existingEnrollment;
     });
@@ -186,6 +211,12 @@ export class EnrollmentService extends BaseService {
         session,
       );
 
+      await this.courseRegistrationRepo.remove(
+        userId,
+        courseId,
+        courseVersionId,
+        session
+      );
       return {
         enrollment: null,
         progress: null,
@@ -404,6 +435,9 @@ export class EnrollmentService extends BaseService {
     });
   }
 
+  async getInstructorEnrollment(courseId: string, versionId: string) {
+    return this.enrollmentRepo.getByCourseVersion(courseId, versionId);
+  }
   async processBulkInvite(userId: string, inviteId: string): Promise<void> {
     const invite = await this.inviteRepo.findInviteById(inviteId);
     if (!invite) {
@@ -429,59 +463,6 @@ export class EnrollmentService extends BaseService {
    * Initialize student progress tracking to the first item in the course.
    * Private helper method for the enrollment process.
    */
-  private async initializeProgress(
-    userId: string,
-    courseId: string,
-    courseVersionId: string,
-    courseVersion: ICourseVersion,
-    session: ClientSession,
-  ) {
-    // Get the first module, section, and item
-    if (!courseVersion.modules || courseVersion.modules.length === 0) {
-      return null; // No modules to track progress for
-    }
-
-    const firstModule = courseVersion.modules.sort((a, b) =>
-      a.order.localeCompare(b.order),
-    )[0];
-
-    if (!firstModule.sections || firstModule.sections.length === 0) {
-      return null; // No sections to track progress for
-    }
-
-    const firstSection = firstModule.sections.sort((a, b) =>
-      a.order.localeCompare(b.order),
-    )[0];
-
-    // Get the first item from the itemsGroup
-    const itemsGroup = await this.itemRepo.readItemsGroup(
-      firstSection.itemsGroupId.toString(),
-      session,
-    );
-
-    if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
-      return null; // No items to track progress for
-    }
-
-    const firstItem = itemsGroup.items.sort((a, b) =>
-      a.order.localeCompare(b.order),
-    )[0];
-
-    // Create progress record
-    return await this.enrollmentRepo.createProgress(
-      {
-        userId: new ObjectId(userId),
-        courseId: new ObjectId(courseId),
-        courseVersionId: new ObjectId(courseVersionId),
-        currentModule: firstModule.moduleId,
-        currentSection: firstSection.sectionId,
-        currentItem: firstItem._id,
-        completed: false,
-      },
-      session,
-    );
-  }
-
   async bulkUpdateAllEnrollments(
     courseId?: string,
   ): Promise<{totalCount: number; updatedCount: number}> {

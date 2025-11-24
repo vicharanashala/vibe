@@ -95,7 +95,6 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
 
   const { data: question, refetch: refetchQuestion } = useQuestionById(questionId);
   const updateQuestion = useUpdateQuestion();
-  console.log('Question data:', question);
 
   // Initialize edit form when question data is loaded
   useEffect(() => {
@@ -236,6 +235,12 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
         solutionForBackend.incorrectLotItems = incorrectOptions.map(cleanLotItem);
       } else {
         solutionForBackend = { ...editForm.solution };
+      }
+    
+
+      if (editForm.question.type === "NUMERIC_ANSWER_TYPE" && solutionForBackend?.lowerLimit >= solutionForBackend?.upperLimit) {
+          toast.error("Lower limit cannot be greater than or equal to upper limit.");
+          return;
       }
 
       await updateQuestion.mutateAsync({
@@ -533,6 +538,20 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
                 className="mt-1"
               />
             </div>
+            <div>
+              <Label htmlFor="value" className="text-sm font-medium">Value</Label>
+              <Input
+                id="value"
+                type="number"
+                min="0"
+                value={editForm?.solution?.value || ''}
+                onChange={(e) => setEditForm({
+                  ...editForm,
+                  solution: { ...editForm.solution, value: parseInt(e.target.value) }
+                })}
+                className="mt-1"
+              />
+            </div>
           </div>
         )}
 
@@ -608,7 +627,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
         </div>
 
         {/* Parameterized Question */}
-        <div className="flex items-center space-x-3">
+        {/* <div className="flex items-center space-x-3">
           <input
             type="checkbox"
             id="isParameterized"
@@ -622,7 +641,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
           <Label htmlFor="isParameterized" className="text-sm cursor-pointer">
             Is Parameterized Question
           </Label>
-        </div>
+        </div> */}
       </div>
     </div>
   );
@@ -773,63 +792,63 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
   };
 
   return (
-    <Card className="transition-all duration-200 hover:shadow-md border-l-4 border-l-transparent hover:border-l-primary">
+    <Card className="transition-all duration-200 hover:shadow-md border-l-4 border-l-transparent hover:border-l-primary w-full max-w-full overflow-hidden">
       <CardContent className="p-0">
         <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
           <CollapsibleTrigger asChild>
-            <div className="p-6 cursor-pointer hover:bg-muted/30 transition-colors">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="flex items-center gap-2">
+            <div className="p-4 xl:p-6 cursor-pointer hover:bg-muted/30 transition-colors">
+              <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-3 max-w-full">
+                <div className="flex-1 min-w-0 max-w-full">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3">
+                    <div className="flex items-center gap-2 min-w-0">
                       {isExpanded ? (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       ) : (
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       )}
-                      <Badge variant="outline" className="font-medium">
+                      <Badge variant="outline" className="font-medium text-xs sm:text-sm flex-shrink-0">
                         {question?.type?.replace(/_/g, ' ') || 'Unknown'}
                       </Badge>
                     </div>
-                    <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-                      ID: {questionId.slice(-8)}
+                    <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded self-start flex-shrink-0">
+                      ID: {questionId.slice(-6)}
                     </span>
                   </div>
-                  <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                  <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed break-words pr-1 max-w-full overflow-hidden">
                     {(question as any)?.text || 'Question text not available'}
                   </p>
                   
                   {/* Quick info */}
-                  <div className="flex gap-4 mt-3 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap gap-2 sm:gap-3 mt-3 text-xs text-muted-foreground">
                     {(question as any)?.points && (
-                      <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                      <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded whitespace-nowrap">
                         {(question as any).points} pts
                       </span>
                     )}
                     {(question as any)?.timeLimitSeconds && (
-                      <span className="bg-orange-50 text-orange-700 px-2 py-1 rounded">
+                      <span className="bg-orange-50 text-orange-700 px-2 py-1 rounded whitespace-nowrap">
                         {(question as any).timeLimitSeconds}s
                       </span>
                     )}
                     {(question as any)?.lotItems && (
-                      <span className="bg-purple-50 text-purple-700 px-2 py-1 rounded">
+                      <span className="bg-purple-50 text-purple-700 px-2 py-1 rounded whitespace-nowrap">
                         {(question as any).lotItems.length} options
                       </span>
                     )}
                   </div>
                 </div>
-                <div className="flex gap-1 ml-6" onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="sm" onClick={onDuplicate} title="Duplicate" className="h-8 w-8 p-0">
-                    <Copy className="h-4 w-4" />
+                <div className="flex gap-1 xl:ml-4 flex-shrink-0 self-start min-w-0" onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="sm" onClick={onDuplicate} title="Duplicate" className="h-7 w-7 p-0 flex-shrink-0">
+                    <Copy className="h-3.5 w-3.5" />
                   </Button>
                   <Button 
                     variant="ghost" 
                     size="sm" 
                     onClick={onDelete} 
-                    className="text-destructive hover:text-destructive h-8 w-8 p-0"
+                    className="text-destructive hover:text-destructive h-7 w-7 p-0 flex-shrink-0"
                     title="Delete"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>
@@ -840,7 +859,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
             <div className="border-t bg-muted/20">
               {isEditing ? renderEditForm() : renderQuestionContent()}
               
-              <div className="flex justify-end gap-3 p-6 bg-background border-t">
+              <div className="flex flex-col xl:flex-row justify-end gap-2 xl:gap-3 p-4 xl:p-6 bg-background border-t">
                 {isEditing ? (
                   <>
                     <Button 
@@ -848,6 +867,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
                       size="sm" 
                       onClick={handleCancelEdit}
                       disabled={updateQuestion.isPending}
+                      className="w-full xl:w-auto"
                     >
                       <X className="h-4 w-4 mr-2" />
                       Cancel
@@ -856,6 +876,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
                       size="sm" 
                       onClick={handleSaveEdit}
                       disabled={updateQuestion.isPending}
+                      className="w-full xl:w-auto"
                     >
                       {updateQuestion.isPending ? (
                         <>
@@ -871,7 +892,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
                     </Button>
                   </>
                 ) : (
-                  <Button variant="outline" size="sm" onClick={handleStartEdit}>
+                  <Button variant="outline" size="sm" onClick={handleStartEdit} className="w-full sm:w-auto">
                     <Edit2 className="h-4 w-4 mr-2" />
                     Edit Question
                   </Button>

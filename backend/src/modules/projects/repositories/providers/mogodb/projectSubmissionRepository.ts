@@ -1,18 +1,17 @@
-import {IProjectSubmissionRepository} from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
-import {ClientSession, Collection, ObjectId} from 'mongodb';
-import {IProjectSubmission, IProjectSubmissionWithUser} from '../../model.js';
-import {inject} from 'inversify';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {ID, MongoDatabase} from '#root/shared/index.js';
+import { IProjectSubmissionRepository } from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
+import { ClientSession, Collection, ObjectId } from 'mongodb';
+import { IProjectSubmission, IProjectSubmissionWithUser } from '../../model.js';
+import { inject } from 'inversify';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { ID, MongoDatabase } from '#root/shared/index.js';
 
 export class ProjectSubmissionRepository
-  implements IProjectSubmissionRepository
-{
+  implements IProjectSubmissionRepository {
   private _projectSubmissionCollection: Collection<IProjectSubmission>;
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
-  ) {}
+  ) { }
   private async init() {
     this._projectSubmissionCollection =
       await this.db.getCollection<IProjectSubmission>('project_submissions');
@@ -21,15 +20,17 @@ export class ProjectSubmissionRepository
   async getByUser(
     userId: string,
     versionId: string,
+    courseId: string,
     session?: ClientSession,
   ): Promise<IProjectSubmission | null> {
     await this.init();
     return await this._projectSubmissionCollection.findOne(
       {
         userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(versionId),
       },
-      {session},
+      { session },
     );
   }
   async getAllSubmissions(
@@ -82,13 +83,13 @@ export class ProjectSubmissionRepository
                 courseId: '$courseId',
                 courseVersionId: '$courseVersionId',
               },
-              course: {$first: '$course'},
-              courseVersion: {$first: '$courseVersion'},
+              course: { $first: '$course' },
+              courseVersion: { $first: '$courseVersion' },
               userInfo: {
                 $push: {
-                  firstName: {$arrayElemAt: ['$userInfo.firstName', 0]},
-                  lastName: {$arrayElemAt: ['$userInfo.lastName', 0]},
-                  email: {$arrayElemAt: ['$userInfo.email', 0]},
+                  firstName: { $arrayElemAt: ['$userInfo.firstName', 0] },
+                  lastName: { $arrayElemAt: ['$userInfo.lastName', 0] },
+                  email: { $arrayElemAt: ['$userInfo.email', 0] },
                   submissionURL: '$submissionURL',
                   comment: '$comment',
                 },
@@ -99,15 +100,15 @@ export class ProjectSubmissionRepository
           {
             $project: {
               _id: 0,
-              course: {name: {$arrayElemAt: ['$course.name', 0]}},
+              course: { name: { $arrayElemAt: ['$course.name', 0] } },
               courseVersion: {
-                name: {$arrayElemAt: ['$courseVersion.version', 0]},
+                name: { $arrayElemAt: ['$courseVersion.version', 0] },
               },
               userInfo: 1,
             },
           },
         ],
-        {session},
+        { session },
       )
       .toArray();
 
@@ -124,19 +125,79 @@ export class ProjectSubmissionRepository
     session?: ClientSession,
   ): Promise<ID> {
     await this.init();
-    const data: IProjectSubmission = {
-      projectId: new ObjectId(projectId),
-      userId: new ObjectId(userId),
-      courseId: new ObjectId(courseId),
-      courseVersionId: new ObjectId(courseVersionId),
-      submissionURL,
-      comment,
-      createdAt: new Date(),
-    };
-
-    const result = await this._projectSubmissionCollection.insertOne(data, {
-      session,
-    });
+    const result = await this._projectSubmissionCollection.insertOne(
+      {
+        projectId: new ObjectId(projectId),
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        submissionURL,
+        comment,
+        createdAt: new Date(),
+      },
+      { session },
+    );
     return result.insertedId;
+  }
+
+  async update(
+    submissionId: string,
+    submissionURL: string,
+    comment: string,
+    session?: ClientSession,
+  ): Promise<ID> {
+    await this.init();
+    const result = await this._projectSubmissionCollection.findOneAndUpdate(
+      {
+        _id: new ObjectId(submissionId),
+      },
+      {
+        $set: {
+          submissionURL,
+          comment,
+          updatedAt: new Date(),
+        },
+      },
+      {
+        session,
+        returnDocument: 'after',
+        projection: { _id: 1 }
+      },
+    );
+
+    if (!result) {
+      throw new Error(`Project submission with ID ${submissionId} not found`);
+    }
+    return result._id;
+  }
+
+  async deleteByUserAndVersion(
+    userId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+    const result = await this._projectSubmissionCollection.deleteMany(
+      {
+        userId: new ObjectId(userId),
+        courseVersionId: new ObjectId(courseVersionId),
+      },
+      { session },
+    );
+    return result.deletedCount > 0;
+  }
+
+  async deleteProjectSubmissionByVersionId(
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+    const result = await this._projectSubmissionCollection.deleteMany(
+      {
+        courseVersionId: new ObjectId(versionId),
+      },
+      { session },
+    );
+    return result.deletedCount > 0;
   }
 }

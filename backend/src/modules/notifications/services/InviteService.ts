@@ -6,7 +6,7 @@ import {
 } from 'routing-controllers';
 import { injectable, inject } from 'inversify';
 import { EnrollmentRepository } from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
-import { CourseRepository } from '#shared/database/providers/mongo/repositories/CourseRepository.js';
+import type { ICourseRepository } from '#shared/database/interfaces/ICourseRepository.js';
 import { UserRepository } from '#shared/database/providers/mongo/repositories/UserRepository.js';
 import { InviteRepository } from '#shared/database/providers/mongo/repositories/InviteRepository.js';
 import { MailService } from './MailService.js';
@@ -30,7 +30,7 @@ import {
   IItemRepository,
   MongoDatabase,
 } from '#root/shared/index.js';
-import { ObjectId } from 'mongodb';
+import { ClientSession, ObjectId } from 'mongodb';
 import { COURSES_TYPES } from '#root/modules/courses/types.js';
 import crypto from 'crypto';
 
@@ -39,9 +39,10 @@ export class InviteService extends BaseService {
   constructor(
     @inject(NOTIFICATIONS_TYPES.InviteRepo)
     private readonly inviteRepo: InviteRepository,
-    @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: UserRepository,
+    @inject(GLOBAL_TYPES.UserRepo) 
+    private readonly userRepo: UserRepository,
     @inject(GLOBAL_TYPES.CourseRepo)
-    private readonly courseRepo: CourseRepository,
+    private readonly courseRepo: ICourseRepository,
     @inject(USERS_TYPES.EnrollmentRepo)
     private readonly enrollmentRepo: EnrollmentRepository,
     @inject(NOTIFICATIONS_TYPES.MailService)
@@ -299,6 +300,53 @@ export class InviteService extends BaseService {
   //     return inviteDetails;
   //   });
   // }
+
+
+
+  async courseContentLength(courseId:string,courseVersionId: string,session?:ClientSession){
+    const course = await this.courseRepo.read(courseId,session);
+    console.log("reached here ")
+    if (!course) {
+      throw new NotFoundError('Course not found');
+    }
+
+    // Get Course Version Details
+      const courseVersion = await this.courseRepo.readVersion(courseVersionId,session);
+    if (!courseVersion) {
+      throw new NotFoundError('Course version not found');
+    }
+
+    if (!courseVersion.modules || courseVersion.modules.length === 0) {
+      throw new BadRequestError(
+        'Course version has no modules. Please add modules before proceeding.',
+      );
+    }
+
+    const firstModule = [...courseVersion.modules].sort((a, b) =>
+      a.order.localeCompare(b.order),
+    )[0];
+
+    if (!firstModule.sections || firstModule.sections.length === 0) {
+      throw new BadRequestError(
+        `Module "${firstModule.name}" has no sections. Add sections to continue.`,
+      );
+    }
+
+    const firstSection = [...firstModule.sections].sort((a, b) =>
+      a.order.localeCompare(b.order),
+    )[0];
+
+    const itemsGroup = await this.itemRepo.readItemsGroup(
+      firstSection.itemsGroupId.toString(), session
+    );
+
+    if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
+      throw new BadRequestError(
+        `Section "${firstSection.name}" has no items. Add content before sending invites.`,
+      );
+    }
+  }
+
 
   async inviteUserToCourse(
     inviteData: { email: string; role: EnrollmentRole }[],

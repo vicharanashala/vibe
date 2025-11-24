@@ -10,7 +10,7 @@ import { components, operations } from '../types/schema';
 import { useState } from 'react';
 
 import type { QuestionRenderView, SaveQuestion, SubmitQuizResponse, QuizSubmissionResponse, FlaggedQuestionResponse, UserQuizMetrics, QuizDetails, QuizAnalytics, QuizPerformance, QuizResults, GradingSystemStatus } from '../types/quiz.types';
-
+import { RJSFSchema } from '@rjsf/utils';
 
 import type {
   NewAnomalyData,
@@ -22,6 +22,10 @@ import type { ProctoringSettings } from '@/types/video.types';
 import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.types';
 import { EntityType, IReport, ReportStatus } from '@/types/flag.types';
 import { useQueryClient } from '@tanstack/react-query';
+import { VersionWithCourse } from '@/app/pages/student/CourseRegistration';
+import { Registration, RegistrationStatus } from '@/app/pages/teacher/CourseRegistrationRequests';
+import { Field } from '@/app/pages/teacher/components/course-registration-modal';
+import { IssueSort, IssueStatus } from '@/app/pages/student/FlagResponse';
 
 // Add missing ObjectId type
 type ObjectId = string;
@@ -330,7 +334,9 @@ export function useAnomaliesByCourseItem(
   page: number = 1,
   limit: number = 10,
   sortField?: string,
-  sortOrder: 'asc' | 'desc' = 'desc'
+  sortOrder: 'asc' | 'desc' = 'desc',
+  search?: string,
+  type?: string
 ): {
   data: Anomaly[];
   isLoading: boolean;
@@ -353,7 +359,9 @@ export function useAnomaliesByCourseItem(
           page,
           limit,
           sortField,
-          sortOrder
+          sortOrder,
+          ...(search && { search }),
+          ...(type && { type })
         }
       }
     },
@@ -2738,7 +2746,6 @@ export function useProjectSubmissions(courseId: string, versionId: string): {
     error: result.error ? (result.error.message || 'Failed to fetch project submissions') : null,
     refetch: result.refetch
   };
-
 }
 
 // POST (copy course version)
@@ -2766,3 +2773,493 @@ export function useCopyCourseVersion(): {
 }
 
 
+// Course registration
+
+export const useGetCourseRegistration = (
+  versionId: string,
+): {
+  data: VersionWithCourse;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} => {
+  const result = api.useQuery(
+    "get",
+    "/course/registration/version/{versionId}" as any,
+    {
+      params: {
+        path: { versionId },
+      },
+    },
+    {
+      enabled: !!versionId,
+    }
+  );
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error
+      ? result.error.message || "Failed to fetch project submissions"
+      : null,
+    refetch: result.refetch,
+  };
+};
+
+type RegistrationBody = {
+  name: string;
+  email: string;
+  mobile: string;
+  gender: string;
+  city: string;
+  state: string;
+  category: string;
+  university: string;
+};
+
+export const useSubmitCourseRegistration: () => {
+  mutate: (variables: {
+    params: { path: { versionId: string } };
+    body: Record<string, any>;
+  }) => void;
+  mutateAsync: (variables: {
+    params: { path: { versionId: string } };
+    body: Record<string, any>;
+  }) => Promise<{ message: string }>;
+  data: { message: string } | undefined;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} = () => {
+  const result = api.useMutation(
+    'post',
+    '/course/registration/version/{versionId}' as any
+  );
+
+  return {
+    ...result,
+    error: result.error
+      ? result.error.message || 'Failed to submit course registration'
+      : null,
+  };
+};
+
+
+export interface RegistrationRequestQuery {
+  status?: RegistrationStatus;
+  sort?: 'older' | 'latest';
+  search?: string;
+  limit?: number;
+  page?: number;
+}
+
+
+
+export const useGetCourseRegistrationRequests = (
+  versionId:string,
+  query: RegistrationRequestQuery = {},
+): {
+  data: {totalDocuments: number, totalPages: number, currentPage: number, registrations: Registration[]};
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} => {
+  const result = api.useQuery(
+    'get',
+    '/course/registration/requests/version/{versionId}' as any,
+    {
+      params: {
+        path:{versionId},
+        query
+      }
+    },
+    {
+      enabled:!!versionId,
+      retry: 1,
+      refetchOnWindowFocus: false
+    }
+  );
+
+  return {
+    data: result.data as {totalDocuments: number, totalPages: number, currentPage: number, registrations: Registration[]} ,
+    isLoading: result.isLoading,
+    error: result.error
+      ? result.error.message || 'Failed to fetch course registration requests'
+      : null,
+    refetch: result.refetch,
+  };
+};
+
+
+export const useUpdateRegistrationStatus  = (): {
+  mutate: (registrationId: string, status: RegistrationStatus) => void;
+  mutateAsync: (registrationId: string, status: RegistrationStatus) => Promise<{
+    message: string;
+    registrationId: string;
+  }>;
+  data: { message: string; registrationId: string } | undefined;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} => {
+  const result = api.useMutation('patch', '/course/registration/status/{registrationId}' as any);
+
+  return {
+    mutate: (registrationId, status) =>
+      result.mutate({
+        params: { path: { registrationId } },
+        body: { status },
+      }),
+
+    mutateAsync: (registrationId, status) =>
+      result.mutateAsync({
+        params: { path: { registrationId } },
+        body: { status },
+      }),
+
+    data: result.data as { message: string; registrationId: string } | undefined,
+    error: result.error
+      ? result.error.message || 'Failed to update registration status'
+      : null,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+  };
+};
+
+export const useBulkUpdateRegistrationStatus = (): {
+  mutate: (selected: string[]) => void;
+  mutateAsync: (selected: string[]) => Promise<{
+    message: string;
+    updatedCount?: number; 
+  }>;
+  data: { message: string; updatedCount?: number } | undefined;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} => {
+  const result = api.useMutation('patch', '/course/registration/status/update/bulk' as any);
+
+  return {
+    mutate: (selected) =>
+      result.mutate({
+        body: { selected },
+      }),
+
+    mutateAsync: (selected) =>
+      result.mutateAsync({
+        body: { selected },
+      }),
+
+    data: result.data as { message: string; updatedCount?: number } | undefined,
+    error: result.error
+      ? result.error.message || 'Failed to update registration status'
+      : null,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+  };
+};
+
+export const useUpdateRegistrationFields = (): {
+  mutate: (versionId: string, fields: { label: string; type: "text" | "textarea" | "email" | "tel" | "date" | "number" | "url" | "select"; required: boolean; options: string[] }[]) => void;
+  mutateAsync: (versionId: string, fields: { label: string; type: "text" | "textarea" | "email" | "tel" | "date" | "number" | "url" | "select"; required: boolean; options: string[] }[]) => Promise<{ message: string }>;
+  data: { message: string } | undefined;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} => {
+  const result = api.useMutation('put', '/course/registration/settings/version/{versionId}' as any);
+
+  return {
+    mutate: (versionId, fields) =>
+      result.mutate({
+        params: { path: { versionId } },
+        body: fields,
+      }),
+
+    mutateAsync: (versionId, fields) =>
+      result.mutateAsync({
+        params: { path: { versionId } },
+        body: fields,
+      }),
+
+    data: result.data as { message: string } | undefined,
+    error: result.error
+      ? result.error.message || 'Failed to update registration fields'
+      : null,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+  };
+};
+
+
+// export const useGetRegistrationFields = (
+//   versionId: string,
+// ): {
+//   data: Omit<Field, 'id' | 'isDefault' >[];
+//   isLoading: boolean;
+//   error: string | null;
+//   refetch: () => void;
+// } => {
+//   const result = api.useQuery(
+//     'get',
+//     '/course/registration/settings/version/{versionId}' as any,
+//     {
+//       params: {
+//         path: { versionId },
+//       },
+//     },
+//     {
+//       enabled: !!versionId,
+//       retry: 1,
+//       refetchOnWindowFocus: false,
+//     }
+//   );
+
+//   return {
+//     data: (result.data as Omit<Field, 'id' | 'isDefault'>[]) || [],
+//     isLoading: result.isLoading,
+//     error: result.error
+//       ? result.error.message || 'Failed to fetch registration fields'
+//       : null,
+//     refetch: result.refetch,
+//   };
+// };
+
+
+//New hook for the Form creation 
+// New hook for updating registration fields
+export const useCreateRegistrationFields = (versionId: string): {
+  mutate: (fields: any) => void;
+  mutateAsync: (fields: any) => Promise<{ message: string }>;
+  data: { message: string } | undefined;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} => {
+  // Assuming the endpoint path includes versionId; adjust if needed based on your API structure
+  const result = api.useMutation('put', `/course/registration/build-form/version/${versionId}` as any);
+
+  return {
+    mutate: (fields) =>
+      result.mutate({
+        body: fields ,
+      }),
+
+    mutateAsync: (fields) =>
+      result.mutateAsync({
+        body:fields,
+      }),
+
+    data: result.data as { message: string } | undefined,
+    error: result.error
+      ? result.error.message || 'Failed to update registration fields'
+      : null,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+  };
+};
+
+
+export const useGetRegistrationFields = (
+  versionId: string,
+): {
+  data: { jsonSchema: RJSFSchema; uiSchema: Record<string, any> } | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} => {
+  const result = api.useQuery(
+    'get',
+    '/course/registration/build-form/version/{versionId}' as any,
+    {
+      params: {
+        path: { versionId },
+      },
+    },
+    {
+      enabled: !!versionId,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    }
+  );
+
+  return {
+    data: result.data as { jsonSchema: RJSFSchema; uiSchema: Record<string, any> } | undefined,
+    isLoading: result.isLoading,
+    error: result.error
+      ? result.error.message || 'Failed to fetch registration fields'
+      : null,
+    refetch: result.refetch,
+  };
+};
+
+
+
+
+export const useGetDynamicFields = (
+  versionId: string,
+): {
+  data: { jsonSchema: RJSFSchema; uiSchema: Record<string, any> } | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} => {
+  const result = api.useQuery(
+    "get",
+    "/course/registration/form/version/{versionId}" as any, 
+    {
+      params: {
+        path: { versionId },
+      },
+    },
+    {
+      enabled: !!versionId, 
+    }
+  );
+  return {
+    data: result.data as { jsonSchema: RJSFSchema; uiSchema: Record<string, any> } | undefined,
+    isLoading: result.isLoading,
+    error: result.error ? result.error.message || "Failed to fetch settings schema" : null,
+    refetch: result.refetch,
+  };
+};
+
+
+
+export type IssueStatus =
+  | "ALL"
+  | "REPORTED"
+  | "IN_REVIEW"
+  | "RESOLVED"
+  | "DISCARDED"
+  | "CLOSED";
+
+export type IssueSort = "ALL" | "VIDEO" | "QUIZ" | "ARTICLE" | "QUESTION";
+
+export type EntityType = "VIDEO" | "QUIZ" | "ARTICLE" | "QUESTION";
+
+export interface IssueStatusHistory {
+  status: IssueStatus;
+  comment: string;
+  createdAt: string;
+  createdBy?: string;
+}
+
+export interface IssueReport {
+  _id: string;
+  courseId: string;
+  versionId: string;
+  entityId: string;
+  entityType: EntityType;
+  reason: string;
+  reportedBy: string;
+  status: IssueStatusHistory[]; // ✅ fixed: array of objects
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Params {
+  status: IssueStatus;
+  search: string;
+  sort: IssueSort;
+  page: number;
+  limit: number;
+}
+
+export interface IssueReportsResponse {
+  issues: IssueReport[];
+  totalDocuments: number;
+  totalPages: number;
+}
+
+export const useGetCourseIssueReports = (
+  versionId: string,
+  params: Params
+): {
+  data: IssueReportsResponse;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} => {
+  const result = api.useQuery(
+    "get",
+    `/reports/student/issues/flag` as any,
+    {
+      params: {
+        query: params,
+      },
+    },
+    {
+      enabled: !!versionId,
+    }
+  );
+
+  return {
+    data: result.data as IssueReportsResponse,
+    isLoading: result.isLoading,
+    error: result.error
+      ? result.error.message || "Failed to fetch issue reports"
+      : null,
+    refetch: result.refetch,
+  };
+};
+
+
+
+export const useUpdateStudentInterest = () => {
+  const result = api.useMutation(
+    "patch",
+    `/reports/student/issues/interest` as any // replace with your real endpoint
+  );
+
+  return {
+    mutate: (data: { issueId: string; interest: "yes" | "no" }) =>
+      result.mutate({ body: data }),
+    mutateAsync: (data: { issueId: string; interest: "yes" | "no" }) =>
+      result.mutateAsync({ body: data }),
+    data: result.data as { message: string } | undefined,
+    error: result.error ? result.error.message || "Failed to submit comment" : null,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+  };
+};

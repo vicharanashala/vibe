@@ -44,6 +44,7 @@ import { FlagModal } from "@/components/FlagModal";
 import { EntityType } from "@/types/flag.types";
 import { toast } from "sonner";
 import ItemContainer from "@/components/Item-container";
+import logo from "../../../../public/img/vibe_logo_img.ico"
 
 // Helper function to get icon for item type
 const getItemIcon = (type: string) => {
@@ -1003,7 +1004,7 @@ export default function CoursePage() {
   return (
     <>
       <Dialog open={showProctorDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-lg w-[calc(100%-2rem)] max-w-full">
           <DialogHeader>
             <DialogTitle className="text-lg font-extrabold">Declaration</DialogTitle>
           </DialogHeader>
@@ -1033,7 +1034,7 @@ export default function CoursePage() {
               <div className="flex items-center gap-3">
                 <div className="h-8 w-8 rounded-lg overflow-hidden">
                   <img
-                    src="https://continuousactivelearning.github.io/vibe/img/logo.png"
+                    src={logo}
                     alt="Vibe Logo"
                     className="h-8 w-8 object-contain"
                   />
@@ -1275,7 +1276,7 @@ export default function CoursePage() {
           </Sidebar>
 
           {/* Main Content Area */}
-          <SidebarInset className="flex-1 bg-gradient-to-br from-background via-background to-background/95">
+          <SidebarInset className="flex-1 bg-gradient-to-br from-background via-background to-background/95 peer-data-[variant=inset]:!m-0">
             <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border/20 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 px-4">
               <SidebarTrigger className="-ml-1 h-8 w-8 rounded-md hover:bg-accent/10 transition-colors" />
               <Separator orientation="vertical" className="mr-2 h-4" />

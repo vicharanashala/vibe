@@ -439,9 +439,32 @@ export interface IProctoringSettings {
 }
 
 // Common settings interface for both user and course settings.
+export interface IRegistrationSettings {
+  _id?: ID;
+  label: string;
+  type:
+    | 'TEXT'
+    | 'TEXTAREA'
+    | 'EMAIL'
+    | 'TEL'
+    | 'DATE'
+    | 'NUMBER'
+    | 'URL'
+    | 'SELECT';
+  isDefault: boolean;
+  required: boolean;
+  options?: string[];
+}
 export interface ISettings {
   proctors: IProctoringSettings;
   linearProgressionEnabled: boolean;
+  // registration_settings?: IRegistrationSettings[];
+  registration?: {
+    jsonSchema?: any;
+    uiSchema?: any;
+  };
+  // jsonSchema?: any;
+  // uiSchema?: any;
 }
 
 // Interface for user-specific settings.
@@ -573,4 +596,35 @@ export interface AuthenticatedUser {
   userId: string;
   globalRole: 'admin' | 'user';
   enrollments: AuthenticatedUserEnrollements[];
+}
+
+// export interface ICourseRegistration {
+//   _id?: string | ObjectId;
+//   courseId: string;
+//   versionId: string;
+//   userId: string;
+//   detail: {
+//     name: string;
+//     email: string;
+//     mobile: string;
+//     gender: 'MALE' | 'FEMALE' | 'OTHERS';
+//     city: string;
+//     state: string;
+//     category: 'GENERAL' | 'OBC' | 'SE' | 'ST' | 'OTHERS';
+//     university: string;
+//   };
+//   status: 'PENDING' | 'APPROVED' | 'REJECTED';
+//   createdAt?: Date;
+//   updatedAt?: Date;
+// }
+
+export interface ICourseRegistration {
+  _id?: string | ObjectId;
+  courseId: ID;
+  versionId: ID;
+  userId: ID;
+  detail: Record<string, any>;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  createdAt?: Date;
+  updatedAt?: Date;
 }

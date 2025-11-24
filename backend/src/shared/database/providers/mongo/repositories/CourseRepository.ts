@@ -160,10 +160,11 @@ export class CourseRepository implements ICourseRepository {
       await this.deleteVersion(courseId, versionId, itemGroupsIds, session);
     }
 
-    await this.enrollmentCollection.deleteMany(
-      {courseId: new ObjectId(courseId)},
-      {session},
-    );
+    // handled in while deleting all version of it
+    // await this.enrollmentCollection.deleteMany(
+    //   { courseId: new ObjectId(courseId) },
+    //   { session },
+    // );
 
     // 3. Finally, delete the Course document itself
     const deleteCourseResult = await this.courseCollection.deleteOne(
@@ -416,7 +417,7 @@ export class CourseRepository implements ICourseRepository {
       // 2. Remove courseVersionId from the course
       /*
       const courseUpdateResult = await this.courseCollection.updateOne(
-        {_id: new ObjectId(courseId)},
+        { _id: new ObjectId(courseId) },
         {
           $pull: {
             versions: {
@@ -424,7 +425,7 @@ export class CourseRepository implements ICourseRepository {
             },
           },
         },
-        {session},
+        { session },
       );
 
       if (courseUpdateResult.modifiedCount !== 1) {

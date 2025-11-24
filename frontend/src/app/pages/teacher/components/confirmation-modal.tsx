@@ -35,7 +35,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="md:max-w-md max-w-sm max-[425px]:w-[90vw]">
         <DialogHeader>
           <div className="flex items-center gap-3">
             {isDestructive && (

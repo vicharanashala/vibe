@@ -18,7 +18,7 @@ import { SseService } from '../services/sseService.js';
 
 @OpenAPI({
   tags: ['Webhook'],
-  description: 'Webhook endpoints for AI server communication',
+  description: 'Webhook endpoints for AI server communication,<br/> It returns an empty body with a 200 status code.',
   security: [{ apiKey: [] }]
 })
 @injectable()

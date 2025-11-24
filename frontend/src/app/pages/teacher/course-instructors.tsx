@@ -346,9 +346,9 @@ export default function CourseInstructors() {
               className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
               onClick={() => setIsRemoveDialogOpen(false)}
             />
-            <div className="relative bg-card border border-border rounded-2xl shadow-2xl max-w-lg w-full mx-4 p-10 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+            <div className="relative bg-card border border-border rounded-2xl shadow-2xl max-w-lg w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-card-foreground">Remove Instructor</h2>
+                <h2 className="sm:text-2xl text-xl font-bold text-card-foreground">Remove Instructor</h2>
                 <Button
                   variant="ghost"
                   size="sm"

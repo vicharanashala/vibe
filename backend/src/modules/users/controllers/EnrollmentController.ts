@@ -17,6 +17,7 @@ import {
   EnrollmentNotFoundErrorResponse,
   CourseVersionEnrollmentResponse,
   EnrollmentStatisticsResponse,
+  UpdateEnrollmentProgressResponse,
 } from '#users/classes/validators/EnrollmentValidators.js';
 import { QuizScoresExportResponseDto } from '../dtos/QuizScoresExportDto.js';
 import { EnrollmentService } from '#users/services/EnrollmentService.js';
@@ -49,6 +50,8 @@ import { subject } from '@casl/ability';
 import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
+import { BadRequestErrorResponse } from '#root/shared/index.js';
+import { QuizNotFoundErrorResponse } from '#root/modules/quizzes/classes/index.js';
 
 @OpenAPI({
   tags: ['Enrollments'],
@@ -88,7 +91,7 @@ export class EnrollmentController {
     description: 'User or course version not found',
     statusCode: 404,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid role or User already enrolled',
     statusCode: 400,
   })
@@ -198,7 +201,7 @@ export class EnrollmentController {
     description: 'No enrollments found for the user',
     statusCode: 404,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid page or limit parameters',
     statusCode: 400,
   })
@@ -313,7 +316,7 @@ export class EnrollmentController {
     description: 'No enrollments found for the course version',
     statusCode: 404,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid page or limit parameters',
     statusCode: 400,
   })
@@ -344,7 +347,9 @@ export class EnrollmentController {
       throw new BadRequestError('Page and limit must be positive integers.');
     }
 
-    const skip = search && search.trim() !== '' ? 0 : (page - 1) * limit;
+    // const skip = search && search.trim() !== '' ? 0 : (page - 1) * limit;
+
+    const skip = (page - 1) * limit;
 
     const enrollmentsData =
       await this.enrollmentService.getCourseVersionEnrollments(
@@ -387,7 +392,11 @@ export class EnrollmentController {
   })
   @Authorized()
   @Patch('/enrollments/progress', { transformResponse: true })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(UpdateEnrollmentProgressResponse, {
+    description: 'Enrollment progress updated successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
   })
@@ -466,19 +475,20 @@ export class EnrollmentController {
   @OpenAPI({
     summary: 'Export quiz scores for all students in a course version',
     description: 'Returns quiz scores for all students in the specified course version',
-    responses: {
-      '200': {
-        description: 'Quiz scores exported successfully',
-      },
-      '403': {
-        description: 'Forbidden - User does not have permission to view quiz scores',
-      },
-      '404': {
-        description: 'Course or version not found',
-      },
-    },
   })
-  @ResponseSchema(QuizScoresExportResponseDto)
+  //TODO:  We should update this Param to Params in both frontend and backend
+  @ResponseSchema(QuizScoresExportResponseDto,{
+    description: 'Quiz scores exported successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(QuizNotFoundErrorResponse, {
+    description: 'Course or version not found',
+    statusCode: 404,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid request parameters',
+    statusCode: 400,
+  })
   async exportQuizScores(
     @Param('courseId') courseId: string,
     @Param('versionId') versionId: string,

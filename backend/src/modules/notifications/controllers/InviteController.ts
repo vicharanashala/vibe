@@ -13,26 +13,27 @@ import {
   QueryParams,
   Req,
 } from 'routing-controllers';
-import { injectable, inject } from 'inversify';
-import { Ability } from '#root/shared/functions/AbilityDecorator.js';
-import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
-import { InviteService } from '../services/InviteService.js';
+import {injectable, inject} from 'inversify';
+import {Ability} from '#root/shared/functions/AbilityDecorator.js';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {InviteService} from '../services/InviteService.js';
 import {
   CourseAndVersionId,
   InviteBody,
   InviteIdParams,
+  InviteLinkResponse,
   InviteQueryParams,
   InviteResponse,
   InviteResult,
 } from '../classes/validators/InviteValidators.js';
-import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
-import { NOTIFICATIONS_TYPES } from '../types.js';
-import { MessageResponse } from '../classes/index.js';
-import { appConfig } from '#root/config/app.js';
-import { inviteRedirectTemplate } from '../redirectTemplate.js';
-import { InviteActions, getInviteAbility } from '../abilities/inviteAbilities.js';
-import { subject } from '@casl/ability';
-import { EnrollmentRole } from '#root/shared/index.js';
+import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
+import {NOTIFICATIONS_TYPES} from '../types.js';
+import {CancelInviteResponse, MessageResponse, ResendInviteResponse} from '../classes/index.js';
+import {appConfig} from '#root/config/app.js';
+import {inviteRedirectTemplate} from '../redirectTemplate.js';
+import {InviteActions, getInviteAbility} from '../abilities/inviteAbilities.js';
+import {subject} from '@casl/ability';
+import {EnrollmentRole} from '#root/shared/index.js';
 
 /**
  * Controller for managing student enrollments in courses.
@@ -42,13 +43,13 @@ import { EnrollmentRole } from '#root/shared/index.js';
 @OpenAPI({
   tags: ['Invites'],
 })
-@JsonController('/notifications/invite', { transformResponse: true })
+@JsonController('/notifications/invite', {transformResponse: true})
 @injectable()
 export class InviteController {
   constructor(
     @inject(NOTIFICATIONS_TYPES.InviteService)
     private readonly inviteService: InviteService,
-  ) { }
+  ) {}
 
   @Authorized()
   @Post('/courses/:courseId/versions/:versionId')
@@ -68,10 +69,10 @@ export class InviteController {
   async inviteUsers(
     @Body() body: InviteBody,
     @Params() params: CourseAndVersionId,
-    @Ability(getInviteAbility) { ability },
+    @Ability(getInviteAbility) {ability},
   ) {
-    const { courseId, versionId } = params;
-    const { inviteData } = body;
+    const {courseId, versionId} = params;
+    const {inviteData} = body;
 
     // Validate that the user can invite to each specific role
     // This ensures students can only invite students, TAs can invite students/TAs, etc.
@@ -99,21 +100,30 @@ export class InviteController {
   }
 
   //new route for Link creation
-
+  
   @Authorized()
   @Post('/courses/:courseId/versions/:versionId/bulk')
   @HttpCode(200)
   @OpenAPI({
     summary: 'Generate bulk invite link',
-    description: 'Generates a link that allows multiple students to join a course version within 1 week.',
+    description:
+      'Generates a link that allows multiple students to join a course version within 1 week.',
+  })
+  @ResponseSchema(InviteLinkResponse, {
+    description: 'Invite link generated successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid input data',
+    statusCode: 400,
   })
   async generateInviteLink(
     @Params() params: CourseAndVersionId,
-    @Body() body: { role: EnrollmentRole },
-    @Ability(getInviteAbility) { ability },
+    @Body() body: {role: EnrollmentRole},
+    @Ability(getInviteAbility) {ability},
   ) {
-    const { courseId, versionId } = params;
-    const { role } = body;
+    const {courseId, versionId} = params;
+    const {role} = body;
 
     const roleSpecificSubject = subject('Invite', {
       courseId,
@@ -122,13 +132,18 @@ export class InviteController {
     });
 
     if (!ability.can(InviteActions.Create, roleSpecificSubject)) {
-      throw new ForbiddenError(`You do not have permission to invite users with role ${role}`);
+      throw new ForbiddenError(
+        `You do not have permission to invite users with role ${role}`,
+      );
     }
 
-    const link = await this.inviteService.generateLink(courseId, versionId, role);
-    return { link };
+    const link = await this.inviteService.generateLink(
+      courseId,
+      versionId,
+      role,
+    );
+    return {link};
   }
-
 
   @Get('/:inviteId')
   @HttpCode(200)
@@ -136,23 +151,25 @@ export class InviteController {
   @OpenAPI({
     summary: 'Process Invite',
     description:
-      'Process an invite given an inviteId and send a response before redirecting the user.',
-    responses: {
-      '200': {
-        description: 'JSON response with redirect information',
-      },
-    },
+      `Process an invite given an inviteId and send a response before redirecting the user.`,
   })
   @ResponseSchema(MessageResponse, {
     description: 'Invite processed successfully',
     statusCode: 200,
   })
-  async processInvites(@Params() params: InviteIdParams, @Req() req: any,): Promise<string> {
-    const { inviteId } = params;
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid invite id',
+    statusCode: 400,
+  })
+  async processInvites(
+    @Params() params: InviteIdParams,
+    @Req() req: any,
+  ): Promise<string> {
+    const {inviteId} = params;
     const result = await this.inviteService.processInvite(inviteId);
-    console.log("result from processInvite ", result)
+    console.log('result from processInvite ', result);
     if (result.isBulk) {
-      console.log("setting session on process")
+      console.log('setting session on process');
       // req.session.bulkInviteId = inviteId
       // console.log("session added ", req.session.bulkInviteId)
     }
@@ -174,13 +191,13 @@ export class InviteController {
   async getInvitesForCourseVersion(
     @Params() params: CourseAndVersionId,
     @QueryParams() query: InviteQueryParams,
-    @Ability(getInviteAbility) { ability },
+    @Ability(getInviteAbility) {ability},
   ): Promise<InviteResponse> {
-    const { courseId, versionId } = params;
-    const { inviteStatus, currentPage, limit, search, sort } = query;
+    const {courseId, versionId} = params;
+    const {inviteStatus, currentPage, limit, search, sort} = query;
 
     // Build subject context first
-    const inviteContext = { courseId, versionId };
+    const inviteContext = {courseId, versionId};
     const inviteSubject = subject('Invite', inviteContext);
 
     if (!ability.can(InviteActions.View, inviteSubject)) {
@@ -189,7 +206,7 @@ export class InviteController {
       );
     }
 
-    const { invites, totalDocuments, totalPages } =
+    const {invites, totalDocuments, totalPages} =
       await this.inviteService.findInvitesForCourse(
         courseId,
         versionId,
@@ -213,11 +230,17 @@ export class InviteController {
     description: 'List of pending invites for the User',
     statusCode: 200,
   })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid input data',
+    statusCode: 400,
+  })
   async getInvitesForUser(
-    @Ability(getInviteAbility) { ability },
-    @CurrentUser() user: { _id: string },
+    @Ability(getInviteAbility) {ability},
+    @CurrentUser() user: {_id: string},
   ): Promise<InviteResponse> {
-    const invites = await this.inviteService.findPendingInvitesByUserId(user._id);
+    const invites = await this.inviteService.findPendingInvitesByUserId(
+      user._id,
+    );
     return new InviteResponse(invites);
   }
 
@@ -227,15 +250,19 @@ export class InviteController {
     summary: 'Resend Invite',
     description: 'Resend an invite email to the user.',
   })
-  @ResponseSchema(MessageResponse, {
+  @ResponseSchema(ResendInviteResponse, {
     description: 'Invite resent successfully',
     statusCode: 200,
   })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid input data',
+    statusCode: 400,
+  })
   async resendInvite(
     @Params() params: InviteIdParams,
-    @Ability(getInviteAbility) { ability },
+    @Ability(getInviteAbility) {ability},
   ): Promise<MessageResponse> {
-    const { inviteId } = params;
+    const {inviteId} = params;
     const invite = await this.inviteService.findInviteById(inviteId);
     // Build subject context first
     const inviteSubject = subject('Invite', {
@@ -258,15 +285,19 @@ export class InviteController {
     summary: 'Cancel Invite',
     description: 'Cancel an existing invite.',
   })
-  @ResponseSchema(MessageResponse, {
+  @ResponseSchema(CancelInviteResponse, {
     description: 'Invite cancelled successfully',
     statusCode: 200,
   })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid input data',
+    statusCode: 400,
+  })
   async cancelInvite(
     @Params() params: InviteIdParams,
-    @Ability(getInviteAbility) { ability },
+    @Ability(getInviteAbility) {ability},
   ): Promise<MessageResponse> {
-    const { inviteId } = params;
+    const {inviteId} = params;
 
     const invite = await this.inviteService.findInviteById(inviteId);
     // Build subject context first
@@ -284,3 +315,4 @@ export class InviteController {
     return this.inviteService.cancelInvite(inviteId);
   }
 }
+
