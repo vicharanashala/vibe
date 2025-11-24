@@ -86,9 +86,9 @@ export async function setupItemAbilities(
                     
                     itemBounded.itemId = { $in: allowedItemIds };
                     
-                    console.log('Applied linear progression restrictions:', allowedItemIds);
+                    // console.log('Applied linear progression restrictions:', allowedItemIds);
                 } else {
-                    console.log('LINEAR PROGRESSION IS DISABLED - no restrictions applied');
+                    // console.log('LINEAR PROGRESSION IS DISABLED - no restrictions applied');
                 }
 
                 can(ItemActions.View, 'Item', itemBounded);
