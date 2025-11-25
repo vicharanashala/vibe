@@ -6,6 +6,7 @@ import {
   FeedBackFormItem,
   FeedbackSubmissionItem,
 } from '#root/modules/courses/classes/index.js';
+import {InternalServerError} from 'routing-controllers';
 
 @injectable()
 class FeedbackRepository {
@@ -116,6 +117,141 @@ class FeedbackRepository {
     );
 
     return result ?? null;
+  }
+
+  async getFeedbackSubmissionById(
+    feedbackFormId: string,
+    courseId: string,
+    search: string,
+  ) {
+    const submissions = await this.feedbackSubmissionCollection
+      .aggregate([
+        {
+          $match: {
+            feedbackFormId: new ObjectId(feedbackFormId),
+            courseId: new ObjectId(courseId),
+          },
+        },
+
+        // ---------------------------------------------
+        // 1) Populate USER
+        // ---------------------------------------------
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'userId',
+            foreignField: '_id',
+            as: 'user',
+          },
+        },
+        {$unwind: '$user'},
+
+        ...(search
+          ? [
+              {
+                $match: {
+                  'user.firstName': {$regex: search, $options: 'i'},
+                },
+              },
+            ]
+          : []),
+
+        // ---------------------------------------------
+        // 2) Populate PREVIOUS ITEM by TYPE
+        // ---------------------------------------------
+
+        // VIDEO lookup
+        {
+          $lookup: {
+            from: 'videos',
+            localField: 'previousItemId',
+            foreignField: '_id',
+            as: 'videoItem',
+          },
+        },
+
+        // QUIZ lookup
+        {
+          $lookup: {
+            from: 'quizzes',
+            localField: 'previousItemId',
+            foreignField: '_id',
+            as: 'quizItem',
+          },
+        },
+
+        // BLOG lookup
+        {
+          $lookup: {
+            from: 'blogs',
+            localField: 'previousItemId',
+            foreignField: '_id',
+            as: 'blogItem',
+          },
+        },
+
+        // PROJECT lookup
+        {
+          $lookup: {
+            from: 'projects',
+            localField: 'previousItemId',
+            foreignField: '_id',
+            as: 'projectItem',
+          },
+        },
+
+        // ---------------------------------------------
+        // 3) MERGE into `previousItem`
+        // ---------------------------------------------
+        {
+          $addFields: {
+            previousItem: {
+              $switch: {
+                branches: [
+                  {
+                    case: {$eq: ['$previousItemType', 'VIDEO']},
+                    then: {$arrayElemAt: ['$videoItem', 0]},
+                  },
+                  {
+                    case: {$eq: ['$previousItemType', 'QUIZ']},
+                    then: {$arrayElemAt: ['$quizItem', 0]},
+                  },
+                  {
+                    case: {$eq: ['$previousItemType', 'BLOG']},
+                    then: {$arrayElemAt: ['$blogItem', 0]},
+                  },
+                  {
+                    case: {$eq: ['$previousItemType', 'PROJECT']},
+                    then: {$arrayElemAt: ['$projectItem', 0]},
+                  },
+                ],
+                default: null,
+              },
+            },
+          },
+        },
+
+        // ---------------------------------------------
+        // 4) Remove temporary fields
+        // ---------------------------------------------
+        {
+          $project: {
+            videoItem: 0,
+            quizItem: 0,
+            blogItem: 0,
+            projectItem: 0,
+          },
+        },
+      ])
+      .toArray();
+
+    try {
+    } catch (error) {
+      console.log('Get feedback form submission error: ', error);
+      throw new InternalServerError(
+        `Failed to get Feedback submission fo this form ${feedbackFormId}`,
+      );
+    }
   }
 
   /* ------------------------------------------------------
