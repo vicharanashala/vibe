@@ -5,6 +5,7 @@ import {
   ICourseVersion,
   IEnrollment,
   IModule,
+  ItemType,
   IWatchTime,
 } from '#shared/interfaces/models.js';
 import {instanceToPlain} from 'class-transformer';
@@ -26,7 +27,6 @@ import {ProgressRepository} from './ProgressRepository.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {Module} from '#root/modules/courses/classes/index.js';
 import {EnrollmentRepository} from './EnrollmentRepository.js';
-
 @injectable()
 export class CourseRepository implements ICourseRepository {
   private courseCollection: Collection<Course>;
@@ -436,7 +436,7 @@ export class CourseRepository implements ICourseRepository {
       // delete watch time (soft delete)
       await this.progressRepo.deleteWatchTimeByVersionId(versionId, session);
 
-      // 3. Cascade Delete item groups (soft delete)
+      // 3. Cascade Delete item groups (soft delete),
       const itemDeletionResult = await this.itemsGroupCollection.updateMany(
         {
           _id: {$in: itemGroupsIds},
@@ -793,13 +793,100 @@ export class CourseRepository implements ICourseRepository {
     }
   }
 
+  private async deleteAndReturnIds(
+    collection: Collection<any>,
+    filter: any,
+    session?: ClientSession,
+  ): Promise<ObjectId[]> {
+    const docs = await collection
+      .find(filter, {projection: {_id: 1}, session})
+      .toArray();
+
+    if (docs.length === 0) return [];
+
+    const ids = docs.map(doc => doc._id);
+    await collection.deleteMany({_id: {$in: ids}}, {session});
+
+    return ids;
+  }
+
   async cascadeDeleteVersion(session?: ClientSession): Promise<void> {
     // cascade delete versions with date difference exceeding 30 days
     await this.init();
-  }
+    try {
+      // start with items groups
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  async cascadeDeleteItem(session?: ClientSession): Promise<void> {
-    // cascade delete items with date difference exceeding 30 days
-    //
+      const deletedFilter = {
+        isDeleted: true,
+        deletedAt: {$lte: thirtyDaysAgo},
+      };
+
+      // Delete items groups
+      const itemGroupIds = await this.deleteAndReturnIds(
+        this.itemsGroupCollection,
+        deletedFilter,
+        session,
+      );
+
+      // Pull deleted item groups from course versions
+
+      if (itemGroupIds.length > 0) {
+        await this.courseVersionCollection.updateMany(
+          {
+            'modules.sections.itemsGroupId': {$in: itemGroupIds},
+          },
+          {
+            $pull: {
+              'modules.$[].sections': {itemsGroupId: {$in: itemGroupIds}},
+            },
+          },
+          {session},
+        );
+      }
+
+      // Delete sections and modules from course versions
+      await this.courseVersionCollection.updateMany(
+        {
+          $or: [
+            {'modules.sections': {$elemMatch: deletedFilter}},
+            {modules: {$elemMatch: deletedFilter}},
+          ],
+        },
+        {
+          $pull: {
+            'modules.$[].sections': deletedFilter,
+            modules: deletedFilter as any,
+          },
+        },
+        {session},
+      );
+
+      // Finally, delete course versions
+      await this.deleteAndReturnIds(
+        this.courseVersionCollection,
+        deletedFilter,
+        session,
+      );
+
+      // update course documents to remove references to deleted versions
+      await this.courseCollection.updateMany(
+        {},
+        {$pull: {versions: deletedFilter} as any},
+        {session},
+      );
+
+      // Delete courses
+      await this.deleteAndReturnIds(
+        this.courseCollection,
+        deletedFilter,
+        session,
+      );
+    } catch (error) {
+      throw new InternalServerError(
+        'Failed to cascade delete versions.\n More Details: ' + error,
+      );
+    }
   }
 }
