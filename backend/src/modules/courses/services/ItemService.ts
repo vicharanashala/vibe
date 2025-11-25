@@ -35,6 +35,7 @@ import {
   QuizRepository,
   UserQuizMetricsRepository,
 } from '#root/modules/quizzes/repositories/index.js';
+import { FeedbackRepository } from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
 
 @injectable()
 export class ItemService extends BaseService {
@@ -55,6 +56,8 @@ export class ItemService extends BaseService {
     private quizRepository: QuizRepository,
     @inject(QUIZZES_TYPES.AttemptRepo)
     private attemptRepository: AttemptRepository,
+    @inject(QUIZZES_TYPES.FeedbackRepo)
+    private feedbackRepo:FeedbackRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -524,5 +527,11 @@ export class ItemService extends BaseService {
         versionId: version._id.toString(),
       };
     });
+  }
+
+  public async getFeedbackSubmissions(courseId:string,itemId:string,search:string,page:number,limit:number){
+    return await this._withTransaction(async (session:ClientSession) => {
+      return await this.feedbackRepo.getFeedbackSubmissionById(itemId,courseId,search,page,limit)
+    })
   }
 }

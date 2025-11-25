@@ -750,6 +750,44 @@ class DeletedItemResponse {
   updatedItemsGroup: Record<string, any>;
 }
 
+class GetFeedbackSubmissionsParams {
+  @JSONSchema({
+    title: 'Course ID',
+    description: 'ID of the course in which user is enrolled',
+    example: '60d5ec49b3f1c8e4a8f8b8g9',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  courseId: string;
+
+  @JSONSchema({
+    title: 'Item ID',
+    description: 'ID of the item',
+    example: '60d5ec49b3f1c8e4a8f8b8f8',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  feedbackId: string;
+}
+class GetFeedbackSubmissionsQuery {
+  @JSONSchema({
+    title: 'search',
+    description: 'ID of the course in which user is enrolled',
+    example: '60d5ec49b3f1c8e4a8f8b8g9',
+    type: 'string',
+  })
+  @IsString()
+  search?: string;
+
+  @IsString()
+  page?: string;
+
+  @IsString()
+  limit?: string;
+}
+
 export {
   CreateItemBody,
   UpdateItemBody,
@@ -764,6 +802,8 @@ export {
   ItemDataResponse,
   DeletedItemResponse,
   GetItemParams,
+  GetFeedbackSubmissionsParams,
+  GetFeedbackSubmissionsQuery
 };
 
 export const ITEM_VALIDATORS = [
@@ -780,4 +820,6 @@ export const ITEM_VALIDATORS = [
   ItemDataResponse,
   DeletedItemResponse,
   GetItemParams,
+  GetFeedbackSubmissionsParams,
+  GetFeedbackSubmissionsQuery
 ];

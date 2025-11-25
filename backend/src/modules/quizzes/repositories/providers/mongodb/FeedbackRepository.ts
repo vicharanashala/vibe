@@ -119,140 +119,161 @@ class FeedbackRepository {
     return result ?? null;
   }
 
+
   async getFeedbackSubmissionById(
-    feedbackFormId: string,
-    courseId: string,
-    search: string,
-  ) {
-    const submissions = await this.feedbackSubmissionCollection
-      .aggregate([
-        {
-          $match: {
-            feedbackFormId: new ObjectId(feedbackFormId),
-            courseId: new ObjectId(courseId),
-          },
-        },
+  feedbackFormId: string,
+  courseId: string,
+  search: string,
+  page: number,
+  limit: number
+) {
+  await this.init()
+  const skip = (page - 1) * limit;
 
-        // ---------------------------------------------
-        // 1) Populate USER
-        // ---------------------------------------------
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'userId',
-            foreignField: '_id',
-            as: 'user',
-          },
+  try {
+    const pipeline: any[] = [
+      {
+        $match: {
+          feedbackFormId: new ObjectId(feedbackFormId),
+          courseId: new ObjectId(courseId),
         },
-        {$unwind: '$user'},
+      },
 
-        ...(search
-          ? [
-              {
-                $match: {
-                  'user.firstName': {$regex: search, $options: 'i'},
+      // --------------------------
+      // USER LOOKUP
+      // --------------------------
+      {
+        $lookup: {
+          from: "users",
+          localField: "userId",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      { $unwind: "$user" },
+
+      ...(search
+        ? [
+            {
+              $match: {
+                "user.firstName": { $regex: search, $options: "i" },
+              },
+            },
+          ]
+        : []),
+
+      // --------------------------
+      // LOOKUP Previous Item
+      // --------------------------
+      {
+        $lookup: {
+          from: "videos",
+          localField: "previousItemId",
+          foreignField: "_id",
+          as: "videoItem",
+        },
+      },
+      {
+        $lookup: {
+          from: "quizzes",
+          localField: "previousItemId",
+          foreignField: "_id",
+          as: "quizItem",
+        },
+      },
+      {
+        $lookup: {
+          from: "blogs",
+          localField: "previousItemId",
+          foreignField: "_id",
+          as: "blogItem",
+        },
+      },
+      {
+        $lookup: {
+          from: "projects",
+          localField: "previousItemId",
+          foreignField: "_id",
+          as: "projectItem",
+        },
+      },
+
+      // --------------------------
+      // MERGE
+      // --------------------------
+      {
+        $addFields: {
+          previousItem: {
+            $switch: {
+              branches: [
+                {
+                  case: { $eq: ["$previousItemType", "VIDEO"] },
+                  then: { $arrayElemAt: ["$videoItem", 0] },
                 },
-              },
-            ]
-          : []),
-
-        // ---------------------------------------------
-        // 2) Populate PREVIOUS ITEM by TYPE
-        // ---------------------------------------------
-
-        // VIDEO lookup
-        {
-          $lookup: {
-            from: 'videos',
-            localField: 'previousItemId',
-            foreignField: '_id',
-            as: 'videoItem',
-          },
-        },
-
-        // QUIZ lookup
-        {
-          $lookup: {
-            from: 'quizzes',
-            localField: 'previousItemId',
-            foreignField: '_id',
-            as: 'quizItem',
-          },
-        },
-
-        // BLOG lookup
-        {
-          $lookup: {
-            from: 'blogs',
-            localField: 'previousItemId',
-            foreignField: '_id',
-            as: 'blogItem',
-          },
-        },
-
-        // PROJECT lookup
-        {
-          $lookup: {
-            from: 'projects',
-            localField: 'previousItemId',
-            foreignField: '_id',
-            as: 'projectItem',
-          },
-        },
-
-        // ---------------------------------------------
-        // 3) MERGE into `previousItem`
-        // ---------------------------------------------
-        {
-          $addFields: {
-            previousItem: {
-              $switch: {
-                branches: [
-                  {
-                    case: {$eq: ['$previousItemType', 'VIDEO']},
-                    then: {$arrayElemAt: ['$videoItem', 0]},
-                  },
-                  {
-                    case: {$eq: ['$previousItemType', 'QUIZ']},
-                    then: {$arrayElemAt: ['$quizItem', 0]},
-                  },
-                  {
-                    case: {$eq: ['$previousItemType', 'BLOG']},
-                    then: {$arrayElemAt: ['$blogItem', 0]},
-                  },
-                  {
-                    case: {$eq: ['$previousItemType', 'PROJECT']},
-                    then: {$arrayElemAt: ['$projectItem', 0]},
-                  },
-                ],
-                default: null,
-              },
+                {
+                  case: { $eq: ["$previousItemType", "QUIZ"] },
+                  then: { $arrayElemAt: ["$quizItem", 0] },
+                },
+                {
+                  case: { $eq: ["$previousItemType", "BLOG"] },
+                  then: { $arrayElemAt: ["$blogItem", 0] },
+                },
+                {
+                  case: { $eq: ["$previousItemType", "PROJECT"] },
+                  then: { $arrayElemAt: ["$projectItem", 0] },
+                },
+              ],
+              default: null,
             },
           },
         },
+      },
 
-        // ---------------------------------------------
-        // 4) Remove temporary fields
-        // ---------------------------------------------
-        {
-          $project: {
-            videoItem: 0,
-            quizItem: 0,
-            blogItem: 0,
-            projectItem: 0,
-          },
+      // Cleanup
+      {
+        $project: {
+          videoItem: 0,
+          quizItem: 0,
+          blogItem: 0,
+          projectItem: 0,
         },
-      ])
+      },
+    ];
+
+    // 🟦 Run count separately
+    const countPipeline = [...pipeline, { $count: "total" }];
+    const countResult = await this.feedbackSubmissionCollection
+      .aggregate(countPipeline)
       .toArray();
 
-    try {
-    } catch (error) {
-      console.log('Get feedback form submission error: ', error);
-      throw new InternalServerError(
-        `Failed to get Feedback submission fo this form ${feedbackFormId}`,
-      );
-    }
+    const total = countResult[0]?.total || 0;
+
+    // 🟩 Apply pagination
+    const paginatedPipeline = [
+      ...pipeline,
+      { $skip: skip },
+      { $limit: limit },
+    ];
+
+    // 🟧 Fetch docs
+    const submissions = await this.feedbackSubmissionCollection
+      .aggregate(paginatedPipeline)
+      .toArray();
+
+    return {
+      submissions,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  } catch (error) {
+    console.log("Get feedback form submission error: ", error);
+    throw new InternalServerError(
+      `Failed to get Feedback submission for form ${feedbackFormId}`
+    );
   }
+}
 
   /* ------------------------------------------------------
    * FEEDBACK FORM OPERATIONS
