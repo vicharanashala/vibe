@@ -584,12 +584,13 @@ if (type === "feedback") {
               format: 'email',
               title: 'Email',
             },
-            Phone: {
+            Feedback: {
               type: 'string',
-              title: 'Phone',
+              title: 'Feedback',
+              minLength:10
             },
           },
-          required: ['Name', 'Email'],
+          required: ['Name', 'Email','Feedback'],
         },
                uiSchema:{
           Name: {
@@ -598,11 +599,8 @@ if (type === "feedback") {
           Email: {
             'ui:placeholder': 'Enter your Email',
           },
-          Phone: {
-            'ui:options': {
-              inputType: 'tel',
-            },
-            'ui:placeholder': 'Enter your Phone Number',
+          Feedback: {
+            'ui:placeholder': 'Enter your feedback here...',
           },
         }
           },
@@ -1113,12 +1111,13 @@ if (type === "feedback") {
               format: 'email',
               title: 'Email',
             },
-            Phone: {
+            Feedback: {
               type: 'string',
-              title: 'Phone',
+              title: 'Feedback',
+              minLength:10
             },
           },
-          required: ['Name', 'Email'],
+          required: ['Name', 'Email','Feedback'],
         },
                uiSchema:{
           Name: {
@@ -1127,12 +1126,10 @@ if (type === "feedback") {
           Email: {
             'ui:placeholder': 'Enter your Email',
           },
-          Phone: {
-            'ui:options': {
-              inputType: 'tel',
-            },
-            'ui:placeholder': 'Enter your Phone Number',
-          },
+           Feedback: {
+            'ui:placeholder': 'Enter your feedback here...',
+            'ui:widget': 'textarea',
+  },
         }
           },
           },

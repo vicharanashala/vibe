@@ -3387,3 +3387,70 @@ export function enqueueNavigation(fn: () => Promise<void>) {
   });
   return navigationQueue;
 }
+
+
+interface Submission {
+  _id: string;
+  userInfo: { firstName: string; lastName: string; email?: string };
+  submittedAt: string;
+  // Add fields like responses, status if available
+}
+
+interface SubmissionsData {
+  data: Submission[];
+  totalPages: number;
+  totalCount: number;
+}
+
+interface UseFeedbackSubmissionsProps {
+  feedbackId: string;
+  courseId: string;
+  searchQuery?: string;
+  statusFilter?: string; // e.g., 'All', 'Submitted'
+  page?: number;
+  limit?: number;
+}
+
+export const useFeedbackSubmissions = ({
+  feedbackId,
+  courseId,
+  searchQuery = '',
+  page = 1,
+  limit = 10
+}: UseFeedbackSubmissionsProps): {
+  data: SubmissionsData | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} => {
+  const result = api.useQuery(
+    'get',
+    '/feedback/{feedbackId}/submissions' as any,
+    {
+      params: {
+        path: { feedbackId },
+        query: {
+          page: page.toString(),
+          limit: limit.toString(),
+          search: searchQuery,
+          courseId 
+        }
+      }
+    },
+    {
+      enabled: !!feedbackId && !!courseId,
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // 5 min cache
+    }
+  );
+
+  return {
+    data: result.data as SubmissionsData | undefined,
+    isLoading: result.isLoading,
+    error: result.error
+      ? result.error.message || 'Failed to fetch feedback submissions'
+      : null,
+    refetch: result.refetch,
+  };
+};

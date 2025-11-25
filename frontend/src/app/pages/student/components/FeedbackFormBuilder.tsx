@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'; 
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -39,7 +39,7 @@ import {
 import { toast } from 'sonner';
 import { RJSFSchema } from '@rjsf/utils';
 import ConfirmationModal from '../../teacher/components/confirmation-modal';
-import { useCreateFeedbackFormFields, useGetFeedbackFormFields} from '@/hooks/hooks';
+import { useCreateFeedbackFormFields, useGetFeedbackFormFields } from '@/hooks/hooks';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -132,11 +132,11 @@ interface FeedbackFormBuilderProps {
   isSaving?: boolean;
   onCancel?: () => void;
 }
- const FeedbackFormBuilder = ({ 
-  fetchedSchemas, 
-  onSave, 
+const FeedbackFormBuilder = ({
+  fetchedSchemas,
+  onSave,
   isSaving = false,
-  onCancel 
+  onCancel
 }: FeedbackFormBuilderProps) => {
   const [fields, setFields] = useState<FormField[]>([]);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
@@ -148,29 +148,29 @@ interface FeedbackFormBuilderProps {
   const selectedField = fields.find((f) => f.id === selectedFieldId);
 
   const [fieldIdToDelete, setFieldIdToDelete] = useState("")
-  
-//   const { mutateAsync: updateFields, isPending: isUpdatingFields } = useCreateFeedbackFormFields(feedbackId as string); 
-//   const { data: fetchedSchemas, isLoading: fetchLoading, error: fetchError,refetch } = useGetFeedbackFormFields(feedbackId as string);
+
+  //   const { mutateAsync: updateFields, isPending: isUpdatingFields } = useCreateFeedbackFormFields(feedbackId as string); 
+  //   const { data: fetchedSchemas, isLoading: fetchLoading, error: fetchError,refetch } = useGetFeedbackFormFields(feedbackId as string);
 
   // Added useEffect to populate fields from fetched schemas on mount or when data changes
-useEffect(() => {
-  if (!fetchedSchemas) {
-    setFields([]);
+  useEffect(() => {
+    if (!fetchedSchemas) {
+      setFields([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const { jsonSchema, uiSchema } = fetchedSchemas;
+
+    if (jsonSchema || uiSchema) {
+      const populatedFields = schemasToFields(jsonSchema || { properties: {} }, uiSchema || {});
+      setFields(populatedFields);
+    } else {
+      setFields([]);
+    }
+
     setIsLoading(false);
-    return;
-  }
-
-  const { jsonSchema, uiSchema } = fetchedSchemas;
-
-  if (jsonSchema || uiSchema) {
-    const populatedFields = schemasToFields(jsonSchema || { properties: {} }, uiSchema || {});
-    setFields(populatedFields);
-  } else {
-    setFields([]);
-  }
-
-  setIsLoading(false);
-}, [fetchedSchemas]);
+  }, [fetchedSchemas]);
 
   // Add a new field to the form
   const addField = (type: FieldType) => {
@@ -184,9 +184,9 @@ useEffect(() => {
       options:
         type === 'select' || type === 'radio'
           ? [
-              { label: 'Option 1', value: 'option1' },
-              { label: 'Option 2', value: 'option2' },
-            ]
+            { label: 'Option 1', value: 'option1' },
+            { label: 'Option 2', value: 'option2' },
+          ]
           : undefined,
     };
 
@@ -210,27 +210,6 @@ useEffect(() => {
     toast.success('Field removed');
   };
 
-  // Move field up/down
-  // const moveField = (id: string, direction: 'up' | 'down') => {
-  //   const index = fields.findIndex((f) => f.id === id);
-  //   if (
-  //     (direction === 'up' && index === 0) ||
-  //     (direction === 'down' && index === fields.length - 1)
-  //   ) {
-  //     return;
-  //   }
-
-  //   const newFields = [...fields];
-  //   const targetIndex = direction === 'up' ? index - 1 : index + 1;
-  //   [newFields[index], newFields[targetIndex]] = [
-  //     newFields[targetIndex],
-  //     newFields[index],
-  //   ];
-  //   setFields(newFields);
-  //   toast.success(`Field moved ${direction}`);
-  // };
-
-  // Add option to select/radio field
   const addOption = (fieldId: string) => {
     const field = fields.find((f) => f.id === fieldId);
     if (!field || !field.options) return;
@@ -416,7 +395,7 @@ useEffect(() => {
         let options: SelectOption[] | undefined;
         if (typedProp.enum) {
           options = typedProp.enum.map((value: string) => ({
-            label: value, 
+            label: value,
             value,
           }));
         }
@@ -452,55 +431,42 @@ useEffect(() => {
   }
 
   return (
-      <div className="min-h-screen bg-background w-full ">
-        <div className="container mx-auto ">
-          <div className="flex items-center gap-4 mb-4">
-           
-            <div className="flex items-center gap-3">
+    <div className="min-h-screen bg-background w-full ">
+      <div className="container mx-auto ">
+        <div className="flex items-center gap-4 mb-4">
 
-        
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent ">
+          <div className="flex items-center gap-3">
+
+
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent pt-2">
               Form Builder
             </h1>
             <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Info className="me-2 w-5 h-5 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    Here you can manage the course registration form fields. 
-                    Only selected fields will be visible to students.
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="me-2 w-5 h-5 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  Here you can manage the course registration form fields.
+                  Only selected fields will be visible to students.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
-          <div className="sm:p-6 p-4">
-            {/* <ConfirmationModal
-              isOpen={isConfirmationModalOpen}
-              onClose={() => setIsConfirmationModalOpen(false)}
-              onConfirm={handleSubmit}
-              title="Submit Form"
-              description="Are you sure you want to submit this form? Make sure all required fields are added and correct before proceeding."
-              confirmText="Submit"
-              cancelText="Cancel"
-              isDestructive={false}
-            //   isLoading={isUpdatingFields}
-              loadingText="Submitting..."
-            /> */}
+        </div>
+        <div className="sm:p-6 ">
+          <ConfirmationModal
+            isOpen={!!fieldIdToDelete}
+            onClose={() => setFieldIdToDelete("")}
+            onConfirm={deleteField}
+            title="Delete Field"
+            description="Are you sure you want to delete this field? This action cannot be undone."
+            confirmText="Delete"
+            cancelText="Cancel"
+            isDestructive={true}
+          />
 
-            <ConfirmationModal
-              isOpen={!!fieldIdToDelete}
-              onClose={() => setFieldIdToDelete("")}
-              onConfirm={deleteField}
-              title="Delete Field"
-              description="Are you sure you want to delete this field? This action cannot be undone."
-              confirmText="Delete"
-              cancelText="Cancel"
-              isDestructive={true}
-            />
-
-            <div className="flex flex-col lg:gap-1 gap-3 h-[110vh]">
+          <div className="flex flex-col lg:gap-1 gap-3 h-[110vh]">
             <Card className="flex-shrink-0">
               <CardHeader className="sm:px-6 px-4 border-b">
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -510,7 +476,7 @@ useEffect(() => {
               </CardHeader>
 
               <CardContent className="">
-                <ScrollArea className="max-h-24 min-h-fit"> 
+                <ScrollArea className="max-h-24 min-h-fit">
                   <div className="flex flex-wrap gap-2">
                     {FIELD_TYPES.map((fieldType) => {
                       const Icon = fieldType.icon;
@@ -531,7 +497,7 @@ useEffect(() => {
               </CardContent>
             </Card>
 
-          
+
             <div className="flex flex-col lg:flex-row lg:gap-1 gap-3 flex-1 pb-6">
               <Card className="flex-1 lg:flex-[2] flex flex-col min-w-0">
                 <CardHeader className="sm:px-6 px-4 pb-2 border-b">
@@ -566,27 +532,28 @@ useEffect(() => {
                       <form
                         className="space-y-4"
                         onSubmit={(e) => {
-    e.preventDefault();
-    const { jsonSchema, uiSchema } = buildSchemas();
-    onSave({ jsonSchema, uiSchema });
-  }}
+                          e.preventDefault();
+                          const { jsonSchema, uiSchema } = buildSchemas();
+                          onSave({ jsonSchema, uiSchema });
+                        }}
                       >
                         {fields.map((field, index) => (
                           <div
                             key={field.id}
-                            className={`relative group p-3 rounded-lg border-2 transition-all cursor-pointer ${
-                              selectedFieldId === field.id
+                            className={`relative group p-3 rounded-lg border-2 transition-all cursor-pointer ${selectedFieldId === field.id
                                 ? "border-primary bg-primary/5"
                                 : "border-border hover:border-muted-foreground/30"
-                            }`}
-                            onClick={() => {if(
-                                field.label==="Name" ||
-                                field.label==="Email"
-                            ){
-                              toast.error("Cannot select default fields")
-                              return
-                            } 
-                            setSelectedFieldId(field.id)}}
+                              }`}
+                            onClick={() => {
+                              if (
+                                field.label === "Name" ||
+                                field.label === "Email"
+                              ) {
+                                toast.error("Cannot select default fields")
+                                return
+                              }
+                              setSelectedFieldId(field.id)
+                            }}
                           >
                             {/* Field Actions */}
                             <div className="absolute -right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1 z-50 w-10">
@@ -600,7 +567,7 @@ useEffect(() => {
                                   const newFields = [...fields]
                                   const fromIndex = index
                                   const toIndex = index - 1
-                                  ;[newFields[fromIndex], newFields[toIndex]] = [newFields[toIndex], newFields[fromIndex]]
+                                    ;[newFields[fromIndex], newFields[toIndex]] = [newFields[toIndex], newFields[fromIndex]]
                                   setFields(newFields)
                                 }}
                                 disabled={index === 0}
@@ -617,7 +584,7 @@ useEffect(() => {
                                   const newFields = [...fields]
                                   const fromIndex = index
                                   const toIndex = index + 1
-                                  ;[newFields[fromIndex], newFields[toIndex]] = [newFields[toIndex], newFields[fromIndex]]
+                                    ;[newFields[fromIndex], newFields[toIndex]] = [newFields[toIndex], newFields[fromIndex]]
                                   setFields(newFields)
                                 }}
                                 disabled={index === fields.length - 1}
@@ -638,19 +605,19 @@ useEffect(() => {
                               </Button> */}
 
                               {field.label !== "Name" && field.label !== "Email" && (
-                              <Button
-                                size="icon"
-                                type="button"
-                                variant="destructive"
-                                className="h-7 w-7 shadow-sm"
-                                onClick={(e) => { 
-                                  e.stopPropagation();
-                                  setFieldIdToDelete(field.id);
-                                }}
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            )}
+                                <Button
+                                  size="icon"
+                                  type="button"
+                                  variant="destructive"
+                                  className="h-7 w-7 shadow-sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setFieldIdToDelete(field.id);
+                                  }}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              )}
                             </div>
 
                             <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
@@ -790,13 +757,13 @@ useEffect(() => {
                           Submit Form
                         </Button> */}
 
-                        <Button 
-  type="submit" 
-  className="w-full h-9"
-  disabled={isSaving}
->
-  {isSaving ? "Saving Changes..." : "Save Form Changes"}
-</Button>
+                        <Button
+                          type="submit"
+                          className="w-full h-9"
+                          disabled={isSaving}
+                        >
+                          {isSaving ? "Saving Changes..." : "Save Form Changes"}
+                        </Button>
                       </form>
                     )}
                   </ScrollArea>
@@ -804,7 +771,8 @@ useEffect(() => {
               </Card>
 
               {/* Field Settings - Right Sidebar */}
-              <Card className="w-full lg:w-[380px] flex-shrink-0 flex flex-col min-h-0 lg:min-h-[400px]">
+              {/* <Card className="w-full lg:w-[380px] flex-shrink-0 flex flex-col min-h-0 lg:min-h-[400px]"> */}
+              <Card className="w-full lg:w-[380px] flex-shrink-0 flex flex-col max-h-[calc(100vh-150px)]">
                 <CardHeader className="sm:px-6 px-4 pb-2 border-b">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Settings className="w-5 h-5" />
@@ -911,52 +879,52 @@ useEffect(() => {
                             selectedField.type === "textarea" ||
                             selectedField.type === "tel" ||
                             selectedField.type === "url") && (
-                            <>
-                              <div className="mb-3">
-                                <label htmlFor="field-minlength" className="flex items-center gap-2">
-                                  <Hash className="w-4 h-4 text-muted-foreground" />
-                                  Minimum Length
-                                </label>
-                                <Input
-                                  id="field-minlength"
-                                  type="number"
-                                  min="0"
-                                  value={selectedField.validation.minLength || ""}
-                                  onChange={(e) =>
-                                    updateField(selectedField.id, {
-                                      validation: {
-                                        ...selectedField.validation,
-                                        minLength: e.target.value ? Number(e.target.value) : undefined,
-                                      },
-                                    })
-                                  }
-                                  className="mt-1.5"
-                                />
-                              </div>
+                              <>
+                                <div className="mb-3">
+                                  <label htmlFor="field-minlength" className="flex items-center gap-2">
+                                    <Hash className="w-4 h-4 text-muted-foreground" />
+                                    Minimum Length
+                                  </label>
+                                  <Input
+                                    id="field-minlength"
+                                    type="number"
+                                    min="0"
+                                    value={selectedField.validation.minLength || ""}
+                                    onChange={(e) =>
+                                      updateField(selectedField.id, {
+                                        validation: {
+                                          ...selectedField.validation,
+                                          minLength: e.target.value ? Number(e.target.value) : undefined,
+                                        },
+                                      })
+                                    }
+                                    className="mt-1.5"
+                                  />
+                                </div>
 
-                              <div className="mb-3">
-                                <label htmlFor="field-maxlength" className="flex items-center gap-2">
-                                  <Hash className="w-4 h-4 text-muted-foreground" />
-                                  Maximum Length
-                                </label>
-                                <Input
-                                  id="field-maxlength"
-                                  type="number"
-                                  min="0"
-                                  value={selectedField.validation.maxLength || ""}
-                                  onChange={(e) =>
-                                    updateField(selectedField.id, {
-                                      validation: {
-                                        ...selectedField.validation,
-                                        maxLength: e.target.value ? Number(e.target.value) : undefined,
-                                      },
-                                    })
-                                  }
-                                  className="mt-1.5"
-                                />
-                              </div>
-                            </>
-                          )}
+                                <div className="mb-3">
+                                  <label htmlFor="field-maxlength" className="flex items-center gap-2">
+                                    <Hash className="w-4 h-4 text-muted-foreground" />
+                                    Maximum Length
+                                  </label>
+                                  <Input
+                                    id="field-maxlength"
+                                    type="number"
+                                    min="0"
+                                    value={selectedField.validation.maxLength || ""}
+                                    onChange={(e) =>
+                                      updateField(selectedField.id, {
+                                        validation: {
+                                          ...selectedField.validation,
+                                          maxLength: e.target.value ? Number(e.target.value) : undefined,
+                                        },
+                                      })
+                                    }
+                                    className="mt-1.5"
+                                  />
+                                </div>
+                              </>
+                            )}
 
                           {/* Min/Max Value */}
                           {selectedField.type === "number" && (
@@ -1010,30 +978,30 @@ useEffect(() => {
                             selectedField.type === "email" ||
                             selectedField.type === "tel" ||
                             selectedField.type === "url") && (
-                            <div className="mb-3">
-                              <label htmlFor="field-pattern" className="flex items-center gap-2">
-                                <Regex className="w-4 h-4 text-muted-foreground" />
-                                Pattern (Regex)
-                              </label>
-                              <Input
-                                id="field-pattern"
-                                value={selectedField.validation.pattern || ""}
-                                onChange={(e) =>
-                                  updateField(selectedField.id, {
-                                    validation: {
-                                      ...selectedField.validation,
-                                      pattern: e.target.value,
-                                    },
-                                  })
-                                }
-                                placeholder="e.g., ^[A-Z].*"
-                                className="mt-1.5"
-                              />
-                              <span className="text-xs text-muted-foreground">
-                                Defines a regex pattern the input must match.
-                              </span>
-                            </div>
-                          )}
+                              <div className="mb-3">
+                                <label htmlFor="field-pattern" className="flex items-center gap-2">
+                                  <Regex className="w-4 h-4 text-muted-foreground" />
+                                  Pattern (Regex)
+                                </label>
+                                <Input
+                                  id="field-pattern"
+                                  value={selectedField.validation.pattern || ""}
+                                  onChange={(e) =>
+                                    updateField(selectedField.id, {
+                                      validation: {
+                                        ...selectedField.validation,
+                                        pattern: e.target.value,
+                                      },
+                                    })
+                                  }
+                                  placeholder="e.g., ^[A-Z].*"
+                                  className="mt-1.5"
+                                />
+                                <span className="text-xs text-muted-foreground">
+                                  Defines a regex pattern the input must match.
+                                </span>
+                              </div>
+                            )}
                         </div>
 
                         {/* Options */}
@@ -1094,10 +1062,10 @@ useEffect(() => {
                 </CardContent>
               </Card>
             </div>
-            </div>
           </div>
-       </div>
+        </div>
       </div>
+    </div>
   );
 };
 export default FeedbackFormBuilder
