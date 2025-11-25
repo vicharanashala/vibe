@@ -3425,15 +3425,13 @@ export const useFeedbackSubmissions = ({
 } => {
   const result = api.useQuery(
     'get',
-    '/feedback/{feedbackId}/submissions' as any,
+    `/courses/${courseId}/item/${feedbackId}/feedback/submissions` as any,
     {
       params: {
-        path: { feedbackId },
         query: {
           page: page.toString(),
           limit: limit.toString(),
           search: searchQuery,
-          courseId 
         }
       }
     },
@@ -3441,7 +3439,7 @@ export const useFeedbackSubmissions = ({
       enabled: !!feedbackId && !!courseId,
       retry: 1,
       refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000, // 5 min cache
+      staleTime: 5 * 60 * 1000, 
     }
   );
 

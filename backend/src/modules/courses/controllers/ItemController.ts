@@ -10,6 +10,7 @@ import {
   Post,
   Put,
   Authorized,
+  QueryParams,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { COURSES_TYPES } from '#courses/types.js';
@@ -25,6 +26,8 @@ import {
   GetItemParams,
   VersionModuleSectionItemParams,
   VersionItemParams,
+  GetFeedbackSubmissionsParams,
+  GetFeedbackSubmissionsQuery,
 } from '#courses/classes/validators/ItemValidators.js';
 import { ItemService } from '#courses/services/ItemService.js';
 import { injectable, inject } from 'inversify';
@@ -337,5 +340,35 @@ Access control logic:
 
   async submitProject(): Promise<void> { }
 
+
+  
+  @OpenAPI({
+    summary: 'Get feedback submissions',
+    description: `Get the feedback submissions of a particular course item`,
+  })
+  @Authorized()
+  @Get('/:courseId/item/:feedbackId/feedback/submissions')
+  @HttpCode(201)
+  @ResponseSchema(ItemDataResponse, {
+    description: 'Item retrieved successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ItemNotFoundErrorResponse, {
+    description: 'Item not found',
+    statusCode: 404,
+  })
+  async getFeedackSubmissions(
+    @Params() params: GetFeedbackSubmissionsParams,
+    @QueryParams() query: GetFeedbackSubmissionsQuery
+    // @Ability(getItemAbility) { ability },
+  ) {
+    const {courseId,feedbackId} = params;
+    const {search='',page=1,limit=1} =query
+    return await this.itemService.getFeedbackSubmissions(courseId,feedbackId,search,Number(page),Number(limit))
+  }
+ 
 }
 
