@@ -77,7 +77,7 @@ export interface ICourseRepository {
   getAllCourses(session?: ClientSession): Promise<ICourse[]>;
 
   // Cascade Delete Methods used by Cron Jobs
-  // cascadeDeleteVersion(session?: ClientSession): Promise<void>;
+  //cascadeDeleteVersion(session?: ClientSession): Promise<void>;
   //cascadeDeleteModule(session?: ClientSession): Promise<void>;
   //cascadeDeleteSection(session?: ClientSession): Promise<void>;
   //cascadeDeleteItemGroup(session?: ClientSession): Promise<void>;
