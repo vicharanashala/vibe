@@ -15,6 +15,7 @@ import iitClear from "../../../public/img/iit-clear.png";
 import vledLogo from "../../../public/img/vled-logo.png";
 import ugcLogo from "../../../public/img/ugc_logo.png";
 import annam from "../../../public/img/annam.png";
+import logos from "../../../public/img/logos.png";
 
 // Create a context for tab state management
 const TabsContext = createContext<{
@@ -559,10 +560,9 @@ export default function AuthPage() {
                                   </div>
                                   <button
                                     onClick={toggleSignUpMode}
-                                    className="py-3 px-[29px] text-base rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 flex flex-row lg:flex-col items-center justify-center leading-[24px] transition-all duration-300 gap-1 lg:gap-0"
+                                    className="py-3 px-[29px] text-base rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300 whitespace-nowrap"
                                   >
-                                    <span>Sign</span>
-                                    <span>Up</span>
+                                    Sign Up
                                   </button>
                                 </div>
                               </CardFooter>
@@ -722,10 +722,9 @@ export default function AuthPage() {
                                   </div>
                                   <button
                                     onClick={toggleSignUpMode}
-                                    className="py-3 px-[29px] text-base rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 flex flex-row lg:flex-col items-center justify-center leading-[24px] transition-all duration-300 gap-1 lg:gap-0"
+                                    className="py-3 px-[29px] text-base rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300 whitespace-nowrap"
                                   >
-                                    <span>Sign</span>
-                                    <span>in</span>
+                                    Sign in
                                   </button>
                                 </div>
                               </CardFooter>
@@ -762,11 +761,12 @@ export default function AuthPage() {
         <div className="bg-[rgb(240,248,250)]">
           <div className="w-full max-w-[1280px] mx-auto py-16 px-4 sm:px-6">
             <h3 className="text-[rgb(25,90,105)] text-2xl sm:text-3xl md:text-[36px] font-bold leading-10 mb-[52px]">A Collaboration Between</h3>
-            <div className="flex flex-wrap items-center gap-8 sm:gap-12 lg:gap-[96px]">
-              <img src={iitClear} alt="IIT Ropar Logo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
+            <div className="flex flex-wrap items-center justify-center">
+              {/* <img src={iitClear} alt="IIT Ropar Logo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
               <img src={ugcLogo} alt="ugcLogo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
               <img src={annam} alt="annam Logo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
-              <img src={vledLogo} alt="VLED Logo" className="w-[220px] sm:w-[260px] h-auto object-contain" />
+              <img src={vledLogo} alt="VLED Logo" className="w-[220px] sm:w-[260px] h-auto object-contain" /> */}
+              <img src={logos} alt="Logos" style={{ transform: 'scale(1)' }} className="h-auto max-w-full object-contain" />
             </div>
           </div>
         </div>
@@ -797,9 +797,8 @@ export default function AuthPage() {
                   placeholder="Your email address"
                   className="flex-1 px-4 py-3 placeholder:text-[#9CA3AF] text-[rgb(25,90,105)] rounded-md bg-[#FFFFFF] border border-[rgb(102,187,205)] focus:outline-none focus:ring-2 focus:ring-[rgb(52,152,169)]"
                 />
-                <button className="py-3 px-[29px] rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 flex flex-row lg:flex-col items-center justify-center leading-[24px] transition-all duration-300 gap-1 md:gap-0">
-                  <span>Sign</span>
-                  <span>Up</span>
+                <button className="py-3 px-[29px] rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300 whitespace-nowrap">
+                  Sign Up
                 </button>
               </div>
             </div>
