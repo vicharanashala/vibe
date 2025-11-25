@@ -108,30 +108,28 @@ export class EnrollmentRepository {
     );
   }
 
-  async getInstructorIdsByVersion(
+  async findActiveEnrollment(
+    userId: string | ObjectId,
     courseId: string,
-    versionId: string,
+    courseVersionId: string,
     session?: ClientSession,
-  ) {
+  ): Promise<IEnrollment | null> {
     await this.init();
-    console.log(
-      'CourseId and versionId from getInstructors ',
-      courseId,
-      versionId,
+
+    const courseObjectId = new ObjectId(courseId);
+    const courseVersionObjectId = new ObjectId(courseVersionId);
+    const userObjectid = new ObjectId(userId);
+
+    return await this.enrollmentCollection.findOne(
+      {
+        userId: userObjectid,
+        courseId: courseObjectId,
+        courseVersionId: courseVersionObjectId,
+        status: 'ACTIVE',
+        isDeleted: {$ne: true},
+      },
+      {session},
     );
-    const enrollments = await this.enrollmentCollection
-      .find(
-        {
-          courseId: new ObjectId(courseId),
-          courseVersionId: new ObjectId(versionId),
-          role: 'INSTRUCTOR',
-          status: 'ACTIVE',
-        },
-        {projection: {userId: 1, _id: 0}, session}, // only return userId
-      )
-      .toArray();
-    console.log('enrollments ', enrollments);
-    return enrollments.map(enrollment => enrollment.userId);
   }
 
   async getInstructorIdsByVersion(
@@ -234,15 +232,16 @@ export class EnrollmentRepository {
 
     // const userObjectid = new ObjectId(userId)
 
-    const result = await this.enrollmentCollection.deleteOne(
+    const result = await this.enrollmentCollection.updateOne(
       {
         userId: {$in: userFilter},
         courseId: courseObjectId,
         courseVersionId: courseVersionObjectId,
       },
+      {$set: {isDeleted: true, deletedAt: new Date()}},
       {session},
     );
-    if (result.deletedCount === 0) {
+    if (result.modifiedCount === 0) {
       throw new NotFoundError('Enrollment not found to delete');
     }
   }
@@ -289,12 +288,13 @@ export class EnrollmentRepository {
     session?: any,
   ): Promise<void> {
     await this.init();
-    await this.progressCollection.deleteMany(
+    await this.progressCollection.updateMany(
       {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
+      {$set: {isDeleted: true, deletedAt: new Date()}},
       {session},
     );
   }
@@ -1809,14 +1809,15 @@ export class EnrollmentRepository {
     try {
       const versionObjectId = new ObjectId(versionId);
 
-      const result = await this.enrollmentCollection.deleteMany(
+      const result = await this.enrollmentCollection.updateMany(
         {
           courseVersionId: versionObjectId,
         },
+        {$set: {isDeleted: true, deletedAt: new Date()}},
         {session},
       );
 
-      return result.deletedCount;
+      return result.modifiedCount;
     } catch (error) {
       console.error('Failed to delete enrollments:', error);
       throw new Error('Failed to delete enrollments for the course version');

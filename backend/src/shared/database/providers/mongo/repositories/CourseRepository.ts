@@ -25,19 +25,21 @@ import {ItemsGroup} from '#courses/classes/transformers/Item.js';
 import {ProgressRepository} from './ProgressRepository.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {Module} from '#root/modules/courses/classes/index.js';
+import {EnrollmentRepository} from './EnrollmentRepository.js';
 
 @injectable()
 export class CourseRepository implements ICourseRepository {
   private courseCollection: Collection<Course>;
   private courseVersionCollection: Collection<CourseVersion>;
   private itemsGroupCollection: Collection<ItemsGroup>;
-  private enrollmentCollection: Collection<IEnrollment>;
 
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
     @inject(USERS_TYPES.ProgressRepo)
     private progressRepo: ProgressRepository,
+    @inject(USERS_TYPES.EnrollmentRepo)
+    private enrollmentRepo: EnrollmentRepository,
   ) {}
 
   private async init() {
@@ -47,9 +49,6 @@ export class CourseRepository implements ICourseRepository {
     );
     this.itemsGroupCollection = await this.db.getCollection<ItemsGroup>(
       'itemsGroup',
-    );
-    this.enrollmentCollection = await this.db.getCollection<IEnrollment>(
-      'enrollment',
     );
   }
 
@@ -167,12 +166,13 @@ export class CourseRepository implements ICourseRepository {
     // );
 
     // 3. Finally, delete the Course document itself
-    const deleteCourseResult = await this.courseCollection.deleteOne(
+    const deleteCourseResult = await this.courseCollection.updateOne(
       {_id: new ObjectId(courseId)},
+      {$set: {isDeleted: true, deletedAt: new Date()}},
       {session},
     );
 
-    if (deleteCourseResult.deletedCount !== 1) {
+    if (deleteCourseResult.modifiedCount !== 1) {
       throw new InternalServerError('Failed to delete course');
     }
     return true;
@@ -450,6 +450,10 @@ export class CourseRepository implements ICourseRepository {
       if (itemGroupsIds.length && itemDeletionResult.modifiedCount === 0) {
         throw new InternalServerError('Failed to delete item groups');
       }
+
+      // 4. Delete all enrollmentsand progress related to this version
+      await this.progressRepo.deleteProgressByVersionId(versionId, session);
+      await this.enrollmentRepo.deleteEnrollmentByVersionId(versionId, session);
 
       // 4. Return the deleted course version
       return versionDeleteResult;
