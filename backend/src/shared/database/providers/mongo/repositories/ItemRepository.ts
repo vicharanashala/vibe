@@ -17,6 +17,7 @@ import {
   Item,
 } from '#courses/classes/transformers/Item.js';
 import {UpdateItemBody} from '#root/modules/courses/classes/index.js';
+import {QuestionBank} from '#root/modules/quizzes/classes/transformers/QuestionBank.js';
 
 @injectable()
 export class ItemRepository implements IItemRepository {
@@ -25,7 +26,7 @@ export class ItemRepository implements IItemRepository {
   private quizCollection: Collection<QuizItem>;
   private blogCollection: Collection<BlogItem>;
   private projectCollection: Collection<ProjectItem>;
-  private questionBankCollection: Collection<IQuestionBank>;
+  private questionBankCollection: Collection<QuestionBank>;
   private questionsCollection: Collection<any>;
 
   constructor(
@@ -50,7 +51,6 @@ export class ItemRepository implements IItemRepository {
     );
     this.questionsCollection = await this.db.getCollection('questions');
   }
-  
 
   // Methods for ItemsGroup operations
   async createItemsGroup(
@@ -58,7 +58,7 @@ export class ItemRepository implements IItemRepository {
     session?: ClientSession,
   ): Promise<ItemsGroup> {
     await this.init();
-    
+
     const result = await this.itemsGroupCollection.insertOne(itemsGroup, {
       session,
     });
@@ -79,26 +79,26 @@ export class ItemRepository implements IItemRepository {
     ) as ItemsGroup;
   }
 
-//   async getItemsCountByGroupIds(groupIds:string[]) {
-//   const itemGroups = await this.itemsGroupCollection.find({ _id: { $in: groupIds } }).select('items').lean();
-//   return itemGroups.reduce((total, group) => total + (group.items ? group.items.length : 0), 0);
-// }
+  //   async getItemsCountByGroupIds(groupIds:string[]) {
+  //   const itemGroups = await this.itemsGroupCollection.find({ _id: { $in: groupIds } }).select('items').lean();
+  //   return itemGroups.reduce((total, group) => total + (group.items ? group.items.length : 0), 0);
+  // }
 
-async getItemsCountByGroupIds(groupIds: string[],session?:ClientSession) {
-  await this.init();
-  const itemGroups = await this.itemsGroupCollection
-    .find(
-      { _id: { $in: groupIds.map(id => new ObjectId(id)) } }, 
-      { projection: { items: 1 },session} // only return `items`
-    )
-    .toArray();
-  console.log("Items group ",ItemsGroup)
+  async getItemsCountByGroupIds(groupIds: string[], session?: ClientSession) {
+    await this.init();
+    const itemGroups = await this.itemsGroupCollection
+      .find(
+        {_id: {$in: groupIds.map(id => new ObjectId(id))}},
+        {projection: {items: 1}, session}, // only return `items`
+      )
+      .toArray();
+    console.log('Items group ', ItemsGroup);
 
-  return itemGroups.reduce(
-    (total, group) => total + (group.items ? group.items.length : 0),
-    0
-  );
-}
+    return itemGroups.reduce(
+      (total, group) => total + (group.items ? group.items.length : 0),
+      0,
+    );
+  }
 
   async readItemsGroup(
     itemsGroupId: string,
@@ -642,84 +642,46 @@ async getItemsCountByGroupIds(groupIds: string[],session?:ClientSession) {
   }
 
   async cascadeDeleteItem(session?: ClientSession): Promise<void> {
-    // cascade delete items with date difference exceeding 30 days
+    // Top down leaf first cascade delete
     await this.init();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const deletedFilter = {
-      isDeleted: true,
-      deletedAt: {$lte: thirtyDaysAgo},
-    };
-
-    // Delete videos
     try {
-      // Leaf Items in the hierarchy
-      const videoIds = await this.deleteAndReturnIds(
-        this.videoCollection,
-        deletedFilter,
-        session,
-      );
-      const blogIds = await this.deleteAndReturnIds(
-        this.blogCollection,
-        deletedFilter,
-        session,
-      );
-      const projectIds = await this.deleteAndReturnIds(
-        this.projectCollection,
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      // 1. Delete quizzes marked as deleted
+      const deletedFilter = {isDeleted: true, deletedAt: {$lte: thirtyDaysAgo}};
+
+      // start with questions.
+      const deletedQuestionsIds = await this.deleteAndReturnIds(
+        this.questionsCollection,
         deletedFilter,
         session,
       );
 
-      const quizzes = await this.questionsCollection
-        .find(deletedFilter, {session})
-        .toArray();
-
-      const quizIds = quizzes.map(q => q._id);
-
-      const bankIds = quizzes.flatMap(q =>
-        q.details.questionBankRefs.map(b => new ObjectId(b.bankId)),
-      );
-
-      const questionBanks = await this.questionBankCollection
-        .find({_id: {$in: bankIds}}, {projection: {questions: 1}, session})
-        .toArray();
-
-      const questionIds = questionBanks.flatMap(qb =>
-        qb.questions.map(qid => new ObjectId(qid)),
-      );
-
-      if (questionIds.length) {
-        await this.questionsCollection.deleteMany(
-          {_id: {$in: questionIds}},
+      // pull the question ids from question banks
+      if (deletedQuestionsIds.length > 0) {
+        await this.questionBankCollection.updateMany(
+          {questions: {$in: deletedQuestionsIds}},
+          {$pullAll: {questions: deletedQuestionsIds}},
           {session},
         );
       }
 
-      // Delete question banks
-      if (bankIds.length) {
-        await this.questionBankCollection.deleteMany(
-          {_id: {$in: bankIds}},
-          {session},
-        );
-      }
+      // 2. Delete question banks marked as deleted
+      const deletedQuestionBankIds = await this.deleteAndReturnIds(
+        this.questionBankCollection,
+        deletedFilter,
+        session,
+      );
 
-      // Delete quizzes
-      if (quizIds.length) {
-        await this.quizCollection.deleteMany({_id: {$in: quizIds}}, {session});
-      }
-
-      // Remove references from ItemsGroup
-
-      const allItemIds = [...videoIds, ...blogIds, ...projectIds, ...quizIds];
-
-      if (allItemIds.length) {
-        await this.itemsGroupCollection.updateMany(
-          {'items._id': {$in: allItemIds}},
+      // pull the question bank ids from quizzes
+      if (deletedQuestionBankIds.length > 0) {
+        await this.quizCollection.updateMany(
+          {'details.questionBankRefs.bankId': {$in: deletedQuestionBankIds}},
           {
             $pull: {
-              items: {
-                _id: {$in: allItemIds},
+              'details.questionBankRefs': {
+                bankId: {$in: deletedQuestionBankIds},
               },
             },
           },
@@ -727,10 +689,70 @@ async getItemsCountByGroupIds(groupIds: string[],session?:ClientSession) {
         );
       }
 
-      // Independent soft deletion causes dangling children.
-      // i.e child is deleted but parent is not deleted.
+      // ItemsGroup -> items (parent soft deletion doesn't flag child as deleted)
+      // So we need to hard delete the child items here.
+
+      const deletedItemGroups = await this.itemsGroupCollection
+        .find(deletedFilter)
+        .toArray();
+
+      const itemMap: Record<ItemType, ObjectId[]> = {
+        [ItemType.VIDEO]: [],
+        [ItemType.QUIZ]: [],
+        [ItemType.BLOG]: [],
+        [ItemType.PROJECT]: [],
+      };
+
+      for (const group of deletedItemGroups) {
+        for (const item of group.items) {
+          itemMap[item.type].push(new ObjectId(item._id));
+        }
+      }
+
+      // 3. Delete Independedly soft deleted items.
+      const deletedQuizIds = await this.deleteAndReturnIds(
+        this.quizCollection,
+        {...deletedFilter, _id: {$in: itemMap[ItemType.QUIZ]}},
+        session,
+      );
+
+      const deletedVideoIds = await this.deleteAndReturnIds(
+        this.videoCollection,
+        {...deletedFilter, _id: {$in: itemMap[ItemType.VIDEO]}},
+        session,
+      );
+
+      const deletedBlogIds = await this.deleteAndReturnIds(
+        this.blogCollection,
+        {...deletedFilter, _id: {$in: itemMap[ItemType.BLOG]}},
+        session,
+      );
+
+      const deletedProjectIds = await this.deleteAndReturnIds(
+        this.projectCollection,
+        {...deletedFilter, _id: {$in: itemMap[ItemType.PROJECT]}},
+        session,
+      );
+
+      // pull the items from items groups
+      const allDeletedItemIds = [
+        ...deletedQuizIds,
+        ...deletedVideoIds,
+        ...deletedBlogIds,
+        ...deletedProjectIds,
+      ];
+
+      if (allDeletedItemIds.length > 0) {
+        await this.itemsGroupCollection.updateMany(
+          {'items._id': {$in: allDeletedItemIds}},
+          {$pull: {items: {_id: {$in: allDeletedItemIds}}}},
+          {session},
+        );
+      }
+
+      await this.courseRepo.cascadeDeleteVersion(session);
     } catch (error) {
-      console.error('Error during cascading video deletion:', error);
+      console.error('Cascade delete failure:', error);
     }
   }
 }
