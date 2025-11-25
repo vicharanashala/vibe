@@ -176,7 +176,7 @@ class UserQuizMetricsRepository {
     }));
   }
 
-  async bulkConvertIds(batchSize = 100): Promise<{updated: number}> {
+  async bulkConvertIds(batchSize = 100): Promise<{ updated: number }> {
     try {
       await this.init();
 
@@ -203,33 +203,39 @@ class UserQuizMetricsRepository {
 
         let needsUpdate = false;
 
+        // Helper function to safely convert string to ObjectId if valid
+        const safeConvertToObjectId = (id: string): string | ObjectId => {
+          if (!id || typeof id !== 'string') return id;
+          return ObjectId.isValid(id) ? new ObjectId(id) : id;
+        };
+
         const updatedUserId =
           metric.userId && typeof metric.userId === 'string'
-            ? ((needsUpdate = true), new ObjectId(metric.userId))
+            ? ((needsUpdate = true), safeConvertToObjectId(metric.userId))
             : metric.userId;
 
         const updatedQuizId =
           metric.quizId && typeof metric.quizId === 'string'
-            ? ((needsUpdate = true), new ObjectId(metric.quizId))
+            ? ((needsUpdate = true), safeConvertToObjectId(metric.quizId))
             : metric.quizId;
 
         const updatedLatestAttemptId =
           metric.latestAttemptId && typeof metric.latestAttemptId === 'string'
-            ? ((needsUpdate = true), new ObjectId(metric.latestAttemptId))
+            ? ((needsUpdate = true), safeConvertToObjectId(metric.latestAttemptId))
             : metric.latestAttemptId;
 
         const updatedLatestSubmissionResultId =
           metric.latestSubmissionResultId &&
-          typeof metric.latestSubmissionResultId === 'string'
+            typeof metric.latestSubmissionResultId === 'string'
             ? ((needsUpdate = true),
-              new ObjectId(metric.latestSubmissionResultId))
+              safeConvertToObjectId(metric.latestSubmissionResultId))
             : metric.latestSubmissionResultId;
 
         const updatedAttempts = (metric.attempts || []).map(attempt => {
-          let newAttempt = {...attempt};
+          let newAttempt = { ...attempt };
 
           if (attempt?.attemptId && typeof attempt.attemptId === 'string') {
-            newAttempt.attemptId = new ObjectId(attempt.attemptId);
+            newAttempt.attemptId = safeConvertToObjectId(attempt.attemptId);
             needsUpdate = true;
           }
 
@@ -237,7 +243,7 @@ class UserQuizMetricsRepository {
             attempt?.submissionResultId &&
             typeof attempt.submissionResultId === 'string'
           ) {
-            newAttempt.submissionResultId = new ObjectId(
+            newAttempt.submissionResultId = safeConvertToObjectId(
               attempt.submissionResultId,
             );
             needsUpdate = true;
@@ -249,7 +255,7 @@ class UserQuizMetricsRepository {
         if (needsUpdate) {
           bulkOps.push({
             updateOne: {
-              filter: {_id: metric._id},
+              filter: { _id: metric._id },
               update: {
                 $set: {
                   userId: updatedUserId,
@@ -260,7 +266,7 @@ class UserQuizMetricsRepository {
                 },
               },
             },
-          });
+          }); 
         }
 
         if (bulkOps.length >= batchSize) {
@@ -277,7 +283,7 @@ class UserQuizMetricsRepository {
         totalUpdated += result.modifiedCount;
       }
 
-      return {updated: totalUpdated};
+      return { updated: totalUpdated };
     } catch (error) {
       throw new InternalServerError(
         `Failed metrics ID conversion. More/ ${error}`,

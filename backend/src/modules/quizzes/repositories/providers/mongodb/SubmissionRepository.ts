@@ -403,75 +403,101 @@ class SubmissionRepository {
 
       let bulkOps: any[] = [];
       let totalUpdated = 0;
+      let processedCount = 0;
+      let errorCount = 0;
 
       while (await cursor.hasNext()) {
+        processedCount++;
         const submission = await cursor.next();
         if (!submission) continue;
 
-        let needsUpdate = false;
-        const updateFields: Record<string, any> = {};
+        try {
+          let needsUpdate = false;
+          const updateFields: Record<string, any> = {};
 
-        if (submission.quizId && typeof submission.quizId === 'string') {
-          updateFields.quizId = new ObjectId(submission.quizId);
-          needsUpdate = true;
-        }
+          // Helper function to safely convert string to ObjectId if valid
+          const safeConvertToObjectId = (id: string): string | ObjectId => {
+            if (!id || typeof id !== 'string') return id;
+            return ObjectId.isValid(id) ? new ObjectId(id) : id;
+          };
 
-        if (submission.userId && typeof submission.userId === 'string') {
-          updateFields.userId = new ObjectId(submission.userId);
-          needsUpdate = true;
-        }
-
-        if (submission.attemptId && typeof submission.attemptId === 'string') {
-          updateFields.attemptId = new ObjectId(submission.attemptId);
-          needsUpdate = true;
-        }
-
-        // Convert questionId in gradingResult.overallFeedback
-        if (submission.gradingResult?.overallFeedback?.length > 0) {
-          const updatedFeedback = submission.gradingResult.overallFeedback.map((feedback: any) => {
-            if (feedback.questionId && typeof feedback.questionId === 'string') {
+          // Convert IDs safely
+          if (submission.quizId && typeof submission.quizId === 'string') {
+            const newId = safeConvertToObjectId(submission.quizId);
+            if (newId !== submission.quizId) {
+              updateFields.quizId = newId;
               needsUpdate = true;
-              return {
-                ...feedback,
-                questionId: new ObjectId(feedback.questionId)
-              };
             }
-            return feedback;
-          });
+          }
+
+          if (submission.userId && typeof submission.userId === 'string') {
+            const newId = safeConvertToObjectId(submission.userId);
+            if (newId !== submission.userId) {
+              updateFields.userId = newId;
+              needsUpdate = true;
+            }
+          }
+
+          if (submission.attemptId && typeof submission.attemptId === 'string') {
+            const newId = safeConvertToObjectId(submission.attemptId);
+            if (newId !== submission.attemptId) {
+              updateFields.attemptId = newId;
+              needsUpdate = true;
+            }
+          }
+
+          // Convert questionId in gradingResult.overallFeedback
+          if (submission.gradingResult?.overallFeedback?.length > 0) {
+            const updatedFeedback = submission.gradingResult.overallFeedback.map((feedback: any) => {
+              if (feedback?.questionId && typeof feedback.questionId === 'string') {
+                const newQuestionId = safeConvertToObjectId(feedback.questionId);
+                if (newQuestionId !== feedback.questionId) {
+                  needsUpdate = true;
+                  return {
+                    ...feedback,
+                    questionId: newQuestionId
+                  };
+                }
+              }
+              return feedback;
+            });
+
+            if (needsUpdate) {
+              updateFields['gradingResult.overallFeedback'] = updatedFeedback;
+            }
+          }
 
           if (needsUpdate) {
-            updateFields['gradingResult.overallFeedback'] = updatedFeedback;
-          }
-        }
-
-
-        if (needsUpdate) {
-          bulkOps.push({
-            updateOne: {
-              filter: { _id: submission._id },
-              update: {
-                $set: updateFields,
+            bulkOps.push({
+              updateOne: {
+                filter: { _id: submission._id },
+                update: { $set: updateFields },
               },
-            },
-          });
-        }
+            });
+          }
 
-        if (bulkOps.length >= batchSize) {
-          const result = await this.submissionResultCollection.bulkWrite(
-            bulkOps,
-          );
-          totalUpdated += result.modifiedCount;
-          bulkOps = [];
+          if (bulkOps.length >= batchSize) {
+            const result = await this.submissionResultCollection.bulkWrite(bulkOps);
+            totalUpdated += result.modifiedCount || 0;
+            bulkOps = [];
+          }
+        } catch (error) {
+          console.error(`Error processing submission ${submission._id}:`, error);
+          errorCount++;
+          continue;
         }
       }
 
+      // Process any remaining operations
       if (bulkOps.length > 0) {
         const result = await this.submissionResultCollection.bulkWrite(bulkOps);
-        totalUpdated += result.modifiedCount;
+        totalUpdated += result.modifiedCount || 0;
       }
 
+      console.log(`Processed ${processedCount} submissions, updated ${totalUpdated} documents, ${errorCount} errors`);
       return { updated: totalUpdated };
     } catch (error) {
+      console.error('Error in bulkConvertIds:', error);
       throw new InternalServerError(
         `Failed quiz_submission_results ID conversion. More/ ${error}`,
       );

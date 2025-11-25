@@ -3,20 +3,20 @@ import {
   IQuestionAnswer,
   IQuestionDetails,
 } from '#quizzes/interfaces/grading.js';
-import {ID} from '#root/shared/index.js';
-import {IAttempt} from '#quizzes/interfaces/grading.js';
-import {MongoDatabase} from '#shared/database/providers/mongo/MongoDatabase.js';
-import {injectable, inject} from 'inversify';
-import {Collection, ClientSession, ObjectId} from 'mongodb';
-import {InternalServerError} from 'routing-controllers';
-import {GLOBAL_TYPES} from '#root/types.js';
+import { ID } from '#root/shared/index.js';
+import { IAttempt } from '#quizzes/interfaces/grading.js';
+import { MongoDatabase } from '#shared/database/providers/mongo/MongoDatabase.js';
+import { injectable, inject } from 'inversify';
+import { Collection, ClientSession, ObjectId } from 'mongodb';
+import { InternalServerError } from 'routing-controllers';
+import { GLOBAL_TYPES } from '#root/types.js';
 @injectable()
 class AttemptRepository {
   private attemptCollection: Collection<IAttempt>;
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
-  ) {}
+  ) { }
 
   private async init() {
     this.attemptCollection = await this.db.getCollection<IAttempt>(
@@ -26,7 +26,7 @@ class AttemptRepository {
 
   async create(attempt: IAttempt, session?: ClientSession) {
     await this.init();
-    const result = await this.attemptCollection.insertOne(attempt, {session});
+    const result = await this.attemptCollection.insertOne(attempt, { session });
     if (result.acknowledged && result.insertedId) {
       return result.insertedId.toString();
     }
@@ -46,9 +46,9 @@ class AttemptRepository {
     const result = await this.attemptCollection.findOne(
       {
         _id: new ObjectId(attemptId),
-        quizId: {$in: [quizIdStr, quizIdObj]},
+        quizId: { $in: [quizIdStr, quizIdObj] },
       },
-      {session},
+      { session },
     );
 
     if (!result) {
@@ -107,8 +107,8 @@ class AttemptRepository {
     const quizIdObj = new ObjectId(quizIdStr);
 
     const result = await this.attemptCollection.countDocuments(
-      {quizId: {$in: [quizIdStr, quizIdObj]}},
-      {session},
+      { quizId: { $in: [quizIdStr, quizIdObj] } },
+      { session },
     );
     if (!result) {
       return null;
@@ -132,10 +132,10 @@ class AttemptRepository {
 
     const result = await this.attemptCollection.countDocuments(
       {
-        quizId: {$in: [quizIdStr, quizIdObj]},
-        userId: {$in: [userIdStr, userIdObj]},
+        quizId: { $in: [quizIdStr, quizIdObj] },
+        userId: { $in: [userIdStr, userIdObj] },
       },
-      {session},
+      { session },
     );
     console.log(result);
     if (!result) {
@@ -147,9 +147,9 @@ class AttemptRepository {
   async update(attemptId: string, updateData: Partial<IAttempt>) {
     await this.init();
     const result = await this.attemptCollection.findOneAndUpdate(
-      {_id: new ObjectId(attemptId)},
-      {$set: updateData},
-      {returnDocument: 'after'},
+      { _id: new ObjectId(attemptId) },
+      { $set: updateData },
+      { returnDocument: 'after' },
     );
     return result;
   }
@@ -183,12 +183,12 @@ class AttemptRepository {
     const distinctUsers = await this.attemptCollection.distinct(
       'userId',
       filter,
-      {session},
+      { session },
     );
     return distinctUsers.length;
   }
 
-  async bulkConvertIds(batchSize = 100): Promise<{updated: number}> {
+  async bulkConvertIds(batchSize = 100): Promise<{ updated: number }> {
     try {
       await this.init();
 
@@ -201,9 +201,6 @@ class AttemptRepository {
             userId: 1,
             questionDetails: 1,
             answers: 1,
-            isSkipped: 1,
-            createdAt: 1,
-            updatedAt: 1,
           },
         },
       );
@@ -217,32 +214,38 @@ class AttemptRepository {
 
         let needsUpdate = false;
 
+        // Helper function to safely convert string to ObjectId if valid
+        const safeConvertToObjectId = (id: string): string | ObjectId => {
+          if (!id || typeof id !== 'string') return id;
+          return ObjectId.isValid(id) ? new ObjectId(id) : id;
+        };
+
         const updatedQuizId =
           attempt.quizId && typeof attempt.quizId === 'string'
-            ? ((needsUpdate = true), new ObjectId(attempt.quizId))
+            ? ((needsUpdate = true), safeConvertToObjectId(attempt.quizId))
             : attempt.quizId;
 
         const updatedUserId =
           attempt.userId && typeof attempt.userId === 'string'
-            ? ((needsUpdate = true), new ObjectId(attempt.userId))
+            ? ((needsUpdate = true), safeConvertToObjectId(attempt.userId))
             : attempt.userId;
 
         const updatedQuestionDetails = (attempt.questionDetails || []).map(
           qd => {
             if (qd?.questionId && typeof qd.questionId === 'string') {
               needsUpdate = true;
-              return {...qd, questionId: new ObjectId(qd.questionId)};
+              return { ...qd, questionId: safeConvertToObjectId(qd.questionId) };
             }
             return qd;
           },
         );
 
         const updatedAnswers = (attempt.answers || []).map(ans => {
-          let newAnswer: any = {...ans.answer};
+          let newAnswer: any = { ...ans.answer };
 
           if ('lotItemId' in newAnswer && newAnswer.lotItemId) {
             if (typeof newAnswer.lotItemId === 'string') {
-              newAnswer.lotItemId = new ObjectId(newAnswer.lotItemId);
+              newAnswer.lotItemId = safeConvertToObjectId(newAnswer.lotItemId);
               needsUpdate = true;
             }
           } else if (
@@ -250,7 +253,7 @@ class AttemptRepository {
             Array.isArray(newAnswer.lotItemIds)
           ) {
             newAnswer.lotItemIds = newAnswer.lotItemIds.map(id =>
-              typeof id === 'string' ? new ObjectId(id) : id,
+              typeof id === 'string' ? safeConvertToObjectId(id) : id,
             );
             needsUpdate = true;
           } else if ('orders' in newAnswer && Array.isArray(newAnswer.orders)) {
@@ -258,7 +261,7 @@ class AttemptRepository {
               ...o,
               lotItemId:
                 typeof o.lotItemId === 'string'
-                  ? new ObjectId(o.lotItemId)
+                  ? safeConvertToObjectId(o.lotItemId)
                   : o.lotItemId,
             }));
             needsUpdate = true;
@@ -266,16 +269,16 @@ class AttemptRepository {
 
           const updatedQId =
             typeof ans.questionId === 'string'
-              ? ((needsUpdate = true), new ObjectId(ans.questionId))
+              ? ((needsUpdate = true), safeConvertToObjectId(ans.questionId))
               : ans.questionId;
 
-          return {...ans, questionId: updatedQId, answer: newAnswer};
+          return { ...ans, questionId: updatedQId, answer: newAnswer };
         });
 
         if (needsUpdate) {
           bulkOps.push({
             updateOne: {
-              filter: {_id: attempt._id},
+              filter: { _id: attempt._id },
               update: {
                 $set: {
                   quizId: updatedQuizId,
@@ -300,7 +303,7 @@ class AttemptRepository {
         totalUpdated += result.modifiedCount;
       }
 
-      return {updated: totalUpdated};
+      return { updated: totalUpdated };
     } catch (error) {
       throw new InternalServerError(
         `Failed attempts ID conversion. More/ ${error}`,
@@ -309,4 +312,4 @@ class AttemptRepository {
   }
 }
 
-export {AttemptRepository};
+export { AttemptRepository };

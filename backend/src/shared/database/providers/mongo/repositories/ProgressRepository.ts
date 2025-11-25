@@ -519,71 +519,118 @@ class ProgressRepository {
     return result;
   }
 
-  async bulkConvertIds(batchSize: number=100): Promise<{updated: number}> {
-    await this.init();
-    const cursor = this.progressCollection.find({}).project({
-      _id: 1,
-      userId: 1,
-      courseId: 1,
-      courseVersionId: 1,
-      currentModule: 1,
-      currentSection: 1,
-      currentItem: 1
-    });
-    let bulkOps: any[] = [];
-    let totalUpdated = 0;
-
-    while (await cursor.hasNext()) {
-      const progress = (await cursor.next()) as IProgress;
-      if (!progress) continue;
-
-      const updateFields: Record<string, any> = {};
+  async bulkConvertIds(batchSize: number = 100): Promise<{updated: number}> {
+    try {
+      await this.init();
+      const cursor = this.progressCollection.find({}).project({
+        _id: 1,
+        userId: 1,
+        courseId: 1,
+        courseVersionId: 1,
+        currentModule: 1,
+        currentSection: 1,
+        currentItem: 1
+      });
       
-      // Convert existing fields
+      let bulkOps: any[] = [];
+      let totalUpdated = 0;
+      let processedCount = 0;
+      let errorCount = 0;
+
+      // Helper function to safely convert string to ObjectId if valid
+      const safeConvertToObjectId = (id: any): any => {
+        if (!id || typeof id !== 'string') return id;
+        return ObjectId.isValid(id) ? new ObjectId(id) : id;
+      };
+
+      while (await cursor.hasNext()) {
+        processedCount++;
+        const progress = (await cursor.next()) as IProgress;
+        if (!progress) continue;
+
+        try {
+          const updateFields: Record<string, any> = {};
+          let needsUpdate = false;
+          
+          // Convert existing fields
       if (progress.userId && typeof progress.userId === 'string') {
-        updateFields.userId = new ObjectId(progress.userId);
+        needsUpdate = true;
+        const newId = await safeConvertToObjectId(progress.userId);
+        if (newId !== progress.userId) {
+          updateFields.userId = newId;
+        }
       }
       if (progress.courseId && typeof progress.courseId === 'string') {
-        updateFields.courseId = new ObjectId(progress.courseId);
+        needsUpdate = true;
+        const newId = await safeConvertToObjectId(progress.courseId);
+        if (newId !== progress.courseId) {
+          updateFields.courseId = newId;
+        }
       }
       if (progress.courseVersionId && typeof progress.courseVersionId === 'string') {
-        updateFields.courseVersionId = new ObjectId(progress.courseVersionId);
+        needsUpdate = true;
+        const newId = await safeConvertToObjectId(progress.courseVersionId);
+        if (newId !== progress.courseVersionId) {
+          updateFields.courseVersionId = newId;
+        }
       }
       
       // Convert progress tracking fields
       if (progress.currentModule && typeof progress.currentModule === 'string') {
-        updateFields.currentModule = new ObjectId(progress.currentModule);
+        needsUpdate = true;
+        const newId =await safeConvertToObjectId(progress.currentModule);
+        if (newId !== progress.currentModule) {
+          updateFields.currentModule = newId;
+        }
       }
       if (progress.currentSection && typeof progress.currentSection === 'string') {
-        updateFields.currentSection = new ObjectId(progress.currentSection);
+        needsUpdate = true;
+        const newId = await safeConvertToObjectId(progress.currentSection);
+        if (newId !== progress.currentSection) {
+          updateFields.currentSection = newId;
+        }
       }
       if (progress.currentItem && typeof progress.currentItem === 'string') {
-        updateFields.currentItem = new ObjectId(progress.currentItem);
-      }
-
-      if (Object.keys(updateFields).length > 0) {
-        bulkOps.push({
-          updateOne: {
-            filter: {_id: progress._id},
-            update: {$set: updateFields}
+        needsUpdate = true;
+        const newId = await safeConvertToObjectId(progress.currentItem);
+        if (newId !== progress.currentItem) {
+          updateFields.currentItem = newId;
+        }
           }
-        });
+
+      if (needsUpdate) {
+            bulkOps.push({
+              updateOne: {
+                filter: {_id: progress._id},
+                update: {$set: updateFields}
+              }
+            });
+          }
+
+          if (bulkOps.length >= batchSize) {
+            const result = await this.progressCollection.bulkWrite(bulkOps);
+            totalUpdated += result.modifiedCount || 0;
+            bulkOps = [];
+          }
+        } catch (error) {
+          console.error(`Error processing progress ${progress._id}:`, error);
+          errorCount++;
+          continue;
+        }
       }
 
-      if (bulkOps.length >= batchSize) {
+      // Process any remaining operations
+      if (bulkOps.length > 0) {
         const result = await this.progressCollection.bulkWrite(bulkOps);
-        totalUpdated += result.modifiedCount;
-        bulkOps = [];
+        totalUpdated += result.modifiedCount || 0;
       }
-    }
 
-    if (bulkOps.length > 0) {
-      const result = await this.progressCollection.bulkWrite(bulkOps);
-      totalUpdated += result.modifiedCount;
+      console.log(`Processed ${processedCount} progress documents, updated ${totalUpdated} documents, ${errorCount} errors`);
+      return {updated: totalUpdated};
+    } catch (error) {
+      console.error('Error in bulkConvertIds:', error);
+      throw error;
     }
-
-    console.log(`Updated ${totalUpdated} progress documents`);
-    return {updated: totalUpdated};
   }
 }
 
