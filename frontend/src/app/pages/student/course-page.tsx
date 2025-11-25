@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings, useSubmitFlag } from "@/hooks/hooks";
+import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
@@ -641,30 +641,172 @@ export default function CoursePage() {
     return null;
   }, [courseVersionData, selectedModuleId, selectedSectionId, selectedItemId, sectionItems]);
 
-  const handleNext = useCallback(async () => {
-    // Set loading state
+  // const handleNext = useCallback(async () => {
+  //   // Set loading state
+  //   setIsNavigatingToNext(true);
+
+  //   try {
+  //     // Stop current item before moving to next with proper cleanup
+  //     if (itemContainerRef.current) {
+  //       itemContainerRef.current.stopCurrentItem();
+
+  //       // Allow a small delay for cleanup
+  //       await new Promise(resolve => setTimeout(resolve, 50));
+  //     }
+
+  //     // Find and navigate to the actual next item
+  //     const nextItem = findNextItem();
+
+  //     if (!nextItem) {
+  //       console.log('No next item found - course completed!');
+
+  //       // Clear loading state
+  //       setIsNavigatingToNext(false);
+
+  //       // Trigger confetti celebration
+  //       const end = Date.now() + 3 * 1000; // 3 seconds
+  //       const colors = ["#a786ff", "#fd8bbc", "#eca184", "#f8deb1"];
+
+  //       const frame = () => {
+  //         if (Date.now() > end) return;
+
+  //         confetti({
+  //           particleCount: 2,
+  //           angle: 60,
+  //           spread: 55,
+  //           startVelocity: 60,
+  //           origin: { x: 0, y: 0.5 },
+  //           colors: colors,
+  //         });
+  //         confetti({
+  //           particleCount: 2,
+  //           angle: 120,
+  //           spread: 55,
+  //           startVelocity: 60,
+  //           origin: { x: 1, y: 0.5 },
+  //           colors: colors,
+  //         });
+
+  //         requestAnimationFrame(frame);
+  //       };
+
+  //       frame();
+
+  //       // Redirect to dashboard after celebration
+  //       setTimeout(() => {
+  //         router.navigate({ to: '/student' });
+  //       }, 3500);
+
+  //       return;
+  //     }
+
+  //     // Check if we need to load items for the next section
+  //     if ((nextItem as any).needsLoading) {
+  //       const { moduleId, sectionId } = nextItem;
+  //       console.log('Next section items need loading. Triggering load for:', { moduleId, sectionId });
+        
+  //       // Store current valid item before switching
+  //       if (selectedItemId && selectedSectionId && selectedModuleId) {
+  //         setPreviousValidItem({
+  //           moduleId: selectedModuleId,
+  //           sectionId: selectedSectionId,
+  //           itemId: selectedItemId
+  //         });
+  //       }
+        
+  //       // Set waiting state to track when items are loaded
+  //       setWaitingForNextSection({ moduleId, sectionId });
+        
+  //       // Trigger loading of next section items
+  //       setActiveSectionInfo({ moduleId, sectionId });
+        
+  //       // Keep loading state active (will be cleared when navigation completes)
+  //       return;
+  //     }
+
+  //     const { moduleId, sectionId, itemId } = nextItem;
+
+  //     // Ensure all values are defined before switching (for regular navigation)
+  //     if (!moduleId || !sectionId || !itemId) {
+  //       console.log('Invalid next item data');
+  //       setIsNavigatingToNext(false);
+  //       return;
+  //     }
+
+  //     // Store current valid item before switching
+  //     if (selectedItemId && selectedSectionId && selectedModuleId) {
+  //       setPreviousValidItem({
+  //         moduleId: selectedModuleId,
+  //         sectionId: selectedSectionId,
+  //         itemId: selectedItemId
+  //       });
+  //     }
+
+  //     // Clear any existing item errors to ensure navigation works
+  //     setIsItemForbidden(false);
+
+  //     // Update local state immediately to the NEXT item
+  //     setSelectedModuleId(moduleId);
+  //     setSelectedSectionId(sectionId);
+  //     setSelectedItemId(itemId);
+
+  //     // Auto-expand the module and section
+  //     setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
+  //     setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
+
+  //     // Set active section to fetch items if not already loaded
+  //     if (!sectionItems[sectionId]) {
+  //       setActiveSectionInfo({
+  //         moduleId,
+  //         sectionId
+  //       });
+  //     }
+
+  //     // Update the course store with the next item
+  //     updateCourseNavigation(moduleId, sectionId, itemId);
+      
+  //     console.log('Successfully navigated to next item:', { moduleId, sectionId, itemId });
+  //   } catch (error) {
+  //     console.error('Error navigating to next item:', error);
+  //     // Clear loading state on error
+  //     setIsNavigatingToNext(false);
+  //   }
+  // }, [
+  //   findNextItem,
+  //   selectedModuleId,
+  //   selectedSectionId,
+  //   selectedItemId,
+  //   sectionItems,
+  //   updateCourseNavigation,
+  //   router
+  // ]);
+
+  // Helper function to find the last video item before the current item
+    
+
+
+  const handleNext = useCallback(() => {
+  enqueueNavigation(async () => {
+    console.log("🔵 QUEUED: handleNext");
+
     setIsNavigatingToNext(true);
 
     try {
-      // Stop current item before moving to next with proper cleanup
+      // 1️⃣ Stop current item (clean + API)
       if (itemContainerRef.current) {
         itemContainerRef.current.stopCurrentItem();
-
-        // Allow a small delay for cleanup
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise(res => setTimeout(res, 30));  
       }
 
-      // Find and navigate to the actual next item
+      // 2️⃣ Determine next item
       const nextItem = findNextItem();
 
       if (!nextItem) {
-        console.log('No next item found - course completed!');
-
-        // Clear loading state
+        console.log("🎉 Course complete");
         setIsNavigatingToNext(false);
 
-        // Trigger confetti celebration
-        const end = Date.now() + 3 * 1000; // 3 seconds
+        // Confetti celebration
+        const end = Date.now() + 3000;
         const colors = ["#a786ff", "#fd8bbc", "#eca184", "#f8deb1"];
 
         const frame = () => {
@@ -676,7 +818,7 @@ export default function CoursePage() {
             spread: 55,
             startVelocity: 60,
             origin: { x: 0, y: 0.5 },
-            colors: colors,
+            colors,
           });
           confetti({
             particleCount: 2,
@@ -684,104 +826,94 @@ export default function CoursePage() {
             spread: 55,
             startVelocity: 60,
             origin: { x: 1, y: 0.5 },
-            colors: colors,
+            colors,
           });
 
           requestAnimationFrame(frame);
         };
-
         frame();
 
-        // Redirect to dashboard after celebration
-        setTimeout(() => {
-          router.navigate({ to: '/student' });
-        }, 3500);
-
+        setTimeout(() => router.navigate({ to: "/student" }), 3500);
         return;
       }
 
-      // Check if we need to load items for the next section
+      // 3️⃣ If next section requires loading
       if ((nextItem as any).needsLoading) {
         const { moduleId, sectionId } = nextItem;
-        console.log('Next section items need loading. Triggering load for:', { moduleId, sectionId });
-        
-        // Store current valid item before switching
+
+        // Store current as previous valid
         if (selectedItemId && selectedSectionId && selectedModuleId) {
           setPreviousValidItem({
             moduleId: selectedModuleId,
             sectionId: selectedSectionId,
-            itemId: selectedItemId
+            itemId: selectedItemId,
           });
         }
-        
-        // Set waiting state to track when items are loaded
+
+        // Set waiting state
         setWaitingForNextSection({ moduleId, sectionId });
-        
-        // Trigger loading of next section items
+
+        // Trigger loading of next section
         setActiveSectionInfo({ moduleId, sectionId });
-        
-        // Keep loading state active (will be cleared when navigation completes)
-        return;
+
+        return; // WAIT for another effect to continue navigation
       }
 
+      // 4️⃣ Normal next item navigation
       const { moduleId, sectionId, itemId } = nextItem;
 
-      // Ensure all values are defined before switching (for regular navigation)
       if (!moduleId || !sectionId || !itemId) {
-        console.log('Invalid next item data');
+        console.log("❌ Invalid next item data");
         setIsNavigatingToNext(false);
         return;
       }
 
-      // Store current valid item before switching
+      // Store current valid item
       if (selectedItemId && selectedSectionId && selectedModuleId) {
         setPreviousValidItem({
           moduleId: selectedModuleId,
           sectionId: selectedSectionId,
-          itemId: selectedItemId
+          itemId: selectedItemId,
         });
       }
 
-      // Clear any existing item errors to ensure navigation works
       setIsItemForbidden(false);
 
-      // Update local state immediately to the NEXT item
+      // 5️⃣ Update UI state
       setSelectedModuleId(moduleId);
       setSelectedSectionId(sectionId);
       setSelectedItemId(itemId);
 
-      // Auto-expand the module and section
       setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
       setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
 
-      // Set active section to fetch items if not already loaded
+      // Fetch section if needed
       if (!sectionItems[sectionId]) {
-        setActiveSectionInfo({
-          moduleId,
-          sectionId
-        });
+        setActiveSectionInfo({ moduleId, sectionId });
       }
 
-      // Update the course store with the next item
+      // Update global course store
       updateCourseNavigation(moduleId, sectionId, itemId);
-      
-      console.log('Successfully navigated to next item:', { moduleId, sectionId, itemId });
-    } catch (error) {
-      console.error('Error navigating to next item:', error);
-      // Clear loading state on error
+
+      console.log("➡️ Navigated to next:", { moduleId, sectionId, itemId });
+    } catch (err) {
+      console.error("❌ handleNext error:", err);
+    } finally {
       setIsNavigatingToNext(false);
     }
-  }, [
-    findNextItem,
-    selectedModuleId,
-    selectedSectionId,
-    selectedItemId,
-    sectionItems,
-    updateCourseNavigation,
-    router
-  ]);
+  });
+}, [
+  findNextItem,
+  itemContainerRef,
+  selectedModuleId,
+  selectedSectionId,
+  selectedItemId,
+  sectionItems,
+  updateCourseNavigation,
+  router,
+]);
 
-  // Helper function to find the last video item before the current item
+  
   const findPreviousVideoItem = useCallback(() => {
     if (!courseVersionData || !selectedModuleId || !selectedSectionId || !selectedItemId) {
       return null;
@@ -1450,6 +1582,9 @@ export default function CoursePage() {
                       keyboardLockEnabled={!isFlagModalOpen}
                       linearProgressionEnabled = {proctoringData?.settings.linearProgressionEnabled || true}
                       setIsQuizSkipped= {setIsQuizSkipped}
+                      courseId={COURSE_ID}
+                      versionId={VERSION_ID}
+                      sectionId={sectionId}
                     />
                   )}
 

@@ -465,11 +465,11 @@ class AttemptService extends BaseService {
           session,
         );
 
-      if (existingSubmission) {
-        throw new BadRequestError(
-          `You have already submitted feedback for the previous item (${previousItemType}).`,
-        );
-      }
+      // if (existingSubmission) {
+      //   throw new BadRequestError(
+      //     `You have already submitted feedback for the previous item (${previousItemType}).`,
+      //   );
+      // }
 
       // 7. Create new feedback submission record
       const newFeedbackSubmission: FeedbackSubmissionItem = {
