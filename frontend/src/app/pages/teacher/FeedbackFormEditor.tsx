@@ -1,19 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { FileText, Edit, X, Loader2, Sparkles } from 'lucide-react';
-import { CardTitle } from '@/components/ui/card';
+import { useState, useEffect } from 'react';
+import { FileText, Edit, X, Loader2, Sparkles, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch'; // Make sure you have this
+import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import Form from '@rjsf/shadcn';
 import validator from "@rjsf/validator-ajv8";
 import { useUpdateCourseItem } from '@/hooks/hooks';
 import FeedbackFormBuilder from '../student/components/FeedbackFormBuilder';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { FeedbackSubmissionsTable } from './FeedbackSubmissionTable';
 
 interface FeedbackFormEditorProps {
   isLoading?: boolean;
@@ -44,6 +45,7 @@ export default function FeedbackFormEditor({
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formBuilder, setFormBuilder] = useState(false)
+  const [selectedTab, setSelectedTab] = useState<'create' | 'submissions'>('create');
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -155,200 +157,235 @@ export default function FeedbackFormEditor({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header - unchanged */}
-      <div>
-        <div className="pb-4">
-          <div className="flex lg:flex-row flex-col gap-3 items-center justify-between">
-            <div className="flex items-center gap-3 w-full">
-              <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/20">
-                <FileText className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <CardTitle className="text-xl">{selectedItemName}</CardTitle>
-                <div className="flex flex-wrap items-center gap-4 mt-foreground mt-1 text-sm text-muted-foreground">
-                  <Badge variant="outline" className="text-xs">
-                    Feedback Form
-                  </Badge>
+    <>
+      <div className="h-full flex flex-col">
+        <div className="border-b">
+          <div className="md:p-6 pb-6">
+            <div className="lg:flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/20">
+                  <FileText className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <h1 className="text-xl md:text-2xl font-bold">{selectedItemName}</h1>
+                  <p className="text-muted-foreground text-sm md:text-base">{details?.description || 'Manage your feedback form content'}</p>
+                  <div className="flex flex-wrap items-center gap-4 mt-1 text-sm text-muted-foreground">
+                    <Badge variant="outline" className="text-xs">
+                      Feedback Form
+                    </Badge>
+                  </div>
                 </div>
               </div>
-            </div>
-
-            <div className="flex lg:flex-nowrap flex-wrap items-center gap-2 justify-center">
-              {isEditMode ? (
-                <>
+              <div className="flex flex-wrap gap-2 mt-4 lg:mt-0">
+                {isEditMode ? (
+                  <>
+                    <Button
+                      onClick={handleSave}
+                      disabled={isSaving}
+                      className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
+                    >
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        'Save Changes'
+                      )}
+                    </Button>
+                    <Button onClick={handleCancel} variant="outline" disabled={isSaving}>
+                      <X className="h-3 w-3 mr-1" />
+                      Cancel
+                    </Button>
+                  </>
+                ) : (
                   <Button
-                    onClick={handleSave}
-                    disabled={isSaving}
+                    onClick={handleEdit}
                     className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
                   >
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      'Save Changes'
-                    )}
+                    <Edit className="h-4 w-4 mr-2" />
+                    Update Form
                   </Button>
-                  <Button onClick={handleCancel} variant="outline" disabled={isSaving}>
-                    <X className="h-3 w-3 mr-1" />
-                    Cancel
-                  </Button>
-                </>
-              ) : (
+                )}
                 <Button
-                  onClick={handleEdit}
-                  className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-all duration-300"
+                  onClick={onDelete}
+                  variant="outline"
+                  className="border-border bg-background"
+                  disabled={isEditMode}
                 >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Update Form
+                  <X className="h-3 w-3 mr-1" />
+                  Delete Form
                 </Button>
-              )}
-
-              <Button
-                onClick={onDelete}
-                variant="outline"
-                className="border-border bg-background ml-2"
-                disabled={isEditMode}
-              >
-                <X className="h-3 w-3 mr-1" />
-                Delete Form
-              </Button>
+              </div>
             </div>
           </div>
+
+          <Tabs value={selectedTab} onValueChange={setSelectedTab} className="md:px-6 mb-4">
+            <TabsList className="lg:w-fit w-full overflow-x-auto no-scrollbar">
+              <TabsTrigger value="create" className="flex items-center gap-2 cursor-pointer">
+                <Edit className="h-4 w-4" />
+                Create
+              </TabsTrigger>
+              <TabsTrigger value="submissions" className="flex items-center gap-2 cursor-pointer">
+                <Users className="h-4 w-4" />
+                Submissions
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
-      </div>
 
-      {/* Main Content Box */}
-      <div>
-        <div className="p-6 space-y-6 bg-card rounded-lg border">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Title */}
-            <div className="space-y-2">
-              <Label htmlFor="feedback-title">Title *</Label>
-              <Input
-                id="feedback-title"
-                value={form.name}
-                onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="e.g. Week 3 Feedback"
-                disabled={!isEditMode}
-              />
-            </div>
+        <div className="flex-1 overflow-hidden">
 
-            {/* Is Optional Toggle - replaces Points */}
-            <div className="space-y-2">
-              <Label>Is Optional</Label>
-              <div className="flex items-center space-x-3">
-                <Switch
-                  checked={form.isOptional}
-                  onCheckedChange={(checked) => setForm(prev => ({ ...prev, isOptional: checked }))}
-                  disabled={!isEditMode}
-                />
-                <span className="text-sm text-muted-foreground">
-                  {form.isOptional ? 'Optional' : 'Required'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="feedback-description">Description / Instructions *</Label>
-            <Textarea
-              id="feedback-description"
-              value={form.description}
-              onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Explain what kind of feedback you expect from learners..."
-              rows={4}
-              disabled={!isEditMode}
-            />
-          </div>
-
-          <Separator />
-
-          {/* Build Form Button + Placeholder */}
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h4 className="font-medium">Your Feedback Form</h4>
-                <p className="text-sm text-muted-foreground">Add more fields by clicking build form</p>
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={() => setFormBuilder(true)}
-                // onClick={() => alert('Form builder coming soon!')} // replace later
-
-                disabled={!isEditMode} // optional: only enable in edit mode
-              >
-                <Sparkles className="h-4 w-4" />
-                Build Form
-              </Button>
-            </div>
-
-            <div className="text-center py-12 text-muted-foreground border-2 border-dashed border-border rounded-lg">
-              {details &&
-                <div className="overflow-y-auto max-h-[70vh] pr-2">
-                  <div className="max-w-lg mx-auto w-full space-y-4">
-                    <Form
-                      schema={details?.item?.details?.jsonSchema}
-                      validator={validator}
-                      uiSchema={details?.item?.details?.uiSchema}
-                      onSubmit={onSubmit}
-                      disabled={isSubmitting}
+          <Tabs value={selectedTab} onValueChange={setSelectedTab}>
+            <TabsContent value="create" className="h-full m-0 mt-2">
+              <div className="p-6 space-y-6 bg-card rounded-lg border">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Title */}
+                  <div className="space-y-2">
+                    <Label htmlFor="feedback-title">Title *</Label>
+                    <Input
+                      id="feedback-title"
+                      value={form.name}
+                      onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="e.g. Week 3 Feedback"
+                      disabled={!isEditMode}
                     />
+                  </div>
+
+                  {/* Is Optional Toggle - replaces Points */}
+                  <div className="space-y-2">
+                    <Label>Is Optional</Label>
+                    <div className="flex items-center space-x-3">
+                      <Switch
+                        checked={form.isOptional}
+                        onCheckedChange={(checked) => setForm(prev => ({ ...prev, isOptional: checked }))}
+                        disabled={!isEditMode}
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {form.isOptional ? 'Optional' : 'Required'}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              }
 
-              <Dialog open={formBuilder} onOpenChange={setFormBuilder}>
-                <DialogContent
-                  className="
-      max-w-[95vw]     /* nearly full width */
-      w-full 
-      h-[90vh]         /* tall but not full height */
-      p-0 
-      overflow-hidden  /* keeps inner scroll clean */
-      rounded-xl 
-      shadow-2xl
-      border 
-      bg-card
-      animate-in 
-      fade-in-0 
-      zoom-in-95
-    "
-                >
-                  {/* Sticky Header */}
-                  <DialogHeader className="p-5 border-b sticky top-0 bg-card z-20">
-                    <DialogTitle className="text-xl font-semibold">
-                      Build Feedback Form
-                    </DialogTitle>
-                    <p className="text-sm text-muted-foreground">
-                      Customize your form layout and fields.
-                    </p>
-                  </DialogHeader>
+                {/* Description */}
+                <div className="space-y-2">
+                  <Label htmlFor="feedback-description">Description / Instructions *</Label>
+                  <Textarea
+                    id="feedback-description"
+                    value={form.description}
+                    onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Explain what kind of feedback you expect from learners..."
+                    rows={4}
+                    disabled={!isEditMode}
+                  />
+                </div>
 
-                  {/* Scrollable Body */}
-                  <div className="p-6 overflow-y-auto h-full">
-                    <FeedbackFormBuilder
-                      fetchedSchemas={details?.item?.details}
-                      onSave={handleSaveSchemas}
-                      isSaving={updateItem.isPending}
-                      onCancel={() => setFormBuilder(false)}
-                    />
+                <Separator />
+
+                {/* Build Form Button + Placeholder */}
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h4 className="font-medium">Your Feedback Form</h4>
+                      <p className="text-sm text-muted-foreground">Add more fields by clicking build form</p>
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      onClick={() => setFormBuilder(true)}
+                      disabled={!isEditMode} // optional: only enable in edit mode
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      Build Form
+                    </Button>
                   </div>
-                </DialogContent>
-              </Dialog>
 
+                  <div className="text-center py-12 text-muted-foreground border-2 border-dashed border-border rounded-lg">
+                    {details &&
+                      <div className="overflow-y-auto max-h-[70vh] pr-2">
+                        <div className="max-w-lg mx-auto w-full space-y-4">
+                          <Form
+                            schema={details?.item?.details?.jsonSchema}
+                            validator={validator}
+                            uiSchema={details?.item?.details?.uiSchema}
+                            onSubmit={onSubmit}
+                            disabled={isSubmitting}
+                          />
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
 
-
-            </div>
-          </div>
+            <TabsContent value="submissions" className="h-full m-0">
+              <div className="p-6 w-full">
+                <FeedbackSubmissionsTable
+                  feedbackId={feedbackId}
+                  courseId={courseId}
+                  courseVersionId={courseVersionId}
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
+
+        {/* Build Form Dialog - moved outside TabsContent */}
+        <Dialog open={formBuilder} onOpenChange={setFormBuilder}>
+          <DialogContent
+            className="
+              max-w-[95vw]     /* nearly full width */
+              w-full 
+              h-[90vh]         /* tall but not full height */
+              p-0 
+              overflow-hidden  /* keeps inner scroll clean */
+              rounded-xl 
+              shadow-2xl
+              border 
+              bg-card
+              animate-in 
+              fade-in-0 
+              zoom-in-95
+            "
+          >
+            {/* Sticky Header */}
+            <DialogHeader className="p-5 border-b sticky top-0 bg-card z-20 flex items-center justify-between relative">
+              <div>
+                <DialogTitle className="text-xl font-semibold">
+                  Build Feedback Form
+                </DialogTitle>
+                <p className="text-sm text-muted-foreground">
+                  Customize your form layout and fields.
+                </p>
+              </div>
+
+              {/* Close Button - Absolutely positioned */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setFormBuilder(false)}
+                className="h-8 w-8 rounded-full hover:bg-muted absolute right-4 top-4"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogHeader>
+
+            {/* Scrollable Body */}
+            <div className="p-6 overflow-y-auto h-full">
+              <FeedbackFormBuilder
+                fetchedSchemas={details?.item?.details}
+                onSave={handleSaveSchemas}
+                isSaving={updateItem.isPending}
+                onCancel={() => setFormBuilder(false)}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
-    </div>
+    </>
   );
 }

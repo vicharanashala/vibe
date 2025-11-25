@@ -1,4 +1,4 @@
-import Form from "@rjsf/core";
+
 import validator from "@rjsf/validator-ajv8";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +7,7 @@ import { useCourseStore } from "@/store/course-store";
 import { useStartItem, useStopItem, useSubmitFeedback } from "@/hooks/hooks";
 import { useEffect, useRef } from "react";
 import { ISubmitFeedbackBody } from "@/components/Item-container";
+import Form from "@rjsf/shadcn";
 
 
 interface FeedbackFormProps {
@@ -18,82 +19,12 @@ interface FeedbackFormProps {
   onSubmit: (data: any) => void;
   onSkip?: () => void;
   isSubmitting?: boolean;
-  onNext:() => void
+  onNext: () => void
 }
 
 
-const customWidgets = {
-  TextWidget: ({ value, onChange, ...rest }: any) => (
-    <input
-      {...rest}
-      value={value || ""}
-      onChange={(e) => onChange(e.target.value)}
-      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-    />
-  ),
-  extareaWidget: ({ value, onChange, ...rest }: any) => (
-    <textarea
-      {...rest}
-      value={value || ""}
-      onChange={(e) => onChange(e.target.value)}
-      className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-    />
-  ),
-  SelectWidget: ({ value, onChange, options, ...rest }: any) => (
-    <select
-      {...rest}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-    >
-      {options.enumOptions.map((option: any) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
-  ),
-};
 
-const customFieldTemplate = (props: any) => {
-  const {
-    id,
-    classNames,
-    style,
-    label,
-    help,
-    required,
-    description,
-    errors,
-    children,
-  } = props;
 
-  return (
-    <div className={`space-y-2 ${classNames}`} style={style}>
-      {label && (
-        <label
-          htmlFor={id}
-          className="block text-sm font-medium text-gray-900 dark:text-gray-100"
-        >
-          {label}
-          {required && <span className="text-destructive ml-1">*</span>}
-        </label>
-      )}
-      <div className="space-y-1">
-        {children}
-      </div>
-      {description && (
-        <p className="text-sm text-muted-foreground">{description}</p>
-      )}
-      {errors && (
-        <div className="text-destructive text-sm">{errors}</div>
-      )}
-      {help && (
-        <div className="text-sm text-muted-foreground">{help}</div>
-      )}
-    </div>
-  );
-};
 
 const FeedbackForm = ({
   title,
@@ -118,16 +49,16 @@ const FeedbackForm = ({
   //   handleSendStartItem()
   // }, [])
   useEffect(() => {
-  if (!currentCourse?.itemId) return;
-  if (!currentCourse?.moduleId) return;
-  if (!currentCourse?.sectionId) return;
+    if (!currentCourse?.itemId) return;
+    if (!currentCourse?.moduleId) return;
+    if (!currentCourse?.sectionId) return;
 
-  handleSendStartItem();
-}, [
-  currentCourse?.itemId,
-  currentCourse?.moduleId,
-  currentCourse?.sectionId
-]);
+    handleSendStartItem();
+  }, [
+    currentCourse?.itemId,
+    currentCourse?.moduleId,
+    currentCourse?.sectionId
+  ]);
 
   useEffect(() => {
     if (startItem.data?.watchItemId) {
@@ -183,80 +114,63 @@ const FeedbackForm = ({
   // }
 
   const handleSubmit = async ({ formData }: any) => {
-  const payload: ISubmitFeedbackBody = {
-    details: formData,
-    courseId: currentCourse?.courseId || "",
-    courseVersionId: currentCourse?.versionId || "",
-    isSkipped: false,
-  };
-  
+    const payload: ISubmitFeedbackBody = {
+      details: formData,
+      courseId: currentCourse?.courseId || "",
+      courseVersionId: currentCourse?.versionId || "",
+      isSkipped: false,
+    };
 
-  try {
-    // 1️⃣ If this fails, it immediately goes to catch
-    await submitFeedback.mutateAsync(payload);
 
-    // 2️⃣ Only runs if submitFeedback succeeded
-    await stopItem.mutateAsync({
-      params: {
-        path: {
-          courseId: currentCourse!.courseId,
-          courseVersionId: currentCourse!.versionId ?? "",
+    try {
+      // 1️⃣ If this fails, it immediately goes to catch
+      await submitFeedback.mutateAsync(payload);
+
+      // 2️⃣ Only runs if submitFeedback succeeded
+      await stopItem.mutateAsync({
+        params: {
+          path: {
+            courseId: currentCourse!.courseId,
+            courseVersionId: currentCourse!.versionId ?? "",
+          },
         },
-      },
-      body: {
-        watchItemId: watchItemId ?? "",
-        itemId: currentCourse!.itemId ?? "",
-        moduleId: currentCourse!.moduleId ?? "",
-        sectionId: currentCourse!.sectionId ?? "",
-      },
-    });
+        body: {
+          watchItemId: watchItemId ?? "",
+          itemId: currentCourse!.itemId ?? "",
+          moduleId: currentCourse!.moduleId ?? "",
+          sectionId: currentCourse!.sectionId ?? "",
+        },
+      });
 
-    // 3️⃣ Only when both succeed
-    onNext();
+      // 3️⃣ Only when both succeed
+      onNext();
 
-  } catch (err) {
-    console.error("Feedback submit or stop failed:", err);
-  }
-};
+    } catch (err) {
+      console.error("Feedback submit or stop failed:", err);
+    }
+  };
 
 
 
 
   const handleSkip = () => {
-      // onSkip();
-      stopItem.mutate({
-    params: {
-      path: {
-        courseId: currentCourse!.courseId,
-        courseVersionId: currentCourse!.versionId ?? '',
+    // onSkip();
+    stopItem.mutate({
+      params: {
+        path: {
+          courseId: currentCourse!.courseId,
+          courseVersionId: currentCourse!.versionId ?? '',
+        },
       },
-    },
-    body: {
-      watchItemId: watchItemId ?? '',
-      itemId: currentCourse!.itemId ?? '',
-      moduleId: currentCourse!.moduleId ?? '',
-      sectionId: currentCourse!.sectionId ?? '',
-    }
-  });
-  onNext()
-    
-  };
+      body: {
+        watchItemId: watchItemId ?? '',
+        itemId: currentCourse!.itemId ?? '',
+        moduleId: currentCourse!.moduleId ?? '',
+        sectionId: currentCourse!.sectionId ?? '',
+      }
+    });
+    onNext()
 
-  // Custom form template to match shadcn styling
-  const customFormTemplate = {
-    Button: ({ children, ...props }: any) => (
-      <div className="flex justify-center pt-4">
-        <Button
-          type="submit"
-          disabled={isSubmitting || props.disabled}
-          className="min-w-[200px] relative bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white font-semibold shadow-lg border-2 border-amber-300"
-          size="lg"
-        >
-          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {children}
-        </Button>
-      </div>
-    ),
   };
 
   return (
@@ -306,19 +220,10 @@ const FeedbackForm = ({
           <div className="max-h-[60vh] overflow-y-auto pr-4">
             <Form
               schema={jsonSchema}
-              uiSchema={{
-                ...uiSchema,
-                "ui:classNames": "space-y-6",
-              }}
               validator={validator}
+              uiSchema={uiSchema}
               onSubmit={handleSubmit}
               disabled={isSubmitting}
-              templates={{
-                ...customFormTemplate,
-                FieldTemplate: customFieldTemplate,
-              }}
-              widgets={customWidgets}
-              showErrorList={false}
             />
           </div>
         </CardContent>
