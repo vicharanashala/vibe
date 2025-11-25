@@ -11,7 +11,7 @@ import { useSignup } from "@/hooks/hooks.ts";
 import classroom from "../../../public/img/classroom.svg";
 import learningImg from "../../../public/img/learning-img.svg";
 import innovators from "../../../public/img/innovators.svg";
-import collabration from "../../../public/img/collabration.svg";
+import iitClear from "../../../public/img/iit-clear.png";
 import vledLogo from "../../../public/img/vled-logo.png";
 import ugcLogo from "../../../public/img/ugc_logo.png";
 import annam from "../../../public/img/annam.png";
@@ -763,7 +763,7 @@ export default function AuthPage() {
           <div className="w-full max-w-[1280px] mx-auto py-16 px-4 sm:px-6">
             <h3 className="text-[rgb(25,90,105)] text-2xl sm:text-3xl md:text-[36px] font-bold leading-10 mb-[52px]">A Collaboration Between</h3>
             <div className="flex flex-wrap items-center gap-8 sm:gap-12 lg:gap-[96px]">
-              <img src={collabration} alt="collabration Logo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
+              <img src={iitClear} alt="IIT Ropar Logo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
               <img src={ugcLogo} alt="ugcLogo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
               <img src={annam} alt="annam Logo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
               <img src={vledLogo} alt="VLED Logo" className="w-[220px] sm:w-[260px] h-auto object-contain" />
