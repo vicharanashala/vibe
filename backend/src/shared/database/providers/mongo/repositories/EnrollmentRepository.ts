@@ -495,7 +495,6 @@ export class EnrollmentRepository {
   ) {
     await this.init();
     const userObjectId = new ObjectId(userId);
-    console.log('User Object ID:', userObjectId);
     const pipeline: any[] = [
       {$match: {userId: userObjectId, role}},
       {$sort: {enrollmentDate: -1}},
@@ -635,8 +634,6 @@ export class EnrollmentRepository {
     const enrollments = await this.enrollmentCollection
       .aggregate(pipeline, {session})
       .toArray();
-
-    console.log(JSON.stringify(enrollments, null, 2));
 
     return enrollments;
   }
