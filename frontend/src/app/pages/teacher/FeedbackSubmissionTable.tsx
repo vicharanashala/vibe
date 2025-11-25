@@ -12,10 +12,9 @@ import { Pagination } from '@/components/ui/Pagination';
 interface FeedbackSubmissionsTableProps {
   feedbackId: string;
   courseId: string;
-  courseVersionId: string; // If needed for actions
 }
 
-export const FeedbackSubmissionsTable: React.FC<FeedbackSubmissionsTableProps> = ({ feedbackId, courseId, courseVersionId }) => {
+export const FeedbackSubmissionsTable: React.FC<FeedbackSubmissionsTableProps> = ({ feedbackId, courseId}) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
