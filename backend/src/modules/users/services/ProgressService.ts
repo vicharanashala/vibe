@@ -478,8 +478,8 @@ class ProgressService extends BaseService {
     // Check if the progress module and section are the same as the current progress
     if (
       progress.currentModule.toString() !== moduleId ||
-      progress.currentSection.toString() !== sectionId ||
-      progress.currentItem.toString() !== itemId
+      progress.currentSection.toString() !== sectionId 
+      // progress.currentItem.toString() !== itemId
     ) {
       throw new BadRequestError(
         'ModuleId, sectionId and itemId do not match current progress',

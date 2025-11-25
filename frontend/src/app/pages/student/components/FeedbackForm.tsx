@@ -3,6 +3,11 @@ import validator from "@rjsf/validator-ajv8";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ChevronRight } from "lucide-react";
+import { useCourseStore } from "@/store/course-store";
+import { useStartItem, useStopItem, useSubmitFeedback } from "@/hooks/hooks";
+import { useEffect, useRef } from "react";
+import { ISubmitFeedbackBody } from "@/components/Item-container";
+
 
 interface FeedbackFormProps {
   title: string;
@@ -13,27 +18,35 @@ interface FeedbackFormProps {
   onSubmit: (data: any) => void;
   onSkip?: () => void;
   isSubmitting?: boolean;
+  onNext:() => void
 }
 
+
 const customWidgets = {
-  TextWidget: (props: any) => (
+  TextWidget: ({ value, onChange, ...rest }: any) => (
     <input
-      {...props}
-      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+      {...rest}
+      value={value || ""}
+      onChange={(e) => onChange(e.target.value)}
+      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
     />
   ),
-  TextareaWidget: (props: any) => (
+  extareaWidget: ({ value, onChange, ...rest }: any) => (
     <textarea
-      {...props}
-      className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+      {...rest}
+      value={value || ""}
+      onChange={(e) => onChange(e.target.value)}
+      className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
     />
   ),
-  SelectWidget: (props: any) => (
+  SelectWidget: ({ value, onChange, options, ...rest }: any) => (
     <select
-      {...props}
-      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+      {...rest}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
     >
-      {props.options.enumOptions.map((option: any) => (
+      {options.enumOptions.map((option: any) => (
         <option key={option.value} value={option.value}>
           {option.label}
         </option>
@@ -58,8 +71,8 @@ const customFieldTemplate = (props: any) => {
   return (
     <div className={`space-y-2 ${classNames}`} style={style}>
       {label && (
-        <label 
-          htmlFor={id} 
+        <label
+          htmlFor={id}
           className="block text-sm font-medium text-gray-900 dark:text-gray-100"
         >
           {label}
@@ -90,24 +103,151 @@ const FeedbackForm = ({
   uiSchema,
   onSubmit,
   onSkip,
-  isSubmitting = false
+  isSubmitting = false,
+  onNext,
 }: FeedbackFormProps) => {
-  const handleSubmit = (data: any) => {
-    onSubmit(data.formData);
+  const watchItemIdRef = useRef<string | null>(null);
+
+  const startItem = useStartItem();
+  const stopItem = useStopItem();
+  const { currentCourse, setWatchItemId } = useCourseStore();
+  const submitFeedback = useSubmitFeedback(currentCourse?.itemId || '')
+  const watchItemId = watchItemIdRef.current
+
+  // useEffect(() => {
+  //   handleSendStartItem()
+  // }, [])
+  useEffect(() => {
+  if (!currentCourse?.itemId) return;
+  if (!currentCourse?.moduleId) return;
+  if (!currentCourse?.sectionId) return;
+
+  handleSendStartItem();
+}, [
+  currentCourse?.itemId,
+  currentCourse?.moduleId,
+  currentCourse?.sectionId
+]);
+
+  useEffect(() => {
+    if (startItem.data?.watchItemId) {
+      watchItemIdRef.current = startItem.data.watchItemId;
+      setWatchItemId(startItem.data.watchItemId);
+    }
+  }, [startItem.data?.watchItemId, setWatchItemId]);
+
+  function handleSendStartItem() {
+    if (!currentCourse?.itemId) return;
+    startItem.mutate({
+      params: {
+        path: {
+          courseId: currentCourse.courseId,
+          courseVersionId: currentCourse.versionId ?? '',
+        },
+      },
+      body: {
+        itemId: currentCourse.itemId,
+        moduleId: currentCourse.moduleId ?? '',
+        sectionId: currentCourse.sectionId ?? '',
+      }
+    });
+  }
+  // const handleSubmit = async ({formData}:any ) => {
+  //   const payload: ISubmitFeedbackBody = {
+  //     details: formData,
+  //     courseId: currentCourse?.courseId || '',
+  //     courseVersionId: currentCourse?.versionId || '',
+  //     isSkipped: false
+  //   };
+
+  //   try {
+  //     await submitFeedback.mutateAsync(payload);
+  //       stopItem.mutate({
+  //   params: {
+  //     path: {
+  //       courseId: currentCourse!.courseId,
+  //       courseVersionId: currentCourse!.versionId ?? '',
+  //     },
+  //   },
+  //   body: {
+  //     watchItemId: watchItemId ?? '',
+  //     itemId: currentCourse!.itemId ?? '',
+  //     moduleId: currentCourse!.moduleId ?? '',
+  //     sectionId: currentCourse!.sectionId ?? '',
+  //   }
+  // });
+  //     onNext(); 
+  //   } catch (err) {
+  //     console.error("Feedback submit failed:", err);
+  //   }
+  // }
+
+  const handleSubmit = async ({ formData }: any) => {
+  const payload: ISubmitFeedbackBody = {
+    details: formData,
+    courseId: currentCourse?.courseId || "",
+    courseVersionId: currentCourse?.versionId || "",
+    isSkipped: false,
   };
+  
+
+  try {
+    // 1️⃣ If this fails, it immediately goes to catch
+    await submitFeedback.mutateAsync(payload);
+
+    // 2️⃣ Only runs if submitFeedback succeeded
+    await stopItem.mutateAsync({
+      params: {
+        path: {
+          courseId: currentCourse!.courseId,
+          courseVersionId: currentCourse!.versionId ?? "",
+        },
+      },
+      body: {
+        watchItemId: watchItemId ?? "",
+        itemId: currentCourse!.itemId ?? "",
+        moduleId: currentCourse!.moduleId ?? "",
+        sectionId: currentCourse!.sectionId ?? "",
+      },
+    });
+
+    // 3️⃣ Only when both succeed
+    onNext();
+
+  } catch (err) {
+    console.error("Feedback submit or stop failed:", err);
+  }
+};
+
+
+
 
   const handleSkip = () => {
-    if (onSkip) {
-      onSkip();
+      // onSkip();
+      stopItem.mutate({
+    params: {
+      path: {
+        courseId: currentCourse!.courseId,
+        courseVersionId: currentCourse!.versionId ?? '',
+      },
+    },
+    body: {
+      watchItemId: watchItemId ?? '',
+      itemId: currentCourse!.itemId ?? '',
+      moduleId: currentCourse!.moduleId ?? '',
+      sectionId: currentCourse!.sectionId ?? '',
     }
+  });
+  onNext()
+    
   };
 
   // Custom form template to match shadcn styling
   const customFormTemplate = {
     Button: ({ children, ...props }: any) => (
       <div className="flex justify-center pt-4">
-        <Button 
-          type="submit" 
+        <Button
+          type="submit"
           disabled={isSubmitting || props.disabled}
           className="min-w-[200px] relative bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white font-semibold shadow-lg border-2 border-amber-300"
           size="lg"
@@ -185,6 +325,6 @@ const FeedbackForm = ({
       </Card>
     </div>
   );
-};
+}
 
 export default FeedbackForm;
