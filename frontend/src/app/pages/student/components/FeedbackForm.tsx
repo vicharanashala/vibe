@@ -57,7 +57,7 @@ const FeedbackForm = ({
   }, [
     currentCourse?.itemId,
     currentCourse?.moduleId,
-    currentCourse?.sectionId
+    currentCourse?.sectionId,
   ]);
 
   useEffect(() => {

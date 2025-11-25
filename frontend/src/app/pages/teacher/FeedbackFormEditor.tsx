@@ -327,7 +327,6 @@ export default function FeedbackFormEditor({
                 <FeedbackSubmissionsTable
                   feedbackId={feedbackId}
                   courseId={courseId}
-                  courseVersionId={courseVersionId}
                 />
               </div>
             </TabsContent>
