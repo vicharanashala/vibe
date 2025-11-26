@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useState, createContext, useContext, useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Check, AlertCircle } from "lucide-react";
+import { Check, AlertCircle, Github } from "lucide-react";
 import { cn } from "@/utils/utils";
 import { useSignup } from "@/hooks/hooks.ts";
 import classroom from "../../../public/img/classroom.svg";
@@ -353,18 +353,24 @@ export default function AuthPage() {
             </div>
             <div className="w-full justify-between flex lg:flex-row flex-col items-center gap-6">
               <div className="max-w-[560px] flex flex-col space-y-4">
-                <h3 className="text-[rgb(25,90,105)] text-[36px] font-bold leading-10">Empowering Education for All</h3>
-                <p className="text-[rgb(52,152,169)] text-base font-normal leading-[26px]">Connect, collaborate, and grow with our innovative educational platform designed for the next generation</p>
+                <h3 className="text-[rgb(25,90,105)] text-[36px] font-bold leading-10">
+                  {"Empowering Education for All".split("").map((char, i) => (
+                    <span key={i} className="inline-block transition-colors duration-300 hover:text-[rgba(228,143,57,1)] cursor-default">
+                      {char === ' ' ? '\u00A0' : char}
+                    </span>
+                  ))}
+                </h3>
+                <p className="text-[rgba(228,143,57,1)] text-base font-normal leading-[26px]">Connect, collaborate, and grow with our innovative educational platform designed for the next generation</p>
                 <div className="flex gap-3">
-                  <button onClick={() => window.open(links.DEMO_VIDEO, '_blank')} className="text-base px-7 py-3 rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300">
+                  <button onClick={() => window.open(links.DEMO_VIDEO, '_blank')} className="text-base px-7 py-3 rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
                     Explore Demo
                   </button>
-                  <button onClick={() => {navigate({ to: "/login" })}} className="text-base px-7 py-3 rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300">
+                  <button onClick={() => {navigate({ to: "/login" })}} className="text-base px-7 py-3 rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
                     Get Started
                   </button>
                 </div>
               </div>
-              <div className="w-full sm:w-[500px] h-48 sm:h-72 md:h-[420px] rounded-lg overflow-hidden bg-black">
+              <div className="w-full min-w-[300px] max-w-[600px] h-[400px] rounded-[12px] overflow-hidden bg-black shadow-[0_12px_40px_rgba(0,0,0,0.15)]">
                 <iframe
                   title="ViBe demo"
                   className="w-full h-full"
@@ -395,10 +401,16 @@ export default function AuthPage() {
               <img src={classroom} alt="classroom image" className="w-full h-auto" />
             </div>
             <div className="max-w-[560px] ml-auto flex flex-col mt-8 lg:mt-0">
-              <h3 className="text-[rgb(25,90,105)] text-[36px] font-bold leading-10 mb-16">Why Choose ViBe?</h3>
-              <p className="text-[rgb(52,152,169)] text-base font-normal leading-[26px] mb-4">ViBe is an online learning platform that helps students stay engaged. It uses smart checks, quick quizzes, and flexible tools to make learning more active and honest.</p>
+              <h3 className="text-[rgb(25,90,105)] text-[36px] font-bold leading-10 mb-16">
+                {"Why Choose ViBe?".split("").map((char, i) => (
+                  <span key={i} className="inline-block transition-colors duration-300 hover:text-[rgba(228,143,57,1)] cursor-default">
+                    {char === ' ' ? '\u00A0' : char}
+                  </span>
+                ))}
+              </h3>
+              <p className="text-[rgba(228,143,57,1)] text-base font-normal leading-[26px] mb-4">ViBe is an online learning platform that helps students stay engaged. It uses smart checks, quick quizzes, and flexible tools to make learning more active and honest.</p>
               <div>
-                <button onClick={() => window.open(links.DEMO_VIDEO, '_blank')} className="text-base px-7 py-3 rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300">
+                <button onClick={() => window.open(links.DEMO_VIDEO, '_blank')} className="text-base px-7 py-3 rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
                   Explore Demo
 
                 </button>
@@ -410,7 +422,13 @@ export default function AuthPage() {
           <div className="flex lg:flex-row flex-col items-center w-full max-w-[1280px] mx-auto py-16 px-4 sm:px-6">
             <div className="w-full justify-between flex lg:flex-row flex-col items-center">
               <div className="max-w-[560px] flex flex-col">
-                <h3 className="text-[rgb(25,90,105)] text-[36px] font-bold leading-10 mb-[84px]">Transform Your Learning Experience</h3>
+                <h3 className="text-[rgb(25,90,105)] text-[36px] font-bold leading-10 mb-[84px]">
+                  {"Transform Your Learning Experience".split("").map((char, i) => (
+                    <span key={i} className="inline-block transition-colors duration-300 hover:text-[rgba(228,143,57,1)] cursor-default">
+                      {char === ' ' ? '\u00A0' : char}
+                    </span>
+                  ))}
+                </h3>
                 <div className="flex flex-1 flex-col justify-center">
                   <div className={`mr-auto w-full ${showAuthForm ? 'md:max-w-[612px]' : 'lg:max-w-3xs max-w-full '} space-y-8`}>
                     <div>
@@ -418,7 +436,7 @@ export default function AuthPage() {
                         onClick={() => {
                           navigate({ to: "/login" })
                         }}
-                        className="text-base px-7 py-3 rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300">
+                        className="text-base px-7 py-3 rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
                         Continue To Login
                       </button>
                     </div>
@@ -520,7 +538,7 @@ export default function AuthPage() {
                                 </div>
                                 <div className="w-full max-w-[294px] mx-auto">
                                   <Button
-                                    className="w-full h-16 text-lg mb-0 font-semibold !bg-[rgba(228,143,57,1)] hover:!bg-[rgb(208,123,37)] text-white shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300"
+                                    className="w-full h-16 text-lg mb-0 font-semibold !bg-[rgb(52,152,169)] hover:!bg-[rgb(102,187,205)] text-white shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300"
                                     onClick={handleEmailLogin}
                                     disabled={loading}
                                   >
@@ -538,7 +556,7 @@ export default function AuthPage() {
                                 <div className="w-full max-w-[294px] mx-auto">
                                   <Button
                                     variant="outline"
-                                    className="w-full h-16 text-lg font-semibold !bg-[rgba(228,143,57,1)] hover:!bg-[rgb(208,123,37)] text-white border-0 shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300"
+                                    className="w-full h-16 text-lg font-semibold !bg-[rgb(52,152,169)] hover:!bg-[rgb(102,187,205)] text-white border-0 shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300"
                                     onClick={handleGoogleLogin}
                                     disabled={loading}
                                   >
@@ -560,7 +578,7 @@ export default function AuthPage() {
                                   </div>
                                   <button
                                     onClick={toggleSignUpMode}
-                                    className="py-3 px-[29px] text-base rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300 whitespace-nowrap"
+                                    className="py-3 px-[29px] text-base rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 whitespace-nowrap cursor-pointer"
                                   >
                                     Sign Up
                                   </button>
@@ -706,7 +724,7 @@ export default function AuthPage() {
                                 </div>
                                 <div className="w-full max-w-[294px] mx-auto">
                                   <Button
-                                    className="w-full h-16 text-lg font-semibold !bg-[rgba(228,143,57,1)] hover:!bg-[rgb(208,123,37)] text-white border-0 shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300"
+                                    className="w-full h-16 text-lg font-semibold !bg-[rgb(52,152,169)] hover:!bg-[rgb(102,187,205)] text-white border-0 shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300"
                                     onClick={handleEmailSignup}
                                     disabled={!passwordsMatch || passwordStrength.value < 50 || loading}
                                   >
@@ -722,7 +740,7 @@ export default function AuthPage() {
                                   </div>
                                   <button
                                     onClick={toggleSignUpMode}
-                                    className="py-3 px-[29px] text-base rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300 whitespace-nowrap"
+                                    className="py-3 px-[29px] text-base rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 whitespace-nowrap cursor-pointer"
                                   >
                                     Sign in
                                   </button>
@@ -748,10 +766,17 @@ export default function AuthPage() {
               <img src={innovators} alt="innovators image" className="w-full h-auto" />
             </div>
             <div className="max-w-[560px] ml-auto flex flex-col space-y-4 mt-8 lg:mt-0">
-              <h3 className="text-[rgb(25,90,105)] text-[36px] font-bold leading-10">Join a Community of Innovators</h3>
-              <p className="text-[rgb(52,152,169)] text-base font-normal leading-[26px]">Learn how ViBe is reshaping education through collaboration and technology, empowering learners to thrive.</p>
+              <h3 className="text-[rgb(25,90,105)] text-[36px] font-bold leading-10">
+                {"Join a Community of Innovators".split("").map((char, i) => (
+                  <span key={i} className="inline-block transition-colors duration-300 hover:text-[rgba(228,143,57,1)] cursor-default">
+                    {char === ' ' ? '\u00A0' : char}
+                  </span>
+                ))}
+              </h3>
+              <p className="text-[rgba(228,143,57,1)] text-base font-normal leading-[26px]">Learn how ViBe is reshaping education through collaboration and technology, empowering learners to thrive.</p>
               <div>
-                <button onClick={() => window.open(links.GITHUB, '_blank')} className="text-base px-7 py-3 rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300">
+                <button onClick={() => window.open(links.GITHUB, '_blank')} className="text-base px-7 py-3 rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2 cursor-pointer">
+                  <Github className="w-5 h-5" />
                   GitHub Link
                 </button>
               </div>
@@ -760,7 +785,13 @@ export default function AuthPage() {
         </div>
         <div className="bg-[rgb(240,248,250)]">
           <div className="w-full max-w-[1280px] mx-auto py-16 px-4 sm:px-6">
-            <h3 className="text-[rgb(25,90,105)] text-2xl sm:text-3xl md:text-[36px] font-bold leading-10 mb-[52px]">A Collaboration Between</h3>
+            <h3 className="text-[rgb(25,90,105)] text-2xl sm:text-3xl md:text-[36px] font-bold leading-10 mb-[52px]">
+              {"A Collaboration Between".split("").map((char, i) => (
+                <span key={i} className="inline-block transition-colors duration-300 hover:text-[rgba(228,143,57,1)] cursor-default">
+                  {char === ' ' ? '\u00A0' : char}
+                </span>
+              ))}
+            </h3>
             <div className="flex flex-wrap items-center justify-center">
               {/* <img src={iitClear} alt="IIT Ropar Logo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
               <img src={ugcLogo} alt="ugcLogo" className="w-[120px] sm:w-[145px] h-auto object-contain" />
@@ -797,7 +828,7 @@ export default function AuthPage() {
                   placeholder="Your email address"
                   className="flex-1 px-4 py-3 placeholder:text-[#9CA3AF] text-[rgb(25,90,105)] rounded-md bg-[#FFFFFF] border border-[rgb(102,187,205)] focus:outline-none focus:ring-2 focus:ring-[rgb(52,152,169)]"
                 />
-                <button className="py-3 px-[29px] rounded-lg bg-[rgba(228,143,57,1)] hover:bg-[rgb(208,123,37)] text-white font-semibold shadow-[0_2px_8px_rgba(228,143,57,0.3)] hover:shadow-[0_4px_16px_rgba(228,143,57,0.4)] hover:-translate-y-0.5 transition-all duration-300 whitespace-nowrap">
+                <button className="py-3 px-[29px] rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 whitespace-nowrap cursor-pointer">
                   Sign Up
                 </button>
               </div>
