@@ -59,10 +59,6 @@ export async function setupItemAbilities(
                 
                 const linearProgressionEnabled = courseSettings?.settings?.linearProgressionEnabled ?? true;
                 
-                console.log('LINEAR PROGRESSION DEBUG');
-                console.log('courseSettings:', JSON.stringify(courseSettings, null, 2));
-                console.log('linearProgressionEnabled:', linearProgressionEnabled);
-
                 const progress = await progressService.getUserProgress(user.userId, enrollment.courseId, enrollment.versionId);
 
                 // return all the itemId having watchtime doc
@@ -85,21 +81,16 @@ export async function setupItemAbilities(
                     versionId: enrollment.versionId,
                 };
                 
-                console.log('allowedItemIds before filtering:', allowedItemIds);
-                console.log('progress.currentItem:', progress.currentItem);
-                console.log('completedItems:', completedItems);
                 
                 if (linearProgressionEnabled) {
-                    console.log('LINEAR PROGRESSION IS ENABLED - applying proper restrictions');
                     
                     itemBounded.itemId = { $in: allowedItemIds };
                     
-                    console.log('Applied linear progression restrictions:', allowedItemIds);
+                    // console.log('Applied linear progression restrictions:', allowedItemIds);
                 } else {
-                    console.log('LINEAR PROGRESSION IS DISABLED - no restrictions applied');
+                    // console.log('LINEAR PROGRESSION IS DISABLED - no restrictions applied');
                 }
 
-                console.log('Final itemBounded for STUDENT:', JSON.stringify(itemBounded, null, 2));
                 can(ItemActions.View, 'Item', itemBounded);
                 break;
             case 'INSTRUCTOR':

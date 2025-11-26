@@ -14,6 +14,7 @@ import {
   BlogItem,
   ProjectItem,
   Item,
+  FeedBackFormItem,
 } from '#courses/classes/transformers/Item.js';
 import {UpdateItemBody} from '#root/modules/courses/classes/index.js';
 
@@ -24,6 +25,7 @@ export class ItemRepository implements IItemRepository {
   private quizCollection: Collection<QuizItem>;
   private blogCollection: Collection<BlogItem>;
   private projectCollection: Collection<ProjectItem>;
+  private feedbackFormCollection: Collection<FeedBackFormItem>;
 
   constructor(
     @inject(GLOBAL_TYPES.Database)
@@ -42,8 +44,10 @@ export class ItemRepository implements IItemRepository {
     this.projectCollection = await this.db.getCollection<ProjectItem>(
       'projects',
     );
+    this.feedbackFormCollection = await this.db.getCollection<FeedBackFormItem>(
+      'feedback_forms',
+    );
   }
-  
 
   // Methods for ItemsGroup operations
   async createItemsGroup(
@@ -51,7 +55,7 @@ export class ItemRepository implements IItemRepository {
     session?: ClientSession,
   ): Promise<ItemsGroup> {
     await this.init();
-    
+
     const result = await this.itemsGroupCollection.insertOne(itemsGroup, {
       session,
     });
@@ -72,26 +76,26 @@ export class ItemRepository implements IItemRepository {
     ) as ItemsGroup;
   }
 
-//   async getItemsCountByGroupIds(groupIds:string[]) {
-//   const itemGroups = await this.itemsGroupCollection.find({ _id: { $in: groupIds } }).select('items').lean();
-//   return itemGroups.reduce((total, group) => total + (group.items ? group.items.length : 0), 0);
-// }
+  //   async getItemsCountByGroupIds(groupIds:string[]) {
+  //   const itemGroups = await this.itemsGroupCollection.find({ _id: { $in: groupIds } }).select('items').lean();
+  //   return itemGroups.reduce((total, group) => total + (group.items ? group.items.length : 0), 0);
+  // }
 
-async getItemsCountByGroupIds(groupIds: string[],session?:ClientSession) {
-  await this.init();
-  const itemGroups = await this.itemsGroupCollection
-    .find(
-      { _id: { $in: groupIds.map(id => new ObjectId(id)) } }, 
-      { projection: { items: 1 },session} // only return `items`
-    )
-    .toArray();
-  console.log("Items group ",ItemsGroup)
+  async getItemsCountByGroupIds(groupIds: string[], session?: ClientSession) {
+    await this.init();
+    const itemGroups = await this.itemsGroupCollection
+      .find(
+        {_id: {$in: groupIds.map(id => new ObjectId(id))}},
+        {projection: {items: 1}, session}, // only return `items`
+      )
+      .toArray();
+    console.log('Items group ', ItemsGroup);
 
-  return itemGroups.reduce(
-    (total, group) => total + (group.items ? group.items.length : 0),
-    0
-  );
-}
+    return itemGroups.reduce(
+      (total, group) => total + (group.items ? group.items.length : 0),
+      0,
+    );
+  }
 
   async readItemsGroup(
     itemsGroupId: string,
@@ -186,6 +190,9 @@ async getItemsCountByGroupIds(groupIds: string[],session?:ClientSession) {
       case ItemType.PROJECT:
         collection = this.projectCollection;
         break;
+      case ItemType.FEEDBACK:
+        collection = this.feedbackFormCollection;
+        break;
       default:
         throw new Error(`Unsupported item type: ${(item as any).type}`);
     }
@@ -262,8 +269,13 @@ async getItemsCountByGroupIds(groupIds: string[],session?:ClientSession) {
         const found = itemsGroup.items.find(i => i._id.toString() === itemId);
 
         if (found) {
-          let item: Item = null;
+          console.log(
+            await this.feedbackFormCollection.findOne({
+              _id: new ObjectId(found._id),
+            }),
+          );
 
+          let item: Item = null;
           switch (found.type) {
             case ItemType.VIDEO:
               item = (await this.videoCollection.findOne({
@@ -285,9 +297,16 @@ async getItemsCountByGroupIds(groupIds: string[],session?:ClientSession) {
                 _id: new ObjectId(found._id),
               })) as ProjectItem;
               break;
+            case ItemType.FEEDBACK:
+              item = (await this.feedbackFormCollection.findOne({
+                _id: new ObjectId(found._id),
+              })) as FeedBackFormItem;
+              break;
             default:
               throw new InternalServerError(`Unknown item type: ${found.type}`);
           }
+
+          console.log('Item: ', item);
 
           return item;
         }
@@ -320,6 +339,8 @@ async getItemsCountByGroupIds(groupIds: string[],session?:ClientSession) {
         break;
       case ItemType.PROJECT:
         collection = this.projectCollection;
+      case ItemType.FEEDBACK:
+        collection = this.feedbackFormCollection;
         break;
       default:
         throw new InternalServerError(
@@ -333,6 +354,9 @@ async getItemsCountByGroupIds(groupIds: string[],session?:ClientSession) {
         $set: {
           name: item.name,
           description: item.description,
+          ...(item.type === ItemType.FEEDBACK && {
+            isOptional: item.isOptional,
+          }),
           details: item?.details,
         },
       },
@@ -384,6 +408,13 @@ async getItemsCountByGroupIds(groupIds: string[],session?:ClientSession) {
     } else if (itemsGroup.items[itemIndex].type === ItemType.PROJECT) {
       await this.projectCollection.deleteOne(
         {_id: new ObjectId(itemId)},
+        {session},
+      );
+    } else if (itemsGroup.items[itemIndex].type === ItemType.FEEDBACK) {
+      await this.feedbackFormCollection.deleteOne(
+        {
+          _id: new ObjectId(itemId),
+        },
         {session},
       );
     } else {
