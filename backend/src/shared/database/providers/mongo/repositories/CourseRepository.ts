@@ -15,7 +15,6 @@ import {
   MongoClient,
   ClientSession,
   ObjectId,
-  DeleteResult,
   UpdateResult,
 } from 'mongodb';
 import {NotFoundError, InternalServerError} from 'routing-controllers';
@@ -849,14 +848,22 @@ export class CourseRepository implements ICourseRepository {
       // Delete sections and modules from course versions
       await this.courseVersionCollection.updateMany(
         {
-          $or: [
-            {'modules.sections': {$elemMatch: deletedFilter}},
-            {modules: {$elemMatch: deletedFilter}},
-          ],
+          'modules.sections': {$elemMatch: deletedFilter},
         },
         {
           $pull: {
             'modules.$[].sections': deletedFilter,
+          },
+        },
+        {session},
+      );
+
+      await this.courseVersionCollection.updateMany(
+        {
+          modules: {$elemMatch: deletedFilter},
+        },
+        {
+          $pull: {
             modules: deletedFilter as any,
           },
         },
@@ -864,7 +871,7 @@ export class CourseRepository implements ICourseRepository {
       );
 
       // Finally, delete course versions
-      await this.deleteAndReturnIds(
+      const deletedVersions = await this.deleteAndReturnIds(
         this.courseVersionCollection,
         deletedFilter,
         session,
@@ -872,8 +879,8 @@ export class CourseRepository implements ICourseRepository {
 
       // update course documents to remove references to deleted versions
       await this.courseCollection.updateMany(
-        {},
-        {$pull: {versions: deletedFilter} as any},
+        {versions: {$in: deletedVersions}},
+        {$pull: {versions: {$in: deletedVersions}} as any},
         {session},
       );
 
@@ -883,6 +890,20 @@ export class CourseRepository implements ICourseRepository {
         deletedFilter,
         session,
       );
+
+      // Delete enrollments, progress and watch times related to deleted versions
+
+      if (deletedVersions.length > 0) {
+        await this.enrollmentRepo.deleteEnrollmentsByVersionIds(
+          deletedVersions,
+          session,
+        );
+
+        await this.progressRepo.deleteUserProgressByVersionIds(
+          deletedVersions,
+          session,
+        );
+      }
     } catch (error) {
       throw new InternalServerError(
         'Failed to cascade delete versions.\n More Details: ' + error,

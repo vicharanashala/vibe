@@ -540,6 +540,22 @@ class ProgressRepository {
       {session},
     );
   }
+
+  async deleteUserProgressByVersionIds(
+    courseVersionIds: ObjectId[],
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+    if (!courseVersionIds.length) return false;
+    const result = await this.progressCollection.deleteMany(
+      {
+        courseVersionId: {$in: courseVersionIds},
+      },
+      {session},
+    );
+
+    return result.acknowledged && result.deletedCount > 0;
+  }
 }
 
 export {ProgressRepository};

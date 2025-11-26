@@ -648,6 +648,8 @@ export class ItemRepository implements IItemRepository {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+      console.log('Cascade delete started at:', new Date().toISOString());
+
       // 1. Delete quizzes marked as deleted
       const deletedFilter = {isDeleted: true, deletedAt: {$lte: thirtyDaysAgo}};
 
