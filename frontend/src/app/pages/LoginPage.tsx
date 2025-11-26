@@ -14,7 +14,7 @@ import { AuroraText } from "@/components/magicui/aurora-text";
 import { cn } from "@/utils/utils";
 import { useSignup, useLoginWithGoogle } from "@/hooks/hooks.ts";
 import collabration from "../../../public/img/collabration.svg";
-import vledLogo from "../../../public/img/vled-logo.png";
+import vledLogo from "../../../public/img/vled-logo-login.png";
 
 // Create a context for tab state management
 const TabsContext = createContext<{
@@ -436,17 +436,17 @@ export default function LoginPage() {
                   </div>
                 </Card>
 
-                <Card className="relative overflow-hidden bg-white backdrop-blur-sm border-2 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
+                <Card className="relative overflow-visible bg-white backdrop-blur-sm border-2 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
                   <ShineBorder
                     shineColor={["#A07CFE", "#FFBE7B", "#FE8FB5"]}
                     className="absolute inset-0"
                   />
-                  <div className="relative p-2 flex items-center hover:scale-110 duration-300 justify-center h-28 bg-white/95">
+                  <div className="relative p-4 flex items-center justify-center h-28 bg-white/95">
                     <img
                       src={vledLogo}
                       alt="VLED Logo"
-                      style={{ scale: 2.5 }}
-                      className="h-full w-full object-contain group-hover:scale-110 transition-transform duration-300"
+                      style={{ transform: 'scale(1)' }}
+                      className="h-20 w-auto object-contain group-hover:scale-110 transition-transform duration-300"
                     />
                   </div>
                 </Card>
