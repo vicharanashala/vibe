@@ -6,9 +6,16 @@ import {
   ICourseVersion,
   IWatchTime,
   IUser,
+  ID,
 } from '#shared/interfaces/models.js';
 import {injectable, inject} from 'inversify';
-import {ClientSession, Collection, ObjectId, OptionalId} from 'mongodb';
+import {
+  ClientSession,
+  Collection,
+  DeleteResult,
+  ObjectId,
+  OptionalId,
+} from 'mongodb';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
 import {MongoDatabase} from '../MongoDatabase.js';
 import {GLOBAL_TYPES} from '#root/types.js';
@@ -496,7 +503,7 @@ export class EnrollmentRepository {
     await this.init();
     const userObjectId = new ObjectId(userId);
     const pipeline: any[] = [
-      {$match: {userId: userObjectId, role}},
+      {$match: {userId: userObjectId, role, isDeleted: {$ne: true}}},
       {$sort: {enrollmentDate: -1}},
       {$skip: skip},
       {$limit: limit},
@@ -1831,5 +1838,20 @@ export class EnrollmentRepository {
       session,
     });
     return result.insertedIds;
+  }
+
+  async deleteEnrollmentsByVersionIds(
+    versionIds: ObjectId[],
+    session?: ClientSession,
+  ): Promise<boolean> {
+    if (!versionIds.length) return false;
+
+    const result = await this.enrollmentCollection.deleteMany(
+      {
+        courseVersionId: {$in: versionIds},
+      },
+      {session},
+    );
+    return result.acknowledged && result.deletedCount > 0;
   }
 }
