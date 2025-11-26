@@ -40,6 +40,7 @@ import RegisteredUsers from '../pages/teacher/CourseRegistrationRequests'
 import CourseRegistration from '../pages/student/CourseRegistration'
 import CourseIssueReports from '../pages/student/FlagResponse'
 import LoginPage from '../pages/LoginPage'
+import FeedbackFormEditor from '../pages/teacher/FeedbackFormEditor'
 
 
 // Root route with error and notFound handling
@@ -266,6 +267,13 @@ const teacherAddCourseRoute = new Route({
   component: AddCoursePage,
 });
 
+//Teacher feedback form route 
+const teacherFeedBackEditorRoute = new Route({
+  getParentRoute:() => teacherLayoutRoute,
+  path:'editor/feedback',
+  component:FeedbackFormEditor
+})
+
 // Teacher generate section route
 const teacherGenerateSectionRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -384,7 +392,8 @@ const routeTree = rootRoute.addChildren([
     testAISectionModalRoute,
     teacherCourseAnomaliesRoute,
     teacherCourseInstructorsRoute,
-    teacherCourseRegistrationRequests
+    teacherCourseRegistrationRequests,
+    teacherFeedBackEditorRoute
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,

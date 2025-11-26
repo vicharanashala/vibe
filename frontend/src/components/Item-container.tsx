@@ -5,9 +5,16 @@ import Article from './article';
 import ProjectItem from '../app/pages/teacher/components/ProjectItem';
 import type { ArticleRef } from "@/types/article.types";
 import type { ItemContainerProps, ItemContainerRef } from '@/types/item-container.types';
+import FeedbackForm from '@/app/pages/student/components/FeedbackForm';
+import { useSubmitFeedback } from '@/hooks/hooks';
 
-
-const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, onPrevVideo, isProgressUpdating,readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson,keyboardLockEnabled,setIsQuizSkipped, linearProgressionEnabled}, ref) => {
+export interface ISubmitFeedbackBody {
+  details: Record<string, any>;
+  courseId: string;
+  courseVersionId: string;
+  isSkipped?: boolean;
+}
+const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, onPrevVideo, isProgressUpdating,readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson,keyboardLockEnabled,setIsQuizSkipped, linearProgressionEnabled,courseId,versionId}, ref) => {
   const articleRef = useRef<ArticleRef>(null);
 
   // ✅ Expose stop function to parent
@@ -18,10 +25,16 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
       }
     }
   }));
+  const submitFeedback = useSubmitFeedback(item._id.toString())
+  
+   const handleFeedbackSubmit = async (formData: any) => {
+
+    
+  };
 
   const renderContent = () => {
     const itemType = item.type.toLowerCase();
-
+    console.log("itemType ",itemType)
     switch (itemType) {
       case 'video':
         return <Video
@@ -96,6 +109,17 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           onNext={onNext}
           isProgressUpdating={isProgressUpdating}
         />;
+      case 'feedback':
+        return <FeedbackForm
+        title={item.name}
+        description={item.description}
+        isOptional={item.isOptional}
+        jsonSchema={item?.details?.jsonSchema}
+        uiSchema={item?.details?.uiSchema}
+        onSubmit={handleFeedbackSubmit}
+        isSubmitting={isProgressUpdating}
+        onNext={onNext}
+        />
 
       default:
         return (

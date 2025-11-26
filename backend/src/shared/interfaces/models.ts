@@ -270,6 +270,7 @@ export enum ItemType {
   QUIZ = 'QUIZ',
   BLOG = 'BLOG',
   PROJECT = 'PROJECT',
+  FEEDBACK = 'FEEDBACK',
 }
 
 export interface IBaseItem {
@@ -341,6 +342,11 @@ export interface IBlogDetails {
   content: string;
   points: number;
   estimatedReadTimeInMinutes: number;
+}
+
+export interface IFeedBackFormDetails {
+  jsonSchema: Record<string, any>;
+  uiSchema: Record<string, any>;
 }
 
 export type EnrollmentRole =
