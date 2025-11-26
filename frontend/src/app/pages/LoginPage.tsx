@@ -14,6 +14,7 @@ import { AuroraText } from "@/components/magicui/aurora-text";
 import { cn } from "@/utils/utils";
 import { useSignup, useLoginWithGoogle } from "@/hooks/hooks.ts";
 import collabration from "../../../public/img/collabration.svg";
+import vledLogo from "../../../public/img/vled-logo.png";
 
 // Create a context for tab state management
 const TabsContext = createContext<{
@@ -442,8 +443,8 @@ export default function LoginPage() {
                   />
                   <div className="relative p-2 flex items-center hover:scale-110 duration-300 justify-center h-28 bg-white/95">
                     <img
-                      src="https://dled-lab.github.io/logo.png"
-                      alt="Dhananjaya Lab Logo"
+                      src={vledLogo}
+                      alt="VLED Logo"
                       style={{ scale: 2.5 }}
                       className="h-full w-full object-contain group-hover:scale-110 transition-transform duration-300"
                     />
