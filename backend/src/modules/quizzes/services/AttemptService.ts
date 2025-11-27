@@ -18,7 +18,12 @@ import {
   getSelectedItemTexts,
 } from '#quizzes/utils/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
-import {BaseService, MongoDatabase} from '#shared/index.js';
+import {
+  BaseService,
+  IItemRepository,
+  ItemType,
+  MongoDatabase,
+} from '#shared/index.js';
 import {injectable, inject} from 'inversify';
 import {ClientSession, ObjectId} from 'mongodb';
 import {NotFoundError, BadRequestError} from 'routing-controllers';
@@ -33,8 +38,13 @@ import {UserQuizMetricsRepository} from '../repositories/providers/mongodb/UserQ
 import {BaseQuestion, NATQuestion} from '../classes/transformers/Question.js';
 import {UserQuizMetrics} from '../classes/transformers/UserQuizMetrics.js';
 import {Attempt} from '../classes/transformers/Attempt.js';
-import {QuizItem} from '#root/modules/courses/classes/transformers/Item.js';
+import {
+  FeedbackSubmissionItem,
+  QuizItem,
+} from '#root/modules/courses/classes/transformers/Item.js';
 import {QuestionRepository} from '../repositories/index.js';
+import {FeedbackRepository} from '../repositories/providers/mongodb/FeedbackRepository.js';
+import {COURSES_TYPES} from '#root/modules/courses/types.js';
 @injectable()
 class AttemptService extends BaseService {
   constructor(
@@ -58,6 +68,12 @@ class AttemptService extends BaseService {
 
     @inject(QUIZZES_TYPES.QuestionBankService)
     private questionBankService: QuestionBankService,
+
+    @inject(QUIZZES_TYPES.FeedbackRepo)
+    private feedbackRepository: FeedbackRepository,
+
+    @inject(COURSES_TYPES.ItemRepo)
+    private readonly itemRepo: IItemRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
@@ -377,6 +393,103 @@ class AttemptService extends BaseService {
         );
         return null;
       }
+    });
+  }
+
+  async submitFeedBackForm(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    feedbackFormId: string,
+    details: Record<string, any>,
+  ): Promise<string> {
+    return this._withTransaction(async session => {
+      // 1. Validate Item Group
+      const ItemsGroup = await this.itemRepo.findItemsGroupByItemId(
+        feedbackFormId,
+        session,
+      );
+
+      if (!ItemsGroup)
+        throw new NotFoundError(
+          'No item group found for the provided feedback form.',
+        );
+
+      const items = ItemsGroup.items;
+
+      // 2. Find feedback item
+      const feedbackIndex = items.findIndex(
+        item => item._id.toString() === feedbackFormId,
+      );
+
+      if (feedbackIndex === -1)
+        throw new NotFoundError(
+          'Feedback form item not found inside the item group.',
+        );
+
+      // 3. Find previous item
+      const previousItem = items[feedbackIndex - 1];
+
+      if (!previousItem)
+        throw new NotFoundError(
+          'No previous learning item exists before this feedback form.',
+        );
+
+      const previousItemId = previousItem._id.toString();
+      const previousItemType = previousItem.type;
+
+      // 4. Prevent feedback on feedback items
+      if (previousItemType === 'FEEDBACK') {
+        throw new BadRequestError(
+          'Feedback cannot be submitted for a previous feedback item.',
+        );
+      }
+
+      // 5. Validate the feedback form
+      const feedbackForm = await this.feedbackRepository.getFormById(
+        feedbackFormId,
+        session,
+      );
+
+      if (!feedbackForm) {
+        throw new NotFoundError(
+          `Feedback form with ID ${feedbackFormId} does not exist.`,
+        );
+      }
+
+      // 6. Check if the user already submitted feedback for this specific item
+      const existingSubmission =
+        await this.feedbackRepository.findByUserAndPreviousItem(
+          userId.toString(),
+          previousItemId.toString(),
+          session,
+        );
+
+      // if (existingSubmission) {
+      //   throw new BadRequestError(
+      //     `You have already submitted feedback for the previous item (${previousItemType}).`,
+      //   );
+      // }
+
+      // 7. Create new feedback submission record
+      const newFeedbackSubmission: FeedbackSubmissionItem = {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        details,
+        feedbackFormId: new ObjectId(feedbackFormId),
+        previousItemId: new ObjectId(previousItemId),
+        previousItemType,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      await this.feedbackRepository.createFeedback(
+        newFeedbackSubmission,
+        session,
+      );
+
+      return 'Your feedback has been submitted successfully. Thank you for your response!';
     });
   }
 

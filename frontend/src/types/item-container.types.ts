@@ -60,6 +60,8 @@ export interface ItemContainerProps {
   keyboardLockEnabled?: boolean;
   setIsQuizSkipped: React.Dispatch<React.SetStateAction<boolean>>;
   linearProgressionEnabled: boolean;
+  courseId:string;
+  versionId:string
 }
 
 export interface ItemContainerRef {

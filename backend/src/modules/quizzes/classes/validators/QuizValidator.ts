@@ -32,6 +32,7 @@ import {
   IsBoolean,
   IsIn,
   IsEmpty,
+  IsObject,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {ObjectId} from 'mongodb';
@@ -128,6 +129,17 @@ class SubmitAttemptParams {
     example: '60d21b4667d0d8992e610c99',
   })
   attemptId: string;
+}
+
+class SubmitFeedbackParams {
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'ID of the feedback form',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c85',
+  })
+  itemId: string;
 }
 
 class GetAttemptResponse implements IAttempt {
@@ -405,6 +417,51 @@ class QuestionAnswersBody {
     example: true,
   })
   isSkipped?: boolean;
+}
+class SubmitFeedbackBody {
+  @IsObject()
+  @JSONSchema({
+    description:
+      'Dynamic key-value pairs submitted by the student as feedback.',
+    type: 'object',
+  })
+  details: Record<string, any>;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'ID of the course',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c99',
+  })
+  courseId: string;
+
+  @IsMongoId()
+  @IsOptional()
+  @JSONSchema({
+    description: 'ID of the second which feedback form belongs to',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c99',
+  })
+  sectionId?: string;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'ID of the course version',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c99',
+  })
+  courseVersionId: string;
+
+  // @IsOptional()
+  // @IsBoolean()
+  // @JSONSchema({
+  //   description: 'Whether the student skipped the feedback form',
+  //   type: 'boolean',
+  //   example: false,
+  // })
+  // isSkipped?: boolean;
 }
 
 class QuestionRenderView extends Question implements IQuestionRenderView {
@@ -1532,6 +1589,8 @@ export {
   CreateAttemptParams,
   SaveAttemptParams,
   SubmitAttemptParams,
+  SubmitFeedbackParams,
+  SubmitFeedbackBody,
   CreateAttemptResponse,
   SubmitAttemptResponse,
   GetAttemptResponse,

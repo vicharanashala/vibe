@@ -23,7 +23,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import {
   BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus, Sparkles,
   X, FolderKanban,
-  Menu
+  Menu,
+  MessageSquare
 } from "lucide-react";
 
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -43,6 +44,7 @@ import Loader from "@/components/Loader";
 import { Label } from "@/components/ui/label";
 import ProjectItem from "./components/ProjectItem";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import FeedbackFormEditor from "./FeedbackFormEditor";
 
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
@@ -50,15 +52,15 @@ const getItemIcon = (type: string) => {
     case "BLOG": return <FileText className="h-3 w-3" />;
     case "VIDEO": return <VideoIcon className="h-3 w-3" />;
     case "QUIZ": return <ListChecks className="h-3 w-3" />;
-    case "PROJECT":
-      return <FolderKanban className="h-3 w-3" />;
+    case "PROJECT": return <FolderKanban className="h-3 w-3" />;
+    case "FEEDBACK": return <MessageSquare className="h-3 w-3" />
     default: return null;
   }
 };
 
 interface LabelOptions {
   itemId: string;
-  itemType: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT";
+  itemType: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT" | "FEEDBACK";
   sectionItems: Record<string, any[]>;
   sectionId: string;
 }
@@ -207,7 +209,7 @@ function TeacherCourseContent() {
     shouldFetchItem ? versionId : '',
     shouldFetchItem ? selectedEntity?.data?._id : ''
   );
-
+  console.log("selectedItemData",selectedItemData)
   // Sync controlled state with selectedItemData for PROJECT edit
   useEffect(() => {
     if (selectedEntity?.type === 'item' && selectedEntity.data.type === 'PROJECT') {
@@ -424,6 +426,8 @@ function TeacherCourseContent() {
         return `Article ${index}`;
       case "PROJECT":
         return `Project ${index}`;
+      case 'FEEDBACK':
+        return `Feedback ${index}`
       default:
         return "Unknown";
     }
@@ -471,12 +475,13 @@ function TeacherCourseContent() {
   const handleAddItem = (moduleId: string, sectionId: string, type: string, videoData?: any) => {
     if (!versionId) return;
 
-    type ItemType = "VIDEO" | "QUIZ" | "BLOG" | "PROJECT";
+    type ItemType = "VIDEO" | "QUIZ" | "BLOG" | "PROJECT" | "FEEDBACK";
     const typeMap: Record<string, ItemType> = {
       video: "VIDEO",
       quiz: "QUIZ",
       article: "BLOG",
-      project: "PROJECT"
+      project: "PROJECT",
+      feedback:"FEEDBACK"
     };
 
     // Handle video items
@@ -550,8 +555,84 @@ function TeacherCourseContent() {
           console.error("Error creating project:", error);
           toast.error(`Failed to create project: ${error.message || 'Unknown error'}`);
         });
-      return;
     }
+    
+if (type === "feedback") {
+        createItemAsync({
+          params: {
+            path: {
+              versionId: versionId!,
+              moduleId: module.moduleId,
+              sectionId: section.sectionId,
+            },
+          },
+          body: {
+            type: typeMap[type],
+            name: "Feedback Form",
+            description: "Submit your feedback about the previous video/quiz",
+            feedbackFormDetails:{
+               jsonSchema: {
+          type: 'object',
+          properties: {
+            Name: {
+              type: 'string',
+              title: 'Name',
+              minLength: 1,
+            },
+            Email: {
+              type: 'string',
+              format: 'email',
+              title: 'Email',
+            },
+            Feedback: {
+              type: 'string',
+              title: 'Feedback',
+              minLength:10
+            },
+          },
+          required: ['Name', 'Email','Feedback'],
+        },
+               uiSchema:{
+          Name: {
+            'ui:placeholder': 'Enter your Name',
+          },
+          Email: {
+            'ui:placeholder': 'Enter your Email',
+          },
+          Feedback: {
+            'ui:placeholder': 'Enter your feedback here...',
+          },
+        }
+          },
+        }
+        })
+          .then((created) => {
+            const newItem = created?.createdItem || created?.item || created?.data || created;
+            const itemsGroupId = created?.itemsGroup?._id || section.itemsGroupId;
+
+            if (newItem && newItem._id) {
+              // Auto-select the newly created feedback form
+              setSelectedItem({ id: newItem._id, name: "Feedback Form 1" });
+              setSelectedEntity({
+                type: "item",
+                data: newItem,
+                parentIds: {
+                  moduleId: module.moduleId,
+                  sectionId: section.sectionId,
+                  itemsGroupId,
+                },
+              });
+            } else {
+              refetchVersion();
+              refetchItems();
+            }
+          })
+          .catch((err) => {
+            toast.error("Failed to create feedback form");
+            console.error(err);
+          });
+      }
+
   };
 
   const navigate = useNavigate();
@@ -968,6 +1049,7 @@ function TeacherCourseContent() {
 
                                                     }
                                                     else if (type === "project") {
+                                                      
                                                       createItemAsync({
                                                         params: {
                                                           path: {
@@ -1002,6 +1084,82 @@ function TeacherCourseContent() {
                                                           }
                                                         });
                                                     }
+                                                    else if (type === "feedback") {
+        createItemAsync({
+          params: {
+            path: {
+              versionId: versionId!,
+              moduleId: module.moduleId,
+              sectionId: section.sectionId,
+            },
+          },
+          body: {
+            type: "FEEDBACK",
+            name: "Feedback Form",
+            description: "Submit your feedback about the previous video/quiz",
+            feedbackFormDetails:{
+               jsonSchema: {
+          type: 'object',
+          properties: {
+            Name: {
+              type: 'string',
+              title: 'Name',
+              minLength: 1,
+            },
+            Email: {
+              type: 'string',
+              format: 'email',
+              title: 'Email',
+            },
+            Feedback: {
+              type: 'string',
+              title: 'Feedback',
+              minLength:10
+            },
+          },
+          required: ['Name', 'Email','Feedback'],
+        },
+               uiSchema:{
+          Name: {
+            'ui:placeholder': 'Enter your Name',
+          },
+          Email: {
+            'ui:placeholder': 'Enter your Email',
+          },
+           Feedback: {
+            'ui:placeholder': 'Enter your feedback here...',
+            'ui:widget': 'textarea',
+  },
+        }
+          },
+          },
+        })
+          .then((created) => {
+            const newItem = created?.createdItem || created?.item || created?.data || created;
+            const itemsGroupId = created?.itemsGroup?._id || section.itemsGroupId;
+
+            if (newItem && newItem._id) {
+              // Auto-select the newly created feedback form
+              setSelectedItem({ id: newItem._id, name: "Feedback Form 1" });
+              setSelectedEntity({
+                type: "item",
+                data: newItem,
+                parentIds: {
+                  moduleId: module.moduleId,
+                  sectionId: section.sectionId,
+                  itemsGroupId,
+                },
+              });
+            } else {
+              refetchVersion();
+              refetchItems();
+            }
+          })
+          .catch((err) => {
+            toast.error("Failed to create feedback form");
+            console.error(err);
+          });
+      }
                                                     else {
 
                                                       handleAddItem(module.moduleId, section.sectionId, type);
@@ -1023,6 +1181,8 @@ function TeacherCourseContent() {
                                                 <option value="VIDEO">Video</option>
 
                                                 <option value="quiz">Quiz</option>
+
+                                                <option value="feedback">Feedback Form</option>
 
                                                 <option
                                                   value="project"
@@ -1180,6 +1340,16 @@ function TeacherCourseContent() {
           </Sidebar>
         </div>
       </ResizablePanel>
+
+
+
+
+      {/* Side bar till herer  */}
+
+
+
+
+      
       <ResizableHandle className="hidden md:flex" />
       <ResizablePanel defaultSize={80} className="min-w-0">
         {/* Course Editor Area */}
@@ -1723,6 +1893,39 @@ function TeacherCourseContent() {
                         }}
                       />
                     )}
+
+                    {/* {selectedEntity.type === "item" && selectedEntity.data.type === "FEEDBACK" && (
+                    
+  <FeedbackFormEditor  />
+)} */}
+
+
+{selectedEntity.type === "item" && selectedEntity.data.type === "FEEDBACK" && (
+  <FeedbackFormEditor
+    isLoading={isLoading}
+    selectedItemName={selectedItem.name}
+    feedbackId={selectedEntity.data._id}
+    moduleId={selectedEntity.parentIds?.moduleId || ""}
+    sectionId={selectedEntity.parentIds?.sectionId || ""}
+    courseId={courseId!}
+    courseVersionId={versionId!}
+    details={selectedItemData}
+    onRefetch={() => {
+      refetchVersion();
+      refetchItems();
+      refetchItem();
+    }}
+    onDelete={() => {
+      deleteItemAsync({
+        params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
+      }).then(() => {
+        refetchVersion();
+        refetchItems();
+      });
+      setSelectedEntity(null);
+    }}
+  />
+)}
                   </div>
                 </div>
               </div>
@@ -1904,3 +2107,5 @@ export function useStatusToasts({
     });
   }, [successFlags, errorFlags]);
 }
+
+// 4. ADD A SIMPLE FEEDBACK EDITOR COMPONENT (Hello World for now)
