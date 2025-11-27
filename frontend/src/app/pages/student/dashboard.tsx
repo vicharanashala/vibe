@@ -40,7 +40,7 @@ export default function Page() {
       </div>
     );
   }
-  return <DashboardContent/>;
+  return <DashboardContent />;
 }
 
 
@@ -63,12 +63,12 @@ function DashboardContent() {
     data: enrollmentsData,
     isLoading: enrollmentsLoading,
     error: enrollmentsError,
-    refetch:refetchEnrollments
+    refetch: refetchEnrollments
   } = useUserEnrollments(1, 5, !!token);
-  
-  useEffect(()=>{
+
+  useEffect(() => {
     refetchEnrollments();
-  },[refetchEnrollments]);
+  }, [refetchEnrollments]);
 
   const enrollments = enrollmentsData?.enrollments || [];
   const totalEnrollments = enrollmentsData?.totalDocuments || 0;
@@ -78,7 +78,7 @@ function DashboardContent() {
   const totalProgress = Math.round(
     completion.reduce((acc, curr) => acc + (curr.completedItems || 0), 0) / completion.reduce((acc, curr) => acc + (curr.totalItems || 0), 0) * 100
   ) || 0;
-  
+
   return (
     <>
       {/* Greeting and Stat Cards in two separate flex boxes */}
@@ -101,10 +101,12 @@ function DashboardContent() {
       </div>
       {/* Announcement Banner */}
       <div className="mb-2 px-0 sm:px-6 lg:px-8 xl:px-0 transition-all duration-300">
-        <AnnouncementBanner
-          title="Achievement Unlocked!"
-          description="Congratulations! You've earned the 'Quick Learner' badge by completing 5 lessons in a single day."
-        />
+        {totalProgress > 0 && (
+          <AnnouncementBanner
+            title="Achievement Unlocked!"
+            description="Congratulations! You've earned the 'Quick Learner' badge by completing 5 lessons in a single day."
+          />
+        )}
       </div>
       {/* Main content and sidebar */}
       <div className="container mx-auto px-0 sm:px-6 lg:px-8 xl:px-0 py-6 flex flex-col lg:flex-row gap-6 transition-all duration-300">
