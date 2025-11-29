@@ -3452,3 +3452,33 @@ export const useFeedbackSubmissions = ({
     refetch: result.refetch,
   };
 };
+
+export const exportQuizSubmissions = async (quizId: string) => {
+  const authToken = localStorage.getItem('firebase-auth-token');
+  
+  const response = await fetch(`${import.meta.env.VITE_BASE_URL}/quizzes/${quizId}/attempts/export`, {
+    method: 'GET',
+    headers: {
+      'Authorization': authToken ? `Bearer ${authToken}` : '',
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to export quiz submissions: ${response.statusText}`);
+  }
+
+  const csvData = await response.text();
+
+  const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `quiz_${quizId}_submissions.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+}

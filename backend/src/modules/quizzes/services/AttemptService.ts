@@ -5,6 +5,9 @@ import {
   IQuestionAnswerFeedback,
   IAttempt,
   IAttemptDetails,
+  IQuizSubmissionExport,
+  IQuestionInfo,
+  IResponseAnswer,
 } from '#quizzes/interfaces/grading.js';
 import {
   QuestionAnswerFeedback,
@@ -22,7 +25,9 @@ import {
   BaseService,
   IItemRepository,
   ItemType,
+  QuestionType,
   MongoDatabase,
+  ILotItem,
 } from '#shared/index.js';
 import {injectable, inject} from 'inversify';
 import {ClientSession, ObjectId} from 'mongodb';
@@ -672,6 +677,142 @@ class AttemptService extends BaseService {
 
     console.log(`🔹 Done! Updated ${updatedCount} / ${totalCount} records`);
     return {updatedCount, totalCount};
+  }
+
+  async exportQuizSubmissions(
+    quizId: string,
+  ): Promise<IQuizSubmissionExport[]> {
+    return this._withTransaction(async session => {
+      const attempts = await this.attemptRepository.getAttemptsByQuizId(
+        quizId,
+        session,
+      );
+
+      // Transform attempts data as needed for export
+
+      let exportData: IQuizSubmissionExport[] = [];
+
+      const lotItemTextProcessors: Record<
+        QuestionType,
+        (
+          questionInfo: IQuestionInfo,
+          responseAnswer: IResponseAnswer,
+        ) => string | string[]
+      > = {
+        SELECT_ONE_IN_LOT: (
+          questionInfo: IQuestionInfo,
+          responseAnswer: IResponseAnswer,
+        ) => {
+          // For SELECT_ONE_IN_LOT, responseAnswer.answer is a single lotItemId
+          let selectedLotItemId: string =
+            responseAnswer.answer.lotItemId.toString();
+
+          // Find the lot item text from questionInfo
+
+          const lotItem =
+            questionInfo.correctLotItems?.find(
+              item => item._id?.toString() === selectedLotItemId,
+            ) ||
+            questionInfo.incorrectLotItems?.find(
+              item => item._id?.toString() === selectedLotItemId,
+            ) ||
+            (questionInfo.correctLotItem?._id.toString() === selectedLotItemId
+              ? questionInfo.correctLotItem
+              : undefined);
+
+          if (lotItem) {
+            return lotItem.text;
+          }
+        },
+        SELECT_MANY_IN_LOT: (
+          questionInfo: IQuestionInfo,
+          responseAnswer: IResponseAnswer,
+        ) => {
+          // For SELECT_MANY_IN_LOT, responseAnswer.answer is an array of lotItemIds
+          let selectedLotItemIds: string[] =
+            responseAnswer.answer.lotItemIds?.map(id => id.toString()) || [];
+
+          // Fetch all selectedLotItem texts from questionInfo
+          const selectedLotItems: string[] = [];
+
+          selectedLotItemIds.forEach(lotItemId => {
+            const selectedLotItem =
+              questionInfo.correctLotItems.find(
+                item => item._id?.toString() === lotItemId,
+              ) ||
+              questionInfo.incorrectLotItems.find(
+                item => item._id?.toString() === lotItemId,
+              );
+
+            if (selectedLotItem) {
+              selectedLotItems.push(selectedLotItem.text);
+            }
+          });
+
+          return selectedLotItems;
+        },
+        ORDER_THE_LOTS: (
+          questionInfo: IQuestionInfo,
+          responseAnswer: IResponseAnswer,
+        ) => {
+          // Ingore this for now
+          return [];
+        },
+        NUMERIC_ANSWER_TYPE: (
+          questionInfo: IQuestionInfo,
+          responseAnswer: IResponseAnswer,
+        ) => {
+          // For NUMERIC_ANSWER_TYPE, responseAnswer.answer is a numeric value
+          const numericAnswer = responseAnswer.answer.value;
+
+          return numericAnswer?.toString();
+        },
+        DESCRIPTIVE: (
+          questionInfo: IQuestionInfo,
+          responseAnswer: IResponseAnswer,
+        ) => {
+          // For DESCRIPTIVE, responseAnswer.answer is a text answer
+          const textAnswer = responseAnswer.answer.answerText;
+
+          return textAnswer;
+        },
+      };
+
+      for (const attempt of attempts) {
+        if (!attempt.user) continue;
+        const userName = attempt.user.firstName + ' ' + attempt.user?.lastName;
+
+        for (let i = 0; i < attempt.questionDetails.length; i++) {
+          const questionDetail = attempt.questionDetails[i];
+          const responseAnswer = attempt.answers.find(
+            ans => ans.questionId.toString() === questionDetail._id.toString(),
+          );
+
+          if (!responseAnswer) continue;
+
+          // QuestionDetail will always have questionText.
+          // To fetch response text, we need to fetch the lotItem text from the question's lotItems based on question type.
+          const questionType = responseAnswer.questionType;
+          // Use the function dispatcher to get the appropriate processor
+          const processor = lotItemTextProcessors[questionType];
+          if (processor) {
+            const reponseText = processor(questionDetail, responseAnswer);
+
+            // Prepare export entry
+            exportData.push({
+              Name: userName,
+              Question: questionDetail.text,
+              questionType: questionType,
+              Response: Array.isArray(reponseText)
+                ? reponseText.join(', ')
+                : reponseText || '',
+            });
+          }
+        }
+      }
+
+      return exportData;
+    });
   }
 }
 
