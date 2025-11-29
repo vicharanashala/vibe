@@ -692,6 +692,83 @@ export class EnrollmentRepository {
         {$unwind: '$itemsGroup'},
         {$unwind: '$itemsGroup.items'},
         {
+          $addFields: {
+            itemObjId: {$toObjectId: '$itemsGroup.items._id'},
+          },
+        },
+        {
+          $lookup: {
+            from: 'videos',
+            let: {itemId: '$itemObjId', itemType: '$itemsGroup.items.type'},
+            pipeline: [
+              {$match: {$expr: {$and: [{$eq: ['$_id', '$$itemId']}, {$eq: ['$$itemType', 'VIDEO']}]}}},
+              {$project: {isDeleted: 1}},
+            ],
+            as: 'videoDoc',
+          },
+        },
+        {
+          $lookup: {
+            from: 'blogs',
+            let: {itemId: '$itemObjId', itemType: '$itemsGroup.items.type'},
+            pipeline: [
+              {$match: {$expr: {$and: [{$eq: ['$_id', '$$itemId']}, {$eq: ['$$itemType', 'BLOG']}]}}},
+              {$project: {isDeleted: 1}},
+            ],
+            as: 'blogDoc',
+          },
+        },
+        {
+          $lookup: {
+            from: 'quizzes',
+            let: {itemId: '$itemObjId', itemType: '$itemsGroup.items.type'},
+            pipeline: [
+              {$match: {$expr: {$and: [{$eq: ['$_id', '$$itemId']}, {$eq: ['$$itemType', 'QUIZ']}]}}},
+              {$project: {isDeleted: 1}},
+            ],
+            as: 'quizDoc',
+          },
+        },
+        {
+          $lookup: {
+            from: 'projects',
+            let: {itemId: '$itemObjId', itemType: '$itemsGroup.items.type'},
+            pipeline: [
+              {$match: {$expr: {$and: [{$eq: ['$_id', '$$itemId']}, {$eq: ['$$itemType', 'PROJECT']}]}}},
+              {$project: {isDeleted: 1}},
+            ],
+            as: 'projectDoc',
+          },
+        },
+        {
+          $addFields: {
+            isItemDeleted: {
+              $switch: {
+                branches: [
+                  {
+                    case: {$eq: ['$itemsGroup.items.type', 'VIDEO']},
+                    then: {$ifNull: [{$arrayElemAt: ['$videoDoc.isDeleted', 0]}, false]},
+                  },
+                  {
+                    case: {$eq: ['$itemsGroup.items.type', 'BLOG']},
+                    then: {$ifNull: [{$arrayElemAt: ['$blogDoc.isDeleted', 0]}, false]},
+                  },
+                  {
+                    case: {$eq: ['$itemsGroup.items.type', 'QUIZ']},
+                    then: {$ifNull: [{$arrayElemAt: ['$quizDoc.isDeleted', 0]}, false]},
+                  },
+                  {
+                    case: {$eq: ['$itemsGroup.items.type', 'PROJECT']},
+                    then: {$ifNull: [{$arrayElemAt: ['$projectDoc.isDeleted', 0]}, false]},
+                  },
+                ],
+                default: false,
+              },
+            },
+          },
+        },
+        {$match: {isItemDeleted: {$ne: true}}},
+        {
           $group: {
             _id: '$_id',
             totalItems: {$sum: 1},
