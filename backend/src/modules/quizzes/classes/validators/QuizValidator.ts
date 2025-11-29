@@ -131,6 +131,17 @@ class SubmitAttemptParams {
   attemptId: string;
 }
 
+class ExportQuizAttemptsParams {
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'ID of the quiz',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c85',
+  })
+  quizId: string;
+}
+
 class SubmitFeedbackParams {
   @IsMongoId()
   @IsNotEmpty()
@@ -1618,6 +1629,7 @@ export {
   GetAllSubmissionsResponse,
   QuizNotFoundErrorResponse,
   GetAllQuestionBanksResponse,
+  ExportQuizAttemptsParams,
 };
 
 export const QUIZ_VALIDATORS = [
@@ -1651,4 +1663,5 @@ export const QUIZ_VALIDATORS = [
   GetAllSubmissionsResponse,
   QuizNotFoundErrorResponse,
   GetAllQuestionBanksResponse,
+  ExportQuizAttemptsParams,
 ];

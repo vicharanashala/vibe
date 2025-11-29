@@ -64,8 +64,6 @@ interface ISMLSolution {
   correctLotItems: ILotItem[];
 }
 
-
-
 type ID = string | ObjectId;
 
 interface IQuestionBank {
