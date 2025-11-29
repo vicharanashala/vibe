@@ -2,12 +2,13 @@ import {
   Body,
   Get,
   HttpCode,
-  JsonController,
   OnUndefined,
   Params,
   Post,
   ForbiddenError,
   Authorized,
+  Res,
+  Controller,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
@@ -29,17 +30,20 @@ import {
   AttemptNotFoundErrorResponse,
   SubmitFeedbackParams,
   SubmitFeedbackBody,
+  ExportQuizAttemptsParams,
 } from '#quizzes/classes/validators/QuizValidator.js';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
 import {IAttempt} from '#quizzes/interfaces/index.js';
 import {BadRequestErrorResponse} from '#root/shared/index.js';
 import {getCourseAbility} from '#root/modules/courses/abilities/courseAbilities.js';
+import {createObjectCsvStringifier} from 'csv-writer';
+import {Response} from 'express';
 
 @OpenAPI({
   tags: ['Quiz Attempts'],
 })
 @injectable()
-@JsonController('/quizzes')
+@Controller('/quizzes')
 class AttemptController {
   constructor(
     @inject(QUIZZES_TYPES.AttemptService)
@@ -250,6 +254,48 @@ class AttemptController {
       attemptId,
     );
     return attempt as IAttempt;
+  }
+
+  @Get('/:quizId/attempts/export')
+  @OnUndefined(200)
+  @OpenAPI({
+    summary: 'Export quiz attempts as CSV',
+    description: 'Exports all attempts for a specific quiz.',
+  })
+  async exportQuizAttempts(
+    @Params() params: ExportQuizAttemptsParams,
+    @Res() res: Response,
+  ): Promise<void> {
+    const result = await this.attemptService.exportQuizSubmissions(
+      params.quizId,
+    );
+
+    const header = [
+      {id: 'Name', title: 'Name'},
+      {id: 'Question', title: 'Question'},
+      {id: 'questionType', title: 'Question Type'},
+      {id: 'Response', title: 'Response'},
+    ];
+
+    const csvStringifier = createObjectCsvStringifier({
+      header: header,
+    });
+
+    const csvContent =
+      csvStringifier.getHeaderString() +
+      csvStringifier.stringifyRecords(result);
+
+    // Clear any existing headers and set new ones
+    res.removeHeader('Content-Type');
+    res.status(200);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="quiz_attempts.csv"',
+    );
+    res.setHeader('Cache-Control', 'no-cache');
+    res.write(csvContent);
+    res.end();
   }
 }
 

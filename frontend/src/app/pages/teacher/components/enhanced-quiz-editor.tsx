@@ -47,6 +47,7 @@ import {
   useQuestionById,
   useQuizSubmissions,
   useUpdateCourseItem,
+  exportQuizSubmissions,
 } from '@/hooks/hooks';
 
 import ExpandableQuestionCard from './expandable-question-card';
@@ -128,6 +129,7 @@ var questionTextCache: Record<string, { text: string, points: number, priority?:
 
 const QuestionPerformanceRow: React.FC<QuestionPerformanceRowProps> = ({ performance, index, onCacheUpdate }) => {
   const { data: questionData } = useQuestionById(performance.questionId);
+
   useEffect(() => {
     if (questionData && questionData.text) {
       questionTextCache[performance.questionId] = { text: questionData.text, points: questionData.points || 1, priority: questionData.priority, type: questionData.type };
@@ -890,6 +892,21 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
     }
   }, [showCreateBankDialog]);
 
+  async function handleDownloadCSV(event: any): Promise<void> {
+    if (!quizId) {
+      toast.error('Quiz ID is required to export submissions');
+      return;
+    }
+
+    try {
+      await exportQuizSubmissions(quizId);
+      toast.success('CSV export completed successfully');
+    } catch (error) {
+      console.error('Error exporting quiz submissions:', error);
+      toast.error('Failed to export quiz submissions');
+    }
+  }
+
   return (
     <>
       {isLoading ? <Loader /> :
@@ -1375,14 +1392,19 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                     </div>
                   </div>
                 </div>
-                <div className="p-6 w-full">
+                <div className="p-6 w-full flex-1">
                   <Card>
-                    <CardHeader>
+                    <div className="flex items-center justify-between relative">
+                    <CardHeader className="w-1/2">
                       <CardTitle>All Submissions</CardTitle>
                       <CardDescription>
                         Detailed view of all quiz submissions with grading information
                       </CardDescription>
+                      <Button variant="ghost" className="absolute right-6" onClick={handleDownloadCSV}>
+                        Download CSV
+                      </Button>
                     </CardHeader>
+                    </div>
                     <CardContent>
                       <Table>
                         <TableHeader>
