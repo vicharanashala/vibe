@@ -1,16 +1,16 @@
-import { IAttempt } from '#quizzes/interfaces/grading.js';
-import { MongoDatabase } from '#shared/database/providers/mongo/MongoDatabase.js';
-import { injectable, inject } from 'inversify';
-import { Collection, ClientSession, ObjectId } from 'mongodb';
-import { InternalServerError } from 'routing-controllers';
-import { GLOBAL_TYPES } from '#root/types.js';
+import {IAttempt, IAttemptExport} from '#quizzes/interfaces/grading.js';
+import {MongoDatabase} from '#shared/database/providers/mongo/MongoDatabase.js';
+import {injectable, inject} from 'inversify';
+import {Collection, ClientSession, ObjectId, Document} from 'mongodb';
+import {InternalServerError} from 'routing-controllers';
+import {GLOBAL_TYPES} from '#root/types.js';
 @injectable()
 class AttemptRepository {
   private attemptCollection: Collection<IAttempt>;
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
-  ) { }
+  ) {}
 
   private async init() {
     this.attemptCollection = await this.db.getCollection<IAttempt>(
@@ -20,7 +20,7 @@ class AttemptRepository {
 
   async create(attempt: IAttempt, session?: ClientSession) {
     await this.init();
-    const result = await this.attemptCollection.insertOne(attempt, { session });
+    const result = await this.attemptCollection.insertOne(attempt, {session});
     if (result.acknowledged && result.insertedId) {
       return result.insertedId.toString();
     }
@@ -39,9 +39,9 @@ class AttemptRepository {
     const result = await this.attemptCollection.findOne(
       {
         _id: new ObjectId(attemptId),
-        quizId: { $in: [quizIdStr, quizIdObj] },
+        quizId: {$in: [quizIdStr, quizIdObj]},
       },
-      { session },
+      {session},
     );
     if (!result) {
       return null;
@@ -62,13 +62,13 @@ class AttemptRepository {
     const quizIdObj = new ObjectId(quizIdStr);
 
     const result = await this.attemptCollection.countDocuments(
-      { quizId: { $in: [quizIdStr, quizIdObj] } },
-      { session },
+      {quizId: {$in: [quizIdStr, quizIdObj]}},
+      {session},
     );
     if (!result) {
       return null;
     }
-    console.log("total attempts: ",result)
+    console.log('total attempts: ', result);
     return result;
   }
 
@@ -87,10 +87,10 @@ class AttemptRepository {
 
     const result = await this.attemptCollection.countDocuments(
       {
-        quizId: { $in: [quizIdStr, quizIdObj] },
-        userId: { $in: [userIdStr, userIdObj] },
+        quizId: {$in: [quizIdStr, quizIdObj]},
+        userId: {$in: [userIdStr, userIdObj]},
       },
-      { session },
+      {session},
     );
     console.log(result);
     if (!result) {
@@ -102,9 +102,9 @@ class AttemptRepository {
   async update(attemptId: string, updateData: Partial<IAttempt>) {
     await this.init();
     const result = await this.attemptCollection.findOneAndUpdate(
-      { _id: new ObjectId(attemptId) },
-      { $set: updateData },
-      { returnDocument: 'after' },
+      {_id: new ObjectId(attemptId)},
+      {$set: updateData},
+      {returnDocument: 'after'},
     );
     return result;
   }
@@ -138,10 +138,115 @@ class AttemptRepository {
     const distinctUsers = await this.attemptCollection.distinct(
       'userId',
       filter,
-      { session },
+      {session},
     );
     return distinctUsers.length;
   }
+
+  async getAttemptsByQuizId(
+    quizId: string,
+    session?: ClientSession,
+  ): Promise<IAttemptExport[]> {
+    await this.init();
+
+    const pipeline = [
+      {
+        $match: {
+          quizId: new ObjectId(quizId),
+        },
+      },
+      {
+        // Lookup all questions used by this attempt
+        $lookup: {
+          from: 'questions',
+          localField: 'answers.questionId',
+          foreignField: '_id',
+          as: 'questionDocs',
+        },
+      },
+      {
+        $lookup:
+          /**
+           * from: The target collection.
+           * localField: The local join field.
+           * foreignField: The target join field.
+           * as: The name for the results.
+           * pipeline: Optional pipeline to run on the foreign collection.
+           * let: Optional variables to use in the pipeline field stages.
+           */
+          {
+            from: 'users',
+            localField: 'userId',
+            foreignField: '_id',
+            as: 'user',
+          },
+      },
+      {
+        $lookup: {
+          from: 'questions',
+          localField: 'questionDetails.questionId',
+          foreignField: '_id',
+          as: 'questionDetails',
+        },
+      },
+      {
+        $set:
+          /**
+           * field: The field name
+           * expression: The expression.
+           */
+          {
+            user: {
+              $arrayElemAt: ['$user', 0],
+            },
+          },
+      },
+      {
+        // Merge questions back into each answers[i]
+        $addFields: {
+          answers: {
+            $map: {
+              input: '$answers',
+              as: 'ans',
+              in: {
+                $mergeObjects: [
+                  '$$ans',
+                  {
+                    question: {
+                      $arrayElemAt: [
+                        {
+                          $filter: {
+                            input: '$questionDocs',
+                            as: 'qd',
+                            cond: {
+                              $eq: ['$$qd._id', '$$ans.questionId'],
+                            },
+                          },
+                        },
+                        0,
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+      {
+        // Remove temporary data
+        $project: {
+          questionDocs: 0,
+        },
+      },
+    ];
+
+    const attempts = await this.attemptCollection
+      .aggregate(pipeline, {session})
+      .toArray();
+
+    return attempts as IAttemptExport[];
+  }
 }
 
-export { AttemptRepository };
+export {AttemptRepository};
