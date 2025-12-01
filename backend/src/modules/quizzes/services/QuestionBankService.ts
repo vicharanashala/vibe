@@ -227,8 +227,8 @@ class QuestionBankService extends BaseService {
         questionId,
         session,
       );
-
-      questionBank.questions[index] = duplicatedQuestion._id.toString();
+      // Push the duplicated question into the question bank.
+      questionBank.questions.push(duplicatedQuestion._id.toString());
       questionBank.courseVersionId = new ObjectId(questionBank.courseVersionId);
       questionBank.courseId = new ObjectId(questionBank.courseId.toString());
       await this.questionBankRepository.update(bankId, questionBank, session);
