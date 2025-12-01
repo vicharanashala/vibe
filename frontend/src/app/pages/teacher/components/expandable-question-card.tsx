@@ -485,11 +485,20 @@ const renderParameterInputs = (title: string) => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {QUESTION_TYPES.map(type => (
+              {
+              ["SELECT_ONE_IN_LOT", "SELECT_MANY_IN_LOT"].includes(editForm.question.type) ?
+              QUESTION_TYPES.filter(type => type.value === "SELECT_ONE_IN_LOT" || type.value === "SELECT_MANY_IN_LOT").map(type => (
                 <SelectItem key={type.value} value={type.value}>
                   {type.label}
                 </SelectItem>
-              ))}
+              ))
+              :
+              QUESTION_TYPES.find(type => type.value === editForm.question.type) && (
+                <SelectItem key={editForm.question.type} value={editForm.question.type}>
+                  {QUESTION_TYPES.find(type => type.value === editForm.question.type)?.label}
+                </SelectItem>
+              )
+              }
             </SelectContent>
           </Select>
         </div>
