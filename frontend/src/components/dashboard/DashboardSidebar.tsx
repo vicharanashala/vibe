@@ -12,6 +12,7 @@ export const DashboardSidebar = ({ enrollments, className }: DashboardSidebarPro
     <div className={`w-full space-y-6 bg-sidebar p-4 rounded-lg border border-sidebar-border dark:bg-[#d7ab5f18] ${className || ''}`}>
       <TodoList />
 
+      {/*
       <Card className="border border-sidebar-border dark:bg-[#58442775]">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-4">
@@ -51,7 +52,9 @@ export const DashboardSidebar = ({ enrollments, className }: DashboardSidebarPro
           </div>
         </CardContent>
       </Card>
+      */}
 
+      {/*
       <Card className="border border-sidebar-border dark:bg-[#58442775]">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-4">
@@ -112,6 +115,7 @@ export const DashboardSidebar = ({ enrollments, className }: DashboardSidebarPro
           </div>
         </CardContent>
       </Card>
+      */}
     </div>
   );
 };
