@@ -231,19 +231,19 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           orders?: Order[];
         } = {};
         
-        if (!userAnswer&& typeof userAnswer !== 'number') {
+        /*if (!userAnswer&& typeof userAnswer !== 'number') {
           // Default values for empty answers
           saveAnswer.lotItemId = '111111111111111111111111';
-          saveAnswer.lotItemIds = ['111111111111111111111111'];
-          saveAnswer.answerText = 'a';
-          saveAnswer.value = -1e40;
-          saveAnswer.orders = [];
+          //saveAnswer.lotItemIds = ['111111111111111111111111'];
+         // saveAnswer.answerText = 'a';
+         // saveAnswer.value = -1e40;
+         // saveAnswer.orders = [];
           return {
             questionId: question.id,
             questionType: question.type,
             answer: saveAnswer
           };
-        }
+        }*/
 
         switch (question.type) {
           case 'SELECT_ONE_IN_LOT':
