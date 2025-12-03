@@ -1794,11 +1794,11 @@ export default function AISectionPage() {
     const handleAddOption = () => setOptions((opts: any[]) => [...opts, { text: '', explaination: '', correct: false }]);
     const handleRemoveOption = (idx: number) => setOptions((opts: any[]) => opts.filter((_, i) => i !== idx));
 
-    const canSave = questionText.trim() && options.length >= 2 && options.every((o: any) => o.text.trim() && o.explaination.trim()) && options.some((o: any) => o.correct);
+    const canSave = questionText.trim() && options.length >= 2 && options.every((o: any) => o.text.trim()) && options.some((o: any) => o.correct);
 
     const buildSolution = () => {
-      const correctOpts = options.filter((o: any) => o.correct).map((o: any) => ({ text: o.text, explaination: o.explaination }));
-      const incorrectOpts = options.filter((o: any) => !o.correct).map((o: any) => ({ text: o.text, explaination: o.explaination }));
+      const correctOpts = options.filter((o: any) => o.correct).map((o: any) => ({ text: o.text, explaination: o.explaination.trim() || "Congratulations! You are correct!" }));
+      const incorrectOpts = options.filter((o: any) => !o.correct).map((o: any) => ({ text: o.text, explaination: o.explaination.trim() || "Sorry! You are wrong!" }));
       if (normalized.type === 'SELECT_ONE_IN_LOT') {
         return {
           correctLotItem: correctOpts[0] || { text: '', explaination: '' },
