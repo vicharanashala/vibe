@@ -109,10 +109,26 @@ class AttemptController {
   })
   @Post('/:quizId/attempt/:attemptId/save')
   async save(
+    @Req() req: Request,
+    @Res() res: Response,
     @Params() params: SaveAttemptParams,
-    @Body() body: QuestionAnswersBody,
+   // @Body() body: QuestionAnswersBody,
     @Ability(getAttemptAbility) {ability, user},
   ): Promise<void> {
+    const body: QuestionAnswersBodydto = await new Promise((resolve, reject) => {
+      let data = '';
+      req.on('data', chunk => {
+        data += chunk;
+      });
+      req.on('end', () => {
+        try {
+          resolve(JSON.parse(data || '{}') as QuestionAnswersBodydto);
+        } catch (err) {
+          reject(err);
+        }
+      });
+      req.on('error', err => reject(err));
+    });
     const {quizId, attemptId} = params;
     const userId = user._id.toString();
     // Build subject context first
