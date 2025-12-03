@@ -108,7 +108,7 @@ class AttemptController {
   @Post('/:quizId/attempt/:attemptId/save')
   async save(
     @Params() params: SaveAttemptParams,
-    @Body() body: any,
+    @Body() body: QuestionAnswersBody,
     @Ability(getAttemptAbility) {ability, user},
   ): Promise<void> {
     const {quizId, attemptId} = params;
