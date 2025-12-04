@@ -100,14 +100,14 @@ function DashboardContent() {
         </div>
       </div>
       {/* Announcement Banner */}
-      <div className="mb-2 px-0 sm:px-6 lg:px-8 xl:px-0 transition-all duration-300">
+      {/* <div className="mb-2 px-0 sm:px-6 lg:px-8 xl:px-0 transition-all duration-300">
         {totalProgress > 0 && (
           <AnnouncementBanner
             title="Achievement Unlocked!"
             description="Congratulations! You've earned the 'Quick Learner' badge by completing 5 lessons in a single day."
           />
         )}
-      </div>
+      </div> */}
       {/* Main content and sidebar */}
       <div className="container mx-auto px-0 sm:px-6 lg:px-8 xl:px-0 py-6 flex flex-col lg:flex-row gap-6 transition-all duration-300">
         <main className="flex-1">
