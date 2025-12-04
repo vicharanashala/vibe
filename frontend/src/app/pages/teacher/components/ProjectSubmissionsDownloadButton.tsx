@@ -1,5 +1,5 @@
 import React from 'react';
-import { PDFDownloadLink, Page, Text, View, Document, StyleSheet } from '@react-pdf/renderer';
+import { PDFDownloadLink, Page, Text, View, Document, StyleSheet, Link } from '@react-pdf/renderer';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { useProjectSubmissions, ProjectSubmissionUserInfo } from '@/hooks/hooks';
@@ -38,7 +38,8 @@ const ProjectSubmissionsPDF: React.FC<ProjectSubmissionsPDFProps> = ({ course, c
           <View style={styles.tableRow} key={idx}>
             <View style={[styles.tableCol, { width: '18%' }]}><Text style={styles.tableCell}>{(u.firstName || "") + " " + (u.lastName || "")}</Text></View>
             <View style={[styles.tableCol, { width: '18%' }]}><Text style={styles.tableCell}>{u.email || ""}</Text></View>
-            <View style={[styles.tableCol, { width: '32%' }]}><Text style={styles.tableCell}>{u.submissionURL}</Text></View>
+            {/* <View style={[styles.tableCol, { width: '32%' }]}><Text style={styles.tableCell}>{u.submissionURL}</Text></View> */}
+            <View style={[styles.tableCol, { width: '32%' }]}><Text style={styles.tableCell}><Link href={u.submissionURL}>{u.submissionURL}</Link></Text></View>
             <View style={[styles.tableCol, { width: '32%' }]}><Text style={styles.tableCell}>{(u as any).comment || ""}</Text></View>
           </View>
         ))}
