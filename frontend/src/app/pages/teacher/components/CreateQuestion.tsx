@@ -352,10 +352,13 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                 timeLimitSeconds: questionForm.timeLimitSeconds,
                 points: questionForm.points,
                 priority: questionForm.priority,
-                incorrectLotItems: incorrectOptions.map(({ text, explaination }) => ({ text, explaination })),
+                incorrectLotItems: incorrectOptions.map(({ text, explaination }) => ({ 
+                    text, 
+                    explaination: explaination.trim() || "Sorry! You are wrong!" 
+                })),
                 ...(questionForm.type === 'SELECT_ONE_IN_LOT'
-                    ? { correctLotItem: { text: correctOptions[0].text, explaination: correctOptions[0].explaination } }
-                    : { correctLotItems: correctOptions.map(({ text, explaination }) => ({ text, explaination })) }
+                    ? { correctLotItem: { text: correctOptions[0].text, explaination: correctOptions[0].explaination.trim() || "Congratulations! You are correct!" } }
+                    : { correctLotItems: correctOptions.map(({ text, explaination }) => ({ text, explaination: explaination.trim() || "Congratulations! You are correct!" })) }
                 ),
                 decimalPrecision: questionForm.decimalPrecision  || 0,
                 upperLimit: questionForm.upperLimit  || 0,
