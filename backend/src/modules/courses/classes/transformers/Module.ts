@@ -32,6 +32,9 @@ class Module implements IModule {
   order: string;
 
   @Expose()
+  isHidden: boolean;
+
+  @Expose()
   @Type(() => Section)
   sections: Section[];
 
