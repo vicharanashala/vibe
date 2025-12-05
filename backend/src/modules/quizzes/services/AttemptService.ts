@@ -109,6 +109,7 @@ class AttemptService extends BaseService {
         questionId,
         true,
       )) as BaseQuestion;
+      console.log("question from the service ",question)
       const questionDetail: IQuestionDetails = {
         questionId: questionId,
         parameterMap: question.isParameterized

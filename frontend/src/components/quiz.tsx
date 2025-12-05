@@ -66,6 +66,11 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const [dontStart, setDontStart] = useState(false);
   const [isEmptyQuiz, setIsEmptyQuiz] = useState(false);
   const [noAttemptsLeft, setNoAttemptsLeft] = useState(false);
+  const [explanationModal, setExplanationModal] = useState<{
+  open: boolean;
+  text: string;
+  resolve?: () => void;
+}>({ open: false, text: "" });
 
   // ===== REFS AND CONSTANTS =====
   const itemStartedRef = useRef(false);
@@ -82,6 +87,18 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const stopItem = useStopItem();
 
   // ===== UTILITY FUNCTIONS =====
+
+function showExplanationModal(text: string) {
+  return new Promise<void>((resolve) => {
+    setExplanationModal({
+      open: true,
+      text,
+      resolve,
+    });
+  });
+}
+
+
   const formatTime = useCallback((seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -91,7 +108,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const getTotalPoints = useCallback(() => {
     return quizQuestions.reduce((total, q) => total + q.points, 0);
   }, [quizQuestions]);
-
+  // console.log('converted questionssssssssssssssssssssssssss',converted)  
   const getQuestionTypeLabel = useCallback((type: string): string => {
     switch (type) {
       case 'SELECT_ONE_IN_LOT': return 'Single Select';
@@ -182,11 +199,27 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         case 'ORDER_THE_LOTS':
           if ('lotItems' in question) {
             // Map the backend lotItems to frontend format
-            baseQuestion.lotItems = question.lotItems.map(item => ({
-              text: item.text,
-              explaination: '', // This field doesn't exist in LotItem from API
-              _id: typeof item._id === 'string' ? item._id : item._id
-            }));
+            // baseQuestion.lotItems = question.lotItems.map(item => ({
+              
+            //   text: item.text,
+            //   explaination: item.explaination ||'', // This field doesn't exist in LotItem from API
+            //   _id: typeof item._id === 'string' ? item._id : item._id
+            // }));
+            baseQuestion.lotItems = question.lotItems.map(item => {
+  let optionId: string;
+
+  if (item._id && typeof item._id === 'object' && 'buffer' in item._id) {
+    optionId = bufferToHex(item._id);  // ✅ convert buffer to string
+  } else {
+    optionId = String(item._id);
+  }
+
+  return {
+    text: item.text,
+    explaination: item.explaination || '',
+    _id: optionId,
+  };
+});
             baseQuestion.options = question.lotItems.map(item => item.text);
           }
           break;
@@ -540,7 +573,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         params: { path: { quizId: processedQuizId, attemptId: attemptId } },
         body: { answers: answersForSubmission, isSkipped }
       });
-      
+     
       // No reponse for skipped quiz!
       if (!response) {
         setQuizCompleted(true);
@@ -552,7 +585,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         ...response,
         gradedAt: response.gradedAt ? new Date(response.gradedAt).toISOString() : undefined,
       };
-      
       setSubmissionResults(formattedResponse);
 
       // Update score from server response if available
@@ -569,6 +601,23 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         });
         setScore(totalScore);
       }
+let explanationText = "";
+quizQuestions.forEach(question => {
+  
+  const userAnswer = answers[question.id];
+  if (!userAnswer) return;
+  answersForSubmission.forEach(sub => {
+  const selected = question.lotItems?.find(
+    i => i._id == sub.answer.lotItemId
+  );
+  explanationText=`${selected?.explaination}`
+});
+});
+
+if (explanationText.trim()) {
+  // alert(explanationText);
+  await showExplanationModal(explanationText)
+}
 
       setQuizCompleted(true);
       handleStopItem();
@@ -590,6 +639,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           params: { path: { quizId: processedQuizId, attemptId: attemptId } },
           body: { answers: answersForSaving }
         });
+        // if(result)
       } catch (err:any) {
         const errorMessage =
         err?.message || (typeof err === 'string' ? err : null) || 
@@ -609,7 +659,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     // Track attempts using the attempt data from the hook
     useEffect(() => {
       if (attemptData) {
-        console.log("Attempt data: ", attemptData);
 
         // Update the attempt count when a new attempt is created
         setAttempts(attemptData.userAttempts);
@@ -651,7 +700,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }, [attemptId, quizQuestions, processedQuizId, saveQuiz, convertAnswersToSaveFormat]);
 
   const currentQuestion = quizQuestions[currentQuestionIndex];
-  console.log("QuizQuestions: ", quizQuestions)
 
   const handleAnswer = useCallback((answer: string | number | number[] | string[] | undefined) => {
     if (answer === undefined) return;
@@ -767,7 +815,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     if (!quizStarted && !quizCompleted && !isEmptyQuiz && !noAttemptsLeft && quizType === 'NO_DEADLINE' && quizQuestions.length === 0 && !isPending && !quizAttemptedRef.current && !dontStart) {
       // Check if quiz has any question banks first to detect empty quizzes early
       if (!questionBankRefs || questionBankRefs.length === 0) {
-        console.log('Empty quiz detected early - no question banks');
         handleEmptyQuiz();
       } else {
         startQuiz();
@@ -798,6 +845,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       // For regular completion, check grading status
       if (submissionResults?.gradingStatus !== "FAILED") {
         setQuizPassed?.(1);
+        alert("Onnext is calling just before onNext")
         onNext?.();
       } else {
         setQuizPassed?.(0);
@@ -845,8 +893,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
 
   // Quiz not started
+  
   if (!quizStarted) {
-    // console.log("QUIZTYPE:", quizType);
     if (quizType === 'DEADLINE'){
       return (
         <div className="mx-auto space-y-8">
@@ -1513,6 +1561,83 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           </div>
         </div>
 
+        {/* {explanationModal.open && (
+  <div 
+    style={{
+      position: "fixed",
+      top: 0, left: 0,
+      width: "100vw",
+      height: "100vh",
+      background: "rgba(0,0,0,0.6)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 9999
+    }}
+  >
+    <div
+      style={{
+        background: "white",
+        padding: "20px",
+        borderRadius: "8px",
+        maxWidth: "500px",
+        width: "90%",
+        whiteSpace: "pre-wrap",
+      }}
+    >
+      <h3>Explanation</h3>
+      <p>{explanationModal.text}</p>
+
+      <button
+        style={{ marginTop: "20px" }}
+        onClick={() => {
+          explanationModal.resolve?.();  // resume the async function
+          setExplanationModal({ open: false, text: "" });
+        }}
+      >
+        Close
+      </button>
+    </div>
+  </div>
+)} */}
+{explanationModal.open && (
+  <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div className="relative bg-[#fff8e6] border border-[#f5c76b] rounded-xl p-6 w-[90%] max-w-md shadow-xl font-sans text-center">
+
+      {/* CLOSE ICON (X) */}
+      <button
+        className="absolute top-3 right-3 text-[#8a6d3b] hover:text-[#4a3b27] text-xl font-bold"
+        onClick={() => {
+          explanationModal.resolve?.();
+          setExplanationModal({ open: false, text: "" });
+        }}
+      >
+        ×
+      </button>
+
+      {/* ICON */}
+      <div className="flex justify-center mb-4">
+        <div className="bg-[#f7c948] text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-xl">
+          !
+        </div>
+      </div>
+
+      {/* HEADING */}
+      <h2 className="text-lg font-bold text-[#8a6d3b] mb-3">
+        Explanation
+      </h2>
+
+      {/* TEXT */}
+      <p className="whitespace-pre-wrap text-[#5a4e3c] text-base leading-relaxed text-center">
+        {explanationModal.text}
+      </p>
+    </div>
+  </div>
+)}
+
+
+
+
         {/* Show save error if any */}
         {/* {saveError && !submitError && (
           <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
@@ -1548,6 +1673,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         )}
       </CardContent>
     </Card>
+
+    
   );
 });
 
