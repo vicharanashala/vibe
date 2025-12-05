@@ -47,6 +47,8 @@ export class ItemRepository implements IItemRepository {
     this.feedbackFormCollection = await this.db.getCollection<FeedBackFormItem>(
       'feedback_forms',
     );
+
+    this.itemsGroupCollection.createIndex({items: 1});
   }
 
   // Methods for ItemsGroup operations

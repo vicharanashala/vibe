@@ -16,6 +16,16 @@ class AttemptRepository {
     this.attemptCollection = await this.db.getCollection<IAttempt>(
       'quiz_attempts',
     );
+
+    // High-priority indexes for read performance
+    await this.attemptCollection.createIndex(
+      {quizId: 1, userId: 1},
+      {name: 'quizId_1_userId_1', background: true},
+    );
+    await this.attemptCollection.createIndex(
+      {'questionDetails.questionId': 1},
+      {name: 'questionDetails_questionId_1', background: true},
+    );
   }
 
   async create(attempt: IAttempt, session?: ClientSession) {

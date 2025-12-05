@@ -23,6 +23,16 @@ class SubmissionRepository {
     this.submissionResultCollection = await this.db.getCollection<ISubmission>(
       'quiz_submission_results',
     );
+
+    // High-priority indexes for read performance
+    await this.submissionResultCollection.createIndex(
+      {quizId: 1, userId: 1, attemptId: 1},
+      {name: 'quizId_1_userId_1_attemptId_1', background: true},
+    );
+    await this.submissionResultCollection.createIndex(
+      {quizId: 1, 'gradingResult.gradingStatus': 1, submittedAt: -1},
+      {name: 'quizId_1_gradingStatus_1_submittedAt_-1', background: true},
+    );
   }
 
   async create(
@@ -387,7 +397,7 @@ class SubmissionRepository {
   async getAveragePercentageByQuizId(
     quizId: string,
     session?: ClientSession,
-): Promise<number> {
+  ): Promise<number> {
     await this.init();
 
     // Fetch quiz to get maxScore
@@ -398,67 +408,71 @@ class SubmissionRepository {
 
     const quizIdStr = quizId.toString();
     const quizIdObj = ObjectId.isValid(quizIdStr)
-        ? new ObjectId(quizIdStr)
-        : null;
+      ? new ObjectId(quizIdStr)
+      : null;
 
     const result = await this.submissionResultCollection
-        .aggregate(
-            [
-                {
-                    $match: {
-                        quizId: { $in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])] },
-                    },
-                },
-                {
-                    $project: {
-                        percentage: {
-                            $multiply: [
-                                { $divide: ['$gradingResult.totalScore', "$gradingResult.totalMaxScore"] },
-                                100,
-                            ],
-                        },
-                    },
-                },
-                {
-                    $group: {
-                        _id: null,
-                        averagePercentage: { $avg: '$percentage' },
-                    },
-                },
-            ],
-            { session },
-        )
-        .toArray();
+      .aggregate(
+        [
+          {
+            $match: {
+              quizId: {$in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])]},
+            },
+          },
+          {
+            $project: {
+              percentage: {
+                $multiply: [
+                  {
+                    $divide: [
+                      '$gradingResult.totalScore',
+                      '$gradingResult.totalMaxScore',
+                    ],
+                  },
+                  100,
+                ],
+              },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              averagePercentage: {$avg: '$percentage'},
+            },
+          },
+        ],
+        {session},
+      )
+      .toArray();
 
     if (result.length > 0 && result[0].averagePercentage !== null) {
-        return Math.round(result[0].averagePercentage * 10) / 10; 
+      return Math.round(result[0].averagePercentage * 10) / 10;
     }
-    console.log("Percentage is ",Math.round(result[0].averagePercentage * 10) / 10)
+    console.log(
+      'Percentage is ',
+      Math.round(result[0].averagePercentage * 10) / 10,
+    );
     return 0;
-}
-
-async findByAttemptId(
-  attemptId: ObjectId | string,
-  session?: ClientSession
-) {
-  await this.init();
-  if(!attemptId){
-    return;
   }
-  try {
-    const result = await this.submissionResultCollection.findOne(
-      { attemptId: new ObjectId(attemptId) },
-    { session }
-    )
 
-    return result;
-  } catch (error) {
-    throw new InternalServerError(
+  async findByAttemptId(attemptId: ObjectId | string, session?: ClientSession) {
+    await this.init();
+    if (!attemptId) {
+      return;
+    }
+    try {
+      const result = await this.submissionResultCollection.findOne(
+        {attemptId: new ObjectId(attemptId)},
+        {session},
+      );
+
+      return result;
+    } catch (error) {
+      throw new InternalServerError(
         'Failed to find submission results ' + error,
       );
+    }
   }
-
-}
 }
 
 export {SubmissionRepository};
