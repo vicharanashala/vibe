@@ -218,11 +218,16 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
 
   const handleSaveEdit = async () => {
     try {
-      const cleanLotItem = (item: any) => {
+      const cleanLotItem = (item: any, isCorrect: boolean) => {
         if (!item) return item;
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { _id, isCorrect, ...rest } = item;
-        return rest;
+        const { _id, isCorrect: _, ...rest } = item;
+        
+        const explanation = rest.explaination?.trim() || (isCorrect 
+          ? "Congratulations! You are correct!" 
+          : "Sorry! You are wrong!");
+        
+        return { ...rest, explaination: explanation };
       };
       
       const correctOptions = editableOptions.filter(opt => opt.isCorrect);
@@ -230,11 +235,11 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
       let solutionForBackend: any = {};
 
       if (editForm.question.type === 'SELECT_ONE_IN_LOT') {
-        solutionForBackend.correctLotItem = correctOptions.length > 0 ? cleanLotItem(correctOptions[0]) : undefined;
-        solutionForBackend.incorrectLotItems = incorrectOptions.map(cleanLotItem);
+        solutionForBackend.correctLotItem = correctOptions.length > 0 ? cleanLotItem(correctOptions[0], true) : undefined;
+        solutionForBackend.incorrectLotItems = incorrectOptions.map(item => cleanLotItem(item, false));
       } else if (editForm.question.type === 'SELECT_MANY_IN_LOT') {
-        solutionForBackend.correctLotItems = correctOptions.map(cleanLotItem);
-        solutionForBackend.incorrectLotItems = incorrectOptions.map(cleanLotItem);
+        solutionForBackend.correctLotItems = correctOptions.map(item => cleanLotItem(item, true));
+        solutionForBackend.incorrectLotItems = incorrectOptions.map(item => cleanLotItem(item, false));
       } else {
         solutionForBackend = { ...editForm.solution };
       }
@@ -649,7 +654,7 @@ const renderParameterInputs = (title: string) => {
                             className="flex-1"
                           />
                           <Input
-                            placeholder="explaination (optional)"
+                            placeholder="explanation (optional)"
                             value={option.explaination}
                             onChange={(e) => updateOption(option._id, { explaination: e.target.value })}
                             className="flex-1 text-sm"
@@ -696,7 +701,7 @@ const renderParameterInputs = (title: string) => {
                             className="flex-1"
                           />
                           <Input
-                            placeholder="explaination (optional)"
+                            placeholder="explanation (optional)"
                             value={option.explaination}
                             onChange={(e) => updateOption(option._id, { explaination: e.target.value })}
                             className="flex-1 text-sm"
