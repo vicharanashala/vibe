@@ -352,10 +352,13 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                 timeLimitSeconds: questionForm.timeLimitSeconds,
                 points: questionForm.points,
                 priority: questionForm.priority,
-                incorrectLotItems: incorrectOptions.map(({ text, explaination }) => ({ text, explaination })),
+                incorrectLotItems: incorrectOptions.map(({ text, explaination }) => ({ 
+                    text, 
+                    explaination: explaination.trim() || "Sorry! You are wrong!" 
+                })),
                 ...(questionForm.type === 'SELECT_ONE_IN_LOT'
-                    ? { correctLotItem: { text: correctOptions[0].text, explaination: correctOptions[0].explaination } }
-                    : { correctLotItems: correctOptions.map(({ text, explaination }) => ({ text, explaination })) }
+                    ? { correctLotItem: { text: correctOptions[0].text, explaination: correctOptions[0].explaination.trim() || "Congratulations! You are correct!" } }
+                    : { correctLotItems: correctOptions.map(({ text, explaination }) => ({ text, explaination: explaination.trim() || "Congratulations! You are correct!" })) }
                 ),
                 decimalPrecision: questionForm.decimalPrecision  || 0,
                 upperLimit: questionForm.upperLimit  || 0,
@@ -813,12 +816,12 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                                                 </div>
                                                 <div>
                                                     <Label className="text-sm text-gray-600">
-                                                        * Explanation {option.isCorrect ? '(Why this is correct)' : '(Why this is incorrect)'}
+                                                        Explanation (Optional) {option.isCorrect ? '(Why this is correct)' : '(Why this is incorrect)'}
                                                     </Label>
                                                     <Textarea
                                                         placeholder={option.isCorrect
-                                                            ? "Explain why this answer is correct..."
-                                                            : "Explain why this answer is incorrect..."
+                                                            ? "Explain why this answer is correct... ('Congratulations! You are correct!')"
+                                                            : "Explain why this answer is incorrect... ('Sorry! You are wrong!')"
                                                         }
                                                         value={option.explaination}
                                                         onChange={(e) => updateOption(option.id, 'explaination', e.target.value)}
@@ -849,9 +852,6 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                                                 {questionForm.options.filter(o => o.isCorrect).length === 0 && (
                                                     <p className="text-red-600">⚠️ Please select at least one correct answer</p>
                                                 )}
-                                                {(questionForm.type === 'SELECT_MANY_IN_LOT' || questionForm.type === 'SELECT_ONE_IN_LOT') && questionForm.options.filter((opt)=> opt?.explaination== "").length !==0 &&
-                                                    <p className="text-red-600">⚠️ Please provide an explanation for all answer options.</p>
-                                                }
                                                 {questionForm.options.filter(o => !o.isCorrect).length === 0 && (
                                                     <p className="text-red-600">⚠️ Please add at least one incorrect option</p>
                                                 )}
@@ -903,8 +903,7 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
 
                                 (questionForm.type !== "DESCRIPTIVE" && questionForm.type !== "NUMERIC_ANSWER_TYPE" &&
                                 (questionForm.options.filter(o => o.isCorrect).length === 0 ||
-                                questionForm.options.filter(o => !o.isCorrect).length === 0) || 
-                                questionForm.options[questionForm.options?.length-1]?.explaination.trim() == ""
+                                questionForm.options.filter(o => !o.isCorrect).length === 0)
                                 )
                             }
                             >
