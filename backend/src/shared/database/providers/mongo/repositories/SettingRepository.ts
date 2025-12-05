@@ -20,7 +20,7 @@ import {
   UserSetting,
 } from '#root/modules/setting/classes/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
-import { NotFoundError } from 'routing-controllers';
+import {NotFoundError} from 'routing-controllers';
 
 /**
  * Implementation of the Settings Repository for MongoDB.
@@ -44,6 +44,17 @@ export class SettingRepository implements ISettingRepository {
         'userSettings',
       );
       this.initialized = true;
+
+      this.userSettingsCollection.createIndex({
+        studentId: 1,
+        courseId: 1,
+        courseVersionId: 1,
+      });
+
+      this.courseSettingsCollection.createIndex({
+        courseId: 1,
+        courseVersionId: 1,
+      });
     }
   }
 
@@ -372,7 +383,7 @@ export class SettingRepository implements ISettingRepository {
   async updateRegistrationSettings(
     courseId: string,
     versionId: string,
-    schemas: { jsonSchema: any; uiSchema: any },
+    schemas: {jsonSchema: any; uiSchema: any},
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
     await this.init();
@@ -385,7 +396,7 @@ export class SettingRepository implements ISettingRepository {
       {
         $set: {
           'settings.registration.jsonSchema': schemas.jsonSchema,
-          'settings.registration.uiSchema': schemas.uiSchema
+          'settings.registration.uiSchema': schemas.uiSchema,
         },
       },
       {session},
@@ -394,47 +405,56 @@ export class SettingRepository implements ISettingRepository {
   }
 
   async updateRegistrationSchemas(
-  courseId: string,
-  versionId: string,
-  schemas: { jsonSchema?: any; uiSchema?: any }, // Partial update for schemas only
-  session?: ClientSession,
-): Promise<UpdateResult> {
-  await this.init();
+    courseId: string,
+    versionId: string,
+    schemas: {jsonSchema?: any; uiSchema?: any}, // Partial update for schemas only
+    session?: ClientSession,
+  ): Promise<UpdateResult> {
+    await this.init();
 
-  const result = await this.courseSettingsCollection.updateOne(
-    {
-      courseId: new ObjectId(courseId),
-      courseVersionId: new ObjectId(versionId),
-    },
-    {
-      $set: {
-        'settings.registration.jsonSchema': schemas.jsonSchema,
-        'settings.registration.uiSchema': schemas.uiSchema,
+    const result = await this.courseSettingsCollection.updateOne(
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(versionId),
       },
-    },
-    { session },
-  );
+      {
+        $set: {
+          'settings.registration.jsonSchema': schemas.jsonSchema,
+          'settings.registration.uiSchema': schemas.uiSchema,
+        },
+      },
+      {session},
+    );
 
-  if (result.matchedCount === 0) {
-    throw new NotFoundError(`Course settings for course ID ${courseId} and version ID ${versionId} not found.`);
+    if (result.matchedCount === 0) {
+      throw new NotFoundError(
+        `Course settings for course ID ${courseId} and version ID ${versionId} not found.`,
+      );
+    }
+
+    return result;
   }
 
-  return result;
-}
+  async readSettingsSchema(versionId: string, session?: ClientSession) {
+    await this.init();
+    const result = await this.courseSettingsCollection.findOne(
+      {courseVersionId: new ObjectId(versionId)},
+      {session},
+    );
+    const jsonSchema = result.settings.registration.jsonSchema;
+    const uiSchema = result.settings.registration.uiSchema;
+    return {jsonSchema, uiSchema};
+  }
 
-async readSettingsSchema(versionId:string,session?:ClientSession){
-  await this.init()
-  const result = await this.courseSettingsCollection.findOne({courseVersionId:new ObjectId(versionId)},{session})
-  const jsonSchema=result.settings.registration.jsonSchema
-  const uiSchema= result.settings.registration.uiSchema
-  return {jsonSchema,uiSchema}
+  async deleteCourseSettingsbyVersionId(
+    versionId: string,
+    session?: ClientSession,
+  ) {
+    await this.init();
+    const result = await this.courseSettingsCollection.deleteOne(
+      {courseVersionId: new ObjectId(versionId)},
+      {session},
+    );
+    return result.deletedCount > 0;
+  }
 }
-
-async deleteCourseSettingsbyVersionId(versionId:string,session?:ClientSession){
-  await this.init()
-  const result = await this.courseSettingsCollection.deleteOne({courseVersionId:new ObjectId(versionId)},{session})
-  return result.deletedCount>0;
-}
-
-}
-
