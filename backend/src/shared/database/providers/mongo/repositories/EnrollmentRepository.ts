@@ -71,25 +71,59 @@ export class EnrollmentRepository {
       'questionBanks',
     );
 
-    this.enrollmentCollection.createIndex(
-      {userId: 1, courseId: 1, courseVersionId: 1},
-      {unique: true},
-    );
-    this.enrollmentCollection.createIndex({userId: 1, role: 1});
-    this.progressCollection.createIndex({
-      courseId: 1,
-      courseVersionId: 1,
-      role: 1,
-      status: 1,
-    });
+    // High-priority indexes for read performance
+    // Using background: true to avoid blocking operations
+    try {
+      await this.enrollmentCollection.createIndex(
+        {userId: 1, courseId: 1, courseVersionId: 1},
+        {
+          unique: true,
+          name: 'userId_1_courseId_1_courseVersionId_1_unique',
+          background: true,
+        },
+      );
+    } catch (e) {
+      // Index already exists
+    }
 
-    this.submissionCollection.createIndex({
-      userId: 1,
-      quizId: 1,
-      'gradingResult.totalScore': 1,
-    });
+    try {
+      await this.enrollmentCollection.createIndex(
+        {userId: 1, role: 1},
+        {name: 'userId_1_role_1', background: true},
+      );
+    } catch (e) {
+      // Index already exists
+    }
 
-    this.attemptCollection.createIndex({userId: 1, quizId: 1, status: 1});
+    try {
+      await this.enrollmentCollection.createIndex(
+        {courseId: 1, courseVersionId: 1, role: 1, status: 1},
+        {
+          name: 'courseId_1_courseVersionId_1_role_1_status_1',
+          background: true,
+        },
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      await this.progressCollection.createIndex(
+        {userId: 1, courseId: 1, courseVersionId: 1},
+        {name: 'userId_1_courseId_1_courseVersionId_1', background: true},
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      await this.watchTimeCollection.createIndex(
+        {userId: 1, courseId: 1, courseVersionId: 1},
+        {name: 'userId_1_courseId_1_courseVersionId_1', background: true},
+      );
+    } catch (e) {
+      // Index already exists
+    }
   }
 
   /**

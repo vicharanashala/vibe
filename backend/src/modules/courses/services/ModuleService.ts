@@ -17,8 +17,11 @@ import {ICourseVersion} from '#root/shared/interfaces/models.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {GLOBAL_TYPES} from '../../../types.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import { COURSES_TYPES } from '../types.js';
-import { ICourseRepository, IItemRepository } from '#root/shared/database/interfaces/index.js';
+import {COURSES_TYPES} from '../types.js';
+import {
+  ICourseRepository,
+  IItemRepository,
+} from '#root/shared/database/interfaces/index.js';
 
 @injectable()
 export class ModuleService extends BaseService {
@@ -149,6 +152,35 @@ export class ModuleService extends BaseService {
           `Failed to update version ${versionId} after module deletion`,
         );
       }
+    });
+  }
+
+  public async toggleModuleVisibility(
+    versionId: string,
+    moduleId: string,
+    isHidden: boolean,
+  ) {
+    return this._withTransaction(async session => {
+      const version = await this.courseRepo.readVersion(versionId, session);
+      const moduleIndex = version.modules.findIndex(
+        m => m.moduleId === moduleId,
+      );
+      const module = version.modules[moduleIndex];
+      if (!module) throw new NotFoundError(`Module ${moduleId} not found.`);
+
+      module.isHidden = isHidden;
+      module.updatedAt = new Date();
+      version.updatedAt = new Date();
+
+      version.modules[moduleIndex] = module;
+
+      const updatedVersion = await this.courseRepo.updateVersion(
+        versionId,
+        version,
+        session,
+      );
+
+      return updatedVersion;
     });
   }
 }

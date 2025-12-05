@@ -53,6 +53,7 @@ export interface IModule {
   name: string;
   description: string;
   order: string;
+  isHidden: boolean;
   sections: ISection[];
   createdAt: Date;
   updatedAt: Date;
