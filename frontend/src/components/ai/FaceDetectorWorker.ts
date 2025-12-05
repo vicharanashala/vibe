@@ -41,12 +41,12 @@ async function initializeModel() {
       modelType: 'full' // Try 'short' for faster detection, or 'full' for more accuracy
     };
     
-    console.log("🎯 Creating face detector...");
+    // console.log("🎯 Creating face detector...");
     detector = await faceDetection.createDetector(model, detectorConfig);
-    console.log("🎯 Face detector created successfully");
+    // console.log("🎯 Face detector created successfully");
     
     self.postMessage({ type: "MODEL_READY" });
-    console.log("🎯 MODEL_READY message sent");
+    // console.log("🎯 MODEL_READY message sent");
   } catch (error) {
     console.error("🎯 Error initializing model:", error);
     self.postMessage({ type: "ERROR", message: `Model initialization failed: ${error}` });
@@ -70,7 +70,7 @@ async function initializeModel() {
 // Detect faces in received ImageBitmap
 async function detectFaces(imageBitmap: ImageBitmap) {
 
-  console.log("🎯 FRAME RECEIVED - Image dimensions:", imageBitmap.width, "x", imageBitmap.height);
+  // console.log("🎯 FRAME RECEIVED - Image dimensions:", imageBitmap.width, "x", imageBitmap.height);
   
   if (!detector) {
     self.postMessage({ type: "ERROR", message: "Model not initialized" });
@@ -85,7 +85,7 @@ async function detectFaces(imageBitmap: ImageBitmap) {
   }
 
   ctx.drawImage(imageBitmap, 0, 0);
-  console.log("🎯 Image drawn to canvas, calling estimateFaces...");
+  // console.log("🎯 Image drawn to canvas, calling estimateFaces...");
 
   // Log received image data as JPEG every 10 seconds
   const currentTime = Date.now();
@@ -102,31 +102,31 @@ async function detectFaces(imageBitmap: ImageBitmap) {
   const faces: faceDetection.Face[] = await detector.estimateFaces(canvas as unknown as HTMLCanvasElement);
 
    try {
-    console.log("🎯 Detection result - Faces found:", faces.length);
+    // console.log("🎯 Detection result - Faces found:", faces.length);
     self.postMessage({ type: "DETECTION_RESULT", faces });
   } catch (error) {
     console.error("🎯 Detection error:", error);
   }
 
   // Debug TensorFlow face detection
-  console.log('🎯 Worker processing frame:', {
-    imageBitmapWidth: imageBitmap.width,
-    imageBitmapHeight: imageBitmap.height,
-    timestamp: Date.now()
-  });
+  // console.log('🎯 Worker processing frame:', {
+  //   imageBitmapWidth: imageBitmap.width,
+  //   imageBitmapHeight: imageBitmap.height,
+  //   timestamp: Date.now()
+  // });
 
-  console.log('🎯 Worker detection result:', {
-    faceCount: faces.length,
-    faces: faces.map(face => ({
-      box: {
-        x: face.box?.xMin,
-        y: face.box?.yMin, 
-        width: face.box?.width,
-        height: face.box?.height
-      },
-      keypoints: face.keypoints?.length || 0
-    }))
-  });
+  // console.log('🎯 Worker detection result:', {
+  //   faceCount: faces.length,
+  //   faces: faces.map(face => ({
+  //     box: {
+  //       x: face.box?.xMin,
+  //       y: face.box?.yMin, 
+  //       width: face.box?.width,
+  //       height: face.box?.height
+  //     },
+  //     keypoints: face.keypoints?.length || 0
+  //   }))
+  // });
 
   self.postMessage({ type: "DETECTION_RESULT", faces });
 
