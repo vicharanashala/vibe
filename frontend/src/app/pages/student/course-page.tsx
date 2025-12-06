@@ -89,6 +89,7 @@ export default function CoursePage() {
   const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
   const [isFlagSubmitted, setIsFlagSubmitted] = useState(false);
   const { mutateAsync: submitFlagAsyncMutate, isPending } = useSubmitFlag();
+  const [closing, setClosing] = useState(false);
 
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -333,7 +334,7 @@ export default function CoursePage() {
 
   // Notification effects
   useEffect(() => {
-    if (quizPassed !== 2) setTimeout(() => setQuizPassed(2), 5000);
+    if (quizPassed !== 2) setTimeout(() => setQuizPassed(2), 2000);
   }, [quizPassed]);
   // Add a flag to track if initial load from progress is complete
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
@@ -1509,7 +1510,7 @@ export default function CoursePage() {
                 {/* Quiz Passed/Failed */}
 
                 {quizPassed !== 2 && !isQuizSkipped && (
-                  <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-top-5 fade-in duration-300">
+                  <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-top-5 fade-in duration-200">
                     <div
                       className={`relative w-[380px] rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300 
         ${quizPassed === 1
@@ -1519,7 +1520,11 @@ export default function CoursePage() {
                     >
                       {/* Close Button */}
                       <button
-                        onClick={() => setQuizPassed(2)}
+                        onClick={() =>{ 
+                          setClosing(true)
+                          // setQuizPassed(2)
+                          setTimeout(() => setQuizPassed(2),300)
+                        }}
                         className="absolute top-3 right-3 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors duration-200 group"
                         aria-label="Close"
                       >
