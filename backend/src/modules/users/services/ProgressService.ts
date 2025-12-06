@@ -698,38 +698,31 @@ class ProgressService extends BaseService {
         return {}; // No permission update needed
       }
 
-      console.log('Hai 1');
       const itemsGroup = await this.itemRepo.findItemsGroupByItemId(
         currentItemId,
       );
       if (!itemsGroup) {
         throw new NotFoundError('Item group not found for current item');
       }
-      console.log('Hai 2');
 
       const items = itemsGroup.items || [];
       if (!Array.isArray(items) || items.length === 0) {
         throw new NotFoundError('No items found inside the item group');
       }
-      console.log('Hai 3', 'Items: ', items);
 
       const currentIndex = items.findIndex(
         item => item?._id?.toString() === currentItemId,
       );
-      console.log('1');
 
       if (currentIndex === -1) {
         throw new NotFoundError(`Item not found in group: ${currentItemId}`);
       }
-      console.log('2');
 
       const nextItem = items[currentIndex + 1];
-      console.log('4', 'nextItem: ', nextItem);
 
       if (nextItem && nextItem?._id) {
         return {nextItemId: nextItem?._id.toString()};
       }
-      console.log('Hai 5');
 
       // No next item → check next section/module
       if (!itemsGroup || !itemsGroup._id) {
@@ -744,7 +737,6 @@ class ProgressService extends BaseService {
           `Module/Section not found for itemGroupId: ${itemGroupId}`,
         );
       }
-      console.log('Hai 6');
 
       const courseVersion = await this.courseRepo.readVersion(
         enrollment.versionId,
@@ -752,7 +744,6 @@ class ProgressService extends BaseService {
       if (!courseVersion) {
         throw new NotFoundError('Invalid course version');
       }
-      console.log('Hai 7');
 
       const {moduleId, sectionId} = groupInfo;
       if (!moduleId || !sectionId) {
@@ -767,7 +758,6 @@ class ProgressService extends BaseService {
         sectionId.toString(),
         currentItemId,
       );
-      console.log('Hai 8');
 
       if (nextItemDetails?.itemId) {
         return {nextItemId: nextItemDetails.itemId.toString()};

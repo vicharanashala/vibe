@@ -95,7 +95,6 @@ export async function setupItemAbilities(
             user.userId,
             currentItemId,
           );
-          console.log("Completed...................")
 
         //   console.log("Quiz metrics: ", quizMetrics)
 
@@ -106,13 +105,10 @@ export async function setupItemAbilities(
               enrollment,
             );
 
-            console.log("Next item: ", nextItemId)
-
             if (nextItemId) {
               allowedItemIds.push(nextItemId);
             }
           }
-        console.log("CurrentItemid: ", currentItemId)
 
           if (!allowedItemIds.includes(currentItemId)) {
             allowedItemIds.push(currentItemId);

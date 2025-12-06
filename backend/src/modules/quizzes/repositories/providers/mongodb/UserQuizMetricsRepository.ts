@@ -39,7 +39,6 @@ class UserQuizMetricsRepository {
     session?: ClientSession,
   ): Promise<IUserQuizMetrics | null> {
     await this.init();
-console.log("Haiasdfasdfasdfasdf from get repo 42 metrics")
     // normalize IDs to both string and ObjectId
     const userIdStr = userId.toString();
     const userIdObj = ObjectId.isValid(userIdStr)
