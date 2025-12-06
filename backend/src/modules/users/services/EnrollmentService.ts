@@ -260,6 +260,8 @@ export class EnrollmentService extends BaseService {
 
       if (!enrollments.length) return [];
 
+      console.log(`Found ${enrollments.length} enrollments for user ${userId}`);
+
       const enrolledVersionIds = new Set(
         enrollments.map(e => e.courseVersionId.toString()),
       );
@@ -658,6 +660,21 @@ export class EnrollmentService extends BaseService {
   async addIndex(): Promise<void> {
     await this._withTransaction(async session => {
       await this.enrollmentRepo.addEnrollmentIndexes(session);
+    });
+  }
+
+  async getUserEnrollmentsByCourseVersion(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<IEnrollment> {
+    return this._withTransaction(async (session: ClientSession) => {
+      return this.enrollmentRepo.getUserEnrollmentsByCourseVersion(
+        userId,
+        courseId,
+        courseVersionId,
+        session,
+      );
     });
   }
 }

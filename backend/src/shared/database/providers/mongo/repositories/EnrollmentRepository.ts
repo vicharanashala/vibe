@@ -9,13 +9,7 @@ import {
   ID,
 } from '#shared/interfaces/models.js';
 import {injectable, inject} from 'inversify';
-import {
-  ClientSession,
-  Collection,
-  DeleteResult,
-  ObjectId,
-  OptionalId,
-} from 'mongodb';
+import {ClientSession, Collection, ObjectId, OptionalId} from 'mongodb';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
 import {MongoDatabase} from '../MongoDatabase.js';
 import {GLOBAL_TYPES} from '#root/types.js';
@@ -77,6 +71,60 @@ export class EnrollmentRepository {
     this.questionBankCollection = await this.db.getCollection<IQuestionBank>(
       'questionBanks',
     );
+
+    // High-priority indexes for read performance
+    // Using background: true to avoid blocking operations
+    try {
+      await this.enrollmentCollection.createIndex(
+        {userId: 1, courseId: 1, courseVersionId: 1},
+        {
+          unique: true,
+          name: 'userId_1_courseId_1_courseVersionId_1_unique',
+          background: true,
+        },
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      await this.enrollmentCollection.createIndex(
+        {userId: 1, role: 1},
+        {name: 'userId_1_role_1', background: true},
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      await this.enrollmentCollection.createIndex(
+        {courseId: 1, courseVersionId: 1, role: 1, status: 1},
+        {
+          name: 'courseId_1_courseVersionId_1_role_1_status_1',
+          background: true,
+        },
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      await this.progressCollection.createIndex(
+        {userId: 1, courseId: 1, courseVersionId: 1},
+        {name: 'userId_1_courseId_1_courseVersionId_1', background: true},
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      await this.watchTimeCollection.createIndex(
+        {userId: 1, courseId: 1, courseVersionId: 1},
+        {name: 'userId_1_courseId_1_courseVersionId_1', background: true},
+      );
+    } catch (e) {
+      // Index already exists
+    }
   }
 
   /**
@@ -1917,18 +1965,22 @@ export class EnrollmentRepository {
     return result.insertedIds;
   }
 
-  async deleteEnrollmentsByVersionIds(
-    versionIds: ObjectId[],
+  async getUserEnrollmentsByCourseVersion(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
     session?: ClientSession,
-  ): Promise<boolean> {
-    if (!versionIds.length) return false;
-
-    const result = await this.enrollmentCollection.deleteMany(
-      {
-        courseVersionId: {$in: versionIds},
-      },
-      {session},
-    );
-    return result.acknowledged && result.deletedCount > 0;
+  ): Promise<IEnrollment> {
+    await this.init();
+    return await this.enrollmentCollection
+      .find(
+        {
+          userId: new ObjectId(userId),
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+        },
+        {session},
+      )
+      .next();
   }
 }

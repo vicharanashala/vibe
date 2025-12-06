@@ -26,11 +26,33 @@ import {ProgressRepository} from './ProgressRepository.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {Module} from '#root/modules/courses/classes/index.js';
 import {EnrollmentRepository} from './EnrollmentRepository.js';
+import {
+  ANOMALIES_TYPES,
+  AnomalyRepository,
+} from '#root/modules/anomalies/index.js';
+import {SETTING_TYPES} from '#root/modules/setting/types.js';
+import {COURSE_REGISTRATION_TYPES} from '#root/modules/courseRegistration/types.js';
+import {ICourseRegistrationRepository} from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
+import {InviteRepository} from '#shared/database/providers/mongo/repositories/InviteRepository.js';
+import {PROJECTS_TYPES} from '#root/modules/projects/types.js';
+import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
+import {REPORT_TYPES} from '#root/modules/reports/types.js';
+import {QuestionBankRepository} from '../../../../../modules/quizzes/repositories/providers/mongodb/QuestionBankRepository.js';
+import {ReportRepository} from '#root/modules/reports/repositories/index.js';
+import {Invite} from '#root/modules/notifications/classes/transformers/Invite.js';
+import {IQuestionBank} from '#root/shared/interfaces/quiz.js';
+import {IProjectSubmissionRepository} from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
+import {ISettingRepository} from '#root/shared/database/interfaces/ISettingRepository.js';
+import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
+
 @injectable()
 export class CourseRepository implements ICourseRepository {
   private courseCollection: Collection<Course>;
   private courseVersionCollection: Collection<CourseVersion>;
   private itemsGroupCollection: Collection<ItemsGroup>;
+  private enrollmentCollection: Collection<IEnrollment>;
+  private inviteCollection: Collection<Invite>;
+  private questionBankCollection: Collection<IQuestionBank>;
 
   constructor(
     @inject(GLOBAL_TYPES.Database)
@@ -38,7 +60,21 @@ export class CourseRepository implements ICourseRepository {
     @inject(USERS_TYPES.ProgressRepo)
     private progressRepo: ProgressRepository,
     @inject(USERS_TYPES.EnrollmentRepo)
-    private enrollmentRepo: EnrollmentRepository,
+    private readonly enrollmentRepo: EnrollmentRepository,
+    @inject(ANOMALIES_TYPES.AnomalyRepository)
+    private anomalyRepository: AnomalyRepository,
+    @inject(SETTING_TYPES.SettingRepo)
+    private readonly settingsRepo: ISettingRepository,
+    @inject(COURSE_REGISTRATION_TYPES.CourseRegistrationRepository)
+    private courseRegistrationRepo: ICourseRegistrationRepository,
+    @inject(PROJECTS_TYPES.projectSubmissionRepository)
+    private readonly projectSubmissionRepo: IProjectSubmissionRepository,
+    @inject(QUIZZES_TYPES.QuestionBankRepo)
+    private readonly questionBankRepository: QuestionBankRepository,
+    @inject(REPORT_TYPES.ReportRepo)
+    private reportsRepository: ReportRepository,
+    @inject(NOTIFICATIONS_TYPES.InviteRepo)
+    private readonly inviteRepo: InviteRepository,
   ) {}
 
   private async init() {
@@ -49,6 +85,18 @@ export class CourseRepository implements ICourseRepository {
     this.itemsGroupCollection = await this.db.getCollection<ItemsGroup>(
       'itemsGroup',
     );
+    this.enrollmentCollection = await this.db.getCollection<IEnrollment>(
+      'enrollment',
+    );
+
+    this.courseCollection.createIndex({versions: 1});
+    this.courseVersionCollection.createIndex({
+      'modules.sections.itemsGroupId': 1,
+    });
+
+    this.itemsGroupCollection.createIndex({'items._id': 1});
+
+    this.itemsGroupCollection.createIndex({'items.type': 1});
   }
 
   async getDBClient(): Promise<MongoClient> {
@@ -416,7 +464,7 @@ export class CourseRepository implements ICourseRepository {
       // 2. Remove courseVersionId from the course
       /*
       const courseUpdateResult = await this.courseCollection.updateOne(
-        { _id: new ObjectId(courseId) },
+        {_id: new ObjectId(courseId)},
         {
           $pull: {
             versions: {
@@ -424,7 +472,7 @@ export class CourseRepository implements ICourseRepository {
             },
           },
         },
-        { session },
+        {session},
       );
 
       if (courseUpdateResult.modifiedCount !== 1) {
