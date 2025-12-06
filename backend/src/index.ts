@@ -7,17 +7,18 @@ import * as Sentry from '@sentry/node';
 import express from 'express';
 import cors from 'cors';
 // import session from 'express-session'
-import { useExpressServer, RoutingControllersOptions } from 'routing-controllers';
-import { appConfig } from './config/app.js';
-import { loggingHandler } from './shared/middleware/loggingHandler.js';
-import { HttpErrorHandler } from './shared/index.js';
-import { generateOpenAPISpec } from './shared/functions/generateOpenApiSpec.js';
-import { apiReference } from '@scalar/express-api-reference';
-import { loadAppModules } from './bootstrap/loadModules.js';
-import { printStartupSummary } from './utils/logDetails.js';
-import type { CorsOptions } from 'cors';
-import { authorizationChecker } from './shared/functions/authorizationChecker.js';
-import { currentUserChecker } from './shared/functions/currentUserChecker.js';
+import {useExpressServer, RoutingControllersOptions} from 'routing-controllers';
+import {appConfig} from './config/app.js';
+import {loggingHandler} from './shared/middleware/loggingHandler.js';
+import {HttpErrorHandler} from './shared/index.js';
+import {generateOpenAPISpec} from './shared/functions/generateOpenApiSpec.js';
+import {apiReference} from '@scalar/express-api-reference';
+import {loadAppModules} from './bootstrap/loadModules.js';
+import {printStartupSummary} from './utils/logDetails.js';
+import type {CorsOptions} from 'cors';
+import {authorizationChecker} from './shared/functions/authorizationChecker.js';
+import {currentUserChecker} from './shared/functions/currentUserChecker.js';
+import {startCron} from './utils/startCron.js';
 
 const app = express();
 //app.use(express.json());                       
@@ -27,19 +28,19 @@ const app = express();
 app.use(loggingHandler);
 // app.use(
 //   session({
-//     secret: process.env.SESSION_SECRET, 
+//     secret: process.env.SESSION_SECRET,
 //     resave: false,
 //     saveUninitialized: true,
 //     cookie: {
 //       secure: NODE_ENV === 'production',
-//       httpOnly:true, 
+//       httpOnly:true,
 //       maxAge: 7 * 24 * 60 * 60 * 1000,
 //       sameSite: NODE_ENV === 'development' ? 'lax' : 'none',
 //     },
 //   }),
 // );
 
-app.set("trust proxy", 1);
+app.set('trust proxy', 1);
 
 // app.use(
 //   session({
@@ -50,20 +51,21 @@ app.set("trust proxy", 1);
 //       httpOnly: true,
 //       secure: NODE_ENV !== 'development', // true in staging + production
 //       sameSite: NODE_ENV === 'development' ? 'lax' : 'none',
-//       maxAge: 7 * 24 * 60 * 60 * 1000, 
+//       maxAge: 7 * 24 * 60 * 60 * 1000,
 //     },
 //   })
 // );
 
-
-const { controllers, validators } = await loadAppModules(appConfig.module.toLowerCase());
+const {controllers, validators} = await loadAppModules(
+  appConfig.module.toLowerCase(),
+);
 
 const corsOptions: CorsOptions = {
   origin: appConfig.origins,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true,
-  optionsSuccessStatus: 204
+  optionsSuccessStatus: 204,
 };
 
 const moduleOptions: RoutingControllersOptions = {
@@ -88,16 +90,18 @@ app.use(
 );
 
 // Health check endpoint for Cloud Run
-app.get("/health", (req, res) => {
+app.get('/health', (req, res) => {
   res.status(200).json({
-    status: "ok",
+    status: 'ok',
     timestamp: new Date().toISOString(),
-    environment: NODE_ENV
+    environment: NODE_ENV,
   });
 });
 
 if (NODE_ENV === 'production' || NODE_ENV === 'staging') {
-  console.log('Setting up Sentry error handling - test for production and staging environment');
+  console.log(
+    'Setting up Sentry error handling - test for production and staging environment',
+  );
   Sentry.setupExpressErrorHandler(app);
 }
 
@@ -106,4 +110,5 @@ useExpressServer(app, moduleOptions);
 
 app.listen(appConfig.port, () => {
   printStartupSummary();
+  startCron();
 });

@@ -79,11 +79,13 @@ class QuestionRepository {
     session?: ClientSession,
   ): Promise<boolean> {
     await this.init();
-    const result = await this.questionCollection.deleteOne(
+    // Soft delete implementation
+    const result = await this.questionCollection.updateOne(
       {_id: new ObjectId(questionId)},
+      {$set: {isDeleted: true, deletedAt: new Date()}},
       {session},
     );
-    return result.deletedCount === 1;
+    return result.modifiedCount === 1;
   }
   public async duplicate(
     questionId: string,
