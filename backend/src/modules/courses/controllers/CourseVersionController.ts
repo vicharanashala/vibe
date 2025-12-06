@@ -131,7 +131,7 @@ Accessible to:
   })
   async read(
     @Params() params: ReadCourseVersionParams,
-    @Ability(getCourseVersionAbility) {ability},
+    @Ability(getCourseVersionAbility) {ability, user},
   ): Promise<CourseVersion> {
     const {versionId} = params;
 
@@ -145,7 +145,7 @@ Accessible to:
     }
 
     const retrievedCourseVersion =
-      await this.courseVersionService.readCourseVersion(versionId);
+      await this.courseVersionService.readCourseVersion(versionId, user._id);
     return retrievedCourseVersion;
   }
 
@@ -284,8 +284,6 @@ Accessible to:
         'You do not have permission to copy this course version',
       );
     }
-
-
 
     const newVersion = await this.courseVersionService.copyCourseVersion(
       courseId,

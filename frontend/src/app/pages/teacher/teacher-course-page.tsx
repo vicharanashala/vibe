@@ -24,7 +24,9 @@ import {
   BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus, Sparkles,
   X, FolderKanban,
   Menu,
-  MessageSquare
+  MessageSquare,
+  Eye,
+  EyeOff
 } from "lucide-react";
 
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -32,7 +34,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Home, GraduationCap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById, useQuizDetails, useQuizAnalytics, useQuizPerformance, useQuizResults, useMoveModule, useMoveSection, useMoveItem, useUpdateCourseItem, useCourseById } from "@/hooks/hooks";
+import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById, useQuizDetails, useQuizAnalytics, useQuizPerformance, useQuizResults, useMoveModule, useMoveSection, useMoveItem, useUpdateCourseItem, useCourseById, useHideModule } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import VideoModal from "./components/Video-modal";
 import EnhancedQuizEditor from "./components/enhanced-quiz-editor";
@@ -241,6 +243,7 @@ function TeacherCourseContent() {
   const { mutateAsync: updateModuleAsync, isSuccess: isUpdateModuleSuccess, isError: isUpdateModuleError, error: updateModuleError } = useUpdateModule();
   const { mutateAsync: deleteModuleAsync, isSuccess: isDeleteModuleSuccess, isError: isDeleteModuleError, error: deleteModuleError } = useDeleteModule();
   const { mutateAsync: moveModuleAsync } = useMoveModule();
+  const { mutateAsync: hideModuleAsync } = useHideModule();
 
   // --- SECTIONS ---
   const { mutateAsync: createSectionAsync, isSuccess: isCreateSectionSuccess, isError: isCreateSectionError, error: createSectionError } = useCreateSection();
@@ -470,6 +473,16 @@ function TeacherCourseContent() {
       refetchItems();
     });
   };
+
+  const handleHideModule = (moduleId: string, hide: boolean) => {
+    if (!versionId) return;
+    hideModuleAsync({
+      params: { path: { versionId, moduleId } },
+      body: {hide: hide}
+    }).then((res) => {
+      refetchVersion();
+    })
+  }
 
   // Add Item (handles all item types including video, quiz, article, and project)
   const handleAddItem = (moduleId: string, sectionId: string, type: string, videoData?: any) => {
@@ -822,6 +835,10 @@ if (type === "feedback") {
                               handleMoveModule(module.moduleId, versionId);
                             }}
                           >
+                          <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideModule(module.moduleId, !module.isHidden)}>
+                            {!module.isHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                            <span className="sr-only">Hide Module</span>
+                          </Button>
                             <SidebarMenuButton
                               onClick={() => {
                                 toggleModule(module.moduleId);

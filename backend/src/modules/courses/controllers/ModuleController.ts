@@ -8,6 +8,7 @@ import {
   MoveModuleBody,
   ModuleDeletedResponse,
   HideModuleParams,
+  HideModuleBody,
 } from '#courses/classes/validators/ModuleValidators.js';
 import {ModuleService} from '#courses/services/ModuleService.js';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
@@ -130,7 +131,7 @@ Accessible to:
 - Instructors, students and all of the course.`,
   })
   @Authorized()
-  @Put('/versions/:versionId/modules/:moduleId/toggle-visibility')
+  @Put('/versions/:versionId/modules/:moduleId/hide')
   @ResponseSchema(ModuleDataResponse, {
     description: 'Module visibility toggled successfully',
   })
@@ -144,10 +145,12 @@ Accessible to:
   })
   async toggleVisibility(
     @Params() params: HideModuleParams,
+    @Body() body: HideModuleBody,
     @Ability(getCourseVersionAbility) {ability},
   ) {
-    const {versionId, moduleId, hide} = params;
+    const {versionId, moduleId} = params;
 
+    const {hide} = body;
     // Build the subject context first
     const courseVersionSubject = subject('CourseVersion', {versionId});
 

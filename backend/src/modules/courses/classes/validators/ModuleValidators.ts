@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsMongoId,
   ValidateIf,
+  IsBoolean,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {OnlyOneId} from './customValidators.js';
@@ -167,14 +168,17 @@ class HideModuleParams {
   @IsMongoId()
   @IsString()
   moduleId: string;
+}
 
+class HideModuleBody {
   @JSONSchema({
     title: 'Hide Module',
-    description:
-      'Flag indicating whether to hide (true) or unhide (false) the module',
+    description: 'Flag to hide (true) or unhide (false) the module',
     type: 'boolean',
+    example: true,
   })
   @IsNotEmpty()
+  @IsBoolean()
   hide: boolean;
 }
 
@@ -241,6 +245,7 @@ export {
   ModuleNotFoundErrorResponse,
   ModuleDeletedResponse,
   HideModuleParams,
+  HideModuleBody,
 };
 
 export const MODULE_VALIDATORS = [
@@ -253,4 +258,5 @@ export const MODULE_VALIDATORS = [
   ModuleNotFoundErrorResponse,
   ModuleDeletedResponse,
   HideModuleParams,
+  HideModuleBody,
 ];
