@@ -1,19 +1,19 @@
-import { injectable, inject } from 'inversify';
-import { NotFoundError, BadRequestError } from 'routing-controllers';
-import { QUIZZES_TYPES } from '../types.js';
-import { BaseService } from '#root/shared/classes/BaseService.js';
-import { QuestionRepository } from '../repositories/providers/mongodb/QuestionRepository.js';
-import { QuestionBankRepository } from '../repositories/providers/mongodb/QuestionBankRepository.js';
-import { AttemptRepository } from '../repositories/providers/mongodb/AttemptRepository.js';
-import { UserQuizMetricsRepository } from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { ParameterMap } from '../question-processing/tag-parser/tags/Tag.js';
-import { BaseQuestion } from '../classes/transformers/Question.js';
-import { IQuestionRenderView } from '../question-processing/renderers/interfaces/RenderViews.js';
-import { QuestionProcessor } from '../question-processing/QuestionProcessor.js';
-import { QuizRepository } from '../repositories/providers/mongodb/QuizRepository.js';
-import { ClientSession } from 'mongodb';
+import {injectable, inject} from 'inversify';
+import {NotFoundError, BadRequestError} from 'routing-controllers';
+import {QUIZZES_TYPES} from '../types.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {QuestionRepository} from '../repositories/providers/mongodb/QuestionRepository.js';
+import {QuestionBankRepository} from '../repositories/providers/mongodb/QuestionBankRepository.js';
+import {AttemptRepository} from '../repositories/providers/mongodb/AttemptRepository.js';
+import {UserQuizMetricsRepository} from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {ParameterMap} from '../question-processing/tag-parser/tags/Tag.js';
+import {BaseQuestion} from '../classes/transformers/Question.js';
+import {IQuestionRenderView} from '../question-processing/renderers/interfaces/RenderViews.js';
+import {QuestionProcessor} from '../question-processing/QuestionProcessor.js';
+import {QuizRepository} from '../repositories/providers/mongodb/QuizRepository.js';
+import {ClientSession} from 'mongodb';
 
 @injectable()
 class QuestionService extends BaseService {
@@ -38,17 +38,17 @@ class QuestionService extends BaseService {
     super(database);
   }
 
-
   private async _getQuestionSkipCount(
     questionId: string,
     session?: ClientSession,
   ): Promise<number> {
     try {
       // Step 1: get bank IDs linked to this question
-      const questionBanks = await this.questionBankRepository.getQuestionBanksByQuestionId(
-        questionId,
-        session,
-      );
+      const questionBanks =
+        await this.questionBankRepository.getQuestionBanksByQuestionId(
+          questionId,
+          session,
+        );
 
       if (!questionBanks?.length) return 0;
 
@@ -69,7 +69,10 @@ class QuestionService extends BaseService {
       const quizIds = quizzes.map(q => q._id);
 
       // Step 3: get all userQuizMetrics for those quizzes
-      const metrics = await this.userQuizMetricsRepository.getByQuizIds(quizIds, session);
+      const metrics = await this.userQuizMetricsRepository.getByQuizIds(
+        quizIds,
+        session,
+      );
 
       // Step 4: sum skip counts
       const totalSkipCount = metrics.reduce(
@@ -79,11 +82,10 @@ class QuestionService extends BaseService {
 
       return totalSkipCount;
     } catch (error) {
-      console.error("Error calculating question skip count:", error);
+      console.error('Error calculating question skip count:', error);
       return 0;
     }
   }
-
 
   public async create(question: BaseQuestion): Promise<string> {
     return this._withTransaction(async session => {
@@ -96,16 +98,21 @@ class QuestionService extends BaseService {
     raw?: boolean,
     parameterMap?: ParameterMap,
   ): Promise<BaseQuestion | IQuestionRenderView> {
-
-    return this._withTransaction(async (session) => {
-      const question = await this.questionRepository.getById(questionId, session);
+    return this._withTransaction(async session => {
+      const question = await this.questionRepository.getById(
+        questionId,
+        session,
+      );
       if (!question) {
         throw new NotFoundError(`Question with ID ${questionId} not found`);
       }
 
       const [attemptCount, attemptedByUsersCount] = await Promise.all([
         this.attemptRepository.countByQuestionId(questionId, session),
-        this.attemptRepository.countDistinctUsersByQuestionId(questionId, session),
+        this.attemptRepository.countDistinctUsersByQuestionId(
+          questionId,
+          session,
+        ),
       ]);
 
       if (raw) {
@@ -120,7 +127,9 @@ class QuestionService extends BaseService {
       }
 
       const questionProcessor = new QuestionProcessor(question);
-      const rendered = questionProcessor.render(parameterMap) as IQuestionRenderView;
+      const rendered = questionProcessor.render(
+        parameterMap,
+      ) as IQuestionRenderView;
 
       return {
         ...rendered,
@@ -147,7 +156,7 @@ class QuestionService extends BaseService {
           `Cannot change question type from ${question.type} to ${updatedQuestion.type}`,
         );
       }
-      const { _id, ...questionData } = updatedQuestion;
+      const {_id, ...questionData} = updatedQuestion;
       const updated = await this.questionRepository.update(
         questionId,
         questionData,
@@ -168,11 +177,11 @@ class QuestionService extends BaseService {
         throw new NotFoundError(`Question with ID ${questionId} not found`);
       }
 
-      // Remove question from all banks
-      await this.questionBankRepository.removeQuestionFromAllBanks(
+      // Remove question from all banks (Soft deletion preserve references)
+      /*await this.questionBankRepository.removeQuestionFromAllBanks(
         questionId,
         session,
-      );
+      );*/
 
       // Delete the question
       await this.questionRepository.delete(questionId, session);
@@ -213,24 +222,20 @@ class QuestionService extends BaseService {
     status: 'RESOLVED' | 'REJECTED',
   ): Promise<void> {
     return this._withTransaction(async session => {
-      const flaggedQuestion = await this.questionRepository.getFlaggedQuestionById(
-        flagId,
-        session,
-      );
+      const flaggedQuestion =
+        await this.questionRepository.getFlaggedQuestionById(flagId, session);
       if (!flaggedQuestion) {
-        throw new NotFoundError(
-          `Flagged question not found`,
-        );
+        throw new NotFoundError(`Flagged question not found`);
       }
 
       // Update the flagged question status and resolvedBy
       await this.questionRepository.updateFlaggedQuestion(
         flagId,
-        { status, resolvedBy: userId, resolvedAt: new Date() },
+        {status, resolvedBy: userId, resolvedAt: new Date()},
         session,
       );
     });
   }
 }
 
-export { QuestionService };
+export {QuestionService};

@@ -6,6 +6,7 @@ import {
   ICourseVersion,
   IWatchTime,
   IUser,
+  ID,
 } from '#shared/interfaces/models.js';
 import {injectable, inject} from 'inversify';
 import {ClientSession, Collection, ObjectId, OptionalId} from 'mongodb';
@@ -162,6 +163,30 @@ export class EnrollmentRepository {
     );
   }
 
+  async findActiveEnrollment(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment | null> {
+    await this.init();
+
+    const courseObjectId = new ObjectId(courseId);
+    const courseVersionObjectId = new ObjectId(courseVersionId);
+    const userObjectid = new ObjectId(userId);
+
+    return await this.enrollmentCollection.findOne(
+      {
+        userId: userObjectid,
+        courseId: courseObjectId,
+        courseVersionId: courseVersionObjectId,
+        status: 'ACTIVE',
+        isDeleted: {$ne: true},
+      },
+      {session},
+    );
+  }
+
   async getInstructorIdsByVersion(
     courseId: string,
     versionId: string,
@@ -262,15 +287,16 @@ export class EnrollmentRepository {
 
     // const userObjectid = new ObjectId(userId)
 
-    const result = await this.enrollmentCollection.deleteOne(
+    const result = await this.enrollmentCollection.updateOne(
       {
         userId: {$in: userFilter},
         courseId: courseObjectId,
         courseVersionId: courseVersionObjectId,
       },
+      {$set: {isDeleted: true, deletedAt: new Date()}},
       {session},
     );
-    if (result.deletedCount === 0) {
+    if (result.modifiedCount === 0) {
       throw new NotFoundError('Enrollment not found to delete');
     }
   }
@@ -317,12 +343,13 @@ export class EnrollmentRepository {
     session?: any,
   ): Promise<void> {
     await this.init();
-    await this.progressCollection.deleteMany(
+    await this.progressCollection.updateMany(
       {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
+      {$set: {isDeleted: true, deletedAt: new Date()}},
       {session},
     );
   }
@@ -524,7 +551,7 @@ export class EnrollmentRepository {
     await this.init();
     const userObjectId = new ObjectId(userId);
     const pipeline: any[] = [
-      {$match: {userId: userObjectId, role}},
+      {$match: {userId: userObjectId, role, isDeleted: {$ne: true}}},
       {$sort: {enrollmentDate: -1}},
       {$skip: skip},
       {$limit: limit},
@@ -535,6 +562,31 @@ export class EnrollmentRepository {
           foreignField: '_id',
           as: 'course',
           pipeline: [
+            {$unwind: '$versions'},
+            {
+              $lookup: {
+                from: 'newCourseVersion',
+                localField: 'versions',
+                foreignField: '_id',
+                as: 'versionDetails',
+              },
+            },
+            {
+              $match: {
+                versionDetails: {
+                  $elemMatch: {isDeleted: {$ne: true}},
+                },
+              },
+            },
+            {
+              $group: {
+                _id: '$_id',
+                name: {$first: '$name'},
+                versions: {$push: '$versions'},
+                description: {$first: '$description'},
+                updatedAt: {$first: '$updatedAt'},
+              },
+            },
             {
               $project: {
                 name: 1,
@@ -570,9 +622,75 @@ export class EnrollmentRepository {
       },
     ];
 
-    return await this.enrollmentCollection
+    /*const pipeline: any[] = [
+      {$match: {userId: userObjectId, role}},
+      {$sort: {enrollmentDate: -1}},
+      {$skip: skip},
+      {$limit: limit},
+      {
+        $lookup: {
+          from: 'newCourse',
+          localField: 'courseId',
+          foreignField: '_id',
+          as: 'course',
+          pipeline: [
+            {$match: {versions: {$exists: true, $ne: []}}},
+            {
+              $lookup: {
+                from: 'newCourseVersion',
+                let: {versionIds: '$versions'},
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {$in: ['$_id', '$$versionIds']},
+                      isDeleted: {$ne: true},
+                    },
+                  },
+                ],
+                as: 'versionDetails',
+              },
+            },
+          ],
+        },
+      },
+      {
+        $unwind: {
+          path: '$course',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      // Use versionDetails to populate the versions array
+      {
+        $addFields: {
+          'course.versions': {
+            $map: {
+              input: '$course.versionDetails',
+              as: 'v',
+              in: {$toString: '$$v._id'},
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          userId: 1,
+          courseId: 1,
+          courseVersionId: 1,
+          role: 1,
+          status: 1,
+          enrollmentDate: 1,
+          percentCompleted: 1,
+          course: 1,
+        },
+      },
+    ];*/
+
+    const enrollments = await this.enrollmentCollection
       .aggregate(pipeline, {session})
       .toArray();
+
+    return enrollments;
   }
 
   async getContentCountsForVersions(
@@ -621,6 +739,83 @@ export class EnrollmentRepository {
         },
         {$unwind: '$itemsGroup'},
         {$unwind: '$itemsGroup.items'},
+        {
+          $addFields: {
+            itemObjId: {$toObjectId: '$itemsGroup.items._id'},
+          },
+        },
+        {
+          $lookup: {
+            from: 'videos',
+            let: {itemId: '$itemObjId', itemType: '$itemsGroup.items.type'},
+            pipeline: [
+              {$match: {$expr: {$and: [{$eq: ['$_id', '$$itemId']}, {$eq: ['$$itemType', 'VIDEO']}]}}},
+              {$project: {isDeleted: 1}},
+            ],
+            as: 'videoDoc',
+          },
+        },
+        {
+          $lookup: {
+            from: 'blogs',
+            let: {itemId: '$itemObjId', itemType: '$itemsGroup.items.type'},
+            pipeline: [
+              {$match: {$expr: {$and: [{$eq: ['$_id', '$$itemId']}, {$eq: ['$$itemType', 'BLOG']}]}}},
+              {$project: {isDeleted: 1}},
+            ],
+            as: 'blogDoc',
+          },
+        },
+        {
+          $lookup: {
+            from: 'quizzes',
+            let: {itemId: '$itemObjId', itemType: '$itemsGroup.items.type'},
+            pipeline: [
+              {$match: {$expr: {$and: [{$eq: ['$_id', '$$itemId']}, {$eq: ['$$itemType', 'QUIZ']}]}}},
+              {$project: {isDeleted: 1}},
+            ],
+            as: 'quizDoc',
+          },
+        },
+        {
+          $lookup: {
+            from: 'projects',
+            let: {itemId: '$itemObjId', itemType: '$itemsGroup.items.type'},
+            pipeline: [
+              {$match: {$expr: {$and: [{$eq: ['$_id', '$$itemId']}, {$eq: ['$$itemType', 'PROJECT']}]}}},
+              {$project: {isDeleted: 1}},
+            ],
+            as: 'projectDoc',
+          },
+        },
+        {
+          $addFields: {
+            isItemDeleted: {
+              $switch: {
+                branches: [
+                  {
+                    case: {$eq: ['$itemsGroup.items.type', 'VIDEO']},
+                    then: {$ifNull: [{$arrayElemAt: ['$videoDoc.isDeleted', 0]}, false]},
+                  },
+                  {
+                    case: {$eq: ['$itemsGroup.items.type', 'BLOG']},
+                    then: {$ifNull: [{$arrayElemAt: ['$blogDoc.isDeleted', 0]}, false]},
+                  },
+                  {
+                    case: {$eq: ['$itemsGroup.items.type', 'QUIZ']},
+                    then: {$ifNull: [{$arrayElemAt: ['$quizDoc.isDeleted', 0]}, false]},
+                  },
+                  {
+                    case: {$eq: ['$itemsGroup.items.type', 'PROJECT']},
+                    then: {$ifNull: [{$arrayElemAt: ['$projectDoc.isDeleted', 0]}, false]},
+                  },
+                ],
+                default: false,
+              },
+            },
+          },
+        },
+        {$match: {isItemDeleted: {$ne: true}}},
         {
           $group: {
             _id: '$_id',
@@ -799,6 +994,8 @@ export class EnrollmentRepository {
       aggregationPipeline.push({
         $match: {
           $or: [
+            {'userInfo.firstName': {$regex: search, $options: 'i'}},
+            {'userInfo.email': {$regex: search, $options: 'i'}},
             {firstName: {$regex: searchTerm, $options: 'i'}},
             {lastName: {$regex: searchTerm, $options: 'i'}},
             {email: {$regex: searchTerm, $options: 'i'}},
@@ -1741,14 +1938,15 @@ export class EnrollmentRepository {
     try {
       const versionObjectId = new ObjectId(versionId);
 
-      const result = await this.enrollmentCollection.deleteMany(
+      const result = await this.enrollmentCollection.updateMany(
         {
           courseVersionId: versionObjectId,
         },
+        {$set: {isDeleted: true, deletedAt: new Date()}},
         {session},
       );
 
-      return result.deletedCount;
+      return result.modifiedCount;
     } catch (error) {
       console.error('Failed to delete enrollments:', error);
       throw new Error('Failed to delete enrollments for the course version');

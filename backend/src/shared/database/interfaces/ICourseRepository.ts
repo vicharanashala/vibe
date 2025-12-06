@@ -35,6 +35,12 @@ export interface ICourseRepository {
     versionId: string,
     session?: ClientSession,
   ): Promise<ICourseVersion | null>;
+
+  getActiveVersion(
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<ICourseVersion | null>;
+
   updateVersion(
     versionId: string,
     courseVersion: ICourseVersion,
@@ -45,7 +51,7 @@ export interface ICourseRepository {
     versionId: string,
     itemGroupsIds: ObjectId[],
     session?: ClientSession,
-  ): Promise<DeleteResult | null>;
+  ): Promise<UpdateResult | null>;
   addNewCourseVersionToCourse(
     courseId: string,
     versionId: string,
@@ -69,4 +75,11 @@ export interface ICourseRepository {
   ): Promise<ICourseVersion | null>;
   bulkUpdateVersions(operations: any[], session?: ClientSession): Promise<void>;
   getAllCourses(session?: ClientSession): Promise<ICourse[]>;
+
+  // Cascade Delete Methods used by Cron Jobs
+  cascadeDeleteVersion(session?: ClientSession): Promise<void>;
+  //cascadeDeleteModule(session?: ClientSession): Promise<void>;
+  //cascadeDeleteSection(session?: ClientSession): Promise<void>;
+  //cascadeDeleteItemGroup(session?: ClientSession): Promise<void>;
+  //cascadeDeleteItem(session?: ClientSession): Promise<void>;
 }

@@ -42,6 +42,13 @@ class Section implements ISection {
   @Type(() => Date)
   updatedAt: Date;
 
+  @Expose()
+  isDeleted?: boolean;
+
+  @Expose()
+  @Type(() => Date)
+  deletedAt?: Date;
+
   constructor(sectionBody: CreateSectionBody, existingSections: ISection[]) {
     if (sectionBody) {
       this.name = sectionBody.name;
@@ -59,6 +66,8 @@ class Section implements ISection {
     );
     this.createdAt = new Date();
     this.updatedAt = new Date();
+    this.isDeleted = false;
+    this.deletedAt = undefined;
   }
 }
 
