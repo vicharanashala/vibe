@@ -1797,8 +1797,8 @@ export default function AISectionPage() {
     const canSave = questionText.trim() && options.length >= 2 && options.every((o: any) => o.text.trim()) && options.some((o: any) => o.correct);
 
     const buildSolution = () => {
-      const correctOpts = options.filter((o: any) => o.correct).map((o: any) => ({ text: o.text, explaination: o.explaination.trim() || "Congratulations! You are correct!" }));
-      const incorrectOpts = options.filter((o: any) => !o.correct).map((o: any) => ({ text: o.text, explaination: o.explaination.trim() || "Sorry! You are wrong!" }));
+      const correctOpts = options.filter((o: any) => o.correct).map((o: any) => ({ text: o.text, explaination: o.explaination.trim() || "Nil" }));
+      const incorrectOpts = options.filter((o: any) => !o.correct).map((o: any) => ({ text: o.text, explaination: o.explaination.trim() || "Nil" }));
       if (normalized.type === 'SELECT_ONE_IN_LOT') {
         return {
           correctLotItem: correctOpts[0] || { text: '', explaination: '' },

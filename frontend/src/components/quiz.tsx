@@ -107,7 +107,7 @@ function showExplanationBox(text: string) {
         setShowExplanation(false)
         return { open: false, text: "" };
       });
-    }, 5000);
+    }, 3500);
   });
 }
 
@@ -676,11 +676,11 @@ for (const sub of answersForSaving) {
     explanationText = selected.explaination;
   }
 }
-
+if(explanationText==='Nil'){
+  explanationText=''
+}
 if (explanationText.trim()) {
   await showExplanationBox(explanationText)
-}else{
-  alert("No explanation available for this question")
 }
         // if(result)
       } catch (err:any) {
@@ -888,7 +888,6 @@ if (explanationText.trim()) {
       // For regular completion, check grading status
       if (submissionResults?.gradingStatus !== "FAILED") {
         setQuizPassed?.(1);
-        alert("Onnext is calling just before onNext")
         onNext?.();
       } else {
         setQuizPassed?.(0);
