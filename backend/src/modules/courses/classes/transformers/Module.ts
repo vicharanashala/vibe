@@ -43,6 +43,13 @@ class Module implements IModule {
   @Type(() => Date)
   updatedAt: Date;
 
+  @Expose()
+  isDeleted?: boolean;
+
+  @Expose()
+  @Type(() => Date)
+  deletedAt?: Date;
+
   constructor(moduleBody: CreateModuleBody, existingModules: IModule[]) {
     if (moduleBody) {
       this.name = moduleBody.name;
@@ -61,6 +68,8 @@ class Module implements IModule {
     this.sections = [];
     this.createdAt = new Date();
     this.updatedAt = new Date();
+    this.isDeleted = false;
+    this.deletedAt = undefined;
   }
 }
 

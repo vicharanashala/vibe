@@ -1,7 +1,7 @@
-import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
+import { calculateNewOrder } from '#courses/utils/calculateNewOrder.js';
 
-import {Expose, Transform, Type} from 'class-transformer';
-import {ObjectId} from 'mongodb';
+import { Expose, Transform, Type } from 'class-transformer';
+import { ObjectId } from 'mongodb';
 
 import {
   ObjectIdToString,
@@ -20,8 +20,8 @@ export type Item = QuizItem | VideoItem | BlogItem | ProjectItem;
 
 class QuizItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   _id?: ID;
 
   @Expose()
@@ -36,6 +36,12 @@ class QuizItem {
   @Expose()
   details?: IQuizDetails;
 
+  @Expose()
+  isDeleted?: boolean;
+
+  @Expose()
+  deletedAt?: Date;
+
   constructor(
     name: string,
     description: string,
@@ -47,13 +53,15 @@ class QuizItem {
     this.name = name;
     this.description = description;
     this.details = details;
+    this.isDeleted = false;
+    this.deletedAt = undefined;
   }
 }
 
 class VideoItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   _id?: ID;
 
   @Expose()
@@ -68,6 +76,12 @@ class VideoItem {
   @Expose()
   details?: IVideoDetails;
 
+  @Expose()
+  isDeleted?: boolean;
+
+  @Expose()
+  deletedAt?: Date;
+
   constructor(
     name: string,
     description: string,
@@ -79,13 +93,15 @@ class VideoItem {
     this.name = name;
     this.description = description;
     this.details = details;
+    this.isDeleted = false;
+    this.deletedAt = undefined;
   }
 }
 
 class BlogItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   _id?: ID;
 
   @Expose()
@@ -100,6 +116,12 @@ class BlogItem {
   @Expose()
   details?: IBlogDetails;
 
+  @Expose()
+  isDeleted?: boolean;
+
+  @Expose()
+  deletedAt?: Date;
+
   constructor(
     name: string,
     description: string,
@@ -111,13 +133,15 @@ class BlogItem {
     this.name = name;
     this.description = description;
     this.details = details;
+    this.isDeleted = false;
+    this.deletedAt = undefined;
   }
 }
 
 class FeedBackFormItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   _id?: ID;
 
   @Expose()
@@ -155,8 +179,8 @@ class FeedBackFormItem {
 
 class FeedbackSubmissionItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   _id?: ID;
 
   @Expose()
@@ -215,8 +239,8 @@ class FeedbackSubmissionItem {
 
 class ProjectItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   _id?: ID;
 
   @Expose()
@@ -229,6 +253,13 @@ class ProjectItem {
   type: ItemType = ItemType.PROJECT;
 
   details?: any;
+
+  @Expose()
+  isDeleted?: boolean;
+
+  @Expose()
+  deletedAt?: Date;
+
   constructor(name: string, description: string, _id: ID, details?: any) {
     this._id = _id;
     this.type = ItemType.PROJECT;
@@ -238,13 +269,15 @@ class ProjectItem {
     if (details) {
       this.details = details;
     }
+    this.isDeleted = false;
+    this.deletedAt = undefined;
   }
 }
 
 class ItemBase {
   @Expose()
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   itemId?: ID;
 
   @Expose()
@@ -333,8 +366,8 @@ class ItemBase {
 
 class ItemRef {
   @Expose()
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   _id?: ID;
 
   @Expose()
@@ -352,8 +385,8 @@ class ItemRef {
 
 class ItemsGroup {
   @Expose()
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   _id?: ID;
 
   @Expose()
@@ -361,8 +394,8 @@ class ItemsGroup {
   items: ItemRef[];
 
   @Expose()
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   sectionId: ID;
 
   constructor(sectionId?: ID, items?: ItemRef[]) {
