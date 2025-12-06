@@ -66,11 +66,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const [dontStart, setDontStart] = useState(false);
   const [isEmptyQuiz, setIsEmptyQuiz] = useState(false);
   const [noAttemptsLeft, setNoAttemptsLeft] = useState(false);
-  const [explanationModal, setExplanationModal] = useState<{
+const [explanationBox, setExplanationBox] = useState<{
   open: boolean;
   text: string;
   resolve?: () => void;
 }>({ open: false, text: "" });
+const [showExplanation,setShowExplanation] = useState(false)
 
   // ===== REFS AND CONSTANTS =====
   const itemStartedRef = useRef(false);
@@ -88,15 +89,28 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
   // ===== UTILITY FUNCTIONS =====
 
-function showExplanationModal(text: string) {
+
+function showExplanationBox(text: string) {
+  setShowExplanation(true)
   return new Promise<void>((resolve) => {
-    setExplanationModal({
+    setExplanationBox({
       open: true,
       text,
       resolve,
     });
+    // AUTO-CLOSE after 3 seconds
+    setTimeout(() => {
+      setExplanationBox(prev => {
+        if (prev.open) {
+          prev.resolve?.(); 
+        }
+        setShowExplanation(false)
+        return { open: false, text: "" };
+      });
+    }, 5000);
   });
 }
+
 
 
   const formatTime = useCallback((seconds: number) => {
@@ -601,24 +615,33 @@ function showExplanationModal(text: string) {
         });
         setScore(totalScore);
       }
-let explanationText = "";
-quizQuestions.forEach(question => {
+// quizQuestions.forEach(question => {
   
-  const userAnswer = answers[question.id];
-  if (!userAnswer) return;
-  answersForSubmission.forEach(sub => {
-  const selected = question.lotItems?.find(
-    i => i._id == sub.answer.lotItemId
-  );
-  explanationText=`${selected?.explaination}`
-});
-});
-
-if (explanationText.trim()) {
-  // alert(explanationText);
-  await showExplanationModal(explanationText)
-}
-
+//   const userAnswer = answers[question.id];
+//   if (!userAnswer) return;
+//   answersForSubmission.forEach(sub => {
+//   const selected = question.lotItems?.find(
+//     i => i._id == sub.answer.lotItemId
+//   );
+//   explanationText=`${selected?.explaination}`
+// });
+// });
+// quizQuestions.forEach(question => {
+//   const userAnswer = answers[question.id];
+//   if (!userAnswer) return;
+  
+//   answersForSubmission.forEach(sub => {
+//     // Add this null check
+//     if (sub?.answer?.lotItemId && question.lotItems) {
+//       const selected = question.lotItems.find(
+//         i => i._id == sub.answer.lotItemId
+//       );
+//       if (selected?.explaination) {
+//         explanationText = selected.explaination;
+//       }
+//     }
+//   });
+// });
       setQuizCompleted(true);
       handleStopItem();
     } catch (err) {
@@ -628,7 +651,7 @@ if (explanationText.trim()) {
     }
   }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem]);
 
-  const handleNextQuestion = useCallback(async () => {
+  const handleNextQuestion = useCallback(async () => {  //one here
     setTimeLeft(0);
 
     // Auto-save progress before moving to next question
@@ -639,6 +662,26 @@ if (explanationText.trim()) {
           params: { path: { quizId: processedQuizId, attemptId: attemptId } },
           body: { answers: answersForSaving }
         });
+
+let explanationText = "";
+for (const sub of answersForSaving) {
+  const question = quizQuestions.find(q => q.id === sub.questionId);
+  if (!question) continue;
+
+  const selected = question.lotItems!.find(
+    item => item._id === sub.answer.lotItemId
+  );
+
+  if (selected?.explaination) {
+    explanationText = selected.explaination;
+  }
+}
+
+if (explanationText.trim()) {
+  await showExplanationBox(explanationText)
+}else{
+  alert("No explanation available for this question")
+}
         // if(result)
       } catch (err:any) {
         const errorMessage =
@@ -682,7 +725,7 @@ if (explanationText.trim()) {
   }, [attempts, processedQuizId,handleStopItem,onNext]);
 
 
-  const saveProgress = useCallback(async () => {
+  const saveProgress = useCallback(async () => {     //one here
     if (!attemptId || quizQuestions.length === 0) {
       console.error('No attempt ID or questions available for saving');
       return;
@@ -1386,6 +1429,23 @@ if (explanationText.trim()) {
             </div>
           )}
 
+          {explanationBox.open && (
+  <div className="mb-4 p-3 rounded-lg bg-green-100 text-green-900 border border-green-300 animate-in fade-in">
+    <p className="text-sm leading-relaxed">{explanationBox.text}</p>
+
+    {/* OPTIONAL Next Button */}
+    {/* <button
+      className="mt-2 px-3 py-1 rounded bg-green-600 text-white text-sm"
+      onClick={() => {
+        explanationBox.resolve?.();
+        setExplanationBox({ open: false, text: "" });
+      }}
+    >
+      Next →
+    </button> */}
+  </div>
+)}
+
           {/* Single Select (SELECT_ONE_IN_LOT) */}
           {currentQuestion.type === 'SELECT_ONE_IN_LOT' && currentQuestion.options && (
             <RadioGroup
@@ -1530,7 +1590,7 @@ if (explanationText.trim()) {
             <Button
               variant="outline"
               onClick={saveProgress}
-              disabled={isSaving}
+              disabled={isSaving || showExplanation}
             >
               {isSaving ? (
                 <>
@@ -1544,7 +1604,7 @@ if (explanationText.trim()) {
 
             <Button
               onClick={handleNextQuestion}
-              disabled={!isAnswerValid(currentQuestion, answers[currentQuestion.id]) || isSubmitting}
+              disabled={!isAnswerValid(currentQuestion, answers[currentQuestion.id]) || isSubmitting || showExplanation}
             >
               {isSubmitting ? (
                 <>
@@ -1561,79 +1621,6 @@ if (explanationText.trim()) {
           </div>
         </div>
 
-        {/* {explanationModal.open && (
-  <div 
-    style={{
-      position: "fixed",
-      top: 0, left: 0,
-      width: "100vw",
-      height: "100vh",
-      background: "rgba(0,0,0,0.6)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 9999
-    }}
-  >
-    <div
-      style={{
-        background: "white",
-        padding: "20px",
-        borderRadius: "8px",
-        maxWidth: "500px",
-        width: "90%",
-        whiteSpace: "pre-wrap",
-      }}
-    >
-      <h3>Explanation</h3>
-      <p>{explanationModal.text}</p>
-
-      <button
-        style={{ marginTop: "20px" }}
-        onClick={() => {
-          explanationModal.resolve?.();  // resume the async function
-          setExplanationModal({ open: false, text: "" });
-        }}
-      >
-        Close
-      </button>
-    </div>
-  </div>
-)} */}
-{explanationModal.open && (
-  <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-    <div className="relative bg-[#fff8e6] border border-[#f5c76b] rounded-xl p-6 w-[90%] max-w-md shadow-xl font-sans text-center">
-
-      {/* CLOSE ICON (X) */}
-      <button
-        className="absolute top-3 right-3 text-[#8a6d3b] hover:text-[#4a3b27] text-xl font-bold"
-        onClick={() => {
-          explanationModal.resolve?.();
-          setExplanationModal({ open: false, text: "" });
-        }}
-      >
-        ×
-      </button>
-
-      {/* ICON */}
-      <div className="flex justify-center mb-4">
-        <div className="bg-[#f7c948] text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-xl">
-          !
-        </div>
-      </div>
-
-      {/* HEADING */}
-      <h2 className="text-lg font-bold text-[#8a6d3b] mb-3">
-        Explanation
-      </h2>
-
-      {/* TEXT */}
-      <p className="whitespace-pre-wrap text-[#5a4e3c] text-base leading-relaxed text-center">
-        {explanationModal.text}
-      </p>
-    </div>
-  </div>
-)}
 
 
 

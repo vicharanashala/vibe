@@ -13,9 +13,9 @@ const StudentRouteGuard: React.FC<Props> = ({ children }) => {
 
   const isStudentRoute = location.startsWith("/student");
   
-  // if (isMobile && isStudentRoute) {
-  //   return <MobileFallbackScreen/>;
-  // }
+  if (isMobile && isStudentRoute) {
+    return <MobileFallbackScreen/>;
+  }
   return <>{children}</>;
 };
 
