@@ -722,6 +722,11 @@ class ItemDataResponse {
   })
   @IsOptional()
   version?: CourseVersion;
+
+  @JSONSchema({
+    
+  })
+  createdItem:ItemRef;
 }
 
 class DeletedItemResponse {
