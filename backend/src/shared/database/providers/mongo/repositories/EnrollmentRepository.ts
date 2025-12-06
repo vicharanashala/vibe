@@ -1766,4 +1766,23 @@ export class EnrollmentRepository {
     });
     return result.insertedIds;
   }
+
+  async getUserEnrollmentsByCourseVersion(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment> {
+    await this.init();
+    return await this.enrollmentCollection
+      .find(
+        {
+          userId: new ObjectId(userId),
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+        },
+        {session},
+      )
+      .next();
+  }
 }

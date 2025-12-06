@@ -125,27 +125,33 @@ export class EnrollmentService extends BaseService {
           courseVersionId,
           courseVersion,
         );
-        
+
         if (progressData) {
           initialProgress = await this.progressRepo.createProgress(
             {
               userId: new ObjectId(userId),
               courseId: new ObjectId(courseId),
               courseVersionId: new ObjectId(courseVersionId),
-              currentModule: new ObjectId(progressData.currentModule.toString()),
-              currentSection: new ObjectId(progressData.currentSection.toString()),
+              currentModule: new ObjectId(
+                progressData.currentModule.toString(),
+              ),
+              currentSection: new ObjectId(
+                progressData.currentSection.toString(),
+              ),
               currentItem: new ObjectId(progressData.currentItem.toString()),
               completed: false,
             },
             session,
           );
-          
+
           console.log('=== ENROLLMENT: Progress created successfully ===', {
             userId,
             currentItem: progressData.currentItem.toString(),
           });
         } else {
-          console.log('=== ENROLLMENT: No progress data returned - course may have no valid items ===');
+          console.log(
+            '=== ENROLLMENT: No progress data returned - course may have no valid items ===',
+          );
         }
       }
 
@@ -215,7 +221,7 @@ export class EnrollmentService extends BaseService {
         userId,
         courseId,
         courseVersionId,
-        session
+        session,
       );
       return {
         enrollment: null,
@@ -253,6 +259,8 @@ export class EnrollmentService extends BaseService {
       );
 
       if (!enrollments.length) return [];
+
+      console.log(`Found ${enrollments.length} enrollments for user ${userId}`);
 
       const enrolledVersionIds = new Set(
         enrollments.map(e => e.courseVersionId.toString()),
@@ -650,6 +658,21 @@ export class EnrollmentService extends BaseService {
   async addIndex(): Promise<void> {
     await this._withTransaction(async session => {
       await this.enrollmentRepo.addEnrollmentIndexes(session);
+    });
+  }
+
+  async getUserEnrollmentsByCourseVersion(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<IEnrollment> {
+    return this._withTransaction(async (session: ClientSession) => {
+      return this.enrollmentRepo.getUserEnrollmentsByCourseVersion(
+        userId,
+        courseId,
+        courseVersionId,
+        session,
+      );
     });
   }
 }
