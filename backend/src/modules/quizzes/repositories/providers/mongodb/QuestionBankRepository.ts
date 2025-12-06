@@ -17,7 +17,16 @@ class QuestionBankRepository {
     this.questionBankCollection = await this.db.getCollection<IQuestionBank>(
       'questionBanks',
     );
-    this.questionsCollection = await this.db.getCollection<any>('questions');
+
+    // High-priority indexes for read performance
+    await this.questionBankCollection.createIndex(
+      {questions: 1},
+      {name: 'questions_1', background: true},
+    );
+    await this.questionBankCollection.createIndex(
+      {courseVersionId: 1},
+      {name: 'courseVersionId_1', background: true},
+    );
   }
 
   async create(
@@ -171,7 +180,7 @@ class QuestionBankRepository {
       {courseVersionId: new ObjectId(versionId)},
       {session},
     );
-    return result.deletedCount>0;
+    return result.deletedCount > 0;
   }
 }
 

@@ -29,6 +29,22 @@ class ProgressRepository {
     this.attemptCollection = await this.db.getCollection<IAttempt>(
       'quiz_attempts',
     );
+
+    this.progressCollection.createIndex({
+      userId: 1,
+      courseId: 1,
+      courseVersionId: 1,
+    });
+    this.watchTimeCollection.createIndex({
+      userId: 1,
+      courseId: 1,
+      courseVersionId: 1,
+      itemId: 1,
+    });
+    this.attemptCollection.createIndex({
+      userId: 1,
+      quizId: 1,
+    });
   }
 
   async getCompletedItems(

@@ -55,6 +55,7 @@ export interface IModule {
   name: string;
   description: string;
   order: string;
+  isHidden: boolean;
   sections: ISection[];
   isDeleted?: boolean;
   deletedAt?: Date;

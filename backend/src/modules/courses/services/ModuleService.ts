@@ -154,4 +154,33 @@ export class ModuleService extends BaseService {
       }
     });
   }
+
+  public async toggleModuleVisibility(
+    versionId: string,
+    moduleId: string,
+    isHidden: boolean,
+  ) {
+    return this._withTransaction(async session => {
+      const version = await this.courseRepo.readVersion(versionId, session);
+      const moduleIndex = version.modules.findIndex(
+        m => m.moduleId === moduleId,
+      );
+      const module = version.modules[moduleIndex];
+      if (!module) throw new NotFoundError(`Module ${moduleId} not found.`);
+
+      module.isHidden = isHidden;
+      module.updatedAt = new Date();
+      version.updatedAt = new Date();
+
+      version.modules[moduleIndex] = module;
+
+      const updatedVersion = await this.courseRepo.updateVersion(
+        versionId,
+        version,
+        session,
+      );
+
+      return updatedVersion;
+    });
+  }
 }
