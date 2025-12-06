@@ -68,6 +68,14 @@ export interface ISection {
   updatedAt: Date;
 }
 
+export interface IItemGroupInfo {
+  courseVersionId: ID;
+  moduleId: ID;
+  moduleName: string;
+  sectionId: ID;
+  sectionName: string;
+}
+
 export interface IItemId {
   itemId: string;
   order: string;
