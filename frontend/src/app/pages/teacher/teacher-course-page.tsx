@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent } from "react";
 import * as Papa from 'papaparse';
 import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank } from '@/hooks/hooks';
-import { Upload } from 'lucide-react';
+import { Download, Upload } from 'lucide-react';
 
 const MAX_DESCRIPTION_LENGTH = 1000;
 
@@ -1165,6 +1165,14 @@ function TeacherCourseContent() {
           </div>
 
           <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => window.open("/templates/QB - template_Sheet1.csv", "_blank")}
+              className="flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              Download Sample CSV Template
+            </Button>
             <Button
               variant="outline"
               onClick={() => {
