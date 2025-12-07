@@ -335,7 +335,6 @@ export class CourseRepository implements ICourseRepository {
     return result.length > 0 ? result[0] : null;
 
   }
-
   async getActiveVersion(
     versionId: string,
     session?: ClientSession,
