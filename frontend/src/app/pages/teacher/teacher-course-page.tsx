@@ -49,6 +49,7 @@ import ProjectItem from "./components/ProjectItem";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import FeedbackFormEditor from "./FeedbackFormEditor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { QuestionUploadDialog } from "@/components/question-upload-dialog";
 
 // Retry utility function
 const withRetry = async <T,>(fn: () => Promise<T>, maxRetries = 3, delay = 100): Promise<T> => {
@@ -1081,7 +1082,7 @@ function TeacherCourseContent() {
         </div>
       )}
       {/* CSV Upload Modal */}
-      <Dialog open={showCSVUpload} onOpenChange={setShowCSVUpload}>
+      {/* <Dialog open={showCSVUpload} onOpenChange={setShowCSVUpload}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Upload Questions</DialogTitle>
@@ -1210,7 +1211,12 @@ function TeacherCourseContent() {
             </Button>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog> */}
+      <QuestionUploadDialog 
+        open={showCSVUpload} 
+        onOpenChange={setShowCSVUpload} 
+        onUploadComplete={() => {}} 
+      />
       {/* Mobile Sidebar Overlay */}
       {isMobileSidebarOpen && (
         <div
