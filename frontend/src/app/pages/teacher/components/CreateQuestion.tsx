@@ -480,7 +480,7 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                                     </div>
                                     </div>
 
-                                    <div>
+                                    {/* <div>
                                         <Label htmlFor="questionText" className='mb-3'>Question Text *</Label>
                                         {renderParameterControls("questionText")}
                                         <Textarea
@@ -490,6 +490,22 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                                             onChange={(e) => setQuestionForm(prev => ({ ...prev, text: e.target.value }))}
                                             className="min-h-[80px]"
                                         />
+                                    </div> */}
+                                  <div>
+                                    <Label htmlFor="questionText" className="mb-3">Question Text *</Label>
+                                    {renderParameterControls("questionText")}
+                                    
+                                    <Textarea
+                                        id="questionText"
+                                        placeholder={`Enter your question here...\\n will show as a new line`}
+                                        value={questionForm.text.replace(/\\n/g, '\n')}
+                                        onChange={(e) => {
+                                        // Convert actual newline to literal '\n' before storing
+                                        const updatedText = e.target.value.replace(/\n/g, '\\n');
+                                        setQuestionForm(prev => ({ ...prev, text: updatedText }));
+                                        }}
+                                        className="min-h-[120px] whitespace-pre-wrap"
+                                    />
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
