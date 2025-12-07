@@ -7,6 +7,8 @@ import {
   IEnrollment,
   IItemGroupInfo,
   IModule,
+  ItemType,
+  IWatchTime,
 } from '#shared/interfaces/models.js';
 import {instanceToPlain} from 'class-transformer';
 import {injectable, inject} from 'inversify';
@@ -15,7 +17,6 @@ import {
   MongoClient,
   ClientSession,
   ObjectId,
-  DeleteResult,
   UpdateResult,
 } from 'mongodb';
 import {NotFoundError, InternalServerError} from 'routing-controllers';
@@ -85,9 +86,6 @@ export class CourseRepository implements ICourseRepository {
     );
     this.itemsGroupCollection = await this.db.getCollection<ItemsGroup>(
       'itemsGroup',
-    );
-    this.enrollmentCollection = await this.db.getCollection<IEnrollment>(
-      'enrollment',
     );
   }
 
@@ -205,12 +203,13 @@ export class CourseRepository implements ICourseRepository {
     // );
 
     // 3. Finally, delete the Course document itself
-    const deleteCourseResult = await this.courseCollection.deleteOne(
+    const deleteCourseResult = await this.courseCollection.updateOne(
       {_id: new ObjectId(courseId)},
+      {$set: {isDeleted: true, deletedAt: new Date()}},
       {session},
     );
 
-    if (deleteCourseResult.deletedCount !== 1) {
+    if (deleteCourseResult.modifiedCount !== 1) {
       throw new InternalServerError('Failed to delete course');
     }
     return true;
@@ -282,9 +281,9 @@ export class CourseRepository implements ICourseRepository {
         {session},
       );
 
-      // if (courseVersion === null) {
-      //   throw new NotFoundError('Course Version not found');
-      // }
+      if (courseVersion === null) {
+        throw new NotFoundError('Course Version not found');
+      }
 
       return instanceToPlain(
         Object.assign(new CourseVersion(), courseVersion),
@@ -298,6 +297,7 @@ export class CourseRepository implements ICourseRepository {
       );
     }
   }
+
   async getItemGroupInfo(
     itemGroupId: ID,
     session?: ClientSession,
@@ -333,6 +333,71 @@ export class CourseRepository implements ICourseRepository {
       .toArray();
 
     return result.length > 0 ? result[0] : null;
+
+  }
+
+  async getActiveVersion(
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<ICourseVersion | null> {
+    await this.init();
+
+    // Find the course version with no section or module marked as deleted
+    const courseVersionPipeline = [
+      {
+        $match: {
+          _id: new ObjectId(versionId),
+        },
+      },
+      {
+        $set: {
+          modules: {
+            $map: {
+              input: {
+                $filter: {
+                  input: '$modules',
+                  as: 'mod',
+                  cond: {$ne: ['$$mod.isDeleted', true]},
+                },
+              },
+              as: 'mod',
+              in: {
+                moduleId: '$$mod.moduleId',
+                name: '$$mod.name',
+                description: '$$mod.description',
+                order: '$$mod.order',
+                createdAt: '$$mod.createdAt',
+                updatedAt: '$$mod.updatedAt',
+                isDeleted: '$$mod.isDeleted',
+                deletedAt: '$$mod.deletedAt',
+                sections: {
+                  $filter: {
+                    input: '$$mod.sections',
+                    as: 'sec',
+                    cond: {$ne: ['$$sec.isDeleted', true]},
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    ];
+
+    const pipeline = this.courseVersionCollection.aggregate(
+      courseVersionPipeline,
+      {session},
+    );
+
+    const courseVersion = await pipeline.next();
+
+    if (courseVersion === null) {
+      throw new NotFoundError('Course Version not found');
+    }
+
+    return instanceToPlain(
+      Object.assign(new CourseVersion(), courseVersion),
+    ) as CourseVersion;
   }
 
   async updateVersion(
@@ -343,6 +408,8 @@ export class CourseRepository implements ICourseRepository {
     await this.init();
     try {
       const {_id: _, ...fields} = courseVersion;
+
+      console.log(courseVersion);
 
       const isExistVersion = await this.courseVersionCollection.findOne({
         _id: new ObjectId(versionId),
@@ -382,23 +449,48 @@ export class CourseRepository implements ICourseRepository {
     versionId: string,
     itemGroupsIds: ObjectId[],
     session?: ClientSession,
-  ): Promise<DeleteResult | null> {
+  ): Promise<UpdateResult | null> {
     await this.init();
     try {
-      // 1. Delete course version
-      const versionDeleteResult = await this.courseVersionCollection.deleteOne(
+      // 1. Delete course version (soft delete)
+      const now = new Date();
+      const version = await this.courseVersionCollection.findOne(
         {
           _id: new ObjectId(versionId),
         },
         {session},
       );
 
-      if (versionDeleteResult.deletedCount !== 1) {
+      const updatedModules = version.modules.map(m => {
+        return {
+          ...m,
+          isDeleted: true,
+          deletedAt: now,
+          sections: m.sections.map(s => ({
+            ...s,
+            isDeleted: true,
+            deletedAt: now,
+          })),
+        };
+      });
+
+      const versionDeleteResult = await this.courseVersionCollection.updateOne(
+        {
+          _id: new ObjectId(versionId),
+        },
+        {
+          $set: {isDeleted: true, deletedAt: now, modules: updatedModules},
+        },
+        {session},
+      );
+
+      if (versionDeleteResult.modifiedCount !== 1) {
         throw new InternalServerError('Failed to delete course version');
       }
 
       console.log('VersionId: ', versionId);
       // 2. Remove courseVersionId from the course
+      /*
       const courseUpdateResult = await this.courseCollection.updateOne(
         {_id: new ObjectId(courseId)},
         {
@@ -414,59 +506,29 @@ export class CourseRepository implements ICourseRepository {
       if (courseUpdateResult.modifiedCount !== 1) {
         throw new InternalServerError('Failed to update course');
       }
+      */
 
-      await Promise.all([
-        // delete watch time
-        this.progressRepo.deleteWatchTimeByVersionId(versionId, session),
+      // delete watch time (soft delete)
+      await this.progressRepo.deleteWatchTimeByVersionId(versionId, session);
 
-        // delete enrollment
-        this.enrollmentRepo.deleteEnrollmentByVersionId(versionId, session),
-
-        // delete anomaly
-        this.anomalyRepository.deleteAnomalyByVersionId(versionId, session),
-
-        // delete settings
-        this.settingsRepo.deleteCourseSettingsbyVersionId(versionId, session),
-
-        // delete course registration
-        this.courseRegistrationRepo.deleteRegistrationByVersionId(
-          versionId,
-          session,
-        ),
-
-        // delete invite
-        this.inviteRepo.deleteInviteByVersionId(versionId, session),
-
-        // delete progress
-        this.progressRepo.deleteProgressByVersionId(versionId, session),
-
-        // delete project submission
-        this.projectSubmissionRepo.deleteProjectSubmissionByVersionId(
-          versionId,
-          session,
-        ),
-
-        // delete question bank
-        this.questionBankRepository.deleteQuestionBankByVersionId(
-          versionId,
-          session,
-        ),
-
-        // delete report
-        this.reportsRepository.deleteReportByVersionId(versionId, session),
-      ]);
-
-      // 3. Cascade Delete item groups
-      const itemDeletionResult = await this.itemsGroupCollection.deleteMany(
+      // 3. Cascade Delete item groups (soft delete),
+      const itemDeletionResult = await this.itemsGroupCollection.updateMany(
         {
           _id: {$in: itemGroupsIds},
+        },
+        {
+          $set: {isDeleted: true, deletedAt: now},
         },
         {session},
       );
 
-      if (itemGroupsIds.length && itemDeletionResult.deletedCount === 0) {
+      if (itemGroupsIds.length && itemDeletionResult.modifiedCount === 0) {
         throw new InternalServerError('Failed to delete item groups');
       }
+
+      // 4. Delete all enrollmentsand progress related to this version
+      await this.progressRepo.deleteProgressByVersionId(versionId, session);
+      await this.enrollmentRepo.deleteEnrollmentByVersionId(versionId, session);
 
       // 4. Return the deleted course version
       return versionDeleteResult;
@@ -527,9 +589,12 @@ export class CourseRepository implements ICourseRepository {
         }
 
         try {
-          const itemDeletionResult = await this.itemsGroupCollection.deleteOne(
+          const itemDeletionResult = await this.itemsGroupCollection.updateOne(
             {
-              _id: itemGroupId,
+              _id: new ObjectId(itemGroupId),
+            },
+            {
+              $set: {isDeleted: true, deletedAt: new Date()},
             },
             {session},
           );
@@ -545,13 +610,24 @@ export class CourseRepository implements ICourseRepository {
       }
 
       // Remove the section from the course version
+      // Soft delete sections
       const updatedModules = courseVersion.modules.map(m => {
         if (new ObjectId(m.moduleId).equals(moduleObjectId)) {
           return {
             ...m,
-            sections: m.sections.filter(
+            sections: m.sections.map(s => {
+              if (s.sectionId === sectionId) {
+                return {
+                  ...s,
+                  isDeleted: true,
+                  deletedAt: new Date(),
+                };
+              }
+              return s;
+            }),
+            /*sections: m.sections.filter(
               s => !new ObjectId(s.sectionId).equals(sectionId),
-            ),
+            )*/
           };
         }
         return m;
@@ -642,26 +718,42 @@ export class CourseRepository implements ICourseRepository {
           }
         }
 
-        const itemDeletionResult = await this.itemsGroupCollection.deleteMany(
+        const itemDeletionResult = await this.itemsGroupCollection.updateMany(
           {
             _id: {$in: itemGroupsIds},
+          },
+          {
+            $set: {isDeleted: true, deletedAt: new Date()},
           },
           {session},
         );
 
-        if (itemDeletionResult.deletedCount === 0) {
+        if (itemDeletionResult.modifiedCount === 0) {
           throw new InternalServerError('Failed to delete item groups');
         }
       }
 
-      // Remove the module from the course version
-      const updatedModules = courseVersion.modules.filter(
-        m => !new ObjectId(m.moduleId).equals(moduleObjectId),
-      );
+      // Soft Remove the module from the course version
+      const updatedModules = courseVersion.modules.map(m => {
+        if (new ObjectId(m.moduleId).equals(moduleObjectId)) {
+          return {
+            ...m,
+            sections: m.sections.map(s => ({
+              ...s,
+              isDeleted: true,
+              deletedAt: new Date(),
+            })),
+            isDeleted: true,
+            deletedAt: new Date(),
+          };
+        }
+        return m;
+      });
 
       const updateResult = await this.courseVersionCollection.updateOne(
         {_id: versionObjectId},
         {$set: {modules: updatedModules}},
+        {session},
       );
 
       if (updateResult.modifiedCount !== 1) {
@@ -773,6 +865,125 @@ export class CourseRepository implements ICourseRepository {
     } catch (error) {
       console.error('Failed to add new course version:', error);
       throw new InternalServerError(`Failed to add new course version`);
+    }
+  }
+
+  private async deleteAndReturnIds(
+    collection: Collection<any>,
+    filter: any,
+    session?: ClientSession,
+  ): Promise<ObjectId[]> {
+    const docs = await collection
+      .find(filter, {projection: {_id: 1}, session})
+      .toArray();
+
+    if (docs.length === 0) return [];
+
+    const ids = docs.map(doc => doc._id);
+    await collection.deleteMany({_id: {$in: ids}}, {session});
+
+    return ids;
+  }
+
+  async cascadeDeleteVersion(session?: ClientSession): Promise<void> {
+    // cascade delete versions with date difference exceeding 30 days
+    await this.init();
+    try {
+      // start with items groups
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const deletedFilter = {
+        isDeleted: true,
+        deletedAt: {$lte: thirtyDaysAgo},
+      };
+
+      // Delete items groups
+      const itemGroupIds = await this.deleteAndReturnIds(
+        this.itemsGroupCollection,
+        deletedFilter,
+        session,
+      );
+
+      // Pull deleted item groups from course versions
+
+      if (itemGroupIds.length > 0) {
+        await this.courseVersionCollection.updateMany(
+          {
+            'modules.sections.itemsGroupId': {$in: itemGroupIds},
+          },
+          {
+            $pull: {
+              'modules.$[].sections': {itemsGroupId: {$in: itemGroupIds}},
+            },
+          },
+          {session},
+        );
+      }
+
+      // Delete sections and modules from course versions
+      await this.courseVersionCollection.updateMany(
+        {
+          'modules.sections': {$elemMatch: deletedFilter},
+        },
+        {
+          $pull: {
+            'modules.$[].sections': deletedFilter,
+          },
+        },
+        {session},
+      );
+
+      await this.courseVersionCollection.updateMany(
+        {
+          modules: {$elemMatch: deletedFilter},
+        },
+        {
+          $pull: {
+            modules: deletedFilter as any,
+          },
+        },
+        {session},
+      );
+
+      // Finally, delete course versions
+      const deletedVersions = await this.deleteAndReturnIds(
+        this.courseVersionCollection,
+        deletedFilter,
+        session,
+      );
+
+      // update course documents to remove references to deleted versions
+      await this.courseCollection.updateMany(
+        {versions: {$in: deletedVersions}},
+        {$pull: {versions: {$in: deletedVersions}} as any},
+        {session},
+      );
+
+      // Delete courses
+      await this.deleteAndReturnIds(
+        this.courseCollection,
+        deletedFilter,
+        session,
+      );
+
+      // Delete enrollments, progress and watch times related to deleted versions
+
+      if (deletedVersions.length > 0) {
+        await this.enrollmentRepo.deleteEnrollmentsByVersionIds(
+          deletedVersions,
+          session,
+        );
+
+        await this.progressRepo.deleteUserProgressByVersionIds(
+          deletedVersions,
+          session,
+        );
+      }
+    } catch (error) {
+      throw new InternalServerError(
+        'Failed to cascade delete versions.\n More Details: ' + error,
+      );
     }
   }
 }
