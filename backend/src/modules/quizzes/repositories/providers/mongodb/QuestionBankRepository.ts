@@ -7,6 +7,7 @@ import {Collection, ClientSession, ObjectId} from 'mongodb';
 @injectable()
 class QuestionBankRepository {
   private questionBankCollection: Collection<IQuestionBank>;
+  private questionsCollection: Collection<any>;
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
@@ -16,6 +17,7 @@ class QuestionBankRepository {
     this.questionBankCollection = await this.db.getCollection<IQuestionBank>(
       'questionBanks',
     );
+    this.questionsCollection = await this.db.getCollection<any>('questions');
   }
 
   async create(
@@ -37,13 +39,26 @@ class QuestionBankRepository {
     session?: ClientSession,
   ): Promise<IQuestionBank | null> {
     await this.init();
+    // Ensure that we do not fetch deleted question banks and questions that are soft deleted
     const result = await this.questionBankCollection.findOne(
-      {_id: new ObjectId(questionBankId)},
+      {_id: new ObjectId(questionBankId), isDeleted: {$ne: true}},
       {session},
     );
     if (!result) {
       return null;
     }
+
+    // Lookup result.questions against questions collections.
+    // Filter those questions that are soft deleted.
+
+    const questionObjectIds = result.questions.map(qId => new ObjectId(qId));
+
+    const questions = await this.questionsCollection
+      .find({_id: {$in: questionObjectIds}, isDeleted: {$ne: true}}, {session})
+      .toArray();
+
+    result.questions = questions.map(q => q._id);
+
     return {
       ...result,
       questions: result.questions.map(question => question.toString()),
@@ -90,11 +105,33 @@ class QuestionBankRepository {
     session?: ClientSession,
   ): Promise<boolean> {
     await this.init();
-    const result = await this.questionBankCollection.deleteOne(
+    // soft delete implementation
+    const questionBank = await this.questionBankCollection.findOne(
       {_id: new ObjectId(questionBankId)},
       {session},
     );
-    return result.deletedCount === 0;
+
+    if (!questionBank) {
+      return false;
+    }
+
+    const result = await this.questionBankCollection.updateOne(
+      {_id: new ObjectId(questionBankId)},
+      {$set: {isDeleted: true, deletedAt: new Date()}},
+      {session},
+    );
+
+    const questionObjectIds = questionBank.questions.map(
+      qId => new ObjectId(qId),
+    );
+
+    // Soft delete related questions in questions collection
+    await this.questionsCollection.updateMany(
+      {_id: {$in: questionObjectIds}},
+      {$set: {isDeleted: true, deletedAt: new Date()}},
+      {session},
+    );
+    return result.modifiedCount > 0;
   }
 
   async getQuestionBanksByQuestionId(
