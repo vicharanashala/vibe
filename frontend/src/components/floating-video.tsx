@@ -131,15 +131,15 @@ function FloatingVideo({
   const courseStore = useCourseStore();
   // Handle face recognition results
   const handleFaceRecognitionResult = useCallback((recognitions: any[]) => {
-    console.log('🎯 [FloatingVideo] Face recognition callback triggered with recognitions:', recognitions);
+    // console.log('🎯 [FloatingVideo] Face recognition callback triggered with recognitions:', recognitions);
     setRecognizedFaces(recognitions);
 
     // Log additional info about the recognition
     const knownFaces = recognitions.filter(r => r.isMatch);
     if (knownFaces.length > 0) {
-      console.log('✅ [FloatingVideo] Known faces detected:', knownFaces.map(f => f.label).join(', '));
+      // console.log('✅ [FloatingVideo] Known faces detected:', knownFaces.map(f => f.label).join(', '));
     } else {
-      console.log('❓ [FloatingVideo] No known faces recognized');
+      // console.log('❓ [FloatingVideo] No known faces recognized');
     }
   }, []);
 
@@ -173,7 +173,7 @@ function FloatingVideo({
   if (modelReady) {
     // wait 5 seconds after models are ready before enabling anomaly detection
     const timer = setTimeout(() => {
-      console.log("[FloatingVideo] Environment ready, enabling anomaly detection");
+      // console.log("[FloatingVideo] Environment ready, enabling anomaly detection");
       setReadyToDetect(true);
     }, 5000);
 
@@ -184,7 +184,7 @@ function FloatingVideo({
 
   // Effect to handle isPoppedOut changes - reset everything
   useEffect(() => {
-    console.log('[FloatingVideo] isPoppedOut changed to:', isPoppedOut);
+    // console.log('[FloatingVideo] isPoppedOut changed to:', isPoppedOut);
     // Small delay to ensure DOM is ready, then restart video
     setTimeout(() => {
       restartVideo();
@@ -470,20 +470,20 @@ const lastCalledRef = useRef<number>(0);
   // Debug face detection
   useEffect(() => {
     if (faces.length > 0) {
-      console.log('👤 [FloatingVideo] Faces detected:', {
-        count: faces.length,
-        details: faces.map(face => ({
-          // TensorFlow face detection properties
-          box: {
-            x: face.box?.xMin,
-            y: face.box?.yMin, 
-            width: face.box?.width,
-            height: face.box?.height
-          }
-        }))
-      });
+      // console.log('👤 [FloatingVideo] Faces detected:', {
+      //   count: faces.length,
+      //   details: faces.map(face => ({
+      //     // TensorFlow face detection properties
+      //     box: {
+      //       x: face.box?.xMin,
+      //       y: face.box?.yMin, 
+      //       width: face.box?.width,
+      //       height: face.box?.height
+      //     }
+      //   }))
+      // });
     } else if (modelReady && isVideoActive) {
-      console.log('❌ [FloatingVideo] No faces detected (camera active)');
+      // console.log('❌ [FloatingVideo] No faces detected (camera active)');
     }
   }, [faces, modelReady, isVideoActive]);
 
@@ -858,25 +858,25 @@ const lastCalledRef = useRef<number>(0);
 
   // Comprehensive face detection debug
   useEffect(() => {
-    console.log('🔍 [FloatingVideo] FACE DETECTION DEBUG:', {
-      // TensorFlow detection
-      tensorFlowFaces: faces.length,
-      tensorFlowFacesCount: facesCount,
+    // console.log('🔍 [FloatingVideo] FACE DETECTION DEBUG:', {
+    //   // TensorFlow detection
+    //   tensorFlowFaces: faces.length,
+    //   tensorFlowFacesCount: facesCount,
       
-      // Face-api.js recognition  
-      recognizedFacesCount: recognizedFaces.length,
+    //   // Face-api.js recognition  
+    //   recognizedFacesCount: recognizedFaces.length,
       
-      // System states
-      modelReady,
-      isVideoActive,
-      readyToDetect,
+    //   // System states
+    //   modelReady,
+    //   isVideoActive,
+    //   readyToDetect,
       
-      // Video status
-      videoReady: videoRef.current?.readyState,
-      videoWidth: videoRef.current?.videoWidth,
-      videoHeight: videoRef.current?.videoHeight,
-      hasStream: !!videoRef.current?.srcObject
-    });
+    //   // Video status
+    //   videoReady: videoRef.current?.readyState,
+    //   videoWidth: videoRef.current?.videoWidth,
+    //   videoHeight: videoRef.current?.videoHeight,
+    //   hasStream: !!videoRef.current?.srcObject
+    // });
 
     // Log actual face data if available
     if (faces.length > 0) {
