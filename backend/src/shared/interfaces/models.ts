@@ -643,3 +643,33 @@ export interface ICourseRegistration {
   createdAt?: Date;
   updatedAt?: Date;
 }
+
+
+export interface TranscriptResponse {
+  segmentNumber: number;
+  timestamp: string;
+  questions: TranscriptQuestion[];
+}
+
+export interface TranscriptQuestion {
+  sno: number;
+  question: string;
+  hint: string;
+  options: TranscriptOptions;
+  explanations: TranscriptExplanations;
+  correctAnswer: string;
+}
+
+export interface TranscriptOptions {
+  A: string;
+  B: string;
+  C: string;
+  D: string;
+}
+
+export interface TranscriptExplanations {
+  A: string;
+  B: string;
+  C: string;
+  D: string;
+}

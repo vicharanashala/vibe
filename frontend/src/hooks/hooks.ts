@@ -27,6 +27,7 @@ import { Registration, RegistrationStatus } from '@/app/pages/teacher/CourseRegi
 import { Field } from '@/app/pages/teacher/components/course-registration-modal';
 import { IssueSort, IssueStatus } from '@/app/pages/student/FlagResponse';
 import { ISubmitFeedbackBody } from '@/components/Item-container';
+import { TranscriptResponse } from '@/types/ai.types';
 
 // Add missing ObjectId type
 type ObjectId = string;
@@ -3481,4 +3482,31 @@ export const exportQuizSubmissions = async (quizId: string) => {
   document.body.removeChild(link);
 
   URL.revokeObjectURL(url);
+}
+
+
+
+
+export interface GenerateAIQuestionsBody {
+  text?: string;
+}
+
+export function useGenerateAIQuestions(): {
+  mutate: (variables: { body: GenerateAIQuestionsBody  }) => void;
+  mutateAsync: (variables: { body: GenerateAIQuestionsBody }) => Promise<{ success: boolean; response: TranscriptResponse[] }>;
+  data: { success: boolean; response: TranscriptResponse[] } | undefined;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} {
+  const result = api.useMutation('post', '/quizzes/questions/generate-csv-res');
+
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to generate AI questions') : null,
+  };
 }
