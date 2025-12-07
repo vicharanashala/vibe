@@ -66,6 +66,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const [dontStart, setDontStart] = useState(false);
   const [isEmptyQuiz, setIsEmptyQuiz] = useState(false);
   const [noAttemptsLeft, setNoAttemptsLeft] = useState(false);
+const [explanationBox, setExplanationBox] = useState<{
+  open: boolean;
+  text: string;
+  resolve?: () => void;
+}>({ open: false, text: "" });
+const [showExplanation,setShowExplanation] = useState(false)
 
   // ===== REFS AND CONSTANTS =====
   const itemStartedRef = useRef(false);
@@ -82,6 +88,31 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const stopItem = useStopItem();
 
   // ===== UTILITY FUNCTIONS =====
+
+
+function showExplanationBox(text: string) {
+  setShowExplanation(true)
+  return new Promise<void>((resolve) => {
+    setExplanationBox({
+      open: true,
+      text,
+      resolve,
+    });
+    // AUTO-CLOSE after 3 seconds
+    setTimeout(() => {
+      setExplanationBox(prev => {
+        if (prev.open) {
+          prev.resolve?.(); 
+        }
+        setShowExplanation(false)
+        return { open: false, text: "" };
+      });
+    }, 3500);
+  });
+}
+
+
+
   const formatTime = useCallback((seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -91,7 +122,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const getTotalPoints = useCallback(() => {
     return quizQuestions.reduce((total, q) => total + q.points, 0);
   }, [quizQuestions]);
-
+  // console.log('converted questionssssssssssssssssssssssssss',converted)  
   const getQuestionTypeLabel = useCallback((type: string): string => {
     switch (type) {
       case 'SELECT_ONE_IN_LOT': return 'Single Select';
@@ -182,11 +213,27 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         case 'ORDER_THE_LOTS':
           if ('lotItems' in question) {
             // Map the backend lotItems to frontend format
-            baseQuestion.lotItems = question.lotItems.map(item => ({
-              text: item.text,
-              explaination: '', // This field doesn't exist in LotItem from API
-              _id: typeof item._id === 'string' ? item._id : item._id
-            }));
+            // baseQuestion.lotItems = question.lotItems.map(item => ({
+              
+            //   text: item.text,
+            //   explaination: item.explaination ||'', // This field doesn't exist in LotItem from API
+            //   _id: typeof item._id === 'string' ? item._id : item._id
+            // }));
+            baseQuestion.lotItems = question.lotItems.map(item => {
+  let optionId: string;
+
+  if (item._id && typeof item._id === 'object' && 'buffer' in item._id) {
+    optionId = bufferToHex(item._id);  // ✅ convert buffer to string
+  } else {
+    optionId = String(item._id);
+  }
+
+  return {
+    text: item.text,
+    explaination: item.explaination || '',
+    _id: optionId,
+  };
+});
             baseQuestion.options = question.lotItems.map(item => item.text);
           }
           break;
@@ -540,7 +587,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         params: { path: { quizId: processedQuizId, attemptId: attemptId } },
         body: { answers: answersForSubmission, isSkipped }
       });
-      
+     
       // No reponse for skipped quiz!
       if (!response) {
         setQuizCompleted(true);
@@ -552,7 +599,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         ...response,
         gradedAt: response.gradedAt ? new Date(response.gradedAt).toISOString() : undefined,
       };
-      
       setSubmissionResults(formattedResponse);
 
       // Update score from server response if available
@@ -569,7 +615,33 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         });
         setScore(totalScore);
       }
-
+// quizQuestions.forEach(question => {
+  
+//   const userAnswer = answers[question.id];
+//   if (!userAnswer) return;
+//   answersForSubmission.forEach(sub => {
+//   const selected = question.lotItems?.find(
+//     i => i._id == sub.answer.lotItemId
+//   );
+//   explanationText=`${selected?.explaination}`
+// });
+// });
+// quizQuestions.forEach(question => {
+//   const userAnswer = answers[question.id];
+//   if (!userAnswer) return;
+  
+//   answersForSubmission.forEach(sub => {
+//     // Add this null check
+//     if (sub?.answer?.lotItemId && question.lotItems) {
+//       const selected = question.lotItems.find(
+//         i => i._id == sub.answer.lotItemId
+//       );
+//       if (selected?.explaination) {
+//         explanationText = selected.explaination;
+//       }
+//     }
+//   });
+// });
       setQuizCompleted(true);
       handleStopItem();
     } catch (err) {
@@ -579,7 +651,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     }
   }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem]);
 
-  const handleNextQuestion = useCallback(async () => {
+  const handleNextQuestion = useCallback(async () => {  //one here
     setTimeLeft(0);
 
     // Auto-save progress before moving to next question
@@ -590,6 +662,27 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           params: { path: { quizId: processedQuizId, attemptId: attemptId } },
           body: { answers: answersForSaving }
         });
+
+let explanationText = "";
+for (const sub of answersForSaving) {
+  const question = quizQuestions.find(q => q.id === sub.questionId);
+  if (!question) continue;
+
+  const selected = question.lotItems!.find(
+    item => item._id === sub.answer.lotItemId
+  );
+
+  if (selected?.explaination) {
+    explanationText = selected.explaination;
+  }
+}
+if(explanationText==='Nil'){
+  explanationText=''
+}
+if (explanationText.trim()) {
+  await showExplanationBox(explanationText)
+}
+        // if(result)
       } catch (err:any) {
         const errorMessage =
         err?.message || (typeof err === 'string' ? err : null) || 
@@ -609,7 +702,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     // Track attempts using the attempt data from the hook
     useEffect(() => {
       if (attemptData) {
-        console.log("Attempt data: ", attemptData);
 
         // Update the attempt count when a new attempt is created
         setAttempts(attemptData.userAttempts);
@@ -633,7 +725,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }, [attempts, processedQuizId,handleStopItem,onNext]);
 
 
-  const saveProgress = useCallback(async () => {
+  const saveProgress = useCallback(async () => {     //one here
     if (!attemptId || quizQuestions.length === 0) {
       console.error('No attempt ID or questions available for saving');
       return;
@@ -651,7 +743,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }, [attemptId, quizQuestions, processedQuizId, saveQuiz, convertAnswersToSaveFormat]);
 
   const currentQuestion = quizQuestions[currentQuestionIndex];
-  console.log("QuizQuestions: ", quizQuestions)
 
   const handleAnswer = useCallback((answer: string | number | number[] | string[] | undefined) => {
     if (answer === undefined) return;
@@ -767,7 +858,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     if (!quizStarted && !quizCompleted && !isEmptyQuiz && !noAttemptsLeft && quizType === 'NO_DEADLINE' && quizQuestions.length === 0 && !isPending && !quizAttemptedRef.current && !dontStart) {
       // Check if quiz has any question banks first to detect empty quizzes early
       if (!questionBankRefs || questionBankRefs.length === 0) {
-        console.log('Empty quiz detected early - no question banks');
         handleEmptyQuiz();
       } else {
         startQuiz();
@@ -845,8 +935,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
 
   // Quiz not started
+  
   if (!quizStarted) {
-    // console.log("QUIZTYPE:", quizType);
     if (quizType === 'DEADLINE'){
       return (
         <div className="mx-auto space-y-8">
@@ -1338,6 +1428,23 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             </div>
           )}
 
+          {explanationBox.open && (
+  <div className="mb-4 p-3 rounded-lg bg-green-100 text-green-900 border border-green-300 animate-in fade-in">
+    <p className="text-sm leading-relaxed">{explanationBox.text}</p>
+
+    {/* OPTIONAL Next Button */}
+    {/* <button
+      className="mt-2 px-3 py-1 rounded bg-green-600 text-white text-sm"
+      onClick={() => {
+        explanationBox.resolve?.();
+        setExplanationBox({ open: false, text: "" });
+      }}
+    >
+      Next →
+    </button> */}
+  </div>
+)}
+
           {/* Single Select (SELECT_ONE_IN_LOT) */}
           {currentQuestion.type === 'SELECT_ONE_IN_LOT' && currentQuestion.options && (
             <RadioGroup
@@ -1482,7 +1589,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             <Button
               variant="outline"
               onClick={saveProgress}
-              disabled={isSaving}
+              disabled={isSaving || showExplanation}
             >
               {isSaving ? (
                 <>
@@ -1496,7 +1603,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
             <Button
               onClick={handleNextQuestion}
-              disabled={!isAnswerValid(currentQuestion, answers[currentQuestion.id]) || isSubmitting}
+              disabled={!isAnswerValid(currentQuestion, answers[currentQuestion.id]) || isSubmitting || showExplanation}
             >
               {isSubmitting ? (
                 <>
@@ -1512,6 +1619,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             </Button>
           </div>
         </div>
+
+
+
+
 
         {/* Show save error if any */}
         {/* {saveError && !submitError && (
@@ -1548,6 +1659,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         )}
       </CardContent>
     </Card>
+
+    
   );
 });
 

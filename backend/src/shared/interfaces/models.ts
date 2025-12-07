@@ -160,6 +160,7 @@ export interface IQuestionOptionsLot {
 export interface IQuesionOptionsLotItem {
   _id: string;
   itemText: string;
+  explaination: string;
 }
 
 export interface ISOLQuestionSolution {
