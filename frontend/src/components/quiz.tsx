@@ -1312,9 +1312,14 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             </Badge>
           </div>
           <h2 className="text-2xl font-semibold leading-tight">
+            {/* <MathRenderer>
+              {preprocessMathContent(currentQuestion.question.replace(/\\n/g, '\n'))}
+            </MathRenderer> */}
+            <div className="whitespace-pre-wrap">
             <MathRenderer>
-              {preprocessMathContent(currentQuestion.question)}
+              {preprocessMathContent(currentQuestion.question.replace(/\\n/g, '\n'))}
             </MathRenderer>
+          </div>
           </h2>
           {/* Hint section with reveal button */}
           {allowHint && currentQuestion.hint && (
