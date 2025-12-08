@@ -1213,9 +1213,10 @@ function TeacherCourseContent() {
         </DialogContent>
       </Dialog> */}
       <QuestionUploadDialog 
+        moduleId={activeSectionInfo?.moduleId}
+        sectionId={activeSectionInfo?.sectionId}
         open={showCSVUpload} 
         onOpenChange={setShowCSVUpload} 
-        onUploadComplete={() => {}} 
       />
       {/* Mobile Sidebar Overlay */}
       {isMobileSidebarOpen && (
