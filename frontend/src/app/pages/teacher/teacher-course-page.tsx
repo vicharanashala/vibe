@@ -1082,7 +1082,7 @@ function TeacherCourseContent() {
         </div>
       )}
       {/* CSV Upload Modal */}
-      <Dialog open={showCSVUpload} onOpenChange={setShowCSVUpload}>
+      {/* <Dialog open={showCSVUpload} onOpenChange={setShowCSVUpload}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Upload Questions</DialogTitle>
@@ -1211,8 +1211,8 @@ function TeacherCourseContent() {
             </Button>
           </div>
         </DialogContent>
-      </Dialog>
-      {/* <QuestionUploadDialog 
+      </Dialog> */}
+       <QuestionUploadDialog 
         open={showCSVUpload} 
         onOpenChange={setShowCSVUpload} 
         onUploadComplete={async (youtubeUrl: string, csvFile:File) => {
@@ -1239,7 +1239,7 @@ function TeacherCourseContent() {
                               toast.error(message);
                             }
                           }}
-      /> */}
+      /> 
       {/* Mobile Sidebar Overlay */}
       {isMobileSidebarOpen && (
         <div
