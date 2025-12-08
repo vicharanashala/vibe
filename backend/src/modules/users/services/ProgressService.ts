@@ -354,7 +354,7 @@ class ProgressService extends BaseService {
         ));
 
       percentCompleted = Math.round(
-        (totalItems > 0 ? completedItems / totalItems : 0) * 100,
+        (totalItems > 0 ? completedItems / totalItems : 0) * 100, 
       );
     }
 
@@ -1010,6 +1010,8 @@ class ProgressService extends BaseService {
           courseVersionId,
           existingSession,
         );
+
+        // 
 
       const completedItemsSet = new Set(completedItemsArray);
       return completedItemsSet.size;
