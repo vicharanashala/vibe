@@ -25,6 +25,8 @@ import {
 import type { BreadcrumbItemment } from "@/types/layout.types";
 import InviteDropdown from "@/components/inviteDropDown";
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal";
+import { useInvites } from "@/hooks/hooks";
+import { toast } from "sonner";
 
 export default function TeacherLayout() {
   const matches = useMatches();
@@ -32,9 +34,10 @@ export default function TeacherLayout() {
   const { user } = useAuthStore(); // 🧠 from store
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]);
   const [showInvites, setShowInvites] = useState(false);
-  const [confirmLogout,setConfirmLogout] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
   const invitesRef = useRef<HTMLDivElement | null>(null);
+  const { getInvites, loading, error } = useInvites();
 
   const handleLogout = () => {
     logout();
@@ -44,7 +47,33 @@ export default function TeacherLayout() {
   const handleGoBack = () => {
     window.history.back();
   };
+  useEffect(() => {
+    const toastShown = sessionStorage.getItem("inviteToastShown");
+    console.log("toast shown ", toastShown)
 
+    const getUserInvites = async () => {
+      getInvites().then(result => {
+        const filteredInvites = result.invites.filter((invite) => invite.role === "INSTRUCTOR")
+        if (filteredInvites.length > 0) {
+          console.log(result);
+          setPendingInvites(filteredInvites)
+
+          if (!toastShown) {
+            toast.info("You have a new invite! Check the invites dropdown.", {
+              richColors: true,
+              position: "top-right"
+            });
+            sessionStorage.setItem("inviteToastShown", "true");
+          }
+        }
+      })
+
+
+    }
+    if (user)
+      getUserInvites();
+
+  }, [user])
   useEffect(() => {
     const items: BreadcrumbItem[] = [];
     items.push({
@@ -132,7 +161,7 @@ export default function TeacherLayout() {
 
             <div className="flex items-center gap-3">
 
-              <div className="relative"  ref={invitesRef}>
+              <div className="relative" ref={invitesRef}>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -141,22 +170,23 @@ export default function TeacherLayout() {
                 >
                   <UserRoundCheck className="h-4 w-4" />
                   <span className="hidden sm:block ml-2">Invites</span>
+                  {pendingInvites.length > 0 && <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500" />}
                 </Button>
 
                 {showInvites && <InviteDropdown setPendingInvites={setPendingInvites} pendingInvites={pendingInvites} />}
               </div>
 
-              <ConfirmationModal isOpen={confirmLogout} 
-                  onClose={()=>setConfirmLogout(false)} 
-                  onConfirm={handleLogout} 
-                  title={`Confirm Logout`}
-                  description="Are you sure you want to log out? You will need to sign in again to access your dashboard."
-                />
+              <ConfirmationModal isOpen={confirmLogout}
+                onClose={() => setConfirmLogout(false)}
+                onConfirm={handleLogout}
+                title={`Confirm Logout`}
+                description="Are you sure you want to log out? You will need to sign in again to access your dashboard."
+              />
 
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={()=>setConfirmLogout(true)}
+                onClick={() => setConfirmLogout(true)}
                 className="relative h-9 px-3 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:text-red-600 dark:hover:text-red-400 hover:shadow-lg hover:shadow-red-500/10"
               >
                 <LogOut className="h-4 w-4" />

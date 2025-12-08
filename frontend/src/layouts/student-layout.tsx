@@ -13,7 +13,7 @@ import { AuroraText } from "@/components/magicui/aurora-text"
 import { useState } from "react"
 import InviteDropdown from "@/components/inviteDropDown"
 import { useInvites } from "@/hooks/hooks"
-import { useRef ,useEffect} from "react"
+import { useRef, useEffect } from "react"
 // import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator, BreadcrumbPage } from "@/components/ui/breadcrumb"
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal"
 // import FloatingVideo from "@/components/floating-video";
@@ -22,11 +22,11 @@ import logo from "../../public/img/vibe_logo_img.ico"
 export default function StudentLayout() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
-   const { getInvites, loading, error } = useInvites(); // run after login
+  const { getInvites, loading, error } = useInvites(); // run after login
   const hasShownToast = useRef(false);
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
   const [showInvites, setShowInvites] = useState(false);
-  const [confirmLogout,setConfirmLogout] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const invitesRef = useRef<HTMLDivElement | null>(null);
 
@@ -39,29 +39,32 @@ export default function StudentLayout() {
     window.history.back()
   }
 
-     useEffect(() => {
+  useEffect(() => {
     const toastShown = sessionStorage.getItem("inviteToastShown");
-    
-          const getUserInvites = async () => {
-              getInvites().then(result => {
-                if(result.invites.length > 0 ) { console.log(result);
-setPendingInvites(result.invites)
-              
-                      if (!toastShown) {
-       toast.info("You have a new invite! Check the invites dropdown.", {
-  richColors: true,
-    position:"top-right"
-});
-        sessionStorage.setItem("inviteToastShown", "true");
-      }   
-     }})
 
-             
+    const getUserInvites = async () => {
+      getInvites().then(result => {
+        const filteredInvites = result.invites.filter((invite) => invite.role === "STUDENT")
+        if (filteredInvites.length > 0) {
+          console.log(result);
+          setPendingInvites(filteredInvites)
+
+          if (!toastShown) {
+            toast.info("You have a new invite! Check the invites dropdown.", {
+              richColors: true,
+              position: "top-right"
+            });
+            sessionStorage.setItem("inviteToastShown", "true");
           }
-          if(user)
-          getUserInvites();
-        
-      }, [user])
+        }
+      })
+
+
+    }
+    if (user)
+      getUserInvites();
+
+  }, [user])
 
   useEffect(() => {
     if (!showInvites) return;
@@ -94,14 +97,14 @@ setPendingInvites(result.invites)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-background/95 bg-gray-50/50 dark:bg-orange-950/70">
-     
+
       {/* <FloatingVideo isVisible={user?.role === 'student'}></FloatingVideo> */}
-      <ConfirmationModal isOpen={confirmLogout} 
-          onClose={()=>setConfirmLogout(false)} 
-          onConfirm={handleLogout} 
-          title={`Confirm Logout`}
-          description="Are you sure you want to log out? You will need to sign in again to access your dashboard."
-          />
+      <ConfirmationModal isOpen={confirmLogout}
+        onClose={() => setConfirmLogout(false)}
+        onConfirm={handleLogout}
+        title={`Confirm Logout`}
+        description="Are you sure you want to log out? You will need to sign in again to access your dashboard."
+      />
       {/* Ambient background effect */}
       <div className="fixed inset-0 bg-gradient-to-br from-primary/[0.02] via-transparent to-secondary/[0.02] pointer-events-none" />
 
@@ -111,7 +114,7 @@ setPendingInvites(result.invites)
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg overflow-hidden">
                 <img
-                   src={logo}
+                  src={logo}
                   alt="Vibe Logo"
                   className="h-10 w-10 sm:h-12 sm:w-12 object-contain"
                 />
@@ -144,94 +147,94 @@ setPendingInvites(result.invites)
           </div> */}
           {/* Single container with consistent spacing for all navigation elements */}
           <div className="flex items-center lg:gap-4 gap-0">
-          <div className="hidden md:flex items-center lg:gap-4 gap-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
-              asChild
-            >
-              <Link to="/student">
-                <span className="relative z-10">Dashboard</span>
-              </Link>
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
-              asChild
-            >
-              <Link to="/student/issues">
-                <span className="relative z-10">My Flags</span>
-              </Link>
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
-              asChild
-            >
-              <Link to="/student/courses">
-                <span className="relative z-10">Courses</span>
-              </Link>
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-2 lg:gap-4 sm:gap-2">
-            <div className="relative" ref={invitesRef}>
+            <div className="hidden md:flex items-center lg:gap-4 gap-0">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setShowInvites((prev) => !prev)}
-                className="relative h-9 px-2 sm:px-3 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:text-red-600 dark:hover:text-red-400 hover:shadow-lg hover:shadow-red-500/10"
+                className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+                asChild
               >
-                <UserRoundCheck className="h-4 w-4" />
-                <span className="hidden sm:block ml-2">Invites</span>
-              {pendingInvites.length>0&&<span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500" />}
+                <Link to="/student">
+                  <span className="relative z-10">Dashboard</span>
+                </Link>
               </Button>
 
-              {showInvites && <InviteDropdown setPendingInvites={setPendingInvites} pendingInvites={pendingInvites} />}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+                asChild
+              >
+                <Link to="/student/issues">
+                  <span className="relative z-10">My Flags</span>
+                </Link>
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+                asChild
+              >
+                <Link to="/student/courses">
+                  <span className="relative z-10">Courses</span>
+                </Link>
+              </Button>
             </div>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={()=>setConfirmLogout(true)}
-              className="relative h-9 px-2 sm:px-3 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:text-red-600 dark:hover:text-red-400 hover:shadow-lg hover:shadow-red-500/10 before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-red-500/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
-            >
-              <LogOut className="h-4 w-4" />
-              <span className="hidden sm:block ml-2">Logout</span>
-            </Button>
+            <div className="flex items-center gap-2 lg:gap-4 sm:gap-2">
+              <div className="relative" ref={invitesRef}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowInvites((prev) => !prev)}
+                  className="relative h-9 px-2 sm:px-3 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:text-red-600 dark:hover:text-red-400 hover:shadow-lg hover:shadow-red-500/10"
+                >
+                  <UserRoundCheck className="h-4 w-4" />
+                  <span className="hidden sm:block ml-2">Invites</span>
+                  {pendingInvites.length > 0 && <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500" />}
+                </Button>
 
-            <div className="relative">
-              <ThemeToggle />
+                {showInvites && <InviteDropdown setPendingInvites={setPendingInvites} pendingInvites={pendingInvites} />}
+              </div>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setConfirmLogout(true)}
+                className="relative h-9 px-2 sm:px-3 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:text-red-600 dark:hover:text-red-400 hover:shadow-lg hover:shadow-red-500/10 before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-red-500/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:block ml-2">Logout</span>
+              </Button>
+
+              <div className="relative">
+                <ThemeToggle />
+              </div>
+
+              <Link to="/student/profile" className="group relative">
+                <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-primary/10 via-transparent to-secondary/10 opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:scale-110 blur-sm" />
+                <Avatar className="relative h-8 w-8 sm:h-9 sm:w-9 cursor-pointer border-2 border-transparent transition-all duration-300 group-hover:border-primary/20 group-hover:shadow-xl group-hover:shadow-primary/20 group-hover:scale-105">
+                  <AvatarImage
+                    src={user?.avatar || "/placeholder.svg"}
+                    alt={user?.name}
+                    className="transition-all duration-300"
+                  />
+                  <AvatarFallback className="bg-gradient-to-br from-primary/15 via-primary/10 to-primary/5 text-primary font-bold text-sm transition-all duration-300 group-hover:from-primary/25 group-hover:to-primary/10">
+                    {user?.name?.charAt(0).toUpperCase() || "U"}
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="md:hidden h-9 px-2 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground"
+              >
+                {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+              </Button>
             </div>
-
-            <Link to="/student/profile" className="group relative">
-              <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-primary/10 via-transparent to-secondary/10 opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:scale-110 blur-sm" />
-              <Avatar className="relative h-8 w-8 sm:h-9 sm:w-9 cursor-pointer border-2 border-transparent transition-all duration-300 group-hover:border-primary/20 group-hover:shadow-xl group-hover:shadow-primary/20 group-hover:scale-105">
-                <AvatarImage
-                  src={user?.avatar || "/placeholder.svg"}
-                  alt={user?.name}
-                  className="transition-all duration-300"
-                />
-                <AvatarFallback className="bg-gradient-to-br from-primary/15 via-primary/10 to-primary/5 text-primary font-bold text-sm transition-all duration-300 group-hover:from-primary/25 group-hover:to-primary/10">
-                  {user?.name?.charAt(0).toUpperCase() || "U"}
-                </AvatarFallback>
-              </Avatar>
-            </Link>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden h-9 px-2 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground"
-            >
-              {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-            </Button>
-          </div>
           </div>
         </div>
 
@@ -285,7 +288,7 @@ setPendingInvites(result.invites)
           <Outlet />
         </div>
       </main>
-       
+
     </div>
   )
 }
