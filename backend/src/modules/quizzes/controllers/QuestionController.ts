@@ -344,7 +344,6 @@ class QuestionController {
         chunk,
       );
       allSegments = allSegments.concat(segments);
-      break
     }
 
     return {
