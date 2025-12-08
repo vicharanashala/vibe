@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent } from "react";
 import * as Papa from 'papaparse';
 import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank } from '@/hooks/hooks';
-import { Upload } from 'lucide-react';
+import { Download, Upload } from 'lucide-react';
 
 const MAX_DESCRIPTION_LENGTH = 1000;
 
@@ -73,7 +73,7 @@ const withRetry = async <T,>(fn: () => Promise<T>, maxRetries = 3, delay = 100):
 // Function to process questions sequentially
 const processQuestionsSequentially = async (questions: any[], questionBankId: string, createQuestion: any, addQuestiontoQuestionBank: any) => {
   const successfulQuestions = [];
-  
+
   for (const question of questions) {
     try {
       const options = [
@@ -129,7 +129,7 @@ const processQuestionsSequentially = async (questions: any[], questionBankId: st
               }
             });
           });
-          
+
           successfulQuestions.push(newQuestion);
           console.log(`✅ Created question: ${question.Question?.substring(0, 50)}...`);
         }
@@ -137,7 +137,7 @@ const processQuestionsSequentially = async (questions: any[], questionBankId: st
     } catch (error) {
       console.error('❌ Error creating question:', error);
     }
-    
+
     // Small delay between questions to reduce write conflicts
     await new Promise(resolve => setTimeout(resolve, 200));
   }
@@ -653,29 +653,29 @@ function TeacherCourseContent() {
         throw new Error(errorMsg + 'Please ensure your CSV has a "Segment" column with valid values.');
       }
 
+      const segmentNumbers = Array.from(segments.keys()).sort((a, b) => parseInt(a) - parseInt(b));
+      const segmentStartTimes = new Map<string, number>();
+      for (const seg of segmentNumbers) {
+        const qs = segments.get(seg) || [];
+        const q = qs.find(q => q?.['Question Timestamp [mm:ss]']);
+        if (q?.['Question Timestamp [mm:ss]']) {
+          segmentStartTimes.set(seg, convertTimeToSeconds(q['Question Timestamp [mm:ss]']));
+        }
+      }
       // Process each segment
       let previousEndTime = 0;
-      const segmentNumbers = Array.from(segments.keys()).sort((a, b) => parseInt(a) - parseInt(b));
-
       for (const segmentNumber of segmentNumbers) {
         const questions = segments.get(segmentNumber) || [];
         const segmentQuestions = questions.filter(q => q.Question && q['Correct Answer']);
-
-        if (segmentQuestions.length === 0) {
-          console.warn(`No valid questions found for segment ${segmentNumber}`);
-          continue;
-        }
-        
         console.log(`Processing ${segmentQuestions.length} questions for segment ${segmentNumber}`);
+        const timestamp = segmentStartTimes.get(segmentNumber);
+        let endTime: number;
 
-        // Get the first question's timestamp as the end time for the video segment
-        const firstQuestion = segmentQuestions[0];
-        const timestamp = firstQuestion['Question Timestamp [mm:ss]'];
-        if (!timestamp) {
-          console.warn(`No timestamp found for segment ${segmentNumber}, using default`);
+        if (timestamp !== undefined) {
+          endTime = timestamp;
+        } else {
+          endTime = previousEndTime + 300;
         }
-        const endTime = timestamp ? convertTimeToSeconds(timestamp) : previousEndTime + 300; // Default to 5 minutes if no timestamp
-
         // Create video item with the provided YouTube URL
         const videoItem = await createItemAsync({
           params: { path: { versionId: versionId!, moduleId, sectionId } },
@@ -693,64 +693,72 @@ function TeacherCourseContent() {
         });
 
         // Create quiz item
-        const quizItem = await createItemAsync({
-          params: { path: { versionId: versionId!, moduleId, sectionId } },
-          body: {
-            type: 'QUIZ',
-            name: `Quiz - Segment ${segmentNumber}`,
-            description: `Quiz for segment ${segmentNumber} from CSV upload`,
-            quizDetails: {
-              questionBankRefs: [], // Will be added after creating the question bank
-              passThreshold: 0.5, // 50% passing threshold
-              maxAttempts: 3,
-              quizType: 'NO_DEADLINE',
-              releaseTime: new Date().toISOString(),
-              questionVisibility: 1,
-              approximateTimeToComplete: '00:00:60',
-              allowPartialGrading: true,
-              allowHint: true,
-              showCorrectAnswersAfterSubmission: true,
-              showExplanationAfterSubmission: true,
-              showScoreAfterSubmission: true,
-              allowSkip: false
+
+        if (segmentQuestions.length > 0) {
+          const quizItem = await createItemAsync({
+            params: { path: { versionId: versionId!, moduleId, sectionId } },
+            body: {
+              type: 'QUIZ',
+              name: `Quiz - Segment ${segmentNumber}`,
+              description: `Quiz for segment ${segmentNumber} from CSV upload`,
+              quizDetails: {
+                questionBankRefs: [], // Will be added after creating the question bank
+                passThreshold: 0.5, // 50% passing threshold
+                maxAttempts: 3,
+                quizType: 'NO_DEADLINE',
+                releaseTime: new Date().toISOString(),
+                questionVisibility: 1,
+                approximateTimeToComplete: '00:00:60',
+                allowPartialGrading: true,
+                allowHint: true,
+                showCorrectAnswersAfterSubmission: true,
+                showExplanationAfterSubmission: true,
+                showScoreAfterSubmission: true,
+                allowSkip: false
+              }
             }
-          }
-        });
-
-        const questionBankData = {
-          courseId: courseId,
-          courseVersionId: versionId!,
-          title: `Question Bank - Segment ${segmentNumber}`, // Generate a title based on the segment
-          description: `Questions for segment ${segmentNumber} from CSV upload`,
-          questions: []// Empty array as requested
-        };
-
-        const data = await createQuestionBank.mutateAsync({ body: questionBankData });
-        await addQuestionBankToQuiz.mutateAsync({
-          params: { path: { quizId: quizItem.createdItem._id || "" } },
-          body: {
-            bankId: data.questionBankId,
-            count: 3
-          }
-        });
-
-        // Process questions sequentially with retry logic
-        console.log(`📝 Processing ${segmentQuestions.length} questions for segment ${segmentNumber}...`);
-        const successfulQuestions = await processQuestionsSequentially(
-          segmentQuestions,
-          data.questionBankId,
-          createQuestion,
-          addQuestiontoQuestionBank
-        );
-        console.log(`✅ Successfully created ${successfulQuestions.length} out of ${segmentQuestions.length} questions for segment ${segmentNumber}`);
+          });
 
 
+          const questionBankData = {
+            courseId: courseId,
+            courseVersionId: versionId!,
+            title: `Question Bank - Segment ${segmentNumber}`, // Generate a title based on the segment
+            description: `Questions for segment ${segmentNumber} from CSV upload`,
+            questions: []// Empty array as requested
+          };
+
+          const data = await createQuestionBank.mutateAsync({ body: questionBankData });
+          await addQuestionBankToQuiz.mutateAsync({
+            params: { path: { quizId: quizItem.createdItem._id || "" } },
+            body: {
+              bankId: data.questionBankId,
+              count: 3
+            }
+          });
+
+          // Process questions sequentially with retry logic
+          console.log(`📝 Processing ${segmentQuestions.length} questions for segment ${segmentNumber}...`);
+          const successfulQuestions = await processQuestionsSequentially(
+            segmentQuestions,
+            data.questionBankId,
+            createQuestion,
+            addQuestiontoQuestionBank
+          );
+          console.log(`✅ Successfully created ${successfulQuestions.length} out of ${segmentQuestions.length} questions for segment ${segmentNumber}`);
 
 
+
+
+
+        } else {
+          console.log(`⚠ Segment ${segmentNumber} has NO questions → Skipped quiz & question bank`);
+        }
         previousEndTime = endTime;
       }
 
       toast.success('Successfully created items from CSV');
+
     } catch (error) {
       console.error('Error processing CSV:', error);
       toast.error(`Failed to process CSV: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -765,7 +773,7 @@ function TeacherCourseContent() {
   const handleFileUpload = (e: ChangeEvent<HTMLInputElement>, moduleId: string, sectionId: string) => {
     const file = e.target.files?.[0];
     if (file) {
-      processCSV(file, moduleId, sectionId,youtubeUrl);
+      processCSV(file, moduleId, sectionId, youtubeUrl);
     }
     // Reset the input
     e.target.value = '';
@@ -1166,6 +1174,14 @@ function TeacherCourseContent() {
           </div>
 
           <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => window.open("/templates/QB - template_Sheet1.csv", "_blank")}
+              className="flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              Download Sample CSV Template
+            </Button>
             <Button
               variant="outline"
               onClick={() => {
