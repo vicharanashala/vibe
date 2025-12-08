@@ -2121,7 +2121,7 @@ const isQuestionDecided = (index: number) => {
                       {(isMCQ || isMSQ || isBinary) && (
                         <div className="space-y-2 min-w-[220px]">
                           <Label className="text-sm font-medium" htmlFor="questions-count">
-                            No. of questions to generate
+                            No. of questions per segment
                           </Label>
                           <Input
                             id="questions-count"

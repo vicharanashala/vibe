@@ -231,6 +231,12 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
       };
       
       const correctOptions = editableOptions.filter(opt => opt.isCorrect);
+      if(correctOptions.length<=0){
+        toast.error("Please select at least one correct answer")
+        return
+      }
+                                                   
+
       const incorrectOptions = editableOptions.filter(opt => !opt.isCorrect);
       let solutionForBackend: any = {};
 
@@ -654,7 +660,7 @@ const renderParameterInputs = (title: string) => {
                             className="flex-1"
                           />
                           <Input
-                            placeholder="explanation (optional)"
+                            placeholder="Explanation (optional)"
                             value={option.explaination}
                             onChange={(e) => updateOption(option._id, { explaination: e.target.value })}
                             className="flex-1 text-sm"
@@ -701,7 +707,7 @@ const renderParameterInputs = (title: string) => {
                             className="flex-1"
                           />
                           <Input
-                            placeholder="explanation (optional)"
+                            placeholder="Explanation (optional)"
                             value={option.explaination}
                             onChange={(e) => updateOption(option._id, { explaination: e.target.value })}
                             className="flex-1 text-sm"
