@@ -330,11 +330,18 @@ class QuestionService extends BaseService {
     - Options/explanations must NOT contain "\\n"
 
     ================================
-    TIMESTAMP RULES
+    TIMESTAMP RULES (VERY IMPORTANT)
     ================================
-    - Each timestamp must contain between 3 and 6 questions
-    - Ensure variety in concepts tested
-    - S.No. must be strictly sequential across ALL segments starting from 1
+    - The transcript contains timestamps in this format:
+      HH;MM;SS;MS - HH;MM;SS;MS
+      Example: 00;00;02;07 - 00;00;30;05
+    - For each segment, ALWAYS extract the SECOND timestamp (the end time)
+    - Convert this to "MM:SS" format
+      Example: "00;00;30;05" → "00:30"
+    - The "timestamp" must be only the converted end time (MM:SS)
+    - No milliseconds, no hours, no semicolons
+    - One timestamp per segment only
+    - Each timestamp segment should contain 3–6 questions
 
     ================================
     FAIL-SAFE VALIDATION RULE
@@ -350,6 +357,8 @@ class QuestionService extends BaseService {
         `;
 
         const ANTHROPIC_CRED = aiConfig.ANTHROPIC_CRED;
+        const ANTHROPIC_MODEL = aiConfig.ANTHROPIC_MODEL;
+
         if (!ANTHROPIC_CRED) {
           throw new BadRequestError('Failed to find api key, try again!');
         }
@@ -359,7 +368,7 @@ class QuestionService extends BaseService {
         });
 
         const response = await anthropic.messages.create({
-          model: 'claude-sonnet-4-20250514',
+          model: ANTHROPIC_MODEL,
           max_tokens: 4000,
           temperature: 0.0,
           messages: [

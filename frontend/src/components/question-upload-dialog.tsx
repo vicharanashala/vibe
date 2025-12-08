@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
-import { ArrowLeft, ArrowRight, CheckCircle, Download, FileText, Loader2, Sparkles, Upload } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, CheckCircle, Download, FileText, Lightbulb, Loader2, Sparkles, Upload } from "lucide-react";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
@@ -9,11 +9,15 @@ import { Button } from "./ui/button";
 import { useGenerateAIQuestions } from "@/hooks/hooks";
 import { TranscriptResponse } from "@/types/ai.types";
 import * as Papa from 'papaparse';
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
+import { ScrollArea } from "./ui/scroll-area";
 
 interface QuestionUploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUploadComplete?: () => void;
+  moduleId?: string;
+  sectionId?: string;
 }
 
 type Step = "input" | "generating" | "response" | "csv-preview" | "csv-confirm" | "uploading" | "complete";
@@ -21,10 +25,12 @@ type Step = "input" | "generating" | "response" | "csv-preview" | "csv-confirm" 
 export const QuestionUploadDialog = ({
   open,
   onOpenChange,
-  onUploadComplete,
+  moduleId,
+  sectionid
 }: QuestionUploadDialogProps) => {
   const [step, setStep] = useState<Step>("input");
   const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [urlError, setUrlError] = useState("");
   const [textContent, setTextContent] = useState("");
   const [selectedTxtFile, setSelectedTxtFile] = useState<File | null>(null);
   const [isDraggingTxt, setIsDraggingTxt] = useState(false);
@@ -33,8 +39,9 @@ export const QuestionUploadDialog = ({
   const [generatedCSV, setGeneratedCSV] = useState<string>("");
   const [customCSVFile, setCustomCSVFile] = useState<File | null>(null);
   const [useCustomCSV, setUseCustomCSV] = useState(false);
+  const [generalError, setGeneralError] = useState("")
 
-  const { mutateAsync: generateQuestions, data, error, isPending } = useGenerateAIQuestions();
+  const { mutateAsync: generateQuestions, data, error: generateQuestionsError, isPending } = useGenerateAIQuestions();
 
 
   const resetDialog = () => {
@@ -66,6 +73,10 @@ export const QuestionUploadDialog = ({
     }
   };
 
+  useEffect(()=> {
+    setGeneralError("")
+  }, [step])
+
   const handleCsvFileUpload = (file: File) => {
     if (file.type === "text/csv" || file.name.endsWith(".csv")) {
       setCustomCSVFile(file);
@@ -75,25 +86,53 @@ export const QuestionUploadDialog = ({
     }
   };
 
-  // Step 1 → Step 2: Generate LLM response
-  const handleGenerateLLMResponse = async () => {
-    if (!textContent.trim()) {
-      toast.error("Please enter text or upload a file");
-      return;
-    }
+const handleGenerateLLMResponse = async () => {
+  setGeneralError(""); // Clear previous errors
+
+  if (!textContent.trim()) {
+    setGeneralError("Please enter text or upload a file.");
+    return;
+  }
+
+  const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/;
+
+  if (!youtubeUrl) {
+    setUrlError("YouTube URL is required. Please provide a valid URL.");
+    return;
+  } else if (!youtubeRegex.test(youtubeUrl)) {
+    setUrlError(
+      "Please provide a valid YouTube URL (e.g., https://www.youtube.com/watch?v=... or https://youtu.be/...)"
+    );
+    return;
+  } else {
+    setUrlError("");
+  }
+
+  try {
     setStep("generating");
 
-      // const parsed = Papa.parse(textContent, {
-      //   header: true, // first row is headers
-      //   skipEmptyLines: true,
-      // });
+    const response = await generateQuestions({
+      body: { text: textContent }
+    });
 
-      // const text = parsed.data;
-    const response = await generateQuestions({ body: { text: textContent} });
-    alert("hey")
+    toast.success("Question generation completed");
     setLlmResponse(response.response);
     setStep("response");
-  };
+  } catch (err: any) {
+    console.error("Generation error:", err);
+
+    // Extract nested error if available
+    const message =
+      err?.response?.data?.error ||
+      err?.message ||
+      "Failed to generate questions. Please try again.";
+
+    setGeneralError(message);
+    toast.error(message);
+
+    setStep("input"); // go back to input screen on error
+  }
+};
 
 //     // Simulate LLM processing delay
 //     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -120,27 +159,72 @@ export const QuestionUploadDialog = ({
 
 // // I can generate multiple-choice questions covering these topics with varying difficulty levels.`;
   // Step 2 → Step 3: Generate CSV from LLM response
-  const handleGenerateCSV = async () => {
+//   const handleGenerateCSV = async () => {
+//     setStep("generating");
+
+//     // Simulate CSV generation delay
+//     await new Promise((resolve) => setTimeout(resolve, 1500));
+
+//     // Generate mock CSV data
+//     const mockCSV = `Segment,Question,Option A,Option B,Option C,Option D,Correct Answer
+// 1,"What is the main topic discussed in the content?","Topic A","Topic B","Topic C","Topic D",A
+// 1,"Which concept was introduced first?","Concept 1","Concept 2","Concept 3","Concept 4",B
+// 2,"What is the key takeaway from section 2?","Takeaway A","Takeaway B","Takeaway C","Takeaway D",C
+// 2,"How does the author describe the process?","Simple","Complex","Moderate","Easy",A
+// 3,"What example was used to illustrate the point?","Example 1","Example 2","Example 3","Example 4",D
+// 3,"Which best practice was recommended?","Practice A","Practice B","Practice C","Practice D",B
+// 4,"What is the relationship between Concept A and B?","Dependent","Independent","Correlated","Inverse",C
+// 4,"How should the methodology be applied?","Sequentially","Randomly","Iteratively","Once",C
+// 5,"What is the expected outcome?","Outcome A","Outcome B","Outcome C","Outcome D",A
+// 5,"Which scenario best demonstrates the concept?","Scenario 1","Scenario 2","Scenario 3","Scenario 4",D`;
+
+//     setGeneratedCSV(mockCSV);
+//     setStep("csv-preview");
+//   };
+
+  const downloadMCQJsonAsCSV = () => {
     setStep("generating");
 
-    // Simulate CSV generation delay
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const flattenedRows: any[] = [];
 
-    // Generate mock CSV data
-    const mockCSV = `Segment,Question,Option A,Option B,Option C,Option D,Correct Answer
-1,"What is the main topic discussed in the content?","Topic A","Topic B","Topic C","Topic D",A
-1,"Which concept was introduced first?","Concept 1","Concept 2","Concept 3","Concept 4",B
-2,"What is the key takeaway from section 2?","Takeaway A","Takeaway B","Takeaway C","Takeaway D",C
-2,"How does the author describe the process?","Simple","Complex","Moderate","Easy",A
-3,"What example was used to illustrate the point?","Example 1","Example 2","Example 3","Example 4",D
-3,"Which best practice was recommended?","Practice A","Practice B","Practice C","Practice D",B
-4,"What is the relationship between Concept A and B?","Dependent","Independent","Correlated","Inverse",C
-4,"How should the methodology be applied?","Sequentially","Randomly","Iteratively","Once",C
-5,"What is the expected outcome?","Outcome A","Outcome B","Outcome C","Outcome D",A
-5,"Which scenario best demonstrates the concept?","Scenario 1","Scenario 2","Scenario 3","Scenario 4",D`;
+    let currentSegmentNumber = 1;
+    let previousTimestamp: string | null = null;
 
-    setGeneratedCSV(mockCSV);
+    llmResponse?.forEach(segment => {
+      const { timestamp, questions } = segment;
+
+      // Check if timestamp changed → increment segment number
+      if (previousTimestamp !== null && previousTimestamp !== timestamp) {
+        currentSegmentNumber++;
+      }
+
+      previousTimestamp = timestamp;
+
+      questions.forEach((q: any) => {
+        flattenedRows.push({
+          segmentNumber: currentSegmentNumber,
+          timestamp,
+          sno: q.sno,
+          question: q.question,
+          hint: q.hint,
+          optionA: q.options?.A || "",
+          expA: q.explanations?.A || "",
+          optionB: q.options?.B || "",
+          expB: q.explanations?.B || "",
+          optionC: q.options?.C || "",
+          expC: q.explanations?.C || "",
+          optionD: q.options?.D || "",
+          expD: q.explanations?.D || "",
+          correctAnswer: q.correctAnswer,
+        });
+      });
+    });
+
+    const csv = Papa.unparse(flattenedRows);
+
+    setGeneratedCSV(csv);
     setStep("csv-preview");
+
   };
 
   // Download CSV
@@ -165,6 +249,8 @@ export const QuestionUploadDialog = ({
     }
 
     setStep("uploading");
+
+                                await processCSV(selectedCSVFile, activeSectionInfo.moduleId, activeSectionInfo.sectionId, youtubeUrl);
 
     // Simulate upload delay
     await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -200,11 +286,11 @@ export const QuestionUploadDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[750px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[850px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 mb-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            Generate & Upload Questions
+            Generate Questions & Upload CSV
           </DialogTitle>
         </DialogHeader>
 
@@ -237,19 +323,7 @@ export const QuestionUploadDialog = ({
         {/* Step 1: Input */}
         {step === "input" && (
           <div className="grid gap-6 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="youtube-url">YouTube Video URL</Label>
-              <Input
-                id="youtube-url"
-                placeholder="https://www.youtube.com/watch?v=..."
-                value={youtubeUrl}
-                onChange={(e) => setYoutubeUrl(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                The video that these questions are based on
-              </p>
-            </div>
-
+           
             <div className="space-y-4">
               <Label>Content for Question Generation</Label>
 
@@ -320,7 +394,28 @@ export const QuestionUploadDialog = ({
                 />
               </div>
             </div>
+              <div className="space-y-2">
+              <Label htmlFor="youtube-url">YouTube Video URL</Label>
+              
+              <Input
+                id="youtube-url"
+                placeholder="https://www.youtube.com/watch?v=..."
+                value={youtubeUrl}
+                onChange={(e) =>{ setYoutubeUrl(e.target.value); setUrlError("")}}
+                className={urlError ? "border-red-500 focus-visible:ring-red-500" : ""}
+              />
 
+              {urlError ? (
+                <p className="text-xs text-red-500">{urlError}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  The video that these questions are based on
+                </p>
+              )}
+            </div>
+            {generalError && (
+                <p className="text-red-500 text-sm mt-2">{generalError}</p>
+              )}
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={handleClose}>
                 Cancel
@@ -355,21 +450,128 @@ export const QuestionUploadDialog = ({
                 Review the AI's analysis of your content before generating questions
               </p>
             </div>
-
+{/* 
             <div className="bg-muted/50 rounded-lg p-4 max-h-[350px] overflow-y-auto border">
               <div className="prose prose-sm dark:prose-invert max-w-none">
                 <pre className="whitespace-pre-wrap text-sm font-sans text-foreground">
                   {JSON.stringify(llmResponse, null, 2)}
                 </pre>
               </div>
-            </div>
+            </div> */}
+          <ScrollArea className="h-[550px] rounded-md border p-4">
+            <div className="space-y-6">
+              {llmResponse?.map((segment, index) => (
+                <Card key={index} className="shadow-md border">
+                  <CardHeader>
+                    <CardTitle className="flex justify-between">
+                      <span>Segment {segment.segmentNumber}</span>
+                      <span className="text-sm text-muted-foreground">
+                        Timestamp: {segment.timestamp}
+                      </span>
+                    </CardTitle>
+                  </CardHeader>
 
+                <CardContent className="space-y-6 pt-6">
+                  {segment.questions.map((q, qIndex) => (
+                    <Accordion key={qIndex} type="single" collapsible className="border rounded-lg overflow-hidden">
+                      <AccordionItem value={`q-${qIndex}`} className="border-none">
+
+                        <AccordionTrigger className="px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                          <div className="flex items-start gap-3 text-left">
+                            <span className="font-bold text-lg shrink-0">
+                              Q{q.sno}.
+                            </span>
+                            <span className="font-medium text-gray-800 dark:text-gray-100 leading-relaxed">
+                              {q.question}
+                            </span>
+                          </div>
+                        </AccordionTrigger>
+
+                        <AccordionContent className="px-5 pb-5 space-y-5 bg-gray-50 dark:bg-gray-900">
+                          
+                          {/* Hint Section */}
+                         <div className="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-400 p-4 rounded flex items-start gap-2">
+                            <Lightbulb className="w-4 h-4 text-amber-600 dark:text-amber-300 mt-0.5" />
+                            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                              <strong>Hint:</strong> {q.hint}
+                            </p>
+                          </div>
+
+                          {/* Options Grid */}
+                          <div>
+                            <h4 className="font-semibold text-gray-700 dark:text-gray-200 mb-3">
+                              Options:
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {Object.entries(q.options).map(([key, val]) => (
+                                <div 
+                                  key={key} 
+                                  className={`p-4 rounded-lg border-2 transition-all ${
+                                    q.correctAnswer === key 
+                                      ? 'bg-green-50 dark:bg-green-900/20 border-green-400 shadow-md' 
+                                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                                  }`}
+                                >
+                                  <div className="flex items-start gap-2">
+                                    <strong className="text-blue-600 dark:text-blue-400 text-lg shrink-0">
+                                      {key}:
+                                    </strong>
+                                    <span className="text-gray-700 dark:text-gray-200 flex-1">
+                                      {val}
+                                    </span>
+                                  </div>
+                                  {q.correctAnswer === key && (
+                                    <span className="inline-flex items-center mt-2 text-green-700 dark:text-green-400 font-semibold text-sm">
+                                      ✓ Correct Answer
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Explanations Section */}
+                          <div className="bg-white dark:bg-gray-800 p-5 rounded-lg border border-gray-200 dark:border-gray-700">
+                           <h4 className="font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+                              <BookOpen className="w-5 h-5 text-primary" />
+                              Explanations:
+                            </h4>
+                            <div className="space-y-3">
+                              {Object.entries(q.explanations).map(([key, val]) => (
+                                <div key={key} className="pl-4 border-l-2 border-gray-300 dark:border-gray-600">
+                                  <p className="text-sm leading-relaxed text-gray-700 dark:text-gray-300">
+                                    <strong className="text-blue-600 dark:text-blue-400">{key}:</strong>{' '}
+                                    <span className={q.correctAnswer === key ? 'font-medium' : ''}>
+                                      {val}
+                                    </span>
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                        </AccordionContent>
+
+                      </AccordionItem>
+                    </Accordion>
+                  ))}
+                </CardContent>
+              </Card>
+              ))}
+            </div>
+          </ScrollArea>
+
+
+    
+              {generalError && (
+                <p className="text-red-500 text-sm mt-2">{generalError}</p>
+              )}
             <div className="flex justify-between gap-2">
               <Button variant="outline" onClick={() => setStep("input")}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
-              <Button onClick={handleGenerateCSV}>
+              <Button onClick={downloadMCQJsonAsCSV}>
                 <Sparkles className="mr-2 h-4 w-4" />
                 Generate CSV
               </Button>
@@ -522,6 +724,9 @@ export const QuestionUploadDialog = ({
               </div>
             )}
 
+              {generalError && (
+                <p className="text-red-500 text-sm mt-2">{generalError}</p>
+              )}
             <div className="flex justify-between gap-2 pt-2">
               <Button variant="outline" onClick={() => setStep("csv-preview")}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -563,6 +768,7 @@ export const QuestionUploadDialog = ({
             </div>
           </div>
         )}
+      
       </DialogContent>
     </Dialog>
   );

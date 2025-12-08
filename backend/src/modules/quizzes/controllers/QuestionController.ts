@@ -286,6 +286,13 @@ class QuestionController {
     @Body() body: GenerateAIQuestionsBody,
   ): Promise<{success: boolean; response: TranscriptResponse[]}> {
     let {text} = body;
+
+    const timestampRegex = /\b\d{2};\d{2};\d{2};\d{2}\s*-\s*\d{2};\d{2};\d{2};\d{2}\b/;
+
+    if (!timestampRegex.test(text)) {
+      throw new BadRequestError ("Timestamp range not found. Expected format: HH;MM;SS;FF - HH;MM;SS;FF")
+    }
+
     const chunkTranscriptByTimestamps = (
       transcript: string,
       maxChunkLength = 1500,
@@ -333,21 +340,13 @@ class QuestionController {
     let allSegments: TranscriptResponse[] = [];
     let i = 1;
     for (const chunk of chunks) {
-      console.log(`Call ${i}`, 'chunk: ', chunk);
       const segments = await this.questionService.generateQuestionsWithAI(
         'userId',
         chunk,
       );
-      console.log('SEGMENT: ', segments);
       allSegments = allSegments.concat(segments);
-      i++;
+      if(i==1) break
     }
-
-    console.log('RESPONSE: ', allSegments);
-    // const result = await this.questionService.generateQuestionsWithAI(
-    //   'userId',
-    //   text,
-    // );
 
     return {
       success: true,
