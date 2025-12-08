@@ -16,17 +16,28 @@ import { ScrollArea } from "./ui/scroll-area";
 interface QuestionUploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onUploadComplete: (youtubeURL: string,  csvFile:File) => Promise<void>
   moduleId?: string;
   sectionId?: string;
 }
+
+const processingMessages = [
+  "Evaluating each segments. Please wait…",
+  "Extracting timestamped segments from the input…",
+  "Analyzing content structure to prepare question generation…",
+  "Generating context-aligned questions based on your segments…",
+  "Reviewing generated questions for consistency and clarity…",
+  "Ensuring questions align with extracted learning elements…",
+  "Finalizing results. This may take a moment…",
+];
+
 
 type Step = "input" | "generating" | "response" | "csv-preview" | "csv-confirm" | "uploading" | "complete";
 
 export const QuestionUploadDialog = ({
   open,
   onOpenChange,
-  moduleId,
-  sectionid
+  onUploadComplete
 }: QuestionUploadDialogProps) => {
   const [step, setStep] = useState<Step>("input");
   const [youtubeUrl, setYoutubeUrl] = useState("");
@@ -40,6 +51,7 @@ export const QuestionUploadDialog = ({
   const [customCSVFile, setCustomCSVFile] = useState<File | null>(null);
   const [useCustomCSV, setUseCustomCSV] = useState(false);
   const [generalError, setGeneralError] = useState("")
+  const [messageIndex, setMessageIndex] = useState(0);
 
   const { mutateAsync: generateQuestions, data, error: generateQuestionsError, isPending } = useGenerateAIQuestions();
 
@@ -75,7 +87,20 @@ export const QuestionUploadDialog = ({
 
   useEffect(()=> {
     setGeneralError("")
+    setMessageIndex(0)
   }, [step])
+
+  useEffect(() => {
+    if (step !== "generating") return;
+
+    const interval = setInterval(() => {
+      setMessageIndex((prev) =>
+        prev < processingMessages.length - 1 ? prev + 1 : prev
+      );
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [step]);
 
   const handleCsvFileUpload = (file: File) => {
     if (file.type === "text/csv" || file.name.endsWith(".csv")) {
@@ -134,54 +159,6 @@ const handleGenerateLLMResponse = async () => {
   }
 };
 
-//     // Simulate LLM processing delay
-//     await new Promise((resolve) => setTimeout(resolve, 2000));
-
-//     // Mock LLM response
-// //     const mockResponse = `Based on the provided content, I've identified the following key topics and concepts:
-
-// // **Main Topics:**
-// // 1. Introduction to the subject matter
-// // 2. Core principles and fundamentals
-// // 3. Practical applications and examples
-// // 4. Advanced concepts and best practices
-
-// // **Key Concepts Extracted:**
-// // - Concept A: This is the foundational principle that underlies all other topics
-// // - Concept B: An important methodology discussed in detail
-// // - Concept C: Real-world application scenarios
-// // - Concept D: Best practices and recommendations
-
-// // **Suggested Question Categories:**
-// // - Comprehension questions (5 questions)
-// // - Application-based questions (3 questions)
-// // - Analysis questions (2 questions)
-
-// // I can generate multiple-choice questions covering these topics with varying difficulty levels.`;
-  // Step 2 → Step 3: Generate CSV from LLM response
-//   const handleGenerateCSV = async () => {
-//     setStep("generating");
-
-//     // Simulate CSV generation delay
-//     await new Promise((resolve) => setTimeout(resolve, 1500));
-
-//     // Generate mock CSV data
-//     const mockCSV = `Segment,Question,Option A,Option B,Option C,Option D,Correct Answer
-// 1,"What is the main topic discussed in the content?","Topic A","Topic B","Topic C","Topic D",A
-// 1,"Which concept was introduced first?","Concept 1","Concept 2","Concept 3","Concept 4",B
-// 2,"What is the key takeaway from section 2?","Takeaway A","Takeaway B","Takeaway C","Takeaway D",C
-// 2,"How does the author describe the process?","Simple","Complex","Moderate","Easy",A
-// 3,"What example was used to illustrate the point?","Example 1","Example 2","Example 3","Example 4",D
-// 3,"Which best practice was recommended?","Practice A","Practice B","Practice C","Practice D",B
-// 4,"What is the relationship between Concept A and B?","Dependent","Independent","Correlated","Inverse",C
-// 4,"How should the methodology be applied?","Sequentially","Randomly","Iteratively","Once",C
-// 5,"What is the expected outcome?","Outcome A","Outcome B","Outcome C","Outcome D",A
-// 5,"Which scenario best demonstrates the concept?","Scenario 1","Scenario 2","Scenario 3","Scenario 4",D`;
-
-//     setGeneratedCSV(mockCSV);
-//     setStep("csv-preview");
-//   };
-
   const downloadMCQJsonAsCSV = () => {
     setStep("generating");
 
@@ -202,20 +179,20 @@ const handleGenerateLLMResponse = async () => {
 
       questions.forEach((q: any) => {
         flattenedRows.push({
-          segmentNumber: currentSegmentNumber,
-          timestamp,
-          sno: q.sno,
-          question: q.question,
-          hint: q.hint,
-          optionA: q.options?.A || "",
-          expA: q.explanations?.A || "",
-          optionB: q.options?.B || "",
-          expB: q.explanations?.B || "",
-          optionC: q.options?.C || "",
-          expC: q.explanations?.C || "",
-          optionD: q.options?.D || "",
-          expD: q.explanations?.D || "",
-          correctAnswer: q.correctAnswer,
+          "Segment": currentSegmentNumber,
+          "Question Timestamp [mm:ss]": timestamp,
+          "S.No.": q.sno,
+          "Question": q.question,
+          "Hint": q.hint,
+          "Option A": q.options?.A || "",
+          "Expln-A": q.explanations?.A || "",
+          "Option B": q.options?.B || "",
+          "Expln-B": q.explanations?.B || "",
+          "Option C": q.options?.C || "",
+          "Expln-C": q.explanations?.C || "",
+          "Option D": q.options?.D || "",
+          "Expln-D": q.explanations?.D || "",
+          "Correct Answer": q.correctAnswer,
         });
       });
     });
@@ -241,6 +218,14 @@ const handleGenerateLLMResponse = async () => {
     toast.success("CSV downloaded successfully!");
   };
 
+  const handleloadCSV = () => {
+  const file = new File([generatedCSV], "generated-questions.csv", {
+    type: "text/csv",
+  });
+
+  return file;
+  };
+
   // Final upload
   const handleFinalUpload = async () => {
     if (!youtubeUrl) {
@@ -248,21 +233,28 @@ const handleGenerateLLMResponse = async () => {
       return;
     }
 
-    setStep("uploading");
+    try {
+      setStep("uploading");
+      let CSVFile = handleloadCSV()
+      if(customCSVFile) {
+        CSVFile = customCSVFile
+      }
 
-                                await processCSV(selectedCSVFile, activeSectionInfo.moduleId, activeSectionInfo.sectionId, youtubeUrl);
+      await onUploadComplete?.(youtubeUrl, CSVFile);
 
-    // Simulate upload delay
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+      setStep("complete");
+      toast.success("Content uploaded successfully!");
 
-    setStep("complete");
-    toast.success("Questions uploaded successfully!");
-
-    setTimeout(() => {
-      handleClose();
-      onUploadComplete?.();
-    }, 1500);
+      setTimeout(() => {
+        handleClose();
+      }, 1500);
+    } catch (error: any) {
+      console.error(error);
+      setStep("csv-confirm"); 
+      toast.error(error?.message || "Failed to upload content. Please try again.");
+    }
   };
+
 
   const getStepNumber = (): number => {
     switch (step) {
@@ -286,7 +278,7 @@ const handleGenerateLLMResponse = async () => {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[850px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[850px] h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 mb-2">
             <Sparkles className="h-5 w-5 text-primary" />
@@ -325,15 +317,19 @@ const handleGenerateLLMResponse = async () => {
           <div className="grid gap-6 py-4">
            
             <div className="space-y-4">
-              <Label>Content for Question Generation</Label>
-
+              <Label className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Content for Question Generation
+              </Label>
               {/* Text Area */}
-              <Textarea
-                placeholder="Type or paste your content here..."
-                value={textContent}
-                onChange={(e) => setTextContent(e.target.value)}
-                className="min-h-[180px] resize-none"
-              />
+             <ScrollArea className="h-[320px] rounded-md border  p-2">
+                <Textarea
+                  placeholder="Type or paste your content here..."
+                  value={textContent}
+                  onChange={(e) => setTextContent(e.target.value)}
+                  className="h-[380px] w-full resize-none border-none focus-visible:ring-0 p-0"
+                />
+              </ScrollArea>
 
               {/* Divider */}
               <div className="relative">
@@ -430,15 +426,15 @@ const handleGenerateLLMResponse = async () => {
 
         {/* Generating State */}
         {step === "generating" && (
-          <div className="py-16 text-center space-y-4">
-            <Loader2 className="mx-auto h-12 w-12 text-primary animate-spin" />
-            <div>
-              <p className="text-lg font-medium">Processing...</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Please wait while we process your content
-              </p>
-            </div>
+        <div className="py-16 text-center space-y-4">
+          <Loader2 className="mx-auto h-12 w-12 text-primary animate-spin" />
+          <div>
+            <p className="text-lg font-medium">{processingMessages[messageIndex]}</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Please wait while we process your content…
+            </p>
           </div>
+        </div>
         )}
 
         {/* Step 2: LLM Response Preview */}
@@ -589,7 +585,7 @@ const handleGenerateLLMResponse = async () => {
               </p>
             </div>
 
-            <div className="bg-muted/50 rounded-lg p-4 max-h-[300px] overflow-y-auto border font-mono">
+            <div className="bg-muted/50 rounded-lg p-4 overflow-y-auto border font-mono">
               <pre className="text-xs text-foreground whitespace-pre-wrap">{generatedCSV}</pre>
             </div>
 
@@ -614,7 +610,7 @@ const handleGenerateLLMResponse = async () => {
 
         {/* Step 4: CSV Confirm / Upload Custom */}
         {step === "csv-confirm" && (
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 py-4 h-full">
             <div className="space-y-2">
               <Label className="text-base font-semibold">Confirm CSV Upload</Label>
               <p className="text-xs text-muted-foreground">
@@ -750,7 +746,7 @@ const handleGenerateLLMResponse = async () => {
             <div>
               <p className="text-lg font-medium">Uploading Questions...</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Please wait while we save your questions
+                Please wait while we save course content
               </p>
             </div>
           </div>

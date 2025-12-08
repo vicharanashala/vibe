@@ -147,7 +147,7 @@ class QuestionController {
         'You do not have permission to modify this question',
       );
     }
-    const question = QuestionFactory.createQuestion(body, userId);
+    const question = QuestionFactory.createQuestion(body, userId); 
     return await this.questionService.update(questionId, question);
   }
 
@@ -338,14 +338,13 @@ class QuestionController {
 
     const chunks = chunkTranscriptByTimestamps(text);
     let allSegments: TranscriptResponse[] = [];
-    let i = 1;
     for (const chunk of chunks) {
       const segments = await this.questionService.generateQuestionsWithAI(
         'userId',
         chunk,
       );
       allSegments = allSegments.concat(segments);
-      if(i==1) break
+      break
     }
 
     return {
