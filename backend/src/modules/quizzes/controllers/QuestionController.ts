@@ -147,7 +147,7 @@ class QuestionController {
         'You do not have permission to modify this question',
       );
     }
-    const question = QuestionFactory.createQuestion(body, userId); 
+    const question = QuestionFactory.createQuestion(body, userId);
     return await this.questionService.update(questionId, question);
   }
 
@@ -287,10 +287,13 @@ class QuestionController {
   ): Promise<{success: boolean; response: TranscriptResponse[]}> {
     let {text} = body;
 
-    const timestampRegex = /\b\d{2};\d{2};\d{2};\d{2}\s*-\s*\d{2};\d{2};\d{2};\d{2}\b/;
+    const timestampRegex =
+      /\b\d{2};\d{2};\d{2};\d{2}\s*-\s*\d{2};\d{2};\d{2};\d{2}\b/;
 
     if (!timestampRegex.test(text)) {
-      throw new BadRequestError ("Timestamp range not found. Expected format: HH;MM;SS;FF - HH;MM;SS;FF")
+      throw new BadRequestError(
+        'Timestamp range not found. Expected format: HH;MM;SS;FF - HH;MM;SS;FF',
+      );
     }
 
     const chunkTranscriptByTimestamps = (
@@ -338,13 +341,24 @@ class QuestionController {
 
     const chunks = chunkTranscriptByTimestamps(text);
     let allSegments: TranscriptResponse[] = [];
-    for (const chunk of chunks) {
-      const segments = await this.questionService.generateQuestionsWithAI(
-        'userId',
-        chunk,
-      );
-      allSegments = allSegments.concat(segments);
-    }
+    // for (const chunk of chunks) {
+    //   const segments = await this.questionService.generateQuestionsWithAI(
+    //     'userId',
+    //     chunk,
+    //   );
+    //   allSegments = allSegments.concat(segments);
+    // }
+
+    if(chunks && chunks.length > 90)
+      throw new BadRequestError(`Given segments are too large, please try reducing content.`)
+
+    const results = await Promise.all(
+      chunks.map(chunk =>
+        this.questionService.generateQuestionsWithAI('userId', chunk),
+      ),
+    );
+
+    allSegments = results.flat();
 
     return {
       success: true,
