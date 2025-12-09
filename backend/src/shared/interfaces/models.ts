@@ -1,15 +1,5 @@
 import {ObjectId} from 'mongodb';
-import {Type} from 'class-transformer';
-import {
-  IsOptional,
-  IsInt,
-  Min,
-  IsString,
-  IsIn,
-  isString,
-  IsEnum,
-} from 'class-validator';
-import {Priority} from './quiz.js';
+// import {Priority} from './quiz.js';
 
 export interface IUser {
   _id?: string | ObjectId | null;
@@ -19,73 +9,31 @@ export interface IUser {
   lastName?: string;
   roles: 'admin' | 'user';
 }
+export type ID = string | ObjectId | null;
 
-export type Versions = {
-  version: string;
-  id: ID;
-};
+
 
 export interface ICourse {
   _id?: string | ObjectId | null;
   name: string;
   description: string;
   versions: ID[];
-  instructors: ID[];
+  instructor: ID;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-export type ID = string | ObjectId | null;
 export interface ICourseVersion {
   _id?: ID;
   courseId: ID;
   version: string;
   description: string;
-  modules: IModule[];
-  totalItems?: number;
   isDeleted?: boolean;
   deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface IModule {
-  moduleId?: ID;
-  name: string;
-  description: string;
-  order: string;
-  sections: ISection[];
-  isDeleted?: boolean;
-  deletedAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface ISection {
-  sectionId?: ID;
-  name: string;
-  description: string;
-  order: string;
-  itemsGroupId?: ID;
-  isDeleted?: boolean;
-  deletedAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface IItemGroupInfo {
-  courseVersionId: ID;
-  moduleId: ID;
-  moduleName: string;
-  sectionId: ID;
-  sectionName: string;
-}
-
-export interface IItemId {
-  itemId: string;
-  order: string;
-  isLast: boolean;
-}
 
 export interface IItem {
   id?: string;
@@ -94,276 +42,358 @@ export interface IItem {
   createdAt: Date;
   type: 'VIDEO' | 'QUIZ' | 'BLOG';
   itemId: string;
+  courseVersionId:ID
   isDeleted?: boolean;
   deletedAt?: Date;
 }
+ 
 
-export interface IVideoItem {
-  _id: string;
-  url: string;
-  name: string;
-  description: string;
-  startTime: number;
-  endTime: number;
-  points: number;
-}
 
-export interface IQuizItem {
-  _id: string;
-  questionVisibilityLimit: number;
-  questionIds: string[];
-}
 
-export interface IBlogItem {
-  _id: string;
-  title: string;
-  content: string;
-  estimatedReadTimeInMinutes: number;
-  tags: string[];
-  points: number;
-}
+// export type Versions = {
+//   version: string;
+//   id: ID;
+// };
 
-interface IQuestion {
-  _id: string;
-  questionText: string;
-  questionType: 'SOL' | 'SML' | 'MTL' | 'OTL' | 'NAT' | 'DES';
-  parameterized: boolean;
-  parameters?: IQuestionParameter[];
-  hintText: string;
-  timeLimit: number;
-  points: number;
-  priority: Priority;
-  metaDetails: IQuestionMetaDetails;
-  createdAt: Date;
-  updatedAt: Date;
-}
+// export interface ICourse {
+//   _id?: string | ObjectId | null;
+//   name: string;
+//   description: string;
+//   versions: ID[];
+//   instructors: ID[];
+//   createdAt?: Date;
+//   updatedAt?: Date;
+// }
 
-interface IQuestionParameter {
-  name: string;
-  possibleValues: string[];
-  type: 'number' | 'string';
-}
 
-export interface IQuestionMetaDetails {
-  _id: string;
-  creatorId: string;
-  isStudentGenerated: boolean;
-  isAIGenerated: boolean;
-}
+// export interface ICourseVersion {
+//   _id?: ID;
+//   courseId: ID;
+//   version: string;
+//   description: string;
+//   modules: IModule[];
+//   totalItems?: number;
+//   isDeleted?: boolean;
+//   deletedAt?: Date;
+//   createdAt: Date;
+//   updatedAt: Date;
+// }
 
-export interface IQuestionOptionsLot {
-  _id: string;
-  lotItems: IQuesionOptionsLotItem[];
-}
+// export interface IModule {
+//   moduleId?: ID;
+//   name: string;
+//   description: string;
+//   order: string;
+//   sections: ISection[];
+//   isDeleted?: boolean;
+//   deletedAt?: Date;
+//   createdAt: Date;
+//   updatedAt: Date;
+// }
 
-export interface IQuesionOptionsLotItem {
-  _id: string;
-  itemText: string;
-  explaination: string;
-}
+// export interface ISection {
+//   sectionId?: ID;
+//   name: string;
+//   description: string;
+//   order: string;
+//   itemsGroupId?: ID;
+//   isDeleted?: boolean;
+//   deletedAt?: Date;
+//   createdAt: Date;
+//   updatedAt: Date;
+// }
 
-export interface ISOLQuestionSolution {
-  lotItemId: string;
-}
+// export interface IItemGroupInfo {
+//   courseVersionId: ID;
+//   moduleId: ID;
+//   moduleName: string;
+//   sectionId: ID;
+//   sectionName: string;
+// }
 
-export interface ISMLQuesionSolution {
-  lotItemIds: string[];
-}
+// export interface IItemId {
+//   itemId: string;
+//   order: string;
+//   isLast: boolean;
+// }
 
-export interface IMTLQuestionSolution {
-  matchings: IMTLQuestionMatching[];
-}
+// export interface IItem {
+//   id?: string;
+//   name: string;
+//   description: string;
+//   createdAt: Date;
+//   type: 'VIDEO' | 'QUIZ' | 'BLOG';
+//   itemId: string;
+//   isDeleted?: boolean;
+//   deletedAt?: Date;
+// }
 
-export interface IMTLQuestionMatching {
-  lotItemId: string[];
-  explaination: string;
-}
+// export interface IVideoItem {
+//   _id: string;
+//   url: string;
+//   name: string;
+//   description: string;
+//   startTime: number;
+//   endTime: number;
+//   points: number;
+// }
 
-export interface IOTLQuestionSolution {
-  orderings: IOTLQuestionOrdering[];
-}
+// export interface IQuizItem {
+//   _id: string;
+//   questionVisibilityLimit: number;
+//   questionIds: string[];
+// }
 
-export interface IOTLQuestionOrdering {
-  lotItemId: string;
-  order: number;
-}
+// export interface IBlogItem {
+//   _id: string;
+//   title: string;
+//   content: string;
+//   estimatedReadTimeInMinutes: number;
+//   tags: string[];
+//   points: number;
+// }
 
-export interface INATQuestionSolution {
-  decimalPrecision: number;
-  upperLimit: number;
-  lowerLimit: number;
-  value: number;
-}
+// interface IQuestion {
+//   _id: string;
+//   questionText: string;
+//   questionType: 'SOL' | 'SML' | 'MTL' | 'OTL' | 'NAT' | 'DES';
+//   parameterized: boolean;
+//   parameters?: IQuestionParameter[];
+//   hintText: string;
+//   timeLimit: number;
+//   points: number;
+//   priority: Priority;
+//   metaDetails: IQuestionMetaDetails;
+//   createdAt: Date;
+//   updatedAt: Date;
+// }
 
-export interface IDESQuestionSolution {
-  solutionText: string;
-}
+// interface IQuestionParameter {
+//   name: string;
+//   possibleValues: string[];
+//   type: 'number' | 'string';
+// }
 
-export interface ISOLQuestion extends IQuestion {
-  questionType: 'SOL';
-  lot: IQuestionOptionsLot;
-  solution: ISOLQuestionSolution;
-}
+// export interface IQuestionMetaDetails {
+//   _id: string;
+//   creatorId: string;
+//   isStudentGenerated: boolean;
+//   isAIGenerated: boolean;
+// }
 
-export interface ISMLQuestion extends IQuestion {
-  questionType: 'SML';
-  lots: IQuestionOptionsLot[];
-  solution: ISMLQuesionSolution;
-}
+// export interface IQuestionOptionsLot {
+//   _id: string;
+//   lotItems: IQuesionOptionsLotItem[];
+// }
 
-export interface IMTLQuestion extends IQuestion {
-  questionType: 'MTL';
-  solution: IMTLQuestionSolution;
-}
+// export interface IQuesionOptionsLotItem {
+//   _id: string;
+//   itemText: string;
+//   explaination: string;
+// }
 
-export interface IOTLQuestion extends IQuestion {
-  questionType: 'OTL';
-  solution: IOTLQuestionSolution;
-}
+// export interface ISOLQuestionSolution {
+//   lotItemId: string;
+// }
 
-export interface INATQuestion extends IQuestion {
-  questionType: 'NAT';
-  solution: INATQuestionSolution;
-}
+// export interface ISMLQuesionSolution {
+//   lotItemIds: string[];
+// }
 
-export interface IDESQuestion extends IQuestion {
-  questionType: 'DES';
-  solution: IDESQuestionSolution;
-}
+// export interface IMTLQuestionSolution {
+//   matchings: IMTLQuestionMatching[];
+// }
 
-export interface IQuizResponse {
-  _id: string;
-  quizItemId: string;
-  studentId: string;
-  questionsLength: number;
-  graadingStatus: 'PENDING' | 'GRADED';
-  submitted: boolean;
-  questions: (
-    | IQuizSOLQuestionResponse
-    | IQuizSMLQuestionResponse
-    | IQuizMTLQuestionResponse
-    | IQuizOTLQuestionResponse
-    | IQuizNATQuestionResponse
-    | IQuizDESQuestionResponse
-  )[];
-  createdAt: Date;
-  updatedAt: Date;
-}
+// export interface IMTLQuestionMatching {
+//   lotItemId: string[];
+//   explaination: string;
+// }
 
-export interface IQuizResponseItem {
-  questionId: string;
-  parameters: IQuestionParameter[];
-  points: number;
-  timeTaken: number;
-}
+// export interface IOTLQuestionSolution {
+//   orderings: IOTLQuestionOrdering[];
+// }
 
-export interface IQuizSOLQuestionResponse extends IQuizResponseItem {
-  itemId: string;
-}
+// export interface IOTLQuestionOrdering {
+//   lotItemId: string;
+//   order: number;
+// }
 
-export interface IQuizSMLQuestionResponse extends IQuizResponseItem {
-  itemIds: string;
-}
+// export interface INATQuestionSolution {
+//   decimalPrecision: number;
+//   upperLimit: number;
+//   lowerLimit: number;
+//   value: number;
+// }
 
-export interface IQuizMTLQuestionResponse extends IQuizResponseItem {
-  matchings: Omit<IMTLQuestionMatching, 'explaination'>[];
-}
+// export interface IDESQuestionSolution {
+//   solutionText: string;
+// }
 
-export interface IQuizOTLQuestionResponse extends IQuizResponseItem {
-  orderings: IOTLQuestionOrdering[];
-}
+// export interface ISOLQuestion extends IQuestion {
+//   questionType: 'SOL';
+//   lot: IQuestionOptionsLot;
+//   solution: ISOLQuestionSolution;
+// }
 
-export interface IQuizNATQuestionResponse extends IQuizResponseItem {
-  value: number;
-}
+// export interface ISMLQuestion extends IQuestion {
+//   questionType: 'SML';
+//   lots: IQuestionOptionsLot[];
+//   solution: ISMLQuesionSolution;
+// }
 
-export interface IQuizDESQuestionResponse extends IQuizResponseItem {
-  responseText: string;
-}
+// export interface IMTLQuestion extends IQuestion {
+//   questionType: 'MTL';
+//   solution: IMTLQuestionSolution;
+// }
 
-export enum ItemType {
-  VIDEO = 'VIDEO',
-  QUIZ = 'QUIZ',
-  BLOG = 'BLOG',
-  PROJECT = 'PROJECT',
-  FEEDBACK = 'FEEDBACK',
-}
+// export interface IOTLQuestion extends IQuestion {
+//   questionType: 'OTL';
+//   solution: IOTLQuestionSolution;
+// }
 
-export interface IBaseItem {
-  itemId?: ID;
-  name: string;
-  description: string;
-  type: ItemType;
-  order: string;
-  itemDetails: IVideoDetails | IQuizDetails | IBlogDetails | IProjectDetails;
-}
+// export interface INATQuestion extends IQuestion {
+//   questionType: 'NAT';
+//   solution: INATQuestionSolution;
+// }
 
-// Add minimal IProjectItemDetails interface for PROJECT type
-export interface IProjectDetails {
-  // Add fields as needed for project items, or leave empty if none
-}
+// export interface IDESQuestion extends IQuestion {
+//   questionType: 'DES';
+//   solution: IDESQuestionSolution;
+// }
 
-export interface IVideoDetails {
-  URL: string;
-  startTime: string;
-  endTime: string;
-  points: number;
-}
+// export interface IQuizResponse {
+//   _id: string;
+//   quizItemId: string;
+//   studentId: string;
+//   questionsLength: number;
+//   graadingStatus: 'PENDING' | 'GRADED';
+//   submitted: boolean;
+//   questions: (
+//     | IQuizSOLQuestionResponse
+//     | IQuizSMLQuestionResponse
+//     | IQuizMTLQuestionResponse
+//     | IQuizOTLQuestionResponse
+//     | IQuizNATQuestionResponse
+//     | IQuizDESQuestionResponse
+//   )[];
+//   createdAt: Date;
+//   updatedAt: Date;
+// }
 
-export interface IQuestionBankRef {
-  bankId: ID; // ObjectId as string
-  count: number; // How many questions to pick
-  difficulty?: string[]; // Optional filter
-  tags?: string[]; // Optional filter
-  type?: string; // Optional question type filter
-}
+// export interface IQuizResponseItem {
+//   questionId: string;
+//   parameters: IQuestionParameter[];
+//   points: number;
+//   timeTaken: number;
+// }
 
-export interface IQuizDetails {
-  questionBankRefs: IQuestionBankRef[]; // question ids
-  passThreshold: number; // 0-1
-  maxAttempts: number; // Maximum number of attempts allowed
-  quizType: 'DEADLINE' | 'NO_DEADLINE'; // Type of quiz
-  releaseTime: Date; // Release time for the quiz
-  questionVisibility: number; // Number of questions visible to the user at a time
-  deadline?: Date; // Deadline for the quiz, only applicable for DEADLINE type
-  approximateTimeToComplete: string; // Approximate time to complete in HH:MM:SS format
-  allowPartialGrading: boolean; // If true, allows partial grading for questions
-  allowHint: boolean; // If true, allows users to use hints for questions
-  showCorrectAnswersAfterSubmission: boolean; // If true, shows correct answers after submission
-  showExplanationAfterSubmission: boolean; // If true, shows explanation after submission
-  showScoreAfterSubmission: boolean; // If true, shows score after submission
-  allowSkip: boolean; // If true, allows users to skip quiz questions
-}
+// export interface IQuizSOLQuestionResponse extends IQuizResponseItem {
+//   itemId: string;
+// }
 
-export interface IQuizSettings {
-  _id?: string | ObjectId;
-  quizId: string | ObjectId;
-  passThreshold: number; // 0-1
-  maxAttempts: number; // Maximum number of attempts allowed
-  quizType: 'DEADLINE' | 'NO_DEADLINE'; // Type of quiz
-  releaseTime: Date; // Release time for the quiz
-  questionVisibility: number; // Number of questions visible to the user at a time
-  deadline?: Date; // Deadline for the quiz, only applicable for DEADLINE type
-  approximateTimeToComplete: string; // Approximate time to complete in HH:MM:SS format
-  allowPartialGrading: boolean; // If true, allows partial grading for questions
-  allowHint: boolean; // If true, allows users to use hints for questions
-  showCorrectAnswersAfterSubmission: boolean; // If true, shows correct answers after submission
-  showExplanationAfterSubmission: boolean; // If true, shows explanation after submission
-  showScoreAfterSubmission: boolean; // If true, shows score after submission
-  allowSkip: boolean; // If true, allows users to skip quiz questions
-}
+// export interface IQuizSMLQuestionResponse extends IQuizResponseItem {
+//   itemIds: string;
+// }
 
-export interface IBlogDetails {
-  tags: string[];
-  content: string;
-  points: number;
-  estimatedReadTimeInMinutes: number;
-}
+// export interface IQuizMTLQuestionResponse extends IQuizResponseItem {
+//   matchings: Omit<IMTLQuestionMatching, 'explaination'>[];
+// }
 
-export interface IFeedBackFormDetails {
-  jsonSchema: Record<string, any>;
-  uiSchema: Record<string, any>;
-}
+// export interface IQuizOTLQuestionResponse extends IQuizResponseItem {
+//   orderings: IOTLQuestionOrdering[];
+// }
+
+// export interface IQuizNATQuestionResponse extends IQuizResponseItem {
+//   value: number;
+// }
+
+// export interface IQuizDESQuestionResponse extends IQuizResponseItem {
+//   responseText: string;
+// }
+
+// export enum ItemType {
+//   VIDEO = 'VIDEO',
+//   QUIZ = 'QUIZ',
+//   BLOG = 'BLOG',
+//   PROJECT = 'PROJECT',
+//   FEEDBACK = 'FEEDBACK',
+// }
+
+// export interface IBaseItem {
+//   itemId?: ID;
+//   name: string;
+//   description: string;
+//   type: ItemType;
+//   order: string;
+//   itemDetails: IVideoDetails | IQuizDetails | IBlogDetails | IProjectDetails;
+// }
+
+// // Add minimal IProjectItemDetails interface for PROJECT type
+// export interface IProjectDetails {
+//   // Add fields as needed for project items, or leave empty if none
+// }
+
+// export interface IVideoDetails {
+//   URL: string;
+//   startTime: string;
+//   endTime: string;
+//   points: number;
+// }
+
+// export interface IQuestionBankRef {
+//   bankId: ID; // ObjectId as string
+//   count: number; // How many questions to pick
+//   difficulty?: string[]; // Optional filter
+//   tags?: string[]; // Optional filter
+//   type?: string; // Optional question type filter
+// }
+
+// export interface IQuizDetails {
+//   questionBankRefs: IQuestionBankRef[]; // question ids
+//   passThreshold: number; // 0-1
+//   maxAttempts: number; // Maximum number of attempts allowed
+//   quizType: 'DEADLINE' | 'NO_DEADLINE'; // Type of quiz
+//   releaseTime: Date; // Release time for the quiz
+//   questionVisibility: number; // Number of questions visible to the user at a time
+//   deadline?: Date; // Deadline for the quiz, only applicable for DEADLINE type
+//   approximateTimeToComplete: string; // Approximate time to complete in HH:MM:SS format
+//   allowPartialGrading: boolean; // If true, allows partial grading for questions
+//   allowHint: boolean; // If true, allows users to use hints for questions
+//   showCorrectAnswersAfterSubmission: boolean; // If true, shows correct answers after submission
+//   showExplanationAfterSubmission: boolean; // If true, shows explanation after submission
+//   showScoreAfterSubmission: boolean; // If true, shows score after submission
+//   allowSkip: boolean; // If true, allows users to skip quiz questions
+// }
+
+// export interface IQuizSettings {
+//   _id?: string | ObjectId;
+//   quizId: string | ObjectId;
+//   passThreshold: number; // 0-1
+//   maxAttempts: number; // Maximum number of attempts allowed
+//   quizType: 'DEADLINE' | 'NO_DEADLINE'; // Type of quiz
+//   releaseTime: Date; // Release time for the quiz
+//   questionVisibility: number; // Number of questions visible to the user at a time
+//   deadline?: Date; // Deadline for the quiz, only applicable for DEADLINE type
+//   approximateTimeToComplete: string; // Approximate time to complete in HH:MM:SS format
+//   allowPartialGrading: boolean; // If true, allows partial grading for questions
+//   allowHint: boolean; // If true, allows users to use hints for questions
+//   showCorrectAnswersAfterSubmission: boolean; // If true, shows correct answers after submission
+//   showExplanationAfterSubmission: boolean; // If true, shows explanation after submission
+//   showScoreAfterSubmission: boolean; // If true, shows score after submission
+//   allowSkip: boolean; // If true, allows users to skip quiz questions
+// }
+
+// export interface IBlogDetails {
+//   tags: string[];
+//   content: string;
+//   points: number;
+//   estimatedReadTimeInMinutes: number;
+// }
+
+// export interface IFeedBackFormDetails {
+//   jsonSchema: Record<string, any>;
+//   uiSchema: Record<string, any>;
+// }
 
 export type EnrollmentRole =
   | 'INSTRUCTOR'
@@ -384,64 +414,64 @@ export interface IEnrollment {
   percentCompleted: number;
 }
 
-export interface IProgress {
-  _id?: string | ObjectId | null;
-  userId: string | ObjectId;
-  courseId: string | ObjectId;
-  courseVersionId: string | ObjectId;
-  currentModule: string | ObjectId;
-  currentSection: string | ObjectId;
-  currentItem: string | ObjectId;
-  completed: boolean;
-}
+// export interface IProgress {
+//   _id?: string | ObjectId | null;
+//   userId: string | ObjectId;
+//   courseId: string | ObjectId;
+//   courseVersionId: string | ObjectId;
+//   currentModule: string | ObjectId;
+//   currentSection: string | ObjectId;
+//   currentItem: string | ObjectId;
+//   completed: boolean;
+// }
 
-export interface IWatchTime {
-  _id?: string | ObjectId | null;
-  userId: string | ObjectId;
-  courseId: string | ObjectId;
-  courseVersionId: string | ObjectId;
-  itemId: string | ObjectId;
-  startTime: Date;
-  endTime?: Date;
-}
+// export interface IWatchTime {
+//   _id?: string | ObjectId | null;
+//   userId: string | ObjectId;
+//   courseId: string | ObjectId;
+//   courseVersionId: string | ObjectId;
+//   itemId: string | ObjectId;
+//   startTime: Date;
+//   endTime?: Date;
+// }
 
-export enum InviteActionType {
-  SIGNUP = 'SIGNUP',
-  ENROLL = 'ENROLL',
-  NOTIFY = 'NOTIFY',
-}
-export enum InviteStatusType {
-  PENDING = 'PENDING',
-  ACCEPTED = 'ACCEPTED',
-  EXPIRED = 'EXPIRED',
-}
-export enum InviteType {
-  SINGLE = 'SINGLE',
-  BULK = 'BULK',
-}
-// Interface for Invite
-export interface IInvite {
-  _id?: string | ObjectId | null;
-  email?: string;
-  courseId: string | ObjectId;
-  courseVersionId: string | ObjectId;
-  token: string;
-  type: InviteType;
-  usedount?: number;
-  action: InviteActionType;
-  Invitestatus: InviteStatusType;
-  createdAt: Date;
-  expiresAt: Date;
-}
+// export enum InviteActionType {
+//   SIGNUP = 'SIGNUP',
+//   ENROLL = 'ENROLL',
+//   NOTIFY = 'NOTIFY',
+// }
+// export enum InviteStatusType {
+//   PENDING = 'PENDING',
+//   ACCEPTED = 'ACCEPTED',
+//   EXPIRED = 'EXPIRED',
+// }
+// export enum InviteType {
+//   SINGLE = 'SINGLE',
+//   BULK = 'BULK',
+// }
+// // Interface for Invite
+// export interface IInvite {
+//   _id?: string | ObjectId | null;
+//   email?: string;
+//   courseId: string | ObjectId;
+//   courseVersionId: string | ObjectId;
+//   token: string;
+//   type: InviteType;
+//   usedount?: number;
+//   action: InviteActionType;
+//   Invitestatus: InviteStatusType;
+//   createdAt: Date;
+//   expiresAt: Date;
+// }
 // Interface for proctoring settings.
 /*export interface IProctoringSettings {
   components: ProctoringComponent[];
 }*/
 
-export interface IDetectorOptions {
-  enabled: boolean;
-  options?: Record<string, any>;
-}
+// export interface IDetectorOptions {
+//   enabled: boolean;
+//   options?: Record<string, any>;
+// }
 
 // export interface IDetectorSettings {
 //   detectorName: ProctoringComponent;
@@ -453,22 +483,22 @@ export interface IDetectorOptions {
 // }
 
 // Common settings interface for both user and course settings.
-export interface IRegistrationSettings {
-  _id?: ID;
-  label: string;
-  type:
-    | 'TEXT'
-    | 'TEXTAREA'
-    | 'EMAIL'
-    | 'TEL'
-    | 'DATE'
-    | 'NUMBER'
-    | 'URL'
-    | 'SELECT';
-  isDefault: boolean;
-  required: boolean;
-  options?: string[];
-}
+// export interface IRegistrationSettings {
+//   _id?: ID;
+//   label: string;
+//   type:
+//     | 'TEXT'
+//     | 'TEXTAREA'
+//     | 'EMAIL'
+//     | 'TEL'
+//     | 'DATE'
+//     | 'NUMBER'
+//     | 'URL'
+//     | 'SELECT';
+//   isDefault: boolean;
+//   required: boolean;
+//   options?: string[];
+// }
 // export interface ISettings {
 //   proctors: IProctoringSettings;
 //   linearProgressionEnabled: boolean;
@@ -497,108 +527,108 @@ export interface IRegistrationSettings {
 //   settings: ISettings;
 // }
 
-export enum SortOrder {
-  ASC = 'asc',
-  DESC = 'desc',
-}
+// export enum SortOrder {
+//   ASC = 'asc',
+//   DESC = 'desc',
+// }
 
-export interface SortOptions {
-  field: string;
-  order: SortOrder;
-}
+// export interface SortOptions {
+//   field: string;
+//   order: SortOrder;
+// }
 
-export class PaginationQuery {
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page: number = 1;
+// export class PaginationQuery {
+//   @IsOptional()
+//   @Type(() => Number)
+//   @IsInt()
+//   @Min(1)
+//   page: number = 1;
 
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  limit: number = 10;
-}
+//   @IsOptional()
+//   @Type(() => Number)
+//   @IsInt()
+//   @Min(1)
+//   limit: number = 10;
+// }
 
-export class PaginationWithSortQuery extends PaginationQuery {
-  @IsOptional()
-  @IsString()
-  sortField?: string;
+// export class PaginationWithSortQuery extends PaginationQuery {
+//   @IsOptional()
+//   @IsString()
+//   sortField?: string;
 
-  @IsOptional()
-  @IsEnum(SortOrder)
-  sortOrder?: SortOrder = SortOrder.DESC;
-}
+//   @IsOptional()
+//   @IsEnum(SortOrder)
+//   sortOrder?: SortOrder = SortOrder.DESC;
+// }
 
-export class EnrollmentFilterQuery {
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page: number = 1;
+// export class EnrollmentFilterQuery {
+//   @IsOptional()
+//   @Type(() => Number)
+//   @IsInt()
+//   @Min(1)
+//   page: number = 1;
 
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  limit: number = 10;
+//   @IsOptional()
+//   @Type(() => Number)
+//   @IsInt()
+//   @Min(1)
+//   limit: number = 10;
 
-  @IsOptional()
-  @IsString()
-  search: string = '';
+//   @IsOptional()
+//   @IsString()
+//   search: string = '';
 
-  @IsString()
-  @IsIn(['STUDENT', 'INSTRUCTOR', 'MANAGER', 'TA', 'STAFF'])
-  role: EnrollmentRole;
-}
+//   @IsString()
+//   @IsIn(['STUDENT', 'INSTRUCTOR', 'MANAGER', 'TA', 'STAFF'])
+//   role: EnrollmentRole;
+// }
 
-export class EnrollmentsQuery {
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page: number = 1;
+// export class EnrollmentsQuery {
+//   @IsOptional()
+//   @Type(() => Number)
+//   @IsInt()
+//   @Min(1)
+//   page: number = 1;
 
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  limit: number = 10;
+//   @IsOptional()
+//   @Type(() => Number)
+//   @IsInt()
+//   @Min(1)
+//   limit: number = 10;
 
-  @IsOptional()
-  @IsString()
-  search?: string;
+//   @IsOptional()
+//   @IsString()
+//   search?: string;
 
-  @IsOptional()
-  @IsIn(['name', 'enrollmentDate', 'progress'])
-  sortBy: 'name' | 'enrollmentDate' | 'progress' = 'enrollmentDate';
+//   @IsOptional()
+//   @IsIn(['name', 'enrollmentDate', 'progress'])
+//   sortBy: 'name' | 'enrollmentDate' | 'progress' = 'enrollmentDate';
 
-  @IsOptional()
-  @IsIn(['asc', 'desc'])
-  sortOrder: 'asc' | 'desc' = 'desc';
+//   @IsOptional()
+//   @IsIn(['asc', 'desc'])
+//   sortOrder: 'asc' | 'desc' = 'desc';
 
-  @IsOptional()
-  @IsIn(['STUDENT', 'OTHER'])
-  filter?: 'STUDENT' | 'OTHER';
-}
+//   @IsOptional()
+//   @IsIn(['STUDENT', 'OTHER'])
+//   filter?: 'STUDENT' | 'OTHER';
+// }
 
-export class BulkEnrollmentsQuery {
-  @IsOptional()
-  @IsString()
-  courseId?: string;
-}
+// export class BulkEnrollmentsQuery {
+//   @IsOptional()
+//   @IsString()
+//   courseId?: string;
+// }
 
-export interface IUserAnomaly {
-  _id?: string | ObjectId | null;
-  userId: string | ObjectId;
-  courseId: string | ObjectId;
-  courseVersionId: string | ObjectId;
-  moduleId?: string | ObjectId;
-  sectionId?: string | ObjectId;
-  itemId?: string | ObjectId;
-  anomalyType: string;
-}
+// export interface IUserAnomaly {
+//   _id?: string | ObjectId | null;
+//   userId: string | ObjectId;
+//   courseId: string | ObjectId;
+//   courseVersionId: string | ObjectId;
+//   moduleId?: string | ObjectId;
+//   sectionId?: string | ObjectId;
+//   itemId?: string | ObjectId;
+//   anomalyType: string;
+// }
 
 export interface AuthenticatedUserEnrollements {
   courseId: string;
@@ -631,43 +661,43 @@ export interface AuthenticatedUser {
 //   updatedAt?: Date;
 // }
 
-export interface ICourseRegistration {
-  _id?: string | ObjectId;
-  courseId: ID;
-  versionId: ID;
-  userId: ID;
-  detail: Record<string, any>;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  createdAt?: Date;
-  updatedAt?: Date;
-}
+// export interface ICourseRegistration {
+//   _id?: string | ObjectId;
+//   courseId: ID;
+//   versionId: ID;
+//   userId: ID;
+//   detail: Record<string, any>;
+//   status: 'PENDING' | 'APPROVED' | 'REJECTED';
+//   createdAt?: Date;
+//   updatedAt?: Date;
+// }
 
 
-export interface TranscriptResponse {
-  segmentNumber: number;
-  timestamp: string;
-  questions: TranscriptQuestion[];
-}
+// export interface TranscriptResponse {
+//   segmentNumber: number;
+//   timestamp: string;
+//   questions: TranscriptQuestion[];
+// }
 
-export interface TranscriptQuestion {
-  sno: number;
-  question: string;
-  hint: string;
-  options: TranscriptOptions;
-  explanations: TranscriptExplanations;
-  correctAnswer: string;
-}
+// export interface TranscriptQuestion {
+//   sno: number;
+//   question: string;
+//   hint: string;
+//   options: TranscriptOptions;
+//   explanations: TranscriptExplanations;
+//   correctAnswer: string;
+// }
 
-export interface TranscriptOptions {
-  A: string;
-  B: string;
-  C: string;
-  D: string;
-}
+// export interface TranscriptOptions {
+//   A: string;
+//   B: string;
+//   C: string;
+//   D: string;
+// }
 
-export interface TranscriptExplanations {
-  A: string;
-  B: string;
-  C: string;
-  D: string;
-}
+// export interface TranscriptExplanations {
+//   A: string;
+//   B: string;
+//   C: string;
+//   D: string;
+// }
