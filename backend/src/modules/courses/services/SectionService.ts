@@ -221,4 +221,59 @@ export class SectionService extends BaseService {
       return deleteResult;
     });
   }
+
+  async toggleSectionVisibility(
+    versionId: string,
+    moduleId: string,
+    sectionId: string,
+    hide: boolean,
+  ): Promise<ICourseVersion> {
+    return this._withTransaction(async session => {
+      const version = await this.courseRepo.readVersion(versionId, session);
+
+      // Find Module
+      const module = version.modules.find(
+        m => m.moduleId.toString() === moduleId,
+      );
+      if (!module) throw new InternalServerError('Module not found');
+
+      // Find Section
+      const section = module.sections.find(
+        s => s.sectionId.toString() === sectionId,
+      );
+      if (!section) throw new InternalServerError('Section not found');
+
+      section.isHidden = hide;
+      section.updatedAt = new Date();
+
+      // Update Module Update Date
+      module.updatedAt = new Date();
+
+      // Update Version Update Date
+      version.updatedAt = new Date();
+
+      // Update Version
+      const updatedVersion = await this.courseRepo.updateVersion(
+        versionId,
+        version,
+        session,
+      );
+
+      // Hide all items in the section
+      const itemsGroupId = section.itemsGroupId.toString();
+      const itemsGroup = await this.itemRepo.readItemsGroup(
+        itemsGroupId,
+        session,
+      );
+      if (itemsGroup) {
+        itemsGroup.isHidden = hide;
+        await this.itemRepo.updateItemsGroup(itemsGroupId, itemsGroup, session);
+      }
+
+      if (!updatedVersion) {
+        throw new InternalServerError('Failed to update Section');
+      }
+      return updatedVersion;
+    });
+  }
 }

@@ -159,10 +159,15 @@ export class CourseVersionService extends BaseService {
       }
 
       if (enrollment.role === 'STUDENT') {
-        // filter out hidden modules for students
-        readVersion.modules = readVersion.modules.filter(
-          module => !module.isHidden,
-        );
+        // filter out hidden modules for students and include only visible sections
+        readVersion.modules = readVersion.modules
+          .filter(module => !module.isHidden)
+          .map(module => {
+            const visibleSections = module.sections.filter(
+              section => !section.isHidden,
+            );
+            return {...module, sections: visibleSections};
+          });
       }
 
       const version = instanceToPlain(

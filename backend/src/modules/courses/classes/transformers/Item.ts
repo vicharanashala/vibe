@@ -1,7 +1,7 @@
-import { calculateNewOrder } from '#courses/utils/calculateNewOrder.js';
+import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
 
-import { Expose, Transform, Type } from 'class-transformer';
-import { ObjectId } from 'mongodb';
+import {Expose, Transform, Type} from 'class-transformer';
+import {ObjectId} from 'mongodb';
 
 import {
   ObjectIdToString,
@@ -20,8 +20,8 @@ export type Item = QuizItem | VideoItem | BlogItem | ProjectItem;
 
 class QuizItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
@@ -42,6 +42,9 @@ class QuizItem {
   @Expose()
   deletedAt?: Date;
 
+  @Expose()
+  isHidden?: boolean;
+
   constructor(
     name: string,
     description: string,
@@ -60,8 +63,8 @@ class QuizItem {
 
 class VideoItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
@@ -75,12 +78,6 @@ class VideoItem {
 
   @Expose()
   details?: IVideoDetails;
-
-  @Expose()
-  isDeleted?: boolean;
-
-  @Expose()
-  deletedAt?: Date;
 
   constructor(
     name: string,
@@ -100,8 +97,8 @@ class VideoItem {
 
 class BlogItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
@@ -115,12 +112,6 @@ class BlogItem {
 
   @Expose()
   details?: IBlogDetails;
-
-  @Expose()
-  isDeleted?: boolean;
-
-  @Expose()
-  deletedAt?: Date;
 
   constructor(
     name: string,
@@ -140,8 +131,8 @@ class BlogItem {
 
 class FeedBackFormItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
@@ -179,8 +170,8 @@ class FeedBackFormItem {
 
 class FeedbackSubmissionItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
@@ -239,8 +230,8 @@ class FeedbackSubmissionItem {
 
 class ProjectItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
@@ -251,6 +242,9 @@ class ProjectItem {
 
   @Expose()
   type: ItemType = ItemType.PROJECT;
+
+  @Expose()
+  isHidden?: boolean;
 
   details?: any;
 
@@ -276,8 +270,8 @@ class ProjectItem {
 
 class ItemBase {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   itemId?: ID;
 
   @Expose()
@@ -366,8 +360,8 @@ class ItemBase {
 
 class ItemRef {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
@@ -385,8 +379,8 @@ class ItemRef {
 
 class ItemsGroup {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
@@ -394,9 +388,12 @@ class ItemsGroup {
   items: ItemRef[];
 
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   sectionId: ID;
+
+  @Expose()
+  isHidden?: boolean;
 
   constructor(sectionId?: ID, items?: ItemRef[]) {
     this.items = items ? items : [];

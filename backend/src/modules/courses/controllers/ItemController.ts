@@ -12,9 +12,9 @@ import {
   Authorized,
   QueryParams,
 } from 'routing-controllers';
-import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
-import { COURSES_TYPES } from '#courses/types.js';
-import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {COURSES_TYPES} from '#courses/types.js';
+import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
 import {
   ItemDataResponse,
   ItemNotFoundErrorResponse,
@@ -29,15 +29,15 @@ import {
   GetFeedbackSubmissionsParams,
   GetFeedbackSubmissionsQuery,
 } from '#courses/classes/validators/ItemValidators.js';
-import { ItemService } from '#courses/services/ItemService.js';
-import { injectable, inject } from 'inversify';
-import { VersionModuleSectionParams } from '../classes/index.js';
-import { ItemActions, getItemAbility } from '../abilities/itemAbilities.js';
-import { Ability } from '#root/shared/functions/AbilityDecorator.js';
-import { subject } from '@casl/ability';
-import { QuizService } from '#root/modules/quizzes/services/QuizService.js';
-import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
-import { ItemType } from '#shared/interfaces/models.js';
+import {ItemService} from '#courses/services/ItemService.js';
+import {injectable, inject} from 'inversify';
+import {VersionModuleSectionParams} from '../classes/index.js';
+import {ItemActions, getItemAbility} from '../abilities/itemAbilities.js';
+import {Ability} from '#root/shared/functions/AbilityDecorator.js';
+import {subject} from '@casl/ability';
+import {QuizService} from '#root/modules/quizzes/services/QuizService.js';
+import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
+import {ItemType} from '#shared/interfaces/models.js';
 
 @OpenAPI({
   tags: ['Course Items'],
@@ -50,7 +50,7 @@ export class ItemController {
     private readonly itemService: ItemService,
     @inject(QUIZZES_TYPES.QuizService)
     private readonly quizService: QuizService,
-  ) { }
+  ) {}
   @OpenAPI({
     summary: 'Create an item',
     description: `Creates a new item within a section.
@@ -74,12 +74,12 @@ export class ItemController {
   async create(
     @Params() params: VersionModuleSectionParams,
     @Body() body: CreateItemBody,
-    @Ability(getItemAbility) { ability },
+    @Ability(getItemAbility) {ability},
   ) {
-    const { versionId, moduleId, sectionId } = params;
+    const {versionId, moduleId, sectionId} = params;
 
     // Create an item resource object for permission checking
-    const itemResource = subject('Item', { versionId });
+    const itemResource = subject('Item', {versionId});
 
     // Check permission using ability.can() with the actual item resource
     if (!ability.can(ItemActions.Create, itemResource)) {
@@ -116,12 +116,12 @@ export class ItemController {
   })
   async readAll(
     @Params() params: VersionModuleSectionParams,
-    @Ability(getItemAbility) { ability },
+    @Ability(getItemAbility) {ability},
   ) {
-    const { versionId, moduleId, sectionId } = params;
+    const {versionId, moduleId, sectionId} = params;
 
     // Create an item resource object for permission checking
-    const itemResource = subject('Item', { versionId });
+    const itemResource = subject('Item', {versionId});
 
     // Check permission using ability.can() with the actual item resource
     if (!ability.can(ItemActions.ViewAll, itemResource)) {
@@ -130,14 +130,23 @@ export class ItemController {
       );
     }
 
-    const items = await this.itemService.readAllItems(versionId, moduleId, sectionId);
+    const items = await this.itemService.readAllItems(
+      versionId,
+      moduleId,
+      sectionId,
+    );
 
     // Filter out blank quizzes for students
     try {
-      const sampleItemResource = subject('Item', { versionId, _id: 'sample' });
+      const sampleItemResource = subject('Item', {versionId, _id: 'sample'});
       const canManage = ability.can(ItemActions.Modify, sampleItemResource);
 
-      console.log('ItemController filtering - canManage:', canManage, 'items count:', items.length);
+      console.log(
+        'ItemController filtering - canManage:',
+        canManage,
+        'items count:',
+        items.length,
+      );
 
       if (canManage) {
         // Instructors/managers/TAs can see all items including blank quizzes
@@ -155,11 +164,14 @@ export class ItemController {
         }
 
         try {
-          const quizDetails = await this.quizService.getQuizDetails(itemRef._id.toString());
+          const quizDetails = await this.quizService.getQuizDetails(
+            itemRef._id.toString(),
+          );
           const questionBankRefs = quizDetails?.details?.questionBankRefs;
 
-
-          if (!(Array.isArray(questionBankRefs) && questionBankRefs.length === 0)) {
+          if (
+            !(Array.isArray(questionBankRefs) && questionBankRefs.length === 0)
+          ) {
             filteredItems.push(itemRef);
           }
         } catch (error) {
@@ -168,7 +180,6 @@ export class ItemController {
       }
 
       return filteredItems;
-
     } catch (error) {
       console.error('Error filtering blank quizzes in readAll:', error);
       return items;
@@ -197,12 +208,12 @@ export class ItemController {
   async update(
     @Params() params: VersionItemParams,
     @Body() body: UpdateItemBody,
-    @Ability(getItemAbility) { ability },
+    @Ability(getItemAbility) {ability},
   ) {
-    const { versionId, itemId } = params;
+    const {versionId, itemId} = params;
 
     // Create an item resource object for permission checking
-    const itemResource = subject('Item', { versionId });
+    const itemResource = subject('Item', {versionId});
 
     // Check permission using ability.can() with the actual item resource
     if (!ability.can(ItemActions.Modify, itemResource)) {
@@ -235,12 +246,12 @@ export class ItemController {
   })
   async delete(
     @Params() params: DeleteItemParams,
-    @Ability(getItemAbility) { ability },
+    @Ability(getItemAbility) {ability},
   ) {
-    const { itemsGroupId, itemId } = params;
+    const {itemsGroupId, itemId} = params;
     const version = await this.itemService.findVersion(itemsGroupId);
     // Create an item resource object for permission checking
-    const itemResource = subject('Item', { versionId: version._id.toString() });
+    const itemResource = subject('Item', {versionId: version._id.toString()});
 
     if (!ability.can(ItemActions.Delete, itemResource)) {
       throw new ForbiddenError(
@@ -275,12 +286,12 @@ Accessible to:
   async move(
     @Params() params: VersionModuleSectionItemParams,
     @Body() body: MoveItemBody,
-    @Ability(getItemAbility) { ability },
+    @Ability(getItemAbility) {ability},
   ) {
-    const { versionId, moduleId, sectionId, itemId } = params;
+    const {versionId, moduleId, sectionId, itemId} = params;
 
     // Create an item resource object for permission checking
-    const itemResource = subject('Item', { versionId });
+    const itemResource = subject('Item', {versionId});
 
     // Check permission using ability.can() with the actual item resource
     if (!ability.can(ItemActions.Modify, itemResource)) {
@@ -319,14 +330,12 @@ Access control logic:
   })
   async getItem(
     @Params() params: GetItemParams,
-    @Ability(getItemAbility) { ability },
+    @Ability(getItemAbility) {ability},
   ) {
-    const { versionId, itemId, courseId } = params;
+    const {versionId, itemId, courseId} = params;
 
     // Create an item resource object for permission checking
-    const itemResource = subject('Item', { courseId, versionId, itemId });
-
-
+    const itemResource = subject('Item', {courseId, versionId, itemId});
 
     // Check permission using ability.can() with the actual item resource
     if (!ability.can(ItemActions.View, itemResource)) {
@@ -338,10 +347,8 @@ Access control logic:
     };
   }
 
-  async submitProject(): Promise<void> { }
+  async submitProject(): Promise<void> {}
 
-
-  
   @OpenAPI({
     summary: 'Get feedback submissions',
     description: `Get the feedback submissions of a particular course item`,
@@ -362,13 +369,61 @@ Access control logic:
   })
   async getFeedackSubmissions(
     @Params() params: GetFeedbackSubmissionsParams,
-    @QueryParams() query: GetFeedbackSubmissionsQuery
+    @QueryParams() query: GetFeedbackSubmissionsQuery,
     // @Ability(getItemAbility) { ability },
   ) {
-    const {courseId,feedbackId} = params;
-    const {search='',page=1,limit=1} =query
-    return await this.itemService.getFeedbackSubmissions(courseId,feedbackId,search,Number(page),Number(limit))
+    const {courseId, feedbackId} = params;
+    const {search = '', page = 1, limit = 1} = query;
+    return await this.itemService.getFeedbackSubmissions(
+      courseId,
+      feedbackId,
+      search,
+      Number(page),
+      Number(limit),
+    );
   }
- 
-}
 
+  @OpenAPI({
+    summary: 'Toggle item visibility',
+    description: `Toggles the visibility of a specific item within a course version.<br/>
+  Accessible to:
+  - Instructors, managers, and teaching assistants of the course.`,
+  })
+  @Authorized()
+  @Put('/versions/:versionId/items/:itemId/visibility')
+  @ResponseSchema(ItemDataResponse, {
+    description: 'Item visibility toggled successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ItemNotFoundErrorResponse, {
+    description: 'Item not found',
+    statusCode: 404,
+  })
+  async toggleItemVisibility(
+    @Params() params: VersionItemParams,
+    @Body() body: {hidden: boolean},
+    @Ability(getItemAbility) {ability},
+  ) {
+    const {versionId, itemId} = params;
+    const {hidden} = body;
+
+    // Create an item resource object for permission checking
+    const itemResource = subject('Item', {versionId});
+
+    // Check permission using ability.can() with the actual item resource
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
+    }
+
+    return await this.itemService.toggleItemVisibility(
+      versionId,
+      itemId,
+      hidden,
+    );
+  }
+}

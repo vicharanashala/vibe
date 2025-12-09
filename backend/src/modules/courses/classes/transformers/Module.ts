@@ -32,7 +32,7 @@ class Module implements IModule {
   order: string;
 
   @Expose()
-  isHidden: boolean;
+  isHidden: boolean = false;
 
   @Expose()
   @Type(() => Section)
@@ -73,6 +73,7 @@ class Module implements IModule {
     this.updatedAt = new Date();
     this.isDeleted = false;
     this.deletedAt = undefined;
+    this.isHidden = false;
   }
 }
 
