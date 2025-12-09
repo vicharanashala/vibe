@@ -1,5 +1,4 @@
 import {SignUpBody, ChangePasswordBody, GoogleSignUpBody} from '#auth/classes/index.js';
-import { InviteResult } from '#root/modules/notifications/index.js';
 import {IUser} from '#shared/interfaces/models.js';
 
 /**
@@ -20,8 +19,8 @@ export interface IAuthService {
    * @returns A promise that resolves to the newly created user object
    * @throws Error - If user creation fails for any reason
    */
-  signup(body: SignUpBody): Promise<InviteResult[] | string | null>;
-  googleSignup( body: GoogleSignUpBody, token: string): Promise<InviteResult[] | string | null>;
+  signup(body: SignUpBody): Promise<any | string | null>;
+  googleSignup( body: GoogleSignUpBody, token: string): Promise<any | string | null>;
   getUserIdFromReq(req: any): Promise<string>;
   /**
    * Changes the password for an authenticated user.

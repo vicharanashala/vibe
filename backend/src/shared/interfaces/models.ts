@@ -1,5 +1,4 @@
 import {ObjectId} from 'mongodb';
-import {ProctoringComponent} from '../database/index.js';
 import {Type} from 'class-transformer';
 import {
   IsOptional,
@@ -444,14 +443,14 @@ export interface IDetectorOptions {
   options?: Record<string, any>;
 }
 
-export interface IDetectorSettings {
-  detectorName: ProctoringComponent;
-  settings: IDetectorOptions;
-}
+// export interface IDetectorSettings {
+//   detectorName: ProctoringComponent;
+//   settings: IDetectorOptions;
+// }
 
-export interface IProctoringSettings {
-  detectors: IDetectorSettings[];
-}
+// export interface IProctoringSettings {
+//   detectors: IDetectorSettings[];
+// }
 
 // Common settings interface for both user and course settings.
 export interface IRegistrationSettings {
@@ -470,33 +469,33 @@ export interface IRegistrationSettings {
   required: boolean;
   options?: string[];
 }
-export interface ISettings {
-  proctors: IProctoringSettings;
-  linearProgressionEnabled: boolean;
-  // registration_settings?: IRegistrationSettings[];
-  registration?: {
-    jsonSchema?: any;
-    uiSchema?: any;
-  };
-  // jsonSchema?: any;
-  // uiSchema?: any;
-}
+// export interface ISettings {
+//   proctors: IProctoringSettings;
+//   linearProgressionEnabled: boolean;
+//   // registration_settings?: IRegistrationSettings[];
+//   registration?: {
+//     jsonSchema?: any;
+//     uiSchema?: any;
+//   };
+//   // jsonSchema?: any;
+//   // uiSchema?: any;
+// }
 
 // Interface for user-specific settings.
-export interface IUserSetting {
-  _id?: string | ObjectId | null;
-  studentId: string | ObjectId;
-  courseVersionId: string | ObjectId;
-  courseId: string | ObjectId;
-  settings: ISettings;
-}
+// export interface IUserSetting {
+//   _id?: string | ObjectId | null;
+//   studentId: string | ObjectId;
+//   courseVersionId: string | ObjectId;
+//   courseId: string | ObjectId;
+//   settings: ISettings;
+// }
 
 // Interface for course-specific settings.
-export interface ICourseSetting {
-  courseVersionId: string | ObjectId;
-  courseId: string | ObjectId;
-  settings: ISettings;
-}
+// export interface ICourseSetting {
+//   courseVersionId: string | ObjectId;
+//   courseId: string | ObjectId;
+//   settings: ISettings;
+// }
 
 export enum SortOrder {
   ASC = 'asc',
@@ -610,7 +609,6 @@ export interface AuthenticatedUserEnrollements {
 export interface AuthenticatedUser {
   userId: string;
   globalRole: 'admin' | 'user';
-  enrollments: AuthenticatedUserEnrollements[];
 }
 
 // export interface ICourseRegistration {

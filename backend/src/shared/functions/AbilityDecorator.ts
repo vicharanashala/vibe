@@ -1,7 +1,7 @@
 import { getFromContainer, createParamDecorator } from 'routing-controllers';
 import { AuthenticatedUser } from '../interfaces/models.js';
 import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
-import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
+// import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
 import { MongoAbility } from '@casl/ability';
 
 /**
@@ -25,18 +25,18 @@ export function Ability(abilityBuilder: (user: AuthenticatedUser) => MongoAbilit
             }
             
             // Get user's enrollments
-            const enrollmentService = getFromContainer(EnrollmentService);
-            const enrollments = await enrollmentService.getAllEnrollments(user._id.toString());
+            // const enrollmentService = getFromContainer(EnrollmentService);
+            // const enrollments = await enrollmentService.getAllEnrollments(user._id.toString());
             
             // Create authenticated user object
             const authenticatedUser: AuthenticatedUser = {
                 userId: user._id.toString(),
                 globalRole: user.roles,
-                enrollments: enrollments.map(enrollment => ({
-                    courseId: enrollment.courseId.toString(),
-                    versionId: enrollment.courseVersionId.toString(),
-                    role: enrollment.role,
-                })),
+                // enrollments: enrollments.map(enrollment => ({
+                //     courseId: enrollment.courseId.toString(),
+                //     versionId: enrollment.courseVersionId.toString(),
+                //     role: enrollment.role,
+                // })),
             };
             
             // Build and return the ability using the provided builder function

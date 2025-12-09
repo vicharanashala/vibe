@@ -12,14 +12,11 @@ import admin from 'firebase-admin';
 import {IUser} from '#root/shared/interfaces/models.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
-import {InviteRepository} from '#root/shared/index.js';
+// import {InviteRepository} from '#root/shared/index.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import {InviteResult, MailService} from '#root/modules/notifications/index.js';
 import {appConfig} from '#root/config/app.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
-import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
-import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
-import {InviteService} from '#root/modules/notifications/services/InviteService.js';
+// import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
 
 /**
  * Custom error thrown during password change operations.
@@ -44,14 +41,10 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
   constructor(
     @inject(GLOBAL_TYPES.UserRepo)
     private userRepository: IUserRepository,
-    @inject(NOTIFICATIONS_TYPES.InviteService)
-    private inviteService: InviteService,
-    @inject(GLOBAL_TYPES.InviteRepo)
-    private inviteRepository: InviteRepository,
-    @inject(USERS_TYPES.EnrollmentService)
-    private enrollmentService: EnrollmentService,
-    @inject(GLOBAL_TYPES.MailService)
-    private mailService: MailService,
+    // @inject(GLOBAL_TYPES.InviteRepo)
+    // private inviteRepository: InviteRepository,
+    // @inject(USERS_TYPES.EnrollmentService)
+    // private enrollmentService: EnrollmentService,
     @inject(GLOBAL_TYPES.Database)
     private database: MongoDatabase,
   ) {
@@ -172,34 +165,33 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       }
     });
 
-    let enrolledInvites: InviteResult[] = [];
+    let enrolledInvites = [];
 
-    const invites = await this.inviteRepository.findInvitesByEmail(body.email);
-    for (const invite of invites) {
-      if (invite.inviteStatus === 'ACCEPTED') {
-        const result = await this.enrollmentService.enrollUser(
-          createdUserId.toString(),
-          invite.courseId.toString(),
-          invite.courseVersionId.toString(),
-          invite.role,
-          true,
-        );
-        if (result && (result as any).enrollment) {
-          enrolledInvites.push(
-            new InviteResult(
-              invite._id,
-              invite.email,
-              invite.inviteStatus,
-              invite.role,
-              invite.acceptedAt,
-              invite.courseId,
-              invite.courseVersionId,
-            ),
-          );
-        }
-      }
-    }
-
+    // const invites = await this.inviteRepository.findInvitesByEmail(body.email);
+    // for (const invite of invites) {
+    //   if (invite.inviteStatus === 'ACCEPTED') {
+    //     const result = await this.enrollmentService.enrollUser(
+    //       createdUserId.toString(),
+    //       invite.courseId.toString(),
+    //       invite.courseVersionId.toString(),
+    //       invite.role,
+    //       true,
+    //     );
+    //     if (result && (result as any).enrollment) {
+    //       enrolledInvites.push(
+    //         new InviteResult(
+    //           invite._id,
+    //           invite.email,
+    //           invite.inviteStatus,
+    //           invite.role,
+    //           invite.acceptedAt,
+    //           invite.courseId,
+    //           invite.courseVersionId,
+    //         ),
+    //       );
+    //     }
+    //   }
+    // }
     return enrolledInvites.length > 0
       ? {
           userId: createdUserId,
@@ -235,33 +227,33 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       }
     });
 
-    let enrolledInvites: InviteResult[] = [];
+    let enrolledInvites = [];
 
-    const invites = await this.inviteRepository.findInvitesByEmail(body.email);
-    for (const invite of invites) {
-      if (invite.inviteStatus === 'ACCEPTED') {
-        const result = await this.enrollmentService.enrollUser(
-          createdUserId.toString(),
-          invite.courseId.toString(),
-          invite.courseVersionId.toString(),
-          invite.role,
-          true,
-        );
-        if (result && (result as any).enrollment) {
-          enrolledInvites.push(
-            new InviteResult(
-              invite._id,
-              invite.email,
-              invite.inviteStatus,
-              invite.role,
-              invite.acceptedAt,
-              invite.courseId,
-              invite.courseVersionId,
-            ),
-          );
-        }
-      }
-    }
+    // const invites = await this.inviteRepository.findInvitesByEmail(body.email);
+    // for (const invite of invites) {
+    //   if (invite.inviteStatus === 'ACCEPTED') {
+    //     const result = await this.enrollmentService.enrollUser(
+    //       createdUserId.toString(),
+    //       invite.courseId.toString(),
+    //       invite.courseVersionId.toString(),
+    //       invite.role,
+    //       true,
+    //     );
+    //     if (result && (result as any).enrollment) {
+    //       enrolledInvites.push(
+    //         new InviteResult(
+    //           invite._id,
+    //           invite.email,
+    //           invite.inviteStatus,
+    //           invite.role,
+    //           invite.acceptedAt,
+    //           invite.courseId,
+    //           invite.courseVersionId,
+    //         ),
+    //       );
+    //     }
+    //   }
+    // }
 
     return enrolledInvites.length > 0
       ? {

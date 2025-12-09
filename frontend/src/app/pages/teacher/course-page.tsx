@@ -1,6 +1,4 @@
 "use client"
-
-import React from "react"
 import { useState, useEffect, use } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -78,29 +76,29 @@ export default function TeacherCoursesPage() {
   const role = "INSTRUCTOR"
   // Fetch user enrollments with pagination (use reasonable page size)
   const { token } = useAuthStore()
-  const {
-    data: enrollmentsResponse,
-    isLoading: enrollmentsLoading,
-    error: enrollmentsError,
-    refetch,
-  } = useUserEnrollments(currentPage, 10, !!token, debouncedSearchQuery, role) // Use pagination with 10 items per page
+  // const {
+  //   data: enrollmentsResponse,
+  //   isLoading: enrollmentsLoading,
+  //   error: enrollmentsError,
+  //   refetch,
+  // } = useUserEnrollments(currentPage, 10, !!token, debouncedSearchQuery, role) // Use pagination with 10 items per page
 
 
-  const enrollments = enrollmentsResponse?.enrollments || []
+  // const enrollments = enrollmentsResponse?.enrollments || []
 
-  const totalPages = enrollmentsResponse?.totalPages || 1
-  const totalDocuments = enrollmentsResponse?.totalDocuments || 0
+  // const totalPages = enrollmentsResponse?.totalPages || 1
+  // const totalDocuments = enrollmentsResponse?.totalDocuments || 0
 
   // Get unique courses (in case user is enrolled in multiple versions of same course)
   // Since we're using pagination, we'll work with the current page data
-  const uniqueCourses = enrollments.reduce((acc: any[], enrollment: any) => {
-    const courseIdHex = bufferToHex(enrollment.courseId)
-    const existingCourse = acc.find((e) => bufferToHex(e.courseId) === courseIdHex)
-    if (!existingCourse) {
-      acc.push(enrollment)
-    }
-    return acc
-  }, [])
+  // const uniqueCourses = enrollments.reduce((acc: any[], enrollment: any) => {
+  //   const courseIdHex = bufferToHex(enrollment.courseId)
+  //   const existingCourse = acc.find((e) => bufferToHex(e.courseId) === courseIdHex)
+  //   if (!existingCourse) {
+  //     acc.push(enrollment)
+  //   }
+  //   return acc
+  // }, [])
 
 
   const navigate = useNavigate()
@@ -128,51 +126,53 @@ export default function TeacherCoursesPage() {
   }, [searchQuery])
 
   // Filter courses based on search query
-  const filteredCourses = uniqueCourses
+  // const filteredCourses = uniqueCourses
 
   // Invalidate all related queries
-  const invalidateAllQueries = () => {
-    // Invalidate enrollments
-    queryClient.invalidateQueries({
-      queryKey: ['get', '/users/enrollments']
-    })
+  // const invalidateAllQueries = () => {
+  //   // Invalidate enrollments
+  //   queryClient.invalidateQueries({
+  //     queryKey: ['get', '/users/enrollments']
+  //   })
 
-    // Invalidate all course queries
-    queryClient.invalidateQueries({
-      queryKey: ["get", "/courses/{id}"],
-    })
+  //   // Invalidate all course queries
+  //   queryClient.invalidateQueries({
+  //     queryKey: ["get", "/courses/{id}"],
+  //   })
 
-    // Invalidate all course version queries
-    queryClient.invalidateQueries({
-      queryKey: ["get", "/courses/versions/{id}"],
-    })
-  }
+  //   // Invalidate all course version queries
+  //   queryClient.invalidateQueries({
+  //     queryKey: ["get", "/courses/versions/{id}"],
+  //   })
+  // }
 
 
   // Error state
-  if (enrollmentsError) {
-    return (
-      <div className="flex-1 overflow-auto p-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center py-12">
-            <div className="relative inline-block mb-4">
-              <div className="absolute inset-0 bg-gradient-to-r from-destructive/20 to-red-500/20 rounded-full blur-xl"></div>
-              <div className="relative bg-destructive/10 border border-destructive/20 rounded-full p-4">
-                <BookOpen className="h-8 w-8 text-destructive" />
-              </div>
-            </div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">Failed to load courses</h3>
-            <p className="text-muted-foreground mb-6 max-w-md mx-auto">{enrollmentsError}</p>
-            <Button onClick={() => refetch()} className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90">
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Try Again
-            </Button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
+  // if (enrollmentsError) {
+  //   return (
+  //     <div className="flex-1 overflow-auto p-6">
+  //       <div className="max-w-6xl mx-auto">
+  //         <div className="text-center py-12">
+  //           <div className="relative inline-block mb-4">
+  //             <div className="absolute inset-0 bg-gradient-to-r from-destructive/20 to-red-500/20 rounded-full blur-xl"></div>
+  //             <div className="relative bg-destructive/10 border border-destructive/20 rounded-full p-4">
+  //               <BookOpen className="h-8 w-8 text-destructive" />
+  //             </div>
+  //           </div>
+  //           <h3 className="text-lg font-semibold text-foreground mb-2">Failed to load courses</h3>
+  //           <p className="text-muted-foreground mb-6 max-w-md mx-auto">{enrollmentsError}</p>
+  //           <Button onClick={() => refetch()} className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90">
+  //             <RotateCcw className="h-4 w-4 mr-2" />
+  //             Try Again
+  //           </Button>
+  //         </div>
+  //       </div>
+  //     </div>
+  //   )
+  // }
+  const uniqueCourses = []
+  const enrollmentsLoading=false
+  // let filteredCourses=[]
   if (uniqueCourses.length === 0 && !searchQuery) {
     return (
       <div className="flex-1 overflow-auto p-6">
@@ -279,7 +279,7 @@ export default function TeacherCoursesPage() {
           </div>
         </div>
 
-        {/* Courses List with Beautiful Cards */}
+        {/* Courses List with Beautiful Cards
         <div className="space-y-6">
           {
             enrollmentsLoading ?
@@ -306,10 +306,10 @@ export default function TeacherCoursesPage() {
                     />
                   </div>
                 ))}
-        </div>
+        </div> */}
 
         {/* Pagination with Enhanced Design */}
-        {totalPages > 1 && (
+        {/* {totalPages > 1 && (
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-r from-muted/10 to-muted/5 rounded-xl blur-sm"></div>
             <div className="relative bg-card/90 backdrop-blur-sm border border-border/50 rounded-xl p-4">
@@ -321,7 +321,7 @@ export default function TeacherCoursesPage() {
               />
             </div>
           </div>
-        )}
+        )} */}
       </div>
     </div>
   )

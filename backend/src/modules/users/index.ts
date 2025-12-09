@@ -4,26 +4,18 @@ import {InversifyAdapter} from '#root/inversify-adapter.js';
 import {Container, ContainerModule} from 'inversify';
 import {RoutingControllersOptions, useContainer} from 'routing-controllers';
 import {usersContainerModule} from './container.js';
-import {EnrollmentController} from './controllers/EnrollmentController.js';
-import {ProgressController} from './controllers/ProgressController.js';
 import {UserController} from './controllers/UserController.js';
-import { CourseController } from '../courses/controllers/CourseController.js';
-import { coursesContainerModule } from '../courses/container.js';
-import { ENROLLMENT_VALIDATORS, PROGRESS_VALIDATORS, USER_VALIDATORS } from './classes/validators/index.js';
+import { USER_VALIDATORS } from './classes/validators/index.js';
 
 
 export const usersContainerModules: ContainerModule[] = [
   usersContainerModule,
   sharedContainerModule,
   authContainerModule,
-  coursesContainerModule,
 ];
 
 export const usersModuleControllers: Function[] = [
-  EnrollmentController,
-  ProgressController,
   UserController,
-  CourseController,
 ];
 
 export async function setupUsersContainer(): Promise<void> {
@@ -44,7 +36,5 @@ export const usersModuleOptions: RoutingControllersOptions = {
 };
 
 export const usersModuleValidators: Function[] = [
-  ...ENROLLMENT_VALIDATORS,
-  ...PROGRESS_VALIDATORS,
   ...USER_VALIDATORS
 ]

@@ -18,7 +18,6 @@ import {printStartupSummary} from './utils/logDetails.js';
 import type {CorsOptions} from 'cors';
 import {authorizationChecker} from './shared/functions/authorizationChecker.js';
 import {currentUserChecker} from './shared/functions/currentUserChecker.js';
-import {startCron} from './utils/startCron.js';
 
 const app = express();
 //app.use(express.json());                       
@@ -110,5 +109,4 @@ useExpressServer(app, moduleOptions);
 
 app.listen(appConfig.port, () => {
   printStartupSummary();
-  startCron();
 });
