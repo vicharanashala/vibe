@@ -39,29 +39,29 @@ export default function StudentLayout() {
     window.history.back()
   }
 
-     useEffect(() => {
-    const toastShown = sessionStorage.getItem("inviteToastShown");
+//      useEffect(() => {
+//     const toastShown = sessionStorage.getItem("inviteToastShown");
     
-          const getUserInvites = async () => {
-              getInvites().then(result => {
-                if(result.invites.length > 0 ) { console.log(result);
-setPendingInvites(result.invites)
+//           const getUserInvites = async () => {
+//               getInvites().then(result => {
+//                 if(result.invites.length > 0 ) { console.log(result);
+// setPendingInvites(result.invites)
               
-                      if (!toastShown) {
-       toast.info("You have a new invite! Check the invites dropdown.", {
-  richColors: true,
-    position:"top-right"
-});
-        sessionStorage.setItem("inviteToastShown", "true");
-      }   
-     }})
+//                       if (!toastShown) {
+//        toast.info("You have a new invite! Check the invites dropdown.", {
+//   richColors: true,
+//     position:"top-right"
+// });
+//         sessionStorage.setItem("inviteToastShown", "true");
+//       }   
+//      }})
 
              
-          }
-          if(user)
-          getUserInvites();
+//           }
+//           if(user)
+//           getUserInvites();
         
-      }, [user])
+//       }, [user])
 
   useEffect(() => {
     if (!showInvites) return;
@@ -156,7 +156,7 @@ setPendingInvites(result.invites)
               </Link>
             </Button>
 
-            <Button
+            {/* <Button
               variant="ghost"
               size="sm"
               className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
@@ -165,7 +165,7 @@ setPendingInvites(result.invites)
               <Link to="/student/issues">
                 <span className="relative z-10">My Flags</span>
               </Link>
-            </Button>
+            </Button> */}
 
             <Button
               variant="ghost"
@@ -180,7 +180,7 @@ setPendingInvites(result.invites)
           </div>
 
           <div className="flex items-center gap-2 lg:gap-4 sm:gap-2">
-            <div className="relative" ref={invitesRef}>
+            {/* <div className="relative" ref={invitesRef}>
               <Button
                 variant="ghost"
                 size="sm"
@@ -193,7 +193,7 @@ setPendingInvites(result.invites)
               </Button>
 
               {showInvites && <InviteDropdown setPendingInvites={setPendingInvites} pendingInvites={pendingInvites} />}
-            </div>
+            </div> */}
 
             <Button
               variant="ghost"

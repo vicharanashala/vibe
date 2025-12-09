@@ -1,13 +1,8 @@
-import { Clock, FileText, Info } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+
 import { TodoList } from "@/components/ui/TodoList";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { bufferToHex } from "@/utils/helpers";
 import type { DashboardSidebarProps } from '@/types/dashboard.types';
 
-export const DashboardSidebar = ({ enrollments, className }: DashboardSidebarProps) => {
+export const DashboardSidebar = ({ className }: DashboardSidebarProps) => {
   return (
     <div className={`w-full space-y-6 bg-sidebar p-4 rounded-lg border border-sidebar-border dark:bg-[#d7ab5f18] ${className || ''}`}>
       <TodoList />

@@ -1,16 +1,16 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/auth-store";
-import { useUserEnrollments, useWatchtimeTotal } from "@/hooks/hooks";
+// import { useUserEnrollments, useWatchtimeTotal } from "@/hooks/hooks";
 import { useNavigate } from "@tanstack/react-router";
 
 // Import new components
 import { StatCard } from "@/components/ui/StatCard";
-import { AnnouncementBanner } from "@/components/ui/AnnouncementBanner";
 import { CourseSection } from "@/components/course/CourseSection";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getGreeting } from "@/utils/helpers";
 import type { CoursePctCompletion } from '@/types/course.types';
+import { AnnouncementBanner } from "@/components/ui/AnnouncementBanner";
 
 export default function Page() {
   const { isAuthenticated } = useAuthStore();
@@ -59,20 +59,24 @@ function DashboardContent() {
   }, []);
   // Only fetch enrollments if user is authenticated (i.e., token is present)
   const { token } = useAuthStore();
-  const {
-    data: enrollmentsData,
-    isLoading: enrollmentsLoading,
-    error: enrollmentsError,
-    refetch: refetchEnrollments
-  } = useUserEnrollments(1, 5, !!token);
+  // const {
+  //   data: enrollmentsData,
+  //   isLoading: enrollmentsLoading,
+  //   error: enrollmentsError,
+  //   refetch: refetchEnrollments
+  // } = useUserEnrollments(1, 5, !!token);
 
-  useEffect(() => {
-    refetchEnrollments();
-  }, [refetchEnrollments]);
+  // useEffect(() => {
+  //   refetchEnrollments();
+  // }, [refetchEnrollments]);
 
-  const enrollments = enrollmentsData?.enrollments || [];
-  const totalEnrollments = enrollmentsData?.totalDocuments || 0;
-  const { data: watchtimeData } = useWatchtimeTotal();
+  const enrollments = [];
+  const enrollmentsLoading=false
+  const enrollmentsError=''
+  // const totalEnrollments = enrollmentsData?.totalDocuments || 0;
+  const totalEnrollments =  0;
+  const watchtimeData=0
+  // const { data: watchtimeData } = useWatchtimeTotal();
   // const filteredEnrollement = enrollments.filter(enrollment=>enrollment.role == "STUDENT");
   const [completion, setCompletion] = useState<CoursePctCompletion[]>([]);
   const totalProgress = Math.round(
@@ -100,14 +104,14 @@ function DashboardContent() {
         </div>
       </div>
       {/* Announcement Banner */}
-      {/* <div className="mb-2 px-0 sm:px-6 lg:px-8 xl:px-0 transition-all duration-300">
+      <div className="mb-2 px-0 sm:px-6 lg:px-8 xl:px-0 transition-all duration-300">
         {totalProgress > 0 && (
           <AnnouncementBanner
             title="Achievement Unlocked!"
             description="Congratulations! You've earned the 'Quick Learner' badge by completing 5 lessons in a single day."
           />
         )}
-      </div> */}
+      </div>
       {/* Main content and sidebar */}
       <div className="container mx-auto px-0 sm:px-6 lg:px-8 xl:px-0 py-6 flex flex-col lg:flex-row gap-6 transition-all duration-300">
         <main className="flex-1">
@@ -148,7 +152,7 @@ function DashboardContent() {
         </main>
         <aside className="w-full lg:w-80">
           <div className="sticky top-6">
-            <DashboardSidebar enrollments={enrollments} />
+            <DashboardSidebar />
           </div>
         </aside>
       </div>

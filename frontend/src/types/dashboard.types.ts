@@ -27,6 +27,5 @@ export interface ChartLabelProps {
 }
 
 export interface DashboardSidebarProps {
-  enrollments: Array<Record<string, unknown>>;
   className?: string;
 }
