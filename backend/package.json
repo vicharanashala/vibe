@@ -81,7 +81,7 @@
     "tsconfig-paths": "^4.2.0",
     "typedoc": "^0.28.2",
     "typedoc-plugin-markdown": "^4.4.2",
-    "typescript": "^5.8.3",
+    "typescript": "^5.9.3",
     "unplugin-swc": "^1.5.4",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.3"
