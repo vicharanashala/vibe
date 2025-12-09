@@ -3494,9 +3494,27 @@ export const useHideModule = () : {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } => {
-  const result =  api.useMutation('put', '/courses/versions/{versionId}/modules/{moduleId}/hide');
+  const result =  api.useMutation('put', '/courses/versions/{versionId}/modules/{moduleId}/toggle-visibility');
   return {
     ...result,
     error: result.error ? (result?.error?.message || 'Failed to hide/unhide module') : null
   }
 };
+
+export const useHideSection = () : {
+  mutate: (variables: { params: { path: {versionId: string, moduleId: string, sectionId: string } },  body: { hide: boolean } }) => void,
+  mutateAsync: (variables: { params: { path: {versionId: string, moduleId: string, sectionId: string } },  body: { hide: boolean } }) => Promise<void>,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} => {
+  const result =  api.useMutation('put', '/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/toggle-visibility');
+  return {
+    ...result,
+    error: result.error ? (result?.error?.message || 'Failed to hide/unhide section') : null
+  }
+}

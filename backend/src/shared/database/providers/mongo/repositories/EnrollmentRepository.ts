@@ -620,16 +620,22 @@ export class EnrollmentRepository {
           },
         },
         {$unwind: '$itemsGroup'},
+        {$match: {'itemsGroup.isHidden': {$ne: true}}},
+
         {$unwind: '$itemsGroup.items'},
         {
           $group: {
             _id: '$_id',
             totalItems: {$sum: 1},
             videos: {
-              $sum: {$cond: [{$eq: ['$itemsGroup.items.type', 'VIDEO']}, 1, 0]},
+              $sum: {
+                $cond: [{$eq: ['$itemsGroup.items.type', 'VIDEO']}, 1, 0],
+              },
             },
             quizzes: {
-              $sum: {$cond: [{$eq: ['$itemsGroup.items.type', 'QUIZ']}, 1, 0]},
+              $sum: {
+                $cond: [{$eq: ['$itemsGroup.items.type', 'QUIZ']}, 1, 0],
+              },
             },
             articles: {
               $sum: {

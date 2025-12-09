@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, use } from "react";
 
 const MAX_DESCRIPTION_LENGTH = 1000;
 
@@ -34,7 +34,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Home, GraduationCap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById, useQuizDetails, useQuizAnalytics, useQuizPerformance, useQuizResults, useMoveModule, useMoveSection, useMoveItem, useUpdateCourseItem, useCourseById, useHideModule } from "@/hooks/hooks";
+import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById, useQuizDetails, useQuizAnalytics, useQuizPerformance, useQuizResults, useMoveModule, useMoveSection, useMoveItem, useUpdateCourseItem, useCourseById, useHideModule, useHideSection } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import VideoModal from "./components/Video-modal";
 import EnhancedQuizEditor from "./components/enhanced-quiz-editor";
@@ -47,6 +47,7 @@ import { Label } from "@/components/ui/label";
 import ProjectItem from "./components/ProjectItem";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import FeedbackFormEditor from "./FeedbackFormEditor";
+import { ref } from "process";
 
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
@@ -250,6 +251,7 @@ function TeacherCourseContent() {
   const { mutateAsync: updateSectionAsync, isSuccess: isUpdateSectionSuccess, isError: isUpdateSectionError, error: updateSectionError } = useUpdateSection();
   const { mutateAsync: deleteSectionAsync, isSuccess: isDeleteSectionSuccess, isError: isDeleteSectionError, error: deleteSectionError } = useDeleteSection();
   const { mutateAsync: moveSectionAsync } = useMoveSection();
+  const {mutateAsync: hideSectionAsync} = useHideSection();
 
   // --- ITEMS ---
   const { mutateAsync: createItemAsync, isSuccess: isCreateItemSuccess, isError: isCreateItemError, error: createItemError } = useCreateItem();
@@ -482,6 +484,16 @@ function TeacherCourseContent() {
     }).then((res) => {
       refetchVersion();
     })
+  }
+
+  const handleHideSection = (moduleId: string, sectionId: string, hide: boolean) => {
+    if (!versionId) return;
+    hideSectionAsync({
+      params: { path: { versionId, moduleId, sectionId } },
+      body: {hide: hide}
+    }).then((res) => {
+      refetchVersion();
+    });
   }
 
   // Add Item (handles all item types including video, quiz, article, and project)
@@ -828,7 +840,7 @@ if (type === "feedback") {
                             key={module.moduleId}
                             value={module}
                             drag
-                            className="focus:outline-none"
+                            className={module.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
                             whileDrag={{ scale: 1.02 }}
                             onDragEnd={() => {
                               setInitialModules(pendingOrder.current);
@@ -872,7 +884,7 @@ if (type === "feedback") {
                                     key={section.sectionId}
                                     value={section}
                                     drag
-                                    className="focus:outline-none"
+                                    className={section.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
                                     whileDrag={{ scale: 1.02 }}
                                     onDragEnd={() => {
                                       setInitialModules((prev) =>
@@ -1271,6 +1283,10 @@ if (type === "feedback") {
                                         </Reorder.Group>
                                       )}
                                     </SidebarMenuSubItem>
+                                    <Button className="absolute top-0 right-2" size="icon" variant="ghost" onClick={(e) => handleHideSection(module.moduleId, section.sectionId, !section.isHidden)}>
+                                    {!section.isHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                                    <span className="sr-only">Hide Section</span>
+                                    </Button>
                                   </Reorder.Item>
                                 ))}
 

@@ -557,4 +557,82 @@ export class ItemRepository implements IItemRepository {
       return updatedVersion.totalItems;
     }
   }
+
+  async getItemGroupsByIds(
+    itemGroupIds: string[],
+    session?: ClientSession,
+  ): Promise<ItemsGroup[]> {
+    await this.init();
+
+    const objectIds = itemGroupIds.map(id => new ObjectId(id));
+    const itemGroups = await this.itemsGroupCollection
+      .find({_id: {$in: objectIds}}, {session})
+      .toArray();
+
+    return itemGroups.map(ig =>
+      instanceToPlain(Object.assign(new ItemsGroup(), ig)),
+    ) as ItemsGroup[];
+  }
+
+  async updateItemsGroupsBulk(
+    itemGroupIds: (string | ObjectId)[],
+    updateData: Partial<ItemsGroup>,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+
+    const objectIds = itemGroupIds.map(id => new ObjectId(id));
+    const updateFields: any = {};
+
+    await this.itemsGroupCollection.updateMany(
+      {_id: {$in: objectIds}},
+      {$set: updateData},
+      {session},
+    );
+
+    return objectIds.length;
+  }
+
+  async updateItemById(
+    itemId: string,
+    item: Item,
+    itemType: string,
+    session?: ClientSession,
+  ): Promise<Item> {
+    await this.init();
+    let collection: Collection<any>;
+    switch (itemType) {
+      case ItemType.VIDEO:
+        collection = this.videoCollection;
+        break;
+      case ItemType.QUIZ:
+        collection = this.quizCollection;
+        break;
+      case ItemType.BLOG:
+        collection = this.blogCollection;
+        break;
+      case ItemType.PROJECT:
+        collection = this.projectCollection;
+        break;
+      case ItemType.FEEDBACK:
+        collection = this.feedbackFormCollection;
+        break;
+      default:
+        throw new InternalServerError(
+          `Unsupported item type: ${(item as any).type}`,
+        );
+    }
+
+    const result = await collection.findOneAndUpdate(
+      {_id: new ObjectId(itemId)},
+      {$set: item},
+      {session},
+    );
+
+    if (!result) {
+      throw new NotFoundError(`Item ${itemId} not found.`);
+    }
+
+    return result as Item;
+  }
 }

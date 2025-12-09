@@ -36,6 +36,9 @@ class QuizItem {
   @Expose()
   details?: IQuizDetails;
 
+  @Expose()
+  isHidden?: boolean;
+
   constructor(
     name: string,
     description: string,
@@ -68,6 +71,9 @@ class VideoItem {
   @Expose()
   details?: IVideoDetails;
 
+  @Expose()
+  isHidden?: boolean;
+
   constructor(
     name: string,
     description: string,
@@ -99,6 +105,9 @@ class BlogItem {
 
   @Expose()
   details?: IBlogDetails;
+
+  @Expose()
+  isHidden?: boolean;
 
   constructor(
     name: string,
@@ -227,6 +236,9 @@ class ProjectItem {
 
   @Expose()
   type: ItemType = ItemType.PROJECT;
+
+  @Expose()
+  isHidden?: boolean;
 
   details?: any;
   constructor(name: string, description: string, _id: ID, details?: any) {
@@ -364,6 +376,9 @@ class ItemsGroup {
   @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
   @Transform(StringToObjectId.transformer, {toClassOnly: true})
   sectionId: ID;
+
+  @Expose()
+  isHidden?: boolean;
 
   constructor(sectionId?: ID, items?: ItemRef[]) {
     this.items = items ? items : [];

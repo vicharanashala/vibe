@@ -14,7 +14,7 @@ export interface IItemRepository {
     itemId: string,
     session?: ClientSession,
   ): Promise<ItemsGroup | null>;
-  getItemsCountByGroupIds(groupIds:string[],session?:ClientSession)
+  getItemsCountByGroupIds(groupIds: string[], session?: ClientSession);
   createItemsGroup(
     itemsGroup: ItemsGroup,
     session?: ClientSession,
@@ -62,6 +62,21 @@ export interface IItemRepository {
     versionId: string,
     session?: ClientSession,
   ): Promise<number>;
+  getItemGroupsByIds(
+    groupIds: (string | ObjectId)[],
+    session?: ClientSession,
+  ): Promise<ItemsGroup[]>;
+  updateItemsGroupsBulk(
+    groupIds: (string | ObjectId)[],
+    updateData: Partial<ItemsGroup>,
+    session?: ClientSession,
+  ): Promise<number>;
+  updateItemById(
+    itemId: string,
+    item: Item,
+    itemType: string,
+    session?: ClientSession,
+  ): Promise<Item>;
   // createVideoDetails(details: IVideoDetails): Promise<string>;
   // createQuizDetails(details: IQuizDetails): Promise<string>;
   // createBlogDetails(details: IBlogDetails): Promise<string>;
