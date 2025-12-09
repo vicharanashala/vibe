@@ -35,7 +35,7 @@ import {
   QuizRepository,
   UserQuizMetricsRepository,
 } from '#root/modules/quizzes/repositories/index.js';
-import { FeedbackRepository } from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
+import {FeedbackRepository} from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
 
 @injectable()
 export class ItemService extends BaseService {
@@ -57,7 +57,7 @@ export class ItemService extends BaseService {
     @inject(QUIZZES_TYPES.AttemptRepo)
     private attemptRepository: AttemptRepository,
     @inject(QUIZZES_TYPES.FeedbackRepo)
-    private feedbackRepo:FeedbackRepository,
+    private feedbackRepo: FeedbackRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -227,7 +227,6 @@ export class ItemService extends BaseService {
   }
 
   public async readItem(versionId: string, itemId: string) {
-    
     const item = await this.itemRepo.readItem(versionId, itemId);
     item._id = item._id.toString();
     return item;
@@ -529,9 +528,67 @@ export class ItemService extends BaseService {
     });
   }
 
-  public async getFeedbackSubmissions(courseId:string,itemId:string,search:string,page:number,limit:number){
-    return await this._withTransaction(async (session:ClientSession) => {
-      return await this.feedbackRepo.getFeedbackSubmissionById(itemId,courseId,search,page,limit)
-    })
+  public async getFeedbackSubmissions(
+    courseId: string,
+    itemId: string,
+    search: string,
+    page: number,
+    limit: number,
+  ) {
+    return await this._withTransaction(async (session: ClientSession) => {
+      return await this.feedbackRepo.getFeedbackSubmissionById(
+        itemId,
+        courseId,
+        search,
+        page,
+        limit,
+      );
+    });
+  }
+
+  public async toggleItemVisibility(
+    courseVersionId: string,
+    itemId: string,
+    hidden: boolean,
+  ) {
+    return this._withTransaction(async session => {
+      const item = await this.itemRepo.readItem(
+        courseVersionId,
+        itemId,
+        session,
+      );
+
+      if (!item) throw new NotFoundError(`Item ${itemId} not found.`);
+
+      item.isHidden = hidden;
+
+      const updatedItem = await this.itemRepo.updateItemById(
+        itemId,
+        item,
+        item.type,
+        session,
+      );
+
+      if (!updatedItem) {
+        throw new InternalServerError(`Failed to update item ${itemId}`);
+      }
+
+      const version = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      if (!version)
+        throw new NotFoundError(`Version ${courseVersionId} not found.`);
+
+      version.updatedAt = new Date();
+
+      const updatedVersion = await this.courseRepo.updateVersion(
+        courseVersionId,
+        version,
+        session,
+      );
+
+      return updatedItem;
+    });
   }
 }

@@ -42,6 +42,9 @@ class Section implements ISection {
   @Type(() => Date)
   updatedAt: Date;
 
+  @Expose()
+  isHidden: boolean = false;
+
   constructor(sectionBody: CreateSectionBody, existingSections: ISection[]) {
     if (sectionBody) {
       this.name = sectionBody.name;

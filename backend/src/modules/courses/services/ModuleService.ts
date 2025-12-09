@@ -1,6 +1,5 @@
 import 'reflect-metadata';
 import {inject, injectable} from 'inversify';
-import {CourseRepository} from '#shared/database/providers/mongo/repositories/CourseRepository.js';
 import {
   CreateModuleBody,
   UpdateModuleBody,
@@ -162,21 +161,43 @@ export class ModuleService extends BaseService {
   ) {
     return this._withTransaction(async session => {
       const version = await this.courseRepo.readVersion(versionId, session);
-      const moduleIndex = version.modules.findIndex(
-        m => m.moduleId === moduleId,
+      const module = version.modules.find(
+        m => m.moduleId.toString() === moduleId,
       );
-      const module = version.modules[moduleIndex];
       if (!module) throw new NotFoundError(`Module ${moduleId} not found.`);
+
+      let itemGroupIds = [];
+
+      module.sections.forEach(section => {
+        section.isHidden = isHidden;
+        section.updatedAt = new Date();
+        itemGroupIds.push(section.itemsGroupId && section.itemsGroupId);
+      });
+
+      itemGroupIds = itemGroupIds.filter(id => id);
+
+      const itemGroups = await this.itemRepo.getItemGroupsByIds(
+        itemGroupIds,
+        session,
+      );
+
+      itemGroups.forEach(group => {
+        group.isHidden = isHidden;
+      });
 
       module.isHidden = isHidden;
       module.updatedAt = new Date();
       version.updatedAt = new Date();
 
-      version.modules[moduleIndex] = module;
-
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
         version,
+        session,
+      );
+
+      await this.itemRepo.updateItemsGroupsBulk(
+        itemGroupIds,
+        {isHidden},
         session,
       );
 
