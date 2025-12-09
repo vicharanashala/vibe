@@ -68,6 +68,7 @@ export interface ISection {
   name: string;
   description: string;
   order: string;
+  isHidden: boolean;
   itemsGroupId?: ID;
   isDeleted?: boolean;
   deletedAt?: Date;

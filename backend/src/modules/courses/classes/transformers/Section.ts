@@ -43,6 +43,7 @@ class Section implements ISection {
   updatedAt: Date;
 
   @Expose()
+  isHidden: boolean = false;
   isDeleted?: boolean;
 
   @Expose()
