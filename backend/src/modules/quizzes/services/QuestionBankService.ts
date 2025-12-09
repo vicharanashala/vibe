@@ -97,6 +97,7 @@ class QuestionBankService extends BaseService {
           `Question bank with ID ${questionBankId} not found`,
         );
       }
+
       const result = await this.questionBankRepository.delete(
         questionBankId,
         txnSession,
@@ -131,6 +132,7 @@ class QuestionBankService extends BaseService {
       questionBank.questions.push(questionObjectId);
       questionBank.courseVersionId = new ObjectId(questionBank.courseVersionId);
       questionBank.courseId = new ObjectId(questionBank.courseId.toString());
+
       return this.questionBankRepository.update(
         questionBankId,
         questionBank,
@@ -158,14 +160,26 @@ class QuestionBankService extends BaseService {
           `Question with ID ${questionId} not found in question bank`,
         );
       }
+      /*
+      Maintain the reference to perform a soft delete in question repository
       questionBank.questions.splice(questionIndex, 1);
       questionBank.courseVersionId = new ObjectId(questionBank.courseVersionId);
       questionBank.courseId = new ObjectId(questionBank.courseId.toString());
-      return this.questionBankRepository.update(
+
+      const updatedQuestionBank = await this.questionBankRepository.update(
         questionBankId,
         questionBank,
         session,
+      );*/
+
+      // soft delete question from questionRepository.
+
+      const deleteResult = await this.questionRepository.delete(
+        questionId,
+        session,
       );
+
+      return questionBank;
     });
   }
 

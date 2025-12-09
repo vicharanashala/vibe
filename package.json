@@ -6,7 +6,9 @@
 	"author": "adityabmv",
 	"devDependencies": {
 		"husky": "^9.1.7",
-		"lint-staged": "^15.5.0"
+		"lint-staged": "^15.5.0",
+		"ts-node": "^10.9.2",
+		"typescript": "^5.9.3"
 	},
 	"scripts": {
 		"prepare": "husky",
