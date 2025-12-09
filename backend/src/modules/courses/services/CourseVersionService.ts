@@ -135,7 +135,7 @@ export class CourseVersionService extends BaseService {
     userId: string,
   ): Promise<CourseVersion> {
     return this._withTransaction(async session => {
-      const readVersion = await this.courseRepo.readVersion(
+      const readVersion = await this.courseRepo.getActiveVersion(
         courseVersionId,
         session,
       );
@@ -249,7 +249,7 @@ export class CourseVersionService extends BaseService {
         itemGroupsIds,
         session,
       );
-      if (versionDeleteResult.deletedCount !== 1) {
+      if (versionDeleteResult.modifiedCount !== 1) {
         throw new InternalServerError('Failed to delete course version');
       }
       return true;

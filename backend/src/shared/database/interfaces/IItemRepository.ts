@@ -62,6 +62,9 @@ export interface IItemRepository {
     versionId: string,
     session?: ClientSession,
   ): Promise<number>;
+
+  cascadeDeleteItem(session?: ClientSession): Promise<void>;
+
   getItemGroupsByIds(
     groupIds: (string | ObjectId)[],
     session?: ClientSession,

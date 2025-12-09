@@ -56,12 +56,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } catch (error) {
               console.error('Failed to refresh token:', error);
               // If refresh fails, sign out user
-              handleLogout();
+              // handleLogout();
+              
+              // Retry token refresh 
+              try {
+                console.log('Retrying token refresh...');
+                const firebaseUser = auth.currentUser;
+                if (firebaseUser) {
+                  const newToken = await firebaseUser.getIdToken(true);
+                  setToken(newToken);
+                  console.log('Token refresh retry successful');
+                }
+              } catch (retryError) {
+                console.error('Token refresh retry failed:', retryError);
+                
+              }
             }
           }, 50 * 60 * 1000); // 50 minutes in milliseconds
           
         } catch (error) {
           console.error('Error getting initial token:', error);
+          // Instead of logging out trying to refresh the token once more
+          try {
+            console.log('Initial token failed, attempting refresh...');
+            const retryToken = await firebaseUser.getIdToken(true);
+            setToken(retryToken);
+            console.log('Token refresh on page load successful');
+          } catch (retryError) {
+            console.error('Token refresh on page load failed:', retryError);
+ 
+          }
         }
       } else {
         // User is signed out, clear everything

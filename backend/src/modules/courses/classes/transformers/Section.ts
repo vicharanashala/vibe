@@ -44,6 +44,11 @@ class Section implements ISection {
 
   @Expose()
   isHidden: boolean = false;
+  isDeleted?: boolean;
+
+  @Expose()
+  @Type(() => Date)
+  deletedAt?: Date;
 
   constructor(sectionBody: CreateSectionBody, existingSections: ISection[]) {
     if (sectionBody) {
@@ -62,6 +67,8 @@ class Section implements ISection {
     );
     this.createdAt = new Date();
     this.updatedAt = new Date();
+    this.isDeleted = false;
+    this.deletedAt = undefined;
   }
 }
 

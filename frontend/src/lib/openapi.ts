@@ -56,6 +56,26 @@ fetchClient.use({
         console.error('Token refresh failed during API call:', error);
         // If refresh fails, redirect to login or handle as needed
         // This could trigger a logout in your auth context
+        
+        try {
+          console.log('API interceptor: Retrying token refresh with Firebase...');
+          const { auth: firebaseAuth } = await import('@/lib/firebase');
+          const firebaseUser = firebaseAuth.currentUser;
+          
+          if (firebaseUser) {
+            const freshToken = await firebaseUser.getIdToken(true);
+            localStorage.setItem('firebase-auth-token', freshToken);
+            
+            // Retry the request with fresh token
+            const retryRequest = request.clone();
+            retryRequest.headers.set('Authorization', `Bearer ${freshToken}`);
+            console.log('API interceptor: Token refresh successful, retrying request');
+            return fetch(retryRequest);
+          }
+        } catch (retryError) {
+          console.error('API interceptor: Final token refresh attempt failed:', retryError);
+  
+        }
       }
     }
     

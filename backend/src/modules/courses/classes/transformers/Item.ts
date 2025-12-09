@@ -37,6 +37,12 @@ class QuizItem {
   details?: IQuizDetails;
 
   @Expose()
+  isDeleted?: boolean;
+
+  @Expose()
+  deletedAt?: Date;
+
+  @Expose()
   isHidden?: boolean;
 
   constructor(
@@ -50,6 +56,8 @@ class QuizItem {
     this.name = name;
     this.description = description;
     this.details = details;
+    this.isDeleted = false;
+    this.deletedAt = undefined;
   }
 }
 
@@ -71,9 +79,6 @@ class VideoItem {
   @Expose()
   details?: IVideoDetails;
 
-  @Expose()
-  isHidden?: boolean;
-
   constructor(
     name: string,
     description: string,
@@ -85,6 +90,8 @@ class VideoItem {
     this.name = name;
     this.description = description;
     this.details = details;
+    this.isDeleted = false;
+    this.deletedAt = undefined;
   }
 }
 
@@ -106,9 +113,6 @@ class BlogItem {
   @Expose()
   details?: IBlogDetails;
 
-  @Expose()
-  isHidden?: boolean;
-
   constructor(
     name: string,
     description: string,
@@ -120,6 +124,8 @@ class BlogItem {
     this.name = name;
     this.description = description;
     this.details = details;
+    this.isDeleted = false;
+    this.deletedAt = undefined;
   }
 }
 
@@ -241,6 +247,13 @@ class ProjectItem {
   isHidden?: boolean;
 
   details?: any;
+
+  @Expose()
+  isDeleted?: boolean;
+
+  @Expose()
+  deletedAt?: Date;
+
   constructor(name: string, description: string, _id: ID, details?: any) {
     this._id = _id;
     this.type = ItemType.PROJECT;
@@ -250,6 +263,8 @@ class ProjectItem {
     if (details) {
       this.details = details;
     }
+    this.isDeleted = false;
+    this.deletedAt = undefined;
   }
 }
 
