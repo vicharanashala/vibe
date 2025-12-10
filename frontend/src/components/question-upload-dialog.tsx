@@ -248,7 +248,7 @@ const handleGenerateLLMResponse = async () => {
 
       previousTimestamp = timestamp;
 
-      questions.forEach((q: any) => {
+      questions.forEach((q: any, index: number) => {
         flattenedRows.push({
           "Segment": currentSegmentNumber,
           "Question Timestamp [mm:ss]": timestamp,
@@ -813,7 +813,7 @@ const handleGenerateLLMResponse = async () => {
                     <Card key={index} className="shadow-md border">
                       <CardHeader>
                         <CardTitle className="flex justify-between">
-                          <span>Segment {segment.segmentNumber}</span>
+                          <span>Segment {index+1} </span>
                           <span className="text-sm text-muted-foreground">
                             Timestamp: {segment.timestamp}
                           </span>
