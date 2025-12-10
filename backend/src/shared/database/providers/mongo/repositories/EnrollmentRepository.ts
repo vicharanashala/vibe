@@ -17,6 +17,7 @@ import {InternalServerError, NotFoundError} from 'routing-controllers';
 import {MongoDatabase} from '../MongoDatabase.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {IQuestionBank} from '#root/shared/interfaces/quiz.js';
+import { EnrollmentDataResponse } from '#root/modules/users/classes/index.js';
 
 @injectable()
 export class EnrollmentRepository {
@@ -75,6 +76,143 @@ export class EnrollmentRepository {
       {session},
     );
   }
+
+async getEnrollments(
+  userId: string,
+  skip: number,
+  limit: number,
+  role?: EnrollmentRole,
+  search = ""
+): Promise<EnrollmentDataResponse[]> {
+
+  await this.init();
+
+  if (!ObjectId.isValid(userId)) {
+    throw new Error("Invalid userId passed to getEnrollments");
+  }
+
+  const match: any = {
+    userId: new ObjectId(userId),
+  };
+
+  if (role) {
+    match.role = role; // ✅ role stays STRING
+  }
+
+  const pipeline: any[] = [
+    { $match: match },
+
+    // ✅ Join Course
+    {
+      $lookup: {
+        from: "newCourse",
+        localField: "courseId",
+        foreignField: "_id",
+        as: "course",
+      },
+    },
+
+    { $unwind: "$course" },
+
+    ...(search
+      ? [{ $match: { "course.name": { $regex: search, $options: "i" } } }]
+      : []),
+
+    { $sort: { enrollmentDate: -1 } },
+    { $skip: skip },
+    { $limit: limit },
+
+    // ✅ FINAL PROJECTION: Convert ALL ObjectIds → string
+    {
+      $project: {
+        _id: { $toString: "$_id" },               // ✅ enrollment id as string
+        userId: { $toString: "$userId" },         // ✅ userId as string
+        courseId: { $toString: "$courseId" },     // ✅ courseId as string
+
+        // ✅ RENAMED: courseVersionId → version
+        version: { $toString: "$courseVersionId" },
+
+        role: 1,
+        status: 1,
+        enrollmentDate: 1,
+        percentCompleted: 1,
+
+        // ✅ Course object with string _id
+        course: {
+          _id: { $toString: "$course._id" },
+          name: "$course.name",
+          description: "$course.description",
+          versions: {
+            $map: {
+              input: "$course.versions",
+              as: "v",
+              in: { $toString: "$$v" }
+            }
+          },
+          instructor: {
+            $map: {
+              input: "$course.instructor",
+              as: "i",
+              in: { $toString: "$$i" }
+            }
+          },
+          createdAt: "$course.createdAt",
+          updatedAt: "$course.updatedAt",
+        },
+      },
+    },
+  ];
+
+  return this.enrollmentCollection
+    .aggregate<EnrollmentDataResponse>(pipeline)
+    .toArray();
+}
+
+
+// async getEnrollments(
+//   userId: string,
+//   skip: number,
+//   limit: number,
+//   role?: EnrollmentRole,
+//   search = ""
+// ): Promise<EnrollmentDataResponse[]> {
+//   await this.init()
+//   console.log("Inside repo ",userId,skip,limit,role,search)
+//   const match: any = {
+//     userId: new ObjectId(userId),
+//   };
+
+//   if (role) {
+//     match.role = role;
+//   }
+
+//   const pipeline: any[] = [
+//     { $match: match },
+
+//     // ✅ Join Course
+//     {
+//       $lookup: {
+//         from: "newCourse",
+//         localField: "courseId",
+//         foreignField: "_id",
+//         as: "course",
+//       },
+//     },
+
+//     { $unwind: "$course" },
+
+//     // ✅ Optional Search by Course Name
+//     ...(search
+//       ? [{ $match: { "course.name": { $regex: search, $options: "i" } } }]
+//       : []),
+
+//     { $sort: { enrollmentDate: -1 } },
+//     { $skip: skip },
+//     { $limit: limit },
+//   ];
+
+//   return this.enrollmentCollection.aggregate<EnrollmentDataResponse>(pipeline).toArray();
+// }
 
 //   async findActiveEnrollment(
 //     userId: string | ObjectId,
@@ -1021,16 +1159,16 @@ export class EnrollmentRepository {
 //   /**
 //    * Count total enrollments for a user
 //    */
-//   async countEnrollments(userId: string, role: EnrollmentRole) {
-//     await this.init();
+  async countEnrollments(userId: string, role: EnrollmentRole) {
+    await this.init();
 
-//     const userObjectid = new ObjectId(userId);
+    const userObjectid = new ObjectId(userId);
 
-//     return await this.enrollmentCollection.countDocuments({
-//       userId: userObjectid,
-//       role,
-//     });
-//   }
+    return await this.enrollmentCollection.countDocuments({
+      userId: userObjectid,
+      role,
+    });
+  }
 //   /*Update enrollments for all records in db */
 //   async bulkUpdateEnrollments(
 //     bulkOperations: any[],

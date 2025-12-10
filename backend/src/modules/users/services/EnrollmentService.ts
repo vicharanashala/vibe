@@ -1,9 +1,10 @@
-import { BaseService, EnrollmentRepository, EnrollmentRole, EnrollmentStatus, ICourseRepository, IUserRepository, MongoDatabase } from "#root/shared/index.js";
+import { BaseService, EnrollmentRepository, EnrollmentRole, EnrollmentStatus, ICourseRepository, IEnrollment, IUserRepository, MongoDatabase } from "#root/shared/index.js";
 import { inject, injectable } from "inversify";
 import { USERS_TYPES } from "../types.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { ClientSession, ObjectId } from "mongodb";
 import { BadRequestError, NotFoundError } from "routing-controllers";
+import { EnrollmentDataResponse } from "../classes/index.js";
 
 
 @injectable()
@@ -172,6 +173,22 @@ export class EnrollmentService extends BaseService {
 
       return existingEnrollment;
     });
+  }
+
+    async getEnrollments(
+    userId: string,
+    skip: number,
+    limit: number,
+    role?: EnrollmentRole,
+    search?: string
+  ): Promise<EnrollmentDataResponse[]> {
+    return this.enrollmentRepo.getEnrollments(
+      userId,
+      skip,
+      limit,
+      role,
+      search
+    );
   }
 //   async unenrollUser(
 //     userId: string,
@@ -408,12 +425,12 @@ export class EnrollmentService extends BaseService {
 //     }
 //   }
 
-//   async countEnrollments(userId: string, role: EnrollmentRole) {
-//     return this._withTransaction(async (session: ClientSession) => {
-//       const result = await this.enrollmentRepo.countEnrollments(userId, role);
-//       return result;
-//     });
-//   }
+  async countEnrollments(userId: string, role: EnrollmentRole) {
+    return this._withTransaction(async (session: ClientSession) => {
+      const result = await this.enrollmentRepo.countEnrollments(userId, role);
+      return result;
+    });
+  }
 
 //   async getInstructorEnrollment(courseId: string, versionId: string) {
 //     return this.enrollmentRepo.getByCourseVersion(courseId, versionId);

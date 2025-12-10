@@ -23,6 +23,12 @@
 // // import { CourseDataResponse } from '#root/modules/courses/classes/index.js';
 // import { ContentCountsValidator } from './ContentCountsValidators.js';
 
+import { CourseDataResponse } from "#root/modules/courses/classes/validators/courseValidator.js";
+import { EnrollmentRole, EnrollmentStatus, ICourse, ID } from "#root/shared/index.js";
+import { Type } from "class-transformer";
+import { IsArray, IsDate, IsInt, IsMongoId, IsNotEmpty, IsOptional, IsString, ValidateNested } from "class-validator";
+import { JSONSchema } from "class-validator-jsonschema";
+
 // export class EnrollmentParams {
 //   @JSONSchema({
 //     description: 'User ID of the student to enroll',
@@ -64,75 +70,75 @@
 //   role: EnrollmentRole;
 // }
 
-// export class EnrollmentDataResponse {
-//   @JSONSchema({
-//     description: 'Unique identifier for the enrollment record',
-//     example: '60d5ec49b3f1c8e4a8f8b8d2',
-//     type: 'string',
-//     readOnly: true,
-//   })
-//   @IsString()
-//   @IsMongoId()
-//   _id?: ID;
+export class EnrollmentDataResponse {
+  @JSONSchema({
+    description: 'Unique identifier for the enrollment record',
+    example: '60d5ec49b3f1c8e4a8f8b8d2',
+    type: 'string',
+    readOnly: true,
+  })
+  @IsString()
+  @IsMongoId()
+  _id?: ID;
 
-//   @JSONSchema({
-//     description: 'Course ID associated with this enrollment',
-//     example: '60d5ec49b3f1c8e4a8f8b8c2',
-//     type: 'string',
-//   })
-//   @IsNotEmpty()
-//   @IsString()
-//   @IsMongoId()
-//   courseId: ID;
+  @JSONSchema({
+    description: 'Course ID associated with this enrollment',
+    example: '60d5ec49b3f1c8e4a8f8b8c2',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @IsMongoId()
+  courseId: ID;
 
-//   @JSONSchema({
-//     description: 'Course version ID associated with this enrollment',
-//     example: '60d5ec49b3f1c8e4a8f8b8c3',
-//     type: 'string',
-//   })
-//   @IsNotEmpty()
-//   @IsString()
-//   @IsMongoId()
-//   courseVersionId: ID;
+  @JSONSchema({
+    description: 'Course version ID associated with this enrollment',
+    example: '60d5ec49b3f1c8e4a8f8b8c3',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @IsMongoId()
+  courseVersionId: ID;
 
-//   @JSONSchema({
-//     description: 'Role of the user',
-//     example: 'INSTRUCTOR',
-//     type: 'string',
-//     enum: ['INSTRUCTOR', 'STUDENT'],
-//   })
-//   @IsNotEmpty()
-//   @IsString()
-//   role: EnrollmentRole;
+  @JSONSchema({
+    description: 'Role of the user',
+    example: 'INSTRUCTOR',
+    type: 'string',
+    enum: ['INSTRUCTOR', 'STUDENT'],
+  })
+  @IsNotEmpty()
+  @IsString()
+  role: EnrollmentRole;
 
-//   @JSONSchema({
-//     description: 'Status of the enrollment',
-//     example: 'active',
-//     type: 'string',
-//     enum: ['active', 'inactive'],
-//   })
-//   @IsNotEmpty()
-//   @IsString()
-//   status: EnrollmentStatus;
+  @JSONSchema({
+    description: 'Status of the enrollment',
+    example: 'active',
+    type: 'string',
+    enum: ['active', 'inactive'],
+  })
+  @IsNotEmpty()
+  @IsString()
+  status: EnrollmentStatus;
 
-//   @JSONSchema({
-//     description: 'Date when the user was enrolled',
-//     example: '2023-10-01T12:00:00Z',
-//     type: 'string',
-//     format: 'date-time',
-//   })
-//   @IsNotEmpty()
-//   @IsDate()
-//   @Type(() => Date)
-//   enrollmentDate: Date;
+  @JSONSchema({
+    description: 'Date when the user was enrolled',
+    example: '2023-10-01T12:00:00Z',
+    type: 'string',
+    format: 'date-time',
+  })
+  @IsNotEmpty()
+  @IsDate()
+  @Type(() => Date)
+  enrollmentDate: Date;
 
-//   @JSONSchema({
-//     description: 'Optional course details related to the enrollment',
-//   })
-//   @IsOptional()
-//   @ValidateNested()
-//   @Type(() => CourseDataResponse)
-//   course: ICourse;
+  @JSONSchema({
+    description: 'Optional course details related to the enrollment',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CourseDataResponse)
+  course: ICourse;
 
 //   @JSONSchema({
 //     description: 'Content counts for the course (videos, quizzes, articles)',
@@ -142,7 +148,7 @@
 //   @ValidateNested()
 //   @Type(() => ContentCountsValidator)
 //   contentCounts?: ContentCountsValidator;
-// }
+}
 
 // export class EnrollUserResponseData {
 //   @JSONSchema({
@@ -328,54 +334,54 @@
 //   progress: ProgressResponse;
 // }
 
-// export class EnrollmentResponse {
-//   @JSONSchema({
-//     description: 'Total number of documents in the response',
-//     example: 100,
-//     type: 'integer',
-//   })
-//   @IsNotEmpty()
-//   @IsInt()
-//   totalDocuments: number;
+export class EnrollmentResponse {
+  @JSONSchema({
+    description: 'Total number of documents in the response',
+    example: 100,
+    type: 'integer',
+  })
+  @IsNotEmpty()
+  @IsInt()
+  totalDocuments: number;
 
-//   @JSONSchema({
-//     description: 'Total number of pages in the response',
-//     example: 10,
-//     type: 'integer',
-//   })
-//   @IsNotEmpty()
-//   @IsInt()
-//   totalPages: number;
+  @JSONSchema({
+    description: 'Total number of pages in the response',
+    example: 10,
+    type: 'integer',
+  })
+  @IsNotEmpty()
+  @IsInt()
+  totalPages: number;
 
-//   @JSONSchema({
-//     description: 'Current page number in the response',
-//     example: 1,
-//     type: 'integer',
-//   })
-//   @IsNotEmpty()
-//   @IsInt()
-//   currentPage: number;
+  @JSONSchema({
+    description: 'Current page number in the response',
+    example: 1,
+    type: 'integer',
+  })
+  @IsNotEmpty()
+  @IsInt()
+  currentPage: number;
 
-//   @JSONSchema({
-//     description: 'Array of enrollment data for the user',
-//     type: 'array',
-//     items: { $ref: '#/components/schemas/EnrollmentDataResponse' },
-//   })
-//   @IsNotEmpty()
-//   @IsArray()
-//   @ValidateNested({ each: true })
-//   @Type(() => EnrollmentDataResponse)
-//   enrollments: EnrollmentDataResponse[];
+  @JSONSchema({
+    description: 'Array of enrollment data for the user',
+    type: 'array',
+    items: { $ref: '#/components/schemas/EnrollmentDataResponse' },
+  })
+  @IsNotEmpty()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EnrollmentDataResponse)
+  enrollments: EnrollmentDataResponse[];
 
-//   @JSONSchema({
-//     description: 'Optional message about the enrollment status',
-//     example: 'No enrollments found for the user',
-//     type: 'string',
-//   })
-//   @IsString()
-//   @IsOptional()
-//   message?: string;
-// }
+  @JSONSchema({
+    description: 'Optional message about the enrollment status',
+    example: 'No enrollments found for the user',
+    type: 'string',
+  })
+  @IsString()
+  @IsOptional()
+  message?: string;
+}
 
 // export class CourseVersionEnrollmentResponse {
 //   @JSONSchema({
@@ -393,14 +399,14 @@
 //   currentPage: number;
 // }
 
-// export class EnrollmentNotFoundErrorResponse {
-//   @JSONSchema({
-//     description: 'Error message indicating the enrollment was not found',
-//     example: 'Enrollment could not be created or found.',
-//   })
-//   @IsString()
-//   message: string;
-// }
+export class EnrollmentNotFoundErrorResponse {
+  @JSONSchema({
+    description: 'Error message indicating the enrollment was not found',
+    example: 'Enrollment could not be created or found.',
+  })
+  @IsString()
+  message: string;
+}
 
 // export class EnrollmentStatisticsResponse {
 //   @IsNumber()

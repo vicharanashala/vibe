@@ -1,3 +1,5 @@
+import { Type } from 'class-transformer';
+import { IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import {ObjectId} from 'mongodb';
 // import {Priority} from './quiz.js';
 
@@ -48,6 +50,24 @@ export interface IItem {
 }
  
 
+export type EnrollmentRole =
+  | 'INSTRUCTOR'
+  | 'STUDENT'
+  | 'MANAGER'
+  | 'TA'
+  | 'STAFF';
+export type EnrollmentStatus = 'ACTIVE' | 'INACTIVE';
+// New interfaces for user enrollment and progress tracking
+export interface IEnrollment {
+  _id?: string | ObjectId | null;
+  userId: string | ObjectId;
+  courseId: string | ObjectId;
+  courseVersionId: string | ObjectId;
+  role: EnrollmentRole;
+  status: EnrollmentStatus;
+  enrollmentDate: Date;
+  percentCompleted: number;
+}
 
 
 // export type Versions = {
@@ -395,24 +415,6 @@ export interface IItem {
 //   uiSchema: Record<string, any>;
 // }
 
-export type EnrollmentRole =
-  | 'INSTRUCTOR'
-  | 'STUDENT'
-  | 'MANAGER'
-  | 'TA'
-  | 'STAFF';
-export type EnrollmentStatus = 'ACTIVE' | 'INACTIVE';
-// New interfaces for user enrollment and progress tracking
-export interface IEnrollment {
-  _id?: string | ObjectId | null;
-  userId: string | ObjectId;
-  courseId: string | ObjectId;
-  courseVersionId: string | ObjectId;
-  role: EnrollmentRole;
-  status: EnrollmentStatus;
-  enrollmentDate: Date;
-  percentCompleted: number;
-}
 
 // export interface IProgress {
 //   _id?: string | ObjectId | null;
@@ -561,27 +563,28 @@ export interface IEnrollment {
 //   sortOrder?: SortOrder = SortOrder.DESC;
 // }
 
-// export class EnrollmentFilterQuery {
-//   @IsOptional()
-//   @Type(() => Number)
-//   @IsInt()
-//   @Min(1)
-//   page: number = 1;
+export class EnrollmentFilterQuery {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number = 1;
 
-//   @IsOptional()
-//   @Type(() => Number)
-//   @IsInt()
-//   @Min(1)
-//   limit: number = 10;
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit: number = 10;
 
-//   @IsOptional()
-//   @IsString()
-//   search: string = '';
+  @IsOptional()
+  @IsString()
+  search: string = '';
 
-//   @IsString()
-//   @IsIn(['STUDENT', 'INSTRUCTOR', 'MANAGER', 'TA', 'STAFF'])
-//   role: EnrollmentRole;
-// }
+  @IsOptional()
+  @IsString()
+  @IsIn(['STUDENT', 'INSTRUCTOR', 'MANAGER', 'TA', 'STAFF'])
+  role?: EnrollmentRole;
+}
 
 // export class EnrollmentsQuery {
 //   @IsOptional()

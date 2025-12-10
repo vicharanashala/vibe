@@ -4,6 +4,7 @@ import {UserController} from './controllers/UserController.js';
 import {UserService} from './services/UserService.js';
 import { EnrollmentService } from './services/EnrollmentService.js';
 import { EnrollmentRepository } from '#root/shared/index.js';
+import { EnrollmentController } from './controllers/EnrollmentController.js';
 
 export const usersContainerModule = new ContainerModule(options => {
   // Repositories
@@ -17,4 +18,5 @@ options
 .bind(USERS_TYPES.EnrollmentService).to(EnrollmentService).inSingletonScope()
   // Controllers
   options.bind(UserController).toSelf().inSingletonScope();
+  options.bind(EnrollmentController).toSelf().inSingletonScope()
 });

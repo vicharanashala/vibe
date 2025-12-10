@@ -6,6 +6,7 @@ import {RoutingControllersOptions, useContainer} from 'routing-controllers';
 import {usersContainerModule} from './container.js';
 import {UserController} from './controllers/UserController.js';
 import { USER_VALIDATORS } from './classes/validators/index.js';
+import { EnrollmentController } from './controllers/EnrollmentController.js';
 
 
 export const usersContainerModules: ContainerModule[] = [
@@ -16,6 +17,7 @@ export const usersContainerModules: ContainerModule[] = [
 
 export const usersModuleControllers: Function[] = [
   UserController,
+  EnrollmentController
 ];
 
 export async function setupUsersContainer(): Promise<void> {

@@ -1079,12 +1079,13 @@ export function useUserEnrollments(page?: number, limit?: number, enabled: boole
   error: string | null,
   refetch: () => void
 } {
-  const result = api.useQuery("get", "/users/enrollments", {
+  const result = api.useQuery("get", "/enrollments", {
     params: {
       query: { page, limit, search, role }
     },
     enabled: enabled
   });
+  console.log("resu;t ",result)
 
   return {
     data: result.data,

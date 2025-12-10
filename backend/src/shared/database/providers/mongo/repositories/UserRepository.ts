@@ -90,6 +90,10 @@ export class UserRepository implements IUserRepository {
    */
   async findById(id: string | ObjectId, session?: ClientSession): Promise<IUser | null> {
     await this.init();
+    console.log("id ",id  )
+     if (!ObjectId.isValid(id)) {
+    throw new Error(`Invalid Mongo ID passed to findById: ${id}`);
+  }
     const user = await this.usersCollection.findOne({ _id: new ObjectId(id) }, {session});
     return instanceToPlain(new User(user)) as IUser;
   }

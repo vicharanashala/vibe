@@ -124,6 +124,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     if (!decodedToken) {
       return false;
     }
+    console.log("tken verified ")
     return true;
   }
 

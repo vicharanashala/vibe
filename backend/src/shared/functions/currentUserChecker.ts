@@ -6,7 +6,6 @@ import { IUser } from "../interfaces/models.js";
 
 export const currentUserChecker: CurrentUserChecker = async (action): Promise<IUser> => {
   const request = action.request as Request;
-
   const authService = getFromContainer(FirebaseAuthService);
   
   // Extract the token from the Authorization header
