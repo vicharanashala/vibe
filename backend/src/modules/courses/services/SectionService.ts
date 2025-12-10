@@ -12,6 +12,7 @@ import {ICourseRepository} from '#root/shared/database/interfaces/ICourseReposit
 import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {ICourseVersion} from '#root/shared/interfaces/models.js';
+import {EnrollmentRepository} from '#root/shared/index.js';
 @injectable()
 export class SectionService extends BaseService {
   constructor(
@@ -19,6 +20,8 @@ export class SectionService extends BaseService {
     private readonly itemRepo: IItemRepository,
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
+    @inject(GLOBAL_TYPES.EnrollmentRepo)
+    private readonly enrollmentRepo: EnrollmentRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -258,6 +261,9 @@ export class SectionService extends BaseService {
         version,
         session,
       );
+      if (!updatedVersion) {
+        throw new InternalServerError('Failed to update Section');
+      }
 
       // Hide all items in the section
       const itemsGroupId = section.itemsGroupId.toString();
@@ -267,12 +273,18 @@ export class SectionService extends BaseService {
       );
       if (itemsGroup) {
         itemsGroup.isHidden = hide;
+        itemsGroup.items.forEach(item => {
+          item.isHidden = hide;
+        });
         await this.itemRepo.updateItemsGroup(itemsGroupId, itemsGroup, session);
       }
 
-      if (!updatedVersion) {
-        throw new InternalServerError('Failed to update Section');
-      }
+      await this.enrollmentRepo.setWatchTimeVisibility(
+        itemsGroup.items.map(item => item._id.toString()),
+        hide,
+        session,
+      );
+
       return updatedVersion;
     });
   }

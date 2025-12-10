@@ -31,7 +31,7 @@ import {
 } from '#courses/classes/validators/ItemValidators.js';
 import {ItemService} from '#courses/services/ItemService.js';
 import {injectable, inject} from 'inversify';
-import {VersionModuleSectionParams} from '../classes/index.js';
+import {HideModuleBody, VersionModuleSectionParams} from '../classes/index.js';
 import {ItemActions, getItemAbility} from '../abilities/itemAbilities.js';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {subject} from '@casl/ability';
@@ -390,7 +390,7 @@ Access control logic:
   - Instructors, managers, and teaching assistants of the course.`,
   })
   @Authorized()
-  @Put('/versions/:versionId/items/:itemId/visibility')
+  @Put('/versions/:versionId/items/:itemId/toggle-visibility')
   @ResponseSchema(ItemDataResponse, {
     description: 'Item visibility toggled successfully',
   })
@@ -404,11 +404,15 @@ Access control logic:
   })
   async toggleItemVisibility(
     @Params() params: VersionItemParams,
-    @Body() body: {hidden: boolean},
+    @Body() body: HideModuleBody,
     @Ability(getItemAbility) {ability},
   ) {
     const {versionId, itemId} = params;
-    const {hidden} = body;
+    const {hide} = body;
+
+    console.log(
+      `Toggling visibility for item ${itemId} in version ${versionId} to ${hide}`,
+    );
 
     // Create an item resource object for permission checking
     const itemResource = subject('Item', {versionId});
@@ -420,10 +424,6 @@ Access control logic:
       );
     }
 
-    return await this.itemService.toggleItemVisibility(
-      versionId,
-      itemId,
-      hidden,
-    );
+    return await this.itemService.toggleItemVisibility(versionId, itemId, hide);
   }
 }

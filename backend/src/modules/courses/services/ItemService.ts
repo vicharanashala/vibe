@@ -554,6 +554,27 @@ export class ItemService extends BaseService {
     hidden: boolean,
   ) {
     return this._withTransaction(async session => {
+      const itemGroup = await this.itemRepo.findItemsGroupByItemId(
+        itemId,
+        session,
+      );
+
+      if (!itemGroup) {
+        throw new NotFoundError(`ItemsGroup for item ${itemId} not found`);
+      }
+
+      itemGroup.items.forEach(item => {
+        if (item._id.toString() === itemId) {
+          item.isHidden = hidden;
+        }
+      });
+
+      await this.itemRepo.updateItemsGroup(
+        itemGroup._id.toString(),
+        itemGroup,
+        session,
+      );
+
       const item = await this.itemRepo.readItem(
         courseVersionId,
         itemId,
@@ -587,6 +608,12 @@ export class ItemService extends BaseService {
       const updatedVersion = await this.courseRepo.updateVersion(
         courseVersionId,
         version,
+        session,
+      );
+
+      await this.enrollmentRepo.setWatchTimeVisibility(
+        [itemId],
+        hidden,
         session,
       );
 
