@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/auth-store";
-// import { useUserEnrollments, useWatchtimeTotal } from "@/hooks/hooks";
+import { useUserEnrollments, useWatchtimeTotal } from "@/hooks/hooks";
 import { useNavigate } from "@tanstack/react-router";
 
 // Import new components
@@ -59,20 +59,21 @@ function DashboardContent() {
   }, []);
   // Only fetch enrollments if user is authenticated (i.e., token is present)
   const { token } = useAuthStore();
-  // const {
-  //   data: enrollmentsData,
-  //   isLoading: enrollmentsLoading,
-  //   error: enrollmentsError,
-  //   refetch: refetchEnrollments
-  // } = useUserEnrollments(1, 5, !!token);
+  const {
+    data: enrollmentsData,
+    isLoading: enrollmentsLoading,
+    error: enrollmentsError,
+    refetch: refetchEnrollments
+  } = useUserEnrollments(1, 5, !!token);
 
-  // useEffect(() => {
-  //   refetchEnrollments();
-  // }, [refetchEnrollments]);
+  useEffect(() => {
+    refetchEnrollments();
+  }, [refetchEnrollments]);
 
-  const enrollments = [];
-  const enrollmentsLoading=false
-  const enrollmentsError=''
+  // const enrollments = [];
+  const enrollments = enrollmentsData?.enrollments || [];
+  // const enrollmentsLoading=false
+  // const enrollmentsError=''
   // const totalEnrollments = enrollmentsData?.totalDocuments || 0;
   const totalEnrollments =  0;
   const watchtimeData=0

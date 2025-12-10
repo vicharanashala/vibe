@@ -7,6 +7,7 @@ import { coursesContainerModule } from './container.js';
 import { CourseController } from './controllers/CourseController.js';
 import { COURSE_VALIDATORS } from './classes/validators/courseValidator.js';
 import { COURSEVERSION_VALIDATORS } from './classes/validators/courseVersionValidator.js';
+import { CourseVersionController } from './controllers/courseVersionController.js';
 // import {UserController} from './controllers/UserController.js';
 // import { USER_VALIDATORS } from './classes/validators/index.js';
 
@@ -19,6 +20,7 @@ export const coursesContainerModules: ContainerModule[] = [
 
 export const coursesModuleControllers: Function[] = [
   CourseController,
+  CourseVersionController
 ];
 
 export async function setupUsersContainer(): Promise<void> {

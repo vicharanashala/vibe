@@ -56,4 +56,24 @@ export class CourseVersionService extends BaseService {
     // If session provided, use it; otherwise wrap in a new transaction
     return session ? run(session) : this._withTransaction(run);
   }
+
+   public async readCourseVersion(
+    courseVersionId: string,
+  ): Promise<CourseVersion> {
+    return this._withTransaction(async session => {
+      const readVersion = await this.courseRepo.getActiveVersion(
+        courseVersionId,
+        session,
+      );
+      if (!readVersion) {
+        throw new InternalServerError('Failed to read course version.');
+      }
+
+      const version = instanceToPlain(
+        Object.assign(new CourseVersion(), readVersion),
+      ) as CourseVersion;
+
+      return version;
+    });
+  }
 }

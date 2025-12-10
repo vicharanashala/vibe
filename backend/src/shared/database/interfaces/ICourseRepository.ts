@@ -45,6 +45,11 @@ export interface ICourseRepository {
     session?: ClientSession,
   ): Promise<ICourseVersion | null>;
 
+  getActiveVersion(
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<ICourseVersion | null>
+
 //   getActiveVersion(
 //     versionId: string,
 //     session?: ClientSession,

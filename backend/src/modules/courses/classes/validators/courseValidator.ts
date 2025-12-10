@@ -1,5 +1,5 @@
 import { ICourse, ID } from "#root/shared/index.js";
-import { IsNotEmpty, IsString, MaxLength, MinLength } from "class-validator";
+import { IsMongoId, IsNotEmpty, IsString, MaxLength, MinLength } from "class-validator";
 import { JSONSchema } from "class-validator-jsonschema";
 
 class CourseBody implements Partial<ICourse> {
@@ -132,13 +132,37 @@ class CourseDataResponse implements ICourse {
   updatedAt?: Date | null;
 }
 
+class CourseNotFoundErrorResponse {
+  @JSONSchema({
+    description: 'The error message.',
+    example:
+      'No course found with the specified ID. Please verify the ID and try again.',
+    type: 'string',
+    readOnly: true,
+  })
+  @IsNotEmpty()
+  message: string;
+}
+class CourseIdParams {
+  @JSONSchema({
+    description: 'Object ID of the course',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  courseId: string;
+}
 
 export {
   CourseBody,
-  CourseDataResponse
+  CourseDataResponse,
+  CourseNotFoundErrorResponse,
+  CourseIdParams
 };
 
 export const COURSE_VALIDATORS = [
   CourseBody,
-  CourseDataResponse
+  CourseDataResponse,
+  CourseNotFoundErrorResponse,
+  CourseIdParams
 ];

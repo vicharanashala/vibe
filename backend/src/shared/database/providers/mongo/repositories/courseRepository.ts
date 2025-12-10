@@ -4,7 +4,7 @@ import { MongoDatabase } from "../MongoDatabase.js";
 import { Course } from "#root/modules/courses/classes/transformers/course.js";
 import { CourseVersion } from "#root/modules/courses/classes/transformers/courseVersion.js";
 import { inject, injectable } from "inversify";
-import { ICourse } from "#root/shared/interfaces/models.js";
+import { ICourse, ICourseVersion } from "#root/shared/interfaces/models.js";
 import { instanceToPlain } from "class-transformer";
 import { InternalServerError, NotFoundError } from "routing-controllers";
 import { ICourseRepository } from "#root/shared/database/interfaces/ICourseRepository.js";
@@ -948,4 +948,69 @@ export class CourseRepository implements ICourseRepository {
 //       );
 //     }
 //   }
+
+
+async getActiveVersion(
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<ICourseVersion | null> {
+    await this.init();
+
+    // Find the course version with no section or module marked as deleted
+    const courseVersionPipeline = [
+      {
+        $match: {
+          _id: new ObjectId(versionId),
+        },
+      },
+      {
+        $set: {
+          modules: {
+            $map: {
+              input: {
+                $filter: {
+                  input: '$modules',
+                  as: 'mod',
+                  cond: {$ne: ['$$mod.isDeleted', true]},
+                },
+              },
+              as: 'mod',
+              in: {
+                moduleId: '$$mod.moduleId',
+                name: '$$mod.name',
+                description: '$$mod.description',
+                order: '$$mod.order',
+                createdAt: '$$mod.createdAt',
+                updatedAt: '$$mod.updatedAt',
+                isDeleted: '$$mod.isDeleted',
+                deletedAt: '$$mod.deletedAt',
+                sections: {
+                  $filter: {
+                    input: '$$mod.sections',
+                    as: 'sec',
+                    cond: {$ne: ['$$sec.isDeleted', true]},
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    ];
+
+    const pipeline = this.courseVersionCollection.aggregate(
+      courseVersionPipeline,
+      {session},
+    );
+
+    const courseVersion = await pipeline.next();
+
+    if (courseVersion === null) {
+      throw new NotFoundError('Course Version not found');
+    }
+
+    return instanceToPlain(
+      Object.assign(new CourseVersion(), courseVersion),
+    ) as CourseVersion;
+  }
 }

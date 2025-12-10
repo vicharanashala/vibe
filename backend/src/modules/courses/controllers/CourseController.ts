@@ -1,16 +1,17 @@
 import { inject, injectable } from "inversify";
-import { Authorized, Body, CurrentUser, ForbiddenError, HttpCode, JsonController, Post } from "routing-controllers";
+import { Authorized, Body, CurrentUser, ForbiddenError, Get, HttpCode, JsonController, Params, Post } from "routing-controllers";
 import { OpenAPI, ResponseSchema } from "routing-controllers-openapi";
 import { COURSES_TYPES} from "../types.js";
 import { EnrollmentService } from "#root/modules/users/services/EnrollmentService.js";
 import { CourseService } from "../services/CourseService.js";
-import { CourseBody, CourseDataResponse } from "../classes/validators/courseValidator.js";
+import { CourseBody, CourseDataResponse, CourseIdParams, CourseNotFoundErrorResponse } from "../classes/validators/courseValidator.js";
 import { BadRequestErrorResponse, IUser } from "#root/shared/index.js";
 import { Course } from "../classes/transformers/course.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { Ability } from "#root/shared/functions/AbilityDecorator.js";
 import { CourseActions, getCourseAbility } from "../abilities/courseAbilities.js";
 import { USERS_TYPES } from "#root/modules/users/types.js";
+import { subject } from "@casl/ability";
 
 
 @OpenAPI({
@@ -74,5 +75,46 @@ export class CourseController {
 
     //3. Return the course details
     return createdCourse;
+  }
+
+
+   @OpenAPI({
+    summary: 'Get course details',
+    description: `Retrieves course information by ID.<br/>
+Accessible to:
+- Users who are part of the course (students, teaching assistants, instructors, or managers)
+`,
+  })
+  @Authorized()
+  @Get('/:courseId', { transformResponse: true })
+  @ResponseSchema(CourseDataResponse, {
+    description: 'Course retrieved successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(CourseNotFoundErrorResponse, {
+    description: 'Course not found',
+    statusCode: 404,
+  })
+  async read(
+    @Params() params: CourseIdParams,
+    @Ability(getCourseAbility) { ability },
+  ) {
+    const { courseId } = params;
+
+    // Create a course resource object with the courseId for permission checking
+    const courseResource = subject('Course', { courseId });
+
+    // Check permission using ability.can() with the actual course resource
+    if (!ability.can(CourseActions.View, courseResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to view this course',
+      );
+    }
+
+    const course = await this.courseService.readCourse(courseId);
+    return course;
   }
 }

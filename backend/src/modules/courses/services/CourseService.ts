@@ -68,4 +68,17 @@ export class CourseService extends BaseService {
       return createdCourse;
     });
   }
+
+    async readCourse(id: string): Promise<Course> {
+    return this._withTransaction(async session => {
+      const course = await this.courseRepo.read(id);
+      if (!course) {
+        throw new NotFoundError(
+          'No course found with the specified ID. Please verify the ID and try again.',
+        );
+      }
+      return course;
+    });
+  }
+
 }

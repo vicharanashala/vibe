@@ -77,98 +77,6 @@ export class EnrollmentRepository {
     );
   }
 
-async getEnrollments(
-  userId: string,
-  skip: number,
-  limit: number,
-  role?: EnrollmentRole,
-  search = ""
-): Promise<EnrollmentDataResponse[]> {
-
-  await this.init();
-
-  if (!ObjectId.isValid(userId)) {
-    throw new Error("Invalid userId passed to getEnrollments");
-  }
-
-  const match: any = {
-    userId: new ObjectId(userId),
-  };
-
-  if (role) {
-    match.role = role; // ✅ role stays STRING
-  }
-
-  const pipeline: any[] = [
-    { $match: match },
-
-    // ✅ Join Course
-    {
-      $lookup: {
-        from: "newCourse",
-        localField: "courseId",
-        foreignField: "_id",
-        as: "course",
-      },
-    },
-
-    { $unwind: "$course" },
-
-    ...(search
-      ? [{ $match: { "course.name": { $regex: search, $options: "i" } } }]
-      : []),
-
-    { $sort: { enrollmentDate: -1 } },
-    { $skip: skip },
-    { $limit: limit },
-
-    // ✅ FINAL PROJECTION: Convert ALL ObjectIds → string
-    {
-      $project: {
-        _id: { $toString: "$_id" },               // ✅ enrollment id as string
-        userId: { $toString: "$userId" },         // ✅ userId as string
-        courseId: { $toString: "$courseId" },     // ✅ courseId as string
-
-        // ✅ RENAMED: courseVersionId → version
-        version: { $toString: "$courseVersionId" },
-
-        role: 1,
-        status: 1,
-        enrollmentDate: 1,
-        percentCompleted: 1,
-
-        // ✅ Course object with string _id
-        course: {
-          _id: { $toString: "$course._id" },
-          name: "$course.name",
-          description: "$course.description",
-          versions: {
-            $map: {
-              input: "$course.versions",
-              as: "v",
-              in: { $toString: "$$v" }
-            }
-          },
-          instructor: {
-            $map: {
-              input: "$course.instructor",
-              as: "i",
-              in: { $toString: "$$i" }
-            }
-          },
-          createdAt: "$course.createdAt",
-          updatedAt: "$course.updatedAt",
-        },
-      },
-    },
-  ];
-
-  return this.enrollmentCollection
-    .aggregate<EnrollmentDataResponse>(pipeline)
-    .toArray();
-}
-
-
 // async getEnrollments(
 //   userId: string,
 //   skip: number,
@@ -176,14 +84,19 @@ async getEnrollments(
 //   role?: EnrollmentRole,
 //   search = ""
 // ): Promise<EnrollmentDataResponse[]> {
-//   await this.init()
-//   console.log("Inside repo ",userId,skip,limit,role,search)
+
+//   await this.init();
+
+//   if (!ObjectId.isValid(userId)) {
+//     throw new Error("Invalid userId passed to getEnrollments");
+//   }
+
 //   const match: any = {
 //     userId: new ObjectId(userId),
 //   };
 
 //   if (role) {
-//     match.role = role;
+//     match.role = role; // ✅ role stays STRING
 //   }
 
 //   const pipeline: any[] = [
@@ -201,7 +114,6 @@ async getEnrollments(
 
 //     { $unwind: "$course" },
 
-//     // ✅ Optional Search by Course Name
 //     ...(search
 //       ? [{ $match: { "course.name": { $regex: search, $options: "i" } } }]
 //       : []),
@@ -209,79 +121,180 @@ async getEnrollments(
 //     { $sort: { enrollmentDate: -1 } },
 //     { $skip: skip },
 //     { $limit: limit },
+
+//     // ✅ FINAL PROJECTION: Convert ALL ObjectIds → string
+//     {
+//       $project: {
+//         _id: { $toString: "$_id" },               // ✅ enrollment id as string
+//         userId: { $toString: "$userId" },         // ✅ userId as string
+//         courseId: { $toString: "$courseId" },     // ✅ courseId as string
+
+//         // ✅ RENAMED: courseVersionId → version
+//         version: { $toString: "$courseVersionId" },
+
+//         role: 1,
+//         status: 1,
+//         enrollmentDate: 1,
+//         percentCompleted: 1,
+
+//         // ✅ Course object with string _id
+//         course: {
+//           _id: { $toString: "$course._id" },
+//           name: "$course.name",
+//           description: "$course.description",
+//           versions: {
+//             $map: {
+//               input: "$course.versions",
+//               as: "v",
+//               in: { $toString: "$$v" }
+//             }
+//           },
+//           instructor: {
+//             $map: {
+//               input: "$course.instructor",
+//               as: "i",
+//               in: { $toString: "$$i" }
+//             }
+//           },
+//           createdAt: "$course.createdAt",
+//           updatedAt: "$course.updatedAt",
+//         },
+//       },
+//     },
 //   ];
 
-//   return this.enrollmentCollection.aggregate<EnrollmentDataResponse>(pipeline).toArray();
+//   return this.enrollmentCollection
+//     .aggregate<EnrollmentDataResponse>(pipeline)
+//     .toArray();
 // }
 
-//   async findActiveEnrollment(
-//     userId: string | ObjectId,
-//     courseId: string,
-//     courseVersionId: string,
-//     session?: ClientSession,
-//   ): Promise<IEnrollment | null> {
-//     await this.init();
 
-//     const courseObjectId = new ObjectId(courseId);
-//     const courseVersionObjectId = new ObjectId(courseVersionId);
-//     const userObjectid = new ObjectId(userId);
+async getEnrollments(
+  userId: string,
+  skip: number,
+  limit: number,
+  role?: EnrollmentRole,
+  search = ""
+): Promise<any[]> {
 
-//     return await this.enrollmentCollection.findOne(
-//       {
-//         userId: userObjectid,
-//         courseId: courseObjectId,
-//         courseVersionId: courseVersionObjectId,
-//         status: 'ACTIVE',
-//         isDeleted: {$ne: true},
-//       },
-//       {session},
-//     );
-//   }
+  await this.init();
 
-//   async getInstructorIdsByVersion(
-//     courseId: string,
-//     versionId: string,
-//     session?: ClientSession,
-//   ) {
-//     await this.init();
-//     console.log(
-//       'CourseId and versionId from getInstructors ',
-//       courseId,
-//       versionId,
-//     );
-//     const enrollments = await this.enrollmentCollection
-//       .find(
-//         {
-//           courseId: new ObjectId(courseId),
-//           courseVersionId: new ObjectId(versionId),
-//           role: 'INSTRUCTOR',
-//           status: 'ACTIVE',
-//         },
-//         {projection: {userId: 1, _id: 0}, session}, // only return userId
-//       )
-//       .toArray();
-//     console.log('enrollments ', enrollments);
-//     return enrollments.map(enrollment => enrollment.userId);
-//   }
+  if (!ObjectId.isValid(userId)) {
+    throw new Error("Invalid userId passed to getEnrollments");
+  }
 
-//   async updateProgressPercentById(
-//     enrollmentId: string,
-//     percentCompleted: number,
-//     session?: ClientSession,
-//   ): Promise<void> {
-//     try {
-//       await this.init();
-//       await this.enrollmentCollection.findOneAndUpdate(
-//         {_id: new ObjectId(enrollmentId)},
-//         {$set: {percentCompleted}},
-//         {session},
-//       );
-//     } catch (error) {
-//       throw new InternalServerError(
-//         `Failed to update progress in enrollment. More/${error}`,
-//       );
-//     }
-//   }
+  const match: any = {
+    userId: new ObjectId(userId),
+  };
+
+  if (role) {
+    match.role = role;
+  }
+
+  const pipeline: any[] = [
+    { $match: match },
+
+    // ✅ Join Course
+    {
+      $lookup: {
+        from: "newCourse",
+        localField: "courseId",
+        foreignField: "_id",
+        as: "course",
+      },
+    },
+    { $unwind: "$course" },
+
+    // ✅ Join ALL Versions belonging to this course
+    {
+      $lookup: {
+        from: "newCourseVersion",                // ⚠️ use your actual collection name
+        localField: "course._id",             // ✅ match courseId in versions
+        foreignField: "courseId",
+        as: "courseVersions",
+      },
+    },
+
+    // ✅ Join ENROLLED Version (the user's version)
+    {
+      $lookup: {
+        from: "newCourseVersion",
+        localField: "courseVersionId",
+        foreignField: "_id",
+        as: "enrolledVersion",
+      },
+    },
+    {
+      $unwind: {
+        path: "$enrolledVersion",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+
+    ...(search
+      ? [{ $match: { "course.name": { $regex: search, $options: "i" } } }]
+      : []),
+
+    { $sort: { enrollmentDate: -1 } },
+    { $skip: skip },
+    { $limit: limit },
+
+    // ✅ FINAL SHAPE + STRING IDS
+    {
+      $project: {
+        _id: { $toString: "$_id" },
+        userId: { $toString: "$userId" },
+        courseId: { $toString: "$courseId" },
+
+        // ✅ Enrolled Version ID as "version"
+        version: { $toString: "$courseVersionId" },
+
+        role: 1,
+        status: 1,
+        enrollmentDate: 1,
+        percentCompleted: 1,
+
+        // ✅ Full Course with Versions
+        course: {
+          _id: { $toString: "$course._id" },
+          name: "$course.name",
+          description: "$course.description",
+          createdAt: "$course.createdAt",
+          updatedAt: "$course.updatedAt",
+
+          // ✅ NOW FILLED PROPERLY
+          versions: {
+            $map: {
+              input: "$courseVersions",
+              as: "v",
+              in: { $toString: "$$v._id" },
+            },
+          },
+
+          instructor: {
+            $map: {
+              input: "$course.instructor",
+              as: "i",
+              in: { $toString: "$$i" },
+            },
+          },
+        },
+
+        // ✅ FULL OBJECT OF ENROLLED VERSION (for UI)
+        enrolledVersion: {
+          _id: { $toString: "$enrolledVersion._id" },
+          version: "$enrolledVersion.version",
+          description: "$enrolledVersion.description",
+          createdAt: "$enrolledVersion.createdAt",
+          updatedAt: "$enrolledVersion.updatedAt",
+        },
+      },
+    },
+  ];
+
+  return this.enrollmentCollection.aggregate(pipeline).toArray();
+}
+
   /**
    * Create a new enrollment record
    */

@@ -333,7 +333,6 @@ function CourseCard({
   enrollment: RawEnrollment
   onInvalidate: () => void
 }) {
-  console.log("enrollment ",enrollment)
   const [showNewVersionForm, setShowNewVersionForm] = useState(false)
   const [newVersionData, setNewVersionData] = useState({ version: "", description: "" })
   const [expandedCourse, setExpandedCourse] = useState(false)
@@ -1242,8 +1241,8 @@ function VersionCard({
                   </div>
                 </div>
                 <div className="flex items-center lg:justify-end gap-2 shrink-0 mt-3 md:mt-0 flex-wrap">
-                  <ProjectSubmissionsDownloadButton courseId={courseId || ""} versionId={versionId || ""} />
-                  <Button
+                  {/* <ProjectSubmissionsDownloadButton courseId={courseId || ""} versionId={versionId || ""} /> */}
+                  {/* <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setIsCopyModalOpen(true)}
@@ -1256,7 +1255,7 @@ function VersionCard({
                       <Copy className="h-3 w-3 mr-1" />
                     )}
                     Clone
-                  </Button>
+                  </Button> */}
                   <Button
                     variant="outline"
                     size="sm"
@@ -1381,14 +1380,14 @@ function VersionCard({
 
 
 
-                <Button variant="outline" size="sm" onClick={viewAnomalies} className="h-7 text-xs cursor-pointer">
+                {/* <Button variant="outline" size="sm" onClick={viewAnomalies} className="h-7 text-xs cursor-pointer">
                   <Eye className="h-3 w-3 mr-1" />
                   View Anomalies
                 </Button>
                 <Button variant="outline" size="sm" onClick={viewFlags} className="h-7 text-xs cursor-pointer">
                   <FlagTriangleRight className="h-3 w-3 mr-1" />
                   View Flags
-                </Button>
+                </Button> */}
                 <Button
                   variant="outline"
                   size="sm"
@@ -1408,7 +1407,7 @@ function VersionCard({
                   <Users className="h-3 w-3 mr-1" />
                   View Students
                 </Button>
-                <Button
+                {/* <Button
                   variant="outline"
                   size="sm"
                   onClick={goToRegistrations}
@@ -1416,7 +1415,7 @@ function VersionCard({
                 >
                   <UserCheck className="h-3 w-3 mr-1" />
                   Registrations
-                </Button>
+                </Button> */}
                 {/* <Button
           variant="outline"
           size="sm"
@@ -1451,7 +1450,7 @@ function VersionCard({
                 </Button>
 
 
-                <Button
+                {/* <Button
                   variant="outline"
                   size="sm"
                   onClick={(e) => {
@@ -1462,7 +1461,7 @@ function VersionCard({
                 >
                   <Settings2 className="h-3 w-3 mr-1" />
                   Settings
-                </Button>
+                </Button> */}
               </div>
             </div>
 

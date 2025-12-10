@@ -1085,8 +1085,6 @@ export function useUserEnrollments(page?: number, limit?: number, enabled: boole
     },
     enabled: enabled
   });
-  console.log("resu;t ",result)
-
   return {
     data: result.data,
     isLoading: result.isLoading,
