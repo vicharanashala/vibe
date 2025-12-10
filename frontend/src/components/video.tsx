@@ -189,6 +189,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
     }
   }, [pauseVid, playing]);
 
+
+  
   // Autoplay: Wait for grace period completion
   useEffect(() => {
     const player = playerRef.current;
@@ -281,75 +283,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   //   }
   // }, [anomalies]);
   // Handle keyboard events including space for play/pause
-useEffect(() => {
-  if (!keyboardLockEnabled) return;
 
-  // helper to find the actual iframe element injected by YouTube
-  const getIframeElement = (): HTMLIFrameElement | null => {
-    try {
-      return iframeRef.current?.querySelector('iframe') ?? null;
-    } catch {
-      return null;
-    }
-  };
-
-  const blockedCodes = new Set([
-    'KeyK', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-    'KeyM', 'KeyF', 'KeyT', 'KeyC', 'Digit0', 'Digit1', 'Digit2', 'Digit3',
-    'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9',
-    'Period', 'Comma', 'KeyI', 'KeyO',
-  ]);
-
-  const handleKeyDown = (e: KeyboardEvent) => {
-    const target = e.target as HTMLElement | null;
-    const active = document.activeElement as HTMLElement | null;
-
-    // 1) If the user is typing into an input/textarea/contentEditable, allow the event.
-    if (target) {
-      const tag = target.tagName;
-      if (
-        tag === 'INPUT' ||
-        tag === 'TEXTAREA' ||
-        (target as HTMLElement).isContentEditable
-      ) {
-        return;
-      }
-    }
-
-    // 2) Treat Space separately (play/pause). Always handle space to toggle playback,
-    //    but avoid stopping other app handlers from receiving the event.
-    if (e.code === 'Space') {
-      // prevent default so page doesn't scroll, and run our play/pause logic.
-      e.preventDefault();
-      handlePlayPause();
-      // Do NOT stop propagation: allow any other app listeners to run.
-      return;
-    }
-
-    // 3) Only intercept blocked keys if the event originated from the iframe (or the iframe is focused)
-    //    OR if the player is currently playing (to avoid youtube's shortcuts interfering while playing).
-    const iframeEl = getIframeElement();
-    const eventFromIframe = iframeEl && (iframeEl === target || iframeEl.contains(target));
-    const iframeHasFocus = iframeEl && (document.activeElement === iframeEl);
-    const shouldBlockForPlayer = eventFromIframe || iframeHasFocus || (playerRef.current && playing);
-
-    if (!shouldBlockForPlayer) {
-      // Let app and other handlers receive the key event.
-      return;
-    }
-
-    // 4) If it's one of the blocked keys, prevent the default (stops YT/player default behaviour)
-    //    but do NOT call stopPropagation() so your app-level handlers still get the event.
-    if (blockedCodes.has(e.code) || ((e.shiftKey || e.metaKey || e.ctrlKey) && (e.code === 'Period' || e.code === 'Comma'))) {
-      e.preventDefault();
-      // intentionally NOT calling e.stopPropagation() or e.stopImmediatePropagation()
-    }
-  };
-
-  // Use bubble phase (capture: false) so other app code receives events normally.
-  document.addEventListener('keydown', handleKeyDown, false);
-  return () => document.removeEventListener('keydown', handleKeyDown, false);
-}, [handlePlayPause, keyboardLockEnabled, playing]);
 
 
   function handleSendStartItem() {
@@ -511,135 +445,206 @@ useEffect(() => {
     };
   }, [videoId, startTimeSeconds, readyToDetect]);
 
-  // Handle keyboard events including space for play/pause
-  useEffect(() => {
+  // // Handle keyboard events including space for play/pause
+  // useEffect(() => {
     
-    if(!keyboardLockEnabled) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Handle space key for play/pause
-      if (e.code === 'Space') {
-        e.preventDefault();
-        e.stopPropagation();
+  //   if(!keyboardLockEnabled) return;
+  //   const handleKeyDown = (e: KeyboardEvent) => {
+  //     // Handle space key for play/pause
+  //     if (e.code === 'Space') {
+  //       e.preventDefault();
+  //       e.stopPropagation();
+  //       handlePlayPause();
+  //       return;
+  //     }
+
+  //     const blockedKeys = [
+  //       'KeyK', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+  //       'KeyM', 'KeyF', 'KeyT', 'KeyC', 'Digit0', 'Digit1', 'Digit2', 'Digit3',
+  //       'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9',
+  //       'Period', 'Comma', 'KeyI', 'KeyO',
+  //     ];
+
+  //     if (blockedKeys.includes(e.code) ||
+  //       (e.shiftKey && e.code === 'Period') ||
+  //       (e.shiftKey && e.code === 'Comma')) {
+  //       e.preventDefault();
+  //       e.stopPropagation();
+  //     }
+  //   };
+
+  //   document.addEventListener('keydown', handleKeyDown, true);
+  //   return () => document.removeEventListener('keydown', handleKeyDown, true);
+  // }, [handlePlayPause]);
+
+  // // Poll current time and enforce time constraints
+  // useEffect(() => {
+  //   let interval: ReturnType<typeof setInterval>;
+  //   if (playerReady) {
+  //     interval = setInterval(() => {
+  //       const player = playerRef.current;
+  //       if (player && player.getCurrentTime) {
+  //         const time = player.getCurrentTime();
+  //         setCurrentTime(time);
+  //         setDuration(player.getDuration());
+  //         setVolume(player.getVolume());
+
+  //         // Enforce startTime constraint
+  //         if (time < startTimeSeconds) {
+  //           if (!player) return;
+  //           player.seekTo(startTimeSeconds, true);
+  //           setMaxTime(startTimeSeconds);
+  //           return;
+  //         }
+
+  //         // Enforce endTime constraint
+  //         if (endTimeSeconds > 0 && !progressStoppedRef.current && time >= endTimeSeconds - 1 && currentCourse) {
+  //           const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
+
+  //           if (watchItemId) {
+  //             stopItem.mutate({
+  //               params: {
+  //                 path: {
+  //                   courseId: currentCourse.courseId,
+  //                   courseVersionId: currentCourse.versionId ?? '',
+  //                 },
+  //               },
+  //               body: {
+  //                 watchItemId,
+  //                 itemId: currentCourse.itemId ?? '',
+  //                 moduleId: currentCourse.moduleId ?? '',
+  //                 sectionId: currentCourse.sectionId ?? '',
+  //               }
+  //             });
+  //           }
+  //           if (onNext) {
+  //             onNext();
+  //           }
+  //           progressStoppedRef.current = true;
+  //         }
+          
+  //         // Handle videos without endTime constraint that reach near completion
+  //         if (endTimeSeconds === 0 && duration > 0 && !progressStoppedRef.current && time >= duration - 2 && currentCourse) {
+  //           const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
+
+  //           if (watchItemId) {
+  //             stopItem.mutate({
+  //               params: {
+  //                 path: {
+  //                   courseId: currentCourse.courseId,
+  //                   courseVersionId: currentCourse.versionId ?? '',
+  //                 },
+  //               },
+  //               body: {
+  //                 watchItemId,
+  //                 itemId: currentCourse.itemId ?? '',
+  //                 moduleId: currentCourse.moduleId ?? '',
+  //                 sectionId: currentCourse.sectionId ?? '',
+  //               }
+  //             });
+  //           }
+  //           if (onNext) {
+  //             onNext();
+  //           }
+  //           progressStoppedRef.current = true;
+  //         }
+  //         if (endTimeSeconds > 0 && time >= endTimeSeconds) {
+  //           player.pauseVideo();
+  //           if (!player) return;
+  //           player.seekTo(endTimeSeconds, true);
+  //           setMaxTime(endTimeSeconds);
+  //           if (!videoEnded) {
+  //             setVideoEnded(true);
+  //           }
+  //           return;
+  //         }
+
+  //         // Prevent forward seeking beyond what they've already watched
+  //         const speedTolerance = playbackRate * 1.0;
+  //         const timeDifference = time - maxTime;
+
+  //         if (timeDifference > speedTolerance + 1.0 && time <= endTimeSeconds) {
+  //           if (!player) return;
+  //           player.seekTo(maxTime, true);
+  //         } else if (time >= startTimeSeconds && time <= endTimeSeconds) {
+  //           setMaxTime(Math.max(maxTime, time));
+  //         }
+  //       }
+  //     }, Math.max(200, 500 / playbackRate));
+  //   }
+  //   return () => clearInterval(interval);
+  // }, [playerReady, maxTime, playbackRate, startTimeSeconds, endTimeSeconds, videoEnded]);
+
+// --- Robust capture-level keyboard handler (prevents player/browser shortcuts,
+//     re-dispatches a clean event so app handlers receive it) -------------------
+useEffect(() => {
+  if (!keyboardLockEnabled) return;
+
+  const blockedKeys = new Set([
+    't','i','o','k','f','c','m',',','.',
+    'T','I','O','K','F','C','M','<','>'
+  ]);
+
+  const handler = (rawEvent: KeyboardEvent) => {
+    try {
+      const tgt = rawEvent.target as HTMLElement | null;
+
+      // If typing in an input, textarea or contentEditable, let it through
+      if (tgt) {
+        const tag = tgt.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (tgt as HTMLElement).isContentEditable) {
+          return;
+        }
+      }
+
+      // Space: stop page scroll, toggle playback immediately, but re-dispatch
+      if (rawEvent.code === 'Space') {
+        rawEvent.preventDefault();
+        rawEvent.stopImmediatePropagation();
         handlePlayPause();
+        const synthetic = new KeyboardEvent('keydown', {
+          key: rawEvent.key,
+          code: rawEvent.code,
+          bubbles: true,
+          cancelable: true,
+          shiftKey: rawEvent.shiftKey,
+          ctrlKey: rawEvent.ctrlKey,
+          altKey: rawEvent.altKey,
+          metaKey: rawEvent.metaKey,
+        });
+        setTimeout(() => document.dispatchEvent(synthetic), 0);
         return;
       }
 
-      const blockedKeys = [
-        'KeyK', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-        'KeyM', 'KeyF', 'KeyT', 'KeyC', 'Digit0', 'Digit1', 'Digit2', 'Digit3',
-        'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9',
-        'Period', 'Comma', 'KeyI', 'KeyO',
-      ];
+      // Only handle keys in our blocked set
+      if (!blockedKeys.has(rawEvent.key)) return;
 
-      if (blockedKeys.includes(e.code) ||
-        (e.shiftKey && e.code === 'Period') ||
-        (e.shiftKey && e.code === 'Comma')) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    };
+      // stop player/browser default, then re-dispatch a clean event for app
+      rawEvent.preventDefault();
+      rawEvent.stopImmediatePropagation();
 
-    document.addEventListener('keydown', handleKeyDown, true);
-    return () => document.removeEventListener('keydown', handleKeyDown, true);
-  }, [handlePlayPause]);
+      const synthetic = new KeyboardEvent('keydown', {
+        key: rawEvent.key,
+        code: rawEvent.code,
+        bubbles: true,
+        cancelable: true,
+        shiftKey: rawEvent.shiftKey,
+        ctrlKey: rawEvent.ctrlKey,
+        altKey: rawEvent.altKey,
+        metaKey: rawEvent.metaKey,
+      });
 
-  // Poll current time and enforce time constraints
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    if (playerReady) {
-      interval = setInterval(() => {
-        const player = playerRef.current;
-        if (player && player.getCurrentTime) {
-          const time = player.getCurrentTime();
-          setCurrentTime(time);
-          setDuration(player.getDuration());
-          setVolume(player.getVolume());
-
-          // Enforce startTime constraint
-          if (time < startTimeSeconds) {
-            if (!player) return;
-            player.seekTo(startTimeSeconds, true);
-            setMaxTime(startTimeSeconds);
-            return;
-          }
-
-          // Enforce endTime constraint
-          if (endTimeSeconds > 0 && !progressStoppedRef.current && time >= endTimeSeconds - 1 && currentCourse) {
-            const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
-
-            if (watchItemId) {
-              stopItem.mutate({
-                params: {
-                  path: {
-                    courseId: currentCourse.courseId,
-                    courseVersionId: currentCourse.versionId ?? '',
-                  },
-                },
-                body: {
-                  watchItemId,
-                  itemId: currentCourse.itemId ?? '',
-                  moduleId: currentCourse.moduleId ?? '',
-                  sectionId: currentCourse.sectionId ?? '',
-                }
-              });
-            }
-            if (onNext) {
-              onNext();
-            }
-            progressStoppedRef.current = true;
-          }
-          
-          // Handle videos without endTime constraint that reach near completion
-          if (endTimeSeconds === 0 && duration > 0 && !progressStoppedRef.current && time >= duration - 2 && currentCourse) {
-            const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
-
-            if (watchItemId) {
-              stopItem.mutate({
-                params: {
-                  path: {
-                    courseId: currentCourse.courseId,
-                    courseVersionId: currentCourse.versionId ?? '',
-                  },
-                },
-                body: {
-                  watchItemId,
-                  itemId: currentCourse.itemId ?? '',
-                  moduleId: currentCourse.moduleId ?? '',
-                  sectionId: currentCourse.sectionId ?? '',
-                }
-              });
-            }
-            if (onNext) {
-              onNext();
-            }
-            progressStoppedRef.current = true;
-          }
-          if (endTimeSeconds > 0 && time >= endTimeSeconds) {
-            player.pauseVideo();
-            if (!player) return;
-            player.seekTo(endTimeSeconds, true);
-            setMaxTime(endTimeSeconds);
-            if (!videoEnded) {
-              setVideoEnded(true);
-            }
-            return;
-          }
-
-          // Prevent forward seeking beyond what they've already watched
-          const speedTolerance = playbackRate * 1.0;
-          const timeDifference = time - maxTime;
-
-          if (timeDifference > speedTolerance + 1.0 && time <= endTimeSeconds) {
-            if (!player) return;
-            player.seekTo(maxTime, true);
-          } else if (time >= startTimeSeconds && time <= endTimeSeconds) {
-            setMaxTime(Math.max(maxTime, time));
-          }
-        }
-      }, Math.max(200, 500 / playbackRate));
+      setTimeout(() => document.dispatchEvent(synthetic), 0);
+    } catch (err) {
+      // do not let handler throw
+      // eslint-disable-next-line no-console
+      console.error('Keyboard capture error', err);
     }
-    return () => clearInterval(interval);
-  }, [playerReady, maxTime, playbackRate, startTimeSeconds, endTimeSeconds, videoEnded]);
+  };
+
+  window.addEventListener('keydown', handler, true); // capture phase
+  return () => window.removeEventListener('keydown', handler, true);
+}, [handlePlayPause, keyboardLockEnabled]);
 
 
   const handleToggleSubtitles = () => {
@@ -770,7 +775,7 @@ useEffect(() => {
 
           {/* Multiple overlay layers to block YouTube controls */}
 
-          <div
+          {/* <div
 
             style={{
 
@@ -828,17 +833,34 @@ useEffect(() => {
 
             }}
 
-            onKeyDown={(e) => {
+            // onKeyDown={(e) => {
 
-              e.preventDefault();
+            //   e.preventDefault();
 
-              e.stopPropagation();
+            //   e.stopPropagation();
 
-            }}
+            // }}
+
 
             tabIndex={-1}
 
-          />
+          /> */}
+          {/* /* add data-video-overlay so the focus-burring effect can detect it */ }
+<div data-video-overlay="true"
+  style={{
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    background: 'transparent',
+    pointerEvents: 'auto',
+    zIndex: 10,
+    userSelect: 'none',
+    cursor: 'pointer',
+  }}
+  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePlayPause(); }}
+  onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
+  onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+/>
+
 
 
 
