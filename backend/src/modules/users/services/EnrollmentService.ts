@@ -283,34 +283,31 @@ export class EnrollmentService extends BaseService {
           this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
         ]);
 
-        console.log(
-          'Content Counts Map:',
-          contentCountsMap,
-          'Watched Items Map:',
-          watchedItemsMap,
-        );
-
         return enrollments.map(enr => {
           const versionIdStr = enr.courseVersionId.toString();
           const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}`;
 
-          return {
-            _id: enr._id.toString(),
-            courseId: enr.courseId.toString(),
-            courseVersionId: versionIdStr,
-            role: enr.role,
-            status: enr.status,
-            enrollmentDate: new Date(enr.enrollmentDate),
-            course: this.filterCourseVersions(enr.course, enrolledVersionIds),
-            percentCompleted: enr.percentCompleted || 0,
-            contentCounts: contentCountsMap.get(versionIdStr) || {
-              totalItems: 0,
-              videos: 0,
-              quizzes: 0,
-              articles: 0,
-            },
-            completedItems: watchedItemsMap.get(watchedKey) || 0,
-          };
+          // update percentage if contentCountsMap / watchedItemsMap has different value from enrollment.percentCompleted
+          // ratio is calculated as (watchedItems / totalItems) * 100
+
+          if (enr.percentCompleted || 0)
+            return {
+              _id: enr._id.toString(),
+              courseId: enr.courseId.toString(),
+              courseVersionId: versionIdStr,
+              role: enr.role,
+              status: enr.status,
+              enrollmentDate: new Date(enr.enrollmentDate),
+              course: this.filterCourseVersions(enr.course, enrolledVersionIds),
+              percentCompleted: enr.percentCompleted || 0,
+              contentCounts: contentCountsMap.get(versionIdStr) || {
+                totalItems: 0,
+                videos: 0,
+                quizzes: 0,
+                articles: 0,
+              },
+              completedItems: watchedItemsMap.get(watchedKey) || 0,
+            };
         });
       }
 

@@ -38,6 +38,7 @@ export class EnrollmentRepository {
   private quizCollection!: Collection<QuizItem>;
   private itemsGroupCollection!: Collection<ItemsGroup>;
   private questionBankCollection!: Collection<IQuestionBank>;
+  private initialized = false;
 
   constructor(
     @inject(QUIZZES_TYPES.AttemptRepo)
@@ -46,6 +47,12 @@ export class EnrollmentRepository {
   ) {}
 
   private async init() {
+    // initialize only once
+    if (this.initialized) {
+      return;
+    }
+    this.initialized = true;
+
     this.enrollmentCollection = await this.db.getCollection<IEnrollment>(
       'enrollment',
     );
