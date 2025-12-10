@@ -285,6 +285,7 @@ const handleGenerateLLMResponse = async () => {
           (<DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>Upload Questions</DialogTitle>
+                
               </DialogHeader>
 
               <div className="grid gap-4 py-4">
@@ -354,6 +355,14 @@ const handleGenerateLLMResponse = async () => {
                   </div>
                 </div>
 
+                  <Button
+                  variant="secondary"
+                  onClick={() => window.open("/templates/QB - template_Sheet1.csv", "_blank")}
+                  className="flex items-center gap-2"
+                 >
+                  <Download className="w-4 h-4" />
+                      Download Sample CSV Template
+                  </Button>
                 <div className="text-xs text-muted-foreground">
                   <p className="font-medium mb-1">CSV Format:</p>
                   <ul className="list-disc pl-5 space-y-1">
@@ -380,6 +389,8 @@ const handleGenerateLLMResponse = async () => {
               </Button>
 
               <div className="flex gap-2">
+                
+
                 <Button
                   variant="outline"
                   onClick={() => {
