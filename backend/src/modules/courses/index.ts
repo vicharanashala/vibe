@@ -5,6 +5,8 @@ import {Container, ContainerModule} from 'inversify';
 import {RoutingControllersOptions, useContainer} from 'routing-controllers';
 import { coursesContainerModule } from './container.js';
 import { CourseController } from './controllers/CourseController.js';
+import { COURSE_VALIDATORS } from './classes/validators/courseValidator.js';
+import { COURSEVERSION_VALIDATORS } from './classes/validators/courseVersionValidator.js';
 // import {UserController} from './controllers/UserController.js';
 // import { USER_VALIDATORS } from './classes/validators/index.js';
 
@@ -36,6 +38,8 @@ export const coursesModuleOptions: RoutingControllersOptions = {
   validation: true,
 };
 
-export const usersModuleValidators: Function[] = [
+export const coursesModuleValidators: Function[] = [
 //   ...USER_VALIDATORS
+...COURSE_VALIDATORS,
+...COURSEVERSION_VALIDATORS
 ]

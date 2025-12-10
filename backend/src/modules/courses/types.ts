@@ -1,19 +1,10 @@
 const TYPES = {
   //Services
-  EnrollmentService: Symbol.for('EnrollmentService'),
-  ProgressService: Symbol.for('ProgressService'),
-  UserService: Symbol.for('UserService'),
+  CourseService: Symbol.for('CourseService'),
+  CourseVersionService: Symbol.for('CourseVersionService'),
 
   //Repositories
-  ProgressRepo: Symbol.for('ProgressRepo'),
-  EnrollmentRepo: Symbol.for('EnrollmentRepo'),
-  ItemRepo: Symbol.for('ItemRepo'),
+  
 };
 
-export {TYPES as USERS_TYPES};
-
-export interface EnrollmentStats {
-  totalEnrollments: number;
-  completedCount: number;
-  averageProgressPercent: number;
-}
+export {TYPES as COURSES_TYPES};

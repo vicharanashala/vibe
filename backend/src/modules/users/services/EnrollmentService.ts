@@ -1,204 +1,178 @@
-// import {COURSES_TYPES} from '#courses/types.js';
-// import {InviteStatus} from '#root/modules/notifications/index.js';
-// import {BaseService} from '#root/shared/classes/BaseService.js';
-// import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-// import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
-// import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
-// import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-// import {
-//   EnrollmentRole,
-//   EnrollmentStatus,
-//   ICourseVersion,
-//   IEnrollment,
-// } from '#root/shared/interfaces/models.js';
-// import {GLOBAL_TYPES} from '#root/types.js';
-// import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
-// import {Enrollment} from '#users/classes/transformers/Enrollment.js';
-// import {EnrollmentStats, USERS_TYPES} from '#users/types.js';
-// import {injectable, inject} from 'inversify';
-// import {ClientSession, ObjectId, OptionalId} from 'mongodb';
-// import {
-//   BadRequestError,
-//   NotFoundError,
-//   InternalServerError,
-// } from 'routing-controllers';
-// import {ProgressService} from './ProgressService.js';
-// import {ProgressRepository, InviteRepository} from '#root/shared/index.js';
-// import {EnrollmentDataResponse} from '../classes/index.js';
-// import {
-//   QuizScoresExportResponseDto,
-//   StudentQuizScoreDto,
-// } from '../dtos/QuizScoresExportDto.js';
-// import {COURSE_REGISTRATION_TYPES} from '#root/modules/courseRegistration/types.js';
-// import {ICourseRegistrationRepository} from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
+import { BaseService, EnrollmentRepository, EnrollmentRole, EnrollmentStatus, ICourseRepository, IUserRepository, MongoDatabase } from "#root/shared/index.js";
+import { inject, injectable } from "inversify";
+import { USERS_TYPES } from "../types.js";
+import { GLOBAL_TYPES } from "#root/types.js";
+import { ClientSession, ObjectId } from "mongodb";
+import { BadRequestError, NotFoundError } from "routing-controllers";
 
-// @injectable()
-// export class EnrollmentService extends BaseService {
-//   constructor(
-//     @inject(USERS_TYPES.EnrollmentRepo)
-//     private readonly enrollmentRepo: EnrollmentRepository,
-//     @inject(GLOBAL_TYPES.CourseRepo)
-//     private readonly courseRepo: ICourseRepository,
-//     @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
-//     @inject(COURSES_TYPES.ItemRepo) private readonly itemRepo: IItemRepository,
-//     @inject(COURSE_REGISTRATION_TYPES.CourseRegistrationRepository)
-//     private courseRegistrationRepo: ICourseRegistrationRepository,
-//     @inject(USERS_TYPES.ProgressService)
-//     private readonly progressService: ProgressService,
-//     @inject(GLOBAL_TYPES.InviteRepo)
-//     private readonly inviteRepo: InviteRepository,
-//     @inject(USERS_TYPES.ProgressRepo)
-//     private readonly progressRepo: ProgressRepository,
-//     @inject(GLOBAL_TYPES.Database)
-//     private readonly database: MongoDatabase,
-//   ) {
-//     super(database);
-//   }
 
-//   async enrollUser(
-//     userId: string,
-//     courseId: string,
-//     courseVersionId: string,
-//     role: EnrollmentRole,
-//     throughInvite: boolean = false,
-//     session?: ClientSession,
-//   ) {
-//     const execute = async (session: ClientSession) => {
-//       const user = await this.userRepo.findById(userId, session);
-//       if (!user) throw new NotFoundError('User not found');
+@injectable()
+export class EnrollmentService extends BaseService {
+  constructor(
+    @inject(USERS_TYPES.EnrollmentRepo)
+    private readonly enrollmentRepo: EnrollmentRepository,
+    @inject(GLOBAL_TYPES.CourseRepo)
+    private readonly courseRepo: ICourseRepository,
+    @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
+    // @inject(COURSES_TYPES.ItemRepo) private readonly itemRepo: IItemRepository,
+    // @inject(COURSE_REGISTRATION_TYPES.CourseRegistrationRepository)
+    // private courseRegistrationRepo: ICourseRegistrationRepository,
+    // @inject(USERS_TYPES.ProgressService)
+    // private readonly progressService: ProgressService,
+    // @inject(GLOBAL_TYPES.InviteRepo)
+    // private readonly inviteRepo: InviteRepository,
+    // @inject(USERS_TYPES.ProgressRepo)
+    // private readonly progressRepo: ProgressRepository,
+    @inject(GLOBAL_TYPES.Database)
+    private readonly database: MongoDatabase,
+  ) {
+    super(database);
+  }
 
-//       const course = await this.courseRepo.read(courseId, session);
-//       if (!course) throw new NotFoundError('Course not found');
+  async enrollUser(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    role: EnrollmentRole,
+    throughInvite: boolean = false,
+    session?: ClientSession,
+  ) {
+    const execute = async (session: ClientSession) => {
+      const user = await this.userRepo.findById(userId, session);
+      if (!user) throw new NotFoundError('User not found');
 
-//       const courseVersion = await this.courseRepo.readVersion(
-//         courseVersionId,
-//         session,
-//       );
-//       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
-//         throw new NotFoundError(
-//           'Course version not found or does not belong to this course',
-//         );
-//       }
+      const course = await this.courseRepo.read(courseId, session);
+      if (!course) throw new NotFoundError('Course not found');
 
-//       const existingEnrollment = await this.enrollmentRepo.findEnrollment(
-//         userId,
-//         courseId,
-//         courseVersionId,
-//         session,
-//       );
+      const courseVersion = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
+        throw new NotFoundError(
+          'Course version not found or does not belong to this course',
+        );
+      }
 
-//       // if (existingEnrollment && !throughInvite) {
-//       //   throw new BadRequestError(
-//       //     'User is already enrolled in this course version',
-//       //   );
-//       // }
+      const existingEnrollment = await this.enrollmentRepo.findEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        session,
+      );
 
-//       if (existingEnrollment && throughInvite) {
-//         return {status: 'ALREADY_ENROLLED' as InviteStatus};
-//       }
+      // if (existingEnrollment && !throughInvite) {
+      //   throw new BadRequestError(
+      //     'User is already enrolled in this course version',
+      //   );
+      // }
 
-//       if (existingEnrollment && !throughInvite) {
-//         throw new BadRequestError(
-//           'User is already enrolled in this course version',
-//         );
-//       }
+      if (existingEnrollment && throughInvite) {
+        return {status: 'ALREADY_ENROLLED'};
+      }
 
-//       const enrollmentData = {
-//         userId: new ObjectId(userId),
-//         courseId: new ObjectId(courseId),
-//         courseVersionId: new ObjectId(courseVersionId),
-//         role: role,
-//         status: 'ACTIVE' as EnrollmentStatus,
-//         enrollmentDate: new Date(),
-//         percentCompleted: 0,
-//       };
+      if (existingEnrollment && !throughInvite) {
+        throw new BadRequestError(
+          'User is already enrolled in this course version',
+        );
+      }
 
-//       const createdEnrollment = await this.enrollmentRepo.createEnrollment(
-//         enrollmentData,
-//         session,
-//       );
-//       let initialProgress = null;
-//       if (createdEnrollment.role == 'STUDENT') {
-//         const progressData = await this.progressService.initializeProgress(
-//           userId,
-//           courseId,
-//           courseVersionId,
-//           courseVersion,
-//         );
+      const enrollmentData = {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        role: role,
+        status: 'ACTIVE' as EnrollmentStatus,
+        enrollmentDate: new Date(),
+        percentCompleted: 0,
+      };
 
-//         if (progressData) {
-//           initialProgress = await this.progressRepo.createProgress(
-//             {
-//               userId: new ObjectId(userId),
-//               courseId: new ObjectId(courseId),
-//               courseVersionId: new ObjectId(courseVersionId),
-//               currentModule: new ObjectId(
-//                 progressData.currentModule.toString(),
-//               ),
-//               currentSection: new ObjectId(
-//                 progressData.currentSection.toString(),
-//               ),
-//               currentItem: new ObjectId(progressData.currentItem.toString()),
-//               completed: false,
-//             },
-//             session,
-//           );
+      const createdEnrollment = await this.enrollmentRepo.createEnrollment(
+        enrollmentData,
+        session,
+      );
+      let initialProgress = null;
+    //   if (createdEnrollment.role == 'STUDENT') {
+    //     const progressData = await this.progressService.initializeProgress(
+    //       userId,
+    //       courseId,
+    //       courseVersionId,
+    //       courseVersion,
+    //     );
 
-//           console.log('=== ENROLLMENT: Progress created successfully ===', {
-//             userId,
-//             currentItem: progressData.currentItem.toString(),
-//           });
-//         } else {
-//           console.log(
-//             '=== ENROLLMENT: No progress data returned - course may have no valid items ===',
-//           );
-//         }
-//       }
+    //     if (progressData) {
+    //       initialProgress = await this.progressRepo.createProgress(
+    //         {
+    //           userId: new ObjectId(userId),
+    //           courseId: new ObjectId(courseId),
+    //           courseVersionId: new ObjectId(courseVersionId),
+    //           currentModule: new ObjectId(
+    //             progressData.currentModule.toString(),
+    //           ),
+    //           currentSection: new ObjectId(
+    //             progressData.currentSection.toString(),
+    //           ),
+    //           currentItem: new ObjectId(progressData.currentItem.toString()),
+    //           completed: false,
+    //         },
+    //         session,
+    //       );
 
-//       return {
-//         status: 'ENROLLED' as const,
-//         enrollment: createdEnrollment,
-//         progress: initialProgress,
-//         role: role,
-//       };
-//     };
-//     // If session provided, use it; otherwise wrap in a new transaction
-//     return session ? execute(session) : this._withTransaction(execute);
-//   }
+    //       console.log('=== ENROLLMENT: Progress created successfully ===', {
+    //         userId,
+    //         currentItem: progressData.currentItem.toString(),
+    //       });
+    //     } else {
+    //       console.log(
+    //         '=== ENROLLMENT: No progress data returned - course may have no valid items ===',
+    //       );
+    //     }
+    //   }
 
-//   async findEnrollment(
-//     userId: string,
-//     courseId: string,
-//     courseVersionId: string,
-//   ) {
-//     return this._withTransaction(async (session: ClientSession) => {
-//       const user = await this.userRepo.findById(userId);
-//       if (!user) throw new NotFoundError('User not found');
+      return {
+        status: 'ENROLLED' as const,
+        enrollment: createdEnrollment,
+        progress: initialProgress,
+        role: role,
+      };
+    };
+    // If session provided, use it; otherwise wrap in a new transaction
+    return session ? execute(session) : this._withTransaction(execute);
+  }
 
-//       const course = await this.courseRepo.read(courseId);
-//       if (!course) throw new NotFoundError('Course not found');
+  async findEnrollment(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+  ) {
+    return this._withTransaction(async (session: ClientSession) => {
+      const user = await this.userRepo.findById(userId);
+      if (!user) throw new NotFoundError('User not found');
 
-//       const courseVersion = await this.courseRepo.readVersion(
-//         courseVersionId,
-//         session,
-//       );
-//       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
-//         throw new NotFoundError(
-//           'Course version not found or does not belong to this course',
-//         );
-//       }
-//       const existingEnrollment = await this.enrollmentRepo.findEnrollment(
-//         userId,
-//         courseId,
-//         courseVersionId,
-//       );
-//       // if (!existingEnrollment) {
-//       //   throw new Error('User is not enrolled in this course version');
-//       // }
+      const course = await this.courseRepo.read(courseId);
+      if (!course) throw new NotFoundError('Course not found');
 
-//       return existingEnrollment;
-//     });
-//   }
+      const courseVersion = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
+        throw new NotFoundError(
+          'Course version not found or does not belong to this course',
+        );
+      }
+      const existingEnrollment = await this.enrollmentRepo.findEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+      );
+      // if (!existingEnrollment) {
+      //   throw new Error('User is not enrolled in this course version');
+      // }
+
+      return existingEnrollment;
+    });
+  }
 //   async unenrollUser(
 //     userId: string,
 //     courseId: string,
@@ -241,97 +215,97 @@
 //     };
 //   }
 
-//   public async getEnrollments(
-//     userId: string,
-//     skip: number,
-//     limit: number,
-//     role: EnrollmentRole,
-//     search: string,
-//   ): Promise<EnrollmentDataResponse[]> {
-//     return this._withTransaction(async (session: ClientSession) => {
-//       const enrollments = await this.enrollmentRepo.getBasicEnrollments(
-//         userId,
-//         skip,
-//         limit,
-//         role,
-//         search,
-//         session,
-//       );
+  // public async getEnrollments(
+  //   userId: string,
+  //   skip: number,
+  //   limit: number,
+  //   role: EnrollmentRole,
+  //   search: string,
+  // ): Promise<EnrollmentDataResponse[]> {
+  //   return this._withTransaction(async (session: ClientSession) => {
+  //     const enrollments = await this.enrollmentRepo.getBasicEnrollments(
+  //       userId,
+  //       skip,
+  //       limit,
+  //       role,
+  //       search,
+  //       session,
+  //     );
 
-//       if (!enrollments.length) return [];
+  //     if (!enrollments.length) return [];
 
-//       const enrolledVersionIds = new Set(
-//         enrollments.map(e => e.courseVersionId.toString()),
-//       );
+  //     const enrolledVersionIds = new Set(
+  //       enrollments.map(e => e.courseVersionId.toString()),
+  //     );
 
-//       console.log('Enrolled Version IDs:', enrolledVersionIds, enrollments);
+  //     console.log('Enrolled Version IDs:', enrolledVersionIds, enrollments);
 
-//       if (role === 'STUDENT') {
-//         const versionIds = Array.from(enrolledVersionIds).map(
-//           id => new ObjectId(id),
-//         );
-//         const watchedKeys = enrollments.map(e => ({
-//           userId: new ObjectId(userId),
-//           courseId: new ObjectId(e.courseId),
-//           courseVersionId: new ObjectId(e.courseVersionId),
-//         }));
+  //     if (role === 'STUDENT') {
+  //       const versionIds = Array.from(enrolledVersionIds).map(
+  //         id => new ObjectId(id),
+  //       );
+  //       const watchedKeys = enrollments.map(e => ({
+  //         userId: new ObjectId(userId),
+  //         courseId: new ObjectId(e.courseId),
+  //         courseVersionId: new ObjectId(e.courseVersionId),
+  //       }));
 
-//         const [contentCountsMap, watchedItemsMap] = await Promise.all([
-//           this.enrollmentRepo.getContentCountsForVersions(versionIds),
-//           this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
-//         ]);
+  //       const [contentCountsMap, watchedItemsMap] = await Promise.all([
+  //         this.enrollmentRepo.getContentCountsForVersions(versionIds),
+  //         this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
+  //       ]);
 
-//         return enrollments.map(enr => {
-//           const versionIdStr = enr.courseVersionId.toString();
-//           const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}`;
+  //       return enrollments.map(enr => {
+  //         const versionIdStr = enr.courseVersionId.toString();
+  //         const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}`;
 
-//           return {
-//             _id: enr._id.toString(),
-//             courseId: enr.courseId.toString(),
-//             courseVersionId: versionIdStr,
-//             role: enr.role,
-//             status: enr.status,
-//             enrollmentDate: new Date(enr.enrollmentDate),
-//             course: this.filterCourseVersions(enr.course, enrolledVersionIds),
-//             percentCompleted: enr.percentCompleted || 0,
-//             contentCounts: contentCountsMap.get(versionIdStr) || {
-//               totalItems: 0,
-//               videos: 0,
-//               quizzes: 0,
-//               articles: 0,
-//             },
-//             completedItems: watchedItemsMap.get(watchedKey) || 0,
-//           };
-//         });
-//       }
+  //         return {
+  //           _id: enr._id.toString(),
+  //           courseId: enr.courseId.toString(),
+  //           courseVersionId: versionIdStr,
+  //           role: enr.role,
+  //           status: enr.status,
+  //           enrollmentDate: new Date(enr.enrollmentDate),
+  //           course: this.filterCourseVersions(enr.course, enrolledVersionIds),
+  //           percentCompleted: enr.percentCompleted || 0,
+  //           contentCounts: contentCountsMap.get(versionIdStr) || {
+  //             totalItems: 0,
+  //             videos: 0,
+  //             quizzes: 0,
+  //             articles: 0,
+  //           },
+  //           completedItems: watchedItemsMap.get(watchedKey) || 0,
+  //         };
+  //       });
+  //     }
 
-//       // Non-student
-//       return enrollments.map(enr => ({
-//         _id: enr._id.toString(),
-//         courseId: enr.courseId.toString(),
-//         courseVersionId: enr.courseVersionId.toString(),
-//         role: enr.role,
-//         status: enr.status,
-//         enrollmentDate: new Date(enr.enrollmentDate),
-//         course: this.filterCourseVersions(enr.course, enrolledVersionIds),
-//       }));
-//     });
-//   }
+  //     // Non-student
+  //     return enrollments.map(enr => ({
+  //       _id: enr._id.toString(),
+  //       courseId: enr.courseId.toString(),
+  //       courseVersionId: enr.courseVersionId.toString(),
+  //       role: enr.role,
+  //       status: enr.status,
+  //       enrollmentDate: new Date(enr.enrollmentDate),
+  //       course: this.filterCourseVersions(enr.course, enrolledVersionIds),
+  //     }));
+  //   });
+  // }
 
-//   async getAllEnrollments(userId: string) {
-//     return this._withTransaction(async (session: ClientSession) => {
-//       const result = await this.enrollmentRepo.getAllEnrollments(
-//         userId,
-//         session,
-//       );
-//       return result.map(enrollment => ({
-//         ...enrollment,
-//         _id: enrollment._id.toString(),
-//         courseId: enrollment.courseId.toString(),
-//         courseVersionId: enrollment.courseVersionId.toString(),
-//       }));
-//     });
-//   }
+  async getAllEnrollments(userId: string) {
+    return this._withTransaction(async (session: ClientSession) => {
+      const result = await this.enrollmentRepo.getAllEnrollments(
+        userId,
+        session,
+      );
+      return result.map(enrollment => ({
+        ...enrollment,
+        _id: enrollment._id.toString(),
+        courseId: enrollment.courseId.toString(),
+        courseVersionId: enrollment.courseVersionId.toString(),
+      }));
+    });
+  }
 
 //   async getCourseVersionEnrollments(
 //     courseId: string,
@@ -660,4 +634,4 @@
 //       await this.enrollmentRepo.addEnrollmentIndexes(session);
 //     });
 //   }
-// }
+}

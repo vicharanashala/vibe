@@ -70,7 +70,6 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     // Verify the token and decode it to get the Firebase UID
     const decodedToken = await this.auth.verifyIdToken(token);
     const firebaseUID = decodedToken.uid;
-
     // Retrieve the user from our database using the Firebase UID
     const user = await this.userRepository.findByFirebaseUID(firebaseUID);
     if (!user) {
@@ -80,7 +79,6 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
         if (!firebaseUser) {
           throw new InternalServerError('Firebase user not found');
         }
-        console.log('Firebase user retrieved:', firebaseUser);
         // Map Firebase user data to our application user model
         const userData: GoogleSignUpBody = {
           email: firebaseUser.email,

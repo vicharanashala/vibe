@@ -1,15 +1,21 @@
 import { AbilityBuilder, createMongoAbility } from "@casl/ability";
 
 // Scopes
-export class EnrollmentScope {
+export class CourseScope {
     courseId: string;
-    versionId: string;
-    userId?: string;
+    userId: string;
 }
 
-export class ProgressScope {
+export class CourseVersionScope {
     courseId: string;
     versionId: string;
+    userId: string;
+}
+
+export class ItemScope {
+    courseId: string;
+    versionId: string;
+    itemId: string;
     userId: string;
 }
 

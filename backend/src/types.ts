@@ -13,6 +13,7 @@ const TYPES = {
   //Services
   MailService: Symbol.for('MailService'),
   CourseVersionService: Symbol.for('CourseVersionService'),
+  // CourseService:Symbol.for("CourseService"),
   
   SettingRepo: Symbol.for('SettingRepo'),
 

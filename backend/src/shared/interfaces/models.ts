@@ -18,7 +18,7 @@ export interface ICourse {
   name: string;
   description: string;
   versions: ID[];
-  instructor: ID;
+  instructor: ID[];
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -639,6 +639,7 @@ export interface AuthenticatedUserEnrollements {
 export interface AuthenticatedUser {
   userId: string;
   globalRole: 'admin' | 'user';
+  enrollments:AuthenticatedUserEnrollements[];
 }
 
 // export interface ICourseRegistration {

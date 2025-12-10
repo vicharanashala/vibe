@@ -3,10 +3,13 @@ import {
   MongoDatabase,
   UserRepository,
   HttpErrorHandler,
+  CourseRepository,
+  EnrollmentRepository,
 } from '#shared/index.js';
 import {GLOBAL_TYPES} from './types.js';
 import {dbConfig} from './config/db.js';
 import { FirebaseAuthService } from './modules/auth/services/FirebaseAuthService.js';
+import { EnrollmentService } from './modules/users/services/EnrollmentService.js';
 
 
 
@@ -19,11 +22,13 @@ export const sharedContainerModule = new ContainerModule(options => {
 
   // Auth
   options.bind(FirebaseAuthService).toSelf().inSingletonScope();
+  options.bind(EnrollmentService).toSelf().inSingletonScope()
   // Database
   options.bind(GLOBAL_TYPES.Database).to(MongoDatabase).inSingletonScope();
 
   // Repositories
   options.bind(GLOBAL_TYPES.UserRepo).to(UserRepository).inSingletonScope();
+  options.bind(GLOBAL_TYPES.CourseRepo).to(CourseRepository).inSingletonScope();
 
   // Other
   options.bind(HttpErrorHandler).toSelf().inSingletonScope();
