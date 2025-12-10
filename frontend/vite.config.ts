@@ -26,7 +26,7 @@ export default defineConfig({
     proxy: {
       // Proxy API requests to staging backend to avoid CORS issues
       '/api': {
-        target: 'https://vibe-backend-staging-239934307367.asia-south1.run.app',
+        target: 'http://localhost:4001',
         changeOrigin: true,
         secure: true,
       },

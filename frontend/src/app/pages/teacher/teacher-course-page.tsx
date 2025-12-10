@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
-import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank } from '@/hooks/hooks';
+import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useHideItem } from '@/hooks/hooks';
 import { Upload } from 'lucide-react';
 
 const MAX_DESCRIPTION_LENGTH = 1000;
@@ -50,6 +50,7 @@ import { Label } from "@/components/ui/label";
 import ProjectItem from "./components/ProjectItem";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import FeedbackFormEditor from "./FeedbackFormEditor";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
@@ -284,6 +285,7 @@ function TeacherCourseContent() {
   const { mutateAsync: updateVideoAsync } = useUpdateCourseItem();
   const { mutateAsync: deleteItemAsync, isSuccess: isDeleteItemSuccess, isError: isDeleteItemError, error: deleteItemError } = useDeleteItem();
   const { mutateAsync: moveItemAsync, isPending, isError: isMoveItemError, error: moveItemError } = useMoveItem();
+  const { mutateAsync: updateItemVisibilityAsync } = useHideItem();
 
   const [isProcessingCSV, setIsProcessingCSV] = useState(false);
   const [showCSVUpload, setShowCSVUpload] = useState(false);
@@ -709,6 +711,17 @@ function TeacherCourseContent() {
     }).then((res) => {
       refetchVersion();
     });
+  }
+
+  const handleHideItem = (itemId: string, hide: boolean) => {
+    if (!versionId) return;
+    updateItemVisibilityAsync({
+      params: { path: { versionId, itemId } },
+      body: { hide: hide }
+    }).then((res) => {
+      refetchVersion();
+      refetchItems();
+    })
   }
 
   // Add Item (handles all item types including video, quiz, article, and project)
@@ -1372,6 +1385,10 @@ function TeacherCourseContent() {
                                                         })}
                                                       </span>
                                                     </SidebarMenuSubButton>
+                                                    <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideItem(item._id, !item.isHidden)}>
+                                                      {!item.isHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                                                      <span className="sr-only">Hide Item</span>
+                                                    </Button>
                                                   </SidebarMenuSubItem>
                                                 </Reorder.Item>
                                               ))}

@@ -751,8 +751,17 @@ export class EnrollmentRepository {
             from: 'videos',
             let: {itemId: '$itemObjId', itemType: '$itemsGroup.items.type'},
             pipeline: [
-              {$match: {$expr: {$and: [{$eq: ['$_id', '$$itemId']}, {$eq: ['$$itemType', 'VIDEO']}]}}},
-              {$project: {isDeleted: 1}},
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      {$eq: ['$_id', '$$itemId']},
+                      {$eq: ['$$itemType', 'VIDEO']},
+                    ],
+                  },
+                },
+              },
+              {$project: {isDeleted: 1, isHidden: 1}},
             ],
             as: 'videoDoc',
           },
@@ -762,8 +771,17 @@ export class EnrollmentRepository {
             from: 'blogs',
             let: {itemId: '$itemObjId', itemType: '$itemsGroup.items.type'},
             pipeline: [
-              {$match: {$expr: {$and: [{$eq: ['$_id', '$$itemId']}, {$eq: ['$$itemType', 'BLOG']}]}}},
-              {$project: {isDeleted: 1}},
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      {$eq: ['$_id', '$$itemId']},
+                      {$eq: ['$$itemType', 'BLOG']},
+                    ],
+                  },
+                },
+              },
+              {$project: {isDeleted: 1, isHidden: 1}},
             ],
             as: 'blogDoc',
           },
@@ -773,8 +791,17 @@ export class EnrollmentRepository {
             from: 'quizzes',
             let: {itemId: '$itemObjId', itemType: '$itemsGroup.items.type'},
             pipeline: [
-              {$match: {$expr: {$and: [{$eq: ['$_id', '$$itemId']}, {$eq: ['$$itemType', 'QUIZ']}]}}},
-              {$project: {isDeleted: 1}},
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      {$eq: ['$_id', '$$itemId']},
+                      {$eq: ['$$itemType', 'QUIZ']},
+                    ],
+                  },
+                },
+              },
+              {$project: {isDeleted: 1, isHidden: 1}},
             ],
             as: 'quizDoc',
           },
@@ -784,8 +811,17 @@ export class EnrollmentRepository {
             from: 'projects',
             let: {itemId: '$itemObjId', itemType: '$itemsGroup.items.type'},
             pipeline: [
-              {$match: {$expr: {$and: [{$eq: ['$_id', '$$itemId']}, {$eq: ['$$itemType', 'PROJECT']}]}}},
-              {$project: {isDeleted: 1}},
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      {$eq: ['$_id', '$$itemId']},
+                      {$eq: ['$$itemType', 'PROJECT']},
+                    ],
+                  },
+                },
+              },
+              {$project: {isDeleted: 1, isHidden: 1}},
             ],
             as: 'projectDoc',
           },
@@ -797,19 +833,82 @@ export class EnrollmentRepository {
                 branches: [
                   {
                     case: {$eq: ['$itemsGroup.items.type', 'VIDEO']},
-                    then: {$ifNull: [{$arrayElemAt: ['$videoDoc.isDeleted', 0]}, false]},
+                    then: {
+                      $ifNull: [
+                        {$arrayElemAt: ['$videoDoc.isDeleted', 0]},
+                        false,
+                      ],
+                    },
                   },
                   {
                     case: {$eq: ['$itemsGroup.items.type', 'BLOG']},
-                    then: {$ifNull: [{$arrayElemAt: ['$blogDoc.isDeleted', 0]}, false]},
+                    then: {
+                      $ifNull: [
+                        {$arrayElemAt: ['$blogDoc.isDeleted', 0]},
+                        false,
+                      ],
+                    },
                   },
                   {
                     case: {$eq: ['$itemsGroup.items.type', 'QUIZ']},
-                    then: {$ifNull: [{$arrayElemAt: ['$quizDoc.isDeleted', 0]}, false]},
+                    then: {
+                      $ifNull: [
+                        {$arrayElemAt: ['$quizDoc.isDeleted', 0]},
+                        false,
+                      ],
+                    },
                   },
                   {
                     case: {$eq: ['$itemsGroup.items.type', 'PROJECT']},
-                    then: {$ifNull: [{$arrayElemAt: ['$projectDoc.isDeleted', 0]}, false]},
+                    then: {
+                      $ifNull: [
+                        {$arrayElemAt: ['$projectDoc.isDeleted', 0]},
+                        false,
+                      ],
+                    },
+                  },
+                ],
+                default: false,
+              },
+            },
+            isItemHidden: {
+              $switch: {
+                branches: [
+                  {
+                    case: {$eq: ['$itemsGroup.items.type', 'VIDEO']},
+                    then: {
+                      $ifNull: [
+                        {$arrayElemAt: ['$videoDoc.isHidden', 0]},
+                        false,
+                      ],
+                    },
+                  },
+                  {
+                    case: {$eq: ['$itemsGroup.items.type', 'BLOG']},
+                    then: {
+                      $ifNull: [
+                        {$arrayElemAt: ['$blogDoc.isHidden', 0]},
+                        false,
+                      ],
+                    },
+                  },
+                  {
+                    case: {$eq: ['$itemsGroup.items.type', 'QUIZ']},
+                    then: {
+                      $ifNull: [
+                        {$arrayElemAt: ['$quizDoc.isHidden', 0]},
+                        false,
+                      ],
+                    },
+                  },
+                  {
+                    case: {$eq: ['$itemsGroup.items.type', 'PROJECT']},
+                    then: {
+                      $ifNull: [
+                        {$arrayElemAt: ['$projectDoc.isHidden', 0]},
+                        false,
+                      ],
+                    },
                   },
                 ],
                 default: false,
@@ -818,6 +917,7 @@ export class EnrollmentRepository {
           },
         },
         {$match: {isItemDeleted: {$ne: true}}},
+        {$match: {isItemHidden: {$ne: true}}},
         {
           $group: {
             _id: '$_id',
@@ -871,6 +971,7 @@ export class EnrollmentRepository {
       userId: e.userId,
       courseId: e.courseId,
       courseVersionId: e.courseVersionId,
+      isHidden: {$ne: true},
     }));
 
     const results = await this.watchTimeCollection
@@ -1970,6 +2071,20 @@ export class EnrollmentRepository {
     });
     return result.insertedIds;
   }
+  async deleteEnrollmentsByVersionIds(
+    versionIds: ObjectId[],
+    session?: ClientSession,
+  ): Promise<boolean> {
+    if (!versionIds.length) return false;
+
+    const result = await this.enrollmentCollection.deleteMany(
+      {
+        courseVersionId: {$in: versionIds},
+      },
+      {session},
+    );
+    return result.acknowledged && result.deletedCount > 0;
+  }
 
   async getUserEnrollmentsByCourseVersion(
     userId: string,
@@ -1988,5 +2103,29 @@ export class EnrollmentRepository {
         {session},
       )
       .next();
+  }
+
+  async setWatchTimeVisibility(
+    itemIds: string[],
+    isHidden: boolean,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+
+    const itemObjIds = itemIds.map(id => new ObjectId(id));
+
+    const result = await this.watchTimeCollection.updateMany(
+      {itemId: {$in: itemObjIds}},
+      {$set: {isHidden: isHidden}},
+      {session},
+    );
+
+    if (!result.acknowledged) {
+      throw new InternalServerError(
+        'Failed to update watch time visibility for items.',
+      );
+    }
+
+    return result.modifiedCount > 0;
   }
 }

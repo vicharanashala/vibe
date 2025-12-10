@@ -43,7 +43,7 @@ class QuizItem {
   deletedAt?: Date;
 
   @Expose()
-  isHidden?: boolean;
+  isHidden: boolean;
 
   constructor(
     name: string,
@@ -79,6 +79,15 @@ class VideoItem {
   @Expose()
   details?: IVideoDetails;
 
+  @Expose()
+  isHidden?: boolean;
+
+  @Expose()
+  isDeleted?: boolean;
+
+  @Expose()
+  deletedAt?: Date;
+
   constructor(
     name: string,
     description: string,
@@ -112,6 +121,15 @@ class BlogItem {
 
   @Expose()
   details?: IBlogDetails;
+
+  @Expose()
+  isDeleted?: boolean;
+
+  @Expose()
+  deletedAt?: Date;
+
+  @Expose()
+  isHidden?: boolean;
 
   constructor(
     name: string,
@@ -243,9 +261,6 @@ class ProjectItem {
   @Expose()
   type: ItemType = ItemType.PROJECT;
 
-  @Expose()
-  isHidden?: boolean;
-
   details?: any;
 
   @Expose()
@@ -253,6 +268,9 @@ class ProjectItem {
 
   @Expose()
   deletedAt?: Date;
+
+  @Expose()
+  isHidden?: boolean;
 
   constructor(name: string, description: string, _id: ID, details?: any) {
     this._id = _id;
@@ -369,6 +387,9 @@ class ItemRef {
 
   @Expose()
   order: string;
+
+  @Expose()
+  isHidden?: boolean;
 
   constructor(item: ItemBase) {
     this._id = new ObjectId(item.itemId);
