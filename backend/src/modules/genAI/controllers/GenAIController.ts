@@ -1,11 +1,14 @@
-import { injectable, inject } from "inversify";
-import type { Request as ExpressRequest, Response as ExpressResponse } from "express";
-import { 
-  Body, 
-  JsonController, 
-  Params, 
-  Post, 
-  Get, 
+import {injectable, inject} from 'inversify';
+import type {
+  Request as ExpressRequest,
+  Response as ExpressResponse,
+} from 'express';
+import {
+  Body,
+  JsonController,
+  Params,
+  Post,
+  Get,
   HttpCode,
   Authorized,
   UploadedFile,
@@ -14,8 +17,9 @@ import {
   Patch,
   Req,
   Res,
-} from "routing-controllers";
-import { OpenAPI, ResponseSchema } from "routing-controllers-openapi";
+  BadRequestError,
+} from 'routing-controllers';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {
   JobBody,
   GenAIIdParams,
@@ -31,14 +35,17 @@ import {
   TaskStatus,
   TaskStatusdetailsResponse,
 } from '../classes/validators/GenAIValidators.js';
-import { GenAIService } from '../services/GenAIService.js';
-import { WebhookService } from '../services/WebhookService.js';
-import { GENAI_TYPES } from '../types.js';
-import { BadRequestErrorResponse, ForbiddenErrorResponse } from "#root/shared/index.js";
-import { Ability } from "#root/shared/functions/AbilityDecorator.js";
-import { getGenAIAbility } from "../abilities/genAIAbilities.js";
-import { subject } from "@casl/ability";
-import { SseService } from "../services/sseService.js";
+import {GenAIService} from '../services/GenAIService.js';
+import {WebhookService} from '../services/WebhookService.js';
+import {GENAI_TYPES} from '../types.js';
+import {
+  BadRequestErrorResponse,
+  ForbiddenErrorResponse,
+} from '#root/shared/index.js';
+import {Ability} from '#root/shared/functions/AbilityDecorator.js';
+import {getGenAIAbility} from '../abilities/genAIAbilities.js';
+import {subject} from '@casl/ability';
+import {SseService} from '../services/sseService.js';
 
 @OpenAPI({
   tags: ['GenAI'],
@@ -53,26 +60,32 @@ export class GenAIController {
     @inject(GENAI_TYPES.WebhookService)
     private readonly webhookService: WebhookService,
     @inject(GENAI_TYPES.SseService)
-    private readonly sseService: SseService
+    private readonly sseService: SseService,
   ) {}
 
   @OpenAPI({
     summary: 'Start a new job',
-    description: 'Starts a new genAI process. Can be of type Video or Playlist.',
+    description:
+      'Starts a new genAI process. Can be of type Video or Playlist.',
   })
-  @Post("/jobs")
+  @Post('/jobs')
   @Authorized()
   @HttpCode(201)
   @ResponseSchema(GenAIResponse, {
-    description: 'GenAI job created successfully'
+    description: 'GenAI job created successfully',
   })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
   })
-  async start(@Body() body: JobBody, @Ability(getGenAIAbility) {ability, user}) {
-
-    const genaiRes = subject('GenAI', { courseId: body.uploadParameters.courseId, versionId: body.uploadParameters.versionId });
+  async start(
+    @Body() body: JobBody,
+    @Ability(getGenAIAbility) {ability, user},
+  ) {
+    const genaiRes = subject('GenAI', {
+      courseId: body.uploadParameters.courseId,
+      versionId: body.uploadParameters.versionId,
+    });
     if (!ability.can('create', genaiRes)) {
       //throw new ForbiddenError('You do not have permission to create a genAI job');
     }
@@ -84,22 +97,26 @@ export class GenAIController {
     summary: 'Start a new job',
     description: 'Starts a new genAI process. Audio file provided.',
   })
-  @Post("/jobs/audio-provided")
+  @Post('/jobs/audio-provided')
   @Authorized()
   @HttpCode(201)
   @ResponseSchema(GenAIResponse, {
-    description: 'GenAI job created successfully'
+    description: 'GenAI job created successfully',
   })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
   })
   async startWithAudio(
-    @UploadedFile("file")
-          file: Express.Multer.File,
-    @Body() body: JobBody, @Ability(getGenAIAbility) {ability, user}) {
-
-    const genaiRes = subject('GenAI', { courseId: body.uploadParameters.courseId, versionId: body.uploadParameters.versionId });
+    @UploadedFile('file')
+    file: Express.Multer.File,
+    @Body() body: JobBody,
+    @Ability(getGenAIAbility) {ability, user},
+  ) {
+    const genaiRes = subject('GenAI', {
+      courseId: body.uploadParameters.courseId,
+      versionId: body.uploadParameters.versionId,
+    });
     if (!ability.can('create', genaiRes)) {
       //throw new ForbiddenError('You do not have permission to create a genAI job');
     }
@@ -111,21 +128,27 @@ export class GenAIController {
     summary: 'Get job status',
     description: 'Retrieves the current status of a job by ID.',
   })
-  @Get("/jobs/:id")
+  @Get('/jobs/:id')
   @Authorized()
   @HttpCode(200)
   @ResponseSchema(JobStatusResponse, {
-    description: 'Job retrieved successfully'
+    description: 'Job retrieved successfully',
   })
   @ResponseSchema(GenAINotFoundErrorResponse, {
     description: 'Job not found',
     statusCode: 404,
   })
-  async getStatus(@Params() params: GenAIIdParams, @Ability(getGenAIAbility) {ability}) {
-    const { id } = params;
+  async getStatus(
+    @Params() params: GenAIIdParams,
+    @Ability(getGenAIAbility) {ability},
+  ) {
+    const {id} = params;
     const job = await this.genAIService.getJobStatus(id);
 
-    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    const genaiRes = subject('GenAI', {
+      courseId: job.uploadParameters.courseId,
+      versionId: job.uploadParameters.versionId,
+    });
     if (!ability.can('modify', genaiRes)) {
       //throw new ForbiddenError('You do not have permission to view this genAI');
     }
@@ -139,11 +162,11 @@ export class GenAIController {
     summary: 'Get task status',
     description: 'Retrieves the status of a specific task in a job.',
   })
-  @Get("/:id/tasks/:type/status")
+  @Get('/:id/tasks/:type/status')
   @Authorized()
   @HttpCode(200)
   @ResponseSchema(TaskStatusdetailsResponse, {
-    description: 'Task status retrieved successfully'
+    description: 'Task status retrieved successfully',
   })
   @ResponseSchema(GenAINotFoundErrorResponse, {
     description: 'Job not found',
@@ -153,11 +176,17 @@ export class GenAIController {
     description: 'Bad Request Error',
     statusCode: 400,
   })
-  async getTaskStatus(@Params() params: TaskStatusParams, @Ability(getGenAIAbility) {ability}) {
-    const { id, type } = params;
+  async getTaskStatus(
+    @Params() params: TaskStatusParams,
+    @Ability(getGenAIAbility) {ability},
+  ) {
+    const {id, type} = params;
     const job = await this.genAIService.getJobStatus(id);
 
-    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    const genaiRes = subject('GenAI', {
+      courseId: job.uploadParameters.courseId,
+      versionId: job.uploadParameters.versionId,
+    });
     if (!ability.can('modify', genaiRes)) {
       //throw new ForbiddenError('You do not have permission to view this genAI');
     }
@@ -172,7 +201,7 @@ export class GenAIController {
     description: `Approve the task to start running, optionally with given parameters.<br/>
     It returns an empty body with a 200 status code.`,
   })
-  @Post("/:id/tasks/approve/start")
+  @Post('/:id/tasks/approve/start')
   @Authorized()
   @OnUndefined(200)
   @ResponseSchema(GenAINotFoundErrorResponse, {
@@ -183,17 +212,29 @@ export class GenAIController {
     description: 'Bad Request Error',
     statusCode: 400,
   })
-  async approveStart(@Params() params: GenAIIdParams, @Body() body: ApproveStartBody, @Ability(getGenAIAbility) {ability, user}) {
-    const { id } = params;
+  async approveStart(
+    @Params() params: GenAIIdParams,
+    @Body() body: ApproveStartBody,
+    @Ability(getGenAIAbility) {ability, user},
+  ) {
+    const {id} = params;
     const userId = user._id.toString();
     const job = await this.genAIService.getJobStatus(id);
 
-    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    const genaiRes = subject('GenAI', {
+      courseId: job.uploadParameters.courseId,
+      versionId: job.uploadParameters.versionId,
+    });
     if (!ability.can('modify', genaiRes)) {
       //throw new ForbiddenError('You do not have permission to approve tasks in this genAI');
     }
 
-    await this.genAIService.approveTaskToStart(id, userId, body.usePrevious, body.parameters);
+    await this.genAIService.approveTaskToStart(
+      id,
+      userId,
+      body.usePrevious,
+      body.parameters,
+    );
   }
 
   @OpenAPI({
@@ -203,16 +244,22 @@ export class GenAIController {
   })
   @Authorized()
   @OnUndefined(200)
-  @Post("/:id/tasks/approve/continue")
+  @Post('/:id/tasks/approve/continue')
   @ResponseSchema(GenAINotFoundErrorResponse, {
     description: 'Job not found',
     statusCode: 404,
   })
-  async approveContinue(@Params() params: GenAIIdParams, @Ability(getGenAIAbility) {ability}) {
-    const { id } = params;
+  async approveContinue(
+    @Params() params: GenAIIdParams,
+    @Ability(getGenAIAbility) {ability},
+  ) {
+    const {id} = params;
     const job = await this.genAIService.getJobStatus(id);
 
-    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    const genaiRes = subject('GenAI', {
+      courseId: job.uploadParameters.courseId,
+      versionId: job.uploadParameters.versionId,
+    });
     if (!ability.can('modify', genaiRes)) {
       //throw new ForbiddenError('You do not have permission to approve tasks in this genAI');
     }
@@ -225,45 +272,62 @@ export class GenAIController {
     description: `Reruns the current task in the job.<br/>
     It returns an empty body with a 200 status code.`,
   })
-  @Post("/jobs/:id/tasks/rerun")
+  @Post('/jobs/:id/tasks/rerun')
   @Authorized()
   @OnUndefined(200)
   @ResponseSchema(GenAINotFoundErrorResponse, {
     description: 'GenAI not found',
     statusCode: 404,
   })
-  async rerunTask(@Params() params: GenAIIdParams, @Body() body: RerunTaskBody, @Ability(getGenAIAbility) {ability, user}) {
-    const { id } = params;
+  async rerunTask(
+    @Params() params: GenAIIdParams,
+    @Body() body: RerunTaskBody,
+    @Ability(getGenAIAbility) {ability, user},
+  ) {
+    const {id} = params;
     const userId = user._id.toString();
     const job = await this.genAIService.getJobStatus(id);
 
-    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    const genaiRes = subject('GenAI', {
+      courseId: job.uploadParameters.courseId,
+      versionId: job.uploadParameters.versionId,
+    });
     if (!ability.can('modify', genaiRes)) {
       //throw new ForbiddenError('You do not have permission to rerun tasks in this job');
     }
 
-    await this.genAIService.rerunTask(id, userId, body.usePrevious, body.parameters);
+    await this.genAIService.rerunTask(
+      id,
+      userId,
+      body.usePrevious,
+      body.parameters,
+    );
   }
 
   @OpenAPI({
     summary: 'Abort current task',
     description: `Aborts the current task in the job.<br/>
     It returns an empty body with a 200 status code.`,
-    
   })
-  @Post("/jobs/:id/tasks/abort")
+  @Post('/jobs/:id/tasks/abort')
   @Authorized()
   @OnUndefined(200)
   @ResponseSchema(GenAINotFoundErrorResponse, {
     description: 'GenAI not found',
     statusCode: 404,
   })
-  async abortTask(@Params() params: GenAIIdParams, @Ability(getGenAIAbility) {ability, user}) {
-    const { id } = params;
+  async abortTask(
+    @Params() params: GenAIIdParams,
+    @Ability(getGenAIAbility) {ability, user},
+  ) {
+    const {id} = params;
     const userId = user._id.toString();
     const job = await this.genAIService.getJobStatus(id);
 
-    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    const genaiRes = subject('GenAI', {
+      courseId: job.uploadParameters.courseId,
+      versionId: job.uploadParameters.versionId,
+    });
     if (!ability.can('modify', genaiRes)) {
       //throw new ForbiddenError('You do not have permission to abort tasks in this job');
     }
@@ -275,21 +339,26 @@ export class GenAIController {
     summary: 'Stop current task',
     description: `Stops the current task in the job (alias of abort).<br/>
     It returns an empty body with a 200 status code.`,
-    
   })
-  @Post("/jobs/:id/tasks/stop")
+  @Post('/jobs/:id/tasks/stop')
   @Authorized()
   @OnUndefined(200)
   @ResponseSchema(GenAINotFoundErrorResponse, {
     description: 'GenAI not found',
     statusCode: 404,
   })
-  async stopTask(@Params() params: GenAIIdParams, @Ability(getGenAIAbility) {ability, user}) {
-    const { id } = params;
+  async stopTask(
+    @Params() params: GenAIIdParams,
+    @Ability(getGenAIAbility) {ability, user},
+  ) {
+    const {id} = params;
     const userId = user._id.toString();
     const job = await this.genAIService.getJobStatus(id);
 
-    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    const genaiRes = subject('GenAI', {
+      courseId: job.uploadParameters.courseId,
+      versionId: job.uploadParameters.versionId,
+    });
     if (!ability.can('modify', genaiRes)) {
       //throw new ForbiddenError('You do not have permission to stop tasks in this job');
     }
@@ -302,7 +371,7 @@ export class GenAIController {
     description: `Edits the segment map of a job.<br/>
     It returns an empty body with a 200 status code.`,
   })
-  @Patch("/jobs/:id/edit/segment-map")
+  @Patch('/jobs/:id/edit/segment-map')
   @Authorized()
   @OnUndefined(200)
   @ResponseSchema(GenAINotFoundErrorResponse, {
@@ -317,15 +386,22 @@ export class GenAIController {
     description: 'Forbidden Error',
     statusCode: 403,
   })
-  async editSegmentMap(@Params() params: GenAIIdParams, @Body() body: EditSegmentMapBody, @Ability(getGenAIAbility) {ability}) {
-    const { id } = params;
+  async editSegmentMap(
+    @Params() params: GenAIIdParams,
+    @Body() body: EditSegmentMapBody,
+    @Ability(getGenAIAbility) {ability},
+  ) {
+    const {id} = params;
     const job = await this.genAIService.getJobStatus(id);
 
-    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    const genaiRes = subject('GenAI', {
+      courseId: job.uploadParameters.courseId,
+      versionId: job.uploadParameters.versionId,
+    });
     if (!ability.can('modify', genaiRes)) {
       //throw new ForbiddenError('You do not have permission to edit the segment map of this job');
     }
-    
+
     await this.genAIService.editSegmentMap(id, body.segmentMap, body.index);
   }
 
@@ -334,7 +410,7 @@ export class GenAIController {
     description: `Edits the question data of a job.<br/>
     It returns an empty body with a 200 status code.`,
   })
-  @Patch("/jobs/:id/edit/question")
+  @Patch('/jobs/:id/edit/question')
   @Authorized()
   @OnUndefined(200)
   @ResponseSchema(GenAINotFoundErrorResponse, {
@@ -349,12 +425,19 @@ export class GenAIController {
     description: 'Forbidden Error',
     statusCode: 403,
   })
-  async editQuestionData(@Params() params: GenAIIdParams, @Body() body: EditQuestionData, @Ability(getGenAIAbility) {ability}) {
-    const { id } = params;
-    const { questionData, index } = body;
+  async editQuestionData(
+    @Params() params: GenAIIdParams,
+    @Body() body: EditQuestionData,
+    @Ability(getGenAIAbility) {ability},
+  ) {
+    const {id} = params;
+    const {questionData, index} = body;
     const job = await this.genAIService.getJobStatus(id);
 
-    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    const genaiRes = subject('GenAI', {
+      courseId: job.uploadParameters.courseId,
+      versionId: job.uploadParameters.versionId,
+    });
     if (!ability.can('modify', genaiRes)) {
       //throw new ForbiddenError('You do not have permission to edit question data of this job');
     }
@@ -367,7 +450,7 @@ export class GenAIController {
     description: `Edits the transcript of a job.<br/>
     It returns an empty body with a 200 status code.`,
   })
-  @Patch("/jobs/:id/edit/transcript")
+  @Patch('/jobs/:id/edit/transcript')
   @Authorized()
   @OnUndefined(200)
   @ResponseSchema(GenAINotFoundErrorResponse, {
@@ -382,12 +465,19 @@ export class GenAIController {
     description: 'Forbidden Error',
     statusCode: 403,
   })
-  async editTranscript(@Params() params: GenAIIdParams, @Body() body: EditTranscript, @Ability(getGenAIAbility) {ability}) {
-    const { id } = params;
-    const { transcript, index } = body;
+  async editTranscript(
+    @Params() params: GenAIIdParams,
+    @Body() body: EditTranscript,
+    @Ability(getGenAIAbility) {ability},
+  ) {
+    const {id} = params;
+    const {transcript, index} = body;
     const job = await this.genAIService.getJobStatus(id);
 
-    const genaiRes = subject('GenAI', { courseId: job.uploadParameters.courseId, versionId: job.uploadParameters.versionId });
+    const genaiRes = subject('GenAI', {
+      courseId: job.uploadParameters.courseId,
+      versionId: job.uploadParameters.versionId,
+    });
     if (!ability.can('modify', genaiRes)) {
       //throw new ForbiddenError('You do not have permission to edit transcript of this job');
     }
@@ -397,9 +487,10 @@ export class GenAIController {
 
   @OpenAPI({
     summary: 'Get live status updates',
-    description: 'Establishes a Server-Sent Events (SSE) connection to receive live status updates for a job.<br/> It returns an empty body with a 200 status code.',
+    description:
+      'Establishes a Server-Sent Events (SSE) connection to receive live status updates for a job.<br/> It returns an empty body with a 200 status code.',
   })
-  @Get("/:id/live")
+  @Get('/:id/live')
   @Authorized()
   @ResponseSchema(GenAINotFoundErrorResponse, {
     description: 'GenAI not found',
@@ -408,13 +499,77 @@ export class GenAIController {
   async getLiveUpdates(
     @Params() params: GenAIIdParams,
     @Res() res: Response,
-    @Req() req: Request
+    @Req() req: Request,
   ) {
-    const { id } = params;
+    const {id} = params;
     this.sseService.init(
       req as unknown as ExpressRequest,
       res as unknown as ExpressResponse,
-      id
+      id,
     );
+  }
+
+  @OpenAPI({
+    summary: 'Generate transcript segments from Claude',
+    description:
+      'Takes a transcript string and generates structured segments. Each segment is at least 1 minute long and timestamps are formatted in mm:ss.',
+  })
+  @Post('/generate-segments')
+  @Authorized()
+  async generateSegments(
+    @Body() body: {transcript: string},
+    @Req() req: Request,
+  ): Promise<any> {
+    const {transcript} = body;
+
+    if (!transcript || transcript.trim().length < 10) {
+      throw new BadRequestError('Transcript text is required.');
+    }
+
+    // Call Claude
+    const response = await this.genAIService.getSegmentsFromTranscript(
+      transcript,
+    );
+
+    let parsed;
+    try {
+      parsed = JSON.parse(response.text);
+    } catch (err) {
+      throw new BadRequestError('Claude returned invalid JSON.');
+    }
+
+    return parsed;
+  }
+
+  @OpenAPI({
+    summary: 'Generate MCQ questions from a transcript segment using Claude',
+    description:
+      'Accepts a transcript segment string and generates 3–6 high-quality MCQs including hints, options, explanations, and correct answers.',
+  })
+  @Post('/generate-questions')
+  @Authorized()
+  async generateQuestions(
+    @Body() body: {segment: string},
+    @Req() req: Request,
+  ): Promise<any> {
+    const {segment} = body;
+
+    if (!segment || segment.trim().length < 10) {
+      throw new BadRequestError('Segment text is required.');
+    }
+
+    // Call Claude
+    const response = await this.genAIService.generateQuestionsFromSegment(
+      segment,
+    );
+
+    let parsed;
+    try {
+      parsed = response;
+    } catch (err) {
+      throw new BadRequestError('Claude returned invalid JSON.');
+    }
+
+    return parsed;
   }
 }

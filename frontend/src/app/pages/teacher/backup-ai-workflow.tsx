@@ -229,7 +229,38 @@ const AiWorkflow = () => {
 
     }, [isTranscribing, isAudioExtracting, transcribedData]);
 
-    useEffect(() => {
+    // Mock progress % bar
+    // useEffect(() => {
+    //   let interval: NodeJS.Timeout | null = null;
+
+    //   if (isLoading || isTranscribing) {
+    //     interval = setInterval(() => {
+    //       setProgress((prev) => {
+    //         if (prev >= 99.99) return 99.99;
+
+    //         let increment = Math.max(0.2, (99.99 - prev) / 25);
+
+    //         if (prev >= 85) {
+    //           increment = Math.max(0.05, increment / 3);
+    //         }
+
+    //         // Extra slow for transcription or question generation
+    //         if (isTranscribing || currentJob?.task === "QUESTION_GENERATION") {
+    //           increment = Math.max(0.05, increment / 2);
+    //         }
+
+    //         return Math.min(prev + increment, 99.99);
+    //       });
+    //     }, 1600);
+    //   } else {
+    //     setProgress(0);
+    //   }
+    //   return () => {
+    //     if (interval) clearInterval(interval);
+    //   };
+    // }, [isLoading, isTranscribing, currentJob?.task]);
+
+       useEffect(() => {
       let interval: NodeJS.Timeout | null = null;
       let slowInterval: NodeJS.Timeout | null = null;
 
