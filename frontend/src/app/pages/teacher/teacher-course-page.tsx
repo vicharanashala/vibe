@@ -203,9 +203,7 @@ function TeacherCourseContent() {
   // Fetch item details for selected item
   const shouldFetchItem = selectedEntity?.type === 'item' && !!courseId && !!versionId && !!selectedEntity?.data?._id;
   const {
-    data: selectedItemData, 
-    isLoading: isItemLoading, 
-    refetch: refetchItem
+    data: selectedItemData, refetch: refetchItem
   } = useItemById(
     shouldFetchItem ? courseId : '',
     shouldFetchItem ? versionId : '',
@@ -1741,7 +1739,7 @@ if (type === "feedback") {
                     {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
 
                       <VideoModal
-                        isLoading={isItemLoading}
+                        isLoading={isLoading}
                         selectedItemName={selectedItem.name}
                         action={isEditingItem ? "edit" : "view"}
                         item={selectedItemData?.item}
@@ -1801,7 +1799,7 @@ if (type === "feedback") {
                     {/* <CreateArticle/> */}
                     {selectedEntity.type === "item" && selectedEntity.data.type === "QUIZ" && courseId && versionId && (
                       <EnhancedQuizEditor
-                        isLoading={isItemLoading}
+                        isLoading={isLoading}
                         selectedItemName={selectedItem.name}
                         quizId={selectedQuizId}
                         moduleId={selectedEntity.parentIds?.moduleId || ""}
@@ -1871,7 +1869,7 @@ if (type === "feedback") {
                     )}
                     {selectedEntity.type === "item" && selectedEntity.data.type === "BLOG" && courseId && versionId && (
                       <EnhancedBlogEditor
-                        isLoading={isItemLoading}
+                        isLoading={isLoading}
                         selectedItemName={selectedItem.name}
                         blogId={selectedEntity.data._id}
                         moduleId={selectedEntity.parentIds?.moduleId || ""}
@@ -1902,32 +1900,32 @@ if (type === "feedback") {
 )} */}
 
 
-                    {selectedEntity.type === "item" && selectedEntity.data.type === "FEEDBACK" && (
-                      <FeedbackFormEditor
-                        isLoading={isItemLoading}
-                        selectedItemName={selectedItem.name}
-                        feedbackId={selectedEntity.data._id}
-                        moduleId={selectedEntity.parentIds?.moduleId || ""}
-                        sectionId={selectedEntity.parentIds?.sectionId || ""}
-                        courseId={courseId!}
-                        courseVersionId={versionId!}
-                        details={selectedItemData}
-                        onRefetch={() => {
-                          refetchVersion();
-                          refetchItems();
-                          refetchItem();
-                        }}
-                        onDelete={() => {
-                          deleteItemAsync({
-                            params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
-                          }).then(() => {
-                            refetchVersion();
-                            refetchItems();
-                          });
-                          setSelectedEntity(null);
-                        }}
-                      />
-                    )}
+{selectedEntity.type === "item" && selectedEntity.data.type === "FEEDBACK" && (
+  <FeedbackFormEditor
+    isLoading={isLoading}
+    selectedItemName={selectedItem.name}
+    feedbackId={selectedEntity.data._id}
+    moduleId={selectedEntity.parentIds?.moduleId || ""}
+    sectionId={selectedEntity.parentIds?.sectionId || ""}
+    courseId={courseId!}
+    courseVersionId={versionId!}
+    details={selectedItemData}
+    onRefetch={() => {
+      refetchVersion();
+      refetchItems();
+      refetchItem();
+    }}
+    onDelete={() => {
+      deleteItemAsync({
+        params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
+      }).then(() => {
+        refetchVersion();
+        refetchItems();
+      });
+      setSelectedEntity(null);
+    }}
+  />
+)}
                   </div>
                 </div>
               </div>
