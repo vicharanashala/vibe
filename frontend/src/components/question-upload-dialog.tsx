@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
-import { ArrowLeft, ArrowRight, BookOpen, CheckCircle, CheckCircle2, Download, FileText, FileUp, Lightbulb, Loader2, Pencil, Sparkles, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, CheckCircle, CheckCircle2, Download, FileText, FileUp, Lightbulb, Loader2, Pencil, Plus, Sparkles, Trash2, Upload } from "lucide-react";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
@@ -116,6 +116,21 @@ export const QuestionUploadDialog = ({
         );
         return copy;
       });
+    };
+
+    const addNewQuestion = (segmentIndex: number) => {
+      const updated = [...llmResponse];
+
+      updated[segmentIndex].questions.push({
+        sno: updated[segmentIndex].questions.length + 1,
+        question: "",
+        hint: "",
+        options: { A: "", B: "", C: "", D: "" },
+        explanations: { A: "", B: "", C: "", D: "" },
+        correctAnswer: "A"
+      });
+
+      setLlmResponse(updated);
     };
 
 
@@ -253,7 +268,7 @@ const handleGenerateLLMResponse = async () => {
       });
     });
 
-    const csv = Papa.unparse(flattenedRows);
+    const csv = (Papa as any).unparse(flattenedRows);
 
     setGeneratedCSV(csv);
     setStep("csv-preview");
@@ -923,6 +938,17 @@ const handleGenerateLLMResponse = async () => {
                           </AccordionItem>
                         </Accordion>
                       ))}
+                        <div className="pt-4">
+                          <button
+                            onClick={() => addNewQuestion(index)}
+                            className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 
+                                      border border-blue-300 hover:border-blue-500 px-3 py-2 rounded-lg 
+                                      transition bg-blue-50 dark:bg-blue-950/20"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Add New Question
+                          </button>
+                        </div>
                     </CardContent>
                   </Card>
                   ))}
