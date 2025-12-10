@@ -3,7 +3,9 @@ import {ICourseRepository} from '#shared/database/interfaces/ICourseRepository.j
 import {
   ICourse,
   ICourseVersion,
+  ID,
   IEnrollment,
+  IItemGroupInfo,
   IModule,
   ItemType,
   IWatchTime,
@@ -295,6 +297,16 @@ export class CourseRepository implements ICourseRepository {
         throw new NotFoundError('Course Version not found');
       }
 
+      // Filter out soft-deleted modules and sections
+      if (courseVersion.modules) {
+        courseVersion.modules = courseVersion.modules
+          .filter(m => !m.isDeleted)
+          .map(m => ({
+            ...m,
+            sections: m.sections ? m.sections.filter(s => !s.isDeleted) : [],
+          }));
+      }
+
       return instanceToPlain(
         Object.assign(new CourseVersion(), courseVersion),
       ) as CourseVersion;
@@ -308,6 +320,43 @@ export class CourseRepository implements ICourseRepository {
     }
   }
 
+  async getItemGroupInfo(
+    itemGroupId: ID,
+    session?: ClientSession,
+  ): Promise<IItemGroupInfo | null> {
+    const result = await this.courseVersionCollection
+      .aggregate<IItemGroupInfo>(
+        [
+          {
+            $match: {
+              'modules.sections.itemsGroupId': itemGroupId,
+            },
+          },
+          {$unwind: '$modules'},
+          {$unwind: '$modules.sections'},
+          {
+            $match: {
+              'modules.sections.itemsGroupId': itemGroupId,
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              courseVersionId: '$_id',
+              moduleId: '$modules.moduleId',
+              moduleName: '$modules.name',
+              sectionId: '$modules.sections.sectionId',
+              sectionName: '$modules.sections.name',
+            },
+          },
+        ],
+        {session},
+      )
+      .toArray();
+
+    return result.length > 0 ? result[0] : null;
+
+  }
   async getActiveVersion(
     versionId: string,
     session?: ClientSession,

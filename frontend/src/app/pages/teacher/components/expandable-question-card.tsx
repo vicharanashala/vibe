@@ -224,8 +224,8 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
         const { _id, isCorrect: _, ...rest } = item;
         
         const explanation = rest.explaination?.trim() || (isCorrect 
-          ? "Congratulations! You are correct!" 
-          : "Sorry! You are wrong!");
+          ? "Nil" 
+          : "Nil");
         
         return { ...rest, explaination: explanation };
       };
