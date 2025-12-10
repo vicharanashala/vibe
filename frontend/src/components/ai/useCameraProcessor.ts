@@ -80,7 +80,7 @@ const useCameraProcessor = (frameRate = 3) => {
         modelReadyRef.current = true;
       } else if (event.data.type === "DETECTION_RESULT") {
         //   console.log("Face Detection Result:", event.data.faces);
-        console.log("✅ DETECTION_RESULT received, faces:", event.data.faces.length);
+        // console.log("✅ DETECTION_RESULT received, faces:", event.data.faces.length);
         setFaces(event.data.faces);
       } else if (event.data.type === "ERROR") {
         console.error("Worker Error:", event.data.message);
@@ -96,16 +96,16 @@ const useCameraProcessor = (frameRate = 3) => {
     // ML Processor function
     const processWithML: MLProcessor = (image) => {
 
-      console.log("📹 ML Processor called - modelReady:", modelReady, "modelReadyRef:", modelReadyRef.current, "worker exists:", !!workerRef.current);
+      // console.log("📹 ML Processor called - modelReady:", modelReady, "modelReadyRef:", modelReadyRef.current, "worker exists:", !!workerRef.current);
   
       // Using ref instead of state
       if (!workerRef.current || !modelReadyRef.current) {
-        console.log("📹 Skipping frame - worker not ready");
+        // console.log("📹 Skipping frame - worker not ready");
         return;
       }
       
       try {
-        console.log("✅ Sending frame to worker - image size:", image.width, "x", image.height);
+        // console.log("✅ Sending frame to worker - image size:", image.width, "x", image.height);
         workerRef.current.postMessage({ type: "DETECT_FACES", image }, [image]);
       } catch (error) {
         console.error("Error processing image:", error);
