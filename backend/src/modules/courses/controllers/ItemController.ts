@@ -116,7 +116,7 @@ export class ItemController {
   })
   async readAll(
     @Params() params: VersionModuleSectionParams,
-    @Ability(getItemAbility) {ability},
+    @Ability(getItemAbility) {ability, user},
   ) {
     const {versionId, moduleId, sectionId} = params;
 
@@ -134,6 +134,7 @@ export class ItemController {
       versionId,
       moduleId,
       sectionId,
+      user._id,
     );
 
     // Filter out blank quizzes for students

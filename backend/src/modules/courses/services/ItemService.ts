@@ -219,12 +219,32 @@ export class ItemService extends BaseService {
     versionId: string,
     moduleId: string,
     sectionId: string,
+    userId: string,
   ): Promise<ItemRef[]> {
     const {itemsGroup} = await this._getVersionModuleSectionAndItemsGroup(
       versionId,
       moduleId,
       sectionId,
     );
+
+    const course = await this.courseRepo.readVersion(versionId);
+    if (!course) {
+      throw new NotFoundError(`Course for version ${versionId} not found.`);
+    }
+
+    const user = await this.enrollmentRepo.getUserEnrollmentsByCourseVersion(
+      userId,
+      course.courseId.toString(),
+      versionId,
+    );
+
+    console.log('ItemsGroup fetched:', itemsGroup);
+
+    // Only filter hidden items for students
+    if (user.role === 'STUDENT') {
+      itemsGroup.items = itemsGroup.items.filter(item => !item.isHidden);
+    }
+
     return itemsGroup.items;
   }
 
