@@ -1,4 +1,4 @@
-import {Type} from 'class-transformer';
+import { Type } from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -19,8 +19,8 @@ import {
   IsEnum,
   IsArray,
 } from 'class-validator';
-import {JSONSchema} from 'class-validator-jsonschema';
-import {CourseVersion} from '../transformers/CourseVersion.js';
+import { JSONSchema } from 'class-validator-jsonschema';
+import { CourseVersion } from '../transformers/CourseVersion.js';
 import {
   FeedBackFormItem,
   Item,
@@ -37,7 +37,7 @@ import {
   IProjectDetails,
   IFeedBackFormDetails,
 } from '#root/shared/interfaces/models.js';
-import {OnlyOneId} from './customValidators.js';
+import { OnlyOneId } from './customValidators.js';
 
 class VideoDetailsPayloadValidator implements IVideoDetails {
   @JSONSchema({
@@ -87,8 +87,7 @@ class VideoDetailsPayloadValidator implements IVideoDetails {
 }
 
 class QuizDetailsPayloadValidator
-  implements Omit<IQuizDetails, 'questionBankRefs'>
-{
+  implements Omit<IQuizDetails, 'questionBankRefs'> {
   @JSONSchema({
     description: 'Minimum percentage required to pass, between 0 and 1',
     example: 0.7,
@@ -337,6 +336,15 @@ class CreateItemBody implements Partial<IBaseItem> {
   type: ItemType;
 
   @JSONSchema({
+    description: 'Is the item optional?',
+    example: false,
+    type: 'boolean',
+  })
+  @IsBoolean()
+  @IsOptional()
+  isOptional?: boolean;
+
+  @JSONSchema({
     description: 'Details specific to video items',
     type: 'object',
   })
@@ -427,11 +435,12 @@ class UpdateItemBody implements Partial<IBaseItem> {
   @IsNotEmpty()
   type: ItemType;
 
-  @ValidateIf(o => o.type === ItemType.FEEDBACK)
-  @IsNotEmpty()
+
   @JSONSchema({
     description: 'isOptional field is required only for Feedback type items',
   })
+  @IsBoolean()
+  @IsOptional()
   isOptional?: boolean;
 
   @JSONSchema({
@@ -689,7 +698,7 @@ class ItemsGroupResponse implements ItemsGroup {
   })
   @IsNotEmpty()
   @Type(() => ItemRefResponse)
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @IsArray()
   items: ItemRef[];
 
@@ -708,7 +717,7 @@ class ItemDataResponse {
     description: 'The item data',
     type: 'object',
     readOnly: true,
-    items: {$ref: '#/components/schemas/ItemGroupResponse'},
+    items: { $ref: '#/components/schemas/ItemGroupResponse' },
   })
   @IsNotEmpty()
   @ValidateNested()
@@ -724,9 +733,9 @@ class ItemDataResponse {
   version?: CourseVersion;
 
   @JSONSchema({
-    
+
   })
-  createdItem:ItemRef;
+  createdItem: ItemRef;
 }
 
 class DeletedItemResponse {
@@ -734,7 +743,7 @@ class DeletedItemResponse {
     description: 'The deleted item data',
     type: 'object',
     readOnly: true,
-    example: {deletedItemId: '68ee280e1f1beg90c14b68ba'},
+    example: { deletedItemId: '68ee280e1f1beg90c14b68ba' },
   })
   @IsNotEmpty()
   deletedItem: Record<string, any>;

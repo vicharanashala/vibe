@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent } from "react";
 import * as Papa from 'papaparse';
-import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank } from '@/hooks/hooks';
+import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useUpdateItemOptional } from '@/hooks/hooks';
 import { Download, Upload } from 'lucide-react';
 
 const MAX_DESCRIPTION_LENGTH = 1000;
@@ -49,6 +49,7 @@ import ProjectItem from "./components/ProjectItem";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import FeedbackFormEditor from "./FeedbackFormEditor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 
 // Retry utility function
 const withRetry = async <T,>(fn: () => Promise<T>, maxRetries = 3, delay = 100): Promise<T> => {
@@ -385,6 +386,8 @@ function TeacherCourseContent() {
   const addQuestionBankToQuiz = useAddQuestionBankToQuiz();
   const addQuestiontoQuestionBank = useAddQuestionToBank();
 
+  const updateItemOptional = useUpdateItemOptional();
+
   // Refetch after any success
   useEffect(() => {
     if (
@@ -509,6 +512,7 @@ function TeacherCourseContent() {
       },
     },
   });
+
 
   // Reload items when quiz wizard closes
   useEffect(() => {
@@ -1868,9 +1872,50 @@ function TeacherCourseContent() {
                       <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-slate-900 dark:text-gray-100">
                         {selectedEntity.data?.name}
                       </h2>
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600">
-                        {selectedEntity.type.charAt(0).toUpperCase() + selectedEntity.type.slice(1)}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {selectedEntity.type == "item" && (
+                          <div className="items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-lg border min-w-0 flex-1 sm:flex-none sm:min-w-[200px]">
+                            <div className="flex items-center justify-center">
+                              <Switch
+                                id={`optional-${selectedItemData?.item?._id}`}
+                                checked={selectedItemData?.item?.isOptional || false}
+                                onCheckedChange={async (checked) => {
+                                  if (versionId && selectedItemData?.item?._id) {
+                                    try {
+                                      await updateItemOptional.mutateAsync({
+                                        params: {
+                                          path: {
+                                            versionId: versionId,
+                                            itemId: selectedEntity?.data?._id
+                                          }
+                                        },
+                                        body: { isOptional: checked }
+                                      });
+
+                                      refetchItem();
+                                      // Force a re-render by updating the local state
+                                    } catch (error) {
+                                toast.error('Failed to update item optional status:', error);
+                                    }
+                                  }
+                                }}
+                              className="cursor-pointer"
+                              />
+                              <Label htmlFor={`optional-${selectedEntity?.data?._id}`} className="ml-5 text-lg">
+                                Optional
+                              </Label>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                "Students can skip this item if it's set to true"
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600">
+                          {selectedEntity.type.charAt(0).toUpperCase() + selectedEntity.type.slice(1)}
+                        </Badge>
+                      </div>
                     </div>
                     <div className="text-sm text-slate-500 dark:text-gray-400 flex items-center gap-2">
                       <BookOpen className="h-4 w-4" />
