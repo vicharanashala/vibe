@@ -28,6 +28,9 @@ class QuizItem {
   name: string;
 
   @Expose()
+  isOptional?: boolean = false;
+
+  @Expose()
   description: string;
 
   @Expose()
@@ -68,6 +71,9 @@ class VideoItem {
   name: string;
 
   @Expose()
+  isOptional?: boolean = false;
+
+  @Expose()
   description: string;
 
   @Expose()
@@ -106,6 +112,9 @@ class BlogItem {
 
   @Expose()
   name: string;
+
+  @Expose()
+  isOptional?: boolean = false;
 
   @Expose()
   description: string;
@@ -164,11 +173,12 @@ class FeedBackFormItem {
     description: string,
     _id: ID,
     details?: IFeedBackFormDetails,
+    isOptional: boolean = false
   ) {
     this._id = _id;
     this.type = ItemType.FEEDBACK;
     this.name = name;
-    this.isOptional = false;
+    this.isOptional = isOptional;
     this.description = description;
 
     if (details) {
@@ -247,6 +257,9 @@ class ProjectItem {
   name: string;
 
   @Expose()
+  isOptional?: boolean = false;
+
+  @Expose()
   description: string;
 
   @Expose()
@@ -260,11 +273,12 @@ class ProjectItem {
   @Expose()
   deletedAt?: Date;
 
-  constructor(name: string, description: string, _id: ID, details?: any) {
+  constructor(name: string, description: string, _id: ID, details?: any, isOptional: boolean = false) {
     this._id = _id;
     this.type = ItemType.PROJECT;
     this.name = name;
     this.description = description;
+    this.isOptional = isOptional;
 
     if (details) {
       this.details = details;

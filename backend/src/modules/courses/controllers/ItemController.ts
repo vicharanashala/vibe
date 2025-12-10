@@ -38,6 +38,7 @@ import { subject } from '@casl/ability';
 import { QuizService } from '#root/modules/quizzes/services/QuizService.js';
 import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 import { ItemType } from '#shared/interfaces/models.js';
+import { ObjectId } from 'mongodb';
 
 @OpenAPI({
   tags: ['Course Items'],
@@ -341,7 +342,7 @@ Access control logic:
   async submitProject(): Promise<void> { }
 
 
-  
+
   @OpenAPI({
     summary: 'Get feedback submissions',
     description: `Get the feedback submissions of a particular course item`,
@@ -365,10 +366,49 @@ Access control logic:
     @QueryParams() query: GetFeedbackSubmissionsQuery
     // @Ability(getItemAbility) { ability },
   ) {
-    const {courseId,feedbackId} = params;
-    const {search='',page=1,limit=1} =query
-    return await this.itemService.getFeedbackSubmissions(courseId,feedbackId,search,Number(page),Number(limit))
+    const { courseId, feedbackId } = params;
+    const { search = '', page = 1, limit = 1 } = query
+    return await this.itemService.getFeedbackSubmissions(courseId, feedbackId, search, Number(page), Number(limit))
   }
- 
+
+  // Add to ItemController.ts
+
+  @OpenAPI({
+    summary: 'Update item optional status',
+    description: `Updates the optional status of a specific item.
+Accessible to:
+- Instructors, managers, and teaching assistants of the course.`,
+  })
+  @Authorized()
+  @HttpCode(200)
+  @Put('/versions/:versionId/items/:itemId/optional')
+  @ResponseSchema(ItemDataResponse, {
+    description: 'Item optional status updated successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ItemNotFoundErrorResponse, {
+    description: 'Item not found',
+    statusCode: 404,
+  })
+  async updateOptionalStatus(
+    @Params() params: VersionItemParams,
+    @Body() body: { isOptional: boolean },
+    @Ability(getItemAbility) { ability },
+  ) {
+    const { versionId, itemId } = params;
+    // Check permission
+    const itemResource = subject('Item', { versionId:versionId });
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
+    }
+
+    return await this.itemService.updateItemOptionalStatus(versionId, itemId, body.isOptional);
+  }
+
 }
 

@@ -136,6 +136,9 @@ export class ItemRepository implements IItemRepository {
         case ItemType.PROJECT:
           collection = this.projectCollection;
           break;
+        case ItemType.FEEDBACK:
+          collection= this.feedbackFormCollection;
+          break;
         default:
           throw new InternalServerError(
             `Unsupported item type: ${(item as any).type}`,
@@ -192,11 +195,11 @@ export class ItemRepository implements IItemRepository {
     session?: ClientSession,
   ): Promise<ItemsGroup | null> {
     await this.init();
-
+    
     const itemFilter =
       typeof itemId === 'string' && ObjectId.isValid(itemId)
         ? { $in: [itemId, new ObjectId(itemId)] }
-        : itemId;
+      : itemId;
     const itemsGroup = await this.itemsGroupCollection.findOne(
       { 'items._id': itemFilter },
       { session },
@@ -386,6 +389,7 @@ export class ItemRepository implements IItemRepository {
         break;
       case ItemType.PROJECT:
         collection = this.projectCollection;
+        break;
       case ItemType.FEEDBACK:
         collection = this.feedbackFormCollection;
         break;
@@ -401,9 +405,9 @@ export class ItemRepository implements IItemRepository {
         $set: {
           name: item.name,
           description: item.description,
-          ...(item.type === ItemType.FEEDBACK && {
-            isOptional: item.isOptional,
-          }),
+          // ...(item.type === ItemType.FEEDBACK && {
+          isOptional: item.isOptional,
+          // }),
           details: item?.details,
         },
       },
