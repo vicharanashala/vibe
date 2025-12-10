@@ -477,106 +477,104 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   //   return () => document.removeEventListener('keydown', handleKeyDown, true);
   // }, [handlePlayPause]);
 
-  // // Poll current time and enforce time constraints
-  // useEffect(() => {
-  //   let interval: ReturnType<typeof setInterval>;
-  //   if (playerReady) {
-  //     interval = setInterval(() => {
-  //       const player = playerRef.current;
-  //       if (player && player.getCurrentTime) {
-  //         const time = player.getCurrentTime();
-  //         setCurrentTime(time);
-  //         setDuration(player.getDuration());
-  //         setVolume(player.getVolume());
+  // Poll current time and enforce time constraints
+useEffect(() => {
+  let interval: ReturnType<typeof setInterval>;
+  if (playerReady) {
+    interval = setInterval(() => {
+      const player = playerRef.current;
+      if (player && player.getCurrentTime) {
+        const time = player.getCurrentTime();
+        setCurrentTime(time);
+        setDuration(player.getDuration());
+        setVolume(player.getVolume());
 
-  //         // Enforce startTime constraint
-  //         if (time < startTimeSeconds) {
-  //           if (!player) return;
-  //           player.seekTo(startTimeSeconds, true);
-  //           setMaxTime(startTimeSeconds);
-  //           return;
-  //         }
+        // Enforce startTime constraint
+        if (time < startTimeSeconds) {
+          if (!player) return;
+          player.seekTo(startTimeSeconds, true);
+          setMaxTime(startTimeSeconds);
+          return;
+        }
 
-  //         // Enforce endTime constraint
-  //         if (endTimeSeconds > 0 && !progressStoppedRef.current && time >= endTimeSeconds - 1 && currentCourse) {
-  //           const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
+        // Enforce endTime constraint
+        if (endTimeSeconds > 0 && !progressStoppedRef.current && time >= endTimeSeconds - 1 && currentCourse) {
+          const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
 
-  //           if (watchItemId) {
-  //             stopItem.mutate({
-  //               params: {
-  //                 path: {
-  //                   courseId: currentCourse.courseId,
-  //                   courseVersionId: currentCourse.versionId ?? '',
-  //                 },
-  //               },
-  //               body: {
-  //                 watchItemId,
-  //                 itemId: currentCourse.itemId ?? '',
-  //                 moduleId: currentCourse.moduleId ?? '',
-  //                 sectionId: currentCourse.sectionId ?? '',
-  //               }
-  //             });
-  //           }
-  //           if (onNext) {
-  //             onNext();
-  //           }
-  //           progressStoppedRef.current = true;
-  //         }
-          
-  //         // Handle videos without endTime constraint that reach near completion
-  //         if (endTimeSeconds === 0 && duration > 0 && !progressStoppedRef.current && time >= duration - 2 && currentCourse) {
-  //           const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
+          if (watchItemId) {
+            stopItem.mutate({
+              params: {
+                path: {
+                  courseId: currentCourse.courseId,
+                  courseVersionId: currentCourse.versionId ?? '',
+                },
+              },
+              body: {
+                watchItemId,
+                itemId: currentCourse.itemId ?? '',
+                moduleId: currentCourse.moduleId ?? '',
+                sectionId: currentCourse.sectionId ?? '',
+              }
+            });
+          }
+          if (onNext) {
+            onNext();
+          }
+          progressStoppedRef.current = true;
+        }
+        
+        // Handle videos without endTime constraint that reach near completion
+        if (endTimeSeconds === 0 && duration > 0 && !progressStoppedRef.current && time >= duration - 2 && currentCourse) {
+          const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
 
-  //           if (watchItemId) {
-  //             stopItem.mutate({
-  //               params: {
-  //                 path: {
-  //                   courseId: currentCourse.courseId,
-  //                   courseVersionId: currentCourse.versionId ?? '',
-  //                 },
-  //               },
-  //               body: {
-  //                 watchItemId,
-  //                 itemId: currentCourse.itemId ?? '',
-  //                 moduleId: currentCourse.moduleId ?? '',
-  //                 sectionId: currentCourse.sectionId ?? '',
-  //               }
-  //             });
-  //           }
-  //           if (onNext) {
-  //             onNext();
-  //           }
-  //           progressStoppedRef.current = true;
-  //         }
-  //         if (endTimeSeconds > 0 && time >= endTimeSeconds) {
-  //           player.pauseVideo();
-  //           if (!player) return;
-  //           player.seekTo(endTimeSeconds, true);
-  //           setMaxTime(endTimeSeconds);
-  //           if (!videoEnded) {
-  //             setVideoEnded(true);
-  //           }
-  //           return;
-  //         }
+          if (watchItemId) {
+            stopItem.mutate({
+              params: {
+                path: {
+                  courseId: currentCourse.courseId,
+                  courseVersionId: currentCourse.versionId ?? '',
+                },
+              },
+              body: {
+                watchItemId,
+                itemId: currentCourse.itemId ?? '',
+                moduleId: currentCourse.moduleId ?? '',
+                sectionId: currentCourse.sectionId ?? '',
+              }
+            });
+          }
+          if (onNext) {
+            onNext();
+          }
+          progressStoppedRef.current = true;
+        }
+        if (endTimeSeconds > 0 && time >= endTimeSeconds) {
+          player.pauseVideo();
+          if (!player) return;
+          player.seekTo(endTimeSeconds, true);
+          setMaxTime(endTimeSeconds);
+          if (!videoEnded) {
+            setVideoEnded(true);
+          }
+          return;
+        }
 
-  //         // Prevent forward seeking beyond what they've already watched
-  //         const speedTolerance = playbackRate * 1.0;
-  //         const timeDifference = time - maxTime;
+        // Prevent forward seeking beyond what they've already watched
+        const speedTolerance = playbackRate * 1.0;
+        const timeDifference = time - maxTime;
 
-  //         if (timeDifference > speedTolerance + 1.0 && time <= endTimeSeconds) {
-  //           if (!player) return;
-  //           player.seekTo(maxTime, true);
-  //         } else if (time >= startTimeSeconds && time <= endTimeSeconds) {
-  //           setMaxTime(Math.max(maxTime, time));
-  //         }
-  //       }
-  //     }, Math.max(200, 500 / playbackRate));
-  //   }
-  //   return () => clearInterval(interval);
-  // }, [playerReady, maxTime, playbackRate, startTimeSeconds, endTimeSeconds, videoEnded]);
+        if (timeDifference > speedTolerance + 1.0 && time <= endTimeSeconds) {
+          if (!player) return;
+          player.seekTo(maxTime, true);
+        } else if (time >= startTimeSeconds && time <= endTimeSeconds) {
+          setMaxTime(Math.max(maxTime, time));
+        }
+      }
+    }, Math.max(200, 500 / playbackRate));
+  }
+  return () => clearInterval(interval);
+}, [playerReady, maxTime, playbackRate, startTimeSeconds, endTimeSeconds, videoEnded]);
 
-// --- Robust capture-level keyboard handler (prevents player/browser shortcuts,
-//     re-dispatches a clean event so app handlers receive it) -------------------
 useEffect(() => {
   if (!keyboardLockEnabled) return;
 
