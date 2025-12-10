@@ -589,7 +589,7 @@ useEffect(() => {
     try {
       const tgt = rawEvent.target as HTMLElement | null;
 
-      // If typing in an input, textarea or contentEditable, let it through
+      // Allow typing inside input/textarea/contentEditable
       if (tgt) {
         const tag = tgt.tagName;
         if (tag === 'INPUT' || tag === 'TEXTAREA' || (tgt as HTMLElement).isContentEditable) {
@@ -597,29 +597,18 @@ useEffect(() => {
         }
       }
 
-      // Space: stop page scroll, toggle playback immediately, but re-dispatch
+      // Space: only toggle play/pause, do NOT re-dispatch
       if (rawEvent.code === 'Space') {
         rawEvent.preventDefault();
         rawEvent.stopImmediatePropagation();
         handlePlayPause();
-        const synthetic = new KeyboardEvent('keydown', {
-          key: rawEvent.key,
-          code: rawEvent.code,
-          bubbles: true,
-          cancelable: true,
-          shiftKey: rawEvent.shiftKey,
-          ctrlKey: rawEvent.ctrlKey,
-          altKey: rawEvent.altKey,
-          metaKey: rawEvent.metaKey,
-        });
-        setTimeout(() => document.dispatchEvent(synthetic), 0);
         return;
       }
 
       // Only handle keys in our blocked set
       if (!blockedKeys.has(rawEvent.key)) return;
 
-      // stop player/browser default, then re-dispatch a clean event for app
+      // For these keys, block default and re-dispatch a clean event
       rawEvent.preventDefault();
       rawEvent.stopImmediatePropagation();
 
@@ -636,15 +625,14 @@ useEffect(() => {
 
       setTimeout(() => document.dispatchEvent(synthetic), 0);
     } catch (err) {
-      // do not let handler throw
-      // eslint-disable-next-line no-console
       console.error('Keyboard capture error', err);
     }
   };
 
-  window.addEventListener('keydown', handler, true); // capture phase
+  window.addEventListener('keydown', handler, true);
   return () => window.removeEventListener('keydown', handler, true);
 }, [handlePlayPause, keyboardLockEnabled]);
+
 
 
   const handleToggleSubtitles = () => {
