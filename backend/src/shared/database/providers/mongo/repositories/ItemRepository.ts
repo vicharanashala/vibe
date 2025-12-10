@@ -737,6 +737,7 @@ export class ItemRepository implements IItemRepository {
         [ItemType.QUIZ]: [],
         [ItemType.BLOG]: [],
         [ItemType.PROJECT]: [],
+        [ItemType.FEEDBACK]: [],
       };
 
       for (const group of deletedItemGroups) {
@@ -860,7 +861,7 @@ export class ItemRepository implements IItemRepository {
     const result = await collection.findOneAndUpdate(
       {_id: new ObjectId(itemId)},
       {$set: item},
-      {session},
+      {session, returnDocument: 'after'},
     );
 
     if (!result) {

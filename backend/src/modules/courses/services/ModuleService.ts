@@ -21,12 +21,16 @@ import {
   ICourseRepository,
   IItemRepository,
 } from '#root/shared/database/interfaces/index.js';
+import {EnrollmentRepository} from '#root/shared/index.js';
 
 @injectable()
 export class ModuleService extends BaseService {
   constructor(
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
+
+    @inject(GLOBAL_TYPES.EnrollmentRepo)
+    private readonly enrollmentRepo: EnrollmentRepository,
 
     @inject(COURSES_TYPES.ItemRepo)
     private readonly itemRepo: IItemRepository,
@@ -183,6 +187,9 @@ export class ModuleService extends BaseService {
 
       itemGroups.forEach(group => {
         group.isHidden = isHidden;
+        group.items.forEach(item => {
+          item.isHidden = isHidden;
+        });
       });
 
       module.isHidden = isHidden;
@@ -198,6 +205,17 @@ export class ModuleService extends BaseService {
       await this.itemRepo.updateItemsGroupsBulk(
         itemGroupIds,
         {isHidden},
+        session,
+      );
+
+      const itemIds = itemGroups.reduce((acc, group) => {
+        const ids = group.items.map(item => item._id);
+        return acc.concat(ids);
+      }, []);
+
+      await this.enrollmentRepo.setWatchTimeVisibility(
+        itemIds,
+        isHidden,
         session,
       );
 

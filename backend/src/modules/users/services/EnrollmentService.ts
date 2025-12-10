@@ -283,6 +283,13 @@ export class EnrollmentService extends BaseService {
           this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
         ]);
 
+        console.log(
+          'Content Counts Map:',
+          contentCountsMap,
+          'Watched Items Map:',
+          watchedItemsMap,
+        );
+
         return enrollments.map(enr => {
           const versionIdStr = enr.courseVersionId.toString();
           const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}`;

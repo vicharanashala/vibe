@@ -3518,3 +3518,22 @@ export const useHideSection = () : {
     error: result.error ? (result?.error?.message || 'Failed to hide/unhide section') : null
   }
 }
+
+export const useHideItem = () : {
+  mutate: (variables: { params: { path: { versionId: string, itemId: string } },  body: { hide: boolean } }) => void,
+  mutateAsync: (variables: { params: { path: { versionId: string, itemId: string } },  body: { hide: boolean } }) => Promise<void>,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} => {
+  
+  const result = api.useMutation('put', '/courses/versions/{versionId}/items/{itemId}/toggle-visibility');
+  return {
+    ...result,
+    error: result.error ? (result?.error?.message || 'Failed to hide/unhide item') : null
+  }
+}
