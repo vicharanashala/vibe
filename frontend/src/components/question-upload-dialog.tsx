@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
-import { ArrowLeft, ArrowRight, BookOpen, CheckCircle, CheckCircle2, Download, FileText, FileUp, Lightbulb, Loader2, Sparkles, Upload } from "lucide-react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
+import { ArrowLeft, ArrowRight, BookOpen, CheckCircle, CheckCircle2, Download, FileText, FileUp, Lightbulb, Loader2, Pencil, Plus, Sparkles, Trash2, Upload } from "lucide-react";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
@@ -12,6 +12,8 @@ import * as Papa from 'papaparse';
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { ScrollArea } from "./ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "./ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 interface QuestionUploadDialogProps {
   open: boolean;
@@ -46,7 +48,10 @@ export const QuestionUploadDialog = ({
   const [selectedTxtFile, setSelectedTxtFile] = useState<File | null>(null);
   const [isDraggingTxt, setIsDraggingTxt] = useState(false);
   const [isDraggingCsv, setIsDraggingCsv] = useState(false);
+
   const [llmResponse, setLlmResponse] = useState<TranscriptResponse[]>([]);
+  const [editing, setEditing] = useState<any>(null); 
+
   const [generatedCSV, setGeneratedCSV] = useState<string>("");
   const [customCSVFile, setCustomCSVFile] = useState<File | null>(null);
   const [useCustomCSV, setUseCustomCSV] = useState(false);
@@ -86,6 +91,70 @@ export const QuestionUploadDialog = ({
       toast.error("Please upload a valid .txt file");
     }
   };
+
+  const startEditQuestion = (segmentIndex: number, questionIndex: number) => {
+    const q = llmResponse[segmentIndex].questions[questionIndex];
+    setEditing({
+        segmentIndex,
+        questionIndex,
+        question: q.question,
+        hint: q.hint,
+        options: { ...q.options },
+        explanations: { ...q.explanations },
+        correctAnswer: q.correctAnswer,
+      });
+    };
+
+    const deleteQuestion = (segmentIndex: number, questionIndex: number) => {
+      const ok = window.confirm("Are you sure you want to delete this question?");
+      if (!ok) return;
+
+      setLlmResponse(prev => {
+        const copy = [...prev];
+        copy[segmentIndex].questions = copy[segmentIndex].questions.filter(
+          (_, i) => i !== questionIndex
+        );
+        return copy;
+      });
+    };
+
+    const addNewQuestion = (segmentIndex: number) => {
+      const updated = [...llmResponse];
+
+      updated[segmentIndex].questions.push({
+        sno: updated[segmentIndex].questions.length + 1,
+        question: "",
+        hint: "",
+        options: { A: "", B: "", C: "", D: "" },
+        explanations: { A: "", B: "", C: "", D: "" },
+        correctAnswer: "A"
+      });
+
+      setLlmResponse(updated);
+    };
+
+
+    const saveEdit = () => {
+      setLlmResponse(prev => {
+        const copy = [...prev];
+        const s = editing.segmentIndex;
+        const q = editing.questionIndex;
+
+        copy[s].questions[q] = {
+          sno: copy[s].questions[q].sno,
+          question: editing.question,
+          hint: editing.hint,
+          options: editing.options,
+          explanations: editing.explanations,
+          correctAnswer: editing.correctAnswer,
+        };
+
+        return copy;
+      });
+
+      setEditing(null);
+    };
+
 
   useEffect(()=> {
     setGeneralError("")
@@ -179,7 +248,7 @@ const handleGenerateLLMResponse = async () => {
 
       previousTimestamp = timestamp;
 
-      questions.forEach((q: any) => {
+      questions.forEach((q: any, index: number) => {
         flattenedRows.push({
           "Segment": currentSegmentNumber,
           "Question Timestamp [mm:ss]": timestamp,
@@ -199,7 +268,7 @@ const handleGenerateLLMResponse = async () => {
       });
     });
 
-    const csv = Papa.unparse(flattenedRows);
+    const csv = (Papa as any).unparse(flattenedRows);
 
     setGeneratedCSV(csv);
     setStep("csv-preview");
@@ -629,13 +698,122 @@ const handleGenerateLLMResponse = async () => {
                     </pre>
                   </div>
                 </div> */}
+
+                <Dialog open={!!editing} onOpenChange={() => setEditing(null)}>
+                  <DialogContent className="max-w-3xl p-6">
+                    <DialogHeader>
+                      <DialogTitle className="text-xl font-semibold">Edit Question</DialogTitle>
+                    </DialogHeader>
+
+                    <ScrollArea className="h-[70vh] pr-4 mt-5">
+                      <div className="space-y-6 px-2">
+
+                        {/* Question */}
+                        <div className="space-y-2">
+                          <Label className="font-medium">Question</Label>
+                          <Input
+                            placeholder="Enter question"
+                            value={editing?.question}
+                            onChange={(e) =>
+                              setEditing({ ...editing, question: e.target.value })
+                            }
+                          />
+                        </div>
+
+                        {/* Hint */}
+                        <div className="space-y-2">
+                          <Label className="font-medium">Hint</Label>
+                          <Input
+                            placeholder="Enter hint"
+                            value={editing?.hint}
+                            onChange={(e) =>
+                              setEditing({ ...editing, hint: e.target.value })
+                            }
+                          />
+                        </div>
+
+                        {/* Options */}
+                        <div className="space-y-3">
+                          <h3 className="text-lg font-semibold">Options</h3>
+
+                          {["A", "B", "C", "D"].map((k) => (
+                            <div key={k} className="space-y-1">
+                              <Label>Option {k}</Label>
+                              <Input
+                                placeholder={`Option ${k}`}
+                                value={editing?.options[k]}
+                                onChange={(e) =>
+                                  setEditing({
+                                    ...editing,
+                                    options: { ...editing.options, [k]: e.target.value },
+                                  })
+                                }
+                              />
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Explanations */}
+                        <div className="space-y-3">
+                          <h3 className="text-lg font-semibold">Explanations</h3>
+
+                          {["A", "B", "C", "D"].map((k) => (
+                            <div key={k} className="space-y-1">
+                              <Label>Explanation {k}</Label>
+                              <Textarea
+                                placeholder={`Explanation ${k}`}
+                                value={editing?.explanations[k]}
+                                onChange={(e) =>
+                                  setEditing({
+                                    ...editing,
+                                    explanations: {
+                                      ...editing.explanations,
+                                      [k]: e.target.value,
+                                    },
+                                  })
+                                }
+                              />
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Correct Answer */}
+                        <div className="space-y-2">
+                          <Label className="font-medium">Correct Answer</Label>
+                          <Select
+                            value={editing?.correctAnswer}
+                            onValueChange={(val) =>
+                              setEditing({ ...editing, correctAnswer: val })
+                            }
+                          >
+                            <SelectTrigger>
+                              <span>Select correct option</span>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {["A", "B", "C", "D"].map((x) => (
+                                <SelectItem key={x} value={x}>
+                                  {x}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                      </div>
+                    </ScrollArea>
+
+                    <DialogFooter className="pt-4">
+                      <Button onClick={saveEdit}>Save</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               <ScrollArea className="h-[550px] rounded-md border p-4">
                 <div className="space-y-6">
                   {llmResponse?.map((segment, index) => (
                     <Card key={index} className="shadow-md border">
                       <CardHeader>
                         <CardTitle className="flex justify-between">
-                          <span>Segment {segment.segmentNumber}</span>
+                          <span>Segment {index+1} </span>
                           <span className="text-sm text-muted-foreground">
                             Timestamp: {segment.timestamp}
                           </span>
@@ -656,6 +834,40 @@ const handleGenerateLLMResponse = async () => {
                                   {q.question}
                                 </span>
                               </div>
+                             <div className="flex gap-3 ml-auto">
+
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      startEditQuestion(index, qIndex);
+                                    }}
+                                    className="text-blue-600 hover:text-blue-800 transition"
+                                  >
+                                    <Pencil className="w-4 h-4" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>Edit</TooltipContent>
+                              </Tooltip>
+
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      deleteQuestion(index, qIndex);
+                                    }}
+                                    className="text-red-600 hover:text-red-800 transition"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>Delete</TooltipContent>
+                              </Tooltip>
+
+                            </div>
+
                             </AccordionTrigger>
 
                             <AccordionContent className="px-5 pb-5 space-y-5 bg-gray-50 dark:bg-gray-900">
@@ -726,6 +938,17 @@ const handleGenerateLLMResponse = async () => {
                           </AccordionItem>
                         </Accordion>
                       ))}
+                        <div className="pt-4">
+                          <button
+                            onClick={() => addNewQuestion(index)}
+                            className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 
+                                      border border-blue-300 hover:border-blue-500 px-3 py-2 rounded-lg 
+                                      transition bg-blue-50 dark:bg-blue-950/20"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Add New Question
+                          </button>
+                        </div>
                     </CardContent>
                   </Card>
                   ))}
