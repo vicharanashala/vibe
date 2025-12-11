@@ -285,6 +285,16 @@ export class CourseRepository implements ICourseRepository {
         throw new NotFoundError('Course Version not found');
       }
 
+      // Filter out soft-deleted modules and sections
+      if (courseVersion.modules) {
+        courseVersion.modules = courseVersion.modules
+          .filter(m => !m.isDeleted)
+          .map(m => ({
+            ...m,
+            sections: m.sections ? m.sections.filter(s => !s.isDeleted) : [],
+          }));
+      }
+
       return instanceToPlain(
         Object.assign(new CourseVersion(), courseVersion),
       ) as CourseVersion;

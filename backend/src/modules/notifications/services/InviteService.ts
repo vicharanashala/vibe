@@ -450,9 +450,7 @@ export class InviteService extends BaseService {
             // Update Status to EMAIL_FAILED
             invite.inviteStatus = 'EMAIL_FAILED';
             const updatePayload = {
-              ...invite,
-              courseId: new ObjectId(invite.courseId),
-              courseVersionId: new ObjectId(invite.courseVersionId),
+              inviteStatus: 'EMAIL_FAILED' as const,
             };
             await this.inviteRepo.updateInvite(invite._id.toString(), updatePayload);
           }
@@ -523,9 +521,8 @@ export class InviteService extends BaseService {
     invite.acceptedAt = date;
 
     const updatedPayload = {
-      ...invite,
-      courseId: new ObjectId(invite.courseId),
-      courseVersionId: new ObjectId(invite.courseVersionId),
+      inviteStatus: 'ACCEPTED' as const,
+      acceptedAt: date,
     };
 
     await this.inviteRepo.updateInvite(inviteId, updatedPayload);
@@ -577,9 +574,7 @@ export class InviteService extends BaseService {
     // Update invite status to CANCELLED
     invite.inviteStatus = 'CANCELLED';
     const updatePayload = {
-      ...invite,
-      courseId: new ObjectId(invite.courseId),
-      courseVersionId: new ObjectId(invite.courseVersionId),
+      inviteStatus: 'CANCELLED' as const,
     };
     await this.inviteRepo.updateInvite(inviteId, updatePayload);
 

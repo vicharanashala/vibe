@@ -189,6 +189,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
     }
   }, [pauseVid, playing]);
 
+
+  
   // Autoplay: Wait for grace period completion
   useEffect(() => {
     const player = playerRef.current;
@@ -280,6 +282,9 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   //     console.log('🔍 [Video] Current anomalies:', anomalies);
   //   }
   // }, [anomalies]);
+  // Handle keyboard events including space for play/pause
+
+
 
   function handleSendStartItem() {
     if (!currentCourse?.itemId) return;
@@ -440,135 +445,192 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
     };
   }, [videoId, startTimeSeconds, readyToDetect]);
 
-  // Handle keyboard events including space for play/pause
-  useEffect(() => {
+  // // Handle keyboard events including space for play/pause
+  // useEffect(() => {
     
-    if(!keyboardLockEnabled) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Handle space key for play/pause
-      if (e.code === 'Space') {
-        e.preventDefault();
-        e.stopPropagation();
+  //   if(!keyboardLockEnabled) return;
+  //   const handleKeyDown = (e: KeyboardEvent) => {
+  //     // Handle space key for play/pause
+  //     if (e.code === 'Space') {
+  //       e.preventDefault();
+  //       e.stopPropagation();
+  //       handlePlayPause();
+  //       return;
+  //     }
+
+  //     const blockedKeys = [
+  //       'KeyK', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+  //       'KeyM', 'KeyF', 'KeyT', 'KeyC', 'Digit0', 'Digit1', 'Digit2', 'Digit3',
+  //       'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9',
+  //       'Period', 'Comma', 'KeyI', 'KeyO',
+  //     ];
+
+  //     if (blockedKeys.includes(e.code) ||
+  //       (e.shiftKey && e.code === 'Period') ||
+  //       (e.shiftKey && e.code === 'Comma')) {
+  //       e.preventDefault();
+  //       e.stopPropagation();
+  //     }
+  //   };
+
+  //   document.addEventListener('keydown', handleKeyDown, true);
+  //   return () => document.removeEventListener('keydown', handleKeyDown, true);
+  // }, [handlePlayPause]);
+
+  // Poll current time and enforce time constraints
+useEffect(() => {
+  let interval: ReturnType<typeof setInterval>;
+  if (playerReady) {
+    interval = setInterval(() => {
+      const player = playerRef.current;
+      if (player && player.getCurrentTime) {
+        const time = player.getCurrentTime();
+        setCurrentTime(time);
+        setDuration(player.getDuration());
+        setVolume(player.getVolume());
+
+        // Enforce startTime constraint
+        if (time < startTimeSeconds) {
+          if (!player) return;
+          player.seekTo(startTimeSeconds, true);
+          setMaxTime(startTimeSeconds);
+          return;
+        }
+
+        // Enforce endTime constraint
+        if (endTimeSeconds > 0 && !progressStoppedRef.current && time >= endTimeSeconds - 1 && currentCourse) {
+          const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
+
+          if (watchItemId) {
+            stopItem.mutate({
+              params: {
+                path: {
+                  courseId: currentCourse.courseId,
+                  courseVersionId: currentCourse.versionId ?? '',
+                },
+              },
+              body: {
+                watchItemId,
+                itemId: currentCourse.itemId ?? '',
+                moduleId: currentCourse.moduleId ?? '',
+                sectionId: currentCourse.sectionId ?? '',
+              }
+            });
+          }
+          if (onNext) {
+            onNext();
+          }
+          progressStoppedRef.current = true;
+        }
+        
+        // Handle videos without endTime constraint that reach near completion
+        if (endTimeSeconds === 0 && duration > 0 && !progressStoppedRef.current && time >= duration - 2 && currentCourse) {
+          const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
+
+          if (watchItemId) {
+            stopItem.mutate({
+              params: {
+                path: {
+                  courseId: currentCourse.courseId,
+                  courseVersionId: currentCourse.versionId ?? '',
+                },
+              },
+              body: {
+                watchItemId,
+                itemId: currentCourse.itemId ?? '',
+                moduleId: currentCourse.moduleId ?? '',
+                sectionId: currentCourse.sectionId ?? '',
+              }
+            });
+          }
+          if (onNext) {
+            onNext();
+          }
+          progressStoppedRef.current = true;
+        }
+        if (endTimeSeconds > 0 && time >= endTimeSeconds) {
+          player.pauseVideo();
+          if (!player) return;
+          player.seekTo(endTimeSeconds, true);
+          setMaxTime(endTimeSeconds);
+          if (!videoEnded) {
+            setVideoEnded(true);
+          }
+          return;
+        }
+
+        // Prevent forward seeking beyond what they've already watched
+        const speedTolerance = playbackRate * 1.0;
+        const timeDifference = time - maxTime;
+
+        if (timeDifference > speedTolerance + 1.0 && time <= endTimeSeconds) {
+          if (!player) return;
+          player.seekTo(maxTime, true);
+        } else if (time >= startTimeSeconds && time <= endTimeSeconds) {
+          setMaxTime(Math.max(maxTime, time));
+        }
+      }
+    }, Math.max(200, 500 / playbackRate));
+  }
+  return () => clearInterval(interval);
+}, [playerReady, maxTime, playbackRate, startTimeSeconds, endTimeSeconds, videoEnded]);
+
+useEffect(() => {
+  if (!keyboardLockEnabled) return;
+
+  const blockedKeys = new Set([
+    't','i','o','k','f','c','m',',','.',
+    'T','I','O','K','F','C','M','<','>'
+  ]);
+
+  const handler = (rawEvent: KeyboardEvent) => {
+    try {
+      const tgt = rawEvent.target as HTMLElement | null;
+
+      // Allow typing inside input/textarea/contentEditable
+      if (tgt) {
+        const tag = tgt.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (tgt as HTMLElement).isContentEditable) {
+          return;
+        }
+      }
+
+      // Space: only toggle play/pause, do NOT re-dispatch
+      if (rawEvent.code === 'Space') {
+        rawEvent.preventDefault();
+        rawEvent.stopImmediatePropagation();
         handlePlayPause();
         return;
       }
 
-      const blockedKeys = [
-        'KeyK', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-        'KeyM', 'KeyF', 'KeyT', 'KeyC', 'Digit0', 'Digit1', 'Digit2', 'Digit3',
-        'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9',
-        'Period', 'Comma', 'KeyI', 'KeyO',
-      ];
+      // Only handle keys in our blocked set
+      if (!blockedKeys.has(rawEvent.key)) return;
 
-      if (blockedKeys.includes(e.code) ||
-        (e.shiftKey && e.code === 'Period') ||
-        (e.shiftKey && e.code === 'Comma')) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    };
+      // For these keys, block default and re-dispatch a clean event
+      rawEvent.preventDefault();
+      rawEvent.stopImmediatePropagation();
 
-    document.addEventListener('keydown', handleKeyDown, true);
-    return () => document.removeEventListener('keydown', handleKeyDown, true);
-  }, [handlePlayPause]);
+      const synthetic = new KeyboardEvent('keydown', {
+        key: rawEvent.key,
+        code: rawEvent.code,
+        bubbles: true,
+        cancelable: true,
+        shiftKey: rawEvent.shiftKey,
+        ctrlKey: rawEvent.ctrlKey,
+        altKey: rawEvent.altKey,
+        metaKey: rawEvent.metaKey,
+      });
 
-  // Poll current time and enforce time constraints
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    if (playerReady) {
-      interval = setInterval(() => {
-        const player = playerRef.current;
-        if (player && player.getCurrentTime) {
-          const time = player.getCurrentTime();
-          setCurrentTime(time);
-          setDuration(player.getDuration());
-          setVolume(player.getVolume());
-
-          // Enforce startTime constraint
-          if (time < startTimeSeconds) {
-            if (!player) return;
-            player.seekTo(startTimeSeconds, true);
-            setMaxTime(startTimeSeconds);
-            return;
-          }
-
-          // Enforce endTime constraint
-          if (endTimeSeconds > 0 && !progressStoppedRef.current && time >= endTimeSeconds - 1 && currentCourse) {
-            const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
-
-            if (watchItemId) {
-              stopItem.mutate({
-                params: {
-                  path: {
-                    courseId: currentCourse.courseId,
-                    courseVersionId: currentCourse.versionId ?? '',
-                  },
-                },
-                body: {
-                  watchItemId,
-                  itemId: currentCourse.itemId ?? '',
-                  moduleId: currentCourse.moduleId ?? '',
-                  sectionId: currentCourse.sectionId ?? '',
-                }
-              });
-            }
-            if (onNext) {
-              onNext();
-            }
-            progressStoppedRef.current = true;
-          }
-          
-          // Handle videos without endTime constraint that reach near completion
-          if (endTimeSeconds === 0 && duration > 0 && !progressStoppedRef.current && time >= duration - 2 && currentCourse) {
-            const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
-
-            if (watchItemId) {
-              stopItem.mutate({
-                params: {
-                  path: {
-                    courseId: currentCourse.courseId,
-                    courseVersionId: currentCourse.versionId ?? '',
-                  },
-                },
-                body: {
-                  watchItemId,
-                  itemId: currentCourse.itemId ?? '',
-                  moduleId: currentCourse.moduleId ?? '',
-                  sectionId: currentCourse.sectionId ?? '',
-                }
-              });
-            }
-            if (onNext) {
-              onNext();
-            }
-            progressStoppedRef.current = true;
-          }
-          if (endTimeSeconds > 0 && time >= endTimeSeconds) {
-            player.pauseVideo();
-            if (!player) return;
-            player.seekTo(endTimeSeconds, true);
-            setMaxTime(endTimeSeconds);
-            if (!videoEnded) {
-              setVideoEnded(true);
-            }
-            return;
-          }
-
-          // Prevent forward seeking beyond what they've already watched
-          const speedTolerance = playbackRate * 1.0;
-          const timeDifference = time - maxTime;
-
-          if (timeDifference > speedTolerance + 1.0 && time <= endTimeSeconds) {
-            if (!player) return;
-            player.seekTo(maxTime, true);
-          } else if (time >= startTimeSeconds && time <= endTimeSeconds) {
-            setMaxTime(Math.max(maxTime, time));
-          }
-        }
-      }, Math.max(200, 500 / playbackRate));
+      setTimeout(() => document.dispatchEvent(synthetic), 0);
+    } catch (err) {
+      console.error('Keyboard capture error', err);
     }
-    return () => clearInterval(interval);
-  }, [playerReady, maxTime, playbackRate, startTimeSeconds, endTimeSeconds, videoEnded]);
+  };
+
+  window.addEventListener('keydown', handler, true);
+  return () => window.removeEventListener('keydown', handler, true);
+}, [handlePlayPause, keyboardLockEnabled]);
+
 
 
   const handleToggleSubtitles = () => {
@@ -699,7 +761,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
 
           {/* Multiple overlay layers to block YouTube controls */}
 
-          <div
+          {/* <div
 
             style={{
 
@@ -757,17 +819,34 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
 
             }}
 
-            onKeyDown={(e) => {
+            // onKeyDown={(e) => {
 
-              e.preventDefault();
+            //   e.preventDefault();
 
-              e.stopPropagation();
+            //   e.stopPropagation();
 
-            }}
+            // }}
+
 
             tabIndex={-1}
 
-          />
+          /> */}
+          {/* /* add data-video-overlay so the focus-burring effect can detect it */ }
+<div data-video-overlay="true"
+  style={{
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    background: 'transparent',
+    pointerEvents: 'auto',
+    zIndex: 10,
+    userSelect: 'none',
+    cursor: 'pointer',
+  }}
+  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePlayPause(); }}
+  onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
+  onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+/>
+
 
 
 
@@ -1360,3 +1439,4 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
     </div >
   );
 }
+
