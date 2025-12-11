@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent } from "react";
 import * as Papa from 'papaparse';
 import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useUpdateItemOptional } from '@/hooks/hooks';
-import { Download, Upload } from 'lucide-react';
+import { Download, Loader2, Upload } from 'lucide-react';
 
 const MAX_DESCRIPTION_LENGTH = 1000;
 
@@ -50,6 +50,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import FeedbackFormEditor from "./FeedbackFormEditor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/utils/utils";
 
 // Retry utility function
 const withRetry = async <T,>(fn: () => Promise<T>, maxRetries = 3, delay = 100): Promise<T> => {
@@ -294,6 +295,8 @@ function TeacherCourseContent() {
 
   // Store items for each section
   const [sectionItems, setSectionItems] = useState<Record<string, any[]>>({});
+
+  const [togglingItemId, setTogglingItemId] = useState<string | null>(null);
 
   // Check if a project already exists in any section
   const hasExistingProject = useMemo(() => {
@@ -1873,14 +1876,16 @@ function TeacherCourseContent() {
                         {selectedEntity.data?.name}
                       </h2>
                       <div className="flex items-center gap-2">
-                        {selectedEntity.type == "item" && (
-                          <div className="items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-lg border min-w-0 flex-1 sm:flex-none sm:min-w-[200px]">
-                            <div className="flex items-center justify-center">
+                        {selectedEntity.type === "item" && (
+                          <div className="items-center gap-2 bg-muted/40 px-2 py-1 rounded-md border text-sm">
+                            <div className="flex items-center justify-center gap-1.5">
                               <Switch
                                 id={`optional-${selectedItemData?.item?._id}`}
                                 checked={selectedItemData?.item?.isOptional || false}
+                                disabled={updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id}
                                 onCheckedChange={async (checked) => {
                                   if (versionId && selectedItemData?.item?._id) {
+                                    setTogglingItemId(selectedItemData.item._id);
                                     try {
                                       await updateItemOptional.mutateAsync({
                                         params: {
@@ -1891,24 +1896,38 @@ function TeacherCourseContent() {
                                         },
                                         body: { isOptional: checked }
                                       });
-
                                       refetchItem();
-                                      // Force a re-render by updating the local state
                                     } catch (error) {
-                                toast.error('Failed to update item optional status:', error);
+                                      toast.error('Failed to update item optional status');
+                                    } finally {
+                                      setTogglingItemId(null);
                                     }
                                   }
                                 }}
-                              className="cursor-pointer"
-                              />
-                              <Label htmlFor={`optional-${selectedEntity?.data?._id}`} className="ml-5 text-lg">
+                                className={cn(
+                                  "data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
+                                  "h-4 w-8",
+                                  "relative",
+                                  "cursor-pointer",
+                                  updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id
+                                    ? "opacity-70"
+                                    : "opacity-100"
+                                )}
+                              >
+                                {(updateItemOptional.isPending || togglingItemId === selectedItemData?.item?._id) && (
+                                  <Loader2 className="h-2 w-2 animate-spin absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-primary-foreground" />
+                                )}
+                              </Switch>
+                              <Label
+                                htmlFor={`optional-${selectedEntity?.data?._id}`}
+                                className="text-lg text-white cursor-pointer"
+                                title="Students can skip this item if enabled"
+                              >
                                 Optional
                               </Label>
                             </div>
                             <div>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                "Students can skip this item if it's set to true"
-                              </p>
+                              <p className="text-[10px] text-muted-foreground/80">Students can skip this item if enabled</p>
                             </div>
                           </div>
                         )}
