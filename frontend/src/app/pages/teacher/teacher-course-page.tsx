@@ -815,6 +815,11 @@ function TeacherCourseContent() {
         }
       }).then((res) => {
         refetchVersion();
+        refetchItems();
+        toast.success("Video created successfully");
+      }).catch((error) => {
+        console.error("Error creating video:", error);
+        toast.error(`Failed to create video: ${error.message || 'Unknown error'}`);
       });
 
       return;
@@ -831,6 +836,11 @@ function TeacherCourseContent() {
         },
       }).then((res) => {
         refetchVersion();
+        refetchItems();
+        toast.success("Quiz created successfully");
+      }).catch((error) => {
+        console.error("Error creating quiz:", error);
+        toast.error(`Failed to create quiz: ${error.message || 'Unknown error'}`);
       });
     }
     if (type === "article") {
@@ -850,6 +860,11 @@ function TeacherCourseContent() {
         },
       }).then((res) => {
         refetchVersion();
+        refetchItems();
+        toast.success("Article created successfully");
+      }).catch((error) => {
+        console.error("Error creating article:", error);
+        toast.error(`Failed to create article: ${error.message || 'Unknown error'}`);
       });
     }
     if (type === "project") {
@@ -1637,10 +1652,11 @@ function TeacherCourseContent() {
                                                         });
                                                     }
                                                     else if (type === "csv_upload") {
+                                                      setActiveSectionInfo({ moduleId: module.moduleId, sectionId: section.sectionId });
                                                       setShowCSVUpload(true);
                                                     }
                                                     else {
-
+                                                      setActiveSectionInfo({ moduleId: module.moduleId, sectionId: section.sectionId });
                                                       handleAddItem(module.moduleId, section.sectionId, type);
 
                                                     }
