@@ -51,6 +51,7 @@ import FeedbackFormEditor from "./FeedbackFormEditor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/utils/utils";
+import { QuestionUploadDialog } from "@/components/question-upload-dialog";
 
 // Retry utility function
 const withRetry = async <T,>(fn: () => Promise<T>, maxRetries = 3, delay = 100): Promise<T> => {
@@ -74,7 +75,7 @@ const withRetry = async <T,>(fn: () => Promise<T>, maxRetries = 3, delay = 100):
 // Function to process questions sequentially
 const processQuestionsSequentially = async (questions: any[], questionBankId: string, createQuestion: any, addQuestiontoQuestionBank: any) => {
   const successfulQuestions = [];
-
+  
   for (const question of questions) {
     try {
       const options = [
@@ -130,7 +131,7 @@ const processQuestionsSequentially = async (questions: any[], questionBankId: st
               }
             });
           });
-
+          
           successfulQuestions.push(newQuestion);
           console.log(`✅ Created question: ${question.Question?.substring(0, 50)}...`);
         }
@@ -138,7 +139,7 @@ const processQuestionsSequentially = async (questions: any[], questionBankId: st
     } catch (error) {
       console.error('❌ Error creating question:', error);
     }
-
+    
     // Small delay between questions to reduce write conflicts
     await new Promise(resolve => setTimeout(resolve, 200));
   }
@@ -327,7 +328,9 @@ function TeacherCourseContent() {
   // Fetch item details for selected item
   const shouldFetchItem = selectedEntity?.type === 'item' && !!courseId && !!versionId && !!selectedEntity?.data?._id;
   const {
-    data: selectedItemData, refetch: refetchItem
+    data: selectedItemData, 
+    isLoading: isItemLoading,
+    refetch: refetchItem
   } = useItemById(
     shouldFetchItem ? courseId : '',
     shouldFetchItem ? versionId : '',
@@ -659,35 +662,35 @@ function TeacherCourseContent() {
         throw new Error(errorMsg + 'Please ensure your CSV has a "Segment" column with valid values.');
       }
 
-      const segmentNumbers = Array.from(segments.keys()).sort((a, b) => parseInt(a) - parseInt(b));
-      const segmentStartTimes = new Map<string, number>();
-      for (const seg of segmentNumbers) {
-        const qs = segments.get(seg) || [];
-        const q = qs.find(q => q?.['Question Timestamp [mm:ss]']);
-        if (q?.['Question Timestamp [mm:ss]']) {
-          segmentStartTimes.set(seg, convertTimeToSeconds(q['Question Timestamp [mm:ss]']));
-        }
-      }
       // Process each segment
       let previousEndTime = 0;
+      const segmentNumbers = Array.from(segments.keys()).sort((a, b) => parseInt(a) - parseInt(b));
+
       for (const segmentNumber of segmentNumbers) {
         const questions = segments.get(segmentNumber) || [];
         const segmentQuestions = questions.filter(q => q.Question && q['Correct Answer']);
-        console.log(`Processing ${segmentQuestions.length} questions for segment ${segmentNumber}`);
-        const timestamp = segmentStartTimes.get(segmentNumber);
-        let endTime: number;
 
-        if (timestamp !== undefined) {
-          endTime = timestamp;
-        } else {
-          endTime = previousEndTime + 300;
+        if (segmentQuestions.length === 0) {
+          console.warn(`No valid questions found for segment ${segmentNumber}`);
+          continue;
         }
+        
+        console.log(`Processing ${segmentQuestions.length} questions for segment ${segmentNumber}`);
+
+        // Get the first question's timestamp as the end time for the video segment
+        const firstQuestion = segmentQuestions[0];
+        const timestamp = firstQuestion['Question Timestamp [mm:ss]'];
+        if (!timestamp) {
+          console.warn(`No timestamp found for segment ${segmentNumber}, using default`);
+        }
+        const endTime = timestamp ? convertTimeToSeconds(timestamp) : previousEndTime + 300; // Default to 5 minutes if no timestamp
+
         // Create video item with the provided YouTube URL
         const videoItem = await createItemAsync({
           params: { path: { versionId: versionId!, moduleId, sectionId } },
           body: {
             type: 'VIDEO',
-            name: `Segment ${segmentNumber}`,
+            name: `Video ${segmentNumber}`,
             description: `Video segment ${segmentNumber} from CSV upload`,
             videoDetails: {
               URL: youtubeUrl,
@@ -699,72 +702,64 @@ function TeacherCourseContent() {
         });
 
         // Create quiz item
-
-        if (segmentQuestions.length > 0) {
-          const quizItem = await createItemAsync({
-            params: { path: { versionId: versionId!, moduleId, sectionId } },
-            body: {
-              type: 'QUIZ',
-              name: `Quiz - Segment ${segmentNumber}`,
-              description: `Quiz for segment ${segmentNumber} from CSV upload`,
-              quizDetails: {
-                questionBankRefs: [], // Will be added after creating the question bank
-                passThreshold: 0.5, // 50% passing threshold
-                maxAttempts: 3,
-                quizType: 'NO_DEADLINE',
-                releaseTime: new Date().toISOString(),
-                questionVisibility: 1,
-                approximateTimeToComplete: '00:00:60',
-                allowPartialGrading: true,
-                allowHint: true,
-                showCorrectAnswersAfterSubmission: true,
-                showExplanationAfterSubmission: true,
-                showScoreAfterSubmission: true,
-                allowSkip: false
-              }
+        const quizItem = await createItemAsync({
+          params: { path: { versionId: versionId!, moduleId, sectionId } },
+          body: {
+            type: 'QUIZ',
+            name: `Quiz - Segment ${segmentNumber}`,
+            description: `Quiz for segment ${segmentNumber} from CSV upload`,
+            quizDetails: {
+              questionBankRefs: [], // Will be added after creating the question bank
+              passThreshold: 0.5, // 50% passing threshold
+              maxAttempts: 3,
+              quizType: 'NO_DEADLINE',
+              releaseTime: new Date().toISOString(),
+              questionVisibility: 1,
+              approximateTimeToComplete: '00:00:60',
+              allowPartialGrading: true,
+              allowHint: true,
+              showCorrectAnswersAfterSubmission: true,
+              showExplanationAfterSubmission: true,
+              showScoreAfterSubmission: true,
+              allowSkip: false
             }
-          });
+          }
+        });
+
+        const questionBankData = {
+          courseId: courseId,
+          courseVersionId: versionId!,
+          title: `Question Bank - Segment ${segmentNumber}`, // Generate a title based on the segment
+          description: `Questions for segment ${segmentNumber} from CSV upload`,
+          questions: []// Empty array as requested
+        };
+
+        const data = await createQuestionBank.mutateAsync({ body: questionBankData });
+        await addQuestionBankToQuiz.mutateAsync({
+          params: { path: { quizId: quizItem.createdItem._id || "" } },
+          body: {
+            bankId: data.questionBankId,
+            count: 3
+          }
+        });
+
+        // Process questions sequentially with retry logic
+        console.log(`📝 Processing ${segmentQuestions.length} questions for segment ${segmentNumber}...`);
+        const successfulQuestions = await processQuestionsSequentially(
+          segmentQuestions,
+          data.questionBankId,
+          createQuestion,
+          addQuestiontoQuestionBank
+        );
+        console.log(`✅ Successfully created ${successfulQuestions.length} out of ${segmentQuestions.length} questions for segment ${segmentNumber}`);
 
 
-          const questionBankData = {
-            courseId: courseId,
-            courseVersionId: versionId!,
-            title: `Question Bank - Segment ${segmentNumber}`, // Generate a title based on the segment
-            description: `Questions for segment ${segmentNumber} from CSV upload`,
-            questions: []// Empty array as requested
-          };
-
-          const data = await createQuestionBank.mutateAsync({ body: questionBankData });
-          await addQuestionBankToQuiz.mutateAsync({
-            params: { path: { quizId: quizItem.createdItem._id || "" } },
-            body: {
-              bankId: data.questionBankId,
-              count: 3
-            }
-          });
-
-          // Process questions sequentially with retry logic
-          console.log(`📝 Processing ${segmentQuestions.length} questions for segment ${segmentNumber}...`);
-          const successfulQuestions = await processQuestionsSequentially(
-            segmentQuestions,
-            data.questionBankId,
-            createQuestion,
-            addQuestiontoQuestionBank
-          );
-          console.log(`✅ Successfully created ${successfulQuestions.length} out of ${segmentQuestions.length} questions for segment ${segmentNumber}`);
 
 
-
-
-
-        } else {
-          console.log(`⚠ Segment ${segmentNumber} has NO questions → Skipped quiz & question bank`);
-        }
         previousEndTime = endTime;
       }
 
       toast.success('Successfully created items from CSV');
-
     } catch (error) {
       console.error('Error processing CSV:', error);
       toast.error(`Failed to process CSV: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -779,7 +774,7 @@ function TeacherCourseContent() {
   const handleFileUpload = (e: ChangeEvent<HTMLInputElement>, moduleId: string, sectionId: string) => {
     const file = e.target.files?.[0];
     if (file) {
-      processCSV(file, moduleId, sectionId, youtubeUrl);
+      processCSV(file, moduleId, sectionId,youtubeUrl);
     }
     // Reset the input
     e.target.value = '';
@@ -827,6 +822,11 @@ function TeacherCourseContent() {
         }
       }).then((res) => {
         refetchVersion();
+        refetchItems();
+        toast.success("Video created successfully");
+      }).catch((error) => {
+        console.error("Error creating video:", error);
+        toast.error(`Failed to create video: ${error.message || 'Unknown error'}`);
       });
 
       return;
@@ -843,6 +843,11 @@ function TeacherCourseContent() {
         },
       }).then((res) => {
         refetchVersion();
+        refetchItems();
+        toast.success("Quiz created successfully");
+      }).catch((error) => {
+        console.error("Error creating quiz:", error);
+        toast.error(`Failed to create quiz: ${error.message || 'Unknown error'}`);
       });
     }
     if (type === "article") {
@@ -862,6 +867,11 @@ function TeacherCourseContent() {
         },
       }).then((res) => {
         refetchVersion();
+        refetchItems();
+        toast.success("Article created successfully");
+      }).catch((error) => {
+        console.error("Error creating article:", error);
+        toast.error(`Failed to create article: ${error.message || 'Unknown error'}`);
       });
     }
     if (type === "project") {
@@ -1096,7 +1106,7 @@ function TeacherCourseContent() {
         </div>
       )}
       {/* CSV Upload Modal */}
-      <Dialog open={showCSVUpload} onOpenChange={setShowCSVUpload}>
+      {/* <Dialog open={showCSVUpload} onOpenChange={setShowCSVUpload}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Upload Questions</DialogTitle>
@@ -1181,14 +1191,6 @@ function TeacherCourseContent() {
 
           <div className="flex justify-end gap-2">
             <Button
-              variant="secondary"
-              onClick={() => window.open("/templates/QB - template_Sheet1.csv", "_blank")}
-              className="flex items-center gap-2"
-            >
-              <Download className="w-4 h-4" />
-              Download Sample CSV Template
-            </Button>
-            <Button
               variant="outline"
               onClick={() => {
                 setShowCSVUpload(false);
@@ -1233,7 +1235,35 @@ function TeacherCourseContent() {
             </Button>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog> */}
+       <QuestionUploadDialog 
+        open={showCSVUpload} 
+        onOpenChange={setShowCSVUpload} 
+        onUploadComplete={async (youtubeUrl: string, csvFile:File) => {
+                            try {
+                              setIsProcessingCSV(true)
+                              await processCSV(
+                                csvFile,
+                                activeSectionInfo.moduleId,
+                                activeSectionInfo.sectionId,
+                                youtubeUrl
+                              );
+                              refetchVersion();
+                              refetchItems();
+                              setIsProcessingCSV(false)
+                              toast.success("Upload processed successfully!");
+                            } catch (error: any) {
+                              console.error("CSV Processing Error:", error);
+
+                              const message =
+                                error?.response?.data?.error ||
+                                error?.message ||
+                                "Failed to process uploaded data. Please try again.";
+                              setIsProcessingCSV(false)
+                              toast.error(message);
+                            }
+                          }}
+      /> 
       {/* Mobile Sidebar Overlay */}
       {isMobileSidebarOpen && (
         <div
@@ -1367,7 +1397,11 @@ function TeacherCourseContent() {
                                           }}
                                         >
                                           <SidebarMenuSub className="ml-4 space-y-1 pt-1">
-                                            {(sectionItems[section.sectionId] || [])
+                                            {itemsLoading && activeSectionInfo?.sectionId === section.sectionId ? (
+                                              <div className="flex items-center justify-center py-4">
+                                                <Loader />
+                                              </div>
+                                            ) : (sectionItems[section.sectionId] || [])
                                               .slice()
                                               .sort((a: any, b: any) => a.order.localeCompare(b.order))
                                               .map((item: any) => (
@@ -1629,10 +1663,11 @@ function TeacherCourseContent() {
                                                         });
                                                     }
                                                     else if (type === "csv_upload") {
+                                                      setActiveSectionInfo({ moduleId: module.moduleId, sectionId: section.sectionId });
                                                       setShowCSVUpload(true);
                                                     }
                                                     else {
-
+                                                      setActiveSectionInfo({ moduleId: module.moduleId, sectionId: section.sectionId });
                                                       handleAddItem(module.moduleId, section.sectionId, type);
 
                                                     }
@@ -2268,7 +2303,7 @@ function TeacherCourseContent() {
                     {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
 
                       <VideoModal
-                        isLoading={isLoading}
+                        isLoading={isItemLoading}
                         selectedItemName={selectedItem.name}
                         action={isEditingItem ? "edit" : "view"}
                         item={selectedItemData?.item}

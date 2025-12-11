@@ -157,14 +157,19 @@ const VideoModal: React.FC<VideoModalProps> = ({
             end: endTime,
         });
         
-        setVideoId(getYouTubeId((item?.details?.URL ?? "") + "?rel=0"));
-        setPlayerReady(false);
+        setVideoId(getYouTubeId((item?.details.URL ?? "") + "?rel=0"));
+        // setPlayerReady(false);
         setDuration(0);
         setCurrentTime(0);
     }, [item]);
 
+    
+// useEffect(() => {
+//   setPlayerReady(false);   // ✅ move it here
+// }, [videoId]);
     // Create/destroy player on videoId change
     useEffect(() => {
+        setPlayerReady(false)
         if (!videoId || !iframeRef.current || !(window.YT && window.YT.Player)) return;
 
         playerRef.current = new window.YT.Player(iframeRef.current, {
@@ -549,7 +554,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                                             value={timeInputs.start}
                                                             onChange={e => handleTimeInputChange('start', e.target.value)}
                                                             onBlur={() => handleTimeInputBlur('start')}
-                                                            disabled={!playerReady || action === "view"}
+                                                            disabled={action === "view"}
                                                             style={{ width: 100 }}
                                                             placeholder="0:00"
                                                             maxLength={5}
@@ -570,7 +575,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                                             value={timeInputs.end}
                                                             onChange={e => handleTimeInputChange('end', e.target.value)}
                                                             onBlur={() => handleTimeInputBlur('end')}
-                                                            disabled={!playerReady || action === "view"}
+                                                            disabled={action === "view"}
                                                             style={{ width: 100 }}
                                                             placeholder="0:00"
                                                             maxLength={5}
