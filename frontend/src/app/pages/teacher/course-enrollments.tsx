@@ -661,7 +661,7 @@ const enrollmentStats =[]
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
-              placeholder="Search students by user ID..."
+              placeholder="Search students by user ID...."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value?.toLowerCase())}
               className="pl-12 h-12 border-border bg-card text-card-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
