@@ -97,7 +97,7 @@ export class ItemService extends BaseService {
         `Section ${sectionId} not found in module ${moduleId}.`,
       );
     const itemsGroup = await this.itemRepo.readItemsGroup(
-      section.itemsGroupId.toString(),
+      section?.itemsGroupId?.toString(),
       session,
     );
     if (!itemsGroup) {
@@ -264,7 +264,7 @@ export class ItemService extends BaseService {
       }
 
       //  Update item first
-      const result = await this.itemRepo.updateItem(itemId, { ...body, isOptional: body.isOptional || false }, session);
+      const result = await this.itemRepo.updateItem(itemId, { ...body, isOptional: body.isOptional || item.isOptional }, session);
 
       //  Run metrics update (if QUIZ) and version update in parallel
       version.updatedAt = new Date();
@@ -516,7 +516,7 @@ export class ItemService extends BaseService {
       if (!itemsGroup) {
         throw new NotFoundError(`ItemsGroup for item ${itemId} not found`);
       }
-      const itemsGroupId = itemsGroup?._id.toString();
+      const itemsGroupId = itemsGroup?._id?.toString();
       // Step 2: Find version using existing function
       const version = await this.courseRepo.findVersionByItemGroupId(
         itemsGroupId,
@@ -558,7 +558,7 @@ export class ItemService extends BaseService {
       }
 
       // Update only the isOptional field but include the required type
-      const updateData = { 
+      const updateData = {
         ...item,
         isOptional,
         type: item.type // Include the item type which is required by updateItem

@@ -137,7 +137,7 @@ export class ItemRepository implements IItemRepository {
           collection = this.projectCollection;
           break;
         case ItemType.FEEDBACK:
-          collection= this.feedbackFormCollection;
+          collection = this.feedbackFormCollection;
           break;
         default:
           throw new InternalServerError(
@@ -195,11 +195,11 @@ export class ItemRepository implements IItemRepository {
     session?: ClientSession,
   ): Promise<ItemsGroup | null> {
     await this.init();
-    
+
     const itemFilter =
       typeof itemId === 'string' && ObjectId.isValid(itemId)
         ? { $in: [itemId, new ObjectId(itemId)] }
-      : itemId;
+        : itemId;
     const itemsGroup = await this.itemsGroupCollection.findOne(
       { 'items._id': itemFilter },
       { session },
@@ -310,11 +310,15 @@ export class ItemRepository implements IItemRepository {
     for (const module of courseVersion.modules) {
       for (const section of module.sections) {
         const itemsGroup = await this.readItemsGroup(
-          section.itemsGroupId.toString(),
+          section?.itemsGroupId?.toString(),
         );
-        const found = itemsGroup.items.find(i => i._id.toString() === itemId);
+        const found = itemsGroup?.items?.find(i => i?._id?.toString() === itemId);
 
         if (found) {
+          if (!found._id) {
+            console.error('Found item has a null or undefined _id:', found);
+            throw new InternalServerError('Item has an invalid ID');
+          }
           console.log(
             await this.feedbackFormCollection.findOne({
               _id: new ObjectId(found._id),
