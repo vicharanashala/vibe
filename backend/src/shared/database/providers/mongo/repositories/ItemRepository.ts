@@ -138,6 +138,9 @@ export class ItemRepository implements IItemRepository {
         case ItemType.PROJECT:
           collection = this.projectCollection;
           break;
+        case ItemType.FEEDBACK:
+          collection = this.feedbackFormCollection;
+          break;
         default:
           throw new InternalServerError(
             `Unsupported item type: ${(item as any).type}`,
