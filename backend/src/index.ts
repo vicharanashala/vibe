@@ -24,8 +24,8 @@ const app = express();
 //app.use(express.json());
 //app.use(express.urlencoded({ extended: true }));
 
-app.use(loggingHandler);
-console.log('uri ');
+app.use(loggingHandler); 
+console.log("uri ")
 
 // app.use(
 //   session({

@@ -3537,16 +3537,14 @@ export const useHideItem = () : {
     ...result,
     error: result.error ? (result?.error?.message || 'Failed to hide/unhide item') : null
   }
+
 }
-
-
-
 
 export interface GenerateAIQuestionsBody {
   text?: string;
 }
 
-export function useGenerateAIQuestions(): {
+export const useGenerateAIQuestions = (): {
   mutate: (variables: { body: GenerateAIQuestionsBody  }) => void;
   mutateAsync: (variables: { body: GenerateAIQuestionsBody }) => Promise<{ success: boolean; response: TranscriptResponse[] }>;
   data: { success: boolean; response: TranscriptResponse[] } | undefined;
@@ -3557,7 +3555,7 @@ export function useGenerateAIQuestions(): {
   isIdle: boolean;
   reset: () => void;
   status: 'idle' | 'pending' | 'success' | 'error';
-} {
+} => {
   const result = api.useMutation('post', '/quizzes/questions/generate-csv-res');
 
   return {
