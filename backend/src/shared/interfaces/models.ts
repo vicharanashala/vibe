@@ -76,6 +76,14 @@ export interface ISection {
   updatedAt: Date;
 }
 
+export interface IItemGroupInfo {
+  courseVersionId: ID;
+  moduleId: ID;
+  moduleName: string;
+  sectionId: ID;
+  sectionName: string;
+}
+
 export interface IItemId {
   itemId: string;
   order: string;
@@ -154,6 +162,7 @@ export interface IQuestionOptionsLot {
 export interface IQuesionOptionsLotItem {
   _id: string;
   itemText: string;
+  explaination: string;
 }
 
 export interface ISOLQuestionSolution {
@@ -635,4 +644,34 @@ export interface ICourseRegistration {
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+
+export interface TranscriptResponse {
+  segmentNumber: number;
+  timestamp: string;
+  questions: TranscriptQuestion[];
+}
+
+export interface TranscriptQuestion {
+  sno: number;
+  question: string;
+  hint: string;
+  options: TranscriptOptions;
+  explanations: TranscriptExplanations;
+  correctAnswer: string;
+}
+
+export interface TranscriptOptions {
+  A: string;
+  B: string;
+  C: string;
+  D: string;
+}
+
+export interface TranscriptExplanations {
+  A: string;
+  B: string;
+  C: string;
+  D: string;
 }

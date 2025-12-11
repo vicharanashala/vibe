@@ -1,4 +1,4 @@
-﻿import {QuestionBankRef} from '#quizzes/classes/validators/QuestionBankValidator.js';
+﻿  import {QuestionBankRef} from '#quizzes/classes/validators/QuestionBankValidator.js';
 import {
   QuizIdParam,
   AddQuestionBankBody,
@@ -394,7 +394,6 @@ class QuizController {
     
     // return 
     const data =await this.quizService.getQuizAnalytics(quizId);
-    console.log("Controller quiz alaytics",data)
     return data
   }
 

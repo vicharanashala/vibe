@@ -89,6 +89,7 @@ export interface BufferId {
 export interface LotItem {
   text: string;
   _id: BufferId;
+  explaination:string
 }
 
 export interface BaseQuestionRenderView {

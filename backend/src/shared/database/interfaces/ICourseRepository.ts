@@ -1,5 +1,11 @@
 import {Module} from '#root/modules/courses/classes/index.js';
-import {ICourse, ICourseVersion, IModule} from '#shared/interfaces/models.js';
+import {
+  ICourse,
+  ICourseVersion,
+  ID,
+  IItemGroupInfo,
+  IModule,
+} from '#shared/interfaces/models.js';
 import {
   MongoClient,
   ClientSession,
@@ -30,6 +36,11 @@ export interface ICourseRepository {
     newModules: Module[],
     session?: ClientSession,
   ): Promise<void>;
+
+  getItemGroupInfo(
+    itemGroupId: ID,
+    session?: ClientSession,
+  ): Promise<IItemGroupInfo | null>;
 
   readVersion(
     versionId: string,

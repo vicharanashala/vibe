@@ -354,11 +354,11 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                 priority: questionForm.priority,
                 incorrectLotItems: incorrectOptions.map(({ text, explaination }) => ({ 
                     text, 
-                    explaination: explaination.trim() || "Sorry! You are wrong!" 
+                    explaination: explaination.trim() || "Nil" 
                 })),
                 ...(questionForm.type === 'SELECT_ONE_IN_LOT'
-                    ? { correctLotItem: { text: correctOptions[0].text, explaination: correctOptions[0].explaination.trim() || "Congratulations! You are correct!" } }
-                    : { correctLotItems: correctOptions.map(({ text, explaination }) => ({ text, explaination: explaination.trim() || "Congratulations! You are correct!" })) }
+                    ? { correctLotItem: { text: correctOptions[0].text, explaination: correctOptions[0].explaination.trim() || "Nil" } }
+                    : { correctLotItems: correctOptions.map(({ text, explaination }) => ({ text, explaination: explaination.trim() || "Nil" })) }
                 ),
                 decimalPrecision: questionForm.decimalPrecision  || 0,
                 upperLimit: questionForm.upperLimit  || 0,
@@ -480,7 +480,7 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                                     </div>
                                     </div>
 
-                                    <div>
+                                    {/* <div>
                                         <Label htmlFor="questionText" className='mb-3'>Question Text *</Label>
                                         {renderParameterControls("questionText")}
                                         <Textarea
@@ -490,6 +490,22 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                                             onChange={(e) => setQuestionForm(prev => ({ ...prev, text: e.target.value }))}
                                             className="min-h-[80px]"
                                         />
+                                    </div> */}
+                                  <div>
+                                    <Label htmlFor="questionText" className="mb-3">Question Text *</Label>
+                                    {renderParameterControls("questionText")}
+                                    
+                                    <Textarea
+                                        id="questionText"
+                                        placeholder={`Enter your question here...\\n will show as a new line`}
+                                        value={questionForm.text.replace(/\\n/g, '\n')}
+                                        onChange={(e) => {
+                                        // Convert actual newline to literal '\n' before storing
+                                        const updatedText = e.target.value.replace(/\n/g, '\\n');
+                                        setQuestionForm(prev => ({ ...prev, text: updatedText }));
+                                        }}
+                                        className="min-h-[120px] whitespace-pre-wrap"
+                                    />
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
