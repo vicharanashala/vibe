@@ -1495,6 +1495,10 @@ function TeacherCourseContent() {
                                         />
                                         <span className="ml-2 truncate w-[100%] block">{section.name} </span>
                                       </SidebarMenuSubButton>
+                                      <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideSection(module.moduleId, section.sectionId, !section.isHidden)}>
+                                        {!section.isHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                                        <span className="sr-only">Hide Section</span>
+                                      </Button>
 
                                       {expandedSections[section.sectionId] && (
                                         <Reorder.Group
@@ -1868,10 +1872,6 @@ function TeacherCourseContent() {
                                         </Reorder.Group>
                                       )}
                                     </SidebarMenuSubItem>
-                                    <Button className="absolute top-0 right-2" size="icon" variant="ghost" onClick={(e) => handleHideSection(module.moduleId, section.sectionId, !section.isHidden)}>
-                                    {!section.isHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                                    <span className="sr-only">Hide Section</span>
-                                    </Button>
                                   </Reorder.Item>
                                 ))}
 
