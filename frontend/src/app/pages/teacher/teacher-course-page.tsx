@@ -1390,7 +1390,11 @@ function TeacherCourseContent() {
                                           }}
                                         >
                                           <SidebarMenuSub className="ml-4 space-y-1 pt-1">
-                                            {(sectionItems[section.sectionId] || [])
+                                            {itemsLoading && activeSectionInfo?.sectionId === section.sectionId ? (
+                                              <div className="flex items-center justify-center py-4">
+                                                <Loader />
+                                              </div>
+                                            ) : (sectionItems[section.sectionId] || [])
                                               .slice()
                                               .sort((a: any, b: any) => a.order.localeCompare(b.order))
                                               .map((item: any) => (
