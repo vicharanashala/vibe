@@ -15,9 +15,10 @@ import { bufferToHex } from "@/utils/helpers";
 import type { CourseCardProps } from '@/types/course.types';
 
 export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard', className, completion, setCompletion }: CourseCardProps) => {
-  const courseId = bufferToHex(enrollment.courseId as string);
-  const versionId = bufferToHex(enrollment.courseVersionId as string) || "";
-
+  // const courseId = bufferToHex(enrollment.courseId as string);
+  // const versionId = bufferToHex(enrollment.courseVersionId as string) || "";
+  const courseId = enrollment?.courseId
+  const versionId = enrollment?.courseVersionId
   // const { data: courseDetails, isLoading: isCourseLoading } = useCourseById(courseId);
   const { setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();

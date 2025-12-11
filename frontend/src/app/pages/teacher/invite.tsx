@@ -70,13 +70,13 @@ export default function InvitePage() {
   ];
   // Hooks
   const { data: course, isLoading: courseLoading } = useCourseById(courseId || "")
-  const {
-    data: invitesData,
-    isLoading: invitesLoading,
-    error: invitesError,
-    refetch: refetchInvites,
-  } = useCourseInvites(courseId || "", versionId || "", !!(courseId && versionId), debouncedSearchQuery, 
-      currentPage, itemsPerPage, inviteStatus, sort);
+  // const {
+  //   data: invitesData,
+  //   isLoading: invitesLoading,
+  //   error: invitesError,
+  //   refetch: refetchInvites,
+  // } = useCourseInvites(courseId || "", versionId || "", !!(courseId && versionId), debouncedSearchQuery, 
+  //     currentPage, itemsPerPage, inviteStatus, sort);
 
   // Add course version data hook to check structure
   const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(versionId || "")
@@ -150,7 +150,8 @@ export default function InvitePage() {
   }
 
   // Check if course has required structure
-  const canSendInvites = hasRequiredStructure()
+  // const canSendInvites = hasRequiredStructure()
+  const canSendInvites=true
 
     // Default role based on course structure
 const defaultRole: EnrollmentRole = canSendInvites ? "STUDENT" : "INSTRUCTOR";
@@ -272,18 +273,18 @@ const addInviteRow = () => {
           },
         },
         body: {
-          inviteData: validInvites,
+          inviteData: validInvites[0],
         },
       })
-
-      toast.success(`Sent ${validInvites.length} invite(s) successfully`)
+      toast.success(`successfully Enrolled one User`)
 
       // Reset form
       setInviteEmails([{ email: "", role: "STUDENT" }])
 
       // Refetch invites to show updated list
-      refetchInvites()
+      // refetchInvites()
     } catch {
+      console.error(error)
       toast.error(inviteUsers.error || "Failed to send invites")
     }
   }
@@ -381,7 +382,7 @@ const addInviteRow = () => {
       </div>
 
       {/* Course Structure Warning */}
-      {!canSendInvites && (
+      {/* {!canSendInvites && (
         <Card className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20">
           <CardContent className="pt-6">
             <div className="flex items-center space-x-2 text-orange-800 dark:text-orange-200">
@@ -393,7 +394,7 @@ const addInviteRow = () => {
             </p>
           </CardContent>
         </Card>
-      )}
+      )} */}
 
       {/* Send New Invites Section */}
       <Card>
@@ -517,7 +518,7 @@ const addInviteRow = () => {
       </Card>
 
       {/* Current Invites Section */}
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
@@ -649,7 +650,6 @@ const addInviteRow = () => {
               </TableHeader>
               <TableBody>
                 
-                {/* Display invites in reverse order */}
                 {invitesData.invites.slice().reverse().map((invite: InviteResult) => (
                   <TableRow key={invite.inviteId}>
                     <TableCell className="font-medium">{invite.email}</TableCell>
@@ -725,7 +725,7 @@ const addInviteRow = () => {
             </div>
           )}
         </CardContent>
-      </Card>
+      </Card> */}
     </div>
   )
 }

@@ -1,11 +1,19 @@
-import { BaseService, EnrollmentRepository, EnrollmentRole, EnrollmentStatus, ICourseRepository, IEnrollment, IUserRepository, MongoDatabase } from "#root/shared/index.js";
-import { inject, injectable } from "inversify";
-import { USERS_TYPES } from "../types.js";
-import { GLOBAL_TYPES } from "#root/types.js";
-import { ClientSession, ObjectId } from "mongodb";
-import { BadRequestError, NotFoundError } from "routing-controllers";
-import { EnrollmentDataResponse } from "../classes/index.js";
-
+import {
+  BaseService,
+  EnrollmentRepository,
+  EnrollmentRole,
+  EnrollmentStatus,
+  ICourseRepository,
+  IEnrollment,
+  IUserRepository,
+  MongoDatabase,
+} from '#root/shared/index.js';
+import {inject, injectable} from 'inversify';
+import {USERS_TYPES} from '../types.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {ClientSession, ObjectId} from 'mongodb';
+import {BadRequestError, NotFoundError} from 'routing-controllers';
+import {EnrollmentDataResponse} from '../classes/index.js';
 
 @injectable()
 export class EnrollmentService extends BaseService {
@@ -62,12 +70,6 @@ export class EnrollmentService extends BaseService {
         session,
       );
 
-      // if (existingEnrollment && !throughInvite) {
-      //   throw new BadRequestError(
-      //     'User is already enrolled in this course version',
-      //   );
-      // }
-
       if (existingEnrollment && throughInvite) {
         return {status: 'ALREADY_ENROLLED'};
       }
@@ -93,42 +95,42 @@ export class EnrollmentService extends BaseService {
         session,
       );
       let initialProgress = null;
-    //   if (createdEnrollment.role == 'STUDENT') {
-    //     const progressData = await this.progressService.initializeProgress(
-    //       userId,
-    //       courseId,
-    //       courseVersionId,
-    //       courseVersion,
-    //     );
+      //   if (createdEnrollment.role == 'STUDENT') {
+      //     const progressData = await this.progressService.initializeProgress(
+      //       userId,
+      //       courseId,
+      //       courseVersionId,
+      //       courseVersion,
+      //     );
 
-    //     if (progressData) {
-    //       initialProgress = await this.progressRepo.createProgress(
-    //         {
-    //           userId: new ObjectId(userId),
-    //           courseId: new ObjectId(courseId),
-    //           courseVersionId: new ObjectId(courseVersionId),
-    //           currentModule: new ObjectId(
-    //             progressData.currentModule.toString(),
-    //           ),
-    //           currentSection: new ObjectId(
-    //             progressData.currentSection.toString(),
-    //           ),
-    //           currentItem: new ObjectId(progressData.currentItem.toString()),
-    //           completed: false,
-    //         },
-    //         session,
-    //       );
+      //     if (progressData) {
+      //       initialProgress = await this.progressRepo.createProgress(
+      //         {
+      //           userId: new ObjectId(userId),
+      //           courseId: new ObjectId(courseId),
+      //           courseVersionId: new ObjectId(courseVersionId),
+      //           currentModule: new ObjectId(
+      //             progressData.currentModule.toString(),
+      //           ),
+      //           currentSection: new ObjectId(
+      //             progressData.currentSection.toString(),
+      //           ),
+      //           currentItem: new ObjectId(progressData.currentItem.toString()),
+      //           completed: false,
+      //         },
+      //         session,
+      //       );
 
-    //       console.log('=== ENROLLMENT: Progress created successfully ===', {
-    //         userId,
-    //         currentItem: progressData.currentItem.toString(),
-    //       });
-    //     } else {
-    //       console.log(
-    //         '=== ENROLLMENT: No progress data returned - course may have no valid items ===',
-    //       );
-    //     }
-    //   }
+      //       console.log('=== ENROLLMENT: Progress created successfully ===', {
+      //         userId,
+      //         currentItem: progressData.currentItem.toString(),
+      //       });
+      //     } else {
+      //       console.log(
+      //         '=== ENROLLMENT: No progress data returned - course may have no valid items ===',
+      //       );
+      //     }
+      //   }
 
       return {
         status: 'ENROLLED' as const,
@@ -175,62 +177,97 @@ export class EnrollmentService extends BaseService {
     });
   }
 
-    async getEnrollments(
+  async getEnrollments(
     userId: string,
     skip: number,
     limit: number,
     role?: EnrollmentRole,
-    search?: string
+    search?: string,
   ): Promise<EnrollmentDataResponse[]> {
     return this.enrollmentRepo.getEnrollments(
       userId,
       skip,
       limit,
       role,
-      search
+      search,
     );
   }
-//   async unenrollUser(
-//     userId: string,
-//     courseId: string,
-//     courseVersionId: string,
-//     enrollment: Enrollment | null,
-//   ) {
-//     return this._withTransaction(async (session: ClientSession) => {
-//       if (!enrollment) {
-//         throw new NotFoundError('Enrollment not found');
-//       }
 
-//       await this.progressService.unenrollUser(
-//         userId,
-//         courseId,
-//         courseVersionId,
-//         session,
-//       );
+  async inviteUser(
+    inviteData: {email: string; role: EnrollmentRole},
+    courseId: string,
+    courseVersionId: string,
+  ) {
+    return this._withTransaction(async (session: ClientSession) => {
+    const course = await this.courseRepo.read(courseId.toString());
+    if (!course) {
+      throw new NotFoundError('Course not found');
+    }
 
-//       await this.courseRegistrationRepo.remove(
-//         userId,
-//         courseId,
-//         courseVersionId,
-//         session,
-//       );
-//       return {
-//         enrollment: null,
-//         progress: null,
-//         role: enrollment.role,
-//       };
-//     });
-//   }
+    // Get Course Version Details
+    const courseVersion = await this.courseRepo.readVersion(
+      courseVersionId.toString(),
+    );
+    if (!courseVersion) {
+      throw new NotFoundError('Course version not found');
+    }
+    const user = await this.userRepo.findByEmail(inviteData.email);
+    if(!user){
+      throw new Error("Please ask the student to login to the application")
+    }
+    await this.enrollUser(
+      user._id.toString(),
+      courseId,
+      courseVersionId,
+      inviteData.role,
+      false,
+      session
+    );
+    return 
+  })
+  }
 
-//   private filterCourseVersions(course: any, enrolledVersionIds: Set<string>) {
-//     return {
-//       ...course,
-//       versions:
-//         course?.versions?.filter((versionId: string) =>
-//           enrolledVersionIds.has(versionId.toString()),
-//         ) || [],
-//     };
-//   }
+  //   async unenrollUser(
+  //     userId: string,
+  //     courseId: string,
+  //     courseVersionId: string,
+  //     enrollment: Enrollment | null,
+  //   ) {
+  //     return this._withTransaction(async (session: ClientSession) => {
+  //       if (!enrollment) {
+  //         throw new NotFoundError('Enrollment not found');
+  //       }
+
+  //       await this.progressService.unenrollUser(
+  //         userId,
+  //         courseId,
+  //         courseVersionId,
+  //         session,
+  //       );
+
+  //       await this.courseRegistrationRepo.remove(
+  //         userId,
+  //         courseId,
+  //         courseVersionId,
+  //         session,
+  //       );
+  //       return {
+  //         enrollment: null,
+  //         progress: null,
+  //         role: enrollment.role,
+  //       };
+  //     });
+  //   }
+
+  //   private filterCourseVersions(course: any, enrolledVersionIds: Set<string>) {
+  //     return {
+  //       ...course,
+  //       versions:
+  //         course?.versions?.filter((versionId: string) =>
+  //           enrolledVersionIds.has(versionId.toString()),
+  //         ) || [],
+  //     };
+  //   }
 
   // public async getEnrollments(
   //   userId: string,
@@ -324,106 +361,106 @@ export class EnrollmentService extends BaseService {
     });
   }
 
-//   async getCourseVersionEnrollments(
-//     courseId: string,
-//     courseVersionId: string,
-//     skip: number,
-//     limit: number,
-//     search: string,
-//     sortBy: 'name' | 'enrollmentDate' | 'progress',
-//     sortOrder: 'asc' | 'desc',
-//     filter: string,
-//   ) {
-//     return this._withTransaction(async (session: ClientSession) => {
-//       const courseVersion = await this.courseRepo.readVersion(
-//         courseVersionId,
-//         session,
-//       );
-//       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
-//         throw new NotFoundError(
-//           'Course version not found or does not belong to this course',
-//         );
-//       }
+  //   async getCourseVersionEnrollments(
+  //     courseId: string,
+  //     courseVersionId: string,
+  //     skip: number,
+  //     limit: number,
+  //     search: string,
+  //     sortBy: 'name' | 'enrollmentDate' | 'progress',
+  //     sortOrder: 'asc' | 'desc',
+  //     filter: string,
+  //   ) {
+  //     return this._withTransaction(async (session: ClientSession) => {
+  //       const courseVersion = await this.courseRepo.readVersion(
+  //         courseVersionId,
+  //         session,
+  //       );
+  //       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
+  //         throw new NotFoundError(
+  //           'Course version not found or does not belong to this course',
+  //         );
+  //       }
 
-//       const enrollmentsData =
-//         await this.enrollmentRepo.getCourseVersionEnrollments(
-//           courseId,
-//           courseVersionId,
-//           skip,
-//           limit,
-//           search,
-//           sortBy,
-//           sortOrder,
-//           filter,
-//           session,
-//         );
+  //       const enrollmentsData =
+  //         await this.enrollmentRepo.getCourseVersionEnrollments(
+  //           courseId,
+  //           courseVersionId,
+  //           skip,
+  //           limit,
+  //           search,
+  //           sortBy,
+  //           sortOrder,
+  //           filter,
+  //           session,
+  //         );
 
-//       return enrollmentsData;
-//     });
-//   }
+  //       return enrollmentsData;
+  //     });
+  //   }
 
-//   async getCourseVersionEnrollmentStatistics(
-//     courseId: string,
-//     versionId: string,
-//   ): Promise<EnrollmentStats> {
-//     return this._withTransaction(async (session: ClientSession) => {
-//       return await this.enrollmentRepo.getVersionEnrollmentStats(
-//         courseId,
-//         versionId,
-//         session,
-//       );
-//     });
-//   }
+  //   async getCourseVersionEnrollmentStatistics(
+  //     courseId: string,
+  //     versionId: string,
+  //   ): Promise<EnrollmentStats> {
+  //     return this._withTransaction(async (session: ClientSession) => {
+  //       return await this.enrollmentRepo.getVersionEnrollmentStats(
+  //         courseId,
+  //         versionId,
+  //         session,
+  //       );
+  //     });
+  //   }
 
-//   /**
-//    * Get quiz scores for all students in a course version with optimized batching
-//    * @param courseId Course ID
-//    * @param versionId Course version ID
-//    * @returns Promise with quiz scores data and metadata
-//    * @throws {NotFoundError} When course or version is not found
-//    * @throws {Error} When there's an error fetching quiz scores
-//    */
-//   async getQuizScoresForCourseVersion(
-//     courseId: string,
-//     versionId: string,
-//   ): Promise<QuizScoresExportResponseDto> {
-//     try {
-//       // Verify course and version exist in a single transaction
-//       const [course, version] = await Promise.all([
-//         this.courseRepo.read(courseId),
-//         this.courseRepo.readVersion(versionId),
-//       ]);
+  //   /**
+  //    * Get quiz scores for all students in a course version with optimized batching
+  //    * @param courseId Course ID
+  //    * @param versionId Course version ID
+  //    * @returns Promise with quiz scores data and metadata
+  //    * @throws {NotFoundError} When course or version is not found
+  //    * @throws {Error} When there's an error fetching quiz scores
+  //    */
+  //   async getQuizScoresForCourseVersion(
+  //     courseId: string,
+  //     versionId: string,
+  //   ): Promise<QuizScoresExportResponseDto> {
+  //     try {
+  //       // Verify course and version exist in a single transaction
+  //       const [course, version] = await Promise.all([
+  //         this.courseRepo.read(courseId),
+  //         this.courseRepo.readVersion(versionId),
+  //       ]);
 
-//       if (!course) {
-//         throw new NotFoundError('Course not found');
-//       }
-//       if (!version) {
-//         throw new NotFoundError('Course version not found');
-//       }
+  //       if (!course) {
+  //         throw new NotFoundError('Course not found');
+  //       }
+  //       if (!version) {
+  //         throw new NotFoundError('Course version not found');
+  //       }
 
-//       console.log(
-//         `Starting quiz scores export for course ${courseId}, version ${versionId}`,
-//       );
+  //       console.log(
+  //         `Starting quiz scores export for course ${courseId}, version ${versionId}`,
+  //       );
 
-//       // Get quiz scores from repository with batching
-//       return await this.enrollmentRepo.getQuizScoresForCourseVersion(
-//         courseId,
-//         versionId,
-//       );
-//     } catch (error) {
-//       console.error(
-//         `Error in getQuizScoresForCourseVersion for course ${courseId}, version ${versionId}:`,
-//         error,
-//       );
+  //       // Get quiz scores from repository with batching
+  //       return await this.enrollmentRepo.getQuizScoresForCourseVersion(
+  //         courseId,
+  //         versionId,
+  //       );
+  //     } catch (error) {
+  //       console.error(
+  //         `Error in getQuizScoresForCourseVersion for course ${courseId}, version ${versionId}:`,
+  //         error,
+  //       );
 
-//       // Rethrow with more context if it's not already a known error
-//       if (error instanceof NotFoundError) {
-//         throw error;
-//       }
+  //       // Rethrow with more context if it's not already a known error
+  //       if (error instanceof NotFoundError) {
+  //         throw error;
+  //       }
 
-//       throw new Error(`Failed to fetch quiz scores: ${error.message}`);
-//     }
-//   }
+  //       throw new Error(`Failed to fetch quiz scores: ${error.message}`);
+  //     }
+  //   }
 
   async countEnrollments(userId: string, role: EnrollmentRole) {
     return this._withTransaction(async (session: ClientSession) => {
@@ -432,223 +469,223 @@ export class EnrollmentService extends BaseService {
     });
   }
 
-//   async getInstructorEnrollment(courseId: string, versionId: string) {
-//     return this.enrollmentRepo.getByCourseVersion(courseId, versionId);
-//   }
-//   async processBulkInvite(userId: string, inviteId: string): Promise<void> {
-//     const invite = await this.inviteRepo.findInviteById(inviteId);
-//     if (!invite) {
-//       throw new Error('Bulk Invite Not Found');
-//     }
-//     const result = await this.enrollUser(
-//       userId,
-//       invite.courseId.toString(),
-//       invite.courseVersionId.toString(),
-//       invite.role,
-//       true,
-//     );
-//     if (!result) {
-//       throw new InternalServerError('Failed to enroll user from Bulk Invite');
-//     }
-//     if (result.status === 'ENROLLED') {
-//       invite.usedCount = (invite.usedCount || 0) + 1;
-//       await this.inviteRepo.updateInvite(inviteId, invite);
-//     }
-//   }
+  //   async getInstructorEnrollment(courseId: string, versionId: string) {
+  //     return this.enrollmentRepo.getByCourseVersion(courseId, versionId);
+  //   }
+  //   async processBulkInvite(userId: string, inviteId: string): Promise<void> {
+  //     const invite = await this.inviteRepo.findInviteById(inviteId);
+  //     if (!invite) {
+  //       throw new Error('Bulk Invite Not Found');
+  //     }
+  //     const result = await this.enrollUser(
+  //       userId,
+  //       invite.courseId.toString(),
+  //       invite.courseVersionId.toString(),
+  //       invite.role,
+  //       true,
+  //     );
+  //     if (!result) {
+  //       throw new InternalServerError('Failed to enroll user from Bulk Invite');
+  //     }
+  //     if (result.status === 'ENROLLED') {
+  //       invite.usedCount = (invite.usedCount || 0) + 1;
+  //       await this.inviteRepo.updateInvite(inviteId, invite);
+  //     }
+  //   }
 
-//   /**
-//    * Initialize student progress tracking to the first item in the course.
-//    * Private helper method for the enrollment process.
-//    */
-//   async bulkUpdateAllEnrollments(
-//     courseId?: string,
-//   ): Promise<{totalCount: number; updatedCount: number}> {
-//     const BATCH_SIZE = 5000;
+  //   /**
+  //    * Initialize student progress tracking to the first item in the course.
+  //    * Private helper method for the enrollment process.
+  //    */
+  //   async bulkUpdateAllEnrollments(
+  //     courseId?: string,
+  //   ): Promise<{totalCount: number; updatedCount: number}> {
+  //     const BATCH_SIZE = 5000;
 
-//     // 1. Get courses (all or specific one)
-//     let courses = [];
-//     if (courseId) {
-//       console.log(`Processing enrollments for courseId: ${courseId}`);
-//       const course = await this.courseRepo.read(courseId);
-//       if (!course) {
-//         throw new Error(`Course with id ${courseId} not found`);
-//       }
-//       courses = [course];
-//     } else {
-//       courses = await this.courseRepo.getAllCourses();
-//     }
+  //     // 1. Get courses (all or specific one)
+  //     let courses = [];
+  //     if (courseId) {
+  //       console.log(`Processing enrollments for courseId: ${courseId}`);
+  //       const course = await this.courseRepo.read(courseId);
+  //       if (!course) {
+  //         throw new Error(`Course with id ${courseId} not found`);
+  //       }
+  //       courses = [course];
+  //     } else {
+  //       courses = await this.courseRepo.getAllCourses();
+  //     }
 
-//     const courseVersionIds = courses.flatMap(course => course.versions);
+  //     const courseVersionIds = courses.flatMap(course => course.versions);
 
-//     const bulkOperations = [];
-//     let batchCount = 0;
-//     let totalCount = 0;
-//     let updatedCount = 0;
+  //     const bulkOperations = [];
+  //     let batchCount = 0;
+  //     let totalCount = 0;
+  //     let updatedCount = 0;
 
-//     for (const courseVersionId of courseVersionIds) {
-//       try {
-//         const courseVersion = await this.courseRepo.readVersion(
-//           courseVersionId as string,
-//         );
-//         if (!courseVersion) continue;
+  //     for (const courseVersionId of courseVersionIds) {
+  //       try {
+  //         const courseVersion = await this.courseRepo.readVersion(
+  //           courseVersionId as string,
+  //         );
+  //         if (!courseVersion) continue;
 
-//         const totalItems = await this.itemRepo.CalculateTotalItemsCount(
-//           courseVersion.courseId.toString(),
-//           courseVersion._id.toString(),
-//         );
+  //         const totalItems = await this.itemRepo.CalculateTotalItemsCount(
+  //           courseVersion.courseId.toString(),
+  //           courseVersion._id.toString(),
+  //         );
 
-//         const enrollments = await this.enrollmentRepo.getByCourseVersion(
-//           courseVersion.courseId.toString(),
-//           courseVersion._id.toString(),
-//         );
+  //         const enrollments = await this.enrollmentRepo.getByCourseVersion(
+  //           courseVersion.courseId.toString(),
+  //           courseVersion._id.toString(),
+  //         );
 
-//         totalCount += enrollments.length;
+  //         totalCount += enrollments.length;
 
-//         for (const enrollment of enrollments) {
-//           try {
-//             const completedItems =
-//               await this.progressService.getUserProgressPercentageWithoutTotal(
-//                 enrollment.userId.toString(),
-//                 courseVersion.courseId.toString(),
-//                 courseVersion._id.toString(),
-//               );
+  //         for (const enrollment of enrollments) {
+  //           try {
+  //             const completedItems =
+  //               await this.progressService.getUserProgressPercentageWithoutTotal(
+  //                 enrollment.userId.toString(),
+  //                 courseVersion.courseId.toString(),
+  //                 courseVersion._id.toString(),
+  //               );
 
-//             const percentCompleted = Math.round(
-//               (totalItems > 0 ? completedItems / totalItems : 0) * 100,
-//             );
+  //             const percentCompleted = Math.round(
+  //               (totalItems > 0 ? completedItems / totalItems : 0) * 100,
+  //             );
 
-//             bulkOperations.push({
-//               updateOne: {
-//                 filter: {_id: new ObjectId(enrollment._id)},
-//                 update: {$set: {percentCompleted}},
-//               },
-//             });
+  //             bulkOperations.push({
+  //               updateOne: {
+  //                 filter: {_id: new ObjectId(enrollment._id)},
+  //                 update: {$set: {percentCompleted}},
+  //               },
+  //             });
 
-//             if (bulkOperations.length === BATCH_SIZE) {
-//               await this._withTransaction(async session => {
-//                 await this.enrollmentRepo.bulkUpdateEnrollments(
-//                   bulkOperations,
-//                   session,
-//                 );
-//                 updatedCount += bulkOperations.length;
-//                 console.log(
-//                   `✅ Batch ${++batchCount}: Updated ${
-//                     bulkOperations.length
-//                   } enrollments`,
-//                 );
-//                 bulkOperations.length = 0;
-//               });
-//             }
-//           } catch (err) {
-//             console.error(
-//               `Failed to process enrollment ${enrollment._id}`,
-//               err,
-//             );
-//           }
-//         }
-//       } catch (err) {
-//         console.error(
-//           `Failed to process course version ${courseVersionId}`,
-//           err,
-//         );
-//       }
-//     }
+  //             if (bulkOperations.length === BATCH_SIZE) {
+  //               await this._withTransaction(async session => {
+  //                 await this.enrollmentRepo.bulkUpdateEnrollments(
+  //                   bulkOperations,
+  //                   session,
+  //                 );
+  //                 updatedCount += bulkOperations.length;
+  //                 console.log(
+  //                   `✅ Batch ${++batchCount}: Updated ${
+  //                     bulkOperations.length
+  //                   } enrollments`,
+  //                 );
+  //                 bulkOperations.length = 0;
+  //               });
+  //             }
+  //           } catch (err) {
+  //             console.error(
+  //               `Failed to process enrollment ${enrollment._id}`,
+  //               err,
+  //             );
+  //           }
+  //         }
+  //       } catch (err) {
+  //         console.error(
+  //           `Failed to process course version ${courseVersionId}`,
+  //           err,
+  //         );
+  //       }
+  //     }
 
-//     // Process any remaining operations
-//     if (bulkOperations.length > 0) {
-//       await this._withTransaction(async session => {
-//         await this.enrollmentRepo.bulkUpdateEnrollments(
-//           bulkOperations,
-//           session,
-//         );
-//         updatedCount += bulkOperations.length;
-//         console.log(
-//           `✅ Final batch: Updated ${bulkOperations.length} enrollments`,
-//         );
-//       });
-//     }
+  //     // Process any remaining operations
+  //     if (bulkOperations.length > 0) {
+  //       await this._withTransaction(async session => {
+  //         await this.enrollmentRepo.bulkUpdateEnrollments(
+  //           bulkOperations,
+  //           session,
+  //         );
+  //         updatedCount += bulkOperations.length;
+  //         console.log(
+  //           `✅ Final batch: Updated ${bulkOperations.length} enrollments`,
+  //         );
+  //       });
+  //     }
 
-//     return {totalCount, updatedCount};
-//   }
+  //     return {totalCount, updatedCount};
+  //   }
 
-//   async getNonStudentEnrollmentsByCourseVersion(
-//     courseId: string,
-//     courseVersionId: string,
-//   ): Promise<IEnrollment[]> {
-//     return this._withTransaction(async (session: ClientSession) => {
-//       return await this.enrollmentRepo.getNonStudentEnrollmentsByCourseVersion(
-//         courseId,
-//         courseVersionId,
-//         session,
-//       );
-//     });
-//   }
-//   async bulkEnrollUsers(
-//     existingEnrolledUsersWithRoles: {userId: string; role: EnrollmentRole}[],
-//     courseId: string,
-//     courseVersionId: string,
-//     session?: ClientSession,
-//   ) {
-//     const execute = async (session: ClientSession) => {
-//       const course = await this.courseRepo.read(courseId, session);
-//       if (!course) throw new NotFoundError('Course not found');
+  //   async getNonStudentEnrollmentsByCourseVersion(
+  //     courseId: string,
+  //     courseVersionId: string,
+  //   ): Promise<IEnrollment[]> {
+  //     return this._withTransaction(async (session: ClientSession) => {
+  //       return await this.enrollmentRepo.getNonStudentEnrollmentsByCourseVersion(
+  //         courseId,
+  //         courseVersionId,
+  //         session,
+  //       );
+  //     });
+  //   }
+  //   async bulkEnrollUsers(
+  //     existingEnrolledUsersWithRoles: {userId: string; role: EnrollmentRole}[],
+  //     courseId: string,
+  //     courseVersionId: string,
+  //     session?: ClientSession,
+  //   ) {
+  //     const execute = async (session: ClientSession) => {
+  //       const course = await this.courseRepo.read(courseId, session);
+  //       if (!course) throw new NotFoundError('Course not found');
 
-//       const courseVersion = await this.courseRepo.readVersion(
-//         courseVersionId,
-//         session,
-//       );
-//       console.log('Course version: ', courseVersion, courseId);
-//       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
-//         throw new NotFoundError(
-//           'Course version not found or does not belong to this course',
-//         );
-//       }
+  //       const courseVersion = await this.courseRepo.readVersion(
+  //         courseVersionId,
+  //         session,
+  //       );
+  //       console.log('Course version: ', courseVersion, courseId);
+  //       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
+  //         throw new NotFoundError(
+  //           'Course version not found or does not belong to this course',
+  //         );
+  //       }
 
-//       const enrollmentsToCreate: OptionalId<IEnrollment>[] = [];
-//       const results: any[] = [];
+  //       const enrollmentsToCreate: OptionalId<IEnrollment>[] = [];
+  //       const results: any[] = [];
 
-//       for (const {userId, role} of existingEnrolledUsersWithRoles) {
-//         const userExists = await this.userRepo.findById(userId, session);
+  //       for (const {userId, role} of existingEnrolledUsersWithRoles) {
+  //         const userExists = await this.userRepo.findById(userId, session);
 
-//         if (!userExists) {
-//           results.push({userId, error: 'User not found'});
-//           continue;
-//         }
+  //         if (!userExists) {
+  //           results.push({userId, error: 'User not found'});
+  //           continue;
+  //         }
 
-//         enrollmentsToCreate.push({
-//           userId: new ObjectId(userId),
-//           courseId: new ObjectId(courseId),
-//           courseVersionId: new ObjectId(courseVersionId),
-//           role,
-//           status: 'ACTIVE' as EnrollmentStatus,
-//           enrollmentDate: new Date(),
-//           percentCompleted: 0,
-//         });
-//       }
+  //         enrollmentsToCreate.push({
+  //           userId: new ObjectId(userId),
+  //           courseId: new ObjectId(courseId),
+  //           courseVersionId: new ObjectId(courseVersionId),
+  //           role,
+  //           status: 'ACTIVE' as EnrollmentStatus,
+  //           enrollmentDate: new Date(),
+  //           percentCompleted: 0,
+  //         });
+  //       }
 
-//       if (enrollmentsToCreate.length > 0) {
-//         const insertedIds = await this.enrollmentRepo.createEnrollments(
-//           enrollmentsToCreate,
-//           session,
-//         );
+  //       if (enrollmentsToCreate.length > 0) {
+  //         const insertedIds = await this.enrollmentRepo.createEnrollments(
+  //           enrollmentsToCreate,
+  //           session,
+  //         );
 
-//         enrollmentsToCreate.forEach((enrollment, index) => {
-//           results.push({
-//             userId: enrollment.userId.toString(),
-//             enrollmentId: insertedIds[index],
-//             role: enrollment.role,
-//           });
-//         });
-//       }
+  //         enrollmentsToCreate.forEach((enrollment, index) => {
+  //           results.push({
+  //             userId: enrollment.userId.toString(),
+  //             enrollmentId: insertedIds[index],
+  //             role: enrollment.role,
+  //           });
+  //         });
+  //       }
 
-//       return results;
-//     };
-//     return session ? execute(session) : this._withTransaction(execute);
-//   }
+  //       return results;
+  //     };
+  //     return session ? execute(session) : this._withTransaction(execute);
+  //   }
 
-//   async addIndex(): Promise<void> {
-//     await this._withTransaction(async session => {
-//       await this.enrollmentRepo.addEnrollmentIndexes(session);
-//     });
-//   }
+  //   async addIndex(): Promise<void> {
+  //     await this._withTransaction(async session => {
+  //       await this.enrollmentRepo.addEnrollmentIndexes(session);
+  //     });
+  //   }
 }

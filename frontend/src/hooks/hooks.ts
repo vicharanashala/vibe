@@ -1439,7 +1439,7 @@ export function useEditProctoringSettings() {
 
 export function useInviteUsers(): {
   mutate: (variables: { params: { path: { courseId: string, courseVersionId: string } }, body: InviteBody }) => void,
-  mutateAsync: (variables: { params: { path: { courseId: string, courseVersionId: string } }, body: InviteBody }) => Promise<InviteResponse>,
+  mutateAsync: (variables: { params: { path: { courseId: string, courseVersionId: string } }, body: InviteBody }) => Promise<any>,
   data: InviteResponse | undefined,
   error: string | null,
   isPending: boolean,
@@ -1449,7 +1449,7 @@ export function useInviteUsers(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("post", "/notifications/invite/courses/{courseId}/versions/{courseVersionId}");
+  const result = api.useMutation("post", "/enrollments/invite/courses/{courseId}/versions/{courseVersionId}");
   return {
     ...result,
     error: result.error ? (result.error.message || 'Failed to invite users') : null

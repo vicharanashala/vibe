@@ -330,7 +330,6 @@ function TeacherCourseContent() {
     shouldFetchItem ? versionId : '',
     shouldFetchItem ? selectedEntity?.data?._id : ''
   );
-  console.log("selectedItemData", selectedItemData)
   // Sync controlled state with selectedItemData for PROJECT edit
   useEffect(() => {
     if (selectedEntity?.type === 'item' && selectedEntity.data.type === 'PROJECT') {
@@ -2449,13 +2448,13 @@ function TeacherCourseContent() {
                 </div>
 
                 {/* CTA Button */}
-                <Button
+                {/* <Button
                   onClick={handleAddModule}
                   className="bg-gradient-to-r from-primary to-accent hover:from-accent hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 text-sm md:text-base lg:text-lg flex items-center gap-3 animate-bounce-slow group"
                 >
                   <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
                   Add new module
-                </Button>
+                </Button> */}
 
                 {/* ViBe Features */}
                 <div className="mt-8 md:flex items-center gap-6 text-sm text-slate-500 dark:text-slate-400">

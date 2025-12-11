@@ -11,6 +11,9 @@ import {
   Patch,
   Req,
   CurrentUser,
+  OnUndefined,
+  Params,
+  Body,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import {
@@ -21,6 +24,7 @@ import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepos
 import { GLOBAL_TYPES } from '#root/types.js';
 import { BadRequestErrorResponse, EnrollmentFilterQuery, IUser } from '#root/shared/index.js';
 import { EnrollmentNotFoundErrorResponse, EnrollmentResponse } from '../classes/index.js';
+import { CourseAndVersionId, InviteBody } from '../classes/validators/InviteValidators.js';
 
 @OpenAPI({
   tags: ['Enrollment'],
@@ -60,16 +64,6 @@ export class EnrollmentController {
     const userId = user._id.toString();
     // const userId =''
     const skip = (page - 1) * limit;
-    // console.log("session on the dashboard ", req.session)
-    // if (req.session.bulkInviteId) {
-    //   console.log("bulk id in session dashboard ", req.session.bulkInviteId)
-    //   let result = await this.enrollmentService.processBulkInvite(userId, req.session.bulkInviteId)
-    //   console.log("result after enrollment ", result)
-    //   delete req.session.bulkInviteId
-    //   await new Promise<void>((resolve, reject) => {
-    //     req.session.save(err => err ? reject(err) : resolve());
-    //   });
-    // }
     const enrollments = await this.enrollmentService.getEnrollments(
       userId,
       skip,
@@ -100,5 +94,22 @@ export class EnrollmentController {
       enrollments,
     };
   }
+
+  @OpenAPI({
+      summary: 'Invite a user to a course',
+      description: `Enroll a already loggedin user to the course`,
+    })
+    @Authorized()
+    @Post('/invite/courses/:courseId/versions/:versionId')
+    // @OnUndefined(200)
+    async enrollUsers(
+      @Params() params: CourseAndVersionId,
+      @Body() body: InviteBody
+    ): Promise<any> {
+      const {courseId, versionId} = params;
+      const {inviteData} = body;
+      const result = await this.enrollmentService.inviteUser(inviteData,courseId,versionId)
+      return {message:"User enrolled succesfull"}
+    }
 
 }

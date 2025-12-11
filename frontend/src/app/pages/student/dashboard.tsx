@@ -65,20 +65,19 @@ function DashboardContent() {
     error: enrollmentsError,
     refetch: refetchEnrollments
   } = useUserEnrollments(1, 5, !!token);
-
-  useEffect(() => {
-    refetchEnrollments();
-  }, [refetchEnrollments]);
+  // useEffect(() => {
+  //   refetchEnrollments();
+  // }, [refetchEnrollments]);
 
   // const enrollments = [];
-  const enrollments = enrollmentsData?.enrollments || [];
+  const enrollments = enrollmentsData?.enrollments || [];  
   // const enrollmentsLoading=false
   // const enrollmentsError=''
-  // const totalEnrollments = enrollmentsData?.totalDocuments || 0;
-  const totalEnrollments =  0;
+  const totalEnrollments = enrollmentsData?.totalDocuments || 0;
+  // const totalEnrollments =  0;
   const watchtimeData=0
   // const { data: watchtimeData } = useWatchtimeTotal();
-  // const filteredEnrollement = enrollments.filter(enrollment=>enrollment.role == "STUDENT");
+  const filteredEnrollement = enrollments.filter(enrollment=>enrollment.role == "STUDENT");
   const [completion, setCompletion] = useState<CoursePctCompletion[]>([]);
   const totalProgress = Math.round(
     completion.reduce((acc, curr) => acc + (curr.completedItems || 0), 0) / completion.reduce((acc, curr) => acc + (curr.totalItems || 0), 0) * 100
@@ -118,7 +117,7 @@ function DashboardContent() {
         <main className="flex-1">
           <CourseSection
             title="In progress learning content"
-            enrollments={enrollments}
+            enrollments={filteredEnrollement}
             isLoading={enrollmentsLoading}
             error={enrollmentsError}
             totalEnrollments={totalEnrollments}

@@ -764,7 +764,7 @@ function CourseCard({
                   All Versions ({course.versions?.length || 0})
                 </h3>
                 <div className="flex items-center gap-2">
-                  <Button
+                  {/* <Button
                     onClick={showVersionForm}
                     size="sm"
                     variant="outline"
@@ -777,7 +777,7 @@ function CourseCard({
                       <Plus className="h-3 w-3 mr-1" />
                     )}
                     Add Version
-                  </Button>
+                  </Button> */}
                 </div>
               </div>
 
@@ -1226,7 +1226,7 @@ function VersionCard({
                         Version
                       </Badge>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    {/* <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded-md">
                         <BookOpen className="h-3 w-3" />
                         <span>{(version as any).modules?.length || 0} Modules</span>
@@ -1237,7 +1237,7 @@ function VersionCard({
                           {(version as any).modules?.reduce((acc: number, module: { sections?: any[] }) => acc + (module.sections?.length || 0), 0) || 0} Sections
                         </span>
                       </div>
-                    </div>
+                    </div> */}
                   </div>
                 </div>
                 <div className="flex items-center lg:justify-end gap-2 shrink-0 mt-3 md:mt-0 flex-wrap">

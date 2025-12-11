@@ -9,7 +9,7 @@ export interface EmailInvite {
 }
 
 export interface InviteBody {
-  inviteData: EmailInvite[];
+  inviteData: EmailInvite;
 }
 export interface InviteResult {
   inviteId: string;
