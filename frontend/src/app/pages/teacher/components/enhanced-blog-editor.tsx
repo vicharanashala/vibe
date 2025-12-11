@@ -1068,166 +1068,91 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
       return;
     }
     
-    event.preventDefault();
-    event.stopPropagation();
-    
     const clipboardData = event.clipboardData;
     if (!clipboardData) return;
     
-    const htmlContent = clipboardData.getData('text/html');
-    const plainText = clipboardData.getData('text/plain');
+    const plainText = clipboardData.getData('text/plain').trim();
     
-    const currentValue = editor.getEditorValue();
-    const currentMarkdown = markdown.serialize(editor, currentValue);
+    // Check if pasted content is a URL
+    const urlPattern = /^(https?:\/\/[^\s]+)$/;
+    const isURL = urlPattern.test(plainText);
     
-    const selection = window.getSelection();
-    let cursorPosition = currentMarkdown.length;
-    
-    if (selection && selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0);
-      const editorElement = editorContainerRef.current?.querySelector('[contenteditable="true"]');
-      
-      if (editorElement && editorElement.contains(range.startContainer)) {
-        try {
-          const startRange = document.createRange();
-          startRange.setStart(editorElement, 0);
-          startRange.setEnd(range.startContainer, range.startOffset);
-          
-          const textUpToCursor = startRange.toString();
-          const editorText = editorElement.textContent || '';
-          const textPosition = Math.min(textUpToCursor.length, editorText.length);
-          
-          cursorPosition = Math.min(textPosition, currentMarkdown.length);
-          
-          const textBeforeCursor = currentMarkdown.substring(0, cursorPosition);
-          const endsWithPunctuation = /[.!?]\s*$/.test(textBeforeCursor.trim());
-          
-          if (endsWithPunctuation) {
-            cursorPosition = textBeforeCursor.length;
-          }
-         
-          if (cursorPosition === currentMarkdown.length && endsWithPunctuation) {
-            cursorPosition = currentMarkdown.length;
-          }
-        } catch (error) {
-          console.error('Error calculating cursor position:', error);
-          cursorPosition = currentMarkdown.length;
-        }
-      }
-    }
-    
-    const ensureParagraphSeparation = (before: string, newContent: string, after: string) => {
-      const endsWithPunctuation = /[.!?]\s*$/.test(before.trim());
-      const startsWithCapital = /^[A-Z]/.test(newContent.trim());
-      const endsWithNewline = before.endsWith('\n\n');
-      const cleanNewContent = newContent.trim();
-      
-      if (endsWithPunctuation && startsWithCapital && !endsWithNewline) {
-        return before + '\n\n' + cleanNewContent + (after ? '\n\n' + after : '');
-      }
-      
-      if (endsWithPunctuation && /^[A-Z]/.test(cleanNewContent) && !endsWithNewline) {
-        return before + '\n\n' + cleanNewContent + (after ? '\n\n' + after : '');
-      }
-      
-      if (endsWithNewline) {
-        return before + cleanNewContent + (after ? '\n\n' + after : '');
-      }
-      
-      if (endsWithPunctuation && cleanNewContent.length > 10 && !endsWithNewline) {
-        return before + '\n\n' + cleanNewContent + (after ? '\n\n' + after : '');
-      }
-      
-      if (endsWithPunctuation && cleanNewContent.length > 5 && !endsWithNewline) {
-        const looksLikeNewParagraph = /^[A-Z]/.test(cleanNewContent) || 
-                                     cleanNewContent.includes('.') || 
-                                     cleanNewContent.includes('!') || 
-                                     cleanNewContent.includes('?');
-        
-        if (looksLikeNewParagraph) {
-          return before + '\n\n' + cleanNewContent + (after ? '\n\n' + after : '');
-        }
-      }
-      
-      // Default case: add proper separators
-      const beforeSeparator = before && !before.endsWith('\n\n') ? '\n\n' : '';
-      const afterSeparator = after && !after.startsWith('\n\n') ? '\n\n' : '';
-      
-      return before + beforeSeparator + cleanNewContent + afterSeparator + after;
-    };
-
-    if (htmlContent) {
+    if (isURL) {
+      // Don't prevent default - let Yoopta paste it first, then convert to link
       try {
-        const markdownContent = convertHTMLToMarkdown(htmlContent);
-        const beforeCursor = currentMarkdown.substring(0, cursorPosition);
-        const afterCursor = currentMarkdown.substring(cursorPosition);
-        let combinedContent = ensureParagraphSeparation(beforeCursor, markdownContent, afterCursor);
-        combinedContent = normalizeMarkdown(combinedContent);
-        
-        const newContent = markdown.deserialize(editor, combinedContent);
-        setEditorValue(newContent);
-        editor.setEditorValue(newContent);
-        
-        const serializedContent = markdown.serialize(editor, newContent);
-        const readTime = calculateReadTime(serializedContent);
-        setBlogForm(prev => ({
-          ...prev,
-          estimatedReadTimeInMinutes: readTime,
-        }));
-        
+        // Wait for Yoopta to paste the URL as text, then convert to markdown link
+        setTimeout(() => {
+          const currentValue = editor.getEditorValue();
+          const currentMarkdown = markdown.serialize(editor, currentValue);
+          
+          // Find the last occurrence of the plain URL (the one just pasted)
+          const lastIndex = currentMarkdown.lastIndexOf(plainText);
+          
+          if (lastIndex !== -1) {
+            // Replace only the last occurrence with markdown link format and add space after
+            const before = currentMarkdown.substring(0, lastIndex);
+            const after = currentMarkdown.substring(lastIndex + plainText.length);
+            const markdownWithLink = before + `[${plainText}](${plainText}) ` + after;
+            
+            const newContent = markdown.deserialize(editor, markdownWithLink);
+            setEditorValue(newContent);
+            editor.setEditorValue(newContent);
+            
+            const readTime = calculateReadTime(markdownWithLink);
+            setBlogForm(prev => ({
+              ...prev,
+              estimatedReadTimeInMinutes: readTime,
+            }));
+          }
+        }, 100);
       } catch (error) {
-        console.error('Error in direct paste:', error);
-        const processedText = processStructuredContent(plainText);
-        const beforeCursor = currentMarkdown.substring(0, cursorPosition);
-        const afterCursor = currentMarkdown.substring(cursorPosition);
-        let combinedContent = ensureParagraphSeparation(beforeCursor, processedText, afterCursor);
-        combinedContent = normalizeMarkdown(combinedContent);
-        
-        const newContent = markdown.deserialize(editor, combinedContent);
-        setEditorValue(newContent);
-        editor.setEditorValue(newContent);
-        
-        const serializedContent = markdown.serialize(editor, newContent);
-        const readTime = calculateReadTime(serializedContent);
-        setBlogForm(prev => ({
-          ...prev,
-          estimatedReadTimeInMinutes: readTime,
-        }));
+        console.error('Error converting URL to link:', error);
       }
-    } else if (plainText) {
-      const processedText = processStructuredContent(plainText);
-      const beforeCursor = currentMarkdown.substring(0, cursorPosition);
-      const afterCursor = currentMarkdown.substring(cursorPosition);
-      let combinedContent = ensureParagraphSeparation(beforeCursor, processedText, afterCursor);
-      combinedContent = normalizeMarkdown(combinedContent);
-      
-      const newContent = markdown.deserialize(editor, combinedContent);
-      setEditorValue(newContent);
-      editor.setEditorValue(newContent);
-      
-      const serializedContent = markdown.serialize(editor, newContent);
-      const readTime = calculateReadTime(serializedContent);
-      setBlogForm(prev => ({
-        ...prev,
-        estimatedReadTimeInMinutes: readTime,
-      }));
+    } else {
+      // Not a URL, just update read time
+      setTimeout(() => {
+        try {
+          const currentValue = editor.getEditorValue();
+          const serializedContent = markdown.serialize(editor, currentValue);
+          const readTime = calculateReadTime(serializedContent);
+          setBlogForm(prev => ({
+            ...prev,
+            estimatedReadTimeInMinutes: readTime,
+          }));
+        } catch (error) {
+          console.error('Error updating read time after paste:', error);
+        }
+      }, 100);
     }
-  }, [isEditMode, editor, editorContainerRef, normalizeMarkdown]);
+  }, [isEditMode, editor, calculateReadTime]);
 
 
   useEffect(() => {
     const editorContainer = editorContainerRef.current;
     if (!editorContainer || !isEditMode) return;
+    
+    // Add paste event listener
+    const pasteHandler = (e: Event) => handleDirectPaste(e as ClipboardEvent);
+    editorContainer.addEventListener('paste', pasteHandler);
+    
+    return () => {
+      editorContainer.removeEventListener('paste', pasteHandler);
+    };
+  }, [isEditMode, handleDirectPaste]);
 
-    const handlePasteEvent = (event: Event) => {
-      handleDirectPaste(event as ClipboardEvent);
+  useEffect(() => {
+    const editorContainer = editorContainerRef.current;
+    if (!editorContainer || !isEditMode) return;
+
+    const handlePasteEvent = (e: Event) => {
+      handleDirectPaste(e as ClipboardEvent);
     };
 
-      editorContainer.addEventListener('paste', handlePasteEvent, true);
-      
-      const editorContent = editorContainer.querySelector('[contenteditable="true"]');
-      if (editorContent) {
-        editorContent.addEventListener('paste', handlePasteEvent, true);
+    editorContainer.addEventListener('paste', handlePasteEvent, true);
+    
+    const editorContent = editorContainer.querySelector('[contenteditable="true"]');
+    if (editorContent) {
+      editorContent.addEventListener('paste', handlePasteEvent, true);
     }
 
     return () => {
@@ -1387,11 +1312,6 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
                   onChange={handleContentChange}
                   className={`prose prose-sm max-w-none dark:prose-invert p-4 text-foreground ${!isEditMode ? 'opacity-80' : ''}`}
                   readOnly={!isEditMode}
-                  // onPaste={(event) => {
-                  //   if (isEditMode) {
-                  //     handleDirectPaste(event);
-                  //   }
-                  // }}
                 />
               </div>
             </div>

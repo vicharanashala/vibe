@@ -51,6 +51,7 @@ import ProjectItem from "./components/ProjectItem";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import FeedbackFormEditor from "./FeedbackFormEditor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { QuestionUploadDialog } from "@/components/question-upload-dialog";
 
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
@@ -231,7 +232,9 @@ function TeacherCourseContent() {
   // Fetch item details for selected item
   const shouldFetchItem = selectedEntity?.type === 'item' && !!courseId && !!versionId && !!selectedEntity?.data?._id;
   const {
-    data: selectedItemData, refetch: refetchItem
+    data: selectedItemData, 
+    isLoading: isItemLoading,
+    refetch: refetchItem
   } = useItemById(
     shouldFetchItem ? courseId : '',
     shouldFetchItem ? versionId : '',
@@ -591,7 +594,7 @@ function TeacherCourseContent() {
           params: { path: { versionId: versionId!, moduleId, sectionId } },
           body: {
             type: 'VIDEO',
-            name: `Segment ${segmentNumber}`,
+            name: `Video ${segmentNumber}`,
             description: `Video segment ${segmentNumber} from CSV upload`,
             videoDetails: {
               URL: youtubeUrl,
@@ -1023,7 +1026,7 @@ function TeacherCourseContent() {
         </div>
       )}
       {/* CSV Upload Modal */}
-      <Dialog open={showCSVUpload} onOpenChange={setShowCSVUpload}>
+      {/* <Dialog open={showCSVUpload} onOpenChange={setShowCSVUpload}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Upload Questions</DialogTitle>
@@ -1152,7 +1155,35 @@ function TeacherCourseContent() {
             </Button>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog> */}
+       <QuestionUploadDialog 
+        open={showCSVUpload} 
+        onOpenChange={setShowCSVUpload} 
+        onUploadComplete={async (youtubeUrl: string, csvFile:File) => {
+                            try {
+                              setIsProcessingCSV(true)
+                              await processCSV(
+                                csvFile,
+                                activeSectionInfo.moduleId,
+                                activeSectionInfo.sectionId,
+                                youtubeUrl
+                              );
+                              refetchVersion();
+                              refetchItems();
+                              setIsProcessingCSV(false)
+                              toast.success("Upload processed successfully!");
+                            } catch (error: any) {
+                              console.error("CSV Processing Error:", error);
+
+                              const message =
+                                error?.response?.data?.error ||
+                                error?.message ||
+                                "Failed to process uploaded data. Please try again.";
+                              setIsProcessingCSV(false)
+                              toast.error(message);
+                            }
+                          }}
+      /> 
       {/* Mobile Sidebar Overlay */}
       {isMobileSidebarOpen && (
         <div
@@ -2142,7 +2173,7 @@ function TeacherCourseContent() {
                     {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
 
                       <VideoModal
-                        isLoading={isLoading}
+                        isLoading={isItemLoading}
                         selectedItemName={selectedItem.name}
                         action={isEditingItem ? "edit" : "view"}
                         item={selectedItemData?.item}
