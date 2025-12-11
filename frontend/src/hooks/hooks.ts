@@ -1347,6 +1347,24 @@ export function useStopItem(): {
   };
 }
 
+
+export function useSkipOptionalItem(): {
+  mutate: (variables: { params: { path: { itemId: String } } }) => void,
+  mutateAsync: (variables: { params: { path: { itemId: String } } }) => Promise<unknown>,
+  data: unknown | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+} {
+  const result = api.useMutation("post", "/users/items/{itemId}/skip");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to skip item') : null
+  }
+}
+
 export function useUpdateItemOptional(): {
   mutate: (variables: { params: { path: { versionId: ObjectId , itemId: ObjectId  } } }) => void,
   mutateAsync: (variables: { params: { path: { versionId: ObjectId, itemId: ObjectId }},

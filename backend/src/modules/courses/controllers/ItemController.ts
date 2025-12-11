@@ -156,7 +156,7 @@ export class ItemController {
         }
 
         try {
-          const quizDetails = await this.quizService.getQuizDetails(itemRef._id.toString());
+          const quizDetails = await this.quizService.getQuizDetails(itemRef?._id?.toString());
           const questionBankRefs = quizDetails?.details?.questionBankRefs;
 
 
@@ -174,7 +174,7 @@ export class ItemController {
       console.error('Error filtering blank quizzes in readAll:', error);
       return items;
     }
-  }
+}
 
   @OpenAPI({
     summary: 'Update an item',
