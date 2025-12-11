@@ -8,6 +8,7 @@ import {Collection, ClientSession, ObjectId} from 'mongodb';
 class QuestionBankRepository {
   private questionBankCollection: Collection<IQuestionBank>;
   private questionsCollection: Collection<any>;
+
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
@@ -17,6 +18,8 @@ class QuestionBankRepository {
     this.questionBankCollection = await this.db.getCollection<IQuestionBank>(
       'questionBanks',
     );
+
+    this.questionsCollection = await this.db.getCollection<any>('questions');
 
     // High-priority indexes for read performance
     await this.questionBankCollection.createIndex(
