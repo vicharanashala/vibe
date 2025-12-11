@@ -53,6 +53,190 @@ import FeedbackFormEditor from "./FeedbackFormEditor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { QuestionUploadDialog } from "@/components/question-upload-dialog";
 
+// Retry utility function
+
+const withRetry = async <T,>(fn: () => Promise<T>, maxRetries = 3, delay = 100): Promise<T> => {
+
+  let lastError: Error;
+
+  for (let i = 0; i < maxRetries; i++) {
+
+    try {
+
+      return await fn();
+
+    } catch (error: any) {
+
+      lastError = error;
+
+      if (error.code === 112) { // WriteConflict error code
+
+        console.log(`Write conflict detected, retrying (${i + 1}/${maxRetries})...`);
+
+        await new Promise(resolve => setTimeout(resolve, delay * (i + 1))); // Exponential backoff
+
+      } else {
+
+        throw error;
+
+      }
+
+    }
+
+  }
+
+  throw lastError!;
+
+};
+
+// Function to process questions sequentially
+const processQuestionsSequentially = async (questions: any[], questionBankId: string, createQuestion: any, addQuestiontoQuestionBank: any) => {
+
+  const successfulQuestions = [];
+
+  
+
+  for (const question of questions) {
+
+    try {
+
+      const options = [
+
+        { text: question['Option A'], explanation: question['Expln-A'] || '' },
+
+        { text: question['Option B'], explanation: question['Expln-B'] || '' },
+
+        { text: question['Option C'], explanation: question['Expln-C'] || '' },
+
+        { text: question['Option D'], explanation: question['Expln-D'] || '' }
+
+      ].filter(opt => opt.text);
+
+
+
+      const correctAnswer = question['Correct Answer']?.toUpperCase();
+
+      const correctOptionIndex = correctAnswer ? correctAnswer.charCodeAt(0) - 65 : -1;
+
+
+
+      if (correctOptionIndex >= 0 && correctOptionIndex < options.length) {
+
+        // Create question with retry
+
+        const newQuestion = await withRetry(async () => {
+
+          return await createQuestion.mutateAsync({
+
+            body: {
+
+              question: {
+
+                text: question.Question || '',
+
+                type: 'SELECT_ONE_IN_LOT',
+
+                isParameterized: false,
+
+                parameters: [],
+
+                timeLimitSeconds: 60,
+
+                points: 1,
+
+                priority: 'MEDIUM',
+
+                hint: question.Hint || '',
+
+              },
+
+              solution: {
+
+                correctLotItem: {
+
+                  text: options[correctOptionIndex].text || '',
+
+                  explaination: options[correctOptionIndex].explanation || 'No explanation provided'
+
+                },
+
+                incorrectLotItems: options
+
+                  .filter((_, i) => i !== correctOptionIndex)
+
+                  .map(opt => ({
+
+                    text: opt.text || '',
+
+                    explaination: opt.explanation || 'No explanation provided'
+
+                  }))
+
+              }
+
+            }
+
+          });
+
+        });
+
+
+
+        // Add to question bank with retry
+
+        if (newQuestion?.questionId) {
+
+          await withRetry(async () => {
+
+            await addQuestiontoQuestionBank.mutateAsync({
+
+              params: {
+
+                path: {
+
+                  questionBankId: questionBankId,
+
+                  questionId: newQuestion.questionId
+
+                }
+
+              }
+
+            });
+
+          });
+
+          
+
+          successfulQuestions.push(newQuestion);
+
+          console.log(`✅ Created question: ${question.Question?.substring(0, 50)}...`);
+
+        }
+
+      }
+
+    } catch (error) {
+
+      console.error('❌ Error creating question:', error);
+
+    }
+
+    
+
+    // Small delay between questions to reduce write conflicts
+
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+  }
+
+
+
+  return successfulQuestions;
+
+};
+
+
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
   switch (type) {
