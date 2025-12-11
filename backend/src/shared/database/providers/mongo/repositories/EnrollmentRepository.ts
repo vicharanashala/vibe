@@ -984,121 +984,121 @@ async getEnrollments(
 //     return await this.enrollmentCollection.find({}, {session}).toArray();
 //   }
 
-//   async getCourseVersionEnrollments(
-//     courseId: string,
-//     courseVersionId: string,
-//     skip: number,
-//     limit: number,
-//     search: string,
-//     sortBy: 'name' | 'enrollmentDate' | 'progress',
-//     sortOrder: 'asc' | 'desc',
-//     filter: string,
-//     session?: ClientSession,
-//   ) {
-//     await this.init();
-//     const matchStage: any = {
-//       courseId: new ObjectId(courseId),
-//       courseVersionId: new ObjectId(courseVersionId),
-//       status: {$regex: /^active$/i},
-//     };
-//     if (filter) {
-//       if (filter === 'STUDENT') {
-//         matchStage.role = 'STUDENT';
-//       } else if (filter === 'OTHER') {
-//         matchStage.role = {$ne: 'STUDENT'};
-//       }
-//     }
+  async getCourseVersionEnrollments(
+    courseId: string,
+    courseVersionId: string,
+    skip: number,
+    limit: number,
+    search: string,
+    sortBy: 'name' | 'enrollmentDate' | 'progress',
+    sortOrder: 'asc' | 'desc',
+    filter: string,
+    session?: ClientSession,
+  ) {
+    await this.init();
+    const matchStage: any = {
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+      status: {$regex: /^active$/i},
+    };
+    if (filter) {
+      if (filter === 'STUDENT') {
+        matchStage.role = 'STUDENT';
+      } else if (filter === 'OTHER') {
+        matchStage.role = {$ne: 'STUDENT'};
+      }
+    }
 
-//     // decide sort field
-//     let sortField: any = {};
-//     if (sortBy === 'name') {
-//       // sort by firstName + lastName
-//       sortField = {
-//         firstName: sortOrder === 'asc' ? 1 : -1,
-//         lastName: sortOrder === 'asc' ? 1 : -1,
-//       };
-//     } else if (sortBy === 'enrollmentDate') {
-//       sortField = {enrollmentDate: sortOrder === 'asc' ? 1 : -1};
-//     } else if (sortBy === 'progress') {
-//       sortField = {percentCompleted: sortOrder === 'asc' ? 1 : -1};
-//     }
+    // decide sort field
+    let sortField: any = {};
+    if (sortBy === 'name') {
+      // sort by firstName + lastName
+      sortField = {
+        firstName: sortOrder === 'asc' ? 1 : -1,
+        lastName: sortOrder === 'asc' ? 1 : -1,
+      };
+    } else if (sortBy === 'enrollmentDate') {
+      sortField = {enrollmentDate: sortOrder === 'asc' ? 1 : -1};
+    } else if (sortBy === 'progress') {
+      sortField = {percentCompleted: sortOrder === 'asc' ? 1 : -1};
+    }
 
-//     const aggregationPipeline: any[] = [
-//       {$match: matchStage},
-//       {
-//         $addFields: {
-//           userId: {$toObjectId: '$userId'},
-//         },
-//       },
-//       {
-//         $lookup: {
-//           from: 'users',
-//           localField: 'userId',
-//           foreignField: '_id',
-//           as: 'userInfo',
-//         },
-//       },
-//       {$unwind: {path: '$userInfo', preserveNullAndEmptyArrays: true}},
-//       {
-//         $addFields: {
-//           userId: {$toString: '$userInfo._id'},
-//           _id: {$toString: '$_id'},
-//           courseId: {$toString: '$courseId'},
-//           courseVersionId: {$toString: '$courseVersionId'},
-//           firstName: '$userInfo.firstName',
-//           lastName: '$userInfo.lastName',
-//           email: '$userInfo.email',
-//         },
-//       },
-//     ];
+    const aggregationPipeline: any[] = [
+      {$match: matchStage},
+      {
+        $addFields: {
+          userId: {$toObjectId: '$userId'},
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'userInfo',
+        },
+      },
+      {$unwind: {path: '$userInfo', preserveNullAndEmptyArrays: true}},
+      {
+        $addFields: {
+          userId: {$toString: '$userInfo._id'},
+          _id: {$toString: '$_id'},
+          courseId: {$toString: '$courseId'},
+          courseVersionId: {$toString: '$courseVersionId'},
+          firstName: '$userInfo.firstName',
+          lastName: '$userInfo.lastName',
+          email: '$userInfo.email',
+        },
+      },
+    ];
 
-//     // search
-//     if (search && search.trim() !== '') {
-//       const searchTerm = search.trim();
-//       aggregationPipeline.push({
-//         $match: {
-//           $or: [
-//             {'userInfo.firstName': {$regex: search, $options: 'i'}},
-//             {'userInfo.email': {$regex: search, $options: 'i'}},
-//             {firstName: {$regex: searchTerm, $options: 'i'}},
-//             {lastName: {$regex: searchTerm, $options: 'i'}},
-//             {email: {$regex: searchTerm, $options: 'i'}},
-//           ],
-//         },
-//       });
-//     }
+    // search
+    if (search && search.trim() !== '') {
+      const searchTerm = search.trim();
+      aggregationPipeline.push({
+        $match: {
+          $or: [
+            {'userInfo.firstName': {$regex: search, $options: 'i'}},
+            {'userInfo.email': {$regex: search, $options: 'i'}},
+            {firstName: {$regex: searchTerm, $options: 'i'}},
+            {lastName: {$regex: searchTerm, $options: 'i'}},
+            {email: {$regex: searchTerm, $options: 'i'}},
+          ],
+        },
+      });
+    }
 
-//     // Get the total count with search applied
-//     const countPipeline = [...aggregationPipeline, {$count: 'total'}];
-//     const countResult = await this.enrollmentCollection
-//       .aggregate<{total: number}>(countPipeline, {session})
-//       .next();
-//     const totalDocuments = countResult?.total || 0;
+    // Get the total count with search applied
+    const countPipeline = [...aggregationPipeline, {$count: 'total'}];
+    const countResult = await this.enrollmentCollection
+      .aggregate<{total: number}>(countPipeline, {session})
+      .next();
+    const totalDocuments = countResult?.total || 0;
 
-//     // sorting
-//     aggregationPipeline.push({$sort: sortField});
+    // sorting
+    aggregationPipeline.push({$sort: sortField});
 
-//     // pagination
-//     aggregationPipeline.push({$skip: skip}, {$limit: limit});
+    // pagination
+    aggregationPipeline.push({$skip: skip}, {$limit: limit});
 
-//     // count separately
-//     // const totalDocuments = await this.enrollmentCollection.countDocuments(
-//     //   matchStage,
-//     // );
+    // count separately
+    // const totalDocuments = await this.enrollmentCollection.countDocuments(
+    //   matchStage,
+    // );
 
-//     const enrollments = await this.enrollmentCollection
-//       .aggregate(aggregationPipeline, {session})
-//       .toArray();
+    const enrollments = await this.enrollmentCollection
+      .aggregate(aggregationPipeline, {session})
+      .toArray();
 
-//     const totalPages = limit > 0 ? Math.ceil(totalDocuments / limit) : 1;
+    const totalPages = limit > 0 ? Math.ceil(totalDocuments / limit) : 1;
 
-//     return {
-//       totalDocuments,
-//       totalPages,
-//       currentPage: limit > 0 ? Math.floor(skip / limit) + 1 : 1,
-//       enrollments,
-//     };
-//   }
+    return {
+      totalDocuments,
+      totalPages,
+      currentPage: limit > 0 ? Math.floor(skip / limit) + 1 : 1,
+      enrollments,
+    };
+  }
 
 //   async getVersionEnrollmentStats(
 //     courseId: string,

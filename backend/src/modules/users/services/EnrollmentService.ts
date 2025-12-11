@@ -361,43 +361,43 @@ export class EnrollmentService extends BaseService {
     });
   }
 
-  //   async getCourseVersionEnrollments(
-  //     courseId: string,
-  //     courseVersionId: string,
-  //     skip: number,
-  //     limit: number,
-  //     search: string,
-  //     sortBy: 'name' | 'enrollmentDate' | 'progress',
-  //     sortOrder: 'asc' | 'desc',
-  //     filter: string,
-  //   ) {
-  //     return this._withTransaction(async (session: ClientSession) => {
-  //       const courseVersion = await this.courseRepo.readVersion(
-  //         courseVersionId,
-  //         session,
-  //       );
-  //       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
-  //         throw new NotFoundError(
-  //           'Course version not found or does not belong to this course',
-  //         );
-  //       }
+    async getCourseVersionEnrollments(
+      courseId: string,
+      courseVersionId: string,
+      skip: number,
+      limit: number,
+      search: string,
+      sortBy: 'name' | 'enrollmentDate' | 'progress',
+      sortOrder: 'asc' | 'desc',
+      filter: string,
+    ) {
+      return this._withTransaction(async (session: ClientSession) => {
+        const courseVersion = await this.courseRepo.readVersion(
+          courseVersionId,
+          session,
+        );
+        if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
+          throw new NotFoundError(
+            'Course version not found or does not belong to this course',
+          );
+        }
 
-  //       const enrollmentsData =
-  //         await this.enrollmentRepo.getCourseVersionEnrollments(
-  //           courseId,
-  //           courseVersionId,
-  //           skip,
-  //           limit,
-  //           search,
-  //           sortBy,
-  //           sortOrder,
-  //           filter,
-  //           session,
-  //         );
+        const enrollmentsData =
+          await this.enrollmentRepo.getCourseVersionEnrollments(
+            courseId,
+            courseVersionId,
+            skip,
+            limit,
+            search,
+            sortBy,
+            sortOrder,
+            filter,
+            session,
+          );
 
-  //       return enrollmentsData;
-  //     });
-  //   }
+        return enrollmentsData;
+      });
+    }
 
   //   async getCourseVersionEnrollmentStatistics(
   //     courseId: string,

@@ -14,6 +14,9 @@ import {
   OnUndefined,
   Params,
   Body,
+  NotFoundError,
+  BadRequestError,
+  Param,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import {
@@ -22,8 +25,8 @@ import {
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
 import { GLOBAL_TYPES } from '#root/types.js';
-import { BadRequestErrorResponse, EnrollmentFilterQuery, IUser } from '#root/shared/index.js';
-import { EnrollmentNotFoundErrorResponse, EnrollmentResponse } from '../classes/index.js';
+import { BadRequestErrorResponse, EnrollmentFilterQuery, EnrollmentsQuery, IUser } from '#root/shared/index.js';
+import { CourseVersionEnrollmentResponse, EnrollmentNotFoundErrorResponse, EnrollmentResponse } from '../classes/index.js';
 import { CourseAndVersionId, InviteBody } from '../classes/validators/InviteValidators.js';
 
 @OpenAPI({
@@ -111,5 +114,92 @@ export class EnrollmentController {
       const result = await this.enrollmentService.inviteUser(inviteData,courseId,versionId)
       return {message:"User enrolled succesfull"}
     }
+
+     @OpenAPI({
+    summary: 'Get all enrollments for a course version',
+    description:
+      'Retrieves a paginated list of all users enrolled in a specific course version.',
+  })
+  @Authorized()
+  @Get('/courses/:courseId/versions/:versionId')
+  @HttpCode(200)
+  @ResponseSchema(CourseVersionEnrollmentResponse, {
+    description: 'Paginated list of enrollments for the course version',
+  })
+  @ResponseSchema(EnrollmentNotFoundErrorResponse, {
+    description: 'No enrollments found for the course version',
+    statusCode: 404,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid page or limit parameters',
+    statusCode: 400,
+  })
+  async getCourseVersionEnrollments(
+    @Param('courseId') courseId: string,
+    @Param('versionId') versionId: string,
+    @QueryParams() query: EnrollmentsQuery,
+    // @Ability(getEnrollmentAbility) { ability },
+  ): Promise<CourseVersionEnrollmentResponse> {
+    // const enrollmentResource = subject('Enrollment', { courseId, versionId });
+
+    // if (!ability.can(EnrollmentActions.ViewAll, enrollmentResource)) {
+    //   throw new ForbiddenError(
+    //     'You do not have permission to view enrollments for this course',
+    //   );
+    // }
+
+    const {
+      page,
+      limit,
+      search = '',
+      sortBy = 'enrollmentDate',
+      sortOrder = 'desc',
+      filter
+    } = query;
+
+    if (page < 1 || limit < 1) {
+      throw new BadRequestError
+      ('Page and limit must be positive integers.');
+    }
+
+    // const skip = search && search.trim() !== '' ? 0 : (page - 1) * limit;
+
+    const skip = (page - 1) * limit;
+
+    const enrollmentsData =
+      await this.enrollmentService.getCourseVersionEnrollments(
+        courseId,
+        versionId,
+        skip,
+        limit,
+        search,
+        sortBy,
+        sortOrder,
+        filter
+      );
+
+    if (
+      !enrollmentsData ||
+      !enrollmentsData.enrollments ||
+      enrollmentsData.enrollments.length === 0
+    ) {
+      throw new NotFoundError(
+        'No enrollments found for the given course version.',
+      );
+    }
+
+    return {
+      enrollments: enrollmentsData.enrollments.map((enrollment: any) => ({
+        role: enrollment.role,
+        status: enrollment.status,
+        enrollmentDate: enrollment.enrollmentDate,
+        user: { ...enrollment.userInfo, _id: enrollment.userId },
+        progress: enrollment.percentCompleted,
+      })),
+      totalDocuments: enrollmentsData.totalDocuments,
+      totalPages: enrollmentsData.totalPages,
+      currentPage: page,
+    };
+  }
 
 }

@@ -146,11 +146,11 @@ export default function CourseEnrollments() {
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
 
   // Fetch course anomalies stats
-  const { data: enrollmentStats, isLoading: statsLoading, error: statsError } = useCourseEnrollmentsStats(
-    courseId,
-    versionId,
-    !!(courseId && versionId)
-  )
+  // const { data: enrollmentStats, isLoading: statsLoading, error: statsError } = useCourseEnrollmentsStats(
+  //   courseId,
+  //   versionId,
+  //   !!(courseId && versionId)
+  // )
 
   const [selectedUser, setSelectedUser] = useState<EnrolledUser | null>(null)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
@@ -184,13 +184,13 @@ export default function CourseEnrollments() {
   const [isExporting, setIsExporting] = useState(false);
 
   // Quiz scores hook - using the hook directly with enabled: false to control when to fetch
-const {
-  data: quizScores,
-  isLoading: isLoadingQuizScores,
-  error: quizScoresError,
-  refetch: fetchQuizScores,
-} = useCourseQuizScores(courseId, versionId,isExporting);
-
+// const {
+//   data: quizScores,
+//   isLoading: isLoadingQuizScores,
+//   error: quizScoresError,
+//   refetch: fetchQuizScores,
+// } = useCourseQuizScores(courseId, versionId,isExporting);
+  const isLoadingQuizScores=false
   interface QuizScore {
     moduleId?: string;
     sectionId?: string;
@@ -213,85 +213,85 @@ const {
   }
 
   // Handle fetch and export quiz scores
-  const handleFetchQuizScores = async () => {
-    if (!courseId || !versionId) {
-      toast.error('Course ID or Version ID is missing');
-      return;
-    }
+  // const handleFetchQuizScores = async () => {
+  //   if (!courseId || !versionId) {
+  //     toast.error('Course ID or Version ID is missing');
+  //     return;
+  //   }
     
-    try {
-      if (quizScores && !isLoadingQuizScores) {
+  //   try {
+  //     if (quizScores && !isLoadingQuizScores) {
         
-        // Format the data for Excel export
-        const formattedData = quizScores?.data?.map((student: any, index: number) => {
+  //       // Format the data for Excel export
+  //       const formattedData = quizScores?.data?.map((student: any, index: number) => {
           
-          // Get all unique module and section names for this student
-          const moduleSectionMap = new Map<string, {moduleName: string, sectionName: string}>();
+  //         // Get all unique module and section names for this student
+  //         const moduleSectionMap = new Map<string, {moduleName: string, sectionName: string}>();
           
-          // First pass: collect all module and section names
-          student.quizScores?.forEach((quiz: any) => {
-            const key = `${quiz.moduleId}_${quiz.sectionId}`;
-            if (!moduleSectionMap.has(key)) {
-              moduleSectionMap.set(key, {
-                moduleName: quiz.moduleName || 'Module',
-                sectionName: quiz.sectionName || 'Section'
-              });
-            }
-          });
+  //         // First pass: collect all module and section names
+  //         student.quizScores?.forEach((quiz: any) => {
+  //           const key = `${quiz.moduleId}_${quiz.sectionId}`;
+  //           if (!moduleSectionMap.has(key)) {
+  //             moduleSectionMap.set(key, {
+  //               moduleName: quiz.moduleName || 'Module',
+  //               sectionName: quiz.sectionName || 'Section'
+  //             });
+  //           }
+  //         });
           
-          return {
-            studentId: student.studentId || `student-${index}`,
-            name: student.name || 'Unknown Student',
-            email: student.email || '',
-            quizScores: student.quizScores?.map((quiz: any) => ({
-              moduleId: quiz.moduleId || 'unknown',
-              sectionId: quiz.sectionId || 'unknown',
-              quizId: quiz.quizId || 'unknown',
-              quizName: quiz.quizName || 'Untitled Quiz',
-              maxScore: quiz.maxScore || 0,
-              attempts: quiz.attempts || 0,
-              moduleName: quiz.moduleName || 'Module',
-              sectionName: quiz.sectionName || 'Section',
-              questionScores: Array.isArray(quiz.questionScores) 
-                ? quiz.questionScores.map((q: any) => ({
-                    questionId: q.questionId?.toString() || '',
-                    score: typeof q.score === 'number' ? q.score : 0
-                  }))
-                : []
-            })) || []
-          };
-        }) || [];
+  //         return {
+  //           studentId: student.studentId || `student-${index}`,
+  //           name: student.name || 'Unknown Student',
+  //           email: student.email || '',
+  //           quizScores: student.quizScores?.map((quiz: any) => ({
+  //             moduleId: quiz.moduleId || 'unknown',
+  //             sectionId: quiz.sectionId || 'unknown',
+  //             quizId: quiz.quizId || 'unknown',
+  //             quizName: quiz.quizName || 'Untitled Quiz',
+  //             maxScore: quiz.maxScore || 0,
+  //             attempts: quiz.attempts || 0,
+  //             moduleName: quiz.moduleName || 'Module',
+  //             sectionName: quiz.sectionName || 'Section',
+  //             questionScores: Array.isArray(quiz.questionScores) 
+  //               ? quiz.questionScores.map((q: any) => ({
+  //                   questionId: q.questionId?.toString() || '',
+  //                   score: typeof q.score === 'number' ? q.score : 0
+  //                 }))
+  //               : []
+  //           })) || []
+  //         };
+  //       }) || [];
         
-        if (formattedData.length === 0) {
-          toast.warning('No quiz scores found to export');
-          return;
-        }
+  //       if (formattedData.length === 0) {
+  //         toast.warning('No quiz scores found to export');
+  //         return;
+  //       }
         
-        console.log('Formatted data for Excel:', formattedData);
+  //       console.log('Formatted data for Excel:', formattedData);
       
-      // Generate and download the Excel file
-      const formattedTime = new Date().toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit"
-      }).replace(/:/g, '_');
+  //     // Generate and download the Excel file
+  //     const formattedTime = new Date().toLocaleTimeString("en-US", {
+  //       hour: "2-digit",
+  //       minute: "2-digit",
+  //       second: "2-digit"
+  //     }).replace(/:/g, '_');
       
-      const filename = `quiz_scores_${new Date().toISOString().split('T')[0]}_${formattedTime}.xlsx`;
+  //     const filename = `quiz_scores_${new Date().toISOString().split('T')[0]}_${formattedTime}.xlsx`;
       
-      try {
-      generateExcel(formattedData, filename);
-      toast.success('Quiz scores exported successfully');
+  //     try {
+  //     generateExcel(formattedData, filename);
+  //     toast.success('Quiz scores exported successfully');
     
-      } catch (excelError) {
-        console.error('Error generating Excel file:', excelError);
-        toast.error('Failed to generate Excel file. Please try again.');
-      }}
-    } catch (error) {
-      console.error('Error exporting quiz scores:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to export quiz scores');
-    } 
+  //     } catch (excelError) {
+  //       console.error('Error generating Excel file:', excelError);
+  //       toast.error('Failed to generate Excel file. Please try again.');
+  //     }}
+  //   } catch (error) {
+  //     console.error('Error exporting quiz scores:', error);
+  //     toast.error(error instanceof Error ? error.message : 'Failed to export quiz scores');
+  //   } 
     
-  };
+  // };
 
   useEffect(() => {
     setIsSearching(true);
@@ -376,11 +376,11 @@ const {
   }, [isViewProgressDialogOpen])
 
  useEffect(() => {
-  if (isExporting&&!isLoadingQuizScores) {
+  if (isExporting) {
   
     handleFetchQuizScores().finally(() => setIsExporting(false));
   }
-}, [isExporting,isLoadingQuizScores]);
+}, [isExporting]);
 
   const handleResetProgress = (user: EnrolledUser) => {
     setSelectedUser(user)
@@ -539,7 +539,7 @@ const {
   //     ).toFixed(1)
   //     : 0
   // )
-
+const enrollmentStats =[]
   const stats = [
     {
       title: "Total Enrolled",
@@ -579,7 +579,7 @@ const {
   }
 
   // Error state
-  if (courseError || versionError || (enrollmentsError && !debouncedSearch) || !course || !version || statsError) {
+  if (courseError || versionError || (enrollmentsError && !debouncedSearch) || !course || !version ) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8">
@@ -638,7 +638,7 @@ const {
         </div>
 
         {/* Stats */}
-        <div className="flex lg:flex-nowrap flex-wrap gap-6">
+        {/* <div className="flex lg:flex-nowrap flex-wrap gap-6">
           {stats.map((stat) => (
             <Card key={stat.title} className="border-0 shadow-sm hover:shadow-md transition-shadow w-full">
               <CardContent className="p-6">
@@ -654,7 +654,7 @@ const {
               </CardContent>
             </Card>
           ))}
-        </div>
+        </div> */}
 
         {/* Search */}
         <div className="flex flex-col sm:flex-row gap-4">

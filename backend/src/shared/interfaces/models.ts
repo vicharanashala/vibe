@@ -586,35 +586,35 @@ export class EnrollmentFilterQuery {
   role?: EnrollmentRole;
 }
 
-// export class EnrollmentsQuery {
-//   @IsOptional()
-//   @Type(() => Number)
-//   @IsInt()
-//   @Min(1)
-//   page: number = 1;
+export class EnrollmentsQuery {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number = 1;
 
-//   @IsOptional()
-//   @Type(() => Number)
-//   @IsInt()
-//   @Min(1)
-//   limit: number = 10;
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit: number = 10;
 
-//   @IsOptional()
-//   @IsString()
-//   search?: string;
+  @IsOptional()
+  @IsString()
+  search?: string;
 
-//   @IsOptional()
-//   @IsIn(['name', 'enrollmentDate', 'progress'])
-//   sortBy: 'name' | 'enrollmentDate' | 'progress' = 'enrollmentDate';
+  @IsOptional()
+  @IsIn(['name', 'enrollmentDate', 'progress'])
+  sortBy: 'name' | 'enrollmentDate' | 'progress' = 'enrollmentDate';
 
-//   @IsOptional()
-//   @IsIn(['asc', 'desc'])
-//   sortOrder: 'asc' | 'desc' = 'desc';
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  sortOrder: 'asc' | 'desc' = 'desc';
 
-//   @IsOptional()
-//   @IsIn(['STUDENT', 'OTHER'])
-//   filter?: 'STUDENT' | 'OTHER';
-// }
+  @IsOptional()
+  @IsIn(['STUDENT', 'OTHER'])
+  filter?: 'STUDENT' | 'OTHER';
+}
 
 // export class BulkEnrollmentsQuery {
 //   @IsOptional()

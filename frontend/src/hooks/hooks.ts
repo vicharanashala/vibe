@@ -1180,7 +1180,7 @@ export function useCourseVersionEnrollments(
 } {
   const result = api.useQuery(
     "get",
-    "/users/enrollments/courses/{courseId}/versions/{courseVersionId}",
+    "/enrollments/courses/{courseId}/versions/{courseVersionId}",
     {
       params: {
         path: { courseId, courseVersionId },
