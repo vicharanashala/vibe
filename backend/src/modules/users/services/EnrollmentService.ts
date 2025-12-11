@@ -289,6 +289,39 @@ export class EnrollmentService extends BaseService {
 
           // update percentage if contentCountsMap / watchedItemsMap has different value from enrollment.percentCompleted
           // ratio is calculated as (watchedItems / totalItems) * 100
+          const totalItems = contentCountsMap.get(versionIdStr) || {
+            totalItems: 0,
+            videos: 0,
+            quizzes: 0,
+            articles: 0,
+          };
+
+          const completedCount = watchedItemsMap.get(watchedKey) || 0;
+
+          const ratio = completedCount / (totalItems.totalItems || 1); // avoid division by zero
+          const calculatedPercent = Math.floor(ratio * 100);
+
+          console.log(
+            totalItems.totalItems,
+            completedCount,
+            ratio,
+            calculatedPercent,
+          );
+
+          // if different, update enrollment percentCompleted
+          if (enr.percentCompleted !== calculatedPercent) {
+            console.log(
+              `Updating percentCompleted for enrollment ${enr._id.toString()} from ${
+                enr.percentCompleted
+              } to ${calculatedPercent}`,
+            );
+            this.enrollmentRepo.updateProgressPercentById(
+              enr._id.toString(),
+              calculatedPercent,
+            );
+
+            enr.percentCompleted = calculatedPercent;
+          }
 
           if (enr.percentCompleted || 0)
             return {
