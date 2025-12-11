@@ -131,7 +131,7 @@ export default function TeacherCoursesPage() {
   const invalidateAllQueries = () => {
     // Invalidate enrollments
     queryClient.invalidateQueries({
-      queryKey: ['get', '/users/enrollments']
+      queryKey: ['get', '/enrollments']
     })
 
     // Invalidate all course queries
@@ -1256,7 +1256,7 @@ function VersionCard({
                     )}
                     Clone
                   </Button> */}
-                  <Button
+                  {/* <Button
                     variant="outline"
                     size="sm"
                     onClick={startEditingVersion}
@@ -1283,7 +1283,7 @@ function VersionCard({
                       <Trash2 className="h-3 w-3 mr-1" />
                     )}
                     Delete
-                  </Button>
+                  </Button> */}
                 </div>
               </div>
 

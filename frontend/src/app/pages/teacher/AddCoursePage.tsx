@@ -76,7 +76,7 @@ export default function CreateCourse() {
         setCourseName("");
         setCourseDescription("");
         queryClient.invalidateQueries({
-          queryKey: ["get", "/users/enrollments"],
+          queryKey: ["get", "/enrollments"],
           exact: false, // let it match all queries with different params
         });
 

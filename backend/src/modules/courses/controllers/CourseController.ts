@@ -1,10 +1,10 @@
 import { inject, injectable } from "inversify";
-import { Authorized, Body, CurrentUser, ForbiddenError, Get, HttpCode, JsonController, Params, Post } from "routing-controllers";
+import { Authorized, Body, CurrentUser, Delete, ForbiddenError, Get, HttpCode, JsonController, OnUndefined, Params, Patch, Post } from "routing-controllers";
 import { OpenAPI, ResponseSchema } from "routing-controllers-openapi";
 import { COURSES_TYPES} from "../types.js";
 import { EnrollmentService } from "#root/modules/users/services/EnrollmentService.js";
 import { CourseService } from "../services/CourseService.js";
-import { CourseBody, CourseDataResponse, CourseIdParams, CourseNotFoundErrorResponse } from "../classes/validators/courseValidator.js";
+import { CourseBody, CourseDataResponse, CourseIdParams, CourseNotFoundErrorResponse, EditCourseBody } from "../classes/validators/courseValidator.js";
 import { BadRequestErrorResponse, IUser } from "#root/shared/index.js";
 import { Course } from "../classes/transformers/course.js";
 import { GLOBAL_TYPES } from "#root/types.js";
@@ -116,5 +116,85 @@ Accessible to:
 
     const course = await this.courseService.readCourse(courseId);
     return course;
+  }
+
+
+  @OpenAPI({
+    summary: 'Update a course',
+    description: `Updates course metadata such as title or description.<br/>
+Accessible to:
+- Instructor or manager for the course.`,
+  })
+  @Authorized()
+  @Patch('/:courseId', { transformResponse: true })
+  @ResponseSchema(CourseDataResponse, {
+    description: 'Course updated successfully',
+    statusCode:200
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(CourseNotFoundErrorResponse, {
+    description: 'Course not found',
+    statusCode: 404,
+  })
+  async update(
+    @Params() params: CourseIdParams,
+    @Body() body: EditCourseBody,
+    // @Ability(getCourseAbility) { ability },
+  ) {
+    const { courseId } = params;
+
+    // Create a course resource object with the courseId for permission checking
+    // const courseResource = subject('Course', { courseId });
+
+    // Check permission using ability.can() with the actual course resource
+    // if (!ability.can(CourseActions.Modify, courseResource)) {
+    //   throw new ForbiddenError(
+    //     'You do not have permission to update this course',
+    //   );
+    // }
+
+    const updatedCourse = await this.courseService.updateCourse(courseId, body);
+    return updatedCourse;
+  }
+
+
+
+   @OpenAPI({
+    summary: 'Delete a course',
+    description: `Deletes a course by ID<br/>
+    It returns an empty body with a 200 status code.`,
+  })
+  @Authorized()
+  @Delete('/:courseId', { transformResponse: true })
+  // @OnUndefined(200)
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(CourseNotFoundErrorResponse, {
+    description: 'Course not found',
+    statusCode: 404,
+  })
+  async delete(
+    @Params() params: CourseIdParams,
+    @Ability(getCourseAbility) { ability },
+  ):Promise<any> {
+    const { courseId } = params;
+
+    // Create a course resource object with the courseId for permission checking
+    // const courseResource = subject('Course', { courseId });
+
+    // // Check permission using ability.can() with the actual course resource
+    // if (!ability.can(CourseActions.Delete, courseResource)) {
+    //   throw new ForbiddenError(
+    //     'You do not have permission to delete this course',
+    //   );
+    // }
+
+    const result = await this.courseService.deleteCourse(courseId);
+    return {message:"Course Deleted Succesfully"}
   }
 }

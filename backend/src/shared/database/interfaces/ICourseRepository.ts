@@ -17,12 +17,12 @@ export interface ICourseRepository {
 
   create(course: ICourse, session?: ClientSession): Promise<ICourse | null>;
   read(id: string, session?: ClientSession): Promise<ICourse | null>;
-//   update(
-//     id: string,
-//     course: Partial<ICourse>,
-//     session?: ClientSession,
-//   ): Promise<ICourse | null>;
-//   delete(id: string, session?: ClientSession): Promise<boolean>;
+  update(
+    id: string,
+    course: Partial<ICourse>,
+    session?: ClientSession,
+  ): Promise<ICourse | null>;
+  delete(id: string, session?: ClientSession): Promise<boolean>;
 
   createVersion(
     courseVersion: ICourseVersion,

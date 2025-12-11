@@ -81,4 +81,31 @@ export class CourseService extends BaseService {
     });
   }
 
+
+  async updateCourse(
+    id: string,
+    data: Pick<Course, 'name' | 'description'>,
+  ): Promise<Course> {
+    return this._withTransaction(async session => {
+      const updatedCourse = await this.courseRepo.update(id, data, session);
+      if (!updatedCourse) {
+        throw new NotFoundError(
+          'No course found with the specified ID. Please verify the ID and try again.',
+        );
+      }
+      return updatedCourse;
+    });
+  }
+
+  async deleteCourse(id: string): Promise<void> {
+    return this._withTransaction(async session => {
+      const deleted = await this.courseRepo.delete(id, session);
+      if (!deleted) {
+        throw new NotFoundError(
+          'No course found with the specified ID. Please verify the ID and try again.',
+        );
+      }
+    });
+  }
+
 }

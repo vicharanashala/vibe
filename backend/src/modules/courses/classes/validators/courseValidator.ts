@@ -153,16 +153,43 @@ class CourseIdParams {
   courseId: string;
 }
 
+class EditCourseBody implements Partial<ICourse> {
+  @JSONSchema({
+    title: 'Course Name',
+    description: 'Name of the course',
+    example: 'Introduction to Programming',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(255)
+  @MinLength(3)
+  name: string;
+
+  @JSONSchema({
+    title: 'Course Description',
+    description: 'Description of the course',
+    example: 'This course covers the basics of programming.',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(1000)
+  description: string;
+}
+
 export {
   CourseBody,
   CourseDataResponse,
   CourseNotFoundErrorResponse,
-  CourseIdParams
+  CourseIdParams,
+  EditCourseBody
 };
 
 export const COURSE_VALIDATORS = [
   CourseBody,
   CourseDataResponse,
   CourseNotFoundErrorResponse,
-  CourseIdParams
+  CourseIdParams,
+  EditCourseBody
 ];
