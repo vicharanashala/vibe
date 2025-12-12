@@ -637,7 +637,19 @@ export class ItemService extends BaseService {
         session,
       );
 
-      return updatedItem;
+      // next non hidden item
+      const nextNonHiddenItem = itemGroup.items
+        .filter(i => !i.isHidden)
+        .sort((a, b) => a.order.localeCompare(b.order))[0];
+
+      // update all progress documents matched by currentItemId to nextNonHiddenItemId
+      if (nextNonHiddenItem) {
+        await this.progressRepo.updateProgressByItemId(
+          itemId,
+          {currentItem: nextNonHiddenItem._id.toString()},
+          session,
+        );
+      }
     });
   }
 }

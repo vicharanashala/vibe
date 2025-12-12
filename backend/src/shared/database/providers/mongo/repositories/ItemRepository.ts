@@ -16,6 +16,7 @@ import {
   ProjectItem,
   Item,
   FeedBackFormItem,
+  ItemRef,
 } from '#courses/classes/transformers/Item.js';
 import {UpdateItemBody} from '#root/modules/courses/classes/index.js';
 import {QuestionBank} from '#root/modules/quizzes/classes/transformers/QuestionBank.js';
@@ -813,22 +814,24 @@ export class ItemRepository implements IItemRepository {
   }
 
   async updateItemsGroupsBulk(
-    itemGroupIds: (string | ObjectId)[],
-    updateData: Partial<ItemsGroup>,
+    itemGroups: ItemsGroup[],
     session?: ClientSession,
   ): Promise<number> {
     await this.init();
 
-    const objectIds = itemGroupIds.map(id => new ObjectId(id));
-    const updateFields: any = {};
+    const bulkOps = itemGroups.map(group => ({
+      replaceOne: {
+        filter: {_id: new ObjectId(group._id)},
+        replacement: group,
+        upsert: true,
+      },
+    }));
 
-    await this.itemsGroupCollection.updateMany(
-      {_id: {$in: objectIds}},
-      {$set: updateData},
-      {session},
-    );
+    const result = await this.itemsGroupCollection.bulkWrite(bulkOps, {
+      session,
+    });
 
-    return objectIds.length;
+    return result.modifiedCount;
   }
 
   async updateItemById(
