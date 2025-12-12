@@ -354,7 +354,7 @@ class ProgressService extends BaseService {
         ));
 
       percentCompleted = Math.round(
-        (totalItems > 0 ? completedItems / totalItems : 0) * 100, 
+        (totalItems > 0 ? completedItems / totalItems : 0) * 100,
       );
     }
 
@@ -1011,7 +1011,7 @@ class ProgressService extends BaseService {
           existingSession,
         );
 
-        // 
+      // 
 
       const completedItemsSet = new Set(completedItemsArray);
       return completedItemsSet.size;
@@ -1941,15 +1941,60 @@ class ProgressService extends BaseService {
 
     // If no progress exists, create a new one starting at this item
     if (!progress) {
-        throw new Error("Progress not found");
+      throw new Error("Progress not found");
     }
 
-      // Get the course version first
-      const courseVersion = await this.courseRepo.readVersion(courseVersionId);
-      if (!courseVersion) {
-        throw new NotFoundError("Course version not found");
-      }
+    // Get the course version first
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    if (!courseVersion) {
+      throw new NotFoundError("Course version not found");
+    }
 
+    // First, check if a watch time record already exists for this item
+    const existingWatchTime = await this.progressRepository.getWatchTime(
+      userId,
+      itemId,
+      courseId,
+      courseVersionId,
+      session,
+    );
+
+
+    let watchTimeId;
+    if (!existingWatchTime || existingWatchTime.length === 0) {
+      // No existing watch time, create a new one
+      watchTimeId = await this.progressRepository.startItemTracking(
+        userId,
+        courseId,
+        courseVersionId,
+        itemId,
+        session,
+      );
+
+      if (watchTimeId) {
+        // Mark the item as completed by stopping the watch time
+        await this.progressRepository.stopItemTracking(
+          userId,
+          courseId,
+          courseVersionId,
+          itemId,
+          watchTimeId,
+          session,
+        );
+      }
+    } else {
+      // Use the existing watch time ID
+      watchTimeId = existingWatchTime[0]._id;
+      // Ensure the watch time is marked as completed
+      await this.progressRepository.stopItemTracking(
+        userId,
+        courseId,
+        courseVersionId,
+        itemId,
+        watchTimeId,
+        session,
+      );
+    }
     // Get the next item
     const nextItem = await this.getNextItemInSequence(
       courseVersion,
