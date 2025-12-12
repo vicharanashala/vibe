@@ -15,6 +15,12 @@ import { bufferToHex } from "@/utils/helpers";
 import type { CourseCardProps } from '@/types/course.types';
 
 export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard', className, completion, setCompletion }: CourseCardProps) => {
+  // Add null checks to prevent errors when enrollment data is incomplete
+  if (!enrollment || !enrollment.courseId || !enrollment.courseVersionId) {
+    console.error('Invalid enrollment data:', enrollment);
+    return null;
+  }
+
   const courseId = bufferToHex(enrollment.courseId as string);
   const versionId = bufferToHex(enrollment.courseVersionId as string) || "";
 

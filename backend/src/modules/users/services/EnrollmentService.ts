@@ -323,7 +323,9 @@ export class EnrollmentService extends BaseService {
             enr.percentCompleted = calculatedPercent;
           }
 
-          if (enr.percentCompleted || 0)
+          console.log('Enrollment', enr);
+
+          if (enr.percentCompleted >= 0)
             return {
               _id: enr._id.toString(),
               courseId: enr.courseId.toString(),
