@@ -941,6 +941,11 @@ function TeacherCourseContent() {
         }
       }).then((res) => {
         refetchVersion();
+        refetchItems();
+        toast.success("Video created successfully");
+      }).catch((error) => {
+        console.error("Error creating video:", error);
+        toast.error(`Failed to create video: ${error.message || 'Unknown error'}`);
       });
 
       return;
@@ -957,6 +962,11 @@ function TeacherCourseContent() {
         },
       }).then((res) => {
         refetchVersion();
+        refetchItems();
+        toast.success("Quiz created successfully");
+      }).catch((error) => {
+        console.error("Error creating quiz:", error);
+        toast.error(`Failed to create quiz: ${error.message || 'Unknown error'}`);
       });
     }
     if (type === "article") {
@@ -976,6 +986,11 @@ function TeacherCourseContent() {
         },
       }).then((res) => {
         refetchVersion();
+        refetchItems();
+        toast.success("Article created successfully");
+      }).catch((error) => {
+        console.error("Error creating article:", error);
+        toast.error(`Failed to create article: ${error.message || 'Unknown error'}`);
       });
     }
     if (type === "project") {
@@ -1509,7 +1524,11 @@ function TeacherCourseContent() {
                                           }}
                                         >
                                           <SidebarMenuSub className="ml-4 space-y-1 pt-1">
-                                            {(sectionItems[section.sectionId] || [])
+                                            {itemsLoading && activeSectionInfo?.sectionId === section.sectionId ? (
+                                              <div className="flex items-center justify-center py-4">
+                                                <Loader />
+                                              </div>
+                                            ) : (sectionItems[section.sectionId] || [])
                                               .slice()
                                               .sort((a: any, b: any) => a.order.localeCompare(b.order))
                                               .map((item: any) => (
@@ -1775,10 +1794,11 @@ function TeacherCourseContent() {
                                                         });
                                                     }
                                                     else if (type === "csv_upload") {
+                                                      setActiveSectionInfo({ moduleId: module.moduleId, sectionId: section.sectionId });
                                                       setShowCSVUpload(true);
                                                     }
                                                     else {
-
+                                                      setActiveSectionInfo({ moduleId: module.moduleId, sectionId: section.sectionId });
                                                       handleAddItem(module.moduleId, section.sectionId, type);
 
                                                     }
