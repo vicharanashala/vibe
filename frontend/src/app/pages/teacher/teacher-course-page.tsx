@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
 import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useHideItem } from '@/hooks/hooks';
-import { Upload } from 'lucide-react';
 
 const MAX_DESCRIPTION_LENGTH = 1000;
 
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
-  SidebarInset, SidebarProvider, SidebarTrigger, SidebarFooter, useSidebar
+  SidebarInset, SidebarProvider, SidebarFooter, useSidebar
 } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -29,7 +28,8 @@ import {
   Menu,
   MessageSquare,
   Eye,
-  EyeOff
+  EyeOff,
+  Loader2
 } from "lucide-react";
 
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -349,6 +349,9 @@ function TeacherCourseContent() {
   const [originalSectionData, setOriginalSectionData] = useState<{ name: string; description: string } | null>(null);
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [hidingModuleId, setHidingModuleId] = useState<string | null>(null);
+  const [hidingSectionId, setHidingSectionId] = useState<string | null>(null);
+  const [hidingItemId, setHidingItemId] = useState<string | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -880,35 +883,47 @@ function TeacherCourseContent() {
     });
   };
 
-  const handleHideModule = (moduleId: string, hide: boolean) => {
+  const handleHideModule = async (moduleId: string, hide: boolean) => {
     if (!versionId) return;
-    hideModuleAsync({
-      params: { path: { versionId, moduleId } },
-      body: {hide: hide}
-    }).then((res) => {
+    setHidingModuleId(moduleId);
+    try {
+      await hideModuleAsync({
+        params: { path: { versionId, moduleId } },
+        body: {hide: hide}
+      });
       refetchVersion();
-    })
+    } finally {
+      setHidingModuleId(null);
+    }
   }
 
-  const handleHideSection = (moduleId: string, sectionId: string, hide: boolean) => {
+  const handleHideSection = async (moduleId: string, sectionId: string, hide: boolean) => {
     if (!versionId) return;
-    hideSectionAsync({
-      params: { path: { versionId, moduleId, sectionId } },
-      body: {hide: hide}
-    }).then((res) => {
+    setHidingSectionId(sectionId);
+    try {
+      await hideSectionAsync({
+        params: { path: { versionId, moduleId, sectionId } },
+        body: {hide: hide}
+      });
       refetchVersion();
-    });
+    } finally {
+      setHidingSectionId(null);
+    }
   }
 
-  const handleHideItem = (itemId: string, hide: boolean) => {
+  const handleHideItem = async (itemId: string, hide: boolean) => {
     if (!versionId) return;
-    updateItemVisibilityAsync({
-      params: { path: { versionId, itemId } },
-      body: { hide: hide }
-    }).then((res) => {
+    setHidingItemId(itemId);
+    try {
+      await updateItemVisibilityAsync({
+        params: { path: { versionId, itemId } },
+        body: { hide: hide }
+      });
       refetchVersion();
       refetchItems();
-    })
+    } finally {
+      setHidingItemId(null);
+    }
   }
 
   // Add Item (handles all item types including video, quiz, article, and project)
@@ -1438,8 +1453,14 @@ function TeacherCourseContent() {
                               handleMoveModule(module.moduleId, versionId);
                             }}
                           >
-                          <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideModule(module.moduleId, !module.isHidden)}>
-                            {!module.isHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                          <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideModule(module.moduleId, !module.isHidden)} disabled={hidingModuleId === module.moduleId}>
+                            {hidingModuleId === module.moduleId ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : !module.isHidden ? (
+                              <Eye className="h-4 w-4" />
+                            ) : (
+                              <EyeOff className="h-4 w-4" />
+                            )}
                             <span className="sr-only">Hide Module</span>
                           </Button>
                             <SidebarMenuButton
@@ -1510,8 +1531,14 @@ function TeacherCourseContent() {
                                         />
                                         <span className="ml-2 truncate w-[100%] block">{section.name} </span>
                                       </SidebarMenuSubButton>
-                                      <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideSection(module.moduleId, section.sectionId, !section.isHidden)}>
-                                        {!section.isHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                                      <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideSection(module.moduleId, section.sectionId, !section.isHidden)} disabled={module.isHidden || hidingSectionId === section.sectionId}>
+                                        {hidingSectionId === section.sectionId ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : !section.isHidden ? (
+                                          <Eye className="h-4 w-4" />
+                                        ) : (
+                                          <EyeOff className="h-4 w-4" />
+                                        )}
                                         <span className="sr-only">Hide Section</span>
                                       </Button>
 
@@ -1623,8 +1650,14 @@ function TeacherCourseContent() {
                                                         })}
                                                       </span>
                                                     </SidebarMenuSubButton>
-                                                    <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideItem(item._id, !item.isHidden)}>
-                                                      {!item.isHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                                                    <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideItem(item._id, !item.isHidden)} disabled={section.isHidden || module.isHidden || hidingItemId === item._id}>
+                                                      {hidingItemId === item._id ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                      ) : !item.isHidden ? (
+                                                        <Eye className="h-4 w-4" />
+                                                      ) : (
+                                                        <EyeOff className="h-4 w-4" />
+                                                      )}
                                                       <span className="sr-only">Hide Item</span>
                                                     </Button>
                                                   </SidebarMenuSubItem>

@@ -22,6 +22,7 @@ import {
   IItemRepository,
 } from '#root/shared/database/interfaces/index.js';
 import {EnrollmentRepository} from '#root/shared/index.js';
+import {ObjectId} from 'mongodb';
 
 @injectable()
 export class ModuleService extends BaseService {
@@ -185,10 +186,12 @@ export class ModuleService extends BaseService {
         session,
       );
 
-      itemGroups.forEach(group => {
+      itemGroups.map(async group => {
+        group._id = new ObjectId(group._id);
         group.isHidden = isHidden;
-        group.items.forEach(item => {
+        group.items = group.items.map(item => {
           item.isHidden = isHidden;
+          return item;
         });
       });
 
@@ -202,11 +205,7 @@ export class ModuleService extends BaseService {
         session,
       );
 
-      await this.itemRepo.updateItemsGroupsBulk(
-        itemGroupIds,
-        {isHidden},
-        session,
-      );
+      await this.itemRepo.updateItemsGroupsBulk(itemGroups, session);
 
       const itemIds = itemGroups.reduce((acc, group) => {
         const ids = group.items.map(item => item._id);

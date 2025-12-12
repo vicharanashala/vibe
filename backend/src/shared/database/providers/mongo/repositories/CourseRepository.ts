@@ -355,7 +355,6 @@ export class CourseRepository implements ICourseRepository {
       .toArray();
 
     return result.length > 0 ? result[0] : null;
-
   }
   async getActiveVersion(
     versionId: string,
@@ -391,6 +390,7 @@ export class CourseRepository implements ICourseRepository {
                 updatedAt: '$$mod.updatedAt',
                 isDeleted: '$$mod.isDeleted',
                 deletedAt: '$$mod.deletedAt',
+                isHidden: '$$mod.isHidden',
                 sections: {
                   $filter: {
                     input: '$$mod.sections',

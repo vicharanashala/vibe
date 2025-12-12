@@ -70,8 +70,7 @@ export interface IItemRepository {
     session?: ClientSession,
   ): Promise<ItemsGroup[]>;
   updateItemsGroupsBulk(
-    groupIds: (string | ObjectId)[],
-    updateData: Partial<ItemsGroup>,
+    itemGroups: ItemsGroup[],
     session?: ClientSession,
   ): Promise<number>;
   updateItemById(
