@@ -12,7 +12,8 @@ import {ICourseRepository} from '#root/shared/database/interfaces/ICourseReposit
 import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {ICourseVersion} from '#root/shared/interfaces/models.js';
-import {EnrollmentRepository} from '#root/shared/index.js';
+import {EnrollmentRepository, ProgressRepository} from '#root/shared/index.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
 @injectable()
 export class SectionService extends BaseService {
   constructor(
@@ -22,6 +23,8 @@ export class SectionService extends BaseService {
     private readonly courseRepo: ICourseRepository,
     @inject(GLOBAL_TYPES.EnrollmentRepo)
     private readonly enrollmentRepo: EnrollmentRepository,
+    @inject(USERS_TYPES.ProgressRepo)
+    private readonly progressRepo: ProgressRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -284,6 +287,45 @@ export class SectionService extends BaseService {
         hide,
         session,
       );
+
+      if (hide == true) {
+        // Update currentSection for progress to next non-hidden section.
+        const sections = module.sections;
+        const currentIndex = sections.findIndex(s => s.sectionId === sectionId);
+        let nextSection = null;
+        for (let i = currentIndex + 1; i < sections.length; i++) {
+          if (!sections[i].isHidden) {
+            nextSection = sections[i];
+            break;
+          }
+        }
+
+        // fallback backward
+        if (!nextSection) {
+          for (let i = currentIndex - 1; i >= 0; i--) {
+            if (!sections[i].isHidden) {
+              nextSection = sections[i];
+              break;
+            }
+          }
+        }
+
+        if (nextSection) {
+          // first item of the next section
+          const nextItemsGroup = await this.itemRepo.readItemsGroup(
+            nextSection.itemsGroupId.toString(),
+            session,
+          );
+          if (nextItemsGroup && nextItemsGroup.items.length > 0) {
+            const nextItemId = nextItemsGroup.items[0]._id.toString();
+            await this.progressRepo.updateProgressBySectionId(
+              section.sectionId.toString(),
+              {currentSection: nextSection.sectionId, currentItem: nextItemId},
+              session,
+            );
+          }
+        }
+      }
 
       return updatedVersion;
     });
