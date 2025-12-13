@@ -408,7 +408,7 @@ const LeaderboardDialog = ({ courseId, versionId, courseName }: { courseId: stri
   };
 
   return (
-    <DialogContent className="max-w-2xl max-h-[80vh]">
+    <DialogContent className="max-w-2xl">
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-yellow-600" />
@@ -419,7 +419,7 @@ const LeaderboardDialog = ({ courseId, versionId, courseName }: { courseId: stri
         </p>
       </DialogHeader>
       
-      <ScrollArea className="max-h-[60vh] pr-4">
+      <ScrollArea className="h-[400px] pr-4">
         {isLoading && (
           <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
@@ -488,7 +488,7 @@ const LeaderboardDialog = ({ courseId, versionId, courseName }: { courseId: stri
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold truncate">{entry.userName}</p>
                     <p className="text-xs text-muted-foreground truncate">
-                      {entry.completionPercentage === 100 ? (
+                      {Math.round(entry.completionPercentage) === 100 ? (
                         <>
                           <span className="text-green-600 font-medium">
                             ✓ Completed
@@ -500,7 +500,7 @@ const LeaderboardDialog = ({ courseId, versionId, courseName }: { courseId: stri
                           )}
                         </>
                       ) : (
-                        `In Progress: ${entry.completionPercentage}%`
+                        `In Progress: ${Math.round(entry.completionPercentage)}%`
                       )}
                     </p>
                   </div>
@@ -509,12 +509,12 @@ const LeaderboardDialog = ({ courseId, versionId, courseName }: { courseId: stri
                   <div
                     className={cn(
                       "px-3 py-1 rounded-full font-semibold text-sm",
-                      entry.completionPercentage === 100
+                      Math.round(entry.completionPercentage) === 100
                         ? "bg-green-100 text-green-800"
                         : "bg-blue-100 text-blue-800"
                     )}
                   >
-                    {entry.completionPercentage}%
+                    {Math.round(entry.completionPercentage)}%
                   </div>
                 </div>
               );
