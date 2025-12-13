@@ -2045,6 +2045,34 @@ export class EnrollmentRepository {
     }
   }
 
+  async getEnrollmentsByCourseVersion(
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment[]> {
+    try {
+      const courseObjectId = new ObjectId(courseId);
+      const versionObjectId = new ObjectId(courseVersionId);
+
+      const enrollments = await this.enrollmentCollection
+        .find(
+          {
+            courseId: courseObjectId,
+            courseVersionId: versionObjectId,
+            role: 'STUDENT',
+            status: { $regex: /^active$/i },
+          },
+          { session },
+        )
+        .toArray();
+
+      return enrollments;
+    } catch (error) {
+      console.error('Failed to get student enrollments:', error);
+      throw new Error('Failed to fetch student enrollments for the course version');
+    }
+  }
+
   async deleteEnrollmentByVersionId(
     versionId: string,
     session?: ClientSession,
