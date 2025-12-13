@@ -93,11 +93,11 @@ export const QuestionEditForm = ({ question, onSave, onCancel }: {
     const buildSolution = () => {
       const correctOpts = options.filter(o => o.correct).map(o => ({ 
         text: o.text, 
-        explaination: o.explaination.trim() || "Congratulations! You are correct!" 
+        explaination: o.explaination.trim() || "Nil" 
       }));
       const incorrectOpts = options.filter(o => !o.correct).map(o => ({ 
         text: o.text, 
-        explaination: o.explaination.trim() || "Sorry! You are wrong!" 
+        explaination: o.explaination.trim() || "Nil" 
       }));
       if (normalized.type === 'SELECT_ONE_IN_LOT') {
         return {

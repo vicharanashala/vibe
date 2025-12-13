@@ -1,4 +1,5 @@
 import { Clock, FileText, CheckCircle2, Trophy, Medal, Award, Crown } from "lucide-react";
+import { Clock, FileText, CheckCircle2, Info } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -119,12 +120,16 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
             </div>
             <div className="text-sm text-muted-foreground">
               <div className="flex flex-col xl:flex-row gap-3 2xl:gap-8 xl:gap-4">
-                <div className="flex lg:flex-nowrap flex-wrap items-center gap-2 mb-1 xl:mb-0">
+                {/* <div className="flex lg:flex-nowrap flex-wrap items-center gap-2 mb-1 xl:mb-0">
                   <span>Content</span>
                   <div className="flex items-center gap-1">
                     <div><FileText className="h-4 w-4" /></div>
                     {videoCount} videos , {quizCount} quizzes , {articleCount} articles , {projectCount} project
                   </div>
+                </div> */}
+                <div className="flex lg:flex-nowrap flex-wrap items-center gap-2 mb-1 xl:mb-0">
+                  <Info className="h-4 w-4" />
+                  <span>Ongoing training — subject to change</span>
                 </div>
                 <div className="flex items-center gap-2 mb-1 xl:mb-0">
                   <span>Completion</span>

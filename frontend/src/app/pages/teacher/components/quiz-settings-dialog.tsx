@@ -241,7 +241,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                 )}
               </div>
               <div>
-                <Label htmlFor="questionVisibility" className='mb-2'>Questions Visible to Students</Label>
+               {/* <Label htmlFor="questionVisibility" className='mb-2'>Questions Visible to Students</Label>
                 <Input
                   id="questionVisibility"
                   type="number"
@@ -249,7 +249,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                   value={quizSettingsForm.questionVisibility}
                   onChange={(e) => handleFieldChange('questionVisibility', parseInt(e.target.value))}
                   className={validationErrors.questionVisibility ? 'border-red-500' : ''}
-                />
+                />*/} 
                 {validationErrors.questionVisibility && (
                   <p className="text-xs text-red-500 mt-1">{validationErrors.questionVisibility}</p>
                 )}

@@ -125,27 +125,33 @@ export class EnrollmentService extends BaseService {
           courseVersionId,
           courseVersion,
         );
-        
+
         if (progressData) {
           initialProgress = await this.progressRepo.createProgress(
             {
               userId: new ObjectId(userId),
               courseId: new ObjectId(courseId),
               courseVersionId: new ObjectId(courseVersionId),
-              currentModule: new ObjectId(progressData.currentModule.toString()),
-              currentSection: new ObjectId(progressData.currentSection.toString()),
+              currentModule: new ObjectId(
+                progressData.currentModule.toString(),
+              ),
+              currentSection: new ObjectId(
+                progressData.currentSection.toString(),
+              ),
               currentItem: new ObjectId(progressData.currentItem.toString()),
               completed: false,
             },
             session,
           );
-          
+
           console.log('=== ENROLLMENT: Progress created successfully ===', {
             userId,
             currentItem: progressData.currentItem.toString(),
           });
         } else {
-          console.log('=== ENROLLMENT: No progress data returned - course may have no valid items ===');
+          console.log(
+            '=== ENROLLMENT: No progress data returned - course may have no valid items ===',
+          );
         }
       }
 
@@ -215,7 +221,7 @@ export class EnrollmentService extends BaseService {
         userId,
         courseId,
         courseVersionId,
-        session
+        session,
       );
       return {
         enrollment: null,
@@ -257,6 +263,8 @@ export class EnrollmentService extends BaseService {
       const enrolledVersionIds = new Set(
         enrollments.map(e => e.courseVersionId.toString()),
       );
+
+      console.log('Enrolled Version IDs:', enrolledVersionIds, enrollments);
 
       if (role === 'STUDENT') {
         const versionIds = Array.from(enrolledVersionIds).map(
