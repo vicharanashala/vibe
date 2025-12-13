@@ -55,6 +55,9 @@ export default function InvitePage() {
   const [resendingInviteId, setResendingInviteId] = useState<string | null>(null);
   const [cancelingInviteId, setCancelingInviteId] = useState<string | null>(null);
 
+  // CSV parsed emails state
+  const [parsedEmails, setParsedEmails] = useState<string[]>([]);
+
   // filters
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
@@ -324,6 +327,111 @@ const addInviteRow = () => {
     }
   }
 
+  // Handle CSV file selection and parsing
+  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const validExtensions = ['.csv']
+    const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'))
+    
+    if (!validExtensions.includes(fileExtension)) {
+      toast.error("Please upload a CSV file")
+      e.target.value = ''
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File size must be less than 5MB")
+      e.target.value = ''
+      return
+    }
+
+    try {
+      // Read and parse CSV file
+      const text = await file.text()
+      const lines = text.split(/\r?\n/).filter(line => line.trim())
+
+      if (lines.length === 0) {
+        toast.error("CSV file is empty")
+        e.target.value = ''
+        return
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      const emails: string[] = []
+
+      const headers = lines[0].split(/[,;\t]/).map(h => h.trim().toLowerCase())
+      const emailColumnIndex = headers.findIndex(h => h === 'email')
+
+      if (emailColumnIndex === -1) {
+        toast.error('CSV file must have an "Email" column in the header')
+        e.target.value = ''
+        return
+      }
+
+      for (let i = 1; i < lines.length; i++) {
+        const columns = lines[i].split(/[,;\t]/).map(col => col.trim())
+        const email = columns[emailColumnIndex]
+
+        if (email && emailRegex.test(email)) {
+          emails.push(email.toLowerCase())
+        }
+      }
+
+      if (emails.length === 0) {
+        toast.error("No valid email addresses found in the file")
+        e.target.value = ''
+        return
+      }
+
+      const uniqueEmails = [...new Set(emails)]
+      setParsedEmails(uniqueEmails)
+      
+      toast.success(`Parsed ${uniqueEmails.length} email(s) from CSV file`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to process CSV file")
+      e.target.value = ''
+    }
+  }
+
+  // Handle sending bulk invites from parsed CSV
+  const handleSendBulkInvites = async () => {
+    if (!courseId || !versionId || parsedEmails.length === 0) {
+      toast.error("No emails to send")
+      return
+    }
+
+    try {
+      const inviteData = parsedEmails.map(email => ({
+        email,
+        role: 'STUDENT' as EnrollmentRole
+      }))
+
+      await inviteUsers.mutateAsync({
+        params: {
+          path: {
+            courseId,
+            courseVersionId: versionId,
+          },
+        },
+        body: {
+          inviteData,
+        },
+      })
+
+      toast.success(`Successfully sent ${parsedEmails.length} invite(s)`)
+
+      setParsedEmails([])
+      const input = document.getElementById('csv-upload') as HTMLInputElement
+      if (input) input.value = ''
+
+      refetchInvites()
+    } catch (error) {
+      toast.error(inviteUsers.error || "Failed to send invites")
+    }
+  }
+
   // Status badge variants
   const getStatusBadge = (status: InviteStatus) => {
     switch (status) {
@@ -513,6 +621,78 @@ const addInviteRow = () => {
               </Button>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Bulk CSV Upload Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <UserPlus className="w-5 h-5" />
+            <span>Bulk Invite via CSV</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="text-sm text-muted-foreground">
+            Upload a CSV file with an "Email" column header (e.g., SNo,Name,Email). Review the parsed emails before sending.
+          </div>
+          
+          <Input
+            id="csv-upload"
+            type="file"
+            accept=".csv"
+            onChange={handleCsvUpload}
+            disabled={inviteUsers.isPending}
+          />
+
+          {parsedEmails.length > 0 && (
+            <>
+              <div className="p-4 border rounded-lg bg-muted/50 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">
+                    {parsedEmails.length} email(s) parsed
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setParsedEmails([])
+                      const input = document.getElementById('csv-upload') as HTMLInputElement
+                      if (input) input.value = ''
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="max-h-32 overflow-y-auto text-xs text-muted-foreground space-y-1">
+                  {parsedEmails.slice(0, 10).map((email, idx) => (
+                    <div key={idx}>{email}</div>
+                  ))}
+                  {parsedEmails.length > 10 && (
+                    <div className="italic">...and {parsedEmails.length - 10} more</div>
+                  )}
+                </div>
+              </div>
+
+              <Button
+                onClick={handleSendBulkInvites}
+                disabled={inviteUsers.isPending}
+                className="w-full"
+              >
+                {inviteUsers.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Send {parsedEmails.length} Invite(s)
+                  </>
+                )}
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
 
