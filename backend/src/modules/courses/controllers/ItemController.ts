@@ -426,6 +426,8 @@ Access control logic:
       );
     }
 
-    return await this.itemService.toggleItemVisibility(versionId, itemId, hide);
+    await this.itemService.toggleItemVisibility(versionId, itemId, hide);
+
+    return {itemId: itemId, isHidden: hide};
   }
 }

@@ -174,7 +174,7 @@ export class ItemRepository implements IItemRepository {
       {$set: fields},
       {session},
     );
-    if (result.modifiedCount !== 1) {
+    if (result.matchedCount === 0) {
       throw new InternalServerError(
         `Failed to update items group ${itemsGroupId}.`,
       );
