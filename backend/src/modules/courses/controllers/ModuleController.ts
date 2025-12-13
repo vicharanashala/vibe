@@ -131,6 +131,7 @@ Accessible to:
 - Instructors, students and all of the course.`,
   })
   @Authorized()
+  @HttpCode(200)
   @Put('/versions/:versionId/modules/:moduleId/toggle-visibility')
   @ResponseSchema(ModuleDataResponse, {
     description: 'Module visibility toggled successfully',

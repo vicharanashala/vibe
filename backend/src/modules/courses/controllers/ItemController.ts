@@ -38,7 +38,6 @@ import {subject} from '@casl/ability';
 import {QuizService} from '#root/modules/quizzes/services/QuizService.js';
 import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
 import {ItemType} from '#shared/interfaces/models.js';
-import {Http} from 'winston/lib/winston/transports/index.js';
 
 @OpenAPI({
   tags: ['Course Items'],
