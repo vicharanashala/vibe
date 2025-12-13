@@ -915,12 +915,17 @@ function TeacherCourseContent() {
     if (!versionId) return;
     setHidingItemId(itemId);
     try {
+      console.log("🔄 Starting hide item:", itemId, hide);
       await updateItemVisibilityAsync({
         params: { path: { versionId, itemId } },
         body: { hide: hide }
       });
+
       refetchVersion();
       refetchItems();
+      console.log("✅ RefetchVersion completed");
+    } catch (error) {
+      console.error("❌ Error in handleHideItem:", error);
     } finally {
       setHidingItemId(null);
     }
