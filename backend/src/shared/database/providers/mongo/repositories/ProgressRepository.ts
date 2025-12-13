@@ -526,6 +526,34 @@ class ProgressRepository {
       {session},
     );
   }
+
+  async getAllProgressForCourseVersion(
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<IProgress[]> {
+    await this.init();
+    const progressRecords = await this.progressCollection
+      .find(
+        {
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+        },
+        {session},
+      )
+      .toArray();
+
+    return progressRecords.map(progress => ({
+      ...progress,
+      _id: progress._id?.toString() || null,
+      userId: progress.userId.toString(),
+      courseId: progress.courseId.toString(),
+      courseVersionId: progress.courseVersionId.toString(),
+      currentModule: progress.currentModule.toString(),
+      currentSection: progress.currentSection.toString(),
+      currentItem: progress.currentItem.toString(),
+    }));
+  }
 }
 
 export {ProgressRepository};

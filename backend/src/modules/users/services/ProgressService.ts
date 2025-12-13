@@ -662,6 +662,7 @@ class ProgressService extends BaseService {
     if (!nextSequenceItem) {
       return {
         completed: true,
+        completedAt: new Date(),
         currentModule: moduleId,
         currentSection: sectionId,
         currentItem: itemId,
@@ -679,6 +680,7 @@ class ProgressService extends BaseService {
     if (!nextNonBlankItem) {
       return {
         completed: true,
+        completedAt: new Date(),
         currentModule: moduleId,
         currentSection: sectionId,
         currentItem: itemId,
@@ -1728,6 +1730,82 @@ class ProgressService extends BaseService {
       throw new NotFoundError('Watch time not found');
     }
     return watchTime;
+  }
+
+  async getLeaderboard(
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<Array<{
+    userId: string;
+    userName: string;
+    completionPercentage: number;
+    completedAt: Date | null;
+    rank: number;
+  }>> {
+    // Get all progress records for this course version
+    const progressRecords = await this.progressRepository.getAllProgressForCourseVersion(
+      courseId,
+      courseVersionId,
+    );
+
+    // Get all enrollments to fetch completion percentages
+    const enrollments = await this.enrollmentRepo.getEnrollmentsByCourseVersion(
+      courseId,
+      courseVersionId,
+    );
+
+    const enrollmentMap = new Map();
+    for (const enrollment of enrollments) {
+      enrollmentMap.set(enrollment.userId.toString(), {
+        completionPercentage: enrollment.percentCompleted || 0,
+      });
+    }
+
+    // Get user names for all enrolled students
+    const userIds = enrollments.map(e => e.userId.toString());
+    const users = await this.userRepo.getUsersByIds(userIds);
+
+    const userMap = new Map();
+    for (const user of users) {
+      if (user) {
+        const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown User';
+        userMap.set(user._id?.toString(), fullName);
+      }
+    }
+
+    // Combine progress and enrollment data
+    const leaderboardData = progressRecords.map(progress => ({
+      userId: progress.userId.toString(),
+      userName: userMap.get(progress.userId.toString()) || 'Unknown User',
+      completionPercentage: enrollmentMap.get(progress.userId.toString())?.completionPercentage || 0,
+      completedAt: progress.completed && progress.completedAt ? progress.completedAt : null,
+    }));
+
+    // Sort by Progress % (highest first), then by Completion Date (earliest first) for ties
+    const sortedLeaderboard = leaderboardData.sort((a, b) => {
+      // Primary sort: by completion percentage (descending - highest first)
+      if (a.completionPercentage !== b.completionPercentage) {
+        return b.completionPercentage - a.completionPercentage;
+      }
+
+      // Secondary sort: by completedAt (ascending - earliest first) for same percentage
+      if (a.completedAt && b.completedAt) {
+        return new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime();
+      }
+
+      // If one has completedAt and other doesn't, prioritize the one with completedAt
+      if (a.completedAt) return -1;
+      if (b.completedAt) return 1;
+
+      // Both don't have completedAt, maintain current order
+      return 0;
+    });
+
+    // Assign ranks
+    return sortedLeaderboard.map((student, index) => ({
+      ...student,
+      rank: index + 1,
+    }));
   }
 }
 

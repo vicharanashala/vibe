@@ -21,7 +21,7 @@ import type {
 import type { ProctoringSettings } from '@/types/video.types';
 import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.types';
 import { EntityType, IReport, ReportStatus } from '@/types/flag.types';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { VersionWithCourse } from '@/app/pages/student/CourseRegistration';
 import { Registration, RegistrationStatus } from '@/app/pages/teacher/CourseRegistrationRequests';
 import { Field } from '@/app/pages/teacher/components/course-registration-modal';
@@ -3482,3 +3482,48 @@ export const exportQuizSubmissions = async (quizId: string) => {
 
   URL.revokeObjectURL(url);
 }
+
+// Leaderboard hook
+export interface LeaderboardEntry {
+  userId: string;
+  userName: string;
+  completionPercentage: number;
+  completedAt: Date | null;
+  rank: number;
+}
+
+export const useLeaderboard = (courseId: string, versionId: string, enabled: boolean = true) => {
+  const authToken = localStorage.getItem('firebase-auth-token');
+  
+  const result = useQuery({
+    queryKey: ['leaderboard', courseId, versionId],
+    queryFn: async () => {
+      const response = await fetch(
+        `${import.meta.env.VITE_BASE_URL}/users/progress/courses/${courseId}/versions/${versionId}/leaderboard`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': authToken ? `Bearer ${authToken}` : '',
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch leaderboard: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data as LeaderboardEntry[];
+    },
+    enabled: enabled && !!courseId && !!versionId,
+  });
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.isError ? result.error.message || 'Failed to fetch leaderboard' : null,
+    refetch: result.refetch,
+  };
+};

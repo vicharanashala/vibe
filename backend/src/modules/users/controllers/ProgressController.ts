@@ -430,5 +430,32 @@ It returns an empty body with a 200 status code.
     );
     return totalWatchTime;
   }
+
+  @Get('/progress/courses/:courseId/versions/:versionId/leaderboard')
+  @HttpCode(200)
+  @OpenAPI({
+    summary: 'Get course leaderboard',
+    description: 'Returns ranked list of students based on completion percentage and time',
+  })
+  @ResponseSchema(ProgressDataResponse, {
+    description: 'Leaderboard retrieved successfully',
+    isArray: true,
+  })
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Failed to fetch leaderboard',
+    statusCode: 500,
+  })
+  async getLeaderboard(
+    @Params() params: GetUserProgressParams,
+  ): Promise<Array<{
+    userId: string;
+    userName: string;
+    completionPercentage: number;
+    completedAt: Date | null;
+    rank: number;
+  }>> {
+    const {courseId, versionId} = params;
+    return await this.progressService.getLeaderboard(courseId, versionId);
+  }
 }
 export {ProgressController};
