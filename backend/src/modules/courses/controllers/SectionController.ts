@@ -283,6 +283,7 @@ Accessible to:
 - Instructors or managers of the course.`,
   })
   @Authorized()
+  @HttpCode(200)
   @Put(
     '/versions/:versionId/modules/:moduleId/sections/:sectionId/toggle-visibility',
   )
