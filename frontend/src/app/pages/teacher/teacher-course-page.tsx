@@ -1481,7 +1481,7 @@ function TeacherCourseContent() {
                                     key={section.sectionId}
                                     value={section}
                                     drag
-                                    className={section.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
+                                    className={section.isHidden || module.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
                                     whileDrag={{ scale: 1.02 }}
                                     onDragEnd={() => {
                                       setInitialModules((prev) =>
@@ -1544,7 +1544,7 @@ function TeacherCourseContent() {
                                                   key={item._id}
                                                   value={item}
                                                   drag
-                                                  className="focus:outline-none"
+                                                  className={section.isHidden || module.isHidden || item.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
                                                   whileDrag={{ scale: 1.02 }}
                                                   onDragEnd={() => {
 
@@ -1651,6 +1651,8 @@ function TeacherCourseContent() {
                                                 className="text-xs border rounded px-2 py-1 bg-background text-foreground"
 
                                                 defaultValue=""
+
+                                                disabled={module.isHidden || section.isHidden}
 
                                                 onChange={(e) => {
 
