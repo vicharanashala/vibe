@@ -408,18 +408,18 @@ const LeaderboardDialog = ({ courseId, versionId, courseName }: { courseId: stri
   };
 
   return (
-    <DialogContent className="max-w-2xl">
+    <DialogContent className="max-w-6xl">
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-yellow-600" />
           {courseName || 'Course'} Leaderboard
         </DialogTitle>
-        <p className="text-sm text-muted-foreground mt-2">
+        <p className="text-sm text-muted-foreground mb-4">
           Students ranked by completion percentage and completion time
         </p>
       </DialogHeader>
       
-      <ScrollArea className="h-[400px] pr-4">
+      <ScrollArea className="h-[600px] pr-4">
         {isLoading && (
           <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
