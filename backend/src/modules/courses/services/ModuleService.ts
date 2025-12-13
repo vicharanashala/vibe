@@ -205,18 +205,21 @@ export class ModuleService extends BaseService {
         session,
       );
 
-      await this.itemRepo.updateItemsGroupsBulk(itemGroups, session);
-
+      if (itemGroups.length > 0) {
+        await this.itemRepo.updateItemsGroupsBulk(itemGroups, session);
+      }
       const itemIds = itemGroups.reduce((acc, group) => {
         const ids = group.items.map(item => item._id);
         return acc.concat(ids);
       }, []);
 
-      await this.enrollmentRepo.setWatchTimeVisibility(
-        itemIds,
-        isHidden,
-        session,
-      );
+      if (itemIds.length > 0) {
+        await this.enrollmentRepo.setWatchTimeVisibility(
+          itemIds,
+          isHidden,
+          session,
+        );
+      }
 
       return updatedVersion;
     });
