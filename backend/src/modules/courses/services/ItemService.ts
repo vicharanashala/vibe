@@ -637,18 +637,36 @@ export class ItemService extends BaseService {
         session,
       );
 
-      // next non hidden item
-      const nextNonHiddenItem = itemGroup.items
-        .filter(i => !i.isHidden)
-        .sort((a, b) => a.order.localeCompare(b.order))[0];
+      if (hidden == true) {
+        // next non hidden item
+        const items = itemGroup.items;
+        const currentIndex = items.findIndex(i => i._id.toString() === itemId);
+        let nextItem = null;
+        for (let i = currentIndex + 1; i < items.length; i++) {
+          if (!items[i].isHidden) {
+            nextItem = items[i];
+            break;
+          }
+        }
 
-      // update all progress documents matched by currentItemId to nextNonHiddenItemId
-      if (nextNonHiddenItem) {
-        await this.progressRepo.updateProgressByItemId(
-          itemId,
-          {currentItem: nextNonHiddenItem._id.toString()},
-          session,
-        );
+        // fallback backward
+        if (!nextItem) {
+          for (let i = currentIndex - 1; i >= 0; i--) {
+            if (!items[i].isHidden) {
+              nextItem = items[i];
+              break;
+            }
+          }
+        }
+
+        // update all progress documents matched by currentItemId to nextNonHiddenItemId
+        if (nextItem) {
+          await this.progressRepo.updateProgressByItemId(
+            itemId,
+            {currentItem: nextItem._id.toString()},
+            session,
+          );
+        }
       }
     });
   }

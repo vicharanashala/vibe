@@ -38,6 +38,7 @@ import {subject} from '@casl/ability';
 import {QuizService} from '#root/modules/quizzes/services/QuizService.js';
 import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
 import {ItemType} from '#shared/interfaces/models.js';
+import {Http} from 'winston/lib/winston/transports/index.js';
 
 @OpenAPI({
   tags: ['Course Items'],
@@ -392,6 +393,7 @@ Access control logic:
   })
   @Authorized()
   @Put('/versions/:versionId/items/:itemId/toggle-visibility')
+  @HttpCode(200)
   @ResponseSchema(ItemDataResponse, {
     description: 'Item visibility toggled successfully',
   })
