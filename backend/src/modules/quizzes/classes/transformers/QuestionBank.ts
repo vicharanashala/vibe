@@ -12,17 +12,22 @@ class QuestionBank implements IQuestionBank {
   description: string;
   createdAt: Date;
   updatedAt: Date;
+  isDeleted?: boolean;
+  deletedAt?: Date;
 
   constructor(questionBank: Partial<IQuestionBank>) {
     this._id = questionBank._id ?? new ObjectId();
     this.courseId = new ObjectId(questionBank.courseId) ?? undefined;
-    this.courseVersionId = new ObjectId(questionBank.courseVersionId) ?? undefined;
+    this.courseVersionId =
+      new ObjectId(questionBank.courseVersionId) ?? undefined;
     this.questions = questionBank.questions || [];
     this.tags = questionBank.tags || [];
     this.title = questionBank.title;
     this.description = questionBank.description;
     this.createdAt = questionBank.createdAt ?? new Date();
     this.updatedAt = questionBank.updatedAt ?? new Date();
+    this.isDeleted = false;
+    this.deletedAt = undefined;
   }
 }
 

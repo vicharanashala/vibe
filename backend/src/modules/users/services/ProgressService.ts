@@ -1,38 +1,38 @@
-import { Item } from '#courses/classes/transformers/Item.js';
-import { COURSES_TYPES } from '#courses/types.js';
-import { BaseService } from '#root/shared/classes/BaseService.js';
-import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
-import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
-import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {Item} from '#courses/classes/transformers/Item.js';
+import {COURSES_TYPES} from '#courses/types.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
+import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   ICourseVersion,
   IWatchTime,
   IProgress,
   IVideoDetails,
 } from '#root/shared/interfaces/models.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { ProgressRepository } from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
-import { Progress } from '#users/classes/transformers/Progress.js';
-import { USERS_TYPES } from '#users/types.js';
-import { injectable, inject } from 'inversify';
-import { ClientSession, ObjectId } from 'mongodb';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {ProgressRepository} from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
+import {Progress} from '#users/classes/transformers/Progress.js';
+import {USERS_TYPES} from '#users/types.js';
+import {injectable, inject} from 'inversify';
+import {ClientSession, ObjectId} from 'mongodb';
 import {
   NotFoundError,
   BadRequestError,
   InternalServerError,
 } from 'routing-controllers';
-import { SubmissionRepository } from '#quizzes/repositories/providers/mongodb/SubmissionRepository.js';
-import { QUIZZES_TYPES } from '#quizzes/types.js';
-import { WatchTime } from '../classes/transformers/WatchTime.js';
-import { CompletedProgressResponse } from '../classes/index.js';
+import {SubmissionRepository} from '#quizzes/repositories/providers/mongodb/SubmissionRepository.js';
+import {QUIZZES_TYPES} from '#quizzes/types.js';
+import {WatchTime} from '../classes/transformers/WatchTime.js';
+import {CompletedProgressResponse} from '../classes/index.js';
 import {
   QuizRepository,
   UserQuizMetricsRepository,
 } from '#root/modules/quizzes/repositories/index.js';
-import { EnrollmentRepository } from '#root/shared/index.js';
-import { PROJECTS_TYPES } from '#root/modules/projects/types.js';
-import { IProjectSubmissionRepository } from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
+import {EnrollmentRepository} from '#root/shared/index.js';
+import {PROJECTS_TYPES} from '#root/modules/projects/types.js';
+import {IProjectSubmissionRepository} from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
 
 @injectable()
 class ProgressService extends BaseService {
@@ -354,7 +354,7 @@ class ProgressService extends BaseService {
         ));
 
       percentCompleted = Math.round(
-        (totalItems > 0 ? completedItems / totalItems : 0) * 100,
+        (totalItems > 0 ? completedItems / totalItems : 0) * 100, 
       );
     }
 
@@ -490,7 +490,10 @@ class ProgressService extends BaseService {
   /**
    * Check if an item is a blank quiz
    */
-  private async isBlankQuiz(versionId: string, itemId: string): Promise<boolean> {
+  private async isBlankQuiz(
+    versionId: string,
+    itemId: string,
+  ): Promise<boolean> {
     try {
       const item = await this.itemRepo.readItem(versionId, itemId);
 
@@ -499,7 +502,9 @@ class ProgressService extends BaseService {
       }
 
       const quizItem = item as any;
-      const isBlank = !quizItem.details?.questionBankRefs || quizItem.details.questionBankRefs.length === 0;
+      const isBlank =
+        !quizItem.details?.questionBankRefs ||
+        quizItem.details.questionBankRefs.length === 0;
       return isBlank;
     } catch (error) {
       return false;
@@ -512,13 +517,22 @@ class ProgressService extends BaseService {
     sectionId: string,
     itemId: string,
     maxDepth: number = 10,
-    skippedBlankQuizIds: string[] = []
-  ): Promise<{ moduleId: string, sectionId: string, itemId: string, completed: boolean, skippedBlankQuizIds: string[] } | null> {
+    skippedBlankQuizIds: string[] = [],
+  ): Promise<{
+    moduleId: string;
+    sectionId: string;
+    itemId: string;
+    completed: boolean;
+    skippedBlankQuizIds: string[];
+  } | null> {
     if (maxDepth <= 0) {
       return null;
     }
 
-    const isBlank = await this.isBlankQuiz(courseVersion._id.toString(), itemId);
+    const isBlank = await this.isBlankQuiz(
+      courseVersion._id.toString(),
+      itemId,
+    );
 
     if (!isBlank) {
       return {
@@ -526,13 +540,18 @@ class ProgressService extends BaseService {
         sectionId,
         itemId,
         completed: false,
-        skippedBlankQuizIds
+        skippedBlankQuizIds,
       };
     }
 
     skippedBlankQuizIds.push(itemId);
 
-    const nextProgress = await this.getNextItemInSequence(courseVersion, moduleId, sectionId, itemId);
+    const nextProgress = await this.getNextItemInSequence(
+      courseVersion,
+      moduleId,
+      sectionId,
+      itemId,
+    );
 
     if (!nextProgress) {
       return {
@@ -540,7 +559,7 @@ class ProgressService extends BaseService {
         sectionId,
         itemId,
         completed: true,
-        skippedBlankQuizIds
+        skippedBlankQuizIds,
       };
     }
 
@@ -550,16 +569,21 @@ class ProgressService extends BaseService {
       nextProgress.sectionId,
       nextProgress.itemId,
       maxDepth - 1,
-      skippedBlankQuizIds
+      skippedBlankQuizIds,
     );
   }
 
-  private async getNextItemInSequence(
+  public async getNextItemInSequence(
     courseVersion: ICourseVersion,
     moduleId: string,
     sectionId: string,
-    itemId: string
-  ): Promise<{ moduleId: string, sectionId: string, itemId: string, completed: boolean } | null> {
+    itemId: string,
+  ): Promise<{
+    moduleId: string;
+    sectionId: string;
+    itemId: string;
+    completed: boolean;
+  } | null> {
     let isLastItem = false;
     let isLastSection = false;
     let isLastModule = false;
@@ -586,8 +610,12 @@ class ProgressService extends BaseService {
     const itemsGroupId = courseVersion.modules
       .find(module => module.moduleId === moduleId)
       ?.sections.find(section => section.sectionId === sectionId)?.itemsGroupId;
-    const itemsGroup = await this.itemRepo.readItemsGroup(itemsGroupId?.toString());
-    const sortedItems = itemsGroup.items.sort((a, b) => a.order.localeCompare(b.order));
+    const itemsGroup = await this.itemRepo.readItemsGroup(
+      itemsGroupId?.toString(),
+    );
+    const sortedItems = itemsGroup.items.sort((a, b) =>
+      a.order.localeCompare(b.order),
+    );
     const lastItem = sortedItems[sortedItems.length - 1]._id;
     if (lastItem === itemId) {
       isLastItem = true;
@@ -600,48 +628,173 @@ class ProgressService extends BaseService {
 
     // Handle when the item is the last item in the last section but not the last module
     if (isLastItem && isLastSection && !isLastModule) {
-      const currentModuleIndex = sortedModules.findIndex(module => module.moduleId === moduleId);
+      const currentModuleIndex = sortedModules.findIndex(
+        module => module.moduleId === moduleId,
+      );
       const nextModule = sortedModules[currentModuleIndex + 1];
-      const firstSection = nextModule?.sections.sort((a, b) => a.order.localeCompare(b.order))[0];
-      const itemsGroup = await this.itemRepo.readItemsGroup(firstSection?.itemsGroupId.toString());
-      const firstItem = itemsGroup.items.sort((a, b) => a.order.localeCompare(b.order))[0];
+      const firstSection = nextModule?.sections.sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[0];
+      const itemsGroup = await this.itemRepo.readItemsGroup(
+        firstSection?.itemsGroupId.toString(),
+      );
+      const firstItem = itemsGroup.items.sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[0];
 
       return {
         moduleId: nextModule?.moduleId.toString(),
         sectionId: firstSection?.sectionId.toString(),
         itemId: firstItem._id.toString(),
-        completed: false
+        completed: false,
       };
     }
 
     // Handle when the item is the last item in the section but not the last section
     if (isLastItem && !isLastSection) {
-      const currentSectionIndex = sortedSections?.findIndex(section => section.sectionId === sectionId);
+      const currentSectionIndex = sortedSections?.findIndex(
+        section => section.sectionId === sectionId,
+      );
       const nextSection = sortedSections?.[currentSectionIndex + 1];
-      const itemsGroup = await this.itemRepo.readItemsGroup(nextSection?.itemsGroupId.toString());
-      const firstItem = itemsGroup.items.sort((a, b) => a.order.localeCompare(b.order))[0];
+      const itemsGroup = await this.itemRepo.readItemsGroup(
+        nextSection?.itemsGroupId.toString(),
+      );
+      const firstItem = itemsGroup.items.sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[0];
 
       return {
         moduleId,
         sectionId: nextSection?.sectionId.toString(),
         itemId: firstItem._id.toString(),
-        completed: false
+        completed: false,
       };
     }
 
     if (!isLastItem) {
-      const currentItemIndex = sortedItems.findIndex(item => item._id === itemId);
+      const currentItemIndex = sortedItems.findIndex(
+        item => item._id === itemId,
+      );
       const nextItem = sortedItems[currentItemIndex + 1];
 
       return {
         moduleId,
         sectionId,
         itemId: nextItem._id.toString(),
-        completed: false
+        completed: false,
       };
     }
 
     return null;
+  }
+
+  public async determineNextAllowedItem(
+    currentItemId: string,
+    quizMetrics: any,
+    enrollment: any,
+  ): Promise<{nextItemId?: string}> {
+    try {
+      if (quizMetrics?.remainingAttempts !== 0) {
+        return {}; // No permission update needed
+      }
+
+      const itemsGroup = await this.itemRepo.findItemsGroupByItemId(
+        currentItemId,
+      );
+      if (!itemsGroup) {
+        throw new NotFoundError('Item group not found for current item');
+      }
+
+      const items = itemsGroup.items || [];
+      if (!Array.isArray(items) || items.length === 0) {
+        throw new NotFoundError('No items found inside the item group');
+      }
+
+      const currentIndex = items.findIndex(
+        item => item?._id?.toString() === currentItemId,
+      );
+
+      if (currentIndex === -1) {
+        throw new NotFoundError(`Item not found in group: ${currentItemId}`);
+      }
+
+      const nextItem = items[currentIndex + 1];
+
+      if (nextItem && nextItem?._id) {
+        return {nextItemId: nextItem?._id.toString()};
+      }
+
+      // No next item → check next section/module
+      if (!itemsGroup || !itemsGroup._id) {
+        throw new NotFoundError('Invalid itemsGroup: missing id');
+      }
+
+      const itemGroupId = itemsGroup._id.toString();
+      const groupInfo = await this.courseRepo.getItemGroupInfo(itemGroupId);
+
+      if (!groupInfo) {
+        throw new NotFoundError(
+          `Module/Section not found for itemGroupId: ${itemGroupId}`,
+        );
+      }
+
+      const courseVersion = await this.courseRepo.readVersion(
+        enrollment.versionId,
+      );
+      if (!courseVersion) {
+        throw new NotFoundError('Invalid course version');
+      }
+
+      const {moduleId, sectionId} = groupInfo;
+      if (!moduleId || !sectionId) {
+        throw new NotFoundError(
+          'Invalid course mapping: Module or Section missing',
+        );
+      }
+
+      const nextItemDetails = await this.getNextItemInSequence(
+        courseVersion,
+        moduleId.toString(),
+        sectionId.toString(),
+        currentItemId,
+      );
+
+      if (nextItemDetails?.itemId) {
+        return {nextItemId: nextItemDetails.itemId.toString()};
+      }
+
+      return {};
+    } catch (error: any) {
+      console.error('Error in next-item permission processing:', error);
+
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+
+      throw new InternalServerError(
+        'Failed to determine next allowed item: ' + error?.message,
+      );
+    }
+  }
+
+  getUserMetricsForQuiz(userId: string, quizId: string) {
+    return this._withTransaction(async session => {
+      const metrics = await this.userQuizMetricsRepository.get(
+        userId,
+        quizId,
+        session,
+      );
+      if (!metrics) return;
+      metrics._id = metrics?._id.toString();
+      metrics.quizId = metrics.quizId.toString();
+      if (Array.isArray(metrics.attempts)) {
+        metrics.attempts = metrics.attempts.map(attempt => ({
+          ...attempt,
+          attemptId: attempt.attemptId.toString(),
+        }));
+      }
+      return metrics;
+    });
   }
 
   private async getNewProgress(
@@ -657,7 +810,12 @@ class ProgressService extends BaseService {
       courseVersion._id.toString(),
     );
 
-    const nextSequenceItem = await this.getNextItemInSequence(courseVersion, moduleId, sectionId, itemId);
+    const nextSequenceItem = await this.getNextItemInSequence(
+      courseVersion,
+      moduleId,
+      sectionId,
+      itemId,
+    );
 
     if (!nextSequenceItem) {
       return {
@@ -666,7 +824,7 @@ class ProgressService extends BaseService {
         currentModule: moduleId,
         currentSection: sectionId,
         currentItem: itemId,
-        skippedBlankQuizIds: []
+        skippedBlankQuizIds: [],
       };
     }
 
@@ -674,7 +832,7 @@ class ProgressService extends BaseService {
       courseVersion,
       nextSequenceItem.moduleId,
       nextSequenceItem.sectionId,
-      nextSequenceItem.itemId
+      nextSequenceItem.itemId,
     );
 
     if (!nextNonBlankItem) {
@@ -684,11 +842,14 @@ class ProgressService extends BaseService {
         currentModule: moduleId,
         currentSection: sectionId,
         currentItem: itemId,
-        skippedBlankQuizIds: []
+        skippedBlankQuizIds: [],
       };
     }
 
-    if (nextNonBlankItem.itemId && completedItems.includes(nextNonBlankItem.itemId)) {
+    if (
+      nextNonBlankItem.itemId &&
+      completedItems.includes(nextNonBlankItem.itemId)
+    ) {
       return null;
     }
 
@@ -697,7 +858,7 @@ class ProgressService extends BaseService {
       currentModule: nextNonBlankItem.moduleId,
       currentSection: nextNonBlankItem.sectionId,
       currentItem: nextNonBlankItem.itemId,
-      skippedBlankQuizIds: nextNonBlankItem.skippedBlankQuizIds || []
+      skippedBlankQuizIds: nextNonBlankItem.skippedBlankQuizIds || [],
     };
   }
 
@@ -852,6 +1013,8 @@ class ProgressService extends BaseService {
           existingSession,
         );
 
+        // 
+
       const completedItemsSet = new Set(completedItemsArray);
       return completedItemsSet.size;
     }
@@ -983,7 +1146,9 @@ class ProgressService extends BaseService {
         session,
       );
       if (!item) {
-        console.error(`[ProgressService] Item ${itemId} not found in course version ${courseVersionId}`);
+        console.error(
+          `[ProgressService] Item ${itemId} not found in course version ${courseVersionId}`,
+        );
         throw new NotFoundError('Item not found in Course Version');
       }
 
@@ -1028,14 +1193,16 @@ class ProgressService extends BaseService {
           userId,
           courseVersionId,
           courseId,
-          session
+          session,
         );
 
-        if (!projectSubmission || projectSubmission.projectId.toString() !== itemId) {
+        if (
+          !projectSubmission ||
+          projectSubmission.projectId.toString() !== itemId
+        ) {
           throw new BadRequestError('Project not submitted yet');
         }
       }
-
 
       // Get the course version
       const courseVersion = await this.courseRepo.readVersion(
@@ -1043,7 +1210,9 @@ class ProgressService extends BaseService {
         session,
       );
       if (!courseVersion) {
-        console.error(`[ProgressService] Course version ${courseVersionId} not found`);
+        console.error(
+          `[ProgressService] Course version ${courseVersionId} not found`,
+        );
         throw new NotFoundError('Course version not found');
       }
 
@@ -1059,7 +1228,10 @@ class ProgressService extends BaseService {
         return;
       }
 
-      if (newProgress.skippedBlankQuizIds && newProgress.skippedBlankQuizIds.length > 0) {
+      if (
+        newProgress.skippedBlankQuizIds &&
+        newProgress.skippedBlankQuizIds.length > 0
+      ) {
         for (const blankQuizId of newProgress.skippedBlankQuizIds) {
           await this.progressRepository.startItemTracking(
             userId,
@@ -1127,7 +1299,7 @@ class ProgressService extends BaseService {
     }, {} as Record<string, number>);
 
     // Collect attemptIds to delete and bulk ops for all collections
-    const { attemptDeletes, metricsUpdates, submissionDeletes } =
+    const {attemptDeletes, metricsUpdates, submissionDeletes} =
       await this.progressRepository.prepareBulkQuizOperations(
         userId,
         quizItemIds,
@@ -1163,7 +1335,7 @@ class ProgressService extends BaseService {
     await this.projectSubmissionRepo.deleteByUserAndVersion(
       userId,
       courseVersionId,
-      session
+      session,
     );
   }
 
@@ -1236,7 +1408,12 @@ class ProgressService extends BaseService {
           ? this.resetUserQuizData(userId, quizItemIds, session)
           : Promise.resolve(),
         projectItemIds.length
-          ? this.resetUserProjectData(userId, projectItemIds, courseVersionId, session)
+          ? this.resetUserProjectData(
+              userId,
+              projectItemIds,
+              courseVersionId,
+              session,
+            )
           : Promise.resolve(),
       ]);
 
@@ -1326,7 +1503,12 @@ class ProgressService extends BaseService {
           ? this.resetUserQuizData(userId, quizItemIds, session)
           : Promise.resolve(),
         projectItemIds.length
-          ? this.resetUserProjectData(userId, projectItemIds, courseVersionId, session)
+          ? this.resetUserProjectData(
+              userId,
+              projectItemIds,
+              courseVersionId,
+              session,
+            )
           : Promise.resolve(),
       ]);
     });
@@ -1434,7 +1616,7 @@ class ProgressService extends BaseService {
       let deletedWatchTimeCount = 0;
       // Clear all completed items (watch time) for this user/course/version
       for (const itemId of itemIds) {
-        const { deletedCount } =
+        const {deletedCount} =
           await this.progressRepository.deleteUserWatchTimeByItemId(
             userId,
             itemId,
@@ -1553,7 +1735,7 @@ class ProgressService extends BaseService {
       let deletedWatchTimeCount = 0;
       // Clear all completed items (watch time) for this user/course/version
       for (const itemId of itemIds) {
-        const { deletedCount } =
+        const {deletedCount} =
           await this.progressRepository.deleteUserWatchTimeByItemId(
             userId,
             itemId,
@@ -1672,7 +1854,7 @@ class ProgressService extends BaseService {
           courseVersionId,
         );
       // Clear all items (watch time) for this user/course/version
-      const { deletedCount } =
+      const {deletedCount} =
         await this.progressRepository.deleteUserWatchTimeByItemId(
           userId,
           itemId,
@@ -1809,4 +1991,4 @@ class ProgressService extends BaseService {
   }
 }
 
-export { ProgressService };
+export {ProgressService};

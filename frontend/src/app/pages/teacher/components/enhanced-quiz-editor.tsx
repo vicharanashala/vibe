@@ -1148,9 +1148,12 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                                 key={questionId}
                                 questionId={questionId}
                                 onDelete={() => handleDeleteQuestion(questionId)}
-                                onDuplicate={() =>{ replaceQuestionWithDuplicate.mutateAsync({
-                                  params: { path: { questionBankId: selectedQuestionBank, questionId } }
-                                }); refetchSelectedBank(); }}
+                                onDuplicate={async () => {
+                                  await replaceQuestionWithDuplicate.mutateAsync({
+                                    params: { path: { questionBankId: selectedQuestionBank, questionId } }
+                                  });
+                                  refetchSelectedBank();
+                                }}
                               />
                             ))}
 

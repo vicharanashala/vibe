@@ -5,6 +5,7 @@
   ModuleService: Symbol.for('ModuleService'),
   SectionService: Symbol.for('SectionService'),
   ItemService: Symbol.for('ItemService'),
+  DeleteCronService: Symbol.for('DeleteCronService'),
 
   //Repositories
   ItemRepo: Symbol.for('ItemRepo'),

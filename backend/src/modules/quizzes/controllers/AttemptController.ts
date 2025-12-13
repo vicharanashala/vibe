@@ -9,6 +9,7 @@ import {
   Authorized,
   Res,
   Controller,
+  Req
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
@@ -31,13 +32,14 @@ import {
   SubmitFeedbackParams,
   SubmitFeedbackBody,
   ExportQuizAttemptsParams,
+  QuestionAnswersBodydto
 } from '#quizzes/classes/validators/QuizValidator.js';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
 import {IAttempt} from '#quizzes/interfaces/index.js';
 import {BadRequestErrorResponse} from '#root/shared/index.js';
 import {getCourseAbility} from '#root/modules/courses/abilities/courseAbilities.js';
 import {createObjectCsvStringifier} from 'csv-writer';
-import {Response} from 'express';
+import {Response,Request} from 'express';
 
 @OpenAPI({
   tags: ['Quiz Attempts'],
@@ -107,10 +109,26 @@ class AttemptController {
   })
   @Post('/:quizId/attempt/:attemptId/save')
   async save(
+    @Req() req: Request,
+    @Res() res: Response,
     @Params() params: SaveAttemptParams,
-    @Body() body: QuestionAnswersBody,
+   // @Body() body: QuestionAnswersBody,
     @Ability(getAttemptAbility) {ability, user},
   ): Promise<void> {
+    const body: QuestionAnswersBodydto = await new Promise((resolve, reject) => {
+      let data = '';
+      req.on('data', chunk => {
+        data += chunk;
+      });
+      req.on('end', () => {
+        try {
+          resolve(JSON.parse(data || '{}') as QuestionAnswersBodydto);
+        } catch (err) {
+          reject(err);
+        }
+      });
+      req.on('error', err => reject(err));
+    });
     const {quizId, attemptId} = params;
     const userId = user._id.toString();
     // Build subject context first
@@ -146,14 +164,29 @@ class AttemptController {
     statusCode: 404,
   })
   async submit(
+    @Req() req: Request,
+    @Res() res: Response,
     @Params() params: SubmitAttemptParams,
-    @Body() body: QuestionAnswersBody,
+    // @Body() body: QuestionAnswersBody,
     @Ability(getAttemptAbility) {ability, user},
   ): Promise<SubmitAttemptResponse> {
     const {quizId, attemptId} = params;
+    const body: QuestionAnswersBodydto = await new Promise((resolve, reject) => {
+      let data = '';
+      req.on('data', chunk => {
+        data += chunk;
+      });
+      req.on('end', () => {
+        try {
+          resolve(JSON.parse(data || '{}') as QuestionAnswersBodydto);
+        } catch (err) {
+          reject(err);
+        }
+      });
+      req.on('error', err => reject(err));
+    });
     const {isSkipped, answers} = body;
     const userId = user._id.toString();
-
     // Build subject context first
     const attemptSubject = subject('Attempt', {quizId});
 

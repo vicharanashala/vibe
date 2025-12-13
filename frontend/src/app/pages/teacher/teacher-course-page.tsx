@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, ChangeEvent } from "react";
+import * as Papa from 'papaparse';
+import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank } from '@/hooks/hooks';
+import { Upload } from 'lucide-react';
 
 const MAX_DESCRIPTION_LENGTH = 1000;
 
@@ -45,6 +48,102 @@ import { Label } from "@/components/ui/label";
 import ProjectItem from "./components/ProjectItem";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import FeedbackFormEditor from "./FeedbackFormEditor";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { QuestionUploadDialog } from "@/components/question-upload-dialog";
+
+// Retry utility function
+const withRetry = async <T,>(fn: () => Promise<T>, maxRetries = 3, delay = 100): Promise<T> => {
+  let lastError: Error;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      if (error.code === 112) { // WriteConflict error code
+        console.log(`Write conflict detected, retrying (${i + 1}/${maxRetries})...`);
+        await new Promise(resolve => setTimeout(resolve, delay * (i + 1))); // Exponential backoff
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw lastError!;
+};
+
+// Function to process questions sequentially
+const processQuestionsSequentially = async (questions: any[], questionBankId: string, createQuestion: any, addQuestiontoQuestionBank: any) => {
+  const successfulQuestions = [];
+  
+  for (const question of questions) {
+    try {
+      const options = [
+        { text: question['Option A'], explanation: question['Expln-A'] || '' },
+        { text: question['Option B'], explanation: question['Expln-B'] || '' },
+        { text: question['Option C'], explanation: question['Expln-C'] || '' },
+        { text: question['Option D'], explanation: question['Expln-D'] || '' }
+      ].filter(opt => opt.text);
+
+      const correctAnswer = question['Correct Answer']?.toUpperCase();
+      const correctOptionIndex = correctAnswer ? correctAnswer.charCodeAt(0) - 65 : -1;
+
+      if (correctOptionIndex >= 0 && correctOptionIndex < options.length) {
+        // Create question with retry
+        const newQuestion = await withRetry(async () => {
+          return await createQuestion.mutateAsync({
+            body: {
+              question: {
+                text: question.Question || '',
+                type: 'SELECT_ONE_IN_LOT',
+                isParameterized: false,
+                parameters: [],
+                timeLimitSeconds: 60,
+                points: 1,
+                priority: 'MEDIUM',
+                hint: question.Hint || '',
+              },
+              solution: {
+                correctLotItem: {
+                  text: options[correctOptionIndex].text || '',
+                  explaination: options[correctOptionIndex].explanation || 'No explanation provided'
+                },
+                incorrectLotItems: options
+                  .filter((_, i) => i !== correctOptionIndex)
+                  .map(opt => ({
+                    text: opt.text || '',
+                    explaination: opt.explanation || 'No explanation provided'
+                  }))
+              }
+            }
+          });
+        });
+
+        // Add to question bank with retry
+        if (newQuestion?.questionId) {
+          await withRetry(async () => {
+            await addQuestiontoQuestionBank.mutateAsync({
+              params: {
+                path: {
+                  questionBankId: questionBankId,
+                  questionId: newQuestion.questionId
+                }
+              }
+            });
+          });
+          
+          successfulQuestions.push(newQuestion);
+          console.log(`✅ Created question: ${question.Question?.substring(0, 50)}...`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error creating question:', error);
+    }
+    
+    // Small delay between questions to reduce write conflicts
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+
+  return successfulQuestions;
+};
 
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
@@ -69,7 +168,29 @@ interface ModuleData {
   name: string;
   description: string;
 }
+
+// Interface for CSV row
+type CSVRow = {
+  'yotube url'?: string;
+  'Segment'?: string;
+  'Question Timestamp [mm:ss]'?: string;
+  'S.No.'?: string;
+  'Question'?: string;
+  'Hint'?: string;
+  'Option A'?: string;
+  'Expln-A'?: string;
+  'Option B'?: string;
+  'Expln-B'?: string;
+  'Option C'?: string;
+  'Expln-C'?: string;
+  'Option D'?: string;
+  'Expln-D'?: string;
+  'Correct Answer'?: string;
+  [key: string]: string | undefined;
+};
+
 function TeacherCourseContent() {
+  const createQuestion = useCreateQuestion();
   const user = useAuthStore().user;
   const { currentCourse, setCurrentCourse } = useCourseStore();
   // Use correct keys for course/version IDs
@@ -100,8 +221,8 @@ function TeacherCourseContent() {
   const { data: versionData, refetch: refetchVersion, isLoading } = useCourseVersionById(versionId || "");
 
   // fetch course data
-  const {data:courseData}=useCourseById(courseId||"")
-  
+  const { data: courseData } = useCourseById(courseId || "")
+
   // Some APIs return modules directly, some wrap in 'version'. Try both.
   // @ts-ignore
   const modules = (versionData as any)?.modules || (versionData as any)?.version?.modules || [];
@@ -203,13 +324,15 @@ function TeacherCourseContent() {
   // Fetch item details for selected item
   const shouldFetchItem = selectedEntity?.type === 'item' && !!courseId && !!versionId && !!selectedEntity?.data?._id;
   const {
-    data: selectedItemData, refetch: refetchItem
+    data: selectedItemData, 
+    isLoading: isItemLoading,
+    refetch: refetchItem
   } = useItemById(
     shouldFetchItem ? courseId : '',
     shouldFetchItem ? versionId : '',
     shouldFetchItem ? selectedEntity?.data?._id : ''
   );
-  console.log("selectedItemData",selectedItemData)
+  console.log("selectedItemData", selectedItemData)
   // Sync controlled state with selectedItemData for PROJECT edit
   useEffect(() => {
     if (selectedEntity?.type === 'item' && selectedEntity.data.type === 'PROJECT') {
@@ -256,7 +379,14 @@ function TeacherCourseContent() {
   const { mutateAsync: deleteItemAsync, isSuccess: isDeleteItemSuccess, isError: isDeleteItemError, error: deleteItemError } = useDeleteItem();
   const { mutateAsync: moveItemAsync, isPending, isError: isMoveItemError, error: moveItemError } = useMoveItem();
 
-
+  const [isProcessingCSV, setIsProcessingCSV] = useState(false);
+  const [showCSVUpload, setShowCSVUpload] = useState(false);
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [selectedCSVFile, setSelectedCSVFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const createQuestionBank = useCreateQuestionBank();
+  const addQuestionBankToQuiz = useAddQuestionBankToQuiz();
+  const addQuestiontoQuestionBank = useAddQuestionToBank();
 
   // Refetch after any success
   useEffect(() => {
@@ -383,8 +513,6 @@ function TeacherCourseContent() {
     },
   });
 
-
-
   // Reload items when quiz wizard closes
   useEffect(() => {
     if (!quizWizardOpen && quizModuleId && quizSectionId) {
@@ -459,6 +587,192 @@ function TeacherCourseContent() {
     });
   };
 
+
+  // Convert MM:SS to seconds
+  const convertTimeToSeconds = (timeStr: string): number => {
+    const [minutes, seconds] = timeStr.split(':').map(Number);
+    return (minutes * 60) + (seconds || 0);
+  };
+
+  // Process CSV file and create items
+  const processCSV = async (file: File, moduleId: string, sectionId: string, youtubeUrl: string) => {
+    setIsProcessingCSV(true);
+    try {
+      const text = await file.text();
+      const result = Papa.parse<CSVRow>(text, { header: true, skipEmptyLines: true });
+
+      // Validate CSV structure
+      if (!result.data.length) {
+        throw new Error('CSV file is empty');
+      }
+
+      // Validate YouTube URL format
+      const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/;
+      if (!youtubeRegex.test(youtubeUrl)) {
+        throw new Error('Please provide a valid YouTube URL (e.g., https://www.youtube.com/watch?v=... or https://youtu.be/...)');
+      }
+
+      // Validate required columns
+      const requiredColumns = ['Segment', 'Question', 'Correct Answer'];
+      const firstRow = result.data[0];
+      const missingColumns = requiredColumns.filter(col => !(col in firstRow));
+
+      if (missingColumns.length > 0) {
+        throw new Error(`Missing required columns: ${missingColumns.join(', ')}`);
+      }
+
+      // Group questions by segment
+      const segments = new Map<string, CSVRow[]>();
+      const seenSegments = new Set<string>();
+      let currentSegment = '1'; // Default to segment 1
+
+      result.data.forEach((row) => {
+        // If Segment is empty, use the last seen segment
+        if (!row.Segment) {
+          row.Segment = currentSegment;
+        } else {
+          currentSegment = row.Segment.trim();
+        }
+
+        const segment = currentSegment;
+        if (!segments.has(segment)) {
+          segments.set(segment, []);
+        }
+        segments.get(segment)?.push(row);
+
+        // Track unique segments for better error reporting
+        if (!seenSegments.has(segment)) {
+          seenSegments.add(segment);
+          console.log(`Found segment: ${segment}`);
+        }
+      });
+
+      if (segments.size === 0) {
+        const errorMsg = 'No valid segments found in the CSV. ';
+        if (seenSegments.size > 0) {
+          console.error('Segments found but not processed:', Array.from(seenSegments).join(', '));
+        }
+        throw new Error(errorMsg + 'Please ensure your CSV has a "Segment" column with valid values.');
+      }
+
+      // Process each segment
+      let previousEndTime = 0;
+      const segmentNumbers = Array.from(segments.keys()).sort((a, b) => parseInt(a) - parseInt(b));
+
+      for (const segmentNumber of segmentNumbers) {
+        const questions = segments.get(segmentNumber) || [];
+        const segmentQuestions = questions.filter(q => q.Question && q['Correct Answer']);
+
+        if (segmentQuestions.length === 0) {
+          console.warn(`No valid questions found for segment ${segmentNumber}`);
+          continue;
+        }
+        
+        console.log(`Processing ${segmentQuestions.length} questions for segment ${segmentNumber}`);
+
+        // Get the first question's timestamp as the end time for the video segment
+        const firstQuestion = segmentQuestions[0];
+        const timestamp = firstQuestion['Question Timestamp [mm:ss]'];
+        if (!timestamp) {
+          console.warn(`No timestamp found for segment ${segmentNumber}, using default`);
+        }
+        const endTime = timestamp ? convertTimeToSeconds(timestamp) : previousEndTime + 300; // Default to 5 minutes if no timestamp
+
+        // Create video item with the provided YouTube URL
+        const videoItem = await createItemAsync({
+          params: { path: { versionId: versionId!, moduleId, sectionId } },
+          body: {
+            type: 'VIDEO',
+            name: `Video ${segmentNumber}`,
+            description: `Video segment ${segmentNumber} from CSV upload`,
+            videoDetails: {
+              URL: youtubeUrl,
+              startTime: formatSecondsToHHMMSS(previousEndTime),
+              endTime: formatSecondsToHHMMSS(endTime),
+              points: 1
+            }
+          }
+        });
+
+        // Create quiz item
+        const quizItem = await createItemAsync({
+          params: { path: { versionId: versionId!, moduleId, sectionId } },
+          body: {
+            type: 'QUIZ',
+            name: `Quiz - Segment ${segmentNumber}`,
+            description: `Quiz for segment ${segmentNumber} from CSV upload`,
+            quizDetails: {
+              questionBankRefs: [], // Will be added after creating the question bank
+              passThreshold: 0.5, // 50% passing threshold
+              maxAttempts: 3,
+              quizType: 'NO_DEADLINE',
+              releaseTime: new Date().toISOString(),
+              questionVisibility: 1,
+              approximateTimeToComplete: '00:00:60',
+              allowPartialGrading: true,
+              allowHint: true,
+              showCorrectAnswersAfterSubmission: true,
+              showExplanationAfterSubmission: true,
+              showScoreAfterSubmission: true,
+              allowSkip: false
+            }
+          }
+        });
+
+        const questionBankData = {
+          courseId: courseId,
+          courseVersionId: versionId!,
+          title: `Question Bank - Segment ${segmentNumber}`, // Generate a title based on the segment
+          description: `Questions for segment ${segmentNumber} from CSV upload`,
+          questions: []// Empty array as requested
+        };
+
+        const data = await createQuestionBank.mutateAsync({ body: questionBankData });
+        await addQuestionBankToQuiz.mutateAsync({
+          params: { path: { quizId: quizItem.createdItem._id || "" } },
+          body: {
+            bankId: data.questionBankId,
+            count: 3
+          }
+        });
+
+        // Process questions sequentially with retry logic
+        console.log(`📝 Processing ${segmentQuestions.length} questions for segment ${segmentNumber}...`);
+        const successfulQuestions = await processQuestionsSequentially(
+          segmentQuestions,
+          data.questionBankId,
+          createQuestion,
+          addQuestiontoQuestionBank
+        );
+        console.log(`✅ Successfully created ${successfulQuestions.length} out of ${segmentQuestions.length} questions for segment ${segmentNumber}`);
+
+
+
+
+        previousEndTime = endTime;
+      }
+
+      toast.success('Successfully created items from CSV');
+    } catch (error) {
+      console.error('Error processing CSV:', error);
+      toast.error(`Failed to process CSV: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsProcessingCSV(false);
+    }
+  };
+
+
+
+  // Handle file input change
+  const handleFileUpload = (e: ChangeEvent<HTMLInputElement>, moduleId: string, sectionId: string) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processCSV(file, moduleId, sectionId,youtubeUrl);
+    }
+    // Reset the input
+    e.target.value = '';
+  };
+
   // Add Section
   const handleAddSection = (moduleId: string) => {
     if (!versionId) return;
@@ -481,7 +795,7 @@ function TeacherCourseContent() {
       quiz: "QUIZ",
       article: "BLOG",
       project: "PROJECT",
-      feedback:"FEEDBACK"
+      feedback: "FEEDBACK"
     };
 
     // Handle video items
@@ -501,6 +815,11 @@ function TeacherCourseContent() {
         }
       }).then((res) => {
         refetchVersion();
+        refetchItems();
+        toast.success("Video created successfully");
+      }).catch((error) => {
+        console.error("Error creating video:", error);
+        toast.error(`Failed to create video: ${error.message || 'Unknown error'}`);
       });
 
       return;
@@ -517,6 +836,11 @@ function TeacherCourseContent() {
         },
       }).then((res) => {
         refetchVersion();
+        refetchItems();
+        toast.success("Quiz created successfully");
+      }).catch((error) => {
+        console.error("Error creating quiz:", error);
+        toast.error(`Failed to create quiz: ${error.message || 'Unknown error'}`);
       });
     }
     if (type === "article") {
@@ -536,6 +860,11 @@ function TeacherCourseContent() {
         },
       }).then((res) => {
         refetchVersion();
+        refetchItems();
+        toast.success("Article created successfully");
+      }).catch((error) => {
+        console.error("Error creating article:", error);
+        toast.error(`Failed to create article: ${error.message || 'Unknown error'}`);
       });
     }
     if (type === "project") {
@@ -556,83 +885,88 @@ function TeacherCourseContent() {
           toast.error(`Failed to create project: ${error.message || 'Unknown error'}`);
         });
     }
-    
-if (type === "feedback") {
-        createItemAsync({
-          params: {
-            path: {
-              versionId: versionId!,
-              moduleId: module.moduleId,
-              sectionId: section.sectionId,
-            },
+    if (type === "feedback") {
+      createItemAsync({
+        params: {
+          path: {
+            versionId: versionId!,
+            moduleId: module.moduleId,
+            sectionId: section.sectionId,
           },
-          body: {
-            type: typeMap[type],
-            name: "Feedback Form",
-            description: "Submit your feedback about the previous video/quiz",
-            feedbackFormDetails:{
-               jsonSchema: {
-          type: 'object',
-          properties: {
-            Name: {
-              type: 'string',
-              title: 'Name',
-              minLength: 1,
-            },
-            Email: {
-              type: 'string',
-              format: 'email',
-              title: 'Email',
-            },
-            Feedback: {
-              type: 'string',
-              title: 'Feedback',
-              minLength:10
-            },
-          },
-          required: ['Name', 'Email','Feedback'],
         },
-               uiSchema:{
-          Name: {
-            'ui:placeholder': 'Enter your Name',
-          },
-          Email: {
-            'ui:placeholder': 'Enter your Email',
-          },
-          Feedback: {
-            'ui:placeholder': 'Enter your feedback here...',
-          },
-        }
-          },
-        }
-        })
-          .then((created) => {
-            const newItem = created?.createdItem || created?.item || created?.data || created;
-            const itemsGroupId = created?.itemsGroup?._id || section.itemsGroupId;
-
-            if (newItem && newItem._id) {
-              // Auto-select the newly created feedback form
-              setSelectedItem({ id: newItem._id, name: "Feedback Form 1" });
-              setSelectedEntity({
-                type: "item",
-                data: newItem,
-                parentIds: {
-                  moduleId: module.moduleId,
-                  sectionId: section.sectionId,
-                  itemsGroupId,
+        body: {
+          type: typeMap[type],
+          name: "Feedback Form",
+          description: "Submit your feedback about the previous video/quiz",
+          feedbackFormDetails: {
+            jsonSchema: {
+              type: 'object',
+              properties: {
+                Name: {
+                  type: 'string',
+                  title: 'Name',
+                  minLength: 1,
                 },
-              });
-            } else {
-              refetchVersion();
-              refetchItems();
+                Email: {
+                  type: 'string',
+                  format: 'email',
+                  title: 'Email',
+                },
+                Feedback: {
+                  type: 'string',
+                  title: 'Feedback',
+                  minLength: 10
+                },
+              },
+              required: ['Name', 'Email', 'Feedback'],
+            },
+            uiSchema: {
+              Name: {
+                'ui:placeholder': 'Enter your Name',
+              },
+              Email: {
+                'ui:placeholder': 'Enter your Email',
+              },
+              Feedback: {
+                'ui:placeholder': 'Enter your feedback here...',
+              },
             }
-          })
-          .catch((err) => {
-            toast.error("Failed to create feedback form");
-            console.error(err);
-          });
-      }
+          },
+        }
+      })
+        .then((created) => {
+          const newItem = created?.createdItem || created?.item || created?.data || created;
+          const itemsGroupId = created?.itemsGroup?._id || section.itemsGroupId;
 
+          if (newItem && newItem._id) {
+            // Auto-select the newly created feedback form
+            setSelectedItem({ id: newItem._id, name: "Feedback Form 1" });
+            setSelectedEntity({
+              type: "item",
+              data: newItem,
+              parentIds: {
+                moduleId: module.moduleId,
+                sectionId: section.sectionId,
+                itemsGroupId,
+              },
+            });
+          } else {
+            refetchVersion();
+            refetchItems();
+          }
+        })
+        .catch((err) => {
+          toast.error("Failed to create feedback form");
+          console.error(err);
+        });
+    }
+    if (type === "csv_upload") {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.csv';
+      input.onchange = (e) => handleFileUpload(e as unknown as ChangeEvent<HTMLInputElement>, moduleId, sectionId);
+      input.click();
+    }
   };
 
   const navigate = useNavigate();
@@ -754,27 +1088,183 @@ if (type === "feedback") {
 
   return (
     <ResizablePanelGroup direction="horizontal" className="h-full w-full">
-      {/* <div className="flex h-screen w-full"> */}
+      {/* Show loading overlay when processing CSV */}
+      {isProcessingCSV && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-background p-6 rounded-lg shadow-xl flex flex-col items-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
+            <p className="text-lg font-medium">Processing CSV file...</p>
+            <p className="text-sm text-muted-foreground">This may take a moment</p>
+          </div>
+        </div>
+      )}
+      {/* CSV Upload Modal */}
+      {/* <Dialog open={showCSVUpload} onOpenChange={setShowCSVUpload}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Upload Questions</DialogTitle>
+          </DialogHeader>
 
-      {/* <ConfirmationModal
-          isOpen={true}
-          onClose={() => {}}
-          onConfirm={()=>{}}
-          title="Delete Section"
-          description="Are you sure you want to delete this section?"
-          confirmText="Delete Section"
-          isDestructive={true}
-          isLoading={false}
-        /> */}
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="youtube-url">YouTube Video URL</Label>
+              <Input
+                id="youtube-url"
+                placeholder="https://www.youtube.com/watch?v=..."
+                value={youtubeUrl}
+                onChange={(e) => setYoutubeUrl(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                The video that these questions are based on
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Questions CSV File</Label>
+              <div
+                className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${isDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                  }`}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    const file = e.dataTransfer.files[0];
+                    if (file.type === "text/csv" || file.name.endsWith('.csv')) {
+                      setSelectedCSVFile(file);
+                    } else {
+                      toast.error("Please upload a valid CSV file");
+                    }
+                  }
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onClick={() => document.getElementById('csv-upload')?.click()}
+              >
+                <div className="space-y-2">
+                  <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">Click to upload</span> or drag and drop
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    CSV file with questions (max 10MB)
+                  </p>
+                  {selectedCSVFile && (
+                    <p className="text-sm font-medium text-foreground mt-2">
+                      Selected: {selectedCSVFile.name}
+                    </p>
+                  )}
+                </div>
+                <input
+                  id="csv-upload"
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      setSelectedCSVFile(e.target.files[0]);
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="text-xs text-muted-foreground">
+              <p className="font-medium mb-1">CSV Format:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>First row should be the header with column names</li>
+                <li>Required columns: Segment, Question, Option A, Option B, Option C, Option D, Correct Answer</li>
+                <li>Segment: Numeric value to group questions</li>
+                <li>Correct Answer: Should be A, B, C, or D</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCSVUpload(false);
+                setYoutubeUrl('');
+                setSelectedCSVFile(null);
+              }}
+              disabled={isProcessingCSV}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!youtubeUrl) {
+                  toast.error("Please enter a YouTube URL");
+                  return;
+                }
+
+                if (!selectedCSVFile) {
+                  toast.error("Please select a CSV file");
+                  return;
+                }
+
+                try {
+                  setIsProcessingCSV(true);
+                  await processCSV(selectedCSVFile, activeSectionInfo.moduleId, activeSectionInfo.sectionId, youtubeUrl);
+                  toast.success("CSV uploaded and processed successfully!");
+                  setShowCSVUpload(false);
+                  setYoutubeUrl('');
+                  setSelectedCSVFile(null);
+                  refetchVersion();
+                  refetchItems();
+                } catch (error) {
+                  console.error("Error processing CSV:", error);
+                  toast.error(error instanceof Error ? error.message : "Failed to process CSV");
+                } finally {
+                  setIsProcessingCSV(false);
+                }
+              }}
+              disabled={!youtubeUrl || !selectedCSVFile || isProcessingCSV}
+            >
+              {isProcessingCSV ? "Uploading..." : "Upload"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog> */}
+       <QuestionUploadDialog 
+        open={showCSVUpload} 
+        onOpenChange={setShowCSVUpload} 
+        onUploadComplete={async (youtubeUrl: string, csvFile:File) => {
+                            try {
+                              setIsProcessingCSV(true)
+                              await processCSV(
+                                csvFile,
+                                activeSectionInfo.moduleId,
+                                activeSectionInfo.sectionId,
+                                youtubeUrl
+                              );
+                              refetchVersion();
+                              refetchItems();
+                              setIsProcessingCSV(false)
+                              toast.success("Upload processed successfully!");
+                            } catch (error: any) {
+                              console.error("CSV Processing Error:", error);
+
+                              const message =
+                                error?.response?.data?.error ||
+                                error?.message ||
+                                "Failed to process uploaded data. Please try again.";
+                              setIsProcessingCSV(false)
+                              toast.error(message);
+                            }
+                          }}
+      /> 
       {/* Mobile Sidebar Overlay */}
       {isMobileSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={() => setIsMobileSidebarOpen(false)}
         />
       )}
-      
-      <ResizablePanel 
+      <ResizablePanel
         defaultSize={20}
         minSize={20}
         maxSize={50}
@@ -900,7 +1390,11 @@ if (type === "feedback") {
                                           }}
                                         >
                                           <SidebarMenuSub className="ml-4 space-y-1 pt-1">
-                                            {(sectionItems[section.sectionId] || [])
+                                            {itemsLoading && activeSectionInfo?.sectionId === section.sectionId ? (
+                                              <div className="flex items-center justify-center py-4">
+                                                <Loader />
+                                              </div>
+                                            ) : (sectionItems[section.sectionId] || [])
                                               .slice()
                                               .sort((a: any, b: any) => a.order.localeCompare(b.order))
                                               .map((item: any) => (
@@ -1049,7 +1543,7 @@ if (type === "feedback") {
 
                                                     }
                                                     else if (type === "project") {
-                                                      
+
                                                       createItemAsync({
                                                         params: {
                                                           path: {
@@ -1067,6 +1561,7 @@ if (type === "feedback") {
                                                         .then((created) => {
                                                           const newItem = created?.createdItem || created?.item || created?.data || created;
                                                           const itemsGroupId = created?.itemsGroup?._id || section.itemsGroupId;
+
                                                           if (newItem && newItem._id) {
                                                             setSelectedItem({ id: newItem._id, name: newItem.name });
                                                             setSelectedEntity({
@@ -1085,83 +1580,87 @@ if (type === "feedback") {
                                                         });
                                                     }
                                                     else if (type === "feedback") {
-        createItemAsync({
-          params: {
-            path: {
-              versionId: versionId!,
-              moduleId: module.moduleId,
-              sectionId: section.sectionId,
-            },
-          },
-          body: {
-            type: "FEEDBACK",
-            name: "Feedback Form",
-            description: "Submit your feedback about the previous video/quiz",
-            feedbackFormDetails:{
-               jsonSchema: {
-          type: 'object',
-          properties: {
-            Name: {
-              type: 'string',
-              title: 'Name',
-              minLength: 1,
-            },
-            Email: {
-              type: 'string',
-              format: 'email',
-              title: 'Email',
-            },
-            Feedback: {
-              type: 'string',
-              title: 'Feedback',
-              minLength:10
-            },
-          },
-          required: ['Name', 'Email','Feedback'],
-        },
-               uiSchema:{
-          Name: {
-            'ui:placeholder': 'Enter your Name',
-          },
-          Email: {
-            'ui:placeholder': 'Enter your Email',
-          },
-           Feedback: {
-            'ui:placeholder': 'Enter your feedback here...',
-            'ui:widget': 'textarea',
-  },
-        }
-          },
-          },
-        })
-          .then((created) => {
-            const newItem = created?.createdItem || created?.item || created?.data || created;
-            const itemsGroupId = created?.itemsGroup?._id || section.itemsGroupId;
+                                                      createItemAsync({
+                                                        params: {
+                                                          path: {
+                                                            versionId: versionId!,
+                                                            moduleId: module.moduleId,
+                                                            sectionId: section.sectionId,
+                                                          },
+                                                        },
+                                                        body: {
+                                                          type: "FEEDBACK",
+                                                          name: "Feedback Form",
+                                                          description: "Submit your feedback about the previous video/quiz",
+                                                          feedbackFormDetails: {
+                                                            jsonSchema: {
+                                                              type: 'object',
+                                                              properties: {
+                                                                Name: {
+                                                                  type: 'string',
+                                                                  title: 'Name',
+                                                                  minLength: 1,
+                                                                },
+                                                                Email: {
+                                                                  type: 'string',
+                                                                  format: 'email',
+                                                                  title: 'Email',
+                                                                },
+                                                                Feedback: {
+                                                                  type: 'string',
+                                                                  title: 'Feedback',
+                                                                  minLength: 10
+                                                                },
+                                                              },
+                                                              required: ['Name', 'Email', 'Feedback'],
+                                                            },
+                                                            uiSchema: {
+                                                              Name: {
+                                                                'ui:placeholder': 'Enter your Name',
+                                                              },
+                                                              Email: {
+                                                                'ui:placeholder': 'Enter your Email',
+                                                              },
+                                                              Feedback: {
+                                                                'ui:placeholder': 'Enter your feedback here...',
+                                                                'ui:widget': 'textarea',
+                                                              },
+                                                            }
+                                                          },
+                                                        }
+                                                      })
+                                                        .then((created) => {
+                                                          const newItem = created?.createdItem || created?.item || created?.data || created;
+                                                          const itemsGroupId = created?.itemsGroup?._id || section.itemsGroupId;
 
-            if (newItem && newItem._id) {
-              // Auto-select the newly created feedback form
-              setSelectedItem({ id: newItem._id, name: "Feedback Form 1" });
-              setSelectedEntity({
-                type: "item",
-                data: newItem,
-                parentIds: {
-                  moduleId: module.moduleId,
-                  sectionId: section.sectionId,
-                  itemsGroupId,
-                },
-              });
-            } else {
-              refetchVersion();
-              refetchItems();
-            }
-          })
-          .catch((err) => {
-            toast.error("Failed to create feedback form");
-            console.error(err);
-          });
-      }
+                                                          if (newItem && newItem._id) {
+                                                            // Auto-select the newly created feedback form
+                                                            setSelectedItem({ id: newItem._id, name: "Feedback Form 1" });
+                                                            setSelectedEntity({
+                                                              type: "item",
+                                                              data: newItem,
+                                                              parentIds: {
+                                                                moduleId: module.moduleId,
+                                                                sectionId: section.sectionId,
+                                                                itemsGroupId,
+                                                              },
+                                                            });
+                                                          } else {
+                                                            refetchVersion();
+                                                            refetchItems();
+                                                          }
+                                                        })
+                                                        .catch((err) => {
+                                                          toast.error("Failed to create feedback form");
+                                                          console.error(err);
+                                                        });
+                                                    }
+                                                    else if (type === "csv_upload") {
+                                                      setActiveSectionInfo({ moduleId: module.moduleId, sectionId: section.sectionId });
+                                                      setShowCSVUpload(true);
+                                                    }
                                                     else {
-
+                                                      setActiveSectionInfo({ moduleId: module.moduleId, sectionId: section.sectionId });
                                                       handleAddItem(module.moduleId, section.sectionId, type);
 
                                                     }
@@ -1191,6 +1690,7 @@ if (type === "feedback") {
                                                 >
                                                   {hasExistingProject ? 'Project (Limit 1 per course)' : 'Project'}
                                                 </option>
+                                                <option value="csv_upload">Upload CSV</option>
 
                                               </select>
                                               <TooltipProvider>
@@ -1349,7 +1849,7 @@ if (type === "feedback") {
 
 
 
-      
+
       <ResizableHandle className="hidden md:flex" />
       <ResizablePanel defaultSize={80} className="min-w-0">
         {/* Course Editor Area */}
@@ -1357,16 +1857,16 @@ if (type === "feedback") {
           <div className="w-full p-4 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-2 min-w-0 flex-1">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
                   className="md:hidden shrink-0"
                 >
                   <Menu className="h-7 w-7" />
                   <span className="sr-only">Toggle Menu</span>
                 </Button>
-                
+
                 <div className="flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-lg border min-w-0 flex-1 sm:flex-none sm:min-w-[200px]">
                   <GraduationCap className="h-4 w-4 text-primary flex-shrink-0" />
                   <div className="min-w-0">
@@ -1381,11 +1881,11 @@ if (type === "feedback") {
                   </div>
                 </div>
               </div>
-              
+
               {versionData && (
                 <div className="flex items-center">
-                  <Badge 
-                    variant="outline" 
+                  <Badge
+                    variant="outline"
                     className="bg-primary/10 border-primary/20 text-primary px-3 py-1.5 text-xs sm:text-sm font-medium whitespace-nowrap"
                   >
                     Version: {(versionData as any)?.version || (versionData as any)?.name || 'Unknown'}
@@ -1739,7 +2239,7 @@ if (type === "feedback") {
                     {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
 
                       <VideoModal
-                        isLoading={isLoading}
+                        isLoading={isItemLoading}
                         selectedItemName={selectedItem.name}
                         action={isEditingItem ? "edit" : "view"}
                         item={selectedItemData?.item}
@@ -1900,32 +2400,32 @@ if (type === "feedback") {
 )} */}
 
 
-{selectedEntity.type === "item" && selectedEntity.data.type === "FEEDBACK" && (
-  <FeedbackFormEditor
-    isLoading={isLoading}
-    selectedItemName={selectedItem.name}
-    feedbackId={selectedEntity.data._id}
-    moduleId={selectedEntity.parentIds?.moduleId || ""}
-    sectionId={selectedEntity.parentIds?.sectionId || ""}
-    courseId={courseId!}
-    courseVersionId={versionId!}
-    details={selectedItemData}
-    onRefetch={() => {
-      refetchVersion();
-      refetchItems();
-      refetchItem();
-    }}
-    onDelete={() => {
-      deleteItemAsync({
-        params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
-      }).then(() => {
-        refetchVersion();
-        refetchItems();
-      });
-      setSelectedEntity(null);
-    }}
-  />
-)}
+                    {selectedEntity.type === "item" && selectedEntity.data.type === "FEEDBACK" && (
+                      <FeedbackFormEditor
+                        isLoading={isLoading}
+                        selectedItemName={selectedItem.name}
+                        feedbackId={selectedEntity.data._id}
+                        moduleId={selectedEntity.parentIds?.moduleId || ""}
+                        sectionId={selectedEntity.parentIds?.sectionId || ""}
+                        courseId={courseId!}
+                        courseVersionId={versionId!}
+                        details={selectedItemData}
+                        onRefetch={() => {
+                          refetchVersion();
+                          refetchItems();
+                          refetchItem();
+                        }}
+                        onDelete={() => {
+                          deleteItemAsync({
+                            params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
+                          }).then(() => {
+                            refetchVersion();
+                            refetchItems();
+                          });
+                          setSelectedEntity(null);
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
               </div>

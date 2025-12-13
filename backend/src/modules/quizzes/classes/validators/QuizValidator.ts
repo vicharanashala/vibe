@@ -410,6 +410,7 @@ class QuestionDetails implements IQuestionDetails {
 }
 
 class QuestionAnswersBody {
+  @IsOptional()
   @IsArray()
   @ValidateNested({each: true})
   @Type(() => QuestionAnswer)
@@ -1595,6 +1596,17 @@ class GetAllQuestionBanksResponse {
   })
   questionBanks: IQuestionBankRef[];
 }
+ interface QuestionAnswer {
+  questionId: string;
+  questionType: QuestionType;
+  answer: Answer;
+}
+
+export interface QuestionAnswersBodydto {
+  answers: QuestionAnswer[];
+  isSkipped?: boolean;
+}
+
 
 export {
   CreateAttemptParams,
