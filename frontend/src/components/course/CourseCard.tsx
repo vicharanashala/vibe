@@ -1,5 +1,4 @@
-import { Clock, FileText, CheckCircle2, Trophy, Medal, Award, Crown } from "lucide-react";
-import { Clock, FileText, CheckCircle2, Info } from "lucide-react";
+import { Clock, FileText, CheckCircle2, Trophy, Medal, Award, Crown, Info } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
