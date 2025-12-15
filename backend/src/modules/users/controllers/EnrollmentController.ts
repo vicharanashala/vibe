@@ -385,13 +385,21 @@ export class EnrollmentController {
     }
 
     return {
-      enrollments: enrollmentsData.enrollments.map((enrollment: any) => ({
-        role: enrollment.role,
-        status: enrollment.status,
-        enrollmentDate: enrollment.enrollmentDate,
-        user: {...enrollment.userInfo, _id: enrollment.userId},
-        progress: enrollment.percentCompleted,
-      })),
+      enrollments: enrollmentsData.enrollments
+        .map((enrollment: any) => ({
+          role: enrollment.role,
+          status: enrollment.status,
+          isDeleted: enrollment.isDeleted || false,
+          enrollmentDate: enrollment.enrollmentDate,
+          user: {...enrollment.userInfo, _id: enrollment.userId},
+          progress: enrollment.percentCompleted,
+        }))
+        .sort((a, b) => {
+          // sort by isDeleted deleted should be at the bottom
+          if (a.isDeleted && !b.isDeleted) return 1;
+          if (!a.isDeleted && b.isDeleted) return -1;
+          return 0;
+        }),
       totalDocuments: enrollmentsData.totalDocuments,
       totalPages: enrollmentsData.totalPages,
       currentPage: page,
