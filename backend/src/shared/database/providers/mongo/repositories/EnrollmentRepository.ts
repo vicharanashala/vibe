@@ -701,7 +701,16 @@ export class EnrollmentRepository {
             from: 'videos',
             let: {itemId: '$itemObjId', itemType: '$itemsGroup.items.type'},
             pipeline: [
-              {$match: {$expr: {$and: [{$eq: ['$_id', '$$itemId']}, {$eq: ['$$itemType', 'VIDEO']}]}}},
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      {$eq: ['$_id', '$$itemId']},
+                      {$eq: ['$$itemType', 'VIDEO']},
+                    ],
+                  },
+                },
+              },
               {$project: {isDeleted: 1}},
             ],
             as: 'videoDoc',
@@ -712,7 +721,16 @@ export class EnrollmentRepository {
             from: 'blogs',
             let: {itemId: '$itemObjId', itemType: '$itemsGroup.items.type'},
             pipeline: [
-              {$match: {$expr: {$and: [{$eq: ['$_id', '$$itemId']}, {$eq: ['$$itemType', 'BLOG']}]}}},
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      {$eq: ['$_id', '$$itemId']},
+                      {$eq: ['$$itemType', 'BLOG']},
+                    ],
+                  },
+                },
+              },
               {$project: {isDeleted: 1}},
             ],
             as: 'blogDoc',
@@ -723,7 +741,16 @@ export class EnrollmentRepository {
             from: 'quizzes',
             let: {itemId: '$itemObjId', itemType: '$itemsGroup.items.type'},
             pipeline: [
-              {$match: {$expr: {$and: [{$eq: ['$_id', '$$itemId']}, {$eq: ['$$itemType', 'QUIZ']}]}}},
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      {$eq: ['$_id', '$$itemId']},
+                      {$eq: ['$$itemType', 'QUIZ']},
+                    ],
+                  },
+                },
+              },
               {$project: {isDeleted: 1}},
             ],
             as: 'quizDoc',
@@ -734,7 +761,16 @@ export class EnrollmentRepository {
             from: 'projects',
             let: {itemId: '$itemObjId', itemType: '$itemsGroup.items.type'},
             pipeline: [
-              {$match: {$expr: {$and: [{$eq: ['$_id', '$$itemId']}, {$eq: ['$$itemType', 'PROJECT']}]}}},
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      {$eq: ['$_id', '$$itemId']},
+                      {$eq: ['$$itemType', 'PROJECT']},
+                    ],
+                  },
+                },
+              },
               {$project: {isDeleted: 1}},
             ],
             as: 'projectDoc',
@@ -747,19 +783,39 @@ export class EnrollmentRepository {
                 branches: [
                   {
                     case: {$eq: ['$itemsGroup.items.type', 'VIDEO']},
-                    then: {$ifNull: [{$arrayElemAt: ['$videoDoc.isDeleted', 0]}, false]},
+                    then: {
+                      $ifNull: [
+                        {$arrayElemAt: ['$videoDoc.isDeleted', 0]},
+                        false,
+                      ],
+                    },
                   },
                   {
                     case: {$eq: ['$itemsGroup.items.type', 'BLOG']},
-                    then: {$ifNull: [{$arrayElemAt: ['$blogDoc.isDeleted', 0]}, false]},
+                    then: {
+                      $ifNull: [
+                        {$arrayElemAt: ['$blogDoc.isDeleted', 0]},
+                        false,
+                      ],
+                    },
                   },
                   {
                     case: {$eq: ['$itemsGroup.items.type', 'QUIZ']},
-                    then: {$ifNull: [{$arrayElemAt: ['$quizDoc.isDeleted', 0]}, false]},
+                    then: {
+                      $ifNull: [
+                        {$arrayElemAt: ['$quizDoc.isDeleted', 0]},
+                        false,
+                      ],
+                    },
                   },
                   {
                     case: {$eq: ['$itemsGroup.items.type', 'PROJECT']},
-                    then: {$ifNull: [{$arrayElemAt: ['$projectDoc.isDeleted', 0]}, false]},
+                    then: {
+                      $ifNull: [
+                        {$arrayElemAt: ['$projectDoc.isDeleted', 0]},
+                        false,
+                      ],
+                    },
                   },
                 ],
                 default: false,
@@ -888,6 +944,7 @@ export class EnrollmentRepository {
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
       status: {$regex: /^active$/i},
+      isDeleted: {$ne: true},
     };
     if (filter) {
       if (filter === 'STUDENT') {
@@ -1898,16 +1955,18 @@ export class EnrollmentRepository {
             courseId: courseObjectId,
             courseVersionId: versionObjectId,
             role: 'STUDENT',
-            status: { $regex: /^active$/i },
+            status: {$regex: /^active$/i},
           },
-          { session },
+          {session},
         )
         .toArray();
 
       return enrollments;
     } catch (error) {
       console.error('Failed to get student enrollments:', error);
-      throw new Error('Failed to fetch student enrollments for the course version');
+      throw new Error(
+        'Failed to fetch student enrollments for the course version',
+      );
     }
   }
 

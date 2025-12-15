@@ -354,7 +354,7 @@ class ProgressService extends BaseService {
         ));
 
       percentCompleted = Math.round(
-        (totalItems > 0 ? completedItems / totalItems : 0) * 100, 
+        (totalItems > 0 ? completedItems / totalItems : 0) * 100,
       );
     }
 
@@ -1013,7 +1013,7 @@ class ProgressService extends BaseService {
           existingSession,
         );
 
-        // 
+      //
 
       const completedItemsSet = new Set(completedItemsArray);
       return completedItemsSet.size;
@@ -1306,6 +1306,8 @@ class ProgressService extends BaseService {
         maxAttemptsMap,
         session,
       );
+
+    console.log(attemptDeletes, metricsUpdates, submissionDeletes);
 
     // Run the three bulk operations in parallel
     await Promise.all([
@@ -1917,18 +1919,21 @@ class ProgressService extends BaseService {
   async getLeaderboard(
     courseId: string,
     courseVersionId: string,
-  ): Promise<Array<{
-    userId: string;
-    userName: string;
-    completionPercentage: number;
-    completedAt: Date | null;
-    rank: number;
-  }>> {
+  ): Promise<
+    Array<{
+      userId: string;
+      userName: string;
+      completionPercentage: number;
+      completedAt: Date | null;
+      rank: number;
+    }>
+  > {
     // Get all progress records for this course version
-    const progressRecords = await this.progressRepository.getAllProgressForCourseVersion(
-      courseId,
-      courseVersionId,
-    );
+    const progressRecords =
+      await this.progressRepository.getAllProgressForCourseVersion(
+        courseId,
+        courseVersionId,
+      );
 
     // Get all enrollments to fetch completion percentages
     const enrollments = await this.enrollmentRepo.getEnrollmentsByCourseVersion(
@@ -1950,7 +1955,9 @@ class ProgressService extends BaseService {
     const userMap = new Map();
     for (const user of users) {
       if (user) {
-        const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown User';
+        const fullName =
+          `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
+          'Unknown User';
         userMap.set(user._id?.toString(), fullName);
       }
     }
@@ -1959,8 +1966,13 @@ class ProgressService extends BaseService {
     const leaderboardData = progressRecords.map(progress => ({
       userId: progress.userId.toString(),
       userName: userMap.get(progress.userId.toString()) || 'Unknown User',
-      completionPercentage: enrollmentMap.get(progress.userId.toString())?.completionPercentage || 0,
-      completedAt: progress.completed && progress.completedAt ? progress.completedAt : null,
+      completionPercentage:
+        enrollmentMap.get(progress.userId.toString())?.completionPercentage ||
+        0,
+      completedAt:
+        progress.completed && progress.completedAt
+          ? progress.completedAt
+          : null,
     }));
 
     // Sort by Progress % (highest first), then by Completion Date (earliest first) for ties
@@ -1972,7 +1984,9 @@ class ProgressService extends BaseService {
 
       // Secondary sort: by completedAt (ascending - earliest first) for same percentage
       if (a.completedAt && b.completedAt) {
-        return new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime();
+        return (
+          new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime()
+        );
       }
 
       // If one has completedAt and other doesn't, prioritize the one with completedAt
