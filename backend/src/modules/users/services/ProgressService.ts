@@ -1307,6 +1307,8 @@ class ProgressService extends BaseService {
         session,
       );
 
+    console.log(attemptDeletes, metricsUpdates, submissionDeletes);
+
     // Run the three bulk operations in parallel
     await Promise.all([
       this.progressRepository.executeBulkAttemptDelete(attemptDeletes, session),
