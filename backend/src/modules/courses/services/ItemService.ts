@@ -39,7 +39,7 @@ import {
   QuizRepository,
   UserQuizMetricsRepository,
 } from '#root/modules/quizzes/repositories/index.js';
-import { FeedbackRepository } from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
+import {FeedbackRepository} from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
 
 @injectable()
 export class ItemService extends BaseService {
@@ -223,17 +223,40 @@ export class ItemService extends BaseService {
     versionId: string,
     moduleId: string,
     sectionId: string,
+    userId: string,
   ): Promise<ItemRef[]> {
     const { itemsGroup } = await this._getVersionModuleSectionAndItemsGroup(
       versionId,
       moduleId,
       sectionId,
     );
+
+    const course = await this.courseRepo.readVersion(versionId);
+    if (!course) {
+      throw new NotFoundError(`Course for version ${versionId} not found.`);
+    }
+
+    const user = await this.enrollmentRepo.getUserEnrollmentsByCourseVersion(
+      userId,
+      course.courseId.toString(),
+      versionId,
+    );
+
+    console.log('ItemsGroup fetched:', itemsGroup);
+
+    // Only filter hidden items for students
+    if (user.role === 'STUDENT') {
+      itemsGroup.items = itemsGroup.items.filter(item => !item.isHidden);
+    }
+
     return itemsGroup.items;
   }
 
   public async readItem(versionId: string, itemId: string) {
+<<<<<<< HEAD
 
+=======
+>>>>>>> feat/hide-modules
     const item = await this.itemRepo.readItem(versionId, itemId);
     item._id = item._id.toString();
     return item;
@@ -534,10 +557,125 @@ export class ItemService extends BaseService {
     });
   }
 
-  public async getFeedbackSubmissions(courseId: string, itemId: string, search: string, page: number, limit: number) {
+  public async getFeedbackSubmissions(
+    courseId: string,
+    itemId: string,
+    search: string,
+    page: number,
+    limit: number,
+  ) {
     return await this._withTransaction(async (session: ClientSession) => {
-      return await this.feedbackRepo.getFeedbackSubmissionById(itemId, courseId, search, page, limit)
-    })
+      return await this.feedbackRepo.getFeedbackSubmissionById(
+        itemId,
+        courseId,
+        search,
+        page,
+        limit,
+      );
+    });
+  }
+
+  public async toggleItemVisibility(
+    courseVersionId: string,
+    itemId: string,
+    hidden: boolean,
+  ) {
+    return this._withTransaction(async session => {
+      const itemGroup = await this.itemRepo.findItemsGroupByItemId(
+        itemId,
+        session,
+      );
+
+      if (!itemGroup) {
+        throw new NotFoundError(`ItemsGroup for item ${itemId} not found`);
+      }
+
+      itemGroup.items.forEach(item => {
+        if (item._id.toString() === itemId) {
+          item.isHidden = hidden;
+        }
+      });
+
+      await this.itemRepo.updateItemsGroup(
+        itemGroup._id.toString(),
+        itemGroup,
+        session,
+      );
+
+      const item = await this.itemRepo.readItem(
+        courseVersionId,
+        itemId,
+        session,
+      );
+
+      if (!item) throw new NotFoundError(`Item ${itemId} not found.`);
+
+      item.isHidden = hidden;
+
+      const updatedItem = await this.itemRepo.updateItemById(
+        itemId,
+        item,
+        item.type,
+        session,
+      );
+
+      if (!updatedItem) {
+        throw new InternalServerError(`Failed to update item ${itemId}`);
+      }
+
+      const version = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      if (!version)
+        throw new NotFoundError(`Version ${courseVersionId} not found.`);
+
+      version.updatedAt = new Date();
+
+      const updatedVersion = await this.courseRepo.updateVersion(
+        courseVersionId,
+        version,
+        session,
+      );
+
+      await this.enrollmentRepo.setWatchTimeVisibility(
+        [itemId],
+        hidden,
+        session,
+      );
+
+      if (hidden == true) {
+        // next non hidden item
+        const items = itemGroup.items;
+        const currentIndex = items.findIndex(i => i._id.toString() === itemId);
+        let nextItem = null;
+        for (let i = currentIndex + 1; i < items.length; i++) {
+          if (!items[i].isHidden) {
+            nextItem = items[i];
+            break;
+          }
+        }
+
+        // fallback backward
+        if (!nextItem) {
+          for (let i = currentIndex - 1; i >= 0; i--) {
+            if (!items[i].isHidden) {
+              nextItem = items[i];
+              break;
+            }
+          }
+        }
+
+        // update all progress documents matched by currentItemId to nextNonHiddenItemId
+        if (nextItem) {
+          await this.progressRepo.updateProgressByItemId(
+            itemId,
+            {currentItem: nextItem._id.toString()},
+            session,
+          );
+        }
+      }
+    });
   }
 
 

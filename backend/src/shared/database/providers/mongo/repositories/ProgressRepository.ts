@@ -29,6 +29,22 @@ class ProgressRepository {
     this.attemptCollection = await this.db.getCollection<IAttempt>(
       'quiz_attempts',
     );
+
+    this.progressCollection.createIndex({
+      userId: 1,
+      courseId: 1,
+      courseVersionId: 1,
+    });
+    this.watchTimeCollection.createIndex({
+      userId: 1,
+      courseId: 1,
+      courseVersionId: 1,
+      itemId: 1,
+    });
+    this.attemptCollection.createIndex({
+      userId: 1,
+      quizId: 1,
+    });
   }
 
   async getCompletedItems(
@@ -582,6 +598,48 @@ class ProgressRepository {
     );
 
     return result.acknowledged && result.deletedCount > 0;
+  }
+
+  async updateProgressByItemId(
+    itemId: string,
+    updateData: Partial<IProgress>,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+    const result = await this.progressCollection.updateMany(
+      {currentItem: new ObjectId(itemId)},
+      {$set: updateData},
+      {session},
+    );
+    return result.modifiedCount;
+  }
+
+  async updateProgressBySectionId(
+    sectionId: string,
+    updateData: Partial<IProgress>,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+    const result = await this.progressCollection.updateMany(
+      {currentSection: new ObjectId(sectionId)},
+      {$set: updateData},
+      {session},
+    );
+    return result.modifiedCount;
+  }
+
+  async updateProgressByModuleId(
+    moduleId: string,
+    updateData: Partial<IProgress>,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+    const result = await this.progressCollection.updateMany(
+      {currentModule: new ObjectId(moduleId)},
+      {$set: updateData},
+      {session},
+    );
+    return result.modifiedCount;
   }
 }
 

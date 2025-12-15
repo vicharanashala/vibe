@@ -28,10 +28,16 @@ import {
 } from '#courses/classes/validators/SectionValidators.js';
 import {SectionService} from '#courses/services/SectionService.js';
 import {BadRequestErrorResponse} from '#root/shared/middleware/errorHandler.js';
-import {VersionModuleParams} from '../classes/validators/ModuleValidators.js';
-import { CourseVersionActions, getCourseVersionAbility } from '../abilities/versionAbilities.js';
-import { Ability } from '#root/shared/functions/AbilityDecorator.js';
-import { subject } from '@casl/ability';
+import {
+  HideModuleBody,
+  VersionModuleParams,
+} from '../classes/validators/ModuleValidators.js';
+import {
+  CourseVersionActions,
+  getCourseVersionAbility,
+} from '../abilities/versionAbilities.js';
+import {Ability} from '#root/shared/functions/AbilityDecorator.js';
+import {subject} from '@casl/ability';
 @OpenAPI({
   tags: ['Course Sections'],
 })
@@ -70,18 +76,20 @@ Accessible to:
   async create(
     @Params() params: VersionModuleParams,
     @Body() body: CreateSectionBody,
-    @Ability(getCourseVersionAbility) {ability}
+    @Ability(getCourseVersionAbility) {ability},
   ): Promise<CourseVersion> {
     const {versionId, moduleId} = params;
-    
+
     // Create a course version resource object for permission checking
-    const versionResource = subject('CourseVersion', { versionId });
-    
+    const versionResource = subject('CourseVersion', {versionId});
+
     // Check permission using ability.can() with the actual version resource
     if (!ability.can(CourseVersionActions.Modify, versionResource)) {
-      throw new ForbiddenError('You do not have permission to modify this course version');
+      throw new ForbiddenError(
+        'You do not have permission to modify this course version',
+      );
     }
-    
+
     try {
       const createdVersion = await this.sectionService.createSection(
         versionId,
@@ -121,18 +129,20 @@ Accessible to:
   async update(
     @Params() params: VersionModuleSectionParams,
     @Body() body: UpdateSectionBody,
-    @Ability(getCourseVersionAbility) {ability}
+    @Ability(getCourseVersionAbility) {ability},
   ): Promise<CourseVersion> {
     const {versionId, moduleId, sectionId} = params;
-    
+
     // Create a course version resource object for permission checking
-    const versionResource = subject('CourseVersion', { versionId });
-    
+    const versionResource = subject('CourseVersion', {versionId});
+
     // Check permission using ability.can() with the actual version resource
     if (!ability.can(CourseVersionActions.Modify, versionResource)) {
-      throw new ForbiddenError('You do not have permission to modify this course version');
+      throw new ForbiddenError(
+        'You do not have permission to modify this course version',
+      );
     }
-    
+
     try {
       const updatedVersion = await this.sectionService.updateSection(
         versionId,
@@ -175,18 +185,20 @@ Accessible to:
   async move(
     @Params() params: VersionModuleSectionParams,
     @Body() body: MoveSectionBody,
-    @Ability(getCourseVersionAbility) {ability}
+    @Ability(getCourseVersionAbility) {ability},
   ): Promise<CourseVersion> {
     const {versionId, moduleId, sectionId} = params;
-    
+
     // Create a course version resource object for permission checking
-    const versionResource = subject('CourseVersion', { versionId });
-    
+    const versionResource = subject('CourseVersion', {versionId});
+
     // Check permission using ability.can() with the actual version resource
     if (!ability.can(CourseVersionActions.Modify, versionResource)) {
-      throw new ForbiddenError('You do not have permission to modify this course version');
+      throw new ForbiddenError(
+        'You do not have permission to modify this course version',
+      );
     }
-    
+
     try {
       const {afterSectionId, beforeSectionId} = body;
 
@@ -238,18 +250,20 @@ Accessible to:
   })
   async delete(
     @Params() params: VersionModuleSectionParams,
-    @Ability(getCourseVersionAbility) {ability}
+    @Ability(getCourseVersionAbility) {ability},
   ): Promise<SectionDeletedResponse> {
     const {versionId, moduleId, sectionId} = params;
-    
+
     // Create a course version resource object for permission checking
-    const versionResource = subject('CourseVersion', { versionId });
-    
+    const versionResource = subject('CourseVersion', {versionId});
+
     // Check permission using ability.can() with the actual version resource
     if (!ability.can(CourseVersionActions.Modify, versionResource)) {
-      throw new ForbiddenError('You do not have permission to modify this course version');
+      throw new ForbiddenError(
+        'You do not have permission to modify this course version',
+      );
     }
-    
+
     const deletedSection = await this.sectionService.deleteSection(
       versionId,
       moduleId,
@@ -261,5 +275,56 @@ Accessible to:
     return {
       message: `Section ${sectionId} deleted in module ${moduleId}`,
     };
+  }
+  @OpenAPI({
+    summary: 'Hides/Unhide a section',
+    description: `Toggles the visibility of a section within a module of a specific course version.<br/>
+Accessible to:
+- Instructors or managers of the course.`,
+  })
+  @Authorized()
+  @HttpCode(200)
+  @Put(
+    '/versions/:versionId/modules/:moduleId/sections/:sectionId/toggle-visibility',
+  )
+  @ResponseSchema(SectionDataResponse, {
+    description: 'Section visibility toggled successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(SectionNotFoundErrorResponse, {
+    description: 'Section not found',
+    statusCode: 404,
+  })
+  async toggleVisibility(
+    @Params() params: VersionModuleSectionParams,
+    @Body() body: HideModuleBody,
+    @Ability(getCourseVersionAbility) {ability},
+  ): Promise<CourseVersion> {
+    const {versionId, moduleId, sectionId} = params;
+
+    // Create a course version resource object for permission checking
+    const versionResource = subject('CourseVersion', {versionId});
+
+    // Check permission using ability.can() with the actual version resource
+    if (!ability.can(CourseVersionActions.Modify, versionResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this course version',
+      );
+    }
+
+    const updatedVersion = await this.sectionService.toggleSectionVisibility(
+      versionId,
+      moduleId,
+      sectionId,
+      body.hide,
+    );
+
+    if (!updatedVersion) {
+      throw new InternalServerError('Failed to toggle section visibility');
+    }
+    return instanceToPlain(updatedVersion) as CourseVersion;
   }
 }
