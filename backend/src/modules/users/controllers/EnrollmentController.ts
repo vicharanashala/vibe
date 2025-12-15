@@ -323,10 +323,6 @@ export class EnrollmentController {
   @ResponseSchema(CourseVersionEnrollmentResponse, {
     description: 'Paginated list of enrollments for the course version',
   })
-  @ResponseSchema(EnrollmentNotFoundErrorResponse, {
-    description: 'No enrollments found for the course version',
-    statusCode: 404,
-  })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid page or limit parameters',
     statusCode: 400,
