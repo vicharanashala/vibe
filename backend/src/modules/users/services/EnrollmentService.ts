@@ -349,9 +349,11 @@ export class EnrollmentService extends BaseService {
         session,
       );
       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
-        throw new NotFoundError(
-          'Course version not found or does not belong to this course',
-        );
+        // return empty result instead of throwing error
+        return {
+          enrollments: [],
+          totalCount: 0,
+        };
       }
 
       const enrollmentsData =
