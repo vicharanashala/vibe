@@ -832,11 +832,7 @@ export class EnrollmentRepository {
                   },
                 },
               },
-<<<<<<< HEAD
               {$project: {isDeleted: 1, isHidden: 1}},
-=======
-              {$project: {isDeleted: 1}},
->>>>>>> fix/unenroll-users
             ],
             as: 'projectDoc',
           },
