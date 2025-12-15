@@ -41,6 +41,7 @@ import CourseRegistration from '../pages/student/CourseRegistration'
 import CourseIssueReports from '../pages/student/FlagResponse'
 import LoginPage from '../pages/LoginPage'
 import FeedbackFormEditor from '../pages/teacher/FeedbackFormEditor'
+import Leaderboard from '../pages/student/leaderboard'
 
 
 // Root route with error and notFound handling
@@ -317,6 +318,13 @@ const studentIssuesRoute = new Route({
   component:CourseIssueReports,
 })
 
+// Student leaderboard route
+const studentLeaderboardRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/leaderboard',
+  component: Leaderboard,
+});
+
 // Student profile route
 const studentProfileRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -400,7 +408,8 @@ const routeTree = rootRoute.addChildren([
     studentCoursesRoute,
     studentProfileRoute,
     studentCourseInviteRegistration,
-    studentIssuesRoute
+    studentIssuesRoute,
+    studentLeaderboardRoute
   ]),
   coursePageRoute,
 ]);
