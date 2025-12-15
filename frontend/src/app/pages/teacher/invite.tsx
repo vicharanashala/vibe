@@ -14,6 +14,8 @@ import {
   Loader2,
   Plus,
   Search,
+  Download,
+  Upload,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -633,24 +635,54 @@ const addInviteRow = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="text-sm text-muted-foreground">
-            Upload a CSV file with an "Email" column header (e.g., SNo,Name,Email). Review the parsed emails before sending.
+          <div className="relative">
+            <input
+              id="csv-upload"
+              type="file"
+              accept=".csv"
+              onChange={handleCsvUpload}
+              disabled={inviteUsers.isPending}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+            />
+            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-12 text-center hover:border-muted-foreground/50 transition-colors">
+              <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-base font-medium mb-1">Click to upload or drag and drop</p>
+              <p className="text-sm text-muted-foreground">CSV file with student emails (max 5MB)</p>
+            </div>
           </div>
-          
-          <Input
-            id="csv-upload"
-            type="file"
-            accept=".csv"
-            onChange={handleCsvUpload}
-            disabled={inviteUsers.isPending}
-          />
+
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => {
+              const link = document.createElement('a')
+              link.href = '/templates/Bulk registration - Template_Sheet1.csv'
+              link.download = 'Bulk registration - Template_Sheet1.csv'
+              document.body.appendChild(link)
+              link.click()
+              document.body.removeChild(link)
+            }}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Download Sample CSV Template
+          </Button>
+
+          <div className="text-sm space-y-2">
+            <p className="font-medium">CSV Format:</p>
+            <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+              <li>First row should be the header with column names</li>
+              <li>Required column: Email</li>
+              <li>Optional columns: SNo, Name</li>
+              <li>Example: SNo, Name, Email</li>
+            </ul>
+          </div>
 
           {parsedEmails.length > 0 && (
             <>
               <div className="p-4 border rounded-lg bg-muted/50 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">
-                    {parsedEmails.length} email(s) parsed
+                    {parsedEmails.length} email(s) found
                   </span>
                   <Button
                     variant="ghost"
