@@ -231,6 +231,10 @@ Accessible to:
       );
     }
 
+    if (versionId == '692f030a945e82ec875e9117') {
+      throw new BadRequestError(`You can't delete this version!`);
+    }
+
     const deletedVersion = await this.courseVersionService.deleteCourseVersion(
       courseId,
       versionId,
