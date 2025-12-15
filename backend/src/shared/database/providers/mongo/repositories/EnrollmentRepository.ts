@@ -944,7 +944,7 @@ export class EnrollmentRepository {
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
       status: {$regex: /^active$/i},
-      isDeleted: {$ne: true},
+      // isDeleted: {$ne: true},
     };
     if (filter) {
       if (filter === 'STUDENT') {
