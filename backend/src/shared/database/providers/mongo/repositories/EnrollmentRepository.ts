@@ -768,7 +768,11 @@ export class EnrollmentRepository {
                   },
                 },
               },
+<<<<<<< HEAD
               {$project: {isDeleted: 1, isHidden: 1}},
+=======
+              {$project: {isDeleted: 1}},
+>>>>>>> fix/unenroll-users
             ],
             as: 'videoDoc',
           },
@@ -808,7 +812,11 @@ export class EnrollmentRepository {
                   },
                 },
               },
+<<<<<<< HEAD
               {$project: {isDeleted: 1, isHidden: 1}},
+=======
+              {$project: {isDeleted: 1}},
+>>>>>>> fix/unenroll-users
             ],
             as: 'quizDoc',
           },
@@ -828,7 +836,11 @@ export class EnrollmentRepository {
                   },
                 },
               },
+<<<<<<< HEAD
               {$project: {isDeleted: 1, isHidden: 1}},
+=======
+              {$project: {isDeleted: 1}},
+>>>>>>> fix/unenroll-users
             ],
             as: 'projectDoc',
           },
@@ -873,6 +885,7 @@ export class EnrollmentRepository {
                         false,
                       ],
                     },
+<<<<<<< HEAD
                   },
                 ],
                 default: false,
@@ -916,6 +929,8 @@ export class EnrollmentRepository {
                         false,
                       ],
                     },
+=======
+>>>>>>> fix/unenroll-users
                   },
                 ],
                 default: false,
@@ -1050,6 +1065,7 @@ export class EnrollmentRepository {
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
       status: {$regex: /^active$/i},
+      // isDeleted: {$ne: true},
     };
     if (filter) {
       if (filter === 'STUDENT') {
@@ -2060,16 +2076,18 @@ export class EnrollmentRepository {
             courseId: courseObjectId,
             courseVersionId: versionObjectId,
             role: 'STUDENT',
-            status: { $regex: /^active$/i },
+            status: {$regex: /^active$/i},
           },
-          { session },
+          {session},
         )
         .toArray();
 
       return enrollments;
     } catch (error) {
       console.error('Failed to get student enrollments:', error);
-      throw new Error('Failed to fetch student enrollments for the course version');
+      throw new Error(
+        'Failed to fetch student enrollments for the course version',
+      );
     }
   }
 

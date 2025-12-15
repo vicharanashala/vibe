@@ -180,12 +180,14 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
     versionId: string,
     session?: ClientSession,
   ) {
-    return await this.courseRegistrationCollection.deleteOne(
+    await this.init();
+    return await this.courseRegistrationCollection.updateOne(
       {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         versionId: new ObjectId(versionId),
       },
+      {$set: {isDeleted: true, deletedAt: new Date()}},
       {session},
     );
   }
