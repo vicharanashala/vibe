@@ -155,14 +155,13 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
   ): Promise<number> {
     await this.init();
     const objectIds = registrationIds.map(id => new ObjectId(id));
-      const data = await this.courseRegistrationCollection.updateMany(
-        {_id: {$in: objectIds}},
-        {$set: {status: 'APPROVED', updatedAt: new Date()}},
-        {session},
-      );
-      return data.modifiedCount;
-    }
-  
+    const data = await this.courseRegistrationCollection.updateMany(
+      {_id: {$in: objectIds}},
+      {$set: {status: 'APPROVED', updatedAt: new Date()}},
+      {session},
+    );
+    return data.modifiedCount;
+  }
 
   async remove(
     userId: string,
@@ -170,17 +169,22 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
     versionId: string,
     session?: ClientSession,
   ) {
-    return await this.courseRegistrationCollection.deleteOne(
+    await this.init();
+    return await this.courseRegistrationCollection.updateOne(
       {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         versionId: new ObjectId(versionId),
       },
+      {$set: {isDeleted: true, deletedAt: new Date()}},
       {session},
     );
   }
 
-  async deleteRegistrationByVersionId(versionId: string, session?: ClientSession) {
+  async deleteRegistrationByVersionId(
+    versionId: string,
+    session?: ClientSession,
+  ) {
     await this.init();
   }
 }
