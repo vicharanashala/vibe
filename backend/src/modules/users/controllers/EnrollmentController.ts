@@ -380,6 +380,16 @@ export class EnrollmentController {
       );
     }
 
+    const totalDocuments =
+      'totalDocuments' in enrollmentsData
+        ? enrollmentsData.totalDocuments
+        : enrollmentsData.totalCount;
+
+    const totalPages =
+      'totalPages' in enrollmentsData
+        ? enrollmentsData.totalPages
+        : Math.ceil(enrollmentsData.totalCount / limit);
+
     return {
       enrollments: enrollmentsData.enrollments
         .map((enrollment: any) => ({
@@ -396,8 +406,8 @@ export class EnrollmentController {
           if (!a.isDeleted && b.isDeleted) return -1;
           return 0;
         }),
-      totalDocuments: enrollmentsData.totalDocuments,
-      totalPages: enrollmentsData.totalPages,
+      totalDocuments,
+      totalPages,
       currentPage: page,
     };
   }
