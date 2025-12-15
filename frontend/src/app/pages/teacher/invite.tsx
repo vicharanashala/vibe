@@ -301,11 +301,14 @@ const addInviteRow = () => {
         params: { path: { inviteId } },
       })
 
-      toast.success("Invite resent successfully")
+      await refetchInvites()
 
-      refetchInvites()
+      // Show success message after confirming status update
+      toast.success("Invite resent successfully.")
     } catch {
-      toast.error(resendInvite.error || "Failed to resend invite")
+      // Refetch to show EMAIL_FAILED status
+      await refetchInvites()
+      toast.error(" Failed to resend invite. Email sending failed.")
     } finally {
       setResendingInviteId(null)
     }
@@ -388,9 +391,16 @@ const addInviteRow = () => {
       }
 
       const uniqueEmails = [...new Set(emails)]
+      
+      if (uniqueEmails.length > 500) {
+        toast.error(`CSV contains ${uniqueEmails.length} emails. Maximum allowed is 500 emails per upload.`)
+        e.target.value = ''
+        return
+      }
+      
       setParsedEmails(uniqueEmails)
       
-      toast.success(`Parsed ${uniqueEmails.length} email(s) from CSV file`)
+      toast.success(`Found ${uniqueEmails.length} email(s) from CSV file`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to process CSV file")
       e.target.value = ''
@@ -410,7 +420,7 @@ const addInviteRow = () => {
         role: 'STUDENT' as EnrollmentRole
       }))
 
-      await inviteUsers.mutateAsync({
+      const response = await inviteUsers.mutateAsync({
         params: {
           path: {
             courseId,
@@ -422,7 +432,16 @@ const addInviteRow = () => {
         },
       })
 
-      toast.success(`Successfully sent ${parsedEmails.length} invite(s)`)
+      const results = response.invites || []
+      const succeeded = results.filter(r => r.inviteStatus === 'PENDING' || r.inviteStatus === 'ALREADY_ENROLLED')
+      const failed = results.filter(r => r.inviteStatus === 'EMAIL_FAILED')
+      const total = results.length
+
+      if (failed.length === 0) {
+        toast.success(`Successfully sent all ${total} invites`)
+      } else {
+        toast.warning(`${succeeded.length} out of ${total} invites sent successfully. ${failed.length} failed.`)
+      }
 
       setParsedEmails([])
       const input = document.getElementById('csv-upload') as HTMLInputElement

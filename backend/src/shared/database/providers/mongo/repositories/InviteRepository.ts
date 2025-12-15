@@ -108,7 +108,7 @@ export class InviteRepository {
       {session},
     );
 
-    if (result.modifiedCount === 0) {
+    if (result.matchedCount === 0) {
       throw new Error(`Failed to update invite with ID: ${inviteId}`);
     }
   }

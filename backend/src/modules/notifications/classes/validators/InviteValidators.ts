@@ -143,6 +143,11 @@ class EmailInvite {
 }
 
 class InviteBody {
+  @JSONSchema({
+    description: 'Array of email invitations (maximum 500)',
+    type: 'array',
+    maxItems: 500,
+  })
   @IsArray()
   @ArrayNotEmpty()
   @ValidateNested({each: true})
