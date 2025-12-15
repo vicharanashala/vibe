@@ -394,6 +394,7 @@ export interface IProgress {
   currentSection: string | ObjectId;
   currentItem: string | ObjectId;
   completed: boolean;
+  completedAt?: Date;
 }
 
 export interface IWatchTime {
