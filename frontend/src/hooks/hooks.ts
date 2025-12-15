@@ -3521,6 +3521,23 @@ export const exportQuizSubmissions = async (quizId: string) => {
   URL.revokeObjectURL(url);
 }
 
+export const useHideModule = () : {
+  mutate: (variables: { params: { path: { versionId: string, moduleId: string } },  body: { hide: boolean } }) => void,
+  mutateAsync: (variables: { params: { path: { versionId: string, moduleId: string } },  body: { hide: boolean } }) => Promise<void>,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} => {
+  const result =  api.useMutation('put', '/courses/versions/{versionId}/modules/{moduleId}/toggle-visibility');
+  return {
+    ...result,
+    error: result.error ? (result?.error?.message || 'Failed to hide/unhide module') : null
+  }
+}
 // Leaderboard hook
 export interface LeaderboardEntry {
   userId: string;
@@ -3566,13 +3583,49 @@ export const useLeaderboard = (courseId: string, versionId: string, enabled: boo
   };
 };
 
+export const useHideSection = () : {
+  mutate: (variables: { params: { path: {versionId: string, moduleId: string, sectionId: string } },  body: { hide: boolean } }) => void,
+  mutateAsync: (variables: { params: { path: {versionId: string, moduleId: string, sectionId: string } },  body: { hide: boolean } }) => Promise<void>,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} => {
+  const result =  api.useMutation('put', '/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/toggle-visibility');
+  return {
+    ...result,
+    error: result.error ? (result?.error?.message || 'Failed to hide/unhide section') : null
+  }
+}
 
+export const useHideItem = () : {
+  mutate: (variables: { params: { path: { versionId: string, itemId: string } },  body: { hide: boolean } }) => void,
+  mutateAsync: (variables: { params: { path: { versionId: string, itemId: string } },  body: { hide: boolean } }) => Promise<void>,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} => {
+  
+  const result = api.useMutation('put', '/courses/versions/{versionId}/items/{itemId}/toggle-visibility');
+  return {
+    ...result,
+    error: result.error ? (result?.error?.message || 'Failed to hide/unhide item') : null
+  }
+
+}
 
 export interface GenerateAIQuestionsBody {
   text?: string;
 }
 
-export function useGenerateAIQuestions(): {
+export const useGenerateAIQuestions = (): {
   mutate: (variables: { body: GenerateAIQuestionsBody  }) => void;
   mutateAsync: (variables: { body: GenerateAIQuestionsBody }) => Promise<{ success: boolean; response: TranscriptResponse[] }>;
   data: { success: boolean; response: TranscriptResponse[] } | undefined;
@@ -3583,7 +3636,7 @@ export function useGenerateAIQuestions(): {
   isIdle: boolean;
   reset: () => void;
   status: 'idle' | 'pending' | 'success' | 'error';
-} {
+} => {
   const result = api.useMutation('post', '/quizzes/questions/generate-csv-res');
 
   return {

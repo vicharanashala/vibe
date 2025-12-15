@@ -13,17 +13,16 @@ import {loggingHandler} from './shared/middleware/loggingHandler.js';
 import {HttpErrorHandler} from './shared/index.js';
 import {generateOpenAPISpec} from './shared/functions/generateOpenApiSpec.js';
 import {apiReference} from '@scalar/express-api-reference';
-import {loadAppModules} from './bootstrap/loadModules.js'; 
+import {loadAppModules} from './bootstrap/loadModules.js';
 import {printStartupSummary} from './utils/logDetails.js';
-import type {CorsOptions} from 'cors'; 
+import type {CorsOptions} from 'cors';
 import {authorizationChecker} from './shared/functions/authorizationChecker.js';
 import {currentUserChecker} from './shared/functions/currentUserChecker.js';
 import {startCron} from './utils/startCron.js';
 
 const app = express();
-//app.use(express.json());                       
-//app.use(express.urlencoded({ extended: true })); 
-
+//app.use(express.json());
+//app.use(express.urlencoded({ extended: true }));
 
 app.use(loggingHandler); 
 console.log("uri ")
@@ -113,5 +112,5 @@ useExpressServer(app, moduleOptions);
 app.listen(appConfig.port, () => {
   printStartupSummary();
   startCron();
-  console.log("server is running ")
+  console.log('server is running ');
 });

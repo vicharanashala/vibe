@@ -87,6 +87,18 @@ export class CourseRepository implements ICourseRepository {
     this.itemsGroupCollection = await this.db.getCollection<ItemsGroup>(
       'itemsGroup',
     );
+    this.enrollmentCollection = await this.db.getCollection<IEnrollment>(
+      'enrollment',
+    );
+
+    this.courseCollection.createIndex({versions: 1});
+    this.courseVersionCollection.createIndex({
+      'modules.sections.itemsGroupId': 1,
+    });
+
+    this.itemsGroupCollection.createIndex({'items._id': 1});
+
+    this.itemsGroupCollection.createIndex({'items.type': 1});
   }
 
   async getDBClient(): Promise<MongoClient> {
@@ -343,7 +355,6 @@ export class CourseRepository implements ICourseRepository {
       .toArray();
 
     return result.length > 0 ? result[0] : null;
-
   }
   async getActiveVersion(
     versionId: string,
@@ -379,6 +390,7 @@ export class CourseRepository implements ICourseRepository {
                 updatedAt: '$$mod.updatedAt',
                 isDeleted: '$$mod.isDeleted',
                 deletedAt: '$$mod.deletedAt',
+                isHidden: '$$mod.isHidden',
                 sections: {
                   $filter: {
                     input: '$$mod.sections',
