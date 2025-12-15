@@ -808,11 +808,7 @@ export class EnrollmentRepository {
                   },
                 },
               },
-<<<<<<< HEAD
               {$project: {isDeleted: 1, isHidden: 1}},
-=======
-              {$project: {isDeleted: 1}},
->>>>>>> fix/unenroll-users
             ],
             as: 'quizDoc',
           },
@@ -877,7 +873,6 @@ export class EnrollmentRepository {
                         false,
                       ],
                     },
-<<<<<<< HEAD
                   },
                 ],
                 default: false,
@@ -921,8 +916,6 @@ export class EnrollmentRepository {
                         false,
                       ],
                     },
-=======
->>>>>>> fix/unenroll-users
                   },
                 ],
                 default: false,
