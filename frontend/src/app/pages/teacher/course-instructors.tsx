@@ -260,7 +260,7 @@ export default function CourseInstructors() {
                     instructorEnrollments.map((instructor: any) => (
                       <TableRow
                         key={instructor._id}
-                        className="border-border hover:bg-muted/20 transition-colors duration-200 group"
+                        className={`border-border hover:bg-muted/20 transition-colors duration-200 group ${instructor.isDeleted ? 'opacity-10' : ''}`}
                       >
                         <TableCell className="pl-6 py-6">
                           <div className="flex items-center gap-4">
