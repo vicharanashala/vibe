@@ -635,16 +635,32 @@ const addInviteRow = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {!canSendInvites && (
+            <div className="p-4 border border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20 rounded-lg">
+              <div className="flex items-center space-x-2 text-orange-800 dark:text-orange-200">
+                <AlertTriangle className="w-5 h-5" />
+                <span className="font-medium">Course Structure Required</span>
+              </div>
+              <p className="mt-2 text-sm text-orange-700 dark:text-orange-300">
+                {getInviteBlockReason()}.
+              </p>
+            </div>
+          )}
+
           <div className="relative">
             <input
               id="csv-upload"
               type="file"
               accept=".csv"
               onChange={handleCsvUpload}
-              disabled={inviteUsers.isPending}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              disabled={inviteUsers.isPending || !canSendInvites}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
             />
-            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-12 text-center hover:border-muted-foreground/50 transition-colors">
+            <div className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
+              !canSendInvites 
+                ? 'border-muted-foreground/10 bg-muted/20 opacity-50 cursor-not-allowed' 
+                : 'border-muted-foreground/25 hover:border-muted-foreground/50 cursor-pointer'
+            }`}>
               <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
               <p className="text-base font-medium mb-1">Click to upload or drag and drop</p>
               <p className="text-sm text-muted-foreground">CSV file with student emails (max 5MB)</p>
@@ -654,6 +670,7 @@ const addInviteRow = () => {
           <Button
             variant="outline"
             className="w-full"
+            disabled={!canSendInvites}
             onClick={() => {
               const link = document.createElement('a')
               link.href = '/templates/Bulk registration - Template_Sheet1.csv'
