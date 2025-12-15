@@ -110,7 +110,8 @@ export class ItemRepository implements IItemRepository {
     session?: ClientSession,
   ): Promise<ItemsGroup> {
     await this.init();
-    console.log('Reading ItemsGroup with ID:', itemsGroupId);
+    // console.log('Reading ItemsGroup with ID:', itemsGroupId);
+    
     const itemsGroup = await this.itemsGroupCollection.findOne(
       { _id: new ObjectId(itemsGroupId), isDeleted: { $ne: true } },
       { session },

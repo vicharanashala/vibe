@@ -721,7 +721,7 @@ class ProgressService extends BaseService {
       const nextItem = items[currentIndex + 1];
 
       if (nextItem && nextItem?._id) {
-        return {nextItemId: nextItem?._id.toString()};
+        return {nextItemId: nextItem?._id?.toString()};
       }
 
       // No next item → check next section/module
@@ -729,7 +729,7 @@ class ProgressService extends BaseService {
         throw new NotFoundError('Invalid itemsGroup: missing id');
       }
 
-      const itemGroupId = itemsGroup._id.toString();
+      const itemGroupId = itemsGroup?._id?.toString();
       const groupInfo = await this.courseRepo.getItemGroupInfo(itemGroupId);
 
       if (!groupInfo) {
@@ -785,12 +785,12 @@ class ProgressService extends BaseService {
         session,
       );
       if (!metrics) return;
-      metrics._id = metrics?._id.toString();
-      metrics.quizId = metrics.quizId.toString();
+      metrics._id = metrics?._id?.toString();
+      metrics.quizId = metrics.quizId?.toString();
       if (Array.isArray(metrics.attempts)) {
         metrics.attempts = metrics.attempts.map(attempt => ({
           ...attempt,
-          attemptId: attempt.attemptId.toString(),
+          attemptId: attempt.attemptId?.toString(),
         }));
       }
       return metrics;
@@ -937,9 +937,9 @@ class ProgressService extends BaseService {
         courseVersionId,
       );
 
-      if (!progress) {
-        throw new NotFoundError('Progress not found');
-      }
+      // if (!progress) {
+      //   throw new NotFoundError('Progress not found');
+      // }
 
       return Object.assign(new Progress(), progress);
     });
@@ -2032,6 +2032,12 @@ class ProgressService extends BaseService {
     );
 
     return {message: 'Item skipped successfully'};
+  }
+  async getFirstItem(versionId: string) {
+    if (!versionId) {
+      throw new BadRequestError('Version ID is required');
+    }
+    return this.itemRepo.getFirstOrderItems(versionId);
   }
   async getLeaderboard(
     courseId: string,
