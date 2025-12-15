@@ -862,7 +862,7 @@ export class EnrollmentRepository {
     // const userObjectid = new ObjectId(userId)
 
     return await this.enrollmentCollection
-      .find({userId: {$in: userFilter}}, {session})
+      .find({userId: {$in: userFilter},isDeleted: { $ne: true }}, {session})
       .sort({enrollmentDate: -1})
       .toArray();
   }
