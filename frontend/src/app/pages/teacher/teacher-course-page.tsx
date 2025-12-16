@@ -310,15 +310,19 @@ function TeacherCourseContent() {
   const [activeSectionInfo, setActiveSectionInfo] = useState<{ moduleId: string; sectionId: string } | null>(null);
 
   // Fetch items for the active section
-  const shouldFetchItems = Boolean(activeSectionInfo?.moduleId && activeSectionInfo?.sectionId && versionId);
+  const shouldFetchItems = !!(activeSectionInfo?.moduleId && activeSectionInfo?.sectionId && versionId);
+  const safeVersionId = versionId && versionId.trim() ? versionId : "SKIP";
+  const safeModuleId = activeSectionInfo?.moduleId && activeSectionInfo.moduleId.trim() ? activeSectionInfo.moduleId : "SKIP";
+  const safeSectionId = activeSectionInfo?.sectionId && activeSectionInfo.sectionId.trim() ? activeSectionInfo.sectionId : "SKIP";
+  
   const {
     data: currentSectionItems,
     isLoading: itemsLoading,
     refetch: refetchItems
   } = useItemsBySectionId(
-    shouldFetchItems ? versionId || "" : '',
-    shouldFetchItems ? activeSectionInfo?.moduleId ?? '' : '',
-    shouldFetchItems ? activeSectionInfo?.sectionId ?? '' : ''
+    safeVersionId,
+    safeModuleId,
+    safeSectionId
   );
 
   // Fetch item details for selected item
@@ -402,7 +406,9 @@ function TeacherCourseContent() {
       isDeleteItemSuccess
     ) {
       refetchVersion();
-      refetchItems();
+      if (shouldFetchItems) {
+        refetchItems();
+      }
 
       if (activeSectionInfo) {
         setActiveSectionInfo({ ...activeSectionInfo }); // triggers refetch
@@ -519,9 +525,11 @@ function TeacherCourseContent() {
       // Quiz wizard just closed, reload items for the section
       setActiveSectionInfo({ moduleId: quizModuleId, sectionId: quizSectionId });
       refetchVersion();
-      refetchItems();
+      if (shouldFetchItems) {
+        refetchItems();
+      }
     }
-  }, [quizWizardOpen, quizModuleId, quizSectionId, refetchVersion]);
+  }, [quizWizardOpen, quizModuleId, quizSectionId, refetchVersion, shouldFetchItems]);
 
   // Update sectionItems state when items are fetched
   useEffect(() => {
@@ -581,7 +589,9 @@ function TeacherCourseContent() {
       body: { name: "Untitled Module", description: "Module description" }
     }).then((res) => {
       refetchVersion();
-      refetchItems();
+      if (shouldFetchItems) {
+        refetchItems();
+      }
       setIsEditingModule(true);
       setOriginalModuleData({ name: "Untitled Module", description: "Module description" });
     });
@@ -781,7 +791,9 @@ function TeacherCourseContent() {
       body: { name: "New Section", description: "Section description" }
     }).then((res) => {
       refetchVersion();
-      refetchItems();
+      if (shouldFetchItems) {
+        refetchItems();
+      }
     });
   };
 
@@ -815,7 +827,9 @@ function TeacherCourseContent() {
         }
       }).then((res) => {
         refetchVersion();
-        refetchItems();
+        if (shouldFetchItems) {
+          refetchItems();
+        }
         toast.success("Video created successfully");
       }).catch((error) => {
         console.error("Error creating video:", error);
@@ -836,7 +850,9 @@ function TeacherCourseContent() {
         },
       }).then((res) => {
         refetchVersion();
-        refetchItems();
+        if (shouldFetchItems) {
+          refetchItems();
+        }
         toast.success("Quiz created successfully");
       }).catch((error) => {
         console.error("Error creating quiz:", error);
@@ -860,7 +876,9 @@ function TeacherCourseContent() {
         },
       }).then((res) => {
         refetchVersion();
-        refetchItems();
+        if (shouldFetchItems) {
+          refetchItems();
+        }
         toast.success("Article created successfully");
       }).catch((error) => {
         console.error("Error creating article:", error);
@@ -877,7 +895,9 @@ function TeacherCourseContent() {
       })
         .then(() => {
           refetchVersion();
-          refetchItems();
+          if (shouldFetchItems) {
+            refetchItems();
+          }
           toast.success("Project created successfully");
         })
         .catch((error) => {
@@ -952,7 +972,9 @@ function TeacherCourseContent() {
             });
           } else {
             refetchVersion();
-            refetchItems();
+            if (shouldFetchItems) {
+              refetchItems();
+            }
           }
         })
         .catch((err) => {
@@ -1076,7 +1098,11 @@ function TeacherCourseContent() {
             ? { afterItemId: after._id }
             : {}),
       },
-    }).then((res) => { refetchItems(); })
+    }).then((res) => { 
+      if (shouldFetchItems) {
+        refetchItems();
+      }
+    })
 
   };
 
@@ -1214,7 +1240,9 @@ function TeacherCourseContent() {
                   setYoutubeUrl('');
                   setSelectedCSVFile(null);
                   refetchVersion();
-                  refetchItems();
+                  if (shouldFetchItems) {
+                    refetchItems();
+                  }
                 } catch (error) {
                   console.error("Error processing CSV:", error);
                   toast.error(error instanceof Error ? error.message : "Failed to process CSV");
@@ -1242,7 +1270,9 @@ function TeacherCourseContent() {
                                 youtubeUrl
                               );
                               refetchVersion();
-                              refetchItems();
+                              if (shouldFetchItems) {
+                                refetchItems();
+                              }
                               setIsProcessingCSV(false)
                               toast.success("Upload processed successfully!");
                             } catch (error: any) {
@@ -1575,7 +1605,9 @@ function TeacherCourseContent() {
                                                             });
                                                           } else {
                                                             refetchVersion();
-                                                            refetchItems();
+                                                            if (shouldFetchItems) {
+                                                              refetchItems();
+                                                            }
                                                           }
                                                         });
                                                     }
@@ -1647,7 +1679,9 @@ function TeacherCourseContent() {
                                                             });
                                                           } else {
                                                             refetchVersion();
-                                                            refetchItems();
+                                                            if (shouldFetchItems) {
+                                                              refetchItems();
+                                                            }
                                                           }
                                                         })
                                                         .catch((err) => {
@@ -2084,7 +2118,9 @@ function TeacherCourseContent() {
                                   }
                                 }).then((res) => {
                                   refetchVersion();
-                                  refetchItems();
+                                  if (shouldFetchItems) {
+                                    refetchItems();
+                                  }
                                   setIsEditingModule(false);
                                 });
                               }
@@ -2131,7 +2167,9 @@ function TeacherCourseContent() {
                                 }
                               }).then((res) => {
                                 refetchVersion();
-                                refetchItems();
+                                if (shouldFetchItems) {
+                                  refetchItems();
+                                }
                                 setIsEditingSection(false);
                               });
                             }
@@ -2207,7 +2245,9 @@ function TeacherCourseContent() {
                                   params: { path: { versionId, moduleId: selectedEntity.data.moduleId } }
                                 }).then((res) => {
                                   refetchVersion();
-                                  refetchItems();
+                                  if (shouldFetchItems) {
+                                    refetchItems();
+                                  }
                                 });
                                 setSelectedEntity(null);
                                 setExpandedModules(prev => ({ ...prev, [selectedEntity.data.moduleId]: false }));
@@ -2220,7 +2260,9 @@ function TeacherCourseContent() {
                                   params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: selectedEntity.data.sectionId } }
                                 }).then((res) => {
                                   refetchVersion();
-                                  refetchItems();
+                                  if (shouldFetchItems) {
+                                    refetchItems();
+                                  }
                                 });
                                 setSelectedEntity(null);
                                 setExpandedSections(prev => ({ ...prev, [selectedEntity.data.sectionId]: false }));
@@ -2270,7 +2312,10 @@ function TeacherCourseContent() {
                               body: formattedVideo,
                             }).then((res) => {
                               refetchVersion();
-                              refetchItems(); refetchItem()
+                              if (shouldFetchItems) {
+                                refetchItems();
+                              }
+                              refetchItem();
                             });
                             toast.success("Video details saved successfully");
                             setIsEditingItem(false);
@@ -2286,7 +2331,10 @@ function TeacherCourseContent() {
                                 params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
                               }).then((res) => {
                                 refetchVersion();
-                                refetchItems(); refetchItem()
+                                if (shouldFetchItems) {
+                                  refetchItems();
+                                }
+                                refetchItem();
                               });
                               setSelectedEntity(null);
                               setIsEditingItem(false);
