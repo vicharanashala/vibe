@@ -92,7 +92,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
     // State for fields
     const [name, setName] = useState(item?.name || "");
     const [description, setDescription] = useState(item?.description || "");
-    const [url, setUrl] = useState(item?.details.URL || "");
+    const [url, setUrl] = useState(item?.details?.URL || "");
     const [duration, setDuration] = useState(0);
     const [playerReady, setPlayerReady] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
@@ -103,14 +103,14 @@ const VideoModal: React.FC<VideoModalProps> = ({
     });
 
     const [range, setRange] = useState<[number, number]>([
-        item?.details.startTime ? parseTimeToSeconds(item.details.startTime) : 0,
-        item?.details.endTime ? parseTimeToSeconds(item.details.endTime) : 0,
+        item?.details?.startTime ? parseTimeToSeconds(item.details?.startTime) : 0,
+        item?.details?.endTime ? parseTimeToSeconds(item.details?.endTime) : 0,
     ]);
-    const [videoId, setVideoId] = useState<string | null>(getYouTubeId(item?.details.URL+"?rel=0" || ""));
-    const [points, setPoints] = useState<number>(item?.details.points ?? 0);
+    const [videoId, setVideoId] = useState<string | null>(getYouTubeId(item?.details?.URL+"?rel=0" || ""));
+    const [points, setPoints] = useState<number>(item?.details?.points ?? 0);
     const [timeInputs, setTimeInputs] = useState({
-        start: item?.details.startTime || "0:00:00",
-        end: item?.details.endTime || "0:00:00",
+        start: item?.details?.startTime || "0:00:00",
+        end: item?.details?.endTime || "0:00:00",
     });
 
     const playerRef = useRef<any>(null);
@@ -141,11 +141,11 @@ const VideoModal: React.FC<VideoModalProps> = ({
     useEffect(() => {
         setName(item?.name || "");
         setDescription(item?.description || "");
-        setUrl(item?.details.URL || "");
-        setPoints(item?.details.points ?? 0);
+        setUrl(item?.details?.URL || "");
+        setPoints(item?.details?.points ?? 0);
         
-        const startTime = item?.details.startTime || "0:00:00";
-        const endTime = item?.details.endTime || "0:00:00";
+        const startTime = item?.details?.startTime || "0:00:00";
+        const endTime = item?.details?.endTime || "0:00:00";
         
         setRange([
             parseTimeToSeconds(startTime),

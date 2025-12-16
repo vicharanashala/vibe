@@ -260,6 +260,8 @@ export class EnrollmentService extends BaseService {
 
       if (!enrollments.length) return [];
 
+      console.log(`Found ${enrollments.length} enrollments for user ${userId}`);
+
       const enrolledVersionIds = new Set(
         enrollments.map(e => e.courseVersionId.toString()),
       );
@@ -285,23 +287,62 @@ export class EnrollmentService extends BaseService {
           const versionIdStr = enr.courseVersionId.toString();
           const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}`;
 
-          return {
-            _id: enr._id.toString(),
-            courseId: enr.courseId.toString(),
-            courseVersionId: versionIdStr,
-            role: enr.role,
-            status: enr.status,
-            enrollmentDate: new Date(enr.enrollmentDate),
-            course: this.filterCourseVersions(enr.course, enrolledVersionIds),
-            percentCompleted: enr.percentCompleted || 0,
-            contentCounts: contentCountsMap.get(versionIdStr) || {
-              totalItems: 0,
-              videos: 0,
-              quizzes: 0,
-              articles: 0,
-            },
-            completedItems: watchedItemsMap.get(watchedKey) || 0,
+          // update percentage if contentCountsMap / watchedItemsMap has different value from enrollment.percentCompleted
+          // ratio is calculated as (watchedItems / totalItems) * 100
+          const totalItems = contentCountsMap.get(versionIdStr) || {
+            totalItems: 0,
+            videos: 0,
+            quizzes: 0,
+            articles: 0,
           };
+
+          const completedCount = watchedItemsMap.get(watchedKey) || 0;
+
+          const ratio = completedCount / (totalItems.totalItems || 1); // avoid division by zero
+          const calculatedPercent = Math.floor(ratio * 100);
+
+          console.log(
+            totalItems.totalItems,
+            completedCount,
+            ratio,
+            calculatedPercent,
+          );
+
+          // if different, update enrollment percentCompleted
+          if (enr.percentCompleted !== calculatedPercent) {
+            console.log(
+              `Updating percentCompleted for enrollment ${enr._id.toString()} from ${
+                enr.percentCompleted
+              } to ${calculatedPercent}`,
+            );
+            this.enrollmentRepo.updateProgressPercentById(
+              enr._id.toString(),
+              calculatedPercent,
+            );
+
+            enr.percentCompleted = calculatedPercent;
+          }
+
+          console.log('Enrollment', enr);
+
+          if (enr.percentCompleted >= 0)
+            return {
+              _id: enr._id.toString(),
+              courseId: enr.courseId.toString(),
+              courseVersionId: versionIdStr,
+              role: enr.role,
+              status: enr.status,
+              enrollmentDate: new Date(enr.enrollmentDate),
+              course: this.filterCourseVersions(enr.course, enrolledVersionIds),
+              percentCompleted: enr.percentCompleted || 0,
+              contentCounts: contentCountsMap.get(versionIdStr) || {
+                totalItems: 0,
+                videos: 0,
+                quizzes: 0,
+                articles: 0,
+              },
+              completedItems: watchedItemsMap.get(watchedKey) || 0,
+            };
         });
       }
 
@@ -660,6 +701,21 @@ export class EnrollmentService extends BaseService {
   async addIndex(): Promise<void> {
     await this._withTransaction(async session => {
       await this.enrollmentRepo.addEnrollmentIndexes(session);
+    });
+  }
+
+  async getUserEnrollmentsByCourseVersion(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<IEnrollment> {
+    return this._withTransaction(async (session: ClientSession) => {
+      return this.enrollmentRepo.getUserEnrollmentsByCourseVersion(
+        userId,
+        courseId,
+        courseVersionId,
+        session,
+      );
     });
   }
 }

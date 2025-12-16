@@ -15,6 +15,17 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
   private async init() {
     this.courseRegistrationCollection =
       await this.db.getCollection<ICourseRegistration>('course_registrations');
+
+    this.courseRegistrationCollection.createIndex({
+      userId: 1,
+      versionId: 1,
+    });
+
+    this.courseRegistrationCollection.createIndex({
+      versionId: 1,
+      status: 1,
+      createdAt: -1,
+    });
   }
 
   async findByUserId(

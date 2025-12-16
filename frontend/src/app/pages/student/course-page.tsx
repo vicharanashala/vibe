@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation } from "@/hooks/hooks";
+import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation, useSkipOptionalItem } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
@@ -88,7 +88,9 @@ export default function CoursePage() {
 
   const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
   const [isFlagSubmitted, setIsFlagSubmitted] = useState(false);
+  const [isSkippingItem, setIsSkippingItem] = useState(false);
   const { mutateAsync: submitFlagAsyncMutate, isPending } = useSubmitFlag();
+  const { mutateAsync: skipItemAsync, isPending: isSkipping } = useSkipOptionalItem();
   const [closing, setClosing] = useState(false);
 
   const streamRef = useRef<MediaStream | null>(null);
@@ -546,6 +548,21 @@ export default function CoursePage() {
     }
   };
 
+  const handleSkipItem = async () => {
+  if (!currentItem?._id) return;
+  
+  try {
+    setIsSkippingItem(true);
+    await skipItemAsync({ params: { path: { itemId: currentItem._id } } });
+    toast.success('Item skipped successfully');
+    handleNext(); // Move to the next item
+  } catch (error) {
+    console.error('Error skipping item:', error);
+    toast.error('Failed to skip item');
+  } finally {
+    setIsSkippingItem(false);
+  }
+};
   // Toggle module expansion
   const toggleModule = (moduleId: string) => {
     setExpandedModules(prev => ({ ...prev, [moduleId]: !prev[moduleId] }));
@@ -1591,8 +1608,8 @@ export default function CoursePage() {
               />
               {currentItem ? (
                 <div className="relative z-10 h-full flex flex-col mb-2  sm:mb-1">
-                  {!isFlagSubmitted &&
-                    <div className="flex justify-end mb-1 me-10">
+                  <div className="flex justify-end mb-1 me-10 gap-2">
+                    {!isFlagSubmitted &&
                       <Button
                         size="sm"
                         variant="destructive"
@@ -1603,8 +1620,21 @@ export default function CoursePage() {
                         <FlagTriangleRightIcon className="h-4 w-4" />
                         <span className="max-sm:hidden">Submit Flag</span>
                       </Button>
-                    </div>
-                  }
+                    }
+                    {currentItem?.isOptional && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs gap-1 border-amber-500 text-amber-500 hover:bg-amber-50 hover:text-amber-600"
+                        title="Skip this optional item"
+                        onClick={handleSkipItem}
+                        disabled={isSkippingItem || isSkipping}
+                      >
+                        <span className="max-sm:hidden">Skip</span>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                   {currentItem?.type === 'PROJECT' ? (
                     <StudentProjectItem
                       item={currentItem}

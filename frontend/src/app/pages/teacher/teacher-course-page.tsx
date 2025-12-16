@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useRef, useMemo, ChangeEvent } from "react";
+import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
-import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank } from '@/hooks/hooks';
-import { Upload } from 'lucide-react';
+import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useUpdateItemOptional } from '@/hooks/hooks';
+import { Download, Upload } from 'lucide-react';
+import {  useHideItem } from '@/hooks/hooks';
 
 const MAX_DESCRIPTION_LENGTH = 1000;
 
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
-  SidebarInset, SidebarProvider, SidebarTrigger, SidebarFooter, useSidebar
+  SidebarInset, SidebarProvider, SidebarFooter, useSidebar
 } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -27,7 +28,10 @@ import {
   BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus, Sparkles,
   X, FolderKanban,
   Menu,
-  MessageSquare
+  MessageSquare,
+  Eye,
+  EyeOff,
+  Loader2
 } from "lucide-react";
 
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -35,7 +39,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Home, GraduationCap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById, useQuizDetails, useQuizAnalytics, useQuizPerformance, useQuizResults, useMoveModule, useMoveSection, useMoveItem, useUpdateCourseItem, useCourseById } from "@/hooks/hooks";
+import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById, useQuizDetails, useQuizAnalytics, useQuizPerformance, useQuizResults, useMoveModule, useMoveSection, useMoveItem, useUpdateCourseItem, useCourseById, useHideModule, useHideSection } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import VideoModal from "./components/Video-modal";
 import EnhancedQuizEditor from "./components/enhanced-quiz-editor";
@@ -49,101 +53,193 @@ import ProjectItem from "./components/ProjectItem";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import FeedbackFormEditor from "./FeedbackFormEditor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/utils/utils";
 import { QuestionUploadDialog } from "@/components/question-upload-dialog";
 
 // Retry utility function
+
 const withRetry = async <T,>(fn: () => Promise<T>, maxRetries = 3, delay = 100): Promise<T> => {
+
   let lastError: Error;
+
   for (let i = 0; i < maxRetries; i++) {
+
     try {
+
       return await fn();
+
     } catch (error: any) {
+
       lastError = error;
+
       if (error.code === 112) { // WriteConflict error code
+
         console.log(`Write conflict detected, retrying (${i + 1}/${maxRetries})...`);
+
         await new Promise(resolve => setTimeout(resolve, delay * (i + 1))); // Exponential backoff
+
       } else {
+
         throw error;
+
       }
+
     }
+
   }
+
   throw lastError!;
+
 };
 
 // Function to process questions sequentially
 const processQuestionsSequentially = async (questions: any[], questionBankId: string, createQuestion: any, addQuestiontoQuestionBank: any) => {
+
   const successfulQuestions = [];
+
   
+
   for (const question of questions) {
+
     try {
+
       const options = [
+
         { text: question['Option A'], explanation: question['Expln-A'] || '' },
+
         { text: question['Option B'], explanation: question['Expln-B'] || '' },
+
         { text: question['Option C'], explanation: question['Expln-C'] || '' },
+
         { text: question['Option D'], explanation: question['Expln-D'] || '' }
+
       ].filter(opt => opt.text);
 
+
+
       const correctAnswer = question['Correct Answer']?.toUpperCase();
+
       const correctOptionIndex = correctAnswer ? correctAnswer.charCodeAt(0) - 65 : -1;
 
+
+
       if (correctOptionIndex >= 0 && correctOptionIndex < options.length) {
+
         // Create question with retry
+
         const newQuestion = await withRetry(async () => {
+
           return await createQuestion.mutateAsync({
+
             body: {
+
               question: {
+
                 text: question.Question || '',
+
                 type: 'SELECT_ONE_IN_LOT',
+
                 isParameterized: false,
+
                 parameters: [],
+
                 timeLimitSeconds: 60,
+
                 points: 1,
+
                 priority: 'MEDIUM',
+
                 hint: question.Hint || '',
+
               },
+
               solution: {
+
                 correctLotItem: {
+
                   text: options[correctOptionIndex].text || '',
+
                   explaination: options[correctOptionIndex].explanation || 'No explanation provided'
+
                 },
+
                 incorrectLotItems: options
+
                   .filter((_, i) => i !== correctOptionIndex)
+
                   .map(opt => ({
+
                     text: opt.text || '',
+
                     explaination: opt.explanation || 'No explanation provided'
+
                   }))
+
               }
+
             }
+
           });
+
         });
 
+
+
         // Add to question bank with retry
+
         if (newQuestion?.questionId) {
+
           await withRetry(async () => {
+
             await addQuestiontoQuestionBank.mutateAsync({
+
               params: {
+
                 path: {
+
                   questionBankId: questionBankId,
+
                   questionId: newQuestion.questionId
+
                 }
+
               }
+
             });
+
           });
+
           
+
           successfulQuestions.push(newQuestion);
+
           console.log(`✅ Created question: ${question.Question?.substring(0, 50)}...`);
+
         }
+
       }
+
     } catch (error) {
+
       console.error('❌ Error creating question:', error);
+
     }
+
     
+
     // Small delay between questions to reduce write conflicts
+
     await new Promise(resolve => setTimeout(resolve, 200));
+
   }
 
+
+
   return successfulQuestions;
+
 };
+
 
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
@@ -257,6 +353,9 @@ function TeacherCourseContent() {
   const [originalSectionData, setOriginalSectionData] = useState<{ name: string; description: string } | null>(null);
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [hidingModuleId, setHidingModuleId] = useState<string | null>(null);
+  const [hidingSectionId, setHidingSectionId] = useState<string | null>(null);
+  const [hidingItemId, setHidingItemId] = useState<string | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -294,6 +393,8 @@ function TeacherCourseContent() {
 
   // Store items for each section
   const [sectionItems, setSectionItems] = useState<Record<string, any[]>>({});
+
+  const [togglingItemId, setTogglingItemId] = useState<string | null>(null);
 
   // Check if a project already exists in any section
   const hasExistingProject = useMemo(() => {
@@ -364,12 +465,14 @@ function TeacherCourseContent() {
   const { mutateAsync: updateModuleAsync, isSuccess: isUpdateModuleSuccess, isError: isUpdateModuleError, error: updateModuleError } = useUpdateModule();
   const { mutateAsync: deleteModuleAsync, isSuccess: isDeleteModuleSuccess, isError: isDeleteModuleError, error: deleteModuleError } = useDeleteModule();
   const { mutateAsync: moveModuleAsync } = useMoveModule();
+  const { mutateAsync: hideModuleAsync } = useHideModule();
 
   // --- SECTIONS ---
   const { mutateAsync: createSectionAsync, isSuccess: isCreateSectionSuccess, isError: isCreateSectionError, error: createSectionError } = useCreateSection();
   const { mutateAsync: updateSectionAsync, isSuccess: isUpdateSectionSuccess, isError: isUpdateSectionError, error: updateSectionError } = useUpdateSection();
   const { mutateAsync: deleteSectionAsync, isSuccess: isDeleteSectionSuccess, isError: isDeleteSectionError, error: deleteSectionError } = useDeleteSection();
   const { mutateAsync: moveSectionAsync } = useMoveSection();
+  const {mutateAsync: hideSectionAsync} = useHideSection();
 
   // --- ITEMS ---
   const { mutateAsync: createItemAsync, isSuccess: isCreateItemSuccess, isError: isCreateItemError, error: createItemError } = useCreateItem();
@@ -378,6 +481,7 @@ function TeacherCourseContent() {
   const { mutateAsync: updateVideoAsync } = useUpdateCourseItem();
   const { mutateAsync: deleteItemAsync, isSuccess: isDeleteItemSuccess, isError: isDeleteItemError, error: deleteItemError } = useDeleteItem();
   const { mutateAsync: moveItemAsync, isPending, isError: isMoveItemError, error: moveItemError } = useMoveItem();
+  const { mutateAsync: updateItemVisibilityAsync } = useHideItem();
 
   const [isProcessingCSV, setIsProcessingCSV] = useState(false);
   const [showCSVUpload, setShowCSVUpload] = useState(false);
@@ -387,6 +491,8 @@ function TeacherCourseContent() {
   const createQuestionBank = useCreateQuestionBank();
   const addQuestionBankToQuiz = useAddQuestionBankToQuiz();
   const addQuestiontoQuestionBank = useAddQuestionToBank();
+
+  const updateItemOptional = useUpdateItemOptional();
 
   // Refetch after any success
   useEffect(() => {
@@ -512,6 +618,7 @@ function TeacherCourseContent() {
       },
     },
   });
+
 
   // Reload items when quiz wizard closes
   useEffect(() => {
@@ -784,6 +891,54 @@ function TeacherCourseContent() {
       refetchItems();
     });
   };
+
+  const handleHideModule = async (moduleId: string, hide: boolean) => {
+    if (!versionId) return;
+    setHidingModuleId(moduleId);
+    try {
+      await hideModuleAsync({
+        params: { path: { versionId, moduleId } },
+        body: {hide: hide}
+      });
+      refetchVersion();
+    } finally {
+      setHidingModuleId(null);
+    }
+  }
+
+  const handleHideSection = async (moduleId: string, sectionId: string, hide: boolean) => {
+    if (!versionId) return;
+    setHidingSectionId(sectionId);
+    try {
+      await hideSectionAsync({
+        params: { path: { versionId, moduleId, sectionId } },
+        body: {hide: hide}
+      });
+      refetchVersion();
+    } finally {
+      setHidingSectionId(null);
+    }
+  }
+
+  const handleHideItem = async (itemId: string, hide: boolean) => {
+    if (!versionId) return;
+    setHidingItemId(itemId);
+    try {
+      console.log("🔄 Starting hide item:", itemId, hide);
+      await updateItemVisibilityAsync({
+        params: { path: { versionId, itemId } },
+        body: { hide: hide }
+      });
+
+      refetchVersion();
+      refetchItems();
+      console.log("✅ RefetchVersion completed");
+    } catch (error) {
+      console.error("❌ Error in handleHideItem:", error);
+    } finally {
+      setHidingItemId(null);
+    }
+  }
 
   // Add Item (handles all item types including video, quiz, article, and project)
   const handleAddItem = (moduleId: string, sectionId: string, type: string, videoData?: any) => {
@@ -1305,13 +1460,23 @@ function TeacherCourseContent() {
                             key={module.moduleId}
                             value={module}
                             drag
-                            className="focus:outline-none"
+                            className={module.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
                             whileDrag={{ scale: 1.02 }}
                             onDragEnd={() => {
                               setInitialModules(pendingOrder.current);
                               handleMoveModule(module.moduleId, versionId);
                             }}
                           >
+                          <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideModule(module.moduleId, !module.isHidden)} disabled={hidingModuleId === module.moduleId}>
+                            {hidingModuleId === module.moduleId ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : !module.isHidden ? (
+                              <Eye className="h-4 w-4" />
+                            ) : (
+                              <EyeOff className="h-4 w-4" />
+                            )}
+                            <span className="sr-only">Hide Module</span>
+                          </Button>
                             <SidebarMenuButton
                               onClick={() => {
                                 toggleModule(module.moduleId);
@@ -1327,7 +1492,7 @@ function TeacherCourseContent() {
                                 className={`h-3.5 w-3.5 transition-transform ${expandedModules[module.moduleId] ? "rotate-90" : ""
                                   }`}
                               />
-                              <span className="ml-2 truncate">{module.name}</span>
+                              <span className="ml-2 max-w-[35ch] truncate"title={module.name}>{module.name}</span>
                             </SidebarMenuButton>
                           </Reorder.Item>
 
@@ -1345,7 +1510,7 @@ function TeacherCourseContent() {
                                     key={section.sectionId}
                                     value={section}
                                     drag
-                                    className="focus:outline-none"
+                                    className={section.isHidden || module.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
                                     whileDrag={{ scale: 1.02 }}
                                     onDragEnd={() => {
                                       setInitialModules((prev) =>
@@ -1378,8 +1543,19 @@ function TeacherCourseContent() {
                                           className={`h-3 w-3 transition-transform ${expandedSections[section.sectionId] ? "rotate-90" : ""
                                             }`}
                                         />
-                                        <span className="ml-2 truncate w-[100%] block">{section.name} </span>
+                                        <span className="ml-2 truncate  max-w-[25ch] truncate block" title={section.name}
+                                        >{section.name} </span>
                                       </SidebarMenuSubButton>
+                                      <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideSection(module.moduleId, section.sectionId, !section.isHidden)} disabled={module.isHidden || hidingSectionId === section.sectionId}>
+                                        {hidingSectionId === section.sectionId ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : !section.isHidden ? (
+                                          <Eye className="h-4 w-4" />
+                                        ) : (
+                                          <EyeOff className="h-4 w-4" />
+                                        )}
+                                        <span className="sr-only">Hide Section</span>
+                                      </Button>
 
                                       {expandedSections[section.sectionId] && (
                                         <Reorder.Group
@@ -1402,7 +1578,7 @@ function TeacherCourseContent() {
                                                   key={item._id}
                                                   value={item}
                                                   drag
-                                                  className="focus:outline-none"
+                                                  className={section.isHidden || module.isHidden || item.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
                                                   whileDrag={{ scale: 1.02 }}
                                                   onDragEnd={() => {
 
@@ -1489,6 +1665,16 @@ function TeacherCourseContent() {
                                                         })}
                                                       </span>
                                                     </SidebarMenuSubButton>
+                                                    <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideItem(item._id, !item.isHidden)} disabled={section.isHidden || module.isHidden || hidingItemId === item._id}>
+                                                      {hidingItemId === item._id ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                      ) : !item.isHidden ? (
+                                                        <Eye className="h-4 w-4" />
+                                                      ) : (
+                                                        <EyeOff className="h-4 w-4" />
+                                                      )}
+                                                      <span className="sr-only">Hide Item</span>
+                                                    </Button>
                                                   </SidebarMenuSubItem>
                                                 </Reorder.Item>
                                               ))}
@@ -1499,6 +1685,8 @@ function TeacherCourseContent() {
                                                 className="text-xs border rounded px-2 py-1 bg-background text-foreground"
 
                                                 defaultValue=""
+
+                                                disabled={module.isHidden || section.isHidden}
 
                                                 onChange={(e) => {
 
@@ -1903,9 +2091,113 @@ function TeacherCourseContent() {
                       <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-slate-900 dark:text-gray-100">
                         {selectedEntity.data?.name}
                       </h2>
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600">
-                        {selectedEntity.type.charAt(0).toUpperCase() + selectedEntity.type.slice(1)}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {selectedEntity.type === "item" && (
+                          // <div className="items-center gap-2 bg-muted/40 px-2 py-1 rounded-md border text-sm">
+                          //   <div className="flex items-center justify-center gap-1.5">
+                          //     <Switch
+                          //       id={`optional-${selectedItemData?.item?._id}`}
+                          //       checked={selectedItemData?.item?.isOptional || false}
+                          //       disabled={updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id}
+                          //       onCheckedChange={async (checked) => {
+                          //         if (versionId && selectedItemData?.item?._id) {
+                          //           setTogglingItemId(selectedItemData.item._id);
+                          //           try {
+                          //             await updateItemOptional.mutateAsync({
+                          //               params: {
+                          //                 path: {
+                          //                   versionId: versionId,
+                          //                   itemId: selectedEntity?.data?._id
+                          //                 }
+                          //               },
+                          //               body: { isOptional: checked }
+                          //             });
+                          //             refetchItem();
+                          //           } catch (error) {
+                          //             toast.error('Failed to update item optional status');
+                          //           } finally {
+                          //             setTogglingItemId(null);
+                          //           }
+                          //         }
+                          //       }}
+                          //       className={cn(
+                          //         "data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
+                          //         "h-4 w-8",
+                          //         "relative",
+                          //         "cursor-pointer",
+                          //         updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id
+                          //           ? "opacity-70"
+                          //           : "opacity-100"
+                          //       )}
+                          //     >
+                          //       {(updateItemOptional.isPending || togglingItemId === selectedItemData?.item?._id) && (
+                          //         <Loader2 className="h-2 w-2 animate-spin absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-primary-foreground" />
+                          //       )}
+                          //     </Switch>
+                          //     <Label
+                          //       htmlFor={`optional-${selectedEntity?.data?._id}`}
+                          //       className="text-lg text-white cursor-pointer"
+                          //       title="Students can skip this item if enabled"
+                          //     >
+                          //       Optional
+                          //     </Label>
+                          //   </div>
+                          //   <div>
+                          //     <p className="text-[10px] text-muted-foreground/80">Students can skip this item if enabled</p>
+                          //   </div>
+                          // </div>
+                          <div className="inline-flex items-center gap-2 px-3 py-2 rounded-md border bg-card">
+                            <Switch
+                              id={`optional-${selectedItemData?.item?._id}`}
+                              checked={selectedItemData?.item?.isOptional || false}
+                              disabled={updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id}
+                              onCheckedChange={async (checked) => {
+                                if (versionId && selectedItemData?.item?._id) {
+                                  setTogglingItemId(selectedItemData.item._id);
+                                  try {
+                                    await updateItemOptional.mutateAsync({
+                                      params: {
+                                        path: {
+                                          versionId: versionId,
+                                          itemId: selectedEntity?.data?._id
+                                        }
+                                      },
+                                      body: { isOptional: checked }
+                                    });
+                                    refetchItem();
+                                  } catch (error) {
+                                    toast.error('Failed to update item optional status');
+                                  } finally {
+                                    setTogglingItemId(null);
+                                  }
+                                }
+                              }}
+                              className={cn(
+                                "data-[state=checked]:bg-primary",
+                                updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id
+                                  ? "opacity-50"
+                                  : ""
+                              )}
+                            >
+                              {(updateItemOptional.isPending || togglingItemId === selectedItemData?.item?._id) && (
+                                <Loader2 className="h-3 w-3 animate-spin absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
+                              )}
+                            </Switch>
+                            <div className="flex flex-col gap-0.5">
+                              <Label
+                                htmlFor={`optional-${selectedEntity?.data?._id}`}
+                                className="text-sm font-medium cursor-pointer leading-none"
+                              >
+                                Optional
+                              </Label>
+                              <p className="text-xs text-muted-foreground">Students can skip this item</p>
+                            </div>
+                          </div>
+                        )}
+                        {/* <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600">
+                          {selectedEntity.type.charAt(0).toUpperCase() + selectedEntity.type.slice(1)}
+                        </Badge> */}
+                      </div>
                     </div>
                     <div className="text-sm text-slate-500 dark:text-gray-400 flex items-center gap-2">
                       <BookOpen className="h-4 w-4" />

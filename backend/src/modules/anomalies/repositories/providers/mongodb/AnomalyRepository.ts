@@ -15,6 +15,19 @@ export class AnomalyRepository {
       this.anomalyCollection = await this.database.getCollection<IAnomalyData>(
         'anomaly_records',
       );
+
+      this.anomalyCollection.createIndex({
+        userId: 1,
+        courseId: 1,
+        versionId: 1,
+      });
+
+      this.anomalyCollection.createIndex({
+        courseId: 1,
+        versionId: 1,
+        type: 1,
+        createdAt: -1,
+      });
     }
   }
 
@@ -222,14 +235,14 @@ export class AnomalyRepository {
 
     // Add type filter
     if (type) {
-      filter.$and.push({ type });
+      filter.$and.push({type});
     }
 
     // If user IDs are provided for search, filter by them
     if (search && Array.isArray(search)) {
       const userIds = search.map(id => new ObjectId(id));
       filter.$and.push({
-        userId: { $in: userIds }
+        userId: {$in: userIds},
       });
     }
 
