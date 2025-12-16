@@ -2093,63 +2093,110 @@ function TeacherCourseContent() {
                       </h2>
                       <div className="flex items-center gap-2">
                         {selectedEntity.type === "item" && (
-                          <div className="items-center gap-2 bg-muted/40 px-2 py-1 rounded-md border text-sm">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <Switch
-                                id={`optional-${selectedItemData?.item?._id}`}
-                                checked={selectedItemData?.item?.isOptional || false}
-                                disabled={updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id}
-                                onCheckedChange={async (checked) => {
-                                  if (versionId && selectedItemData?.item?._id) {
-                                    setTogglingItemId(selectedItemData.item._id);
-                                    try {
-                                      await updateItemOptional.mutateAsync({
-                                        params: {
-                                          path: {
-                                            versionId: versionId,
-                                            itemId: selectedEntity?.data?._id
-                                          }
-                                        },
-                                        body: { isOptional: checked }
-                                      });
-                                      refetchItem();
-                                    } catch (error) {
-                                      toast.error('Failed to update item optional status');
-                                    } finally {
-                                      setTogglingItemId(null);
-                                    }
+                          // <div className="items-center gap-2 bg-muted/40 px-2 py-1 rounded-md border text-sm">
+                          //   <div className="flex items-center justify-center gap-1.5">
+                          //     <Switch
+                          //       id={`optional-${selectedItemData?.item?._id}`}
+                          //       checked={selectedItemData?.item?.isOptional || false}
+                          //       disabled={updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id}
+                          //       onCheckedChange={async (checked) => {
+                          //         if (versionId && selectedItemData?.item?._id) {
+                          //           setTogglingItemId(selectedItemData.item._id);
+                          //           try {
+                          //             await updateItemOptional.mutateAsync({
+                          //               params: {
+                          //                 path: {
+                          //                   versionId: versionId,
+                          //                   itemId: selectedEntity?.data?._id
+                          //                 }
+                          //               },
+                          //               body: { isOptional: checked }
+                          //             });
+                          //             refetchItem();
+                          //           } catch (error) {
+                          //             toast.error('Failed to update item optional status');
+                          //           } finally {
+                          //             setTogglingItemId(null);
+                          //           }
+                          //         }
+                          //       }}
+                          //       className={cn(
+                          //         "data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
+                          //         "h-4 w-8",
+                          //         "relative",
+                          //         "cursor-pointer",
+                          //         updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id
+                          //           ? "opacity-70"
+                          //           : "opacity-100"
+                          //       )}
+                          //     >
+                          //       {(updateItemOptional.isPending || togglingItemId === selectedItemData?.item?._id) && (
+                          //         <Loader2 className="h-2 w-2 animate-spin absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-primary-foreground" />
+                          //       )}
+                          //     </Switch>
+                          //     <Label
+                          //       htmlFor={`optional-${selectedEntity?.data?._id}`}
+                          //       className="text-lg text-white cursor-pointer"
+                          //       title="Students can skip this item if enabled"
+                          //     >
+                          //       Optional
+                          //     </Label>
+                          //   </div>
+                          //   <div>
+                          //     <p className="text-[10px] text-muted-foreground/80">Students can skip this item if enabled</p>
+                          //   </div>
+                          // </div>
+                          <div className="inline-flex items-center gap-2 px-3 py-2 rounded-md border bg-card">
+                            <Switch
+                              id={`optional-${selectedItemData?.item?._id}`}
+                              checked={selectedItemData?.item?.isOptional || false}
+                              disabled={updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id}
+                              onCheckedChange={async (checked) => {
+                                if (versionId && selectedItemData?.item?._id) {
+                                  setTogglingItemId(selectedItemData.item._id);
+                                  try {
+                                    await updateItemOptional.mutateAsync({
+                                      params: {
+                                        path: {
+                                          versionId: versionId,
+                                          itemId: selectedEntity?.data?._id
+                                        }
+                                      },
+                                      body: { isOptional: checked }
+                                    });
+                                    refetchItem();
+                                  } catch (error) {
+                                    toast.error('Failed to update item optional status');
+                                  } finally {
+                                    setTogglingItemId(null);
                                   }
-                                }}
-                                className={cn(
-                                  "data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
-                                  "h-4 w-8",
-                                  "relative",
-                                  "cursor-pointer",
-                                  updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id
-                                    ? "opacity-70"
-                                    : "opacity-100"
-                                )}
-                              >
-                                {(updateItemOptional.isPending || togglingItemId === selectedItemData?.item?._id) && (
-                                  <Loader2 className="h-2 w-2 animate-spin absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-primary-foreground" />
-                                )}
-                              </Switch>
+                                }
+                              }}
+                              className={cn(
+                                "data-[state=checked]:bg-primary",
+                                updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id
+                                  ? "opacity-50"
+                                  : ""
+                              )}
+                            >
+                              {(updateItemOptional.isPending || togglingItemId === selectedItemData?.item?._id) && (
+                                <Loader2 className="h-3 w-3 animate-spin absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
+                              )}
+                            </Switch>
+                            <div className="flex flex-col gap-0.5">
                               <Label
                                 htmlFor={`optional-${selectedEntity?.data?._id}`}
-                                className="text-lg text-white cursor-pointer"
-                                title="Students can skip this item if enabled"
+                                className="text-sm font-medium cursor-pointer leading-none"
                               >
                                 Optional
                               </Label>
-                            </div>
-                            <div>
-                              <p className="text-[10px] text-muted-foreground/80">Students can skip this item if enabled</p>
+                              <p className="text-xs text-muted-foreground">Students can skip this item</p>
                             </div>
                           </div>
                         )}
-                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600">
+                        {/* <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600">
                           {selectedEntity.type.charAt(0).toUpperCase() + selectedEntity.type.slice(1)}
-                        </Badge>
+                        </Badge> */}
                       </div>
                     </div>
                     <div className="text-sm text-slate-500 dark:text-gray-400 flex items-center gap-2">
