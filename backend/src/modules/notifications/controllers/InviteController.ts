@@ -199,7 +199,7 @@ export class InviteController {
     @Ability(getInviteAbility) {ability},
   ): Promise<InviteResponse> {
     const {courseId, versionId} = params;
-    const {inviteStatus, currentPage, limit, search, sort} = query;
+    const {inviteStatus, currentPage, limit, search, sort, startDate, endDate} = query;
 
     // Build subject context first
     const inviteContext = {courseId, versionId};
@@ -220,6 +220,8 @@ export class InviteController {
         limit,
         search,
         sort,
+        startDate,
+        endDate,
       );
     return new InviteResponse(invites, totalDocuments, totalPages);
   }

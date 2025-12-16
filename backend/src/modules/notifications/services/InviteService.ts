@@ -353,56 +353,57 @@ export class InviteService extends BaseService {
     courseId: string,
     courseVersionId: string,
   ): Promise<InviteResult[]> {
-    return this._withTransaction(async session => {
-      // Get Course Details
-      const course = await this.courseRepo.read(courseId.toString());
-      if (!course) {
-        throw new NotFoundError('Course not found');
-      }
+    // Get Course Details (outside transaction)
+    const course = await this.courseRepo.read(courseId.toString());
+    if (!course) {
+      throw new NotFoundError('Course not found');
+    }
 
-      // Get Course Version Details
-      const courseVersion = await this.courseRepo.readVersion(courseVersionId.toString());
-      if (!courseVersion) {
-        throw new NotFoundError('Course version not found');
-      }
+    // Get Course Version Details (outside transaction)
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId.toString());
+    if (!courseVersion) {
+      throw new NotFoundError('Course version not found');
+    }
 
-      // ✅ Validate course content only if any user is a STUDENT
-      const hasStudent = inviteData.some(invite => invite.role === 'STUDENT');
-      if (hasStudent) {
-        if (!courseVersion.modules || courseVersion.modules.length === 0) {
-          throw new BadRequestError(
-            'Course version has no modules. Please add modules before proceeding.',
-          );
-        }
-
-        const firstModule = [...courseVersion.modules].sort((a, b) =>
-          a.order.localeCompare(b.order),
-        )[0];
-
-        if (!firstModule.sections || firstModule.sections.length === 0) {
-          throw new BadRequestError(
-            `Module "${firstModule.name}" has no sections. Add sections to continue.`,
-          );
-        }
-
-        const firstSection = [...firstModule.sections].sort((a, b) =>
-          a.order.localeCompare(b.order),
-        )[0];
-
-        const itemsGroup = await this.itemRepo.readItemsGroup(
-          firstSection.itemsGroupId.toString(),
+    // Validate course content only if any user is a STUDENT
+    const hasStudent = inviteData.some(invite => invite.role === 'STUDENT');
+    if (hasStudent) {
+      if (!courseVersion.modules || courseVersion.modules.length === 0) {
+        throw new BadRequestError(
+          'Course version has no modules. Please add modules before proceeding.',
         );
-
-        if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
-          throw new BadRequestError(
-            `Section "${firstSection.name}" has no items. Add content before sending invites.`,
-          );
-        }
       }
 
+      const firstModule = [...courseVersion.modules].sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[0];
+
+      if (!firstModule.sections || firstModule.sections.length === 0) {
+        throw new BadRequestError(
+          `Module "${firstModule.name}" has no sections. Add sections to continue.`,
+        );
+      }
+
+      const firstSection = [...firstModule.sections].sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[0];
+
+      const itemsGroup = await this.itemRepo.readItemsGroup(
+        firstSection.itemsGroupId.toString(),
+      );
+
+      if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
+        throw new BadRequestError(
+          `Section "${firstSection.name}" has no items. Add content before sending invites.`,
+        );
+      }
+    }
+
+    // Create all invites in a single transaction
+    const invites = await this._withTransaction(async session => {
       const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-      // ✅ Parallel invite creation
+      //  Create all invites in parallel
       const invitePromises = inviteData.map(async ({ email, role }) => {
         const user = await this.userRepo.findByEmail(email);
         const isNewUser = !user;
@@ -417,8 +418,7 @@ export class InviteService extends BaseService {
         const invite = new Invite({
           email: email,
           courseId: new ObjectId(courseId),
-          courseVersionId
-            : new ObjectId(courseVersionId),
+          courseVersionId: new ObjectId(courseVersionId),
           role,
           isAlreadyEnrolled,
           isNewUser,
@@ -426,19 +426,25 @@ export class InviteService extends BaseService {
           type: InviteType.SINGLE
         });
 
-
-
         return this.inviteRepo.create(invite, session);
       });
 
       const inviteIds = await Promise.all(invitePromises);
 
       // Fetch created invites
-      const invites = await this.inviteRepo.findInvitesByIds(inviteIds, session);
+      return await this.inviteRepo.findInvitesByIds(inviteIds, session);
+    });
 
-      // ✅ Parallel email sending
+    // Send emails in batches with delays (outside transaction to avoid timeout)
+    const BATCH_SIZE = 10;
+    const DELAY_BETWEEN_BATCHES = 90000; // 90 seconds
+
+    for (let i = 0; i < invites.length; i += BATCH_SIZE) {
+      const batch = invites.slice(i, i + BATCH_SIZE);
+      
+      // Send emails for current batch in parallel
       await Promise.all(
-        invites.map(async invite => {
+        batch.map(async invite => {
           const emailMessage = await this.createInviteEmailMessage(
             invite,
             course,
@@ -457,12 +463,17 @@ export class InviteService extends BaseService {
         }),
       );
 
-      // Return results
-      return invites.map(
-        invite =>
-          new InviteResult(invite._id, invite.email, invite.inviteStatus, invite.role),
-      );
-    });
+      // Add delay between batches (except for the last batch)
+      if (i + BATCH_SIZE < invites.length) {
+        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
+      }
+    }
+
+    // Return results
+    return invites.map(
+      invite =>
+        new InviteResult(invite._id, invite.email, invite.inviteStatus, invite.role),
+    );
   }
 
 
@@ -609,8 +620,18 @@ export class InviteService extends BaseService {
 
     try {
       await this.mailService.sendMail(emailMessage);
+      
+      // Update status to PENDING after successful resend
+      await this.inviteRepo.updateInvite(inviteId, {
+        inviteStatus: 'PENDING',
+      });
+      
       return { message: 'Invite resent successfully.' };
     } catch (error) {
+      // Update status to EMAIL_FAILED if resend fails
+      await this.inviteRepo.updateInvite(inviteId, {
+        inviteStatus: 'EMAIL_FAILED',
+      });
       throw new InternalServerError('Failed to resend invite email');
     }
   }
@@ -623,6 +644,8 @@ export class InviteService extends BaseService {
     limit: number,
     search: string,
     sort: string,
+    startDate?: string,
+    endDate?: string,
   ): Promise<{
     invites: InviteResult[];
     totalDocuments: number;
@@ -647,6 +670,8 @@ export class InviteService extends BaseService {
         limit,
         search,
         sort,
+        startDate,
+        endDate,
       );
     return {
       invites: invites.map(

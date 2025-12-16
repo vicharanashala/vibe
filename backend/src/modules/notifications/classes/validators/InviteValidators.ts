@@ -118,6 +118,22 @@ class InviteQueryParams {
     minimum: 1,
   })
   limit: number = 10;
+
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    description: 'Filter invites from this date (ISO 8601 format)',
+    example: '2025-01-01',
+  })
+  startDate?: string;
+
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    description: 'Filter invites until this date (ISO 8601 format)',
+    example: '2025-12-31',
+  })
+  endDate?: string;
 }
 
 class EmailInvite {
@@ -143,6 +159,11 @@ class EmailInvite {
 }
 
 class InviteBody {
+  @JSONSchema({
+    description: 'Array of email invitations (maximum 500)',
+    type: 'array',
+    maxItems: 500,
+  })
   @IsArray()
   @ArrayNotEmpty()
   @ValidateNested({each: true})
