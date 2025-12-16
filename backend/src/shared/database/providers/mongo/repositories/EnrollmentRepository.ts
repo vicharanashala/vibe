@@ -1024,7 +1024,7 @@ export class EnrollmentRepository {
     // const userObjectid = new ObjectId(userId)
 
     return await this.enrollmentCollection
-      .find({userId: {$in: userFilter},isDeleted: { $ne: true }}, {session})
+      .find({userId: {$in: userFilter}, isDeleted: {$ne: true}}, {session})
       .sort({enrollmentDate: -1})
       .toArray();
   }
@@ -1231,6 +1231,7 @@ export class EnrollmentRepository {
     return await this.enrollmentCollection.countDocuments({
       userId: userObjectid,
       role,
+      isDeleted: {$ne: true},
     });
   }
   /*Update enrollments for all records in db */
