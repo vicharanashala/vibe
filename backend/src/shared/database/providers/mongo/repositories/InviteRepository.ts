@@ -157,6 +157,8 @@ export class InviteRepository {
     limit: number,
     search: string,
     sort: string,
+    startDate?: string,
+    endDate?: string,
     session?: ClientSession,
   ): Promise<{invites: Invite[]; totalDocuments: number; totalPages: number}> {
     await this.init();
@@ -185,6 +187,20 @@ export class InviteRepository {
 
     if (search) {
       filter.email = {$regex: search, $options: 'i'};
+    }
+
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) {
+        const startDateTime = new Date(startDate);
+        startDateTime.setUTCHours(0, 0, 0, 0);
+        filter.createdAt.$gte = startDateTime;
+      }
+      if (endDate) {
+        const endDateTime = new Date(endDate);
+        endDateTime.setUTCHours(23, 59, 59, 999);
+        filter.createdAt.$lte = endDateTime;
+      }
     }
 
     const sortStage: Record<string, 1 | -1> = (() => {

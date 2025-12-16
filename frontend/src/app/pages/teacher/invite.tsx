@@ -67,6 +67,8 @@ export default function InvitePage() {
   const [sort, setSort] = useState("");
   const [inviteStatus, setInviteStatus] = useState("");
   const [itemsPerPage, setItemsPerPage] = useState(15);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const inviteStatusOptions = ['All', 'ACCEPTED', 'PENDING', 'CANCELLED', 'EMAIL_FAILED', 'ALREADY_ENROLLED'];
   const sortOptions = [
     { label: "All Invites", value: "All" },
@@ -81,7 +83,7 @@ export default function InvitePage() {
     error: invitesError,
     refetch: refetchInvites,
   } = useCourseInvites(courseId || "", versionId || "", !!(courseId && versionId), debouncedSearchQuery, 
-      currentPage, itemsPerPage, inviteStatus, sort);
+      currentPage, itemsPerPage, inviteStatus, sort, startDate, endDate);
 
   // Add course version data hook to check structure
   const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(versionId || "")
@@ -304,11 +306,11 @@ const addInviteRow = () => {
       await refetchInvites()
 
       // Show success message after confirming status update
-      toast.success("Invite resent successfully.")
+      toast.success("Invitation sent successfully")
     } catch {
       // Refetch to show EMAIL_FAILED status
       await refetchInvites()
-      toast.error(" Failed to resend invite. Email sending failed.")
+      toast.error("Failed to send email")
     } finally {
       setResendingInviteId(null)
     }
@@ -438,9 +440,9 @@ const addInviteRow = () => {
       const total = results.length
 
       if (failed.length === 0) {
-        toast.success(`Successfully sent all ${total} invites`)
+        toast.success(`Successfully sent all ${total} invitations`)
       } else {
-        toast.warning(`${succeeded.length} out of ${total} invites sent successfully. ${failed.length} failed.`)
+        toast.warning(`${succeeded.length} out of ${total} invitations sent successfully. ${failed.length} failed to send.`)
       }
 
       setParsedEmails([])
@@ -788,7 +790,7 @@ const addInviteRow = () => {
               )}
             </Button>
           </CardTitle>
-          <div className="w-full flex flex-col xl:flex-row md:items-center justify-between gap-4 mt-5 px-4">
+          <div className="w-full flex flex-col gap-4 mt-5 px-4">
             <div className="relative w-full max-w-md">
             <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg blur-sm"></div>
             <div className="relative">
@@ -807,10 +809,10 @@ const addInviteRow = () => {
                 }} />
             </div>
             </div>
-          <div className="flex items-center xl:flex-nowrap flex-wrap gap-4">
-            <div className="flex items-center gap-2 lg:min-w-0 lg:flex-initial">
-              <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap shrink-0">
-                Filter by Status:
+          <div className="flex items-center flex-wrap gap-3">
+            <div className="flex items-center gap-2 w-auto">
+              <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                Status:
               </label>
               <Select
                 value={inviteStatus}
@@ -819,21 +821,21 @@ const addInviteRow = () => {
                   setCurrentPage(1);
                 }}
               >
-                <SelectTrigger className="w-full lg:w-[180px]">
-                  <SelectValue placeholder="Select status" />
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="All" />
                 </SelectTrigger>
                 <SelectContent>
                   {inviteStatusOptions.map((status) => (
                     <SelectItem key={status} value={status}>
-                      {status === "All" ? "Select an option" : status}
+                      {status === "All" ? "All" : status}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-2 lg:min-w-0 lg:flex-initial">
-              <label htmlFor="sortFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap shrink-0">
-                Sort by:
+            <div className="flex items-center gap-2 w-auto">
+              <label htmlFor="sortFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                Sort:
               </label>
               <Select
                 value={sort}
@@ -841,33 +843,59 @@ const addInviteRow = () => {
                   setSort(value === "All" ? "" : value);
                 }}
               >
-                <SelectTrigger className="w-full lg:w-[180px]">
-                  <SelectValue placeholder="Select type" />
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Recent" />
                 </SelectTrigger>
                 <SelectContent>
                   {sortOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
-                      {option.label === "All Invites" ? "Select an option" : option.label}
+                      {option.label === "All Invites" ? "All" : option.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-             <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full sm:w-auto">
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-muted-foreground whitespace-nowrap">Show</span>
-                <select
-                  value={itemsPerPage}
-                  onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                  className="h-8 rounded-md border border-input bg-background px-3 py-1 text-sm"
-                >
-                  <option value={10}>10</option>
-                  <option value={15}>15</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                </select>
-                <span className="text-sm text-muted-foreground whitespace-nowrap">per page</span>
-              </div>
+            <div className="flex items-center gap-2 w-auto">
+              <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                From:
+              </label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-[140px]"
+              />
+            </div>
+            <div className="flex items-center gap-2 w-auto">
+              <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                To:
+              </label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => {
+                  setEndDate(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-[140px]"
+              />
+            </div>
+            <div className="flex items-center gap-2 w-auto">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">Show</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm w-[70px]"
+              >
+                <option value={10}>10</option>
+                <option value={15}>15</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+              <span className="text-sm text-muted-foreground whitespace-nowrap">per page</span>
             </div>
           </div>
         </div>
