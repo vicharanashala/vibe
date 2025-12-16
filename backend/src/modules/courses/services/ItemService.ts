@@ -97,9 +97,12 @@ export class ItemService extends BaseService {
       session,
     );
     if (!itemsGroup) {
-      throw new NotFoundError(
-        `Items group for section ${sectionId} not found.`,
-      );
+      return {
+        version,
+        module,
+        section,
+        itemsGroup: { _id: section.itemsGroupId, items: [] } as ItemsGroup,
+      };
     }
 
     return {version, module, section, itemsGroup};
