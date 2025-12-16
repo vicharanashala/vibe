@@ -721,7 +721,7 @@ class ProgressService extends BaseService {
       const nextItem = items[currentIndex + 1];
 
       if (nextItem && nextItem?._id) {
-        return {nextItemId: nextItem?._id.toString()};
+        return {nextItemId: nextItem?._id?.toString()};
       }
 
       // No next item → check next section/module
@@ -729,7 +729,7 @@ class ProgressService extends BaseService {
         throw new NotFoundError('Invalid itemsGroup: missing id');
       }
 
-      const itemGroupId = itemsGroup._id.toString();
+      const itemGroupId = itemsGroup?._id?.toString();
       const groupInfo = await this.courseRepo.getItemGroupInfo(itemGroupId);
 
       if (!groupInfo) {
@@ -785,12 +785,12 @@ class ProgressService extends BaseService {
         session,
       );
       if (!metrics) return;
-      metrics._id = metrics?._id.toString();
-      metrics.quizId = metrics.quizId.toString();
+      metrics._id = metrics?._id?.toString();
+      metrics.quizId = metrics.quizId?.toString();
       if (Array.isArray(metrics.attempts)) {
         metrics.attempts = metrics.attempts.map(attempt => ({
           ...attempt,
-          attemptId: attempt.attemptId.toString(),
+          attemptId: attempt.attemptId?.toString(),
         }));
       }
       return metrics;
@@ -937,9 +937,9 @@ class ProgressService extends BaseService {
         courseVersionId,
       );
 
-      if (!progress) {
-        throw new NotFoundError('Progress not found');
-      }
+      // if (!progress) {
+      //   throw new NotFoundError('Progress not found');
+      // }
 
       return Object.assign(new Progress(), progress);
     });
@@ -1916,6 +1916,131 @@ class ProgressService extends BaseService {
     return watchTime;
   }
 
+  // In ProgressService.ts
+  async skipItem(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    itemId: string,
+    session?: ClientSession,
+  ): Promise<{message: String}> {
+    const item = await this.itemRepo.readItem(courseVersionId, itemId);
+    if (!item) {
+      throw new NotFoundError(`Item ${itemId} not found`);
+    }
+
+    if (item.isOptional !== true) {
+      throw new BadRequestError('Item is not marked as optional');
+    }
+
+    // Get or create progress
+
+    let progress = await this.progressRepository.findProgress(
+      userId,
+      courseId,
+      courseVersionId,
+      session,
+    );
+
+    // If no progress exists, create a new one starting at this item
+    if (!progress) {
+      throw new Error('Progress not found');
+    }
+
+    // Get the course version first
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    if (!courseVersion) {
+      throw new NotFoundError('Course version not found');
+    }
+
+    // First, check if a watch time record already exists for this item
+    const existingWatchTime = await this.progressRepository.getWatchTime(
+      userId,
+      itemId,
+      courseId,
+      courseVersionId,
+      session,
+    );
+
+    let watchTimeId;
+    if (!existingWatchTime || existingWatchTime.length === 0) {
+      // No existing watch time, create a new one
+      watchTimeId = await this.progressRepository.startItemTracking(
+        userId,
+        courseId,
+        courseVersionId,
+        itemId,
+        session,
+      );
+
+      if (watchTimeId) {
+        // Mark the item as completed by stopping the watch time
+        await this.progressRepository.stopItemTracking(
+          userId,
+          courseId,
+          courseVersionId,
+          itemId,
+          watchTimeId,
+          session,
+        );
+      }
+    } else {
+      // Use the existing watch time ID
+      watchTimeId = existingWatchTime[0]._id;
+      // Ensure the watch time is marked as completed
+      await this.progressRepository.stopItemTracking(
+        userId,
+        courseId,
+        courseVersionId,
+        itemId,
+        watchTimeId,
+        session,
+      );
+    }
+    // Get the next item
+    const nextItem = await this.getNextItemInSequence(
+      courseVersion,
+      progress?.currentModule?.toString(),
+      progress?.currentSection?.toString(),
+      itemId,
+    );
+
+    if (!nextItem) {
+      // If no next item, mark the course as completed
+      await this.progressRepository.updateProgress(
+        userId,
+        courseId,
+        courseVersionId,
+        {
+          completed: true,
+          currentItem: null,
+        },
+        session,
+      );
+      return {message: 'Course completed - no next item found'};
+    }
+
+    // Update progress to the next item
+    await this.progressRepository.updateProgress(
+      userId,
+      courseId,
+      courseVersionId,
+      {
+        currentItem: nextItem.itemId,
+        currentModule: nextItem.moduleId,
+        currentSection: nextItem.sectionId,
+      },
+      session,
+    );
+
+    return {message: 'Item skipped successfully'};
+  }
+  async getFirstItem(versionId: string) {
+    if (!versionId) {
+      throw new BadRequestError('Version ID is required');
+    }
+    return this.itemRepo.getFirstOrderItems(versionId);
+  }
   async getLeaderboard(
     courseId: string,
     courseVersionId: string,

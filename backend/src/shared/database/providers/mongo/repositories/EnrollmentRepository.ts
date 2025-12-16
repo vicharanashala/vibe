@@ -9,13 +9,7 @@ import {
   ID,
 } from '#shared/interfaces/models.js';
 import {injectable, inject} from 'inversify';
-import {
-  ClientSession,
-  Collection,
-  DeleteResult,
-  ObjectId,
-  OptionalId,
-} from 'mongodb';
+import {ClientSession, Collection, ObjectId, OptionalId} from 'mongodb';
 import {InternalServerError, NotFoundError} from 'routing-controllers';
 import {MongoDatabase} from '../MongoDatabase.js';
 import {GLOBAL_TYPES} from '#root/types.js';
@@ -44,6 +38,7 @@ export class EnrollmentRepository {
   private quizCollection!: Collection<QuizItem>;
   private itemsGroupCollection!: Collection<ItemsGroup>;
   private questionBankCollection!: Collection<IQuestionBank>;
+  private initialized = false;
 
   constructor(
     @inject(QUIZZES_TYPES.AttemptRepo)
@@ -52,6 +47,12 @@ export class EnrollmentRepository {
   ) {}
 
   private async init() {
+    // initialize only once
+    if (this.initialized) {
+      return;
+    }
+    this.initialized = true;
+
     this.enrollmentCollection = await this.db.getCollection<IEnrollment>(
       'enrollment',
     );
@@ -77,6 +78,60 @@ export class EnrollmentRepository {
     this.questionBankCollection = await this.db.getCollection<IQuestionBank>(
       'questionBanks',
     );
+
+    // High-priority indexes for read performance
+    // Using background: true to avoid blocking operations
+    try {
+      await this.enrollmentCollection.createIndex(
+        {userId: 1, courseId: 1, courseVersionId: 1},
+        {
+          unique: true,
+          name: 'userId_1_courseId_1_courseVersionId_1_unique',
+          background: true,
+        },
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      await this.enrollmentCollection.createIndex(
+        {userId: 1, role: 1},
+        {name: 'userId_1_role_1', background: true},
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      await this.enrollmentCollection.createIndex(
+        {courseId: 1, courseVersionId: 1, role: 1, status: 1},
+        {
+          name: 'courseId_1_courseVersionId_1_role_1_status_1',
+          background: true,
+        },
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      await this.progressCollection.createIndex(
+        {userId: 1, courseId: 1, courseVersionId: 1},
+        {name: 'userId_1_courseId_1_courseVersionId_1', background: true},
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      await this.watchTimeCollection.createIndex(
+        {userId: 1, courseId: 1, courseVersionId: 1},
+        {name: 'userId_1_courseId_1_courseVersionId_1', background: true},
+      );
+    } catch (e) {
+      // Index already exists
+    }
   }
 
   /**
@@ -690,6 +745,8 @@ export class EnrollmentRepository {
           },
         },
         {$unwind: '$itemsGroup'},
+        {$match: {'itemsGroup.isHidden': {$ne: true}}},
+
         {$unwind: '$itemsGroup.items'},
         {
           $addFields: {
@@ -711,7 +768,7 @@ export class EnrollmentRepository {
                   },
                 },
               },
-              {$project: {isDeleted: 1}},
+              {$project: {isDeleted: 1, isHidden: 1}},
             ],
             as: 'videoDoc',
           },
@@ -731,7 +788,7 @@ export class EnrollmentRepository {
                   },
                 },
               },
-              {$project: {isDeleted: 1}},
+              {$project: {isDeleted: 1, isHidden: 1}},
             ],
             as: 'blogDoc',
           },
@@ -751,7 +808,7 @@ export class EnrollmentRepository {
                   },
                 },
               },
-              {$project: {isDeleted: 1}},
+              {$project: {isDeleted: 1, isHidden: 1}},
             ],
             as: 'quizDoc',
           },
@@ -771,7 +828,7 @@ export class EnrollmentRepository {
                   },
                 },
               },
-              {$project: {isDeleted: 1}},
+              {$project: {isDeleted: 1, isHidden: 1}},
             ],
             as: 'projectDoc',
           },
@@ -821,18 +878,66 @@ export class EnrollmentRepository {
                 default: false,
               },
             },
+            isItemHidden: {
+              $switch: {
+                branches: [
+                  {
+                    case: {$eq: ['$itemsGroup.items.type', 'VIDEO']},
+                    then: {
+                      $ifNull: [
+                        {$arrayElemAt: ['$videoDoc.isHidden', 0]},
+                        false,
+                      ],
+                    },
+                  },
+                  {
+                    case: {$eq: ['$itemsGroup.items.type', 'BLOG']},
+                    then: {
+                      $ifNull: [
+                        {$arrayElemAt: ['$blogDoc.isHidden', 0]},
+                        false,
+                      ],
+                    },
+                  },
+                  {
+                    case: {$eq: ['$itemsGroup.items.type', 'QUIZ']},
+                    then: {
+                      $ifNull: [
+                        {$arrayElemAt: ['$quizDoc.isHidden', 0]},
+                        false,
+                      ],
+                    },
+                  },
+                  {
+                    case: {$eq: ['$itemsGroup.items.type', 'PROJECT']},
+                    then: {
+                      $ifNull: [
+                        {$arrayElemAt: ['$projectDoc.isHidden', 0]},
+                        false,
+                      ],
+                    },
+                  },
+                ],
+                default: false,
+              },
+            },
           },
         },
         {$match: {isItemDeleted: {$ne: true}}},
+        {$match: {isItemHidden: {$ne: true}}},
         {
           $group: {
             _id: '$_id',
             totalItems: {$sum: 1},
             videos: {
-              $sum: {$cond: [{$eq: ['$itemsGroup.items.type', 'VIDEO']}, 1, 0]},
+              $sum: {
+                $cond: [{$eq: ['$itemsGroup.items.type', 'VIDEO']}, 1, 0],
+              },
             },
             quizzes: {
-              $sum: {$cond: [{$eq: ['$itemsGroup.items.type', 'QUIZ']}, 1, 0]},
+              $sum: {
+                $cond: [{$eq: ['$itemsGroup.items.type', 'QUIZ']}, 1, 0],
+              },
             },
             articles: {
               $sum: {
@@ -873,6 +978,7 @@ export class EnrollmentRepository {
       userId: e.userId,
       courseId: e.courseId,
       courseVersionId: e.courseVersionId,
+      isHidden: {$ne: true},
     }));
 
     const results = await this.watchTimeCollection
@@ -918,7 +1024,7 @@ export class EnrollmentRepository {
     // const userObjectid = new ObjectId(userId)
 
     return await this.enrollmentCollection
-      .find({userId: {$in: userFilter}}, {session})
+      .find({userId: {$in: userFilter},isDeleted: { $ne: true }}, {session})
       .sort({enrollmentDate: -1})
       .toArray();
   }
@@ -2003,7 +2109,6 @@ export class EnrollmentRepository {
     });
     return result.insertedIds;
   }
-
   async deleteEnrollmentsByVersionIds(
     versionIds: ObjectId[],
     session?: ClientSession,
@@ -2017,5 +2122,48 @@ export class EnrollmentRepository {
       {session},
     );
     return result.acknowledged && result.deletedCount > 0;
+  }
+
+  async getUserEnrollmentsByCourseVersion(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment> {
+    await this.init();
+    return await this.enrollmentCollection
+      .find(
+        {
+          userId: new ObjectId(userId),
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+        },
+        {session},
+      )
+      .next();
+  }
+
+  async setWatchTimeVisibility(
+    itemIds: string[],
+    isHidden: boolean,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+
+    const itemObjIds = itemIds.map(id => new ObjectId(id));
+
+    const result = await this.watchTimeCollection.updateMany(
+      {itemId: {$in: itemObjIds}},
+      {$set: {isHidden: isHidden}},
+      {session},
+    );
+
+    if (!result.acknowledged) {
+      throw new InternalServerError(
+        'Failed to update watch time visibility for items.',
+      );
+    }
+
+    return result.modifiedCount > 0;
   }
 }

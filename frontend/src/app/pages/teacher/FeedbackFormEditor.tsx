@@ -6,7 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import Form from '@rjsf/shadcn';
 import validator from "@rjsf/validator-ajv8";
@@ -253,7 +252,7 @@ export default function FeedbackFormEditor({
                   </div>
 
                   {/* Is Optional Toggle - replaces Points */}
-                  <div className="space-y-2">
+                  {/* <div className="space-y-2">
                     <Label>Is Optional</Label>
                     <div className="flex items-center space-x-3">
                       <Switch
@@ -265,7 +264,7 @@ export default function FeedbackFormEditor({
                         {form.isOptional ? 'Optional' : 'Required'}
                       </span>
                     </div>
-                  </div>
+                  </div> */}
                 </div>
 
                 {/* Description */}

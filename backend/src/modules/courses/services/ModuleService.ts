@@ -1,6 +1,5 @@
 import 'reflect-metadata';
 import {inject, injectable} from 'inversify';
-import {CourseRepository} from '#shared/database/providers/mongo/repositories/CourseRepository.js';
 import {
   CreateModuleBody,
   UpdateModuleBody,
@@ -22,12 +21,17 @@ import {
   ICourseRepository,
   IItemRepository,
 } from '#root/shared/database/interfaces/index.js';
+import {EnrollmentRepository} from '#root/shared/index.js';
+import {ObjectId} from 'mongodb';
 
 @injectable()
 export class ModuleService extends BaseService {
   constructor(
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
+
+    @inject(GLOBAL_TYPES.EnrollmentRepo)
+    private readonly enrollmentRepo: EnrollmentRepository,
 
     @inject(COURSES_TYPES.ItemRepo)
     private readonly itemRepo: IItemRepository,
@@ -152,6 +156,72 @@ export class ModuleService extends BaseService {
           `Failed to update version ${versionId} after module deletion`,
         );
       }
+    });
+  }
+
+  public async toggleModuleVisibility(
+    versionId: string,
+    moduleId: string,
+    isHidden: boolean,
+  ) {
+    return this._withTransaction(async session => {
+      const version = await this.courseRepo.readVersion(versionId, session);
+      const module = version.modules.find(
+        m => m.moduleId.toString() === moduleId,
+      );
+      if (!module) throw new NotFoundError(`Module ${moduleId} not found.`);
+
+      let itemGroupIds = [];
+
+      module.sections.forEach(section => {
+        section.isHidden = isHidden;
+        section.updatedAt = new Date();
+        itemGroupIds.push(section.itemsGroupId && section.itemsGroupId);
+      });
+
+      itemGroupIds = itemGroupIds.filter(id => id);
+
+      const itemGroups = await this.itemRepo.getItemGroupsByIds(
+        itemGroupIds,
+        session,
+      );
+
+      itemGroups.map(async group => {
+        group._id = new ObjectId(group._id);
+        group.isHidden = isHidden;
+        group.items = group.items.map(item => {
+          item.isHidden = isHidden;
+          return item;
+        });
+      });
+
+      module.isHidden = isHidden;
+      module.updatedAt = new Date();
+      version.updatedAt = new Date();
+
+      const updatedVersion = await this.courseRepo.updateVersion(
+        versionId,
+        version,
+        session,
+      );
+
+      if (itemGroups.length > 0) {
+        await this.itemRepo.updateItemsGroupsBulk(itemGroups, session);
+      }
+      const itemIds = itemGroups.reduce((acc, group) => {
+        const ids = group.items.map(item => item._id);
+        return acc.concat(ids);
+      }, []);
+
+      if (itemIds.length > 0) {
+        await this.enrollmentRepo.setWatchTimeVisibility(
+          itemIds,
+          isHidden,
+          session,
+        );
+      }
+
+      return updatedVersion;
     });
   }
 }

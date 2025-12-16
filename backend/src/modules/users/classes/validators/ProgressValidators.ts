@@ -185,6 +185,15 @@ export class StopItemBody {
   isSkipped?: boolean;
 }
 
+
+export class ItemIdparams{
+  @JSONSchema({
+    description:'Gives as ItemId'
+  })
+  @IsString()
+  itemId:string
+}
+
 export class UpdateProgressBody {
   @JSONSchema({
     description: 'ID of the module to update progress for',
