@@ -1457,14 +1457,20 @@ export function useInviteUsers(): {
   };
 }
 
-export function useCourseInvites(courseId: string, courseVersionId: string, enabled: boolean = true, search: string = "", currentPage: number = 1, limit: number = 10, inviteStatus: string, sort?: string,): {
+export function useCourseInvites(courseId: string, courseVersionId: string, enabled: boolean = true, search: string = "", currentPage: number = 1, limit: number = 10, inviteStatus: string, sort?: string, startDate?: string, endDate?: string): {
   data: InviteResponse | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 } {
+  const queryParams: any = { search, currentPage, limit };
+  if (sort) queryParams.sort = sort;
+  if (inviteStatus) queryParams.inviteStatus = inviteStatus;
+  if (startDate) queryParams.startDate = startDate;
+  if (endDate) queryParams.endDate = endDate;
+
   const result = api.useQuery("get", "/notifications/invite/courses/{courseId}/versions/{courseVersionId}", {
-    params: { path: { courseId, courseVersionId }, query: { search, currentPage, limit, sort, inviteStatus } },
+    params: { path: { courseId, courseVersionId }, query: queryParams },
     enabled: enabled
   });
 

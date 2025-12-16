@@ -644,6 +644,8 @@ export class InviteService extends BaseService {
     limit: number,
     search: string,
     sort: string,
+    startDate?: string,
+    endDate?: string,
   ): Promise<{
     invites: InviteResult[];
     totalDocuments: number;
@@ -668,6 +670,8 @@ export class InviteService extends BaseService {
         limit,
         search,
         sort,
+        startDate,
+        endDate,
       );
     return {
       invites: invites.map(
