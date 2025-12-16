@@ -375,9 +375,12 @@ export class EnrollmentController {
       !enrollmentsData.enrollments ||
       enrollmentsData.enrollments.length === 0
     ) {
-      throw new NotFoundError(
-        'No enrollments found for the given course version.',
-      );
+      return {
+        enrollments: [],
+        totalDocuments: 0,
+        totalPages: 0,
+        currentPage: page,
+      };
     }
 
     const totalDocuments =
@@ -471,9 +474,11 @@ export class EnrollmentController {
       );
 
     if (!stats || stats.totalEnrollments === 0) {
-      throw new NotFoundError(
-        'No enrollments found for the given course version.',
-      );
+      return {
+        totalEnrollments: 0,
+        completedCount: 0,
+        averageProgressPercent: 0,
+      };
     }
 
     return stats;
