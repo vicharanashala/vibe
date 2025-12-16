@@ -1492,7 +1492,7 @@ function TeacherCourseContent() {
                                 className={`h-3.5 w-3.5 transition-transform ${expandedModules[module.moduleId] ? "rotate-90" : ""
                                   }`}
                               />
-                              <span className="ml-2 max-w-[35ch] truncate">{module.name}</span>
+                              <span className="ml-2 max-w-[35ch] truncate"title={module.name}>{module.name}</span>
                             </SidebarMenuButton>
                           </Reorder.Item>
 
@@ -1543,7 +1543,8 @@ function TeacherCourseContent() {
                                           className={`h-3 w-3 transition-transform ${expandedSections[section.sectionId] ? "rotate-90" : ""
                                             }`}
                                         />
-                                        <span className="ml-2 truncate  max-w-[25ch] truncate block">{section.name} </span>
+                                        <span className="ml-2 truncate  max-w-[25ch] truncate block" title={section.name}
+                                        >{section.name} </span>
                                       </SidebarMenuSubButton>
                                       <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideSection(module.moduleId, section.sectionId, !section.isHidden)} disabled={module.isHidden || hidingSectionId === section.sectionId}>
                                         {hidingSectionId === section.sectionId ? (
