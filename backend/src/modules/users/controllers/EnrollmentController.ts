@@ -375,10 +375,23 @@ export class EnrollmentController {
       !enrollmentsData.enrollments ||
       enrollmentsData.enrollments.length === 0
     ) {
-      throw new NotFoundError(
-        'No enrollments found for the given course version.',
-      );
+      return {
+        enrollments: [],
+        totalDocuments: 0,
+        totalPages: 0,
+        currentPage: page,
+      };
     }
+
+    const totalDocuments =
+      'totalDocuments' in enrollmentsData
+        ? enrollmentsData.totalDocuments
+        : enrollmentsData.totalCount;
+
+    const totalPages =
+      'totalPages' in enrollmentsData
+        ? enrollmentsData.totalPages
+        : Math.ceil(enrollmentsData.totalCount / limit);
 
     return {
       enrollments: enrollmentsData.enrollments
@@ -396,8 +409,8 @@ export class EnrollmentController {
           if (!a.isDeleted && b.isDeleted) return -1;
           return 0;
         }),
-      totalDocuments: enrollmentsData.totalDocuments,
-      totalPages: enrollmentsData.totalPages,
+      totalDocuments,
+      totalPages,
       currentPage: page,
     };
   }
@@ -461,9 +474,11 @@ export class EnrollmentController {
       );
 
     if (!stats || stats.totalEnrollments === 0) {
-      throw new NotFoundError(
-        'No enrollments found for the given course version.',
-      );
+      return {
+        totalEnrollments: 0,
+        completedCount: 0,
+        averageProgressPercent: 0,
+      };
     }
 
     return stats;
