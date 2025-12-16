@@ -930,6 +930,7 @@ export function useItemById(
   data: components['schemas']['ItemDataResponse'] | undefined;
   isLoading: boolean;
   error: string | null;
+  errorName: string | null;
   refetch: () => void;
 } {
   const result = api.useQuery(
@@ -947,6 +948,7 @@ export function useItemById(
     data: result.data,
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Item fetch failed') : null,
+    errorName: result.error ? (result.error.name || null) : null,
     refetch: result.refetch,
   };
 }

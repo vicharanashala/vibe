@@ -211,7 +211,8 @@ export default function CoursePage() {
   const {
     data: itemData,
     isLoading: itemLoading,
-    error: itemError
+    error: itemError,
+    errorName: itemErrorName
   } = useItemById(
     shouldFetchItem ? COURSE_ID : '',
     shouldFetchItem ? VERSION_ID : '',
@@ -235,7 +236,7 @@ export default function CoursePage() {
       return;
     }
 
-    if (itemError && selectedItemId) {
+    if (itemError && selectedItemId && itemErrorName === "ForbiddenError") {
       // Clear loading state on error
       setIsNavigatingToNext(false);
       setIsItemForbidden(true);
