@@ -573,7 +573,7 @@ export class CourseRepository implements ICourseRepository {
       // Cascade delete sections and items
       if (module.sections.length > 0) {
         const section = module.sections.find(
-          section => section.sectionId === sectionId,
+          section => section.sectionId?.toString() === sectionId,
         );
         if (!section) {
           throw new NotFoundError('Section not found');
@@ -625,7 +625,7 @@ export class CourseRepository implements ICourseRepository {
           return {
             ...m,
             sections: m.sections.map(s => {
-              if (s.sectionId === sectionId) {
+              if (s.sectionId?.toString() === sectionId) {
                 return {
                   ...s,
                   isDeleted: true,

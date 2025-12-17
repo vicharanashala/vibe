@@ -81,13 +81,13 @@ export class ItemService extends BaseService {
     )) as CourseVersion;
     if (!version) throw new NotFoundError(`Version ${versionId} not found.`);
 
-    const module = version.modules.find(m => m.moduleId === moduleId);
+    const module = version.modules.find(m => m.moduleId?.toString() === moduleId);
     if (!module)
       throw new NotFoundError(
         `Module ${moduleId} not found in version ${versionId}.`,
       );
 
-    const section = module.sections.find(s => s.sectionId === sectionId);
+    const section = module.sections.find(s => s.sectionId?.toString() === sectionId);
     if (!section)
       throw new NotFoundError(
         `Section ${sectionId} not found in module ${moduleId}.`,
@@ -443,8 +443,8 @@ export class ItemService extends BaseService {
       }
 
       const version = await this.courseRepo.readVersion(versionId, session);
-      const module = version.modules.find(m => m.moduleId === moduleId)!;
-      const section = module.sections.find(s => s.sectionId === sectionId)!;
+      const module = version.modules.find(m => m.moduleId?.toString() === moduleId)!;
+      const section = module.sections.find(s => s.sectionId?.toString() === sectionId)!;
       const itemsGroup = await this.itemRepo.readItemsGroup(
         section.itemsGroupId.toString(),
         session,

@@ -593,23 +593,23 @@ class ProgressService extends BaseService {
       a.order.localeCompare(b.order),
     );
     const lastModule = sortedModules[sortedModules.length - 1].moduleId;
-    if (lastModule === moduleId) {
+    if (lastModule?.toString() === moduleId) {
       isLastModule = true;
     }
 
     // Check if the sectionId is the last section in the module
     const sortedSections = courseVersion.modules
-      .find(module => module.moduleId === moduleId)
+      .find(module => module.moduleId?.toString() === moduleId)
       ?.sections.sort((a, b) => a.order.localeCompare(b.order));
     const lastSection = sortedSections?.[sortedSections.length - 1].sectionId;
-    if (lastSection === sectionId) {
+    if (lastSection?.toString() === sectionId) {
       isLastSection = true;
     }
 
     // Check if the itemId is the last item in the section
     const itemsGroupId = courseVersion.modules
-      .find(module => module.moduleId === moduleId)
-      ?.sections.find(section => section.sectionId === sectionId)?.itemsGroupId;
+      .find(module => module.moduleId?.toString() === moduleId)
+      ?.sections.find(section => section.sectionId?.toString() === sectionId)?.itemsGroupId;
     const itemsGroup = await this.itemRepo.readItemsGroup(
       itemsGroupId?.toString(),
     );
@@ -629,7 +629,7 @@ class ProgressService extends BaseService {
     // Handle when the item is the last item in the last section but not the last module
     if (isLastItem && isLastSection && !isLastModule) {
       const currentModuleIndex = sortedModules.findIndex(
-        module => module.moduleId === moduleId,
+        module => module.moduleId?.toString() === moduleId,
       );
       const nextModule = sortedModules[currentModuleIndex + 1];
       const firstSection = nextModule?.sections.sort((a, b) =>
@@ -653,7 +653,7 @@ class ProgressService extends BaseService {
     // Handle when the item is the last item in the section but not the last section
     if (isLastItem && !isLastSection) {
       const currentSectionIndex = sortedSections?.findIndex(
-        section => section.sectionId === sectionId,
+        section => section.sectionId?.toString() === sectionId,
       );
       const nextSection = sortedSections?.[currentSectionIndex + 1];
       const itemsGroup = await this.itemRepo.readItemsGroup(
