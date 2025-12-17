@@ -365,24 +365,18 @@ const addInviteRow = () => {
         return
       }
 
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g
       const emails: string[] = []
 
-      const headers = lines[0].split(/[,;\t]/).map(h => h.trim().toLowerCase())
-      const emailColumnIndex = headers.findIndex(h => h === 'email')
-
-      if (emailColumnIndex === -1) {
-        toast.error('CSV file must have an "Email" column in the header')
-        e.target.value = ''
-        return
-      }
-
-      for (let i = 1; i < lines.length; i++) {
-        const columns = lines[i].split(/[,;\t]/).map(col => col.trim())
-        const email = columns[emailColumnIndex]
-
-        if (email && emailRegex.test(email)) {
-          emails.push(email.toLowerCase())
+      for (const line of lines) {
+        const matches = line.match(emailRegex)
+        if (matches) {
+          matches.forEach(email => {
+            const cleanedEmail = email.trim().toLowerCase()
+            if (/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(cleanedEmail)) {
+              emails.push(cleanedEmail)
+            }
+          })
         }
       }
 
