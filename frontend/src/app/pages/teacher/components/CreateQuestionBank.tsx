@@ -36,7 +36,7 @@ const CreateQuestionBankDialog: React.FC<CreateQuestionBankDialogProps> = ({
         description: '',
         tags: []
     });
-    const [count, setCount] = useState(3);
+    const [count, setCount] = useState(2);
     const [currentTag, setCurrentTag] = useState('');
 
     // Reset form when dialog closes
