@@ -889,12 +889,19 @@ export function useItemsBySectionId(versionId: string, moduleId: string, section
   error: string | null,
   refetch: () => void
 } {
-  const isEnabled = versionId !== "SKIP" && moduleId !== "SKIP" && sectionId !== "SKIP" && 
-                    versionId && moduleId && sectionId;
-  
+  const isEnabled: boolean | null =
+    versionId !== "SKIP" &&
+      moduleId !== "SKIP" &&
+      sectionId !== "SKIP" &&
+      !!versionId &&
+      !!moduleId &&
+      !!sectionId
+      ? true
+      : null;
+
   const result = api.useQuery("get", "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items", {
     params: { path: { versionId, moduleId, sectionId } }
-  }, { enabled: isEnabled });
+  }, { enabled: isEnabled ?? false });
 
   return {
     data: result.data,
@@ -1372,9 +1379,11 @@ export function useSkipOptionalItem(): {
 }
 
 export function useUpdateItemOptional(): {
-  mutate: (variables: { params: { path: { versionId: ObjectId , itemId: ObjectId  } } }) => void,
-  mutateAsync: (variables: { params: { path: { versionId: ObjectId, itemId: ObjectId }},
-    body:{isOptional:boolean} } ) => Promise<unknown>,
+  mutate: (variables: { params: { path: { versionId: ObjectId, itemId: ObjectId } } }) => void,
+  mutateAsync: (variables: {
+    params: { path: { versionId: ObjectId, itemId: ObjectId } },
+    body: { isOptional: boolean }
+  }) => Promise<unknown>,
   data: unknown | undefined,
   error: string | null,
   isPending: boolean,
@@ -3532,9 +3541,9 @@ export const exportQuizSubmissions = async (quizId: string) => {
   URL.revokeObjectURL(url);
 }
 
-export const useHideModule = () : {
-  mutate: (variables: { params: { path: { versionId: string, moduleId: string } },  body: { hide: boolean } }) => void,
-  mutateAsync: (variables: { params: { path: { versionId: string, moduleId: string } },  body: { hide: boolean } }) => Promise<void>,
+export const useHideModule = (): {
+  mutate: (variables: { params: { path: { versionId: string, moduleId: string } }, body: { hide: boolean } }) => void,
+  mutateAsync: (variables: { params: { path: { versionId: string, moduleId: string } }, body: { hide: boolean } }) => Promise<void>,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
@@ -3543,7 +3552,7 @@ export const useHideModule = () : {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } => {
-  const result =  api.useMutation('put', '/courses/versions/{versionId}/modules/{moduleId}/toggle-visibility');
+  const result = api.useMutation('put', '/courses/versions/{versionId}/modules/{moduleId}/toggle-visibility');
   return {
     ...result,
     error: result.error ? (result?.error?.message || 'Failed to hide/unhide module') : null
@@ -3560,7 +3569,7 @@ export interface LeaderboardEntry {
 
 export const useLeaderboard = (courseId: string, versionId: string, enabled: boolean = true) => {
   const authToken = localStorage.getItem('firebase-auth-token');
-  
+
   const result = useQuery({
     queryKey: ['leaderboard', courseId, versionId],
     queryFn: async () => {
@@ -3594,9 +3603,9 @@ export const useLeaderboard = (courseId: string, versionId: string, enabled: boo
   };
 };
 
-export const useHideSection = () : {
-  mutate: (variables: { params: { path: {versionId: string, moduleId: string, sectionId: string } },  body: { hide: boolean } }) => void,
-  mutateAsync: (variables: { params: { path: {versionId: string, moduleId: string, sectionId: string } },  body: { hide: boolean } }) => Promise<void>,
+export const useHideSection = (): {
+  mutate: (variables: { params: { path: { versionId: string, moduleId: string, sectionId: string } }, body: { hide: boolean } }) => void,
+  mutateAsync: (variables: { params: { path: { versionId: string, moduleId: string, sectionId: string } }, body: { hide: boolean } }) => Promise<void>,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
@@ -3605,16 +3614,16 @@ export const useHideSection = () : {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } => {
-  const result =  api.useMutation('put', '/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/toggle-visibility');
+  const result = api.useMutation('put', '/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/toggle-visibility');
   return {
     ...result,
     error: result.error ? (result?.error?.message || 'Failed to hide/unhide section') : null
   }
 }
 
-export const useHideItem = () : {
-  mutate: (variables: { params: { path: { versionId: string, itemId: string } },  body: { hide: boolean } }) => void,
-  mutateAsync: (variables: { params: { path: { versionId: string, itemId: string } },  body: { hide: boolean } }) => Promise<void>,
+export const useHideItem = (): {
+  mutate: (variables: { params: { path: { versionId: string, itemId: string } }, body: { hide: boolean } }) => void,
+  mutateAsync: (variables: { params: { path: { versionId: string, itemId: string } }, body: { hide: boolean } }) => Promise<void>,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
@@ -3623,7 +3632,7 @@ export const useHideItem = () : {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } => {
-  
+
   const result = api.useMutation('put', '/courses/versions/{versionId}/items/{itemId}/toggle-visibility');
   return {
     ...result,
@@ -3637,7 +3646,7 @@ export interface GenerateAIQuestionsBody {
 }
 
 export const useGenerateAIQuestions = (): {
-  mutate: (variables: { body: GenerateAIQuestionsBody  }) => void;
+  mutate: (variables: { body: GenerateAIQuestionsBody }) => void;
   mutateAsync: (variables: { body: GenerateAIQuestionsBody }) => Promise<{ success: boolean; response: TranscriptResponse[] }>;
   data: { success: boolean; response: TranscriptResponse[] } | undefined;
   error: string | null;
