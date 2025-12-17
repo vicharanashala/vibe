@@ -245,28 +245,99 @@ export class ItemService extends BaseService {
       versionId,
     );
 
-    console.log('ItemsGroup fetched:', itemsGroup);
-
     // Only filter hidden items for students
     if (user.role === 'STUDENT') {
       itemsGroup.items = itemsGroup.items.filter(item => !item.isHidden);
 
-      // Fetch the student's progress
       const progress = await this.progressRepo.getUserProgressByVersionId(
         userId,
         versionId,
       );
 
-      // Check the index of currentItem in the itemsGroup
-      const currentItemIndex = itemsGroup.items.findIndex(
-        item => item._id.toString() === progress?.currentItem.toString(),
+      // If no progress yet, nothing is completed
+      if (!progress) {
+        itemsGroup.items = itemsGroup.items.map(item => ({
+          ...item,
+          isCompleted: false,
+        }));
+        return itemsGroup.items;
+      }
+
+      const currentModuleIndex = course.modules.findIndex(
+        mod => mod.moduleId.toString() === progress.currentModule?.toString(),
       );
 
-      // Mark items before currentItemIndex as completed
+      const moduleIndex = course.modules.findIndex(
+        mod => mod.moduleId.toString() === moduleId.toString(),
+      );
+
+      // Guard against invalid module indices
+      if (currentModuleIndex === -1 || moduleIndex === -1) {
+        return itemsGroup.items;
+      }
+
+      // All items completed if module is before current module
+      if (moduleIndex < currentModuleIndex) {
+        itemsGroup.items = itemsGroup.items.map(item => ({
+          ...item,
+          isCompleted: true,
+        }));
+        return itemsGroup.items;
+      }
+
+      const currentSectionIndex = course.modules[
+        currentModuleIndex
+      ]?.sections.findIndex(
+        sec => sec.sectionId.toString() === progress.currentSection?.toString(),
+      );
+
+      const sectionIndex = course.modules[moduleIndex]?.sections.findIndex(
+        sec => sec.sectionId.toString() === sectionId.toString(),
+      );
+
+      // Guard against invalid section indices
+      if (currentSectionIndex === -1 || sectionIndex === -1) {
+        return itemsGroup.items;
+      }
+
+      // All items completed if section is before current section in same module
+      if (
+        moduleIndex === currentModuleIndex &&
+        sectionIndex < currentSectionIndex
+      ) {
+        itemsGroup.items = itemsGroup.items.map(item => ({
+          ...item,
+          isCompleted: true,
+        }));
+        return itemsGroup.items;
+      }
+
+      const currentItemIndex = itemsGroup.items.findIndex(
+        itm => itm._id.toString() === progress.currentItem?.toString(),
+      );
+
+      // If current item belongs to another section, nothing here is completed
+      if (currentItemIndex === -1) {
+        return itemsGroup.items;
+      }
+
       itemsGroup.items = itemsGroup.items.map((item, index) => {
-        if (index < currentItemIndex) {
+        if (
+          moduleIndex === currentModuleIndex &&
+          sectionIndex === currentSectionIndex &&
+          index < currentItemIndex
+        ) {
           return {...item, isCompleted: true};
         }
+
+        if (
+          moduleIndex === currentModuleIndex &&
+          sectionIndex === currentSectionIndex &&
+          index === currentItemIndex
+        ) {
+          return {...item, isCompleted: progress.completed};
+        }
+
         return {...item, isCompleted: false};
       });
     }
