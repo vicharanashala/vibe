@@ -558,7 +558,6 @@ class QuizService extends BaseService {
   }
 
   async updateMissingSubmissionResultIds(): Promise<{ totalCount: number; updatedCount: number }> {
-    console.log(`[updateMissingSubmissionResultIds] Starting process for entire collection`)
     const BATCH_SIZE = 100;
     const bulkOperations = [];
     let batchCount = 0;

@@ -168,9 +168,7 @@ export class InviteController {
     const {inviteId} = params;
     try {
       const result = await this.inviteService.processInvite(inviteId);
-      console.log('result from processInvite ', result);
       if (result.isBulk) {
-        console.log('setting session on process');
         // req.session.bulkInviteId = inviteId
         // console.log("session added ", req.session.bulkInviteId)
       }

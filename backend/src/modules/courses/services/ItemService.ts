@@ -151,7 +151,6 @@ export class ItemService extends BaseService {
 
       const courseId = version.courseId.toString();
 
-      console.log(item.itemDetails);
 
       // Step 3: Run multiple async operations in parallel
       const [
@@ -245,7 +244,6 @@ export class ItemService extends BaseService {
       versionId,
     );
 
-    console.log('ItemsGroup fetched:', itemsGroup);
 
     // Only filter hidden items for students
     if (user.role === 'STUDENT') {

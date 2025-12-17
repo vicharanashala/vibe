@@ -305,7 +305,6 @@ export class InviteService extends BaseService {
 
   async courseContentLength(courseId:string,courseVersionId: string,session?:ClientSession){
     const course = await this.courseRepo.read(courseId,session);
-    console.log("reached here ")
     if (!course) {
       throw new NotFoundError('Course not found');
     }

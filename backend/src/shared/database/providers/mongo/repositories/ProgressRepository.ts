@@ -376,13 +376,35 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<IProgress | null> {
     await this.init();
+    console.log(
+      '<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Hey from updated progress REPO>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>',
+    );
+    const normalizedProgress: Partial<CurrentProgress> = {
+      ...progress,
+
+      currentModule:
+        typeof progress.currentModule === 'string'
+          ? new ObjectId(progress.currentModule)
+          : progress.currentModule,
+
+      currentSection:
+        typeof progress.currentSection === 'string'
+          ? new ObjectId(progress.currentSection)
+          : progress.currentSection,
+
+      currentItem:
+        typeof progress.currentItem === 'string'
+          ? new ObjectId(progress.currentItem)
+          : progress.currentItem,
+    };
+
     const result = await this.progressCollection.findOneAndUpdate(
       {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      {$set: progress},
+      {$set: normalizedProgress},
       {returnDocument: 'after', session},
     );
     return result;

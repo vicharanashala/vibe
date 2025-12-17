@@ -430,7 +430,6 @@ export class CourseRepository implements ICourseRepository {
     try {
       const {_id: _, ...fields} = courseVersion;
 
-      console.log(courseVersion);
 
       const isExistVersion = await this.courseVersionCollection.findOne({
         _id: new ObjectId(versionId),
@@ -509,7 +508,6 @@ export class CourseRepository implements ICourseRepository {
         throw new InternalServerError('Failed to delete course version');
       }
 
-      console.log('VersionId: ', versionId);
       // 2. Remove courseVersionId from the course
       /*
       const courseUpdateResult = await this.courseCollection.updateOne(
