@@ -200,11 +200,7 @@ export class EnrollmentRepository {
     session?: ClientSession,
   ) {
     await this.init();
-    console.log(
-      'CourseId and versionId from getInstructors ',
-      courseId,
-      versionId,
-    );
+
     const enrollments = await this.enrollmentCollection
       .find(
         {
@@ -216,7 +212,6 @@ export class EnrollmentRepository {
         {projection: {userId: 1, _id: 0}, session}, // only return userId
       )
       .toArray();
-    console.log('enrollments ', enrollments);
     return enrollments.map(enrollment => enrollment.userId);
   }
 
@@ -264,7 +259,6 @@ export class EnrollmentRepository {
       if (!newEnrollment) {
         throw new NotFoundError('Newly created enrollment not found');
       }
-      console.log('new enrollment ', newEnrollment);
       return newEnrollment;
     } catch (error) {
       throw new InternalServerError(

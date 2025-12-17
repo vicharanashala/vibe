@@ -107,7 +107,6 @@ class QuizController {
       );
     }
 
-    console.log('Adding question bank', body, 'to quiz', quizId);
 
     await this.quizService.addQuestionBank(quizId, body);
   }

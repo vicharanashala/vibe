@@ -9,6 +9,7 @@ import { useCourseStore } from '../store/course-store';
 import { usePlayerStore } from '../store/player-store'; // Import the new store
 import type { VideoProps, YTPlayerInstance } from '@/types/video.types';
 import { on } from 'events';
+import { toast } from 'sonner';
 
 
 // Helper to extract YouTube video ID from URL
@@ -55,6 +56,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   const progressStartedRef = useRef(false);
   const progressStoppedRef = useRef(false);
   const watchItemIdRef = useRef<string | null>(null);
+  const stopInFlightRef = useRef(false);
 
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(false);
   const [subtitlesAvailable, setSubtitlesAvailable] = useState(false);
@@ -360,7 +362,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
             console.log('✅ YouTube player ready - waiting for camera to be ready');
 
           },
-          onStateChange: (event: { data: number; target: YTPlayerInstance }) => {
+          onStateChange: async(event: { data: number; target: YTPlayerInstance }) => {
             if (window.YT && event.data === window.YT.PlayerState.PLAYING) {
               setPlaying(true);
               if (!progressStartedRef.current) {
@@ -374,20 +376,42 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
               if (!progressStoppedRef.current && watchItemIdRef.current && currentCourse) {
                 const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
                 if (watchItemId) {
-                  stopItem.mutate({
-                    params: {
-                      path: {
-                        courseId: currentCourse.courseId,
-                        courseVersionId: currentCourse.versionId ?? '',
+                              alert("from player ")
+
+                  // stopItem.mutateAsync({
+                  //   params: {
+                  //     path: {
+                  //       courseId: currentCourse.courseId,
+                  //       courseVersionId: currentCourse.versionId ?? '',
+                  //     },
+                  //   },
+                  //   body: {
+                  //     watchItemId,
+                  //     itemId: currentCourse.itemId ?? '',
+                  //     moduleId: currentCourse.moduleId ?? '',
+                  //     sectionId: currentCourse.sectionId ?? '',
+                  //   },
+                  // });
+                  try {
+                    await stopItem.mutateAsync({
+                      params: {
+                        path: {
+                          courseId: currentCourse.courseId,
+                          courseVersionId: currentCourse.versionId ?? '',
+                        },
                       },
-                    },
-                    body: {
-                      watchItemId,
-                      itemId: currentCourse.itemId ?? '',
-                      moduleId: currentCourse.moduleId ?? '',
-                      sectionId: currentCourse.sectionId ?? '',
-                    }
-                  });
+                      body: {
+                        watchItemId,
+                        itemId: currentCourse.itemId ?? '',
+                        moduleId: currentCourse.moduleId ?? '',
+                        sectionId: currentCourse.sectionId ?? '',
+                      },
+                    });
+                  } catch (err) {
+                    toast.warning("Unable to stop video, try again!")
+                    console.error('Stop item failed:', err);
+                    return; 
+                  }
                 }
                 if (onNext) {
                   onNext();
@@ -481,7 +505,12 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
 useEffect(() => {
   let interval: ReturnType<typeof setInterval>;
   if (playerReady) {
-    interval = setInterval(() => {
+    interval = setInterval(async() => {
+
+      if (progressStoppedRef.current || stopInFlightRef.current) {
+        return;
+      }
+
       const player = playerRef.current;
       if (player && player.getCurrentTime) {
         const time = player.getCurrentTime();
@@ -498,50 +527,87 @@ useEffect(() => {
         }
 
         // Enforce endTime constraint
-        if (endTimeSeconds > 0 && !progressStoppedRef.current && time >= endTimeSeconds - 1 && currentCourse) {
+        if (endTimeSeconds > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= endTimeSeconds - 1 && currentCourse) {
           const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
-
+          stopInFlightRef.current = true;
           if (watchItemId) {
-            stopItem.mutate({
-              params: {
-                path: {
-                  courseId: currentCourse.courseId,
-                  courseVersionId: currentCourse.versionId ?? '',
-                },
-              },
-              body: {
-                watchItemId,
-                itemId: currentCourse.itemId ?? '',
-                moduleId: currentCourse.moduleId ?? '',
-                sectionId: currentCourse.sectionId ?? '',
-              }
-            });
-          }
+            // alert("from use effect 1")
+             player.pauseVideo();
+
+            try {
+                  await stopItem.mutateAsync({
+                    params: {
+                      path: {
+                          courseId: currentCourse.courseId,
+                          courseVersionId: currentCourse.versionId ?? '',
+                        },
+                      },
+                  body: {
+                        watchItemId,
+                        itemId: currentCourse.itemId ?? '',
+                        moduleId: currentCourse.moduleId ?? '',
+                        sectionId: currentCourse.sectionId ?? '',
+                      },
+                    });
+                        progressStoppedRef.current = true;
+
           if (onNext) {
             onNext();
           }
-          progressStoppedRef.current = true;
+            } catch (err) {
+              stopInFlightRef.current = false;
+                    toast.warning("Unable to stop video, try again!")
+                    console.error('Stop item failed:', err);
+                    return; 
+            }
+
+          }
+                
         }
         
         // Handle videos without endTime constraint that reach near completion
-        if (endTimeSeconds === 0 && duration > 0 && !progressStoppedRef.current && time >= duration - 2 && currentCourse) {
+        if (endTimeSeconds === 0 && duration > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= duration - 2 && currentCourse) {
           const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
 
           if (watchItemId) {
-            stopItem.mutate({
-              params: {
-                path: {
-                  courseId: currentCourse.courseId,
-                  courseVersionId: currentCourse.versionId ?? '',
-                },
-              },
-              body: {
-                watchItemId,
-                itemId: currentCourse.itemId ?? '',
-                moduleId: currentCourse.moduleId ?? '',
-                sectionId: currentCourse.sectionId ?? '',
+                        // alert("from use effect 2")
+             player.pauseVideo();
+
+            // stopItem.mutate({
+            //   params: {
+            //     path: {
+            //       courseId: currentCourse.courseId,
+            //       courseVersionId: currentCourse.versionId ?? '',
+            //     },
+            //   },
+            //   body: {
+            //     watchItemId,
+            //     itemId: currentCourse.itemId ?? '',
+            //     moduleId: currentCourse.moduleId ?? '',
+            //     sectionId: currentCourse.sectionId ?? '',
+            //   }
+            // });
+
+            try {
+                    await stopItem.mutateAsync({
+                      params: {
+                        path: {
+                          courseId: currentCourse.courseId,
+                          courseVersionId: currentCourse.versionId ?? '',
+                        },
+                      },
+                      body: {
+                        watchItemId,
+                        itemId: currentCourse.itemId ?? '',
+                        moduleId: currentCourse.moduleId ?? '',
+                        sectionId: currentCourse.sectionId ?? '',
+                      },
+                    });
+              } catch (err) {
+                    toast.warning("Unable to stop video, try again!")
+                    console.error('Stop item failed:', err);
+                    return; 
               }
-            });
           }
           if (onNext) {
             onNext();

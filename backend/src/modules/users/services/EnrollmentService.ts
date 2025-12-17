@@ -144,10 +144,7 @@ export class EnrollmentService extends BaseService {
             session,
           );
 
-          console.log('=== ENROLLMENT: Progress created successfully ===', {
-            userId,
-            currentItem: progressData.currentItem.toString(),
-          });
+         
         } else {
           console.log(
             '=== ENROLLMENT: No progress data returned - course may have no valid items ===',
@@ -260,13 +257,11 @@ export class EnrollmentService extends BaseService {
 
       if (!enrollments.length) return [];
 
-      console.log(`Found ${enrollments.length} enrollments for user ${userId}`);
 
       const enrolledVersionIds = new Set(
         enrollments.map(e => e.courseVersionId.toString()),
       );
 
-      console.log('Enrolled Version IDs:', enrolledVersionIds, enrollments);
 
       if (role === 'STUDENT') {
         const versionIds = Array.from(enrolledVersionIds).map(
@@ -301,20 +296,9 @@ export class EnrollmentService extends BaseService {
           const ratio = completedCount / (totalItems.totalItems || 1); // avoid division by zero
           const calculatedPercent = Math.floor(ratio * 100);
 
-          console.log(
-            totalItems.totalItems,
-            completedCount,
-            ratio,
-            calculatedPercent,
-          );
-
           // if different, update enrollment percentCompleted
           if (enr.percentCompleted !== calculatedPercent) {
-            console.log(
-              `Updating percentCompleted for enrollment ${enr._id.toString()} from ${
-                enr.percentCompleted
-              } to ${calculatedPercent}`,
-            );
+            
             this.enrollmentRepo.updateProgressPercentById(
               enr._id.toString(),
               calculatedPercent,
@@ -649,7 +633,6 @@ export class EnrollmentService extends BaseService {
         courseVersionId,
         session,
       );
-      console.log('Course version: ', courseVersion, courseId);
       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
         throw new NotFoundError(
           'Course version not found or does not belong to this course',
