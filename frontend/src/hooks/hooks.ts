@@ -889,8 +889,7 @@ export function useItemsBySectionId(versionId: string, moduleId: string, section
   error: string | null,
   refetch: () => void
 } {
-  const isEnabled = versionId !== "SKIP" && moduleId !== "SKIP" && sectionId !== "SKIP" && 
-                    versionId && moduleId && sectionId;
+  const isEnabled = !!(versionId && moduleId && sectionId && versionId !== "SKIP" && moduleId !== "SKIP" && sectionId !== "SKIP");
   
   const result = api.useQuery("get", "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items", {
     params: { path: { versionId, moduleId, sectionId } }
