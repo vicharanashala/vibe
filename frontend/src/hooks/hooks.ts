@@ -889,9 +889,12 @@ export function useItemsBySectionId(versionId: string, moduleId: string, section
   error: string | null,
   refetch: () => void
 } {
+  const isEnabled = versionId !== "SKIP" && moduleId !== "SKIP" && sectionId !== "SKIP" && 
+                    versionId && moduleId && sectionId;
+  
   const result = api.useQuery("get", "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items", {
     params: { path: { versionId, moduleId, sectionId } }
-  }, { enabled: !!versionId && !!moduleId && !!sectionId });
+  }, { enabled: isEnabled });
 
   return {
     data: result.data,

@@ -112,6 +112,14 @@ export class ProjectSubmissionRepository
       )
       .toArray();
 
+    if (!submissions || submissions.length === 0) {
+      return {
+        course: { name: '' },
+        courseVersion: { name: '' },
+        userInfo: [],
+      } as IProjectSubmissionWithUser;
+    }
+
     return submissions[0] as IProjectSubmissionWithUser;
   }
 
