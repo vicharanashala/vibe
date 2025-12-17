@@ -34,7 +34,7 @@ export class SectionService extends BaseService {
       const version = await this.courseRepo.readVersion(versionId, session);
 
       //Find Module
-      const module = version.modules.find(m => m.moduleId === moduleId);
+      const module = version.modules.find(m => m.moduleId?.toString() === moduleId);
       if (!module) {
         throw new NotFoundError('Module not found');
       }
@@ -82,11 +82,11 @@ export class SectionService extends BaseService {
       const version = await this.courseRepo.readVersion(versionId, session);
 
       //Find Module
-      const module = version.modules.find(m => m.moduleId === moduleId);
+      const module = version.modules.find(m => m.moduleId?.toString() === moduleId);
       if (!module) throw new InternalServerError('Module not found');
 
       //Find Section
-      const section = module.sections.find(s => s.sectionId === sectionId);
+      const section = module.sections.find(s => s.sectionId?.toString() === sectionId);
       if (!section) throw new InternalServerError('Section not found');
 
       //Update Section
@@ -127,10 +127,10 @@ export class SectionService extends BaseService {
       const version = await this.courseRepo.readVersion(versionId, session);
 
       //Find Module
-      const module = version.modules.find(m => m.moduleId === moduleId);
+      const module = version.modules.find(m => m.moduleId?.toString() === moduleId);
 
       //Find Section
-      const section = module.sections.find(s => s.sectionId === sectionId);
+      const section = module.sections.find(s => s.sectionId?.toString() === sectionId);
 
       //Sort Sections based on order
       const sortedSections = module.sections.sort((a, b) =>
