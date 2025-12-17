@@ -37,7 +37,8 @@ import {
   FlagTriangleRightIcon,
   FileEdit,
   XCircle,
-  X
+  X,
+  CircleCheckIcon
 } from "lucide-react";
 import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
@@ -1339,6 +1340,12 @@ export default function CoursePage() {
                                                         return label === ' ' ? `${typeLabel} ${itemIndex + 1}` : `${label}`;
                                                       })()}
                                                     </div>
+                                                    {item.isCompleted && (
+                                                      <div className="text-[10px] text-green-500 font-medium mt-0.5 flex items-center gap-1">
+                                                        <CheckCircle className="h-3 w-3" />
+                                                        Completed
+                                                      </div>
+                                                    )}
                                                   </div>
                                                 </div>
                                               </SidebarMenuSubButton>
