@@ -641,6 +641,23 @@ class ProgressRepository {
     );
     return result.modifiedCount;
   }
+
+  async getUserProgressByVersionId(
+    userId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<IProgress | null> {
+    await this.init();
+    const progress = await this.progressCollection.findOne(
+      {
+        userId: new ObjectId(userId),
+        courseVersionId: new ObjectId(courseVersionId),
+        isDeleted: {$ne: true},
+      },
+      {session},
+    );
+    return progress;
+  }
 }
 
 export {ProgressRepository};
