@@ -336,22 +336,37 @@ class ProgressService extends BaseService {
 
     let percentCompleted = 0;
     if (!isReset) {
-      const totalItems =
-        totalItemCount ||
-        (await this.itemRepo.CalculateTotalItemsCount(
-          courseId,
-          courseVersionId,
-          session,
-        ));
+      // const totalItems =
+      //   totalItemCount ||
+      //   (await this.itemRepo.CalculateTotalItemsCount(
+      //     courseId,
+      //     courseVersionId,
+      //     session,
+      //   ));
 
-      const completedItems =
-        completedItemCount ||
-        (await this.getUserProgressPercentageWithoutTotal(
-          userId,
-          courseId,
-          courseVersionId,
-          session,
-        ));
+      // const completedItems =
+      //   completedItemCount ||
+      //   (await this.getUserProgressPercentageWithoutTotal(
+      //     userId,
+      //     courseId,
+      //     courseVersionId,
+      //     session,
+      //   ));
+      const [totalItems, completedItems] = await Promise.all([
+        totalItemCount ??
+          this.itemRepo.CalculateTotalItemsCount(
+            courseId,
+            courseVersionId,
+            session,
+          ),
+        completedItemCount ??
+          this.getUserProgressPercentageWithoutTotal(
+            userId,
+            courseId,
+            courseVersionId,
+            session,
+          ),
+      ]);
 
       percentCompleted = Math.round(
         (totalItems > 0 ? completedItems / totalItems : 0) * 100,
@@ -1228,39 +1243,72 @@ class ProgressService extends BaseService {
         return;
       }
 
-      if (
-        newProgress.skippedBlankQuizIds &&
-        newProgress.skippedBlankQuizIds.length > 0
-      ) {
-        for (const blankQuizId of newProgress.skippedBlankQuizIds) {
-          await this.progressRepository.startItemTracking(
-            userId,
-            courseId,
-            courseVersionId,
-            blankQuizId,
-            session,
-          );
-          const watchTimeRecords = await this.progressRepository.getWatchTime(
-            userId,
-            blankQuizId,
-            courseId,
-            courseVersionId,
-            session,
-          );
-          if (watchTimeRecords && watchTimeRecords.length > 0) {
-            const watchTimeRecord = watchTimeRecords[0];
-            await this.progressRepository.stopItemTracking(
+      // if (
+      //   newProgress.skippedBlankQuizIds &&
+      //   newProgress.skippedBlankQuizIds.length > 0
+      // ) {
+      //   for (const blankQuizId of newProgress.skippedBlankQuizIds) {
+      //     await this.progressRepository.startItemTracking(
+      //       userId,
+      //       courseId,
+      //       courseVersionId,
+      //       blankQuizId,
+      //       session,
+      //     );
+      //     const watchTimeRecords = await this.progressRepository.getWatchTime(
+      //       userId,
+      //       blankQuizId,
+      //       courseId,
+      //       courseVersionId,
+      //       session,
+      //     );
+      //     if (watchTimeRecords && watchTimeRecords.length > 0) {
+      //       const watchTimeRecord = watchTimeRecords[0];
+      //       await this.progressRepository.stopItemTracking(
+      //         userId,
+      //         courseId,
+      //         courseVersionId,
+      //         blankQuizId,
+      //         watchTimeRecord._id.toString(),
+      //         session,
+      //       );
+      //     }
+      //   }
+      // }
+
+      if (newProgress.skippedBlankQuizIds?.length) {
+        await Promise.all(
+          newProgress.skippedBlankQuizIds.map(async blankQuizId => {
+            await this.progressRepository.startItemTracking(
               userId,
               courseId,
               courseVersionId,
               blankQuizId,
-              watchTimeRecord._id.toString(),
               session,
             );
-          }
-        }
+            const watchTimeRecords = await this.progressRepository.getWatchTime(
+              userId,
+              blankQuizId,
+              courseId,
+              courseVersionId,
+              session,
+            );
+            if (watchTimeRecords?.length) {
+              const watchTimeRecord = watchTimeRecords[0];
+              await this.progressRepository.stopItemTracking(
+                userId,
+                courseId,
+                courseVersionId,
+                blankQuizId,
+                watchTimeRecord._id.toString(),
+                session,
+              );
+            }
+          }),
+        );
       }
 
+      
       await this.updateEnrollmentProgressPercent(
         userId,
         courseId,
