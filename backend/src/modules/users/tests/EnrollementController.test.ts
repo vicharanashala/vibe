@@ -1,16 +1,16 @@
 import request from 'supertest';
 import Express from 'express';
-import { Action, useContainer, useExpressServer } from 'routing-controllers';
+import {Action, useContainer, useExpressServer} from 'routing-controllers';
 
-import { usersModuleOptions } from '../index.js';
-import { ItemType } from '#shared/interfaces/models.js';
+import {usersModuleOptions} from '../index.js';
+import {ItemType} from '#shared/interfaces/models.js';
 import {
   CreateCourseVersionBody,
   CreateCourseVersionParams,
 } from '#courses/classes/validators/CourseVersionValidators.js';
-import { Course } from '#courses/classes/transformers/index.js';
-import { CourseBody } from '#courses/classes/validators/CourseValidators.js';
-import { SignUpBody } from '#auth/classes/validators/AuthValidators.js';
+import {Course} from '#courses/classes/transformers/index.js';
+import {CourseBody} from '#courses/classes/validators/CourseValidators.js';
+import {SignUpBody} from '#auth/classes/validators/AuthValidators.js';
 import {
   CreateModuleBody,
   CreateModuleParams,
@@ -20,8 +20,8 @@ import {
   CreateSectionBody,
   VersionModuleSectionParams,
 } from '#courses/classes/validators/SectionValidators.js';
-import { CreateItemBody } from '#courses/classes/validators/ItemValidators.js';
-import { EnrollmentParams } from './utils/createEnrollment.js';
+import {CreateItemBody} from '#courses/classes/validators/ItemValidators.js';
+import {EnrollmentParams} from './utils/createEnrollment.js';
 import {
   describe,
   it,
@@ -31,19 +31,19 @@ import {
   beforeEach,
   vi,
 } from 'vitest';
-import { faker } from '@faker-js/faker';
-import { authContainerModule } from '#root/modules/auth/container.js';
-import { Container } from 'inversify';
-import { sharedContainerModule } from '#root/container.js';
-import { usersContainerModule } from '../container.js';
-import { coursesContainerModule } from '#root/modules/courses/container.js';
-import { InversifyAdapter } from '#root/inversify-adapter.js';
-import { coursesModuleControllers } from '#root/modules/courses/index.js';
-import { authModuleControllers } from '#root/modules/auth/index.js';
-import { quizzesContainerModule } from '#root/modules/quizzes/container.js';
-import { notificationsContainerModule } from '#root/modules/notifications/container.js';
-import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
-import { authorizationChecker } from '#root/shared/index.js';
+import {faker} from '@faker-js/faker';
+import {authContainerModule} from '#root/modules/auth/container.js';
+import {Container} from 'inversify';
+import {sharedContainerModule} from '#root/container.js';
+import {usersContainerModule} from '../container.js';
+import {coursesContainerModule} from '#root/modules/courses/container.js';
+import {InversifyAdapter} from '#root/inversify-adapter.js';
+import {coursesModuleControllers} from '#root/modules/courses/index.js';
+import {authModuleControllers} from '#root/modules/auth/index.js';
+import {quizzesContainerModule} from '#root/modules/quizzes/container.js';
+import {notificationsContainerModule} from '#root/modules/notifications/container.js';
+import {FirebaseAuthService} from '#root/modules/auth/services/FirebaseAuthService.js';
+import {authorizationChecker} from '#root/shared/index.js';
 import * as current from '#root/shared/functions/currentUserChecker.js';
 
 describe('Enrollment Controller Integration Tests', () => {
@@ -69,7 +69,7 @@ describe('Enrollment Controller Integration Tests', () => {
       usersContainerModule,
       coursesContainerModule,
       quizzesContainerModule,
-      notificationsContainerModule
+      notificationsContainerModule,
     );
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);
@@ -84,7 +84,7 @@ describe('Enrollment Controller Integration Tests', () => {
           }
         }
         return user1;
-      }
+      },
     );
     app = useExpressServer(appInstance, {
       controllers: [
@@ -236,7 +236,7 @@ describe('Enrollment Controller Integration Tests', () => {
         .post(
           `/courses/versions/${itemParams.versionId}/modules/${itemParams.moduleId}/sections/${itemParams.sectionId}/items`,
         )
-        .send(itemPayload)
+        .send(itemPayload);
       expect(createItemResponse.status).toBe(201);
       // Expect the response to contain the item ID
       expect(createItemResponse.body).toHaveProperty('itemsGroup');
@@ -458,12 +458,12 @@ describe('Enrollment Controller Integration Tests', () => {
         .send(signUpBody)
         .expect(201);
       const userId = signUpResponse.body.userId;
-      const userInfo = await request(app)
-        .get(`/users/${userId}`)
-        .expect(200);
+      const userInfo = await request(app).get(`/users/${userId}`).expect(200);
       user2 = userInfo.body;
-      console.log('User created:', user2);
-      vi.spyOn(FirebaseAuthService.prototype, 'getUserIdFromReq').mockResolvedValue(userId);
+      vi.spyOn(
+        FirebaseAuthService.prototype,
+        'getUserIdFromReq',
+      ).mockResolvedValue(userId);
       // 2. Create two courses and enroll user in both
       const enrollments: any[] = [];
       for (let i = 0; i < 2; i++) {
