@@ -547,7 +547,7 @@ export class EnrollmentRepository {
     limit: number,
     role: EnrollmentRole,
     search: string,
-    session?: ClientSession,
+
   ) {
     await this.init();
     const userObjectId = new ObjectId(userId);
@@ -563,6 +563,10 @@ export class EnrollmentRepository {
       { $sort: { enrollmentDate: -1 } },
       { $skip: skip },
       { $limit: limit },
+      /* ---------------- SEARCH ---------------- */
+      ...(search?.trim()
+        ? [{ $match: { 'course.name': { $regex: search, $options: 'i' } } }]
+        : []),
 
       /* ---------------- COURSE LOOKUP ---------------- */
       {
@@ -572,41 +576,9 @@ export class EnrollmentRepository {
           foreignField: '_id',
           as: 'course',
           pipeline: [
-            { $unwind: '$versions' },
-            {
-              $lookup: {
-                from: 'newCourseVersion',
-                localField: 'versions',
-                foreignField: '_id',
-                as: 'versionDetails',
-              },
-            },
-            {
-              $match: {
-                versionDetails: {
-                  $elemMatch: { isDeleted: { $ne: true } },
-                },
-              },
-            },
-            {
-              $group: {
-                _id: '$_id',
-                name: { $first: '$name' },
-                versions: { $push: '$versions' },
-                description: { $first: '$description' },
-                updatedAt: { $first: '$updatedAt' },
-              },
-            },
             {
               $project: {
                 name: 1,
-                versions: {
-                  $map: {
-                    input: '$versions',
-                    as: 'v',
-                    in: { $toString: '$$v' },
-                  },
-                },
                 description: 1,
                 updatedAt: 1,
               },
@@ -614,8 +586,8 @@ export class EnrollmentRepository {
           ],
         },
       },
+      { $unwind: '$course' },
 
-      { $unwind: { path: '$course', preserveNullAndEmptyArrays: true } },
 
       /* ---------------- COURSE VERSION LOOKUP (NEW) ---------------- */
       {
@@ -637,10 +609,7 @@ export class EnrollmentRepository {
 
       { $unwind: { path: '$courseVersion', preserveNullAndEmptyArrays: true } },
 
-      /* ---------------- SEARCH ---------------- */
-      ...(search?.trim()
-        ? [{ $match: { 'course.name': { $regex: search, $options: 'i' } } }]
-        : []),
+
 
       /* ---------------- FINAL SHAPE ---------------- */
       {
@@ -728,7 +697,7 @@ export class EnrollmentRepository {
     ];*/
 
     const enrollments = await this.enrollmentCollection
-      .aggregate(pipeline, { session })
+      .aggregate(pipeline)
       .toArray();
 
     return enrollments;
