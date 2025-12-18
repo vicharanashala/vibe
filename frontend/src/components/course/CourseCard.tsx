@@ -16,7 +16,7 @@ import { useState } from "react";
 import { bufferToHex } from "@/utils/helpers";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
-import { toast } from "sonner";
+
 
 export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard', className, completion, setCompletion }: CourseCardProps) => {
   // Add null checks to prevent errors when enrollment data is incomplete
@@ -195,7 +195,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   Leaderboard
                 </Button>
               </DialogTrigger>
-              <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} />
+              <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name}  isOpen={isLeaderboardOpen} />
             </Dialog>
             <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
               <DialogTrigger asChild>
@@ -518,8 +518,8 @@ export const CourseCardSkeleton = ({ variant = 'dashboard' }: { variant?: 'dashb
 };
 
 // Leaderboard Dialog Component
-const LeaderboardDialog = ({ courseId, versionId, courseName }: { courseId: string; versionId: string; courseName?: string }) => {
-  const { data: leaderboardData, isLoading, error } = useLeaderboard(courseId, versionId, true);
+const LeaderboardDialog = ({ courseId, versionId, courseName,isOpen }: { courseId: string; versionId: string; courseName?: string,isOpen:boolean }) => {
+  const { data: leaderboardData, isLoading, error } = useLeaderboard(courseId, versionId, isOpen);
 
   const getInitials = (name: string) => {
     const parts = name.split(" ");
