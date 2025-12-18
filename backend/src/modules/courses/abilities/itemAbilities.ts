@@ -1,22 +1,22 @@
-import { AbilityBuilder, MongoAbility } from '@casl/ability';
+import {AbilityBuilder, MongoAbility} from '@casl/ability';
 import {
   AuthenticatedUser,
   AuthenticatedUserEnrollements,
 } from '#root/shared/interfaces/models.js';
-import { ItemScope, createAbilityBuilder } from './types.js';
+import {ItemScope, createAbilityBuilder} from './types.js';
 import {
   getFromContainer,
   InternalServerError,
   NotFoundError,
 } from 'routing-controllers';
-import { ProgressService } from '#root/modules/users/services/ProgressService.js';
-import { CourseSettingService } from '#root/modules/setting/services/CourseSettingService.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import { ObjectId } from 'mongodb';
-import { UserQuizMetricsRepository } from '#root/modules/quizzes/repositories/index.js';
-import { CourseRepository } from '#root/shared/index.js';
-import { QuizService } from '#root/modules/quizzes/services/QuizService.js';
+import {ProgressService} from '#root/modules/users/services/ProgressService.js';
+import {CourseSettingService} from '#root/modules/setting/services/CourseSettingService.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {ObjectId} from 'mongodb';
+import {UserQuizMetricsRepository} from '#root/modules/quizzes/repositories/index.js';
+import {CourseRepository} from '#root/shared/index.js';
+import {QuizService} from '#root/modules/quizzes/services/QuizService.js';
 
 // Actions
 export enum ItemActions {
@@ -43,12 +43,13 @@ export async function setupItemAbilities(
   builder: AbilityBuilder<any>,
   user: AuthenticatedUser,
 ) {
-  const { can, cannot } = builder;
+  const {can, cannot} = builder;
 
   if (user.globalRole === 'admin') {
     can('manage', 'Item');
     return;
   }
+
   const progressService = getFromContainer(ProgressService);
   const courseSettingService = getFromContainer(CourseSettingService);
 
@@ -101,12 +102,14 @@ export async function setupItemAbilities(
           if (!progress.currentItem) {
             // User has not started the course yet
             // Allow only ViewAll (or nothing, based on your rules)
-            const firstItem = await progressService.getFirstItem(enrollment.versionId);
+            const firstItem = await progressService.getFirstItem(
+              enrollment.versionId,
+            );
             // const firstItem = await this.itemService.getFirstItem(enrollment.versionId);
             can(ItemActions.View, 'Item', {
               courseId: enrollment.courseId,
               versionId: enrollment.versionId,
-              ItemId: firstItem?.itemId
+              ItemId: firstItem?.itemId,
             });
             return;
           }
@@ -129,8 +132,6 @@ export async function setupItemAbilities(
             currentItemId,
           );
 
-        //   console.log("Quiz metrics: ", quizMetrics)
-
           if (quizMetrics && quizMetrics.remainingAttempts == 0) {
             const {nextItemId} = await progressService.determineNextAllowedItem(
               currentItemId,
@@ -147,14 +148,9 @@ export async function setupItemAbilities(
             allowedItemIds.push(currentItemId);
           }
 
-
-
           if (linearProgressionEnabled) {
             itemBounded.itemId = {$in: allowedItemIds};
-
-            // console.log('Applied linear progression restrictions:', allowedItemIds);
           } else {
-            // console.log('LINEAR PROGRESSION IS DISABLED - no restrictions applied');
           }
 
           can(ItemActions.View, 'Item', itemBounded);

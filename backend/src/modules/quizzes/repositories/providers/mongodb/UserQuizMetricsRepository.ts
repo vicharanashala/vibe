@@ -226,9 +226,6 @@ class UserQuizMetricsRepository {
           session,
         },
       );
-      console.log(
-        `UserQuizMetrics bulk update result: ${JSON.stringify(result)}`,
-      );
     } catch (error) {
       throw new InternalServerError(
         'Failed to bulk update user quiz metrics.\n More Details: ' + error,

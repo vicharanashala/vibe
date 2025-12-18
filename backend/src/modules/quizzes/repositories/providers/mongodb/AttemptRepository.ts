@@ -83,7 +83,6 @@ class AttemptRepository {
     if (!result) {
       return null;
     }
-    console.log('total attempts: ', result);
     return result;
   }
 
@@ -107,7 +106,6 @@ class AttemptRepository {
       },
       {session},
     );
-    console.log(result);
     if (!result) {
       return null;
     }

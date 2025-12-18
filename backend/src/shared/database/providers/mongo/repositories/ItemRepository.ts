@@ -316,7 +316,9 @@ export class ItemRepository implements IItemRepository {
         const itemsGroup = await this.readItemsGroup(
           section?.itemsGroupId?.toString(),
         );
-        const found = itemsGroup?.items?.find(i => i?._id?.toString() === itemId);
+        const found = itemsGroup?.items?.find(
+          i => i?._id?.toString() === itemId,
+        );
 
         if (found) {
           if (!found._id) {
@@ -363,9 +365,6 @@ export class ItemRepository implements IItemRepository {
             default:
               throw new InternalServerError(`Unknown item type: ${found.type}`);
           }
-
-          console.log('Item: ', item);
-
           return item;
         }
       }
@@ -638,29 +637,43 @@ export class ItemRepository implements IItemRepository {
       );
     }
 
-    let totalCount = 0;
+    // let totalCount = 0;
 
-    // Iterate through all modules
-    for (const module of version.modules) {
-      // Iterate through all sections in each module
-      for (const section of module.sections) {
-        try {
-          const itemsGroup = await this.readItemsGroup(
-            section.itemsGroupId.toString(),
-            session,
-          );
-          totalCount += itemsGroup.items.length;
-        } catch (error) {
-          // If itemsGroup is not found, skip this section
-          if (error instanceof NotFoundError) {
-            continue;
-          }
-          throw error;
-        }
-      }
-    }
+    // // Iterate through all modules
+    // for (const module of version.modules) {
+    //   // Iterate through all sections in each module
+    //   for (const section of module.sections) {
+    //     try {
+    //       const itemsGroup = await this.readItemsGroup(
+    //         section.itemsGroupId.toString(),
+    //         session,
+    //       );
+    //       totalCount += itemsGroup.items.length;
+    //     } catch (error) {
+    //       // If itemsGroup is not found, skip this section
+    //       if (error instanceof NotFoundError) {
+    //         continue;
+    //       }
+    //       throw error;
+    //     }
+    //   }
+    // }
 
-    return totalCount;
+    // return totalCount;
+    // Parallelize all section fetches
+    const allItemsPromises = version.modules.flatMap(module =>
+      module.sections.map(section =>
+        this.readItemsGroup(section.itemsGroupId.toString(), session)
+          .then(group => group.items.length)
+          .catch(err =>
+            err instanceof NotFoundError ? 0 : Promise.reject(err),
+          ),
+      ),
+    );
+
+    const itemsCounts = await Promise.all(allItemsPromises);
+
+    return itemsCounts.reduce((sum, count) => sum + count, 0);
   }
 
   async getTotalItemsCount(
@@ -728,8 +741,6 @@ export class ItemRepository implements IItemRepository {
     try {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      console.log('Cascade delete started at:', new Date().toISOString());
 
       // 1. Delete quizzes marked as deleted
       const deletedFilter = { isDeleted: true, deletedAt: { $lte: thirtyDaysAgo } };

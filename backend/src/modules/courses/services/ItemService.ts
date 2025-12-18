@@ -120,7 +120,7 @@ export class ItemService extends BaseService {
         version,
         module,
         section,
-        itemsGroup: { _id: section.itemsGroupId, items: [] } as ItemsGroup,
+        itemsGroup: {_id: section.itemsGroupId, items: []} as ItemsGroup,
       };
     }
 
@@ -165,8 +165,6 @@ export class ItemService extends BaseService {
       const item = new ItemBase(body, itemsGroup.items);
 
       const courseId = version.courseId.toString();
-
-      console.log(item.itemDetails);
 
       // Step 3: Run multiple async operations in parallel
       const [

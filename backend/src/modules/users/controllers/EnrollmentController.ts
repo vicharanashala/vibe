@@ -160,14 +160,6 @@ export class EnrollmentController {
       );
     }
 
-    console.log(
-      'Unenrolling user:',
-      userId,
-      'from course:',
-      courseId,
-      'version:',
-      versionId,
-    );
     const responseData = await this.enrollmentService.unenrollUser(
       userId,
       courseId,
