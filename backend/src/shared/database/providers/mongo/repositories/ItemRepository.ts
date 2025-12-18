@@ -919,4 +919,72 @@ export class ItemRepository implements IItemRepository {
 
     return result as Item;
   }
+
+  async calculateItemCountsForVersion(
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<{
+    totalItems: number;
+    itemCounts: Record<string, number>;
+  }> {
+    await this.init();
+    // 1️⃣ Load version (modules + sections embedded)
+    const courseVersion = await this.courseRepo.readVersion(
+      courseVersionId,
+      session,
+    );
+    if (!courseVersion) {
+      throw new Error(`CourseVersion ${courseVersionId} not found`);
+    }
+
+    // 2️⃣ Collect all itemsGroupIds
+    const itemsGroupIds: ObjectId[] = [];
+
+    for (const module of courseVersion.modules ?? []) {
+      for (const section of module.sections ?? []) {
+        if (section.itemsGroupId) {
+          itemsGroupIds.push(new ObjectId(section.itemsGroupId));
+        }
+      }
+    }
+
+    if (!itemsGroupIds.length) {
+      return { totalItems: 0, itemCounts: {} };
+    }
+
+    // 3️⃣ Aggregate from ItemsGroup
+    const result = await this.itemsGroupCollection
+      .aggregate(
+        [
+          {
+            $match: {
+              _id: { $in: itemsGroupIds },
+            },
+          },
+          { $unwind: '$items' },
+          {
+            $group: {
+              _id: '$items.type',
+              count: { $sum: 1 },
+            },
+          },
+        ],
+        { session },
+      )
+      .toArray();
+
+    // 4️⃣ Build response
+    const itemCounts: Record<string, number> = {};
+    let totalItems = 0;
+
+    for (const row of result) {
+      itemCounts[row._id] = row.count;
+      totalItems += row.count;
+    }
+
+    return { totalItems, itemCounts };
+  }
+
+
+
 }

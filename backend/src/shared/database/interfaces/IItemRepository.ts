@@ -85,6 +85,8 @@ export interface IItemRepository {
     itemType: string,
     session?: ClientSession,
   ): Promise<Item>;
+  calculateItemCountsForVersion(versionId: string,
+    session?: ClientSession,): Promise<{ totalItems: any, itemCounts: any }>;
   // createVideoDetails(details: IVideoDetails): Promise<string>;
   // createQuizDetails(details: IQuizDetails): Promise<string>;
   // createBlogDetails(details: IBlogDetails): Promise<string>;
