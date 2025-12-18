@@ -931,6 +931,33 @@ export function useCreateItem(): {
   };
 }
 
+export function userParseCSVtoItems(): {
+  mutate: (variables: { params: { path: { courseId: string, versionId: string, moduleId: string, sectionId: string } }, body: any }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, moduleId: string, sectionId: string } }, body: any }) => Promise<{
+    success: boolean;
+    message: string;
+    createdItems: any[];
+  }>,
+  data: {
+    success: boolean;
+    message: string;
+    createdItems: any[];
+  } | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/courses/{courseId}/versions/{versionId}/module/{moduleId}/section/{sectionId}/items/csv");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Item creation failed') : null
+  };
+}
+
 // GET /courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items/{itemId}
 export function useItemById(
   courseId: string,
