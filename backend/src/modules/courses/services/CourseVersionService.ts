@@ -1,21 +1,21 @@
-import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
+import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
 import {
   CreateCourseVersionBody,
   UpdateCourseVersionBody,
 } from '#courses/classes/validators/CourseVersionValidators.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {instanceToPlain} from 'class-transformer';
-import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId} from 'mongodb';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { instanceToPlain } from 'class-transformer';
+import { injectable, inject } from 'inversify';
+import { ClientSession, ObjectId } from 'mongodb';
 import {
   NotFoundError,
   InternalServerError,
   BadRequestError,
 } from 'routing-controllers';
-import {Course, Module} from '../classes/index.js';
+import { Course, Module } from '../classes/index.js';
 import {
   ICourse,
   ICourseVersion,
@@ -23,20 +23,20 @@ import {
   ProctoringComponent,
   SettingRepository,
 } from '#root/shared/index.js';
-import {USERS_TYPES} from '#root/modules/users/types.js';
-import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
-import {COURSES_TYPES} from '../types.js';
-import {ModuleService} from './ModuleService.js';
-import {SectionService} from './SectionService.js';
-import {ItemService} from './ItemService.js';
-import {cloneModules} from '../utils/cloneModules.js';
-import {getCopyCourseName} from '../utils/getCopyCourseName.js';
-import {SETTING_TYPES} from '#root/modules/setting/types.js';
+import { USERS_TYPES } from '#root/modules/users/types.js';
+import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
+import { COURSES_TYPES } from '../types.js';
+import { ModuleService } from './ModuleService.js';
+import { SectionService } from './SectionService.js';
+import { ItemService } from './ItemService.js';
+import { cloneModules } from '../utils/cloneModules.js';
+import { getCopyCourseName } from '../utils/getCopyCourseName.js';
+import { SETTING_TYPES } from '#root/modules/setting/types.js';
 import {
   CourseSetting,
   CreateCourseSettingBody,
 } from '#root/modules/setting/index.js';
-import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
+import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 import {
   QuestionBankRepository,
   QuestionRepository,
@@ -104,7 +104,7 @@ export class CourseVersionService extends BaseService {
           proctors: {
             detectors: Object.values(ProctoringComponent).map(detector => ({
               detectorName: detector,
-              settings: {enabled: false, options: {}},
+              settings: { enabled: false, options: {} },
             })),
           },
           linearProgressionEnabled: false,
@@ -166,7 +166,7 @@ export class CourseVersionService extends BaseService {
             const visibleSections = module.sections.filter(
               section => !section.isHidden,
             );
-            return {...module, sections: visibleSections};
+            return { ...module, sections: visibleSections };
           });
       }
 
@@ -262,140 +262,97 @@ export class CourseVersionService extends BaseService {
   ): Promise<boolean> {
     return this._withTransaction(async session => {
       try {
-        //1 Validate Inputs
-        if (
-          !courseId ||
-          typeof courseId !== 'string' ||
-          !courseVersionId ||
-          typeof courseVersionId !== 'string'
-        ) {
-          throw new BadRequestError(
-            `Invalid courseId (${courseId}) or courseVersionId (${courseVersionId})`,
-          );
+        if (!courseId || !courseVersionId) {
+          throw new BadRequestError('Invalid courseId or courseVersionId');
         }
 
-        //2 Fetch existing course version
-        const existingVersion = await this.courseRepo.readVersion(
-          courseVersionId,
-          session,
-        );
+        // 🔹 Parallel reads
+        const [existingVersion, existingCourse] = await Promise.all([
+          this.courseRepo.readVersion(courseVersionId, session),
+          this.courseRepo.read(courseId, session),
+        ]);
+
         if (!existingVersion) {
-          throw new NotFoundError(
-            `Course version ${courseVersionId} not found`,
-          );
+          throw new NotFoundError(`Course version ${courseVersionId} not found`);
         }
-
-        //3 Fetch existing course
-        const existingCourse = await this.courseRepo.read(courseId, session);
         if (!existingCourse) {
           throw new NotFoundError(`Course ${courseId} not found`);
         }
 
-        //4 Create a new course record
-        if (!existingCourse.name || !existingCourse.description) {
-          throw new BadRequestError(
-            'Existing course missing name or description',
-          );
-        }
-        const newCourseData: ICourse = {
-          name: getCopyCourseName(existingCourse.name),
-          description: existingCourse.description,
-          instructors: existingCourse.instructors,
-          versions: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        const newCourse = await this.courseRepo.create(newCourseData, session);
-        if (!newCourse) {
-          throw new InternalServerError('Failed to create new course');
-        }
+        const newCourse = await this.courseRepo.create(
+          {
+            name: getCopyCourseName(existingCourse.name),
+            description: existingCourse.description,
+            instructors: existingCourse.instructors,
+            versions: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          session,
+        );
 
-        //5 Create a new course version record
-        if (!existingVersion.version || !existingVersion.description) {
-          throw new BadRequestError(
-            'Existing version missing version number or description',
-          );
-        }
-        const newCourseVersionData: ICourseVersion = {
-          courseId: new ObjectId(newCourse._id.toString()),
-          version: existingVersion.version,
-          description: existingVersion.description,
-          totalItems: existingVersion.totalItems,
-          modules: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
         const newCourseVersion = await this.courseRepo.createVersion(
-          newCourseVersionData,
+          {
+            courseId: new ObjectId(newCourse._id.toString()),
+            version: existingVersion.version,
+            description: existingVersion.description,
+            totalItems: existingVersion.totalItems,
+            modules: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
           session,
         );
-        if (!newCourseVersion) {
-          throw new InternalServerError('Failed to create new course version');
-        }
 
-        //6 Clone modules and attach to new version
-        const currentModules = existingVersion.modules as Module[];
-        if (!Array.isArray(currentModules)) {
-          throw new BadRequestError('Existing version modules are invalid');
-        }
-        const newVersionIdStr = newCourseVersion._id.toString();
-        const itemRepo = this.itemRepo;
-        const questionBankRepo = this.questionBankRepo;
-        const questionRepo = this.questionRepository;
+        const newVersionId = newCourseVersion._id.toString();
 
-        const newModules = await cloneModules(
-          currentModules,
-          courseVersionId,
-          itemRepo,
-          questionBankRepo,
-          questionRepo,
-          newCourse._id.toString(),
-          session,
-        );
+        // 🔹 Clone modules + fetch enrollments in parallel
+        const [newModules, existingEnrollments] = await Promise.all([
+          cloneModules(
+            existingVersion.modules as Module[],
+            newVersionId,
+            this.itemRepo,
+            this.questionBankRepo,
+            this.questionRepository,
+            newCourse._id.toString(),
+            session,
+          ),
+          this.enrollmentService.getNonStudentEnrollmentsByCourseVersion(
+            courseId,
+            courseVersionId,
+          ),
+        ]);
+
         await this.courseRepo.addModulesToVersion(
-          newVersionIdStr,
+          newVersionId,
           newModules,
           session,
         );
 
-        //7 Add new version to new course
-        const added = await this.courseRepo.addNewCourseVersionToCourse(
+        await this.courseRepo.addNewCourseVersionToCourse(
           newCourse._id.toString(),
-          newCourseVersion._id.toString(),
+          newVersionId,
           session,
         );
-        if (!added) {
-          throw new InternalServerError(
-            'Failed to attach new version to course',
-          );
-        }
 
-        //8 Copy non-student enrollments to the new version
-        const existingEnrollments =
-          await this.enrollmentService.getNonStudentEnrollmentsByCourseVersion(
-            courseId,
-            courseVersionId,
-          );
         if (existingEnrollments?.length) {
-          const enrollmentsToCopy = existingEnrollments.map(enrollment => ({
-            userId: enrollment.userId.toString(),
-            role: enrollment.role,
-          }));
           await this.enrollmentService.bulkEnrollUsers(
-            enrollmentsToCopy,
+            existingEnrollments.map(e => ({
+              userId: e.userId.toString(),
+              role: e.role,
+            })),
             newCourse._id.toString(),
-            newCourseVersion._id.toString(),
+            newVersionId,
             session,
           );
         }
 
-        //9 Return success
         return true;
-      } catch (error) {
-        //10 Log and return failure
-        console.error('Failed to copy course version:', error);
+      } catch (err) {
+        console.error('Failed to copy course version:', err);
         return false;
       }
     });
   }
+
 }
