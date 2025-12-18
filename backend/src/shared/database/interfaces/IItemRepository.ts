@@ -1,10 +1,16 @@
-import {Item, ItemsGroup} from '#courses/classes/transformers/Item.js';
-import {UpdateItemBody} from '#root/modules/courses/classes/index.js';
-import {ClientSession, ObjectId} from 'mongodb';
+import { Item, ItemsGroup } from '#courses/classes/transformers/Item.js';
+import { UpdateItemBody } from '#root/modules/courses/classes/index.js';
+import { ClientSession, ObjectId } from 'mongodb';
 
 export interface IItemRepository {
   readItem(
     courseVersionId: string,
+    itemId: string,
+    session?: ClientSession,
+  ): Promise<Item | null>;
+
+  readItemById(
+
     itemId: string,
     session?: ClientSession,
   ): Promise<Item | null>;

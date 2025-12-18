@@ -80,7 +80,7 @@ export const cloneModules = async (
         // 🔹 Parallel item reads
         const fullItems = await Promise.all(
           oldItemGroup.items.map(i =>
-            itemRepo.readItem(newVersionId, i._id.toString()),
+            itemRepo.readItemById(i._id.toString()),
           ),
         );
 
