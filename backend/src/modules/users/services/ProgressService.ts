@@ -1081,9 +1081,6 @@ class ProgressService extends BaseService {
     watchItemId: string,
   ): Promise<void> {
     return this._withTransaction(async session => {
-      console.log(
-        '<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< FROM START STOP ITEM PROGRESS SERVICE >>>>>>>>>>>>>>>>>>>>>>>>>>',
-      );
       // Verify if the user, course, and course version exist
       await this.verifyDetails(userId, courseId, courseVersionId);
       await this.verifyProgress(
@@ -1101,12 +1098,6 @@ class ProgressService extends BaseService {
         session,
       );
 
-      console.log(
-        '<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< WATCHITEM : ',
-        watchItem,
-        '>>>>>>>>>>>>>>>>>>>>>>>>>>>>',
-      );
-
       if (!watchItem) {
         throw new NotFoundError('Watch item not found');
       }
@@ -1120,13 +1111,9 @@ class ProgressService extends BaseService {
         watchItemId,
         session,
       );
-      console.log('STOP TRACKING RESULT: ', result);
       if (!result) {
         throw new InternalServerError('Failed to stop tracking item');
       }
-      console.log(
-        '<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< FROM END STOP ITEM PROGRESS SERVICE >>>>>>>>>>>>>>>>>>>>>>>>>>',
-      );
     });
   }
 
@@ -1142,7 +1129,6 @@ class ProgressService extends BaseService {
     isSkipped?: boolean,
   ): Promise<void> {
     return this._withTransaction(async session => {
-      console.log('<<<<<<<<<<<<<<<<<<<<<<<<<<< FROM updateProgress SERVICE');
       await this.verifyDetails(userId, courseId, courseVersionId);
 
       await this.verifyProgress(

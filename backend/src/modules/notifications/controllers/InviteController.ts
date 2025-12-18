@@ -28,7 +28,11 @@ import {
 } from '../classes/validators/InviteValidators.js';
 import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
 import {NOTIFICATIONS_TYPES} from '../types.js';
-import {CancelInviteResponse, MessageResponse, ResendInviteResponse} from '../classes/index.js';
+import {
+  CancelInviteResponse,
+  MessageResponse,
+  ResendInviteResponse,
+} from '../classes/index.js';
 import {appConfig} from '#root/config/app.js';
 import {inviteRedirectTemplate} from '../redirectTemplate.js';
 import {InviteActions, getInviteAbility} from '../abilities/inviteAbilities.js';
@@ -100,7 +104,7 @@ export class InviteController {
   }
 
   //new route for Link creation
-  
+
   @Authorized()
   @Post('/courses/:courseId/versions/:versionId/bulk')
   @HttpCode(200)
@@ -150,8 +154,7 @@ export class InviteController {
   @ContentType('html')
   @OpenAPI({
     summary: 'Process Invite',
-    description:
-      `Process an invite given an inviteId and send a response before redirecting the user.`,
+    description: `Process an invite given an inviteId and send a response before redirecting the user.`,
   })
   @ResponseSchema(MessageResponse, {
     description: 'Invite processed successfully',
@@ -169,12 +172,11 @@ export class InviteController {
     try {
       const result = await this.inviteService.processInvite(inviteId);
       if (result.isBulk) {
-        // req.session.bulkInviteId = inviteId
-        // console.log("session added ", req.session.bulkInviteId)
       }
       return inviteRedirectTemplate(result.message, appConfig.origins[0]);
     } catch (error: any) {
-      const errorMessage = error.message || 'An error occurred while processing your invite.';
+      const errorMessage =
+        error.message || 'An error occurred while processing your invite.';
       console.error('Error processing invite:', error);
       return inviteRedirectTemplate(errorMessage, appConfig.origins[0]);
     }
@@ -197,7 +199,8 @@ export class InviteController {
     @Ability(getInviteAbility) {ability},
   ): Promise<InviteResponse> {
     const {courseId, versionId} = params;
-    const {inviteStatus, currentPage, limit, search, sort, startDate, endDate} = query;
+    const {inviteStatus, currentPage, limit, search, sort, startDate, endDate} =
+      query;
 
     // Build subject context first
     const inviteContext = {courseId, versionId};
@@ -320,4 +323,3 @@ export class InviteController {
     return this.inviteService.cancelInvite(inviteId);
   }
 }
-

@@ -211,17 +211,12 @@ class AttemptService extends BaseService {
     | {message: string}
   > {
     return this._withTransaction(async session => {
-      console.log(
-        '<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<FROM START ATTEMPT SERVICE>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>',
-      );
       //1. Check if UserQuizMetrics exists for the user and quiz
       let metrics = await this.userQuizMetricsRepository.get(
         userId,
         quizId,
         session,
       );
-
-      console.log('Old metrics: ', metrics);
 
       const quiz = await this.quizRepository.getById(quizId, session);
       const userObjecId = new ObjectId(userId);
@@ -247,8 +242,6 @@ class AttemptService extends BaseService {
           session,
         );
       }
-
-      console.log('After creating new Metrics (old/new): ', metrics);
 
       //2. Check if the quiz is of type 'DEADLINE' and if the deadline has passed
       if (
@@ -289,11 +282,6 @@ class AttemptService extends BaseService {
       const updatedMetrics = await this.userQuizMetricsRepository.update(
         metrics._id.toString(),
         metrics,
-      );
-
-      console.log('New Attempt id: ', attemptId);
-      console.log(
-        '<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<FROM END ATTEMPT SERVICE>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>',
       );
 
       //6. Return the attempt ID

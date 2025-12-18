@@ -105,7 +105,7 @@ export class ItemService extends BaseService {
         version,
         module,
         section,
-        itemsGroup: { _id: section.itemsGroupId, items: [] } as ItemsGroup,
+        itemsGroup: {_id: section.itemsGroupId, items: []} as ItemsGroup,
       };
     }
 
@@ -150,7 +150,6 @@ export class ItemService extends BaseService {
       const item = new ItemBase(body, itemsGroup.items);
 
       const courseId = version.courseId.toString();
-
 
       // Step 3: Run multiple async operations in parallel
       const [
@@ -243,7 +242,6 @@ export class ItemService extends BaseService {
       course.courseId.toString(),
       versionId,
     );
-
 
     // Only filter hidden items for students
     if (user.role === 'STUDENT') {
@@ -729,8 +727,6 @@ export class ItemService extends BaseService {
         updateData as any, // Still need any because of the details type mismatch
         session,
       );
-
-      // console.log("results from itemservice.ts file to update the optional",result);
 
       return result;
     });

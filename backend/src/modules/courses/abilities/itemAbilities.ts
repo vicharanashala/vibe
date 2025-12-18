@@ -49,9 +49,6 @@ export async function setupItemAbilities(
     can('manage', 'Item');
     return;
   }
-  console.log(
-    '<<<<<<<<<<<<<<<<<<<<<<<<<<<<Hey from setupItemAbilities>>>>>>>>>>>>>>>>>>>>>>>>>>>',
-  );
 
   const progressService = getFromContainer(ProgressService);
   const courseSettingService = getFromContainer(CourseSettingService);
@@ -117,18 +114,12 @@ export async function setupItemAbilities(
 
           const allowedItemIds = [...completedItems];
           const currentItemId = progress.currentItem.toString();
-          console.log(
-            'From itemAbilities, Progress Current ItemId: ',
-            currentItemId,
-          );
 
           // check if the user remaining attempts of a quiz is over
           const quizMetrics = await progressService.getUserMetricsForQuiz(
             user.userId,
             currentItemId,
           );
-
-          //   console.log("Quiz metrics: ", quizMetrics)
 
           if (quizMetrics && quizMetrics.remainingAttempts == 0) {
             const {nextItemId} = await progressService.determineNextAllowedItem(
@@ -148,10 +139,7 @@ export async function setupItemAbilities(
 
           if (linearProgressionEnabled) {
             itemBounded.itemId = {$in: allowedItemIds};
-
-            // console.log('Applied linear progression restrictions:', allowedItemIds);
           } else {
-            // console.log('LINEAR PROGRESSION IS DISABLED - no restrictions applied');
           }
 
           can(ItemActions.View, 'Item', itemBounded);
@@ -180,9 +168,6 @@ export async function setupItemAbilities(
 export async function getItemAbility(
   user: AuthenticatedUser,
 ): Promise<MongoAbility<any>> {
-  console.log(
-    '<<<<<<<<<<<<<<<<<<<<<<<<<<<<Hey from item ability>>>>>>>>>>>>>>>>>>>>>>>>>>>',
-  );
   const builder = createAbilityBuilder();
   await setupItemAbilities(builder, user);
   return builder.build();

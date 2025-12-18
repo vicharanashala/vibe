@@ -143,8 +143,6 @@ export class EnrollmentService extends BaseService {
             },
             session,
           );
-
-         
         } else {
           console.log(
             '=== ENROLLMENT: No progress data returned - course may have no valid items ===',
@@ -257,11 +255,9 @@ export class EnrollmentService extends BaseService {
 
       if (!enrollments.length) return [];
 
-
       const enrolledVersionIds = new Set(
         enrollments.map(e => e.courseVersionId.toString()),
       );
-
 
       if (role === 'STUDENT') {
         const versionIds = Array.from(enrolledVersionIds).map(
@@ -298,7 +294,6 @@ export class EnrollmentService extends BaseService {
 
           // if different, update enrollment percentCompleted
           if (enr.percentCompleted !== calculatedPercent) {
-            
             this.enrollmentRepo.updateProgressPercentById(
               enr._id.toString(),
               calculatedPercent,
@@ -306,8 +301,6 @@ export class EnrollmentService extends BaseService {
 
             enr.percentCompleted = calculatedPercent;
           }
-
-          console.log('Enrollment', enr);
 
           if (enr.percentCompleted >= 0)
             return {
@@ -437,10 +430,6 @@ export class EnrollmentService extends BaseService {
         throw new NotFoundError('Course version not found');
       }
 
-      console.log(
-        `Starting quiz scores export for course ${courseId}, version ${versionId}`,
-      );
-
       // Get quiz scores from repository with batching
       return await this.enrollmentRepo.getQuizScoresForCourseVersion(
         courseId,
@@ -504,7 +493,6 @@ export class EnrollmentService extends BaseService {
     // 1. Get courses (all or specific one)
     let courses = [];
     if (courseId) {
-      console.log(`Processing enrollments for courseId: ${courseId}`);
       const course = await this.courseRepo.read(courseId);
       if (!course) {
         throw new Error(`Course with id ${courseId} not found`);
