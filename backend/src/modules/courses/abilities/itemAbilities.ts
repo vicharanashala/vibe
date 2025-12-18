@@ -70,11 +70,17 @@ export async function setupItemAbilities(
           const linearProgressionEnabled =
             courseSettings?.settings?.linearProgressionEnabled ?? true;
 
-          const progress = await progressService.getUserProgress(
-            user.userId,
-            enrollment.courseId,
-            enrollment.versionId,
-          );
+          let progress;
+          try {
+            progress = await progressService.getUserProgress(
+              user.userId,
+              enrollment.courseId,
+              enrollment.versionId,
+            );
+          } catch (error) {
+            console.log('No progress found for student, course not started yet');
+            progress = null;
+          }
 
           // return all the itemId having watchtime doc
           const completedItems = await progressService.getCompletedItems(
@@ -106,7 +112,12 @@ export async function setupItemAbilities(
           }
 
           if (!progress) {
-            throw new InternalServerError('No progress found for user');
+            const itemBounded = {
+              courseId: enrollment.courseId,
+              versionId: enrollment.versionId,
+            };
+            can(ItemActions.View, 'Item', itemBounded);
+            break;
           }
 
           const allowedItemIds = [...completedItems];
