@@ -260,99 +260,90 @@ export class CourseVersionService extends BaseService {
     courseId: string,
     courseVersionId: string,
   ): Promise<boolean> {
-    return this._withTransaction(async session => {
-      try {
-        if (!courseId || !courseVersionId) {
-          throw new BadRequestError('Invalid courseId or courseVersionId');
-        }
+    try {
+      if (!courseId || !courseVersionId) {
+        throw new BadRequestError('Invalid courseId or courseVersionId');
+      }
 
-        // 🔹 Parallel reads
-        const [existingVersion, existingCourse] = await Promise.all([
-          this.courseRepo.readVersion(courseVersionId, session),
-          this.courseRepo.read(courseId, session),
-        ]);
+      // 🔹 Parallel reads (no session)
+      const [existingVersion, existingCourse] = await Promise.all([
+        this.courseRepo.readVersion(courseVersionId),
+        this.courseRepo.read(courseId),
+      ]);
 
-        if (!existingVersion) {
-          throw new NotFoundError(`Course version ${courseVersionId} not found`);
-        }
-        if (!existingCourse) {
-          throw new NotFoundError(`Course ${courseId} not found`);
-        }
+      if (!existingVersion) {
+        throw new NotFoundError(`Course version ${courseVersionId} not found`);
+      }
+      if (!existingCourse) {
+        throw new NotFoundError(`Course ${courseId} not found`);
+      }
 
-        const newCourse = await this.courseRepo.create(
-          {
-            name: getCopyCourseName(existingCourse.name),
-            description: existingCourse.description,
-            instructors: existingCourse.instructors,
-            versions: [],
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-          session,
-        );
+      // 🔹 Create new course
+      const newCourse = await this.courseRepo.create({
+        name: getCopyCourseName(existingCourse.name),
+        description: existingCourse.description,
+        instructors: existingCourse.instructors,
+        versions: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
 
-        const newCourseVersion = await this.courseRepo.createVersion(
-          {
-            courseId: new ObjectId(newCourse._id.toString()),
-            version: existingVersion.version,
-            description: existingVersion.description,
-            totalItems: existingVersion.totalItems,
-            modules: [],
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-          session,
-        );
+      // 🔹 Create new version
+      const newCourseVersion = await this.courseRepo.createVersion({
+        courseId: new ObjectId(newCourse._id.toString()),
+        version: existingVersion.version,
+        description: existingVersion.description,
+        totalItems: existingVersion.totalItems,
+        modules: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
 
-        const newVersionId = newCourseVersion._id.toString();
+      const newVersionId = newCourseVersion._id.toString();
 
-        // 🔹 Clone modules + fetch enrollments in parallel
-        const [newModules, existingEnrollments] = await Promise.all([
-          cloneModules(
-            existingVersion.modules as Module[],
-            newVersionId,
-            this.itemRepo,
-            this.questionBankRepo,
-            this.questionRepository,
-            newCourse._id.toString(),
-            session,
-          ),
-          this.enrollmentService.getNonStudentEnrollmentsByCourseVersion(
-            courseId,
-            courseVersionId,
-          ),
-        ]);
-
-        await this.courseRepo.addModulesToVersion(
+      // 🔹 Clone modules + fetch enrollments in parallel
+      const [newModules, existingEnrollments] = await Promise.all([
+        cloneModules(
+          existingVersion.modules as Module[],
           newVersionId,
-          newModules,
-          session,
-        );
+          this.itemRepo,
+          this.questionBankRepo,
+          this.questionRepository,
+          newCourse._id.toString(),
+        ),
+        this.enrollmentService.getNonStudentEnrollmentsByCourseVersion(
+          courseId,
+          courseVersionId,
+        ),
+      ]);
 
-        await this.courseRepo.addNewCourseVersionToCourse(
+      // 🔹 Attach modules
+      await this.courseRepo.addModulesToVersion(newVersionId, newModules);
+
+      // 🔹 Attach version to course
+      await this.courseRepo.addNewCourseVersionToCourse(
+        newCourse._id.toString(),
+        newVersionId,
+      );
+
+      // 🔹 Copy enrollments
+      if (existingEnrollments?.length) {
+        await this.enrollmentService.bulkEnrollUsers(
+          existingEnrollments.map(e => ({
+            userId: e.userId.toString(),
+            role: e.role,
+          })),
           newCourse._id.toString(),
           newVersionId,
-          session,
         );
-
-        if (existingEnrollments?.length) {
-          await this.enrollmentService.bulkEnrollUsers(
-            existingEnrollments.map(e => ({
-              userId: e.userId.toString(),
-              role: e.role,
-            })),
-            newCourse._id.toString(),
-            newVersionId,
-            session,
-          );
-        }
-
-        return true;
-      } catch (err) {
-        console.error('Failed to copy course version:', err);
-        return false;
       }
-    });
-  }
 
-}
+      return true;
+    } catch (err) {
+      console.error('Failed to copy course version:', err);
+
+      // OPTIONAL: cleanup partially created course/version
+      //
+
+
+    }
