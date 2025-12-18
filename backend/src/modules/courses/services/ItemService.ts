@@ -1,45 +1,54 @@
-import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId} from 'mongodb';
-import {NotFoundError, InternalServerError} from 'routing-controllers';
-import {COURSES_TYPES} from '#courses/types.js';
-import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, ObjectId } from 'mongodb';
+import { NotFoundError, InternalServerError } from 'routing-controllers';
+import { COURSES_TYPES } from '#courses/types.js';
+import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
 import {
   ItemsGroup,
   ItemBase,
   ItemRef,
   Item,
 } from '#courses/classes/transformers/Item.js';
-import {Section} from '#courses/classes/transformers/Section.js';
+import { Section } from '#courses/classes/transformers/Section.js';
 import {
   CreateItemBody,
   UpdateItemBody,
   MoveItemBody,
   QuizDetailsPayloadValidator,
+  CSVRow,
+  CSVQuizQuestion,
 } from '#courses/classes/validators/ItemValidators.js';
-import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {Module} from '#courses/classes/transformers/Module.js';
+import { calculateNewOrder } from '#courses/utils/calculateNewOrder.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { Module } from '#courses/classes/transformers/Module.js';
 import {
   EnrollmentRepository,
   IBaseItem,
   ICourseVersion,
   IQuizDetails,
   ItemType,
+  Priority,
   ProgressRepository,
+  QuestionType,
 } from '#root/shared/index.js';
-import {USERS_TYPES} from '#root/modules/users/types.js';
-import {ProgressService} from '#root/modules/users/services/ProgressService.js';
-import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
+import { USERS_TYPES } from '#root/modules/users/types.js';
+import { ProgressService } from '#root/modules/users/services/ProgressService.js';
+import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 import {
   AttemptRepository,
   QuizRepository,
   UserQuizMetricsRepository,
 } from '#root/modules/quizzes/repositories/index.js';
-import {FeedbackRepository} from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
+import { FeedbackRepository } from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
+import { QuestionBankService } from '#root/modules/quizzes/services/QuestionBankService.js';
+import { QuizService } from '#root/modules/quizzes/services/QuizService.js';
+import { QuestionService } from '#root/modules/quizzes/services/QuestionService.js';
+import { QuestionFactory } from '#root/modules/quizzes/classes/index.js';
+import { QuestionProcessor } from '#root/modules/quizzes/question-processing/QuestionProcessor.js';
 
 @injectable()
 export class ItemService extends BaseService {
@@ -64,6 +73,12 @@ export class ItemService extends BaseService {
     private feedbackRepo: FeedbackRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
+    @inject(QUIZZES_TYPES.QuestionBankService)
+    private readonly questionBankService: QuestionBankService,
+    @inject(QUIZZES_TYPES.QuizService)
+    private readonly quizService: QuizService,
+    @inject(QUIZZES_TYPES.QuestionService)
+    private readonly questionService: QuestionService,
   ) {
     super(database);
   }
@@ -109,13 +124,13 @@ export class ItemService extends BaseService {
       };
     }
 
-    return {version, module, section, itemsGroup};
+    return { version, module, section, itemsGroup };
   }
 
   private async _updateHierarchyAndVersion(
     version: CourseVersion,
-    module: {updatedAt: Date},
-    section: {updatedAt: Date},
+    module: { updatedAt: Date },
+    section: { updatedAt: Date },
     session?: ClientSession, // Pass session if version update is part of the transaction
   ): Promise<CourseVersion> {
     const now = new Date();
@@ -139,7 +154,7 @@ export class ItemService extends BaseService {
   ) {
     return this._withTransaction(async session => {
       // Step 1: Fetch and validate parent entities
-      const {version, module, section, itemsGroup} =
+      const { version, module, section, itemsGroup } =
         await this._getVersionModuleSectionAndItemsGroup(
           versionId,
           moduleId,
@@ -163,10 +178,10 @@ export class ItemService extends BaseService {
         version.totalItems
           ? Promise.resolve(null)
           : this.itemRepo.CalculateTotalItemsCount(
-              courseId,
-              version._id.toString(),
-              session,
-            ),
+            courseId,
+            version._id.toString(),
+            session,
+          ),
         this.enrollmentRepo.getByCourseVersion(courseId, versionId, session),
       ]);
 
@@ -228,7 +243,7 @@ export class ItemService extends BaseService {
     sectionId: string,
     userId: string,
   ): Promise<ItemRef[]> {
-    const {itemsGroup} = await this._getVersionModuleSectionAndItemsGroup(
+    const { itemsGroup } = await this._getVersionModuleSectionAndItemsGroup(
       versionId,
       moduleId,
       sectionId,
@@ -327,7 +342,7 @@ export class ItemService extends BaseService {
           sectionIndex === currentSectionIndex &&
           index < currentItemIndex
         ) {
-          return {...item, isCompleted: true};
+          return { ...item, isCompleted: true };
         }
 
         if (
@@ -335,10 +350,10 @@ export class ItemService extends BaseService {
           sectionIndex === currentSectionIndex &&
           index === currentItemIndex
         ) {
-          return {...item, isCompleted: progress.completed};
+          return { ...item, isCompleted: progress.completed };
         }
 
-        return {...item, isCompleted: false};
+        return { ...item, isCompleted: false };
       });
     }
 
@@ -378,7 +393,7 @@ export class ItemService extends BaseService {
       //  Update item first
       const result = await this.itemRepo.updateItem(
         itemId,
-        {...body, isOptional: body.isOptional || item.isOptional},
+        { ...body, isOptional: body.isOptional || item.isOptional },
         session,
       );
 
@@ -409,7 +424,7 @@ export class ItemService extends BaseService {
   async bulkUpdateEnrolledUserQuizMetrics(
     quizId: string,
     quiz: any,
-  ): Promise<{updatedCount: number; totalCount: number}> {
+  ): Promise<{ updatedCount: number; totalCount: number }> {
     const BATCH_SIZE = 5000;
     const bulkOperations: any[] = [];
     let batchCount = 0;
@@ -437,7 +452,7 @@ export class ItemService extends BaseService {
           // Step 3: Add to bulk operations
           bulkOperations.push({
             updateOne: {
-              filter: {_id: new ObjectId(metric._id)},
+              filter: { _id: new ObjectId(metric._id) },
               update: {
                 $set: {
                   // latestAttemptId: latestAttempt?._id.toString(),
@@ -459,8 +474,7 @@ export class ItemService extends BaseService {
                 session,
               );
               console.log(
-                `✅ Batch ${++batchCount}: Updated ${
-                  bulkOperations.length
+                `✅ Batch ${++batchCount}: Updated ${bulkOperations.length
                 } user_quiz_metrics`,
               );
               bulkOperations.length = 0;
@@ -486,7 +500,7 @@ export class ItemService extends BaseService {
     }
 
     console.log(`🔹 Done! Updated ${updatedCount} / ${totalCount} records`);
-    return {updatedCount, totalCount};
+    return { updatedCount, totalCount };
   }
 
   public async deleteItem(itemsGroupId: string, itemId: string) {
@@ -537,7 +551,7 @@ export class ItemService extends BaseService {
         }
 
         deleted._id = deleted._id.toString();
-        return {deletedItemId: itemId, itemsGroup: deleted};
+        return { deletedItemId: itemId, itemsGroup: deleted };
       } catch (error) {
         throw new InternalServerError(
           `Failed to delete Item after / Error: ${error}`,
@@ -554,7 +568,7 @@ export class ItemService extends BaseService {
     body: MoveItemBody,
   ) {
     return this._withTransaction(async session => {
-      const {afterItemId, beforeItemId} = body;
+      const { afterItemId, beforeItemId } = body;
       if (!afterItemId && !beforeItemId) {
         throw new Error('Either afterItemId or beforeItemId is required');
       }
@@ -602,7 +616,7 @@ export class ItemService extends BaseService {
         version,
       );
 
-      return {itemsGroup: updatedItemsGroup, version: updatedVersion};
+      return { itemsGroup: updatedItemsGroup, version: updatedVersion };
     });
   }
 
@@ -764,7 +778,7 @@ export class ItemService extends BaseService {
         if (nextItem) {
           await this.progressRepo.updateProgressByItemId(
             itemId,
-            {currentItem: nextItem._id.toString()},
+            { currentItem: nextItem._id.toString() },
             session,
           );
         }
@@ -780,7 +794,7 @@ export class ItemService extends BaseService {
     isOptional: boolean,
   ) {
     return this._withTransaction(async session => {
-      const versionIdObject = new ObjectId(versionId);
+      const versionIdObject = new ObjectId(versionId)
       // Get the item
       const item = await this.itemRepo.readItem(versionId, itemId, session);
       if (!item) {
@@ -803,9 +817,241 @@ export class ItemService extends BaseService {
         session,
       );
 
-      // console.log("results from itemservice.ts file to update the optional",result);
-
       return result;
     });
+  }
+
+  private _convertTimeToSeconds(timeStr: string): number {
+    if (!timeStr) return 0;
+    const [minutes, seconds] = timeStr.split(':').map(Number);
+    return (minutes * 60) + (seconds || 0);
+  }
+
+  private _formatSecondsToHHMMSS(seconds: number): string {
+    const hh = Math.floor(seconds / 3600);
+    const mm = Math.floor((seconds % 3600) / 60);
+    const ss = Math.floor(seconds % 60);
+    return [
+      hh.toString().padStart(2, '0'),
+      mm.toString().padStart(2, '0'),
+      ss.toString().padStart(2, '0')
+    ].join(':');
+  }
+
+  /**
+   * Process CSV file and create video segments and quizzes
+   */
+  public async processCSVAndCreateItems(
+    youtubeUrl: string,
+    moduleId: string,
+    sectionId: string,
+    versionId: string,
+    courseId: string,
+    userId: string,
+    data: CSVQuizQuestion[]
+  ) {
+
+    if (!data || !Array.isArray(data)) {
+      throw new Error('Invalid data: Expected an array of questions');
+    }
+    try {
+
+      // Group questions by segment
+      const segments = new Map<string, CSVQuizQuestion[]>();
+      const seenSegments = new Set<string>();
+      let currentSegment = '1';
+
+
+      data.forEach((row, index) => {
+        // If Segment is empty, use the last seen segment
+        const rawSegment = row['Segment']?.toString().trim();
+        if (!row.Segment || rawSegment === '') {
+          row.Segment = currentSegment;
+        } else {
+          currentSegment = rawSegment;
+          row.Segment = currentSegment;
+        }
+
+        const segment = currentSegment;
+        if (!segments.has(segment)) {
+          segments.set(segment, []);
+        }
+        segments.get(segment)?.push(row);
+        // Track unique segments for better error reporting
+        if (!seenSegments.has(segment)) {
+          seenSegments.add(segment);
+        }
+      });
+
+      if (segments.size === 0) {
+        const errorMsg = 'No valid segments found in the CSV. ';
+        if (seenSegments.size > 0) {
+          console.error('[processCSVAndCreateItems] Segments found but not processed:', Array.from(seenSegments).join(', '));
+        } else {
+          console.error('[processCSVAndCreateItems] No segments found in the data');
+        }
+        throw new Error(errorMsg + 'Please ensure your CSV has a "Segment" column with valid values.');
+      }
+
+      // Process each segment
+      let previousEndTime = 0;
+      const segmentNumbers = Array.from(segments.keys()).sort((a, b) => parseInt(a) - parseInt(b));
+      const createdItems = [];
+
+      for (const segmentNumber of segmentNumbers) {
+        const result = await this._withTransaction(async (session) => {
+          const questions = segments.get(segmentNumber) || [];
+          const segmentQuestions = questions.filter(q => q.Question && q['Correct Answer']);
+
+
+          // Get the first question's timestamp as the end time for the video segment
+          const firstQuestion = segmentQuestions[0];
+          const timestamp = firstQuestion['Question Timestamp [mm:ss]'];
+          const timeCache = new Map<string, number>();
+
+          const endTime = timestamp
+            ? timeCache.get(timestamp) ?? timeCache.set(timestamp, this._convertTimeToSeconds(timestamp)).get(timestamp)!
+            : previousEndTime + 300;
+
+          // Create video item
+          const videoItem = await this.createItem(
+            versionId,
+            moduleId,
+            sectionId,
+            {
+              type: ItemType.VIDEO,
+              name: `Video ${segmentNumber}`,
+              description: `Video segment ${segmentNumber} from CSV upload`,
+              videoDetails: {
+                URL: youtubeUrl,
+                startTime: this._formatSecondsToHHMMSS(previousEndTime),
+                endTime: this._formatSecondsToHHMMSS(endTime),
+                points: 1
+              }
+            },
+          );
+
+          // Create quiz item
+          const quizItem = await this.createItem(
+            versionId,
+            moduleId,
+            sectionId,
+            {
+              type: ItemType.QUIZ,
+              name: `Quiz - Segment ${segmentNumber}`,
+              description: `Quiz for segment ${segmentNumber} from CSV upload`,
+              quizDetails: {
+                passThreshold: 0.5,
+                maxAttempts: 3,
+                quizType: 'NO_DEADLINE',
+                releaseTime: new Date(),
+                questionVisibility: 1,
+                approximateTimeToComplete: '00:01:00',
+                allowPartialGrading: true,
+                allowHint: true,
+                showCorrectAnswersAfterSubmission: true,
+                showExplanationAfterSubmission: true,
+                showScoreAfterSubmission: true,
+                allowSkip: false,
+                deadline: null
+              }
+            },
+          );
+
+          // Create question bank
+          const questionBank = await this.questionBankService.create({
+            courseId: new ObjectId(courseId),
+            courseVersionId: new ObjectId(versionId),
+            title: `Question Bank - Segment ${segmentNumber}`,
+            description: `Questions for segment ${segmentNumber} from CSV upload`,
+            questions: [],
+            tags: [],
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+
+          // Add question bank to quiz
+          await this.quizService.addQuestionBank(
+            quizItem.createdItem._id.toString(),
+            {
+              bankId: questionBank,
+              count: 3,
+              tags: []
+            }
+          );
+
+          // Process questions
+          for (const question of segmentQuestions) {
+            const options = [
+              { text: question['Option A'] || '', explanation: question['Expln-A'] || '' },
+              { text: question['Option B'] || '', explanation: question['Expln-B'] || '' },
+              { text: question['Option C'] || '', explanation: question['Expln-C'] || '' },
+              { text: question['Option D'] || '', explanation: question['Expln-D'] || '' }
+            ].filter(opt => opt.text);
+
+            const correctAnswer = question['Correct Answer']?.toUpperCase();
+            const correctOptionIndex = correctAnswer ? correctAnswer.charCodeAt(0) - 65 : -1;
+
+            if (correctOptionIndex >= 0 && correctOptionIndex < options.length) {
+
+              const questionBody = {
+                question: {
+                  text: question.Question || '',
+                  type: "SELECT_ONE_IN_LOT" as QuestionType,
+                  isParameterized: false,
+                  parameters: [],
+                  timeLimitSeconds: 60,
+                  points: 1,
+                  priority: "MEDIUM" as Priority,
+                  hint: question.Hint || '',
+                },
+                solution: {
+                  correctLotItem: {
+                    text: options[correctOptionIndex].text,
+                    explaination: options[correctOptionIndex].explanation || 'No explanation provided'
+                  },
+                  incorrectLotItems: options
+                    .filter((_, i) => i !== correctOptionIndex)
+                    .map(opt => ({
+                      text: opt.text,
+                      explaination: opt.explanation || 'No explanation provided'
+                    }))
+                },
+              };
+              const question2 = QuestionFactory.createQuestion(questionBody, userId);
+              const questionProcessor = new QuestionProcessor(question2);
+              questionProcessor.validate();
+              questionProcessor.render();
+
+              const id = await this.questionService.create(question2);
+
+              // add question to question bank
+              const addQuestion = await this.questionBankService.addQuestion(questionBank, id);
+            }
+          }
+
+          return {
+            videoItem: videoItem.createdItem,
+            quizItem: quizItem.createdItem,
+            questionBankId: questionBank,
+            questionCount: segmentQuestions.length,
+            endTime
+          };
+        });
+
+        previousEndTime = result.endTime;
+        createdItems.push(result);
+      }
+
+      return {
+        success: true,
+        message: 'Successfully processed CSV and created items',
+        createdItems
+      };
+    } catch (error) {
+      console.error('Error processing CSV:', error);
+      throw new InternalServerError(`Failed to process CSV: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
   }
 }
