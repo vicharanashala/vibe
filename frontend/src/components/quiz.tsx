@@ -19,6 +19,7 @@ import { preprocessMathContent, preprocessRemoveFromOptions } from '@/utils/util
 import Loader from './Loader';
 import { Textarea } from './ui/textarea';
 import { error } from 'console';
+import { NavigatingOverlay } from './video';
 
 // Type for Order interface (if not defined elsewhere)
 interface Order {
@@ -86,6 +87,7 @@ const [showExplanation,setShowExplanation] = useState(false)
   const { mutateAsync: saveQuiz, isPending: isSaving, error: saveError } = useSaveQuiz();
   const startItem = useStartItem();
   const stopItem = useStopItem();
+  const isStopping = stopItem.isPending;
 
   // ===== UTILITY FUNCTIONS =====
 
@@ -400,7 +402,7 @@ function showExplanationBox(text: string) {
     }
   }, [currentCourse, startItem, setWatchItemId]);
 
-  const handleStopItem = useCallback((isSkipped?:boolean) => {
+  const handleStopItem = useCallback(async(isSkipped?:boolean) => {
     if (!currentCourse?.itemId || !currentCourse.watchItemId) {
       itemStartedRef.current = false;
       return;
@@ -410,7 +412,7 @@ function showExplanationBox(text: string) {
       return;
     }
     
-    stopItem.mutate({
+   await stopItem.mutateAsync({
       params: {
         path: {
           courseId: currentCourse.courseId,
@@ -428,6 +430,41 @@ function showExplanationBox(text: string) {
     });
     itemStartedRef.current = false;
   }, [currentCourse, stopItem, attemptId]);
+
+
+  const stopItemAsync = useCallback(
+    async (isSkipped?: boolean) => {
+      if (!currentCourse?.itemId || !currentCourse.watchItemId) {
+        itemStartedRef.current = false;
+        return;
+      }
+
+      if (!itemStartedRef.current) {
+        return;
+      }
+
+      await stopItem.mutateAsync({
+        params: {
+          path: {
+            courseId: currentCourse.courseId,
+            courseVersionId: currentCourse.versionId ?? '',
+          },
+        },
+        body: {
+          watchItemId: currentCourse.watchItemId,
+          itemId: currentCourse.itemId,
+          moduleId: currentCourse.moduleId ?? '',
+          sectionId: currentCourse.sectionId ?? '',
+          attemptId,
+          isSkipped,
+        },
+      });
+
+      itemStartedRef.current = false;
+    },
+    [currentCourse, stopItem, attemptId]
+  );
+
 
   // Handle empty quiz without attempting to start it
   const handleEmptyQuiz = useCallback(async () => {
@@ -590,9 +627,9 @@ function showExplanationBox(text: string) {
      
       // No reponse for skipped quiz!
       if (!response) {
+        await stopItemAsync(isSkipped); 
         setQuizCompleted(true);
-        handleStopItem(isSkipped);
-        return
+        return;
       }
       // Convert the response to match the expected type
       const formattedResponse: SubmitQuizResponse = {
@@ -615,39 +652,12 @@ function showExplanationBox(text: string) {
         });
         setScore(totalScore);
       }
-// quizQuestions.forEach(question => {
-  
-//   const userAnswer = answers[question.id];
-//   if (!userAnswer) return;
-//   answersForSubmission.forEach(sub => {
-//   const selected = question.lotItems?.find(
-//     i => i._id == sub.answer.lotItemId
-//   );
-//   explanationText=`${selected?.explaination}`
-// });
-// });
-// quizQuestions.forEach(question => {
-//   const userAnswer = answers[question.id];
-//   if (!userAnswer) return;
-  
-//   answersForSubmission.forEach(sub => {
-//     // Add this null check
-//     if (sub?.answer?.lotItemId && question.lotItems) {
-//       const selected = question.lotItems.find(
-//         i => i._id == sub.answer.lotItemId
-//       );
-//       if (selected?.explaination) {
-//         explanationText = selected.explaination;
-//       }
-//     }
-//   });
-// });
+      await stopItemAsync(); 
       setQuizCompleted(true);
-      handleStopItem();
     } catch (err) {
       console.error('Failed to submit quiz:', err);
-      // setQuizCompleted(true);
-      handleStopItem();
+      // handleStopItem();
+      await stopItemAsync(isSkipped);
     }
   }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem]);
 
@@ -1365,6 +1375,17 @@ if (explanationText.trim()) {
 
   return (
     <Card className="mx-auto">
+      {isStopping && (
+        <div
+          className="absolute inset-0 z-40 cursor-not-allowed"
+          style={{ pointerEvents: 'all' }}
+        />
+      )}
+      <NavigatingOverlay
+        visible={isStopping}
+        title="Verifying answers"
+        message="Please wait while we submit and validate your responses…"
+      />
       <CardHeader>
         <div className="flex justify-between items-center">
           <Badge variant="outline">
