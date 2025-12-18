@@ -343,7 +343,12 @@ export class CourseVersionService extends BaseService {
       console.error('Failed to copy course version:', err);
 
       // OPTIONAL: cleanup partially created course/version
-      //
+      // await this.courseRepo.delete(newCourseId);
 
-
+      return false;
     }
+  }
+
+
+
+}
