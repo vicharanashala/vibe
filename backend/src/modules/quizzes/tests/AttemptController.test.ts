@@ -421,7 +421,6 @@ describe('AttemptController', async () => {
           ],
         });
       expect(submitRes.status).toBe(200);
-      console.log(submitRes.body);
       expect(submitRes.body).toHaveProperty('totalScore');
       expect(submitRes.body.totalScore).toBeGreaterThanOrEqual(0);
     });
@@ -669,7 +668,6 @@ describe('AttemptController', async () => {
       expect(submitRes.status).toBe(200);
       expect(submitRes.body).toHaveProperty('totalScore');
       expect(submitRes.body.totalScore).toBeGreaterThanOrEqual(0);
-      console.log('Submit response:', submitRes.body);
     });
   });
 });

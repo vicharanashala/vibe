@@ -12,9 +12,9 @@ import {
   IAuthService,
   AuthenticatedRequest,
 } from '#auth/interfaces/IAuthService.js';
-import { ChangePasswordError } from '#auth/services/FirebaseAuthService.js';
-import { AuthRateLimiter } from '#shared/middleware/rateLimiter.js';
-import { injectable, inject } from 'inversify';
+import {ChangePasswordError} from '#auth/services/FirebaseAuthService.js';
+import {AuthRateLimiter} from '#shared/middleware/rateLimiter.js';
+import {injectable, inject} from 'inversify';
 import {
   JsonController,
   Post,
@@ -27,10 +27,10 @@ import {
   HttpError,
   OnUndefined,
 } from 'routing-controllers';
-import { AUTH_TYPES } from '#auth/types.js';
-import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
-import { appConfig } from '#root/config/app.js';
-import { BadRequestErrorResponse } from '#root/shared/index.js';
+import {AUTH_TYPES} from '#auth/types.js';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {appConfig} from '#root/config/app.js';
+import {BadRequestErrorResponse} from '#root/shared/index.js';
 
 @OpenAPI({
   tags: ['Authentication'],
@@ -41,7 +41,7 @@ export class AuthController {
   constructor(
     @inject(AUTH_TYPES.AuthService)
     private readonly authService: IAuthService,
-  ) { }
+  ) {}
 
   @OpenAPI({
     summary: 'Register a new user account',
@@ -62,10 +62,9 @@ export class AuthController {
     description: 'Auth Error',
     statusCode: 401,
   })
-  async signup(@Body() body: SignUpBody,@Req() req:any) {
+  async signup(@Body() body: SignUpBody, @Req() req: any) {
     const acknowledgedInvites = await this.authService.signup(body);
-    console.log("Acknowledged ",acknowledgedInvites)
-    req.session.userId = acknowledgedInvites
+    req.session.userId = acknowledgedInvites;
     if (acknowledgedInvites) {
       return acknowledgedInvites;
     }
@@ -91,8 +90,10 @@ export class AuthController {
     statusCode: 401,
   })
   async googleSignup(@Body() body: GoogleSignUpBody, @Req() req: any) {
-    const acknowledgedInvites = await this.authService.googleSignup(body, req.headers.authorization?.split(' ')[1]);
-    console.log("Acknoelde google ",acknowledgedInvites)
+    const acknowledgedInvites = await this.authService.googleSignup(
+      body,
+      req.headers.authorization?.split(' ')[1],
+    );
     if (acknowledgedInvites) {
       return acknowledgedInvites;
     }
@@ -123,7 +124,7 @@ export class AuthController {
   ) {
     try {
       const result = await this.authService.changePassword(body, request.user);
-      return { success: true, message: result.message };
+      return {success: true, message: result.message};
     } catch (error) {
       if (error instanceof ChangePasswordError) {
         throw new HttpError(400, error.message);
@@ -149,22 +150,23 @@ export class AuthController {
     statusCode: 401,
   })
   async login(@Body() body: LoginBody) {
-    const { email, password } = body;
-    const data = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${appConfig.firebase.apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email,
-        password,
-        returnSecureToken: true
-      })
-    });
-    console.log("Data ",data)
+    const {email, password} = body;
+    const data = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${appConfig.firebase.apiKey}`,
+      {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          email,
+          password,
+          returnSecureToken: true,
+        }),
+      },
+    );
     const result = await data.json();
-    console.log("result login ",result)
 
-  // ✅ fetch your app user from DB
-  // const user = await this.authService.getCurrentUserFromToken(result.idToken);
+    // ✅ fetch your app user from DB
+    // const user = await this.authService.getCurrentUserFromToken(result.idToken);
     return result;
   }
 }

@@ -1,16 +1,16 @@
-import { injectable, inject } from 'inversify';
-import { ObjectId } from 'mongodb';
-import { NotFoundError, InternalServerError } from 'routing-controllers';
-import { QUIZZES_TYPES } from '../types.js';
-import { BaseService } from '#root/shared/classes/BaseService.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { AttemptRepository } from '../repositories/providers/mongodb/AttemptRepository.js';
-import { SubmissionRepository } from '../repositories/providers/mongodb/SubmissionRepository.js';
-import { QuizRepository } from '../repositories/providers/mongodb/QuizRepository.js';
-import { QuestionBankRepository } from '../repositories/providers/mongodb/QuestionBankRepository.js';
-import { UserQuizMetricsRepository } from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
-import { IQuestionBankRef } from '#root/shared/interfaces/models.js';
+import {injectable, inject} from 'inversify';
+import {ObjectId} from 'mongodb';
+import {NotFoundError, InternalServerError} from 'routing-controllers';
+import {QUIZZES_TYPES} from '../types.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {AttemptRepository} from '../repositories/providers/mongodb/AttemptRepository.js';
+import {SubmissionRepository} from '../repositories/providers/mongodb/SubmissionRepository.js';
+import {QuizRepository} from '../repositories/providers/mongodb/QuizRepository.js';
+import {QuestionBankRepository} from '../repositories/providers/mongodb/QuestionBankRepository.js';
+import {UserQuizMetricsRepository} from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
+import {IQuestionBankRef} from '#root/shared/interfaces/models.js';
 import {
   IGradingResult,
   IQuestionAnswerFeedback,
@@ -18,10 +18,10 @@ import {
   ISubmissionWithUser,
   PaginatedSubmissions,
 } from '../interfaces/grading.js';
-import { GetQuizSubmissionsQuery, QuestionBankRef } from '../classes/index.js';
-import { QuestionBankService } from './QuestionBankService.js';
-import { EnrollmentRepository, ICourseRepository } from '#root/shared/index.js';
-import { USERS_TYPES } from '#root/modules/users/types.js';
+import {GetQuizSubmissionsQuery, QuestionBankRef} from '../classes/index.js';
+import {QuestionBankService} from './QuestionBankService.js';
+import {EnrollmentRepository, ICourseRepository} from '#root/shared/index.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
 @injectable()
 class QuizService extends BaseService {
   constructor(
@@ -311,14 +311,14 @@ class QuizService extends BaseService {
 
       const stats: Record<
         string,
-        { correct: number; total: number; score: number }
+        {correct: number; total: number; score: number}
       > = Object.create(null);
 
       for (const submission of submissions.data) {
         for (const feedback of submission.gradingResult?.overallFeedback ??
           []) {
           const qid = feedback.questionId.toString();
-          if (!stats[qid]) stats[qid] = { correct: 0, total: 0, score: 0 };
+          if (!stats[qid]) stats[qid] = {correct: 0, total: 0, score: 0};
 
           stats[qid].total += 1;
           if (feedback.status === 'CORRECT') stats[qid].correct += 1;
@@ -327,7 +327,7 @@ class QuizService extends BaseService {
       }
 
       return Object.entries(stats).map(
-        ([questionId, { correct, total, score }]) => ({
+        ([questionId, {correct, total, score}]) => ({
           questionId,
           correctRate: total ? correct / total : 0,
           averageScore: total ? score / total : 0,
@@ -557,57 +557,20 @@ class QuizService extends BaseService {
     });
   }
 
-  async updateMissingSubmissionResultIds(): Promise<{ totalCount: number; updatedCount: number }> {
-    console.log(`[updateMissingSubmissionResultIds] Starting process for entire collection`)
+  async updateMissingSubmissionResultIds(): Promise<{
+    totalCount: number;
+    updatedCount: number;
+  }> {
     const BATCH_SIZE = 100;
     const bulkOperations = [];
     let batchCount = 0;
     let totalCount = 0;
     let updatedCount = 0;
-    // const quizIds = new Set<string>();
-
-  //   try {
-  //     console.log(`[updateMissingSubmissionResultIds] Fetching course versions for course`);
-  //     // 1. Get all quiz items for the course
-  //     // const courseVersions = await this.courseRepo.read(courseId);
-  //     // if (!courseVersions.versions || courseVersions.versions.length === 0) {
-  //     //   console.warn(`[updateMissingSubmissionResultIds] No versions found for course ${courseId}`);
-  //     //   return { totalCount: 0, updatedCount: 0 };
-  //     // }
-
-  //     // Get all quiz IDs from all versions of the course
-  //     console.log(`[updateMissingSubmissionResultIds] Processing ${courseVersions.versions.length} course versions`);
-  //     for (const version of courseVersions.versions) {
-  //       console.log(`[updateMissingSubmissionResultIds] Processing version: ${version}`);
-  //       const quizIdsFromVersion = await this.enrollmentRepo.getQuizIdsByModulesAndSections(version.toString());
-  //       console.log(`[updateMissingSubmissionResultIds] Found ${quizIdsFromVersion.length} modules in version ${version}`);
-        
-  //       for (const module of quizIdsFromVersion) {
-  //         for (const section of module.sections) {
-  //           section.quizIds.forEach(quizId => {
-  //             quizIds.add(quizId);
-  //             console.log(`[updateMissingSubmissionResultIds] Added quiz ID: ${quizId} from section ${section.sectionId}`);
-  //           });
-  //         }
-  //       }
-  //     }
-  //     if (quizIds.size === 0) {
-  //       console.warn(`[updateMissingSubmissionResultIds] No quiz items found in course ${courseId}`);
-  //       return { totalCount: 0, updatedCount: 0 };
-  //     }
-      
-  //     console.log(`[updateMissingSubmissionResultIds] Found ${quizIds.size} unique quiz items in course ${courseId}`);
-  //     console.log(`[updateMissingSubmissionResultIds] Quiz IDs: ${Array.from(quizIds).join(', ')}`);
-  // } catch(error) {
-  //   console.error(`[updateMissingSubmissionResultIds] Error getting quiz items for course ${courseId}:`, error);
-  //   return { totalCount: 0, updatedCount: 0 };
-  // }
 
     try {
-      console.log(`[updateMissingSubmissionResultIds] Starting to find metrics with missing submission IDs`);
       // 2. Find all metrics with attempts that need updates, filtered by course quiz IDs
-      const metricsCursor = await this.userQuizMetricsRepo.findWithMissingSubmissionIds();
-      console.log(`[updateMissingSubmissionResultIds] Found metrics cursor, starting processing`);
+      const metricsCursor =
+        await this.userQuizMetricsRepo.findWithMissingSubmissionIds();
 
       let metricsProcessed = 0;
       let attemptsProcessed = 0;
@@ -618,7 +581,7 @@ class QuizService extends BaseService {
       while (await metricsCursor.hasNext()) {
         const metric = await metricsCursor.next();
         metricsProcessed++;
-        
+
         if (!metric) {
           metricsSkipped++;
           continue;
@@ -636,17 +599,21 @@ class QuizService extends BaseService {
         // 4. Process each attempt in the metric
         for (const attempt of metric.attempts) {
           attemptsProcessed++;
-          
+
           // if (attempt.submissionResultId) {
           //   continue; // Skip if already has submissionResultId
           // }
 
           try {
             // 5. Find corresponding submission
-            console.log(`[updateMissingSubmissionResultIds] Processing attempt ${attempt.attemptId}`);
-            const submission = await this.submissionRepo.findByAttemptId(attempt.attemptId);
+
+            const submission = await this.submissionRepo.findByAttemptId(
+              attempt.attemptId,
+            );
             if (!submission) {
-              console.log(`[updateMissingSubmissionResultIds] No submission found for attempt ${attempt.attemptId}`);
+              console.log(
+                `[updateMissingSubmissionResultIds] No submission found for attempt ${attempt.attemptId}`,
+              );
               submissionsNotFound++;
               continue;
             }
@@ -656,39 +623,47 @@ class QuizService extends BaseService {
               updateOne: {
                 filter: {
                   _id: metric._id,
-                  'attempts.attemptId': attempt.attemptId
+                  'attempts.attemptId': attempt.attemptId,
                 },
                 update: {
                   $set: {
-                    'attempts.$.submissionResultId': new ObjectId(submission._id)
-                  }
-                }
-              }
+                    'attempts.$.submissionResultId': new ObjectId(
+                      submission._id,
+                    ),
+                  },
+                },
+              },
             });
 
             totalCount++;
 
             // 7. Process batch if reached BATCH_SIZE
             if (bulkOperations.length >= BATCH_SIZE) {
-              console.log(`[updateMissingSubmissionResultIds] Processing batch of ${bulkOperations.length} updates`);
+              console.log(
+                `[updateMissingSubmissionResultIds] Processing batch of ${bulkOperations.length} updates`,
+              );
               await this._withTransaction(async session => {
                 const result = await this.userQuizMetricsRepo.bulkUpdateMetrics(
                   bulkOperations,
-                  session
+                  session,
                 );
                 updatedCount += bulkOperations.length;
                 console.log(
-                  `[updateMissingSubmissionResultIds] ✅ Batch ${++batchCount}: Updated ${bulkOperations.length} attempts. ` +
-                  `Total updated: ${updatedCount}/${totalCount} (${Math.round((updatedCount / totalCount) * 100)}%)`
+                  `[updateMissingSubmissionResultIds] ✅ Batch ${++batchCount}: Updated ${
+                    bulkOperations.length
+                  } attempts. ` +
+                    `Total updated: ${updatedCount}/${totalCount} (${Math.round(
+                      (updatedCount / totalCount) * 100,
+                    )}%)`,
                 );
-                console.log("results from bulk write in for loop", result)
+                console.log('results from bulk write in for loop', result);
                 bulkOperations.length = 0; // Clear the batch
               });
             }
           } catch (err) {
             console.error(
               `[updateMissingSubmissionResultIds] Failed to process attempt ${attempt.attemptId} in metric ${metric._id}:`,
-              err
+              err,
             );
           }
         }
@@ -696,38 +671,53 @@ class QuizService extends BaseService {
 
       // 7. Process any remaining operations
       if (bulkOperations.length > 0) {
-        console.log(`[updateMissingSubmissionResultIds] Processing final batch of ${bulkOperations.length} updates`);
+        console.log(
+          `[updateMissingSubmissionResultIds] Processing final batch of ${bulkOperations.length} updates`,
+        );
         await this._withTransaction(async session => {
           const result = await this.userQuizMetricsRepo.bulkUpdateMetrics(
             bulkOperations,
-            session
+            session,
           );
           updatedCount += bulkOperations.length;
           console.log(
             `[updateMissingSubmissionResultIds] ✅ Final batch: Updated ${bulkOperations.length} attempts. ` +
-            `Total updated: ${updatedCount}/${totalCount} (100%)`
+              `Total updated: ${updatedCount}/${totalCount} (100%)`,
           );
-          console.log("results of bulk write from extra batches, outside loop",result);
+          console.log(
+            'results of bulk write from extra batches, outside loop',
+            result,
+          );
         });
       }
 
-      console.log(`[updateMissingSubmissionResultIds] Process completed. Summary:`);
+      console.log(
+        `[updateMissingSubmissionResultIds] Process completed. Summary:`,
+      );
       console.log(`- Total metrics processed: ${metricsProcessed}`);
       console.log(`- Metrics skipped (invalid): ${metricsSkipped}`);
       console.log(`- Attempts processed: ${attemptsProcessed}`);
       console.log(`- Submissions not found: ${submissionsNotFound}`);
       console.log(`- Total updates queued: ${totalCount}`);
       console.log(`- Total updates applied: ${updatedCount}`);
-      console.log(`- Batches processed: ${batchCount + (bulkOperations.length > 0 ? 1 : 0)}`);
-      console.log(`[updateMissingSubmissionResultIds] Process completed for entire collection`);
+      console.log(
+        `- Batches processed: ${
+          batchCount + (bulkOperations.length > 0 ? 1 : 0)
+        }`,
+      );
+      console.log(
+        `[updateMissingSubmissionResultIds] Process completed for entire collection`,
+      );
 
-      return { totalCount, updatedCount };
-    } catch(error) {
-      console.error('[updateMissingSubmissionResultIds] Error in updateMissingSubmissionResultIds:', error);
+      return {totalCount, updatedCount};
+    } catch (error) {
+      console.error(
+        '[updateMissingSubmissionResultIds] Error in updateMissingSubmissionResultIds:',
+        error,
+      );
       throw error;
     }
-}
+  }
 }
 
-
-export { QuizService };
+export {QuizService};

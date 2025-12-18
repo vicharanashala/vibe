@@ -92,7 +92,6 @@ describe('Report Controller Integration Test', () => {
           .set('Authorization', 'Bearer user1')
           .send(reportPayload);
 
-        console.log('Response body:', response.body);
         expect(response.status).toBe(201);
       }, 60000);
     });

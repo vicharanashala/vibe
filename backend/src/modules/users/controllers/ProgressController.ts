@@ -248,12 +248,11 @@ class ProgressController {
       userId,
       courseId,
       versionId,
-      itemId,
+      itemId, 
       sectionId,
       moduleId,
       watchItemId,
     );
-
     await this.progressService.updateProgress(
       userId,
       courseId,

@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { Card } from '@/components/ui/card';
-import { Play, Pause, SkipBack, Volume2, ChevronRight, Captions } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Play, Pause, SkipBack, Volume2, ChevronRight, Captions, Loader2 } from 'lucide-react';
 import { useStartItem, useStopItem } from '../hooks/hooks';
 import { useAuthStore } from '../store/auth-store';
 import { useCourseStore } from '../store/course-store';
 import { usePlayerStore } from '../store/player-store'; // Import the new store
 import type { VideoProps, YTPlayerInstance } from '@/types/video.types';
 import { on } from 'events';
+import { toast } from 'sonner';
+import { Badge } from './ui/badge';
 
 
 // Helper to extract YouTube video ID from URL
@@ -47,6 +49,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   const { currentCourse, setWatchItemId } = useCourseStore();
   const startItem = useStartItem();
   const stopItem = useStopItem();
+ const isStopping = stopItem.isPending;
 
   // Parse start and end times
   const startTimeSeconds = parseTimeToSeconds(startTime || '0');
@@ -55,6 +58,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   const progressStartedRef = useRef(false);
   const progressStoppedRef = useRef(false);
   const watchItemIdRef = useRef<string | null>(null);
+  const stopInFlightRef = useRef(false);
 
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(false);
   const [subtitlesAvailable, setSubtitlesAvailable] = useState(false);
@@ -108,7 +112,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   // Control handlers
   const handlePlayPause = useCallback(() => {
     const player = playerRef.current;
-    if (!player || typeof player.pauseVideo !== 'function') return;
+    if (!player || typeof player.pauseVideo !== 'function' || stopInFlightRef.current) return;
     if (playing) {
       player.pauseVideo();
     } else {
@@ -360,7 +364,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
             console.log('✅ YouTube player ready - waiting for camera to be ready');
 
           },
-          onStateChange: (event: { data: number; target: YTPlayerInstance }) => {
+          onStateChange: async(event: { data: number; target: YTPlayerInstance }) => {
             if (window.YT && event.data === window.YT.PlayerState.PLAYING) {
               setPlaying(true);
               if (!progressStartedRef.current) {
@@ -373,26 +377,35 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
               setPlaying(false);
               if (!progressStoppedRef.current && watchItemIdRef.current && currentCourse) {
                 const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
-                if (watchItemId) {
-                  stopItem.mutate({
-                    params: {
-                      path: {
-                        courseId: currentCourse.courseId,
-                        courseVersionId: currentCourse.versionId ?? '',
+               if (watchItemId ) {
+                  stopInFlightRef.current = true;
+                  try {
+                    await stopItem.mutateAsync({
+                      params: {
+                        path: {
+                          courseId: currentCourse.courseId,
+                          courseVersionId: currentCourse.versionId ?? '',
+                        },
                       },
-                    },
-                    body: {
-                      watchItemId,
-                      itemId: currentCourse.itemId ?? '',
-                      moduleId: currentCourse.moduleId ?? '',
-                      sectionId: currentCourse.sectionId ?? '',
-                    }
-                  });
+                      body: {
+                        watchItemId,
+                        itemId: currentCourse.itemId ?? '',
+                        moduleId: currentCourse.moduleId ?? '',
+                        sectionId: currentCourse.sectionId ?? '',
+                      },
+                    });
+
+                    progressStoppedRef.current = true;
+                    onNext?.();
+                  } catch (err) {
+                    toast.warning('Unable to stop video, try again!');
+                    console.error('Stop item failed:', err);
+                    return;
+                  }  finally {
+                    stopInFlightRef.current = false;
+                  }
                 }
-                if (onNext) {
-                  onNext();
-                }
-                progressStoppedRef.current = true;
+
               }
             } else {
               setPlaying(false);
@@ -416,7 +429,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
       console.log('Cleaning up YouTube player');
 
       // Stop if started but not yet stopped
-      if (!progressStoppedRef.current && watchItemIdRef.current && currentCourse) {
+      if (!progressStoppedRef.current && !stopInFlightRef.current && watchItemIdRef.current && currentCourse) {
+        stopInFlightRef.current = true
         stopItem.mutate({
           params: {
             path: {
@@ -435,6 +449,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
       // Reset references
       progressStartedRef.current = false;
       progressStoppedRef.current = false;
+      stopInFlightRef.current = false;
       watchItemIdRef.current = null;
 
       // Destroy player
@@ -480,8 +495,14 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   // Poll current time and enforce time constraints
 useEffect(() => {
   let interval: ReturnType<typeof setInterval>;
+
   if (playerReady) {
-    interval = setInterval(() => {
+    interval = setInterval(async() => {
+
+      if (progressStoppedRef.current || stopInFlightRef.current) {
+        return;
+      }
+
       const player = playerRef.current;
       if (player && player.getCurrentTime) {
         const time = player.getCurrentTime();
@@ -498,55 +519,74 @@ useEffect(() => {
         }
 
         // Enforce endTime constraint
-        if (endTimeSeconds > 0 && !progressStoppedRef.current && time >= endTimeSeconds - 1 && currentCourse) {
+        if (endTimeSeconds > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= endTimeSeconds - 1 && currentCourse) {
           const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
-
+          stopInFlightRef.current = true;
           if (watchItemId) {
-            stopItem.mutate({
-              params: {
-                path: {
-                  courseId: currentCourse.courseId,
-                  courseVersionId: currentCourse.versionId ?? '',
+            // Pause video immediately
+            player?.pauseVideo();
+            try {
+              await stopItem.mutateAsync({
+                params: {
+                  path: {
+                    courseId: currentCourse.courseId,
+                    courseVersionId: currentCourse.versionId ?? '',
+                  },
                 },
-              },
-              body: {
-                watchItemId,
-                itemId: currentCourse.itemId ?? '',
-                moduleId: currentCourse.moduleId ?? '',
-                sectionId: currentCourse.sectionId ?? '',
-              }
-            });
+                body: {
+                  watchItemId,
+                  itemId: currentCourse.itemId ?? '',
+                  moduleId: currentCourse.moduleId ?? '',
+                  sectionId: currentCourse.sectionId ?? '',
+                },
+              });
+
+              progressStoppedRef.current = true;
+              onNext?.();
+            } catch (err) {
+              toast.warning('Unable to stop video, try again!');
+              console.error('Stop item failed:', err);
+              return;
+            } finally {
+              stopInFlightRef.current = false;
+            }
           }
-          if (onNext) {
-            onNext();
-          }
-          progressStoppedRef.current = true;
         }
         
         // Handle videos without endTime constraint that reach near completion
-        if (endTimeSeconds === 0 && duration > 0 && !progressStoppedRef.current && time >= duration - 2 && currentCourse) {
+        if (endTimeSeconds === 0 && duration > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= duration - 2 && currentCourse) {
           const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
-
           if (watchItemId) {
-            stopItem.mutate({
-              params: {
-                path: {
-                  courseId: currentCourse.courseId,
-                  courseVersionId: currentCourse.versionId ?? '',
+            // Pause video immediately when stop is triggered
+            player?.pauseVideo();
+            stopInFlightRef.current = true;
+            try {
+              await stopItem.mutateAsync({
+                params: {
+                  path: {
+                    courseId: currentCourse.courseId,
+                    courseVersionId: currentCourse.versionId ?? '',
+                  },
                 },
-              },
-              body: {
-                watchItemId,
-                itemId: currentCourse.itemId ?? '',
-                moduleId: currentCourse.moduleId ?? '',
-                sectionId: currentCourse.sectionId ?? '',
-              }
-            });
+                body: {
+                  watchItemId,
+                  itemId: currentCourse.itemId ?? '',
+                  moduleId: currentCourse.moduleId ?? '',
+                  sectionId: currentCourse.sectionId ?? '',
+                },
+              });
+              progressStoppedRef.current = true;
+
+              onNext?.();
+            } catch (err) {
+              toast.error('Unable to stop video, try again!');
+              console.error('Stop item failed:', err);
+              return;
+            } finally {
+              stopInFlightRef.current = false
+            }
           }
-          if (onNext) {
-            onNext();
-          }
-          progressStoppedRef.current = true;
+
         }
         if (endTimeSeconds > 0 && time >= endTimeSeconds) {
           player.pauseVideo();
@@ -676,6 +716,7 @@ useEffect(() => {
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
+      <NavigatingOverlay visible={isStopping} />
       <div style={{
         width: '100%',
         height: '100%',
@@ -1199,7 +1240,7 @@ useEffect(() => {
 
     </>
   )}
-</div>
+      </div>
 
 
       {/* Custom Controls Below Video */}
@@ -1440,3 +1481,85 @@ useEffect(() => {
   );
 }
 
+
+
+type NavigatingOverlayProps = {
+  visible: boolean;
+  title?: string;
+  message?: string;
+  position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+  variant?: 'blue' | 'red' | 'green';
+};
+
+export function NavigatingOverlay({
+  visible,
+  title = 'Please wait',
+  message = 'Navigating to next item…',
+  position = 'top-right',
+  variant = 'blue',
+}: NavigatingOverlayProps) {
+  if (!visible) return null;
+
+  const positionClasses: Record<typeof position, string> = {
+    'top-right': 'top-4 right-4',
+    'top-left': 'top-4 left-4',
+    'bottom-right': 'bottom-4 right-4',
+    'bottom-left': 'bottom-4 left-4',
+  };
+
+  const variantClasses: Record<
+    typeof variant,
+    {
+      card: string;
+      badge: string;
+      icon: string;
+    }
+  > = {
+    blue: {
+      card: 'border-blue-400/40 bg-blue-600/95 text-blue-50',
+      badge: 'border-blue-50/30 bg-blue-50/10 text-blue-50',
+      icon: 'bg-blue-50/10',
+    },
+    red: {
+      card: 'border-red-400/40 bg-red-600/95 text-red-50',
+      badge: 'border-red-50/30 bg-red-50/10 text-red-50',
+      icon: 'bg-red-50/10',
+    },
+    green: {
+      card: 'border-green-400/40 bg-green-600/95 text-green-50',
+      badge: 'border-green-50/30 bg-green-50/10 text-green-50',
+      icon: 'bg-green-50/10',
+    },
+  };
+
+  const styles = variantClasses[variant];
+
+  return (
+    <div
+      className={`absolute z-50 animate-in slide-in-from-right-3 duration-300 ${positionClasses[position]}`}
+    >
+      <Card className={`shadow-lg backdrop-blur-md ${styles.card}`}>
+        <CardContent className="flex items-center gap-3 px-4 py-3">
+          <div
+            className={`flex h-10 w-10 items-center justify-center rounded ${styles.icon}`}
+          >
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+
+          <div className="flex-1 space-y-1">
+            <Badge
+              variant="outline"
+              className={`font-semibold ${styles.badge}`}
+            >
+              {title}
+            </Badge>
+
+            <p className="text-sm font-medium leading-relaxed">
+              {message}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

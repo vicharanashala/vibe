@@ -146,16 +146,10 @@ export class ItemController {
       const sampleItemResource = subject('Item', { versionId, _id: 'sample' });
       const canManage = ability.can(ItemActions.Modify, sampleItemResource);
 
-      console.log(
-        'ItemController filtering - canManage:',
-        canManage,
-        'items count:',
-        items.length,
-      );
+ 
 
       if (canManage) {
         // Instructors/managers/TAs can see all items including blank quizzes
-        console.log('User can manage - showing all items');
         return items;
       }
 
@@ -457,9 +451,6 @@ Accessible to:
     const { versionId, itemId } = params;
     const { hide } = body;
 
-    console.log(
-      `Toggling visibility for item ${itemId} in version ${versionId} to ${hide}`,
-    );
 
     // Create an item resource object for permission checking
     const itemResource = subject('Item', { versionId });

@@ -144,11 +144,6 @@ export class EnrollmentService extends BaseService {
             },
             session,
           );
-
-          console.log('=== ENROLLMENT: Progress created successfully ===', {
-            userId,
-            currentItem: progressData.currentItem.toString(),
-          });
         } else {
           console.log(
             '=== ENROLLMENT: No progress data returned - course may have no valid items ===',
@@ -261,13 +256,9 @@ export class EnrollmentService extends BaseService {
 
       if (!enrollments.length) return [];
 
-      console.log(`Found ${enrollments.length} enrollments for user ${userId}`);
-
       const enrolledVersionIds = new Set(
         enrollments.map(e => e.courseVersionId.toString()),
       );
-
-      console.log('Enrolled Version IDs:', enrolledVersionIds, enrollments);
 
       if (role === 'STUDENT') {
 
@@ -453,10 +444,6 @@ export class EnrollmentService extends BaseService {
         throw new NotFoundError('Course version not found');
       }
 
-      console.log(
-        `Starting quiz scores export for course ${courseId}, version ${versionId}`,
-      );
-
       // Get quiz scores from repository with batching
       return await this.enrollmentRepo.getQuizScoresForCourseVersion(
         courseId,
@@ -520,7 +507,6 @@ export class EnrollmentService extends BaseService {
     // 1. Get courses (all or specific one)
     let courses = [];
     if (courseId) {
-      console.log(`Processing enrollments for courseId: ${courseId}`);
       const course = await this.courseRepo.read(courseId);
       if (!course) {
         throw new Error(`Course with id ${courseId} not found`);
@@ -648,7 +634,6 @@ export class EnrollmentService extends BaseService {
         courseVersionId,
         session,
       );
-      console.log('Course version: ', courseVersion, courseId);
       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
         throw new NotFoundError(
           'Course version not found or does not belong to this course',
