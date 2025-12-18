@@ -112,5 +112,4 @@ useExpressServer(app, moduleOptions);
 app.listen(appConfig.port, () => {
   printStartupSummary();
   startCron();
-  console.log('server is running ');
 });
