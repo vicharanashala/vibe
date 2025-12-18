@@ -110,7 +110,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   // Control handlers
   const handlePlayPause = useCallback(() => {
     const player = playerRef.current;
-    if (!player || typeof player.pauseVideo !== 'function') return;
+    if (!player || typeof player.pauseVideo !== 'function' || stopInFlightRef.current) return;
     if (playing) {
       player.pauseVideo();
     } else {
@@ -375,23 +375,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
               setPlaying(false);
               if (!progressStoppedRef.current && watchItemIdRef.current && currentCourse) {
                 const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
-                if (watchItemId) {
-                              alert("from player ")
-
-                  // stopItem.mutateAsync({
-                  //   params: {
-                  //     path: {
-                  //       courseId: currentCourse.courseId,
-                  //       courseVersionId: currentCourse.versionId ?? '',
-                  //     },
-                  //   },
-                  //   body: {
-                  //     watchItemId,
-                  //     itemId: currentCourse.itemId ?? '',
-                  //     moduleId: currentCourse.moduleId ?? '',
-                  //     sectionId: currentCourse.sectionId ?? '',
-                  //   },
-                  // });
+               if (watchItemId ) {
+                  stopInFlightRef.current = true;
                   try {
                     await stopItem.mutateAsync({
                       params: {
@@ -407,16 +392,18 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
                         sectionId: currentCourse.sectionId ?? '',
                       },
                     });
+
+                    progressStoppedRef.current = true;
+                    onNext?.();
                   } catch (err) {
-                    toast.warning("Unable to stop video, try again!")
+                    toast.warning('Unable to stop video, try again!');
                     console.error('Stop item failed:', err);
-                    return; 
+                    return;
+                  }  finally {
+                    stopInFlightRef.current = false;
                   }
                 }
-                if (onNext) {
-                  onNext();
-                }
-                progressStoppedRef.current = true;
+
               }
             } else {
               setPlaying(false);
@@ -440,7 +427,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
       console.log('Cleaning up YouTube player');
 
       // Stop if started but not yet stopped
-      if (!progressStoppedRef.current && watchItemIdRef.current && currentCourse) {
+      if (!progressStoppedRef.current && !stopInFlightRef.current && watchItemIdRef.current && currentCourse) {
+        stopInFlightRef.current = true
         stopItem.mutate({
           params: {
             path: {
@@ -459,6 +447,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
       // Reset references
       progressStartedRef.current = false;
       progressStoppedRef.current = false;
+      stopInFlightRef.current = false;
       watchItemIdRef.current = null;
 
       // Destroy player
@@ -531,88 +520,73 @@ useEffect(() => {
           const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
           stopInFlightRef.current = true;
           if (watchItemId) {
-            // alert("from use effect 1")
-             player.pauseVideo();
+            // Pause video immediately
+            player?.pauseVideo();
 
             try {
-                  await stopItem.mutateAsync({
-                    params: {
-                      path: {
-                          courseId: currentCourse.courseId,
-                          courseVersionId: currentCourse.versionId ?? '',
-                        },
-                      },
-                  body: {
-                        watchItemId,
-                        itemId: currentCourse.itemId ?? '',
-                        moduleId: currentCourse.moduleId ?? '',
-                        sectionId: currentCourse.sectionId ?? '',
-                      },
-                    });
-                        progressStoppedRef.current = true;
+              await stopItem.mutateAsync({
+                params: {
+                  path: {
+                    courseId: currentCourse.courseId,
+                    courseVersionId: currentCourse.versionId ?? '',
+                  },
+                },
+                body: {
+                  watchItemId,
+                  itemId: currentCourse.itemId ?? '',
+                  moduleId: currentCourse.moduleId ?? '',
+                  sectionId: currentCourse.sectionId ?? '',
+                },
+              });
 
-          if (onNext) {
-            onNext();
-          }
+              progressStoppedRef.current = true;
+              onNext?.();
             } catch (err) {
+              toast.warning('Unable to stop video, try again!');
+              console.error('Stop item failed:', err);
+              return;
+            } finally {
               stopInFlightRef.current = false;
-                    toast.warning("Unable to stop video, try again!")
-                    console.error('Stop item failed:', err);
-                    return; 
             }
-
           }
-                
         }
         
         // Handle videos without endTime constraint that reach near completion
         if (endTimeSeconds === 0 && duration > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= duration - 2 && currentCourse) {
           const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
-
           if (watchItemId) {
-                        // alert("from use effect 2")
-             player.pauseVideo();
-
-            // stopItem.mutate({
-            //   params: {
-            //     path: {
-            //       courseId: currentCourse.courseId,
-            //       courseVersionId: currentCourse.versionId ?? '',
-            //     },
-            //   },
-            //   body: {
-            //     watchItemId,
-            //     itemId: currentCourse.itemId ?? '',
-            //     moduleId: currentCourse.moduleId ?? '',
-            //     sectionId: currentCourse.sectionId ?? '',
-            //   }
-            // });
+            // Pause video immediately when stop is triggered
+            player?.pauseVideo();
+            stopInFlightRef.current = true;
 
             try {
-                    await stopItem.mutateAsync({
-                      params: {
-                        path: {
-                          courseId: currentCourse.courseId,
-                          courseVersionId: currentCourse.versionId ?? '',
-                        },
-                      },
-                      body: {
-                        watchItemId,
-                        itemId: currentCourse.itemId ?? '',
-                        moduleId: currentCourse.moduleId ?? '',
-                        sectionId: currentCourse.sectionId ?? '',
-                      },
-                    });
-              } catch (err) {
-                    toast.warning("Unable to stop video, try again!")
-                    console.error('Stop item failed:', err);
-                    return; 
-              }
+              await stopItem.mutateAsync({
+                params: {
+                  path: {
+                    courseId: currentCourse.courseId,
+                    courseVersionId: currentCourse.versionId ?? '',
+                  },
+                },
+                body: {
+                  watchItemId,
+                  itemId: currentCourse.itemId ?? '',
+                  moduleId: currentCourse.moduleId ?? '',
+                  sectionId: currentCourse.sectionId ?? '',
+                },
+              });
+
+              progressStoppedRef.current = true;
+
+              onNext?.();
+            } catch (err) {
+              toast.warning('Unable to stop video, try again!');
+              console.error('Stop item failed:', err);
+              return;
+            } finally {
+              stopInFlightRef.current = false
+            }
           }
-          if (onNext) {
-            onNext();
-          }
-          progressStoppedRef.current = true;
+
         }
         if (endTimeSeconds > 0 && time >= endTimeSeconds) {
           player.pauseVideo();
