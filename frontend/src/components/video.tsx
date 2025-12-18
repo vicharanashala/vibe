@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { Card } from '@/components/ui/card';
-import { Play, Pause, SkipBack, Volume2, ChevronRight, Captions } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Play, Pause, SkipBack, Volume2, ChevronRight, Captions, Loader2 } from 'lucide-react';
 import { useStartItem, useStopItem } from '../hooks/hooks';
 import { useAuthStore } from '../store/auth-store';
 import { useCourseStore } from '../store/course-store';
@@ -10,6 +10,7 @@ import { usePlayerStore } from '../store/player-store'; // Import the new store
 import type { VideoProps, YTPlayerInstance } from '@/types/video.types';
 import { on } from 'events';
 import { toast } from 'sonner';
+import { Badge } from './ui/badge';
 
 
 // Helper to extract YouTube video ID from URL
@@ -48,6 +49,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   const { currentCourse, setWatchItemId } = useCourseStore();
   const startItem = useStartItem();
   const stopItem = useStopItem();
+ const isStopping = stopItem.isPending;
 
   // Parse start and end times
   const startTimeSeconds = parseTimeToSeconds(startTime || '0');
@@ -493,6 +495,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   // Poll current time and enforce time constraints
 useEffect(() => {
   let interval: ReturnType<typeof setInterval>;
+
   if (playerReady) {
     interval = setInterval(async() => {
 
@@ -522,7 +525,6 @@ useEffect(() => {
           if (watchItemId) {
             // Pause video immediately
             player?.pauseVideo();
-
             try {
               await stopItem.mutateAsync({
                 params: {
@@ -558,7 +560,6 @@ useEffect(() => {
             // Pause video immediately when stop is triggered
             player?.pauseVideo();
             stopInFlightRef.current = true;
-
             try {
               await stopItem.mutateAsync({
                 params: {
@@ -574,12 +575,11 @@ useEffect(() => {
                   sectionId: currentCourse.sectionId ?? '',
                 },
               });
-
               progressStoppedRef.current = true;
 
               onNext?.();
             } catch (err) {
-              toast.warning('Unable to stop video, try again!');
+              toast.error('Unable to stop video, try again!');
               console.error('Stop item failed:', err);
               return;
             } finally {
@@ -716,6 +716,7 @@ useEffect(() => {
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
+      <NavigatingOverlay visible={isStopping} />
       <div style={{
         width: '100%',
         height: '100%',
@@ -1239,7 +1240,7 @@ useEffect(() => {
 
     </>
   )}
-</div>
+      </div>
 
 
       {/* Custom Controls Below Video */}
@@ -1480,3 +1481,37 @@ useEffect(() => {
   );
 }
 
+
+
+export function NavigatingOverlay({
+  visible,
+}: {
+  visible: boolean;
+}) {
+  if (!visible) return null;
+
+  return (
+    <div className="absolute top-4 right-4 z-50 animate-in slide-in-from-right-3 duration-300">
+      <Card className="border border-blue-400/40 bg-blue-600/95 text-blue-50 shadow-lg backdrop-blur-md">
+        <CardContent className="flex items-center gap-3 px-4 py-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded bg-blue-50/10">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+
+          <div className="flex-1 space-y-1">
+            <Badge
+              variant="outline"
+              className="border-blue-50/30 bg-blue-50/10 text-blue-50 font-semibold"
+            >
+              Please wait
+            </Badge>
+
+            <p className="text-sm font-medium leading-relaxed">
+              Navigating to next item…
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
