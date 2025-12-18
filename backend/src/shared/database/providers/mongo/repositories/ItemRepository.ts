@@ -114,7 +114,7 @@ export class ItemRepository implements IItemRepository {
   ): Promise<ItemsGroup> {
     await this.init();
     // console.log('Reading ItemsGroup with ID:', itemsGroupId);
-    
+
     const itemsGroup = await this.itemsGroupCollection.findOne(
       {_id: new ObjectId(itemsGroupId), isDeleted: {$ne: true}},
       {session},
@@ -316,7 +316,9 @@ export class ItemRepository implements IItemRepository {
         const itemsGroup = await this.readItemsGroup(
           section?.itemsGroupId?.toString(),
         );
-        const found = itemsGroup?.items?.find(i => i?._id?.toString() === itemId);
+        const found = itemsGroup?.items?.find(
+          i => i?._id?.toString() === itemId,
+        );
 
         if (found) {
           if (!found._id) {
@@ -598,29 +600,43 @@ export class ItemRepository implements IItemRepository {
       );
     }
 
-    let totalCount = 0;
+    // let totalCount = 0;
 
-    // Iterate through all modules
-    for (const module of version.modules) {
-      // Iterate through all sections in each module
-      for (const section of module.sections) {
-        try {
-          const itemsGroup = await this.readItemsGroup(
-            section.itemsGroupId.toString(),
-            session,
-          );
-          totalCount += itemsGroup.items.length;
-        } catch (error) {
-          // If itemsGroup is not found, skip this section
-          if (error instanceof NotFoundError) {
-            continue;
-          }
-          throw error;
-        }
-      }
-    }
+    // // Iterate through all modules
+    // for (const module of version.modules) {
+    //   // Iterate through all sections in each module
+    //   for (const section of module.sections) {
+    //     try {
+    //       const itemsGroup = await this.readItemsGroup(
+    //         section.itemsGroupId.toString(),
+    //         session,
+    //       );
+    //       totalCount += itemsGroup.items.length;
+    //     } catch (error) {
+    //       // If itemsGroup is not found, skip this section
+    //       if (error instanceof NotFoundError) {
+    //         continue;
+    //       }
+    //       throw error;
+    //     }
+    //   }
+    // }
 
-    return totalCount;
+    // return totalCount;
+    // Parallelize all section fetches
+    const allItemsPromises = version.modules.flatMap(module =>
+      module.sections.map(section =>
+        this.readItemsGroup(section.itemsGroupId.toString(), session)
+          .then(group => group.items.length)
+          .catch(err =>
+            err instanceof NotFoundError ? 0 : Promise.reject(err),
+          ),
+      ),
+    );
+
+    const itemsCounts = await Promise.all(allItemsPromises);
+
+    return itemsCounts.reduce((sum, count) => sum + count, 0);
   }
 
   async getTotalItemsCount(
