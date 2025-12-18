@@ -1483,31 +1483,79 @@ useEffect(() => {
 
 
 
+type NavigatingOverlayProps = {
+  visible: boolean;
+  title?: string;
+  message?: string;
+  position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+  variant?: 'blue' | 'red' | 'green';
+};
+
 export function NavigatingOverlay({
   visible,
-}: {
-  visible: boolean;
-}) {
+  title = 'Please wait',
+  message = 'Navigating to next item…',
+  position = 'top-right',
+  variant = 'blue',
+}: NavigatingOverlayProps) {
   if (!visible) return null;
 
+  const positionClasses: Record<typeof position, string> = {
+    'top-right': 'top-4 right-4',
+    'top-left': 'top-4 left-4',
+    'bottom-right': 'bottom-4 right-4',
+    'bottom-left': 'bottom-4 left-4',
+  };
+
+  const variantClasses: Record<
+    typeof variant,
+    {
+      card: string;
+      badge: string;
+      icon: string;
+    }
+  > = {
+    blue: {
+      card: 'border-blue-400/40 bg-blue-600/95 text-blue-50',
+      badge: 'border-blue-50/30 bg-blue-50/10 text-blue-50',
+      icon: 'bg-blue-50/10',
+    },
+    red: {
+      card: 'border-red-400/40 bg-red-600/95 text-red-50',
+      badge: 'border-red-50/30 bg-red-50/10 text-red-50',
+      icon: 'bg-red-50/10',
+    },
+    green: {
+      card: 'border-green-400/40 bg-green-600/95 text-green-50',
+      badge: 'border-green-50/30 bg-green-50/10 text-green-50',
+      icon: 'bg-green-50/10',
+    },
+  };
+
+  const styles = variantClasses[variant];
+
   return (
-    <div className="absolute top-4 right-4 z-50 animate-in slide-in-from-right-3 duration-300">
-      <Card className="border border-blue-400/40 bg-blue-600/95 text-blue-50 shadow-lg backdrop-blur-md">
+    <div
+      className={`absolute z-50 animate-in slide-in-from-right-3 duration-300 ${positionClasses[position]}`}
+    >
+      <Card className={`shadow-lg backdrop-blur-md ${styles.card}`}>
         <CardContent className="flex items-center gap-3 px-4 py-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded bg-blue-50/10">
+          <div
+            className={`flex h-10 w-10 items-center justify-center rounded ${styles.icon}`}
+          >
             <Loader2 className="h-6 w-6 animate-spin" />
           </div>
 
           <div className="flex-1 space-y-1">
             <Badge
               variant="outline"
-              className="border-blue-50/30 bg-blue-50/10 text-blue-50 font-semibold"
+              className={`font-semibold ${styles.badge}`}
             >
-              Please wait
+              {title}
             </Badge>
 
             <p className="text-sm font-medium leading-relaxed">
-              Navigating to next item…
+              {message}
             </p>
           </div>
         </CardContent>
