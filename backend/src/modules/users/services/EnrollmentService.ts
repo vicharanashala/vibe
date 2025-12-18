@@ -1,36 +1,37 @@
-import {COURSES_TYPES} from '#courses/types.js';
-import {InviteStatus} from '#root/modules/notifications/index.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
-import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { COURSES_TYPES } from '#courses/types.js';
+import { InviteStatus } from '#root/modules/notifications/index.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
+import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   EnrollmentRole,
   EnrollmentStatus,
   ICourseVersion,
   IEnrollment,
 } from '#root/shared/interfaces/models.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
-import {Enrollment} from '#users/classes/transformers/Enrollment.js';
-import {EnrollmentStats, USERS_TYPES} from '#users/types.js';
-import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId, OptionalId} from 'mongodb';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { EnrollmentRepository } from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import { Enrollment } from '#users/classes/transformers/Enrollment.js';
+import { EnrollmentStats, USERS_TYPES } from '#users/types.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, ObjectId, OptionalId } from 'mongodb';
 import {
   BadRequestError,
   NotFoundError,
   InternalServerError,
 } from 'routing-controllers';
-import {ProgressService} from './ProgressService.js';
-import {ProgressRepository, InviteRepository} from '#root/shared/index.js';
-import {EnrollmentDataResponse} from '../classes/index.js';
+import { ProgressService } from './ProgressService.js';
+import { ProgressRepository, InviteRepository } from '#root/shared/index.js';
+import { EnrollmentDataResponse } from '../classes/index.js';
 import {
   QuizScoresExportResponseDto,
   StudentQuizScoreDto,
 } from '../dtos/QuizScoresExportDto.js';
-import {COURSE_REGISTRATION_TYPES} from '#root/modules/courseRegistration/types.js';
-import {ICourseRegistrationRepository} from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
+import { COURSE_REGISTRATION_TYPES } from '#root/modules/courseRegistration/types.js';
+import { ICourseRegistrationRepository } from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
+import { totalmem } from 'os';
 
 @injectable()
 export class EnrollmentService extends BaseService {
@@ -94,7 +95,7 @@ export class EnrollmentService extends BaseService {
       // }
 
       if (existingEnrollment && throughInvite) {
-        return {status: 'ALREADY_ENROLLED' as InviteStatus};
+        return { status: 'ALREADY_ENROLLED' as InviteStatus };
       }
 
       if (existingEnrollment && !throughInvite) {
@@ -269,17 +270,15 @@ export class EnrollmentService extends BaseService {
       console.log('Enrolled Version IDs:', enrolledVersionIds, enrollments);
 
       if (role === 'STUDENT') {
-        const versionIds = Array.from(enrolledVersionIds).map(
-          id => new ObjectId(id),
-        );
+
         const watchedKeys = enrollments.map(e => ({
           userId: new ObjectId(userId),
           courseId: new ObjectId(e.courseId),
           courseVersionId: new ObjectId(e.courseVersionId),
         }));
 
-        const [contentCountsMap, watchedItemsMap] = await Promise.all([
-          this.enrollmentRepo.getContentCountsForVersions(versionIds),
+        const [watchedItemsMap] = await Promise.all([
+
           this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
         ]);
 
@@ -289,20 +288,15 @@ export class EnrollmentService extends BaseService {
 
           // update percentage if contentCountsMap / watchedItemsMap has different value from enrollment.percentCompleted
           // ratio is calculated as (watchedItems / totalItems) * 100
-          const totalItems = contentCountsMap.get(versionIdStr) || {
-            totalItems: 0,
-            videos: 0,
-            quizzes: 0,
-            articles: 0,
-          };
+
 
           const completedCount = watchedItemsMap.get(watchedKey) || 0;
 
-          const ratio = completedCount / (totalItems.totalItems || 1); // avoid division by zero
+          const ratio = completedCount / (enr.totalItems || 1); // avoid division by zero
           const calculatedPercent = Math.floor(ratio * 100);
 
           console.log(
-            totalItems.totalItems,
+            enr.totalItems,
             completedCount,
             ratio,
             calculatedPercent,
@@ -311,8 +305,7 @@ export class EnrollmentService extends BaseService {
           // if different, update enrollment percentCompleted
           if (enr.percentCompleted !== calculatedPercent) {
             console.log(
-              `Updating percentCompleted for enrollment ${enr._id.toString()} from ${
-                enr.percentCompleted
+              `Updating percentCompleted for enrollment ${enr._id.toString()} from ${enr.percentCompleted
               } to ${calculatedPercent}`,
             );
             this.enrollmentRepo.updateProgressPercentById(
@@ -325,7 +318,9 @@ export class EnrollmentService extends BaseService {
 
           console.log('Enrollment', enr);
 
-          if (enr.percentCompleted >= 0)
+          if (enr.percentCompleted >= 0) {
+            const itemCounts = enr.itemCounts || {};
+
             return {
               _id: enr._id.toString(),
               courseId: enr.courseId.toString(),
@@ -335,14 +330,19 @@ export class EnrollmentService extends BaseService {
               enrollmentDate: new Date(enr.enrollmentDate),
               course: this.filterCourseVersions(enr.course, enrolledVersionIds),
               percentCompleted: enr.percentCompleted || 0,
-              contentCounts: contentCountsMap.get(versionIdStr) || {
-                totalItems: 0,
-                videos: 0,
-                quizzes: 0,
-                articles: 0,
+
+              // ✅ EXACT frontend shape
+              contentCounts: {
+                totalItems: enr.totalItems ?? 0,
+                videos: itemCounts.VIDEO ?? itemCounts.videos ?? 0,
+                quizzes: itemCounts.QUIZ ?? itemCounts.quizzes ?? 0,
+                articles: itemCounts.BLOG ?? itemCounts.articles ?? 0,
+                project: itemCounts.PROJECT ?? itemCounts.project ?? 0,
               },
+
               completedItems: watchedItemsMap.get(watchedKey) || 0,
             };
+          }
         });
       }
 
@@ -514,7 +514,7 @@ export class EnrollmentService extends BaseService {
    */
   async bulkUpdateAllEnrollments(
     courseId?: string,
-  ): Promise<{totalCount: number; updatedCount: number}> {
+  ): Promise<{ totalCount: number; updatedCount: number }> {
     const BATCH_SIZE = 5000;
 
     // 1. Get courses (all or specific one)
@@ -571,8 +571,8 @@ export class EnrollmentService extends BaseService {
 
             bulkOperations.push({
               updateOne: {
-                filter: {_id: new ObjectId(enrollment._id)},
-                update: {$set: {percentCompleted}},
+                filter: { _id: new ObjectId(enrollment._id) },
+                update: { $set: { percentCompleted } },
               },
             });
 
@@ -584,8 +584,7 @@ export class EnrollmentService extends BaseService {
                 );
                 updatedCount += bulkOperations.length;
                 console.log(
-                  `✅ Batch ${++batchCount}: Updated ${
-                    bulkOperations.length
+                  `✅ Batch ${++batchCount}: Updated ${bulkOperations.length
                   } enrollments`,
                 );
                 bulkOperations.length = 0;
@@ -620,7 +619,7 @@ export class EnrollmentService extends BaseService {
       });
     }
 
-    return {totalCount, updatedCount};
+    return { totalCount, updatedCount };
   }
 
   async getNonStudentEnrollmentsByCourseVersion(
@@ -636,7 +635,7 @@ export class EnrollmentService extends BaseService {
     });
   }
   async bulkEnrollUsers(
-    existingEnrolledUsersWithRoles: {userId: string; role: EnrollmentRole}[],
+    existingEnrolledUsersWithRoles: { userId: string; role: EnrollmentRole }[],
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
@@ -659,11 +658,11 @@ export class EnrollmentService extends BaseService {
       const enrollmentsToCreate: OptionalId<IEnrollment>[] = [];
       const results: any[] = [];
 
-      for (const {userId, role} of existingEnrolledUsersWithRoles) {
+      for (const { userId, role } of existingEnrolledUsersWithRoles) {
         const userExists = await this.userRepo.findById(userId, session);
 
         if (!userExists) {
-          results.push({userId, error: 'User not found'});
+          results.push({ userId, error: 'User not found' });
           continue;
         }
 
