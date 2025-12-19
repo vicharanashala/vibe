@@ -106,9 +106,6 @@ export default function StudentCourses() {
     );
   }
 
-  // Check if progress data is still loading
-  const isProgressLoading = false;
-
   return (
     <div className="flex flex-1 flex-col gap-4 md:px-4 px-0 p-4 pt-0">
       <div className="flex flex-col space-y-6">
