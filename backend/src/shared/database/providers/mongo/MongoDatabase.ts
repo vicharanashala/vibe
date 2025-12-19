@@ -29,7 +29,6 @@ export class MongoDatabase implements IDatabase<Db> {
     @inject(GLOBAL_TYPES.dbName)
     private readonly dbName: string,
   ) {
-    console.log('uri ', uri)
     // Skip database connection if environment variable is set
     if (process.env.SKIP_DB_CONNECTION === 'true') {
       this.client = null;

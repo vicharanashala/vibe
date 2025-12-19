@@ -1350,43 +1350,92 @@ export function useStartItem(): {
 }
 
 // POST /users/progress/courses/{courseId}/versions/{courseVersionId}/stop
-export function useStopItem(): {
-  mutate: (variables: {
-    params: { path: { courseId: string, courseVersionId: string } }, body: {
-      watchItemId: string;
-      itemId: string;
-      sectionId: string;
-      moduleId: string;
-      attemptId?: string | null | undefined;
-      isSkipped?: boolean
+// export function useStopItem(): {
+//   mutate: (variables: {
+//     params: { path: { courseId: string, courseVersionId: string } }, body: {
+//       watchItemId: string;
+//       itemId: string;
+//       sectionId: string;
+//       moduleId: string;
+//       attemptId?: string | null | undefined;
+//       isSkipped?: boolean
+//     }
+//   }) => void,
+//   mutateAsync: (variables: {
+//     params: { path: { courseId: string, courseVersionId: string } }, body: {
+//       watchItemId: string;
+//       itemId: string;
+//       sectionId: string;
+//       moduleId: string;
+//       attemptId?: string | null | undefined;
+//       isSkipped?: boolean
+//     }
+//   }) => Promise<unknown>,
+//   data: unknown | undefined,
+//   error: string | null,
+//   isPending: boolean,
+//   isSuccess: boolean,
+//   isError: boolean,
+//   isIdle: boolean,
+//   reset: () => void,
+//   status: 'idle' | 'pending' | 'success' | 'error'
+// } {
+//   const result = api.useMutation("post", "/users/progress/courses/{courseId}/versions/{courseVersionId}/stop");
+//   return {
+//     ...result,
+//     error: result.error ? (result.error.message || 'Failed to stop item') : null
+//   };
+// }
+
+
+export function useStopItem() {
+  const queryClient = useQueryClient();
+
+  const result = api.useMutation(
+    "post",
+    "/users/progress/courses/{courseId}/versions/{courseVersionId}/stop",
+    {
+      onSuccess: (_data, variables) => {
+        const {
+          params: {
+            path: { courseId, courseVersionId },
+          },
+          body: { itemId },
+        } = variables;
+
+      //  queryClient.invalidateQueries({
+        //   queryKey: [
+        //     "get",
+        //     "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items",
+        //     {
+        //       params: {
+        //         path: {
+        //           versionId: courseVersionId,
+        //           moduleId,
+        //           sectionId,
+        //         },
+        //       },
+        //     },
+        //   ],
+        // });
+        queryClient.invalidateQueries({
+  predicate: (query) =>
+    query.queryKey[0] === "get" &&
+    query.queryKey[1] ===
+      "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items",
+});
+
+      },
     }
-  }) => void,
-  mutateAsync: (variables: {
-    params: { path: { courseId: string, courseVersionId: string } }, body: {
-      watchItemId: string;
-      itemId: string;
-      sectionId: string;
-      moduleId: string;
-      attemptId?: string | null | undefined;
-      isSkipped?: boolean
-    }
-  }) => Promise<unknown>,
-  data: unknown | undefined,
-  error: string | null,
-  isPending: boolean,
-  isSuccess: boolean,
-  isError: boolean,
-  isIdle: boolean,
-  reset: () => void,
-  status: 'idle' | 'pending' | 'success' | 'error'
-} {
-  const result = api.useMutation("post", "/users/progress/courses/{courseId}/versions/{courseVersionId}/stop");
+  );
+
   return {
     ...result,
-    error: result.error ? (result.error.message || 'Failed to stop item') : null
+    error: result.error
+      ? result.error.message || 'Failed to stop item'
+      : null,
   };
 }
-
 
 export function useSkipOptionalItem(): {
   mutate: (variables: { params: { path: { itemId: String } } }) => void,
