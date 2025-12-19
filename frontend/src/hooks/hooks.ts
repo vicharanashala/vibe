@@ -3594,41 +3594,102 @@ export interface LeaderboardEntry {
   rank: number;
 }
 
-export const useLeaderboard = (courseId: string, versionId: string, enabled: boolean = true) => {
+export const useLeaderboard = (
+  courseId: string,
+  versionId: string,
+  page: number,
+  limit: number = 10,
+  enabled: boolean = true,
+) => {
   const authToken = localStorage.getItem('firebase-auth-token');
 
   const result = useQuery({
-    queryKey: ['leaderboard', courseId, versionId],
+    queryKey: ['leaderboard', courseId, versionId, page, limit],
     queryFn: async () => {
       const response = await fetch(
-        `${import.meta.env.VITE_BASE_URL}/users/progress/courses/${courseId}/versions/${versionId}/leaderboard`,
+        `${import.meta.env.VITE_BASE_URL}/users/progress/courses/${courseId}/versions/${versionId}/leaderboard?page=${page}&limit=${limit}`,
         {
           method: 'GET',
           headers: {
-            'Authorization': authToken ? `Bearer ${authToken}` : '',
+            Authorization: authToken ? `Bearer ${authToken}` : '',
             'Content-Type': 'application/json',
           },
           credentials: 'include',
-        }
+        },
       );
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch leaderboard: ${response.statusText}`);
+        throw new Error('Failed to fetch leaderboard');
       }
 
-      const data = await response.json();
-      return data as LeaderboardEntry[];
+      return response.json() as Promise<{
+        data: LeaderboardEntry[];
+        totalDocuments: number;
+        totalPages: number;
+        currentPage: number;
+        myStats: LeaderboardEntry | null;
+      }>;
     },
     enabled: enabled && !!courseId && !!versionId,
   });
 
   return {
-    data: result.data,
+    leaderboard: result.data?.data ?? [],
+    totalDocuments: result.data?.totalDocuments ?? 0,
+    totalPages: result.data?.totalPages ?? 0,
+    currentPage: result.data?.currentPage ?? page,
+    myStats: result.data?.myStats ?? null,
     isLoading: result.isLoading,
-    error: result.isError ? result.error.message || 'Failed to fetch leaderboard' : null,
+    isFetching: result.isFetching,
+    error: result.isError
+      ? result.error?.message || 'Failed to fetch leaderboard'
+      : null,
     refetch: result.refetch,
   };
 };
+
+// export const useLeaderboard = (courseId: string, versionId: string, enabled: boolean = true, page: number,
+//   limit: number = 10,) => {
+//   const authToken = localStorage.getItem('firebase-auth-token');
+
+//   const result = useQuery({
+//     queryKey: ['leaderboard', courseId, versionId, page, limit],
+//     queryFn: async () => {
+//       const response = await fetch(
+//         `${import.meta.env.VITE_BASE_URL}/users/progress/courses/${courseId}/versions/${versionId}/leaderboard?page=${page}&limit=${limit}`,
+//         {
+//           method: 'GET',
+//           headers: {
+//             'Authorization': authToken ? `Bearer ${authToken}` : '',
+//             'Content-Type': 'application/json',
+//           },
+//           credentials: 'include',
+//         }
+//       );
+
+//       if (!response.ok) {
+//         throw new Error(`Failed to fetch leaderboard: ${response.statusText}`);
+//       }
+
+//       // const data = await response.json();
+//       // return data as LeaderboardEntry[];
+//        return response.json() as Promise<{
+//         data: LeaderboardEntry[];
+//         totalDocuments: number;
+//         totalPages: number;
+//         currentPage: number;
+//       }>;
+//     },
+//     enabled: enabled && !!courseId && !!versionId,
+//   });
+
+//   return {
+//     data: result.data,
+//     isLoading: result.isLoading,
+//     error: result.isError ? result.error.message || 'Failed to fetch leaderboard' : null,
+//     refetch: result.refetch,
+//   };
+// };
 
 export const useHideSection = (): {
   mutate: (variables: { params: { path: { versionId: string, moduleId: string, sectionId: string } }, body: { hide: boolean } }) => void,
