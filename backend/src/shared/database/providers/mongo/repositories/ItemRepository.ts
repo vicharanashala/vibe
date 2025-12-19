@@ -952,8 +952,9 @@ export class ItemRepository implements IItemRepository {
     const itemsGroupIds: ObjectId[] = [];
 
     for (const module of courseVersion.modules ?? []) {
+      if (module.isHidden) continue;
       for (const section of module.sections ?? []) {
-        if (section.itemsGroupId) {
+        if (!section.isHidden && section.itemsGroupId) {
           itemsGroupIds.push(new ObjectId(section.itemsGroupId));
         }
       }
@@ -970,9 +971,15 @@ export class ItemRepository implements IItemRepository {
           {
             $match: {
               _id: { $in: itemsGroupIds },
+              isHidden:{$ne:true}
             },
           },
           { $unwind: '$items' },
+          {
+            $match: {
+              'items.isHidden': { $ne: true }
+            }
+          },
           {
             $group: {
               _id: '$items.type',
