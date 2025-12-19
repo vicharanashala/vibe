@@ -244,15 +244,31 @@ export class EnrollmentService extends BaseService {
     role: EnrollmentRole,
     search: string,
   ): Promise<EnrollmentDataResponse[]> {
+    let enrollments = [];
+    if (role === 'INSTRUCTOR') {
+      enrollments = await this.enrollmentRepo.getBasicInstructorEnrollments(
+        userId,
+        skip,
+        limit,
+        role,
+        search,
 
-    const enrollments = await this.enrollmentRepo.getBasicEnrollments(
-      userId,
-      skip,
-      limit,
-      role,
-      search,
+      );
 
-    );
+
+    }
+    else {
+      enrollments = await this.enrollmentRepo.getBasicEnrollments(
+        userId,
+        skip,
+        limit,
+        role,
+        search,
+
+      );
+
+    }
+
 
     if (!enrollments.length) return [];
 
@@ -612,13 +628,13 @@ export class EnrollmentService extends BaseService {
     courseId: string,
     courseVersionId: string,
   ): Promise<IEnrollment[]> {
-    return this._withTransaction(async (session: ClientSession) => {
-      return await this.enrollmentRepo.getNonStudentEnrollmentsByCourseVersion(
-        courseId,
-        courseVersionId,
-        session,
-      );
-    });
+
+    return await this.enrollmentRepo.getNonStudentEnrollmentsByCourseVersion(
+      courseId,
+      courseVersionId,
+
+    );
+
   }
   async bulkEnrollUsers(
     existingEnrolledUsersWithRoles: { userId: string; role: EnrollmentRole }[],

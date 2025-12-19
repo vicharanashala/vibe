@@ -703,6 +703,109 @@ export class EnrollmentRepository {
     return enrollments;
   }
 
+  async getBasicInstructorEnrollments(
+    userId: string,
+    skip: number,
+    limit: number,
+    role: EnrollmentRole,
+    search?: string,
+  ) {
+    await this.init();
+
+    const pipeline: any[] = [
+      /* ---------- EARLY FILTER (INDEXED) ---------- */
+      {
+        $match: {
+          userId: new ObjectId(userId),
+          role,
+          isDeleted: { $ne: true },
+        },
+      },
+
+      { $sort: { enrollmentDate: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+
+      /* ---------- COURSE LOOKUP (OPTIMIZED) ---------- */
+      {
+        $lookup: {
+          from: 'newCourse',
+          let: { courseId: '$courseId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$_id', '$$courseId'] },
+                ...(search?.trim()
+                  ? { name: { $regex: search, $options: 'i' } }
+                  : {}),
+              },
+            },
+
+            /* keep only required fields */
+            {
+              $project: {
+                name: 1,
+                description: 1,
+                updatedAt: 1,
+                versions: 1,
+              },
+            },
+
+            /* filter non-deleted versions */
+            {
+              $lookup: {
+                from: 'newCourseVersion',
+                localField: 'versions',
+                foreignField: '_id',
+                as: 'versions',
+                pipeline: [
+                  { $match: { isDeleted: { $ne: true } } },
+                  { $project: { _id: 1 } },
+                ],
+              },
+            },
+
+            {
+              $project: {
+                name: 1,
+                description: 1,
+                updatedAt: 1,
+                versions: {
+                  $map: {
+                    input: '$versions',
+                    as: 'v',
+                    in: { $toString: '$$v._id' },
+                  },
+                },
+              },
+            },
+          ],
+          as: 'course',
+        },
+      },
+
+      /* ---------- REMOVE NON-MATCHED COURSES ---------- */
+      { $unwind: '$course' },
+
+      /* ---------- FINAL SHAPE ---------- */
+      {
+        $project: {
+          _id: 1,
+          courseId: 1,
+          courseVersionId: 1,
+          role: 1,
+          status: 1,
+          enrollmentDate: 1,
+          course: 1,
+        },
+      },
+    ];
+
+    return this.enrollmentCollection.aggregate(pipeline).toArray();
+  }
+
+
+
   async getContentCountsForVersions(
     versionIds: ObjectId[],
   ): Promise<Map<string, any>> {
@@ -2037,8 +2140,7 @@ export class EnrollmentRepository {
             courseId: courseObjectId,
             courseVersionId: versionObjectId,
             role: { $ne: 'STUDENT' },
-          },
-          { session },
+          }
         )
         .toArray();
 
