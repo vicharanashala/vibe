@@ -624,7 +624,9 @@ class ProgressService extends BaseService {
     // Check if the itemId is the last item in the section
     const itemsGroupId = courseVersion.modules
       .find(module => module.moduleId?.toString() === moduleId)
-      ?.sections.find(section => section.sectionId?.toString() === sectionId)?.itemsGroupId;
+      ?.sections.find(
+        section => section.sectionId?.toString() === sectionId,
+      )?.itemsGroupId;
     const itemsGroup = await this.itemRepo.readItemsGroup(
       itemsGroupId?.toString(),
     );
@@ -1308,7 +1310,6 @@ class ProgressService extends BaseService {
         );
       }
 
-      
       await this.updateEnrollmentProgressPercent(
         userId,
         courseId,
@@ -2088,17 +2089,30 @@ class ProgressService extends BaseService {
     return this.itemRepo.getFirstOrderItems(versionId);
   }
   async getLeaderboard(
+    userId: string,
     courseId: string,
     courseVersionId: string,
-  ): Promise<
-    Array<{
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{
+    data: Array<{
       userId: string;
       userName: string;
       completionPercentage: number;
       completedAt: Date | null;
       rank: number;
-    }>
-  > {
+    }>;
+    totalDocuments: number;
+    totalPages: number;
+    currentPage: number;
+    myStats: {
+      userId: string;
+      userName: string;
+      completionPercentage: number;
+      completedAt: Date | null;
+      rank: number;
+    } | null;
+  }> {
     // Get all progress records for this course version
     const progressRecords =
       await this.progressRepository.getAllProgressForCourseVersion(
@@ -2169,10 +2183,33 @@ class ProgressService extends BaseService {
     });
 
     // Assign ranks
-    return sortedLeaderboard.map((student, index) => ({
+    // return sortedLeaderboard.map((student, index) => ({
+    //   ...student,
+    //   rank: index + 1,
+    // }));
+
+    const rankedLeaderboard = sortedLeaderboard.map((student, index) => ({
       ...student,
       rank: index + 1,
     }));
+
+    const myStats =
+      rankedLeaderboard.find(entry => entry.userId === userId) || null;
+
+    const totalDocuments = rankedLeaderboard.length;
+    const totalPages = Math.ceil(totalDocuments / limit);
+
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+
+    const paginatedData = rankedLeaderboard.slice(startIndex, endIndex);
+    return {
+      data: paginatedData,
+      totalDocuments,
+      totalPages,
+      currentPage: page,
+      myStats
+    };
   }
 }
 
