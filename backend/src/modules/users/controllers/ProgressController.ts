@@ -17,6 +17,7 @@ import {
   WatchTimeResponse,
   TotalWatchTimeResponse,
   ItemIdparams,
+  GetLeaderboardQuery,
 } from '#users/classes/validators/ProgressValidators.js';
 import {ProgressService} from '#users/services/ProgressService.js';
 import {USERS_TYPES} from '#users/types.js';
@@ -36,6 +37,8 @@ import {
   Authorized,
   Session,
   Param,
+  QueryParams,
+  CurrentUser,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {UserNotFoundErrorResponse} from '../classes/validators/UserValidators.js';
@@ -47,7 +50,7 @@ import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {subject} from '@casl/ability';
 import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
 import {QuizService} from '#root/modules/quizzes/services/index.js';
-import {BadRequestErrorResponse} from '#root/shared/index.js';
+import {BadRequestErrorResponse, IUser} from '#root/shared/index.js';
 import {InternalServerErrorResponse} from '../../../shared/middleware/errorHandler.js';
 import {COURSES_TYPES} from '#root/modules/courses/types.js';
 import {ItemService} from '#root/modules/courses/services/ItemService.js';
@@ -248,7 +251,7 @@ class ProgressController {
       userId,
       courseId,
       versionId,
-      itemId, 
+      itemId,
       sectionId,
       moduleId,
       watchItemId,
@@ -477,21 +480,38 @@ It returns an empty body with a 200 status code.
     description: 'Leaderboard retrieved successfully',
     isArray: true,
   })
+  @Authorized()
   @ResponseSchema(InternalServerErrorResponse, {
     description: 'Failed to fetch leaderboard',
     statusCode: 500,
   })
-  async getLeaderboard(@Params() params: GetUserProgressParams): Promise<
-    Array<{
+  async getLeaderboard(
+    @Params() params: GetUserProgressParams,
+    @QueryParams() query: GetLeaderboardQuery,
+    @CurrentUser() user:IUser
+  ): Promise<{
+    data: Array<{
       userId: string;
       userName: string;
       completionPercentage: number;
       completedAt: Date | null;
       rank: number;
-    }>
-  > {
+    }>;
+    totalDocuments: number;
+    totalPages: number;
+    currentPage: number;
+  }> {
     const {courseId, versionId} = params;
-    return await this.progressService.getLeaderboard(courseId, versionId);
+    const {page = 1, limit = 10} = query;
+    const userId = user._id.toString();
+
+    return await this.progressService.getLeaderboard(
+      userId,
+      courseId,
+      versionId,
+      page,
+      limit,
+    );
   }
 }
 export {ProgressController};
