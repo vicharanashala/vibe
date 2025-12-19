@@ -120,7 +120,7 @@ export class ItemService extends BaseService {
         version,
         module,
         section,
-        itemsGroup: {_id: section.itemsGroupId, items: []} as ItemsGroup,
+        itemsGroup: { _id: section.itemsGroupId, items: [] } as ItemsGroup,
       };
     }
 
@@ -171,6 +171,7 @@ export class ItemService extends BaseService {
         createdItemDetailsPersistenceResult,
         totalItemsCountIfNeeded,
         enrollments,
+        itemCounts_totalItems,
       ] = await Promise.all([
         this.itemRepo.createItem(item.itemDetails, session),
         version.totalItems
@@ -181,6 +182,7 @@ export class ItemService extends BaseService {
             session,
           ),
         this.enrollmentRepo.getByCourseVersion(courseId, versionId, session),
+        this.itemRepo.calculateItemCountsForVersion(version._id.toString(),session)
       ]);
 
       // Step 3a: Validate creation
@@ -196,6 +198,8 @@ export class ItemService extends BaseService {
       version.totalItems = version.totalItems
         ? version.totalItems + 1
         : Math.max(totalItemsCountIfNeeded || 0, 1);
+
+      version.itemCounts=itemCounts_totalItems.itemCounts;
 
       // Step 4: Update enrollment progress in bulk
       await this.progressService.updateEnrollmentProgressPercentBulk(
@@ -519,13 +523,15 @@ export class ItemService extends BaseService {
         const versionId = version._id.toString();
 
         // Step 3: Run in parallel: count total items, delete watch time, get enrollments
-        const [totalItems, _, enrollments] = await Promise.all([
+        const [totalItems, itemCounts_totalItems, _,enrollments] = await Promise.all([
           this.itemRepo.CalculateTotalItemsCount(courseId, versionId, session),
+          this.itemRepo.calculateItemCountsForVersion(versionId,session),
           this.progressRepo.deleteWatchTimeByItemId(itemId, session),
           this.enrollmentRepo.getByCourseVersion(courseId, versionId, session),
         ]);
 
         version.totalItems = totalItems;
+        version.itemCounts=itemCounts_totalItems.itemCounts;
 
         // Step 4: Update progress for all users in parallel
         await this.progressService.updateEnrollmentProgressPercentBulk(
@@ -535,6 +541,8 @@ export class ItemService extends BaseService {
           version.totalItems,
           session,
         );
+
+
 
         // Step 5: Update version
         const updatedVersion = await this.courseRepo.updateVersion(
@@ -736,6 +744,14 @@ export class ItemService extends BaseService {
       if (!version)
         throw new NotFoundError(`Version ${courseVersionId} not found.`);
 
+      const { totalItems, itemCounts } =
+        await this.itemRepo.calculateItemCountsForVersion(
+          courseVersionId,
+          session
+        );
+
+      version.totalItems = totalItems;
+      version.itemCounts = itemCounts;
       version.updatedAt = new Date();
 
       const updatedVersion = await this.courseRepo.updateVersion(
