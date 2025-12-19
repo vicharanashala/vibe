@@ -2,13 +2,13 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent } from '@/components/ui/card';
-import { Play, Pause, SkipBack, Volume2, ChevronRight, Captions, Loader2 } from 'lucide-react';
+import { Play, Pause, SkipBack, Volume2,  Captions, Loader2 } from 'lucide-react';
 import { useStartItem, useStopItem } from '../hooks/hooks';
-import { useAuthStore } from '../store/auth-store';
+
 import { useCourseStore } from '../store/course-store';
 import { usePlayerStore } from '../store/player-store'; // Import the new store
 import type { VideoProps, YTPlayerInstance } from '@/types/video.types';
-import { on } from 'events';
+
 import { toast } from 'sonner';
 import { Badge } from './ui/badge';
 
