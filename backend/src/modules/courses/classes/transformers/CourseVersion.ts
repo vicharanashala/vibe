@@ -38,6 +38,16 @@ class CourseVersion implements ICourseVersion {
   totalItems?: number;
 
   @Expose()
+  @Type(() => Number)
+  itemCounts?:{
+    VIDEO: number;
+    QUIZ: number;
+    BLOG: number;
+    PROJECT: number;
+    FEEDBACK: number;
+  }
+
+  @Expose()
   @Type(() => Date)
   createdAt: Date;
 
