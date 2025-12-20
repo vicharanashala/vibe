@@ -398,6 +398,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
                     progressStoppedRef.current = true;
                     onNext?.();
                   } catch (err) {
+                    progressStoppedRef.current = true; // Prevent infinite retries
                     toast.warning('Unable to stop video, try again!');
                     console.error('Stop item failed:', err);
                     return;
@@ -544,6 +545,7 @@ useEffect(() => {
               progressStoppedRef.current = true;
               onNext?.();
             } catch (err) {
+              progressStoppedRef.current = true; // Prevent infinite retries
               toast.warning('Unable to stop video, try again!');
               console.error('Stop item failed:', err);
               return;
@@ -579,6 +581,7 @@ useEffect(() => {
 
               onNext?.();
             } catch (err) {
+              progressStoppedRef.current = true; // Prevent infinite retries
               toast.error('Unable to stop video, try again!');
               console.error('Stop item failed:', err);
               return;

@@ -210,7 +210,8 @@ export default function CoursePage() {
   )
 
   // Fetch individual item details when an item is selected
-  const shouldFetchItem = Boolean(selectedItemId && COURSE_ID && VERSION_ID);
+  // Don't fetch during navigation to prevent race condition with stopItem
+  const shouldFetchItem = Boolean(selectedItemId && COURSE_ID && VERSION_ID && !isNavigatingToNext);
   const {
     data: itemData,
     isLoading: itemLoading,
@@ -921,6 +922,9 @@ export default function CoursePage() {
         updateCourseNavigation(moduleId, sectionId, itemId);
 
         console.log('Successfully navigated to next item:', { moduleId, sectionId, itemId });
+        
+        // Clear loading state after successful navigation
+        setIsNavigatingToNext(false);
       } catch (error) {
         console.error('Error navigating to next item:', error);
         // Clear loading state on error
