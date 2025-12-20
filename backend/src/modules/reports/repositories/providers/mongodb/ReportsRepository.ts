@@ -216,11 +216,11 @@ class ReportRepository {
       {session},
     );
 
-    if (existingReport) {
-      throw new BadRequestError(
-        `You have already submitted a report for this ${report.entityType.toLowerCase()}.`,
-      );
-    }
+    // if (existingReport) {
+    //   throw new BadRequestError(
+    //     `You have already submitted a report for this ${report.entityType.toLowerCase()}.`,
+    //   );
+    // }
     const result = await this.reportCollection.insertOne(report, {session});
     if (result.acknowledged && result.insertedId) {
       return result.insertedId.toString();
