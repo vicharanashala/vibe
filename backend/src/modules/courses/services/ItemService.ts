@@ -989,7 +989,7 @@ export class ItemService extends BaseService {
             quizItem.createdItem._id.toString(),
             {
               bankId: questionBank,
-              count: 3,
+              count: 2,
               tags: []
             }
           );
