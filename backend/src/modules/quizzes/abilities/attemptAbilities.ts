@@ -53,18 +53,34 @@ export async function setupAttemptAbilities(
 
       switch (enrollment.role) {
         case 'STUDENT':
-          const progress = await progressService.getUserProgress(
-            user.userId,
-            enrollment.courseId,
-            enrollment.versionId,
-          );
+          let progress;
+          try {
+            progress = await progressService.getUserProgress(
+              user.userId,
+              enrollment.courseId,
+              enrollment.versionId,
+            );
+          } catch (error) {
+            console.log('No progress found for student in attempt abilities, course not started yet');
+            progress = null;
+          }
+          
           const completedItems = await progressService.getCompletedItems(
             user.userId,
             enrollment.courseId,
             enrollment.versionId,
           );
+          
           if (!progress) {
-            throw new InternalServerError('No progress found for user');
+            // Student hasn't started the course yet, grant basic attempt permissions
+            const basicAttemptBounded = {
+              courseId: enrollment.courseId,
+              versionId: enrollment.versionId,
+            };
+            can(AttemptActions.Start, 'Attempt', basicAttemptBounded);
+            can(AttemptActions.Save, 'Attempt', basicAttemptBounded);
+            can(AttemptActions.Submit, 'Attempt', basicAttemptBounded);
+            break;
           }
           // fetch courseVersion (to get linearProgression flag)
           const courseSettings = await courseSettingService.readCourseSettings(
