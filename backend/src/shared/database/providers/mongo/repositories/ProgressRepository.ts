@@ -16,10 +16,17 @@ class ProgressRepository {
   private progressCollection!: Collection<IProgress>;
   private watchTimeCollection!: Collection<IWatchTime>;
   private attemptCollection: Collection<IAttempt>;
+  private initialized = false;
 
   constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
 
   private async init() {
+    // Initialize only once to prevent catalog change errors
+    if (this.initialized) {
+      return;
+    }
+    this.initialized = true;
+
     this.progressCollection = await this.db.getCollection<IProgress>(
       'progress',
     );
@@ -30,21 +37,45 @@ class ProgressRepository {
       'quiz_attempts',
     );
 
-    this.progressCollection.createIndex({
-      userId: 1,
-      courseId: 1,
-      courseVersionId: 1,
-    });
-    this.watchTimeCollection.createIndex({
-      userId: 1,
-      courseId: 1,
-      courseVersionId: 1,
-      itemId: 1,
-    });
-    this.attemptCollection.createIndex({
-      userId: 1,
-      quizId: 1,
-    });
+    // Create indexes with background: true and error handling
+    try {
+      await this.progressCollection.createIndex(
+        {
+          userId: 1,
+          courseId: 1,
+          courseVersionId: 1,
+        },
+        {background: true},
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      await this.watchTimeCollection.createIndex(
+        {
+          userId: 1,
+          courseId: 1,
+          courseVersionId: 1,
+          itemId: 1,
+        },
+        {background: true},
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      await this.attemptCollection.createIndex(
+        {
+          userId: 1,
+          quizId: 1,
+        },
+        {background: true},
+      );
+    } catch (e) {
+      // Index already exists
+    }
   }
 
   async getCompletedItems(
@@ -451,10 +482,6 @@ class ProgressRepository {
     return result.insertedId.toString();
   }
   async stopItemTracking(
-    userId: string | ObjectId,
-    courseId: string,
-    courseVersionId: string,
-    itemId: string,
     watchTimeId: string,
     session?: ClientSession,
   ): Promise<IWatchTime | null> {
@@ -462,15 +489,12 @@ class ProgressRepository {
     const result = await this.watchTimeCollection.findOneAndUpdate(
       {
         _id: new ObjectId(watchTimeId),
-        userId: new ObjectId(userId),
-        courseId: new ObjectId(courseId),
-        courseVersionId: new ObjectId(courseVersionId),
-        itemId: new ObjectId(itemId),
         isDeleted: {$ne: true},
       },
       {$set: {endTime: new Date()}},
       {returnDocument: 'after', session},
     );
+    console.log(result);
     return result;
   }
 
