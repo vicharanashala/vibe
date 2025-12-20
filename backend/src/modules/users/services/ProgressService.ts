@@ -1121,10 +1121,6 @@ class ProgressService extends BaseService {
 
       // Stop tracking the item
       const result: IWatchTime = await this.progressRepository.stopItemTracking(
-        userId,
-        courseId,
-        courseVersionId,
-        itemId,
         watchItemId,
         session,
       );
@@ -1298,10 +1294,6 @@ class ProgressService extends BaseService {
             if (watchTimeRecords?.length) {
               const watchTimeRecord = watchTimeRecords[0];
               await this.progressRepository.stopItemTracking(
-                userId,
-                courseId,
-                courseVersionId,
-                blankQuizId,
                 watchTimeRecord._id.toString(),
                 session,
               );
@@ -2022,27 +2014,13 @@ class ProgressService extends BaseService {
 
       if (watchTimeId) {
         // Mark the item as completed by stopping the watch time
-        await this.progressRepository.stopItemTracking(
-          userId,
-          courseId,
-          courseVersionId,
-          itemId,
-          watchTimeId,
-          session,
-        );
+        await this.progressRepository.stopItemTracking(watchTimeId, session);
       }
     } else {
       // Use the existing watch time ID
       watchTimeId = existingWatchTime[0]._id;
       // Ensure the watch time is marked as completed
-      await this.progressRepository.stopItemTracking(
-        userId,
-        courseId,
-        courseVersionId,
-        itemId,
-        watchTimeId,
-        session,
-      );
+      await this.progressRepository.stopItemTracking(watchTimeId, session);
     }
     // Get the next item
     const nextItem = await this.getNextItemInSequence(
@@ -2208,7 +2186,7 @@ class ProgressService extends BaseService {
       totalDocuments,
       totalPages,
       currentPage: page,
-      myStats
+      myStats,
     };
   }
 }
