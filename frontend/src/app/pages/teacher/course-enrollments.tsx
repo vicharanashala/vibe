@@ -781,7 +781,7 @@ export default function CourseEnrollments() {
                       studentEnrollments?.map((enrollment: any) => (
                         <TableRow
                           key={enrollment._id}
-                          className={`border-border hover:bg-muted/20 transition-colors duration-200 group ${enrollment.isDeleted ? "opacity-50" : ""}`}
+                          className={`border-border hover:bg-muted/20 transition-colors duration-200 group `}
                         >
                           <TableCell className="pl-6 py-6">
                             <div className="flex items-center gap-4">
@@ -837,7 +837,7 @@ export default function CourseEnrollments() {
                                     progress: Math.round(enrollment.progress || 0),
                                   })
                                 }
-                                disabled={enrollment.role !== "STUDENT" || Math.round(enrollment.progress || 0) == 0 || enrollment?.isDeleted}
+                                disabled={enrollment.role !== "STUDENT" || Math.round(enrollment.progress || 0) == 0}
                                 className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
                               >
                                 <Eye className="h-4 w-4 mr-2" />
@@ -857,7 +857,7 @@ export default function CourseEnrollments() {
                                   })
                                 }
                                 className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
-                                disabled={resetProgressMutation.isPending || Math.round(enrollment.progress || 0 ) == 0 || enrollment?.isDeleted}
+                                disabled={resetProgressMutation.isPending || Math.round(enrollment.progress || 0) == 0}
                               >
                                 {resetProgressMutation.isPending ? (
                                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -880,7 +880,7 @@ export default function CourseEnrollments() {
                                   })
                                 }
                                 className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
-                                disabled={unenrollMutation.isPending || user?.email == enrollment?.user?.email || enrollment?.isDeleted}
+                                disabled={unenrollMutation.isPending || user?.email == enrollment?.user?.email}
                               >
                                 {unenrollMutation.isPending ? (
                                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
