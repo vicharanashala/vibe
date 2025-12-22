@@ -79,7 +79,9 @@ export async function setupItemAbilities(
               enrollment.versionId,
             );
           } catch (error) {
-            console.log('No progress found for student, course not started yet');
+            console.log(
+              'No progress found for student, course not started yet',
+            );
             progress = null;
           }
 
@@ -89,6 +91,9 @@ export async function setupItemAbilities(
             enrollment.courseId,
             enrollment.versionId,
           );
+
+          // Convert all completed items to strings for consistency
+          const completedItemsStr = completedItems.map(id => id.toString());
 
           const itemBounded: {
             courseId: string;
@@ -123,8 +128,13 @@ export async function setupItemAbilities(
             break;
           }
 
-          const allowedItemIds = [...completedItems];
+          const allowedItemIds = [...completedItemsStr];
           const currentItemId = progress.currentItem.toString();
+
+          // Always add current item to allowed list
+          if (!allowedItemIds.includes(currentItemId)) {
+            allowedItemIds.push(currentItemId);
+          }
 
           // check if the user remaining attempts of a quiz is over
           const quizMetrics = await progressService.getUserMetricsForQuiz(
@@ -140,13 +150,19 @@ export async function setupItemAbilities(
             );
 
             if (nextItemId) {
-              allowedItemIds.push(nextItemId);
+              const nextItemIdStr = nextItemId.toString();
+              if (!allowedItemIds.includes(nextItemIdStr)) {
+                allowedItemIds.push(nextItemIdStr);
+              }
             }
           }
 
-          if (!allowedItemIds.includes(currentItemId)) {
-            allowedItemIds.push(currentItemId);
-          }
+          console.log('Allowed item IDs for user:', {
+            userId: user.userId,
+            currentItemId,
+            allowedItemIds,
+            completedCount: completedItemsStr.length,
+          });
 
           if (linearProgressionEnabled) {
             itemBounded.itemId = {$in: allowedItemIds};
