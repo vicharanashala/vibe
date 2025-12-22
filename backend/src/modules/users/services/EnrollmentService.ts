@@ -81,7 +81,7 @@ export class EnrollmentService extends BaseService {
         );
       }
 
-      const existingEnrollment = await this.enrollmentRepo.findEnrollment(
+      const existingEnrollment = await this.enrollmentRepo.findActiveEnrollment(
         userId,
         courseId,
         courseVersionId,
@@ -195,6 +195,38 @@ export class EnrollmentService extends BaseService {
       return existingEnrollment;
     });
   }
+
+  async findActiveEnrollment(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+  ) {
+    return this._withTransaction(async (session: ClientSession) => {
+      const user = await this.userRepo.findById(userId);
+      if (!user) throw new NotFoundError('User not found');
+
+      const course = await this.courseRepo.read(courseId);
+      if (!course) throw new NotFoundError('Course not found');
+
+      const courseVersion = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
+        throw new NotFoundError(
+          'Course version not found or does not belong to this course',
+        );
+      }
+      const existingEnrollment = await this.enrollmentRepo.findActiveEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+      );
+
+      return existingEnrollment;
+    });
+  }
+
   async unenrollUser(
     userId: string,
     courseId: string,
