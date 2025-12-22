@@ -652,12 +652,28 @@ function showExplanationBox(text: string) {
         });
         setScore(totalScore);
       }
-      await stopItemAsync(); 
-      setQuizCompleted(true);
+      try{
+        await stopItemAsync(); 
+      }
+      catch (err){
+        console.error('Error stopping item after quiz submission:', err);
+      }
+      finally{
+        setQuizCompleted(true);
+      }
+
     } catch (err) {
       console.error('Failed to submit quiz:', err);
       // handleStopItem();
-      await stopItemAsync(isSkipped);
+      try{
+        await stopItemAsync(isSkipped);
+      }
+      catch(err){
+        console.error('Error stopping item after failed quiz submission:', err);
+      }
+      finally{
+        setQuizCompleted(true);
+      }
     }
   }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem]);
 
@@ -883,25 +899,42 @@ if (explanationText.trim()) {
     }
   }, [quizCompleted, dontStart]);
 
-  // Handle quiz completion for NO_DEADLINE type
+  // Handle quiz completion for all quiz types
   useEffect(() => {
-    if (quizCompleted && quizType === 'NO_DEADLINE' && !isEmptyQuiz) {
-      setQuizCompleted(false);
+    if (quizCompleted && !isEmptyQuiz) {
+      console.log('Quiz completed, processing results...', { 
+        gradingStatus: submissionResults?.gradingStatus,
+        quizType,
+        noAttemptsLeft 
+      });
       
       // For no attempts left, always proceed to next (since we marked it as passed)
       if (noAttemptsLeft) {
         setQuizPassed?.(1);
-        setTimeout(() => onNext?.(), 1000);
+        setTimeout(() => {
+          setQuizCompleted(false);
+          onNext?.();
+        }, 1000);
         return;
       }
       
       // For regular completion, check grading status
       if (submissionResults?.gradingStatus !== "FAILED") {
+        console.log('Quiz graded successfully, navigating to next video/item');
         setQuizPassed?.(1);
-        onNext?.();
+        setTimeout(() => {
+          setQuizCompleted(false);
+          onNext?.();
+        }, quizType === 'NO_DEADLINE' ? 0 : 1500);
       } else {
+        console.log('Quiz grading failed, navigating to previous video/item');
         setQuizPassed?.(0);
-        onPrevVideo?.();
+        // Give time for user to see the failure state, then navigate back
+        setTimeout(() => {
+          setQuizCompleted(false);
+          console.log('Calling onPrevVideo to go back');
+          onPrevVideo?.();
+        }, 2000);
       }
     }
   }, [quizCompleted, quizType, submissionResults?.gradingStatus, setQuizPassed, onNext, onPrevVideo, noAttemptsLeft, isEmptyQuiz]);
