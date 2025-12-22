@@ -32,6 +32,8 @@ import type { EnrolledUser } from "@/types/course.types"
 import { useAuthStore } from "@/store/auth-store"
 import { EnrollmentRole } from "@/types/invite.types"
 import { generateExcel } from "@/lib/excel-export"
+import { useQueryClient } from "@tanstack/react-query"
+
 
 // Types for quiz functionality
 
@@ -130,6 +132,7 @@ const getRoleBadge = (role: EnrollmentRole) => {
 export default function CourseEnrollments() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
+  const queryClient = useQueryClient()
 
   // Get course info from store
   const { currentCourse } = useCourseStore()
@@ -184,12 +187,12 @@ export default function CourseEnrollments() {
   const [isExporting, setIsExporting] = useState(false);
 
   // Quiz scores hook - using the hook directly with enabled: false to control when to fetch
-const {
-  data: quizScores,
-  isLoading: isLoadingQuizScores,
-  error: quizScoresError,
-  refetch: fetchQuizScores,
-} = useCourseQuizScores(courseId, versionId,isExporting);
+  const {
+    data: quizScores,
+    isLoading: isLoadingQuizScores,
+    error: quizScoresError,
+    refetch: fetchQuizScores,
+  } = useCourseQuizScores(courseId, versionId, isExporting);
 
   interface QuizScore {
     moduleId?: string;
@@ -203,7 +206,7 @@ const {
       score: number;
     }>;
   }
-  
+
   // Define the student data type
   interface StudentData {
     studentId: string;
@@ -218,16 +221,16 @@ const {
       toast.error('Course ID or Version ID is missing');
       return;
     }
-    
+
     try {
       if (quizScores && !isLoadingQuizScores) {
-        
+
         // Format the data for Excel export
         const formattedData = quizScores?.data?.map((student: any, index: number) => {
-          
+
           // Get all unique module and section names for this student
-          const moduleSectionMap = new Map<string, {moduleName: string, sectionName: string}>();
-          
+          const moduleSectionMap = new Map<string, { moduleName: string, sectionName: string }>();
+
           // First pass: collect all module and section names
           student.quizScores?.forEach((quiz: any) => {
             const key = `${quiz.moduleId}_${quiz.sectionId}`;
@@ -238,7 +241,7 @@ const {
               });
             }
           });
-          
+
           return {
             studentId: student.studentId || `student-${index}`,
             name: student.name || 'Unknown Student',
@@ -252,45 +255,46 @@ const {
               attempts: quiz.attempts || 0,
               moduleName: quiz.moduleName || 'Module',
               sectionName: quiz.sectionName || 'Section',
-              questionScores: Array.isArray(quiz.questionScores) 
+              questionScores: Array.isArray(quiz.questionScores)
                 ? quiz.questionScores.map((q: any) => ({
-                    questionId: q.questionId?.toString() || '',
-                    score: typeof q.score === 'number' ? q.score : 0
-                  }))
+                  questionId: q.questionId?.toString() || '',
+                  score: typeof q.score === 'number' ? q.score : 0
+                }))
                 : []
             })) || []
           };
         }) || [];
-        
+
         if (formattedData.length === 0) {
           toast.warning('No quiz scores found to export');
           return;
         }
-        
+
         console.log('Formatted data for Excel:', formattedData);
-      
-      // Generate and download the Excel file
-      const formattedTime = new Date().toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit"
-      }).replace(/:/g, '_');
-      
-      const filename = `quiz_scores_${new Date().toISOString().split('T')[0]}_${formattedTime}.xlsx`;
-      
-      try {
-      generateExcel(formattedData, filename);
-      toast.success('Quiz scores exported successfully');
-    
-      } catch (excelError) {
-        console.error('Error generating Excel file:', excelError);
-        toast.error('Failed to generate Excel file. Please try again.');
-      }}
+
+        // Generate and download the Excel file
+        const formattedTime = new Date().toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit"
+        }).replace(/:/g, '_');
+
+        const filename = `quiz_scores_${new Date().toISOString().split('T')[0]}_${formattedTime}.xlsx`;
+
+        try {
+          generateExcel(formattedData, filename);
+          toast.success('Quiz scores exported successfully');
+
+        } catch (excelError) {
+          console.error('Error generating Excel file:', excelError);
+          toast.error('Failed to generate Excel file. Please try again.');
+        }
+      }
     } catch (error) {
       console.error('Error exporting quiz scores:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to export quiz scores');
-    } 
-    
+    }
+
   };
 
   useEffect(() => {
@@ -375,12 +379,12 @@ const {
     }
   }, [isViewProgressDialogOpen])
 
- useEffect(() => {
-  if (isExporting&&!isLoadingQuizScores) {
-  
-    handleFetchQuizScores().finally(() => setIsExporting(false));
-  }
-}, [isExporting,isLoadingQuizScores]);
+  useEffect(() => {
+    if (isExporting && !isLoadingQuizScores) {
+
+      handleFetchQuizScores().finally(() => setIsExporting(false));
+    }
+  }, [isExporting, isLoadingQuizScores]);
 
   const handleResetProgress = (user: EnrolledUser) => {
     setSelectedUser(user)
@@ -408,15 +412,25 @@ const {
               courseVersionId: versionId,
             },
           },
-        })
+        });
+
+        // Invalidate and refetch queries to get fresh data
+        await queryClient.invalidateQueries({
+          queryKey: ['/users/enrollments/courses/{courseId}/versions/{courseVersionId}']
+        });
+
+        toast.success(`${userToRemove.name} has been removed from the course`)
         setIsRemoveDialogOpen(false)
         setUserToRemove(null)
-        refetchEnrollments()
-      } catch (error) {
+        await refetchEnrollments()
+      } catch (error: any) {
         console.error("Failed to remove student:", error)
+        toast.error(error?.message || "Failed to remove student. Please try again.")
       }
     }
   }
+
+
 
   const handleConfirmReset = async () => {
     if (!selectedUser || !courseId || !versionId) return
@@ -685,7 +699,7 @@ const {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={()=> setIsExporting(true)}
+                onClick={() => setIsExporting(true)}
                 disabled={isLoadingQuizScores}
                 className="flex items-center gap-2"
               >

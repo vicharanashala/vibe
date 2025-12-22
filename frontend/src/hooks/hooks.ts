@@ -890,7 +890,6 @@ export function useItemsBySectionId(versionId: string, moduleId: string, section
   refetch: () => void
 } {
   const isEnabled = !!(versionId && moduleId && sectionId && versionId !== "SKIP" && moduleId !== "SKIP" && sectionId !== "SKIP");
-  
   const result = api.useQuery("get", "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items", {
     params: { path: { versionId, moduleId, sectionId } }
   }, { enabled: isEnabled });
@@ -906,7 +905,7 @@ export function useItemsBySectionId(versionId: string, moduleId: string, section
 // POST /courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items
 export function useCreateItem(): {
   mutate: (variables: { params: { path: { versionId: string, moduleId: string, sectionId: string } }, body: any }) => void,
-  mutateAsync: (variables: { params: { path: { versionId: string, moduleId: string, sectionId: string } }, body: any}) => Promise<components['schemas']['ItemDataResponse']>,
+  mutateAsync: (variables: { params: { path: { versionId: string, moduleId: string, sectionId: string } }, body: any }) => Promise<components['schemas']['ItemDataResponse']>,
   data: components['schemas']['ItemDataResponse'] | undefined,
   error: string | null,
   isPending: boolean,
@@ -1190,6 +1189,10 @@ export function useCourseVersionEnrollments(
         query: { page, limit, search, sortBy, sortOrder, filter },
       },
       enabled: enabled && !!courseId && !!courseVersionId,
+    },
+    {
+      staleTime: 0,
+      gcTime: 0,
     }
   );
 
@@ -2760,8 +2763,8 @@ export function useProjectSubmissions(courseId: string, versionId: string): {
 
 // POST (copy course version)
 export function useCopyCourseVersion(): {
-  mutate: (variables: { params: { path: {  courseId: string; courseVersionId: string }}} ) => void,
-  mutateAsync: (variables: { params: { path: {  courseId: string; courseVersionId: string }}} ) => Promise<{ message: string }>,
+  mutate: (variables: { params: { path: { courseId: string; courseVersionId: string } } }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string; courseVersionId: string } } }) => Promise<{ message: string }>,
   data: { message: string } | undefined,
   error: string | null,
   isPending: boolean,
@@ -2870,10 +2873,10 @@ export interface RegistrationRequestQuery {
 
 
 export const useGetCourseRegistrationRequests = (
-  versionId:string,
+  versionId: string,
   query: RegistrationRequestQuery = {},
 ): {
-  data: {totalDocuments: number, totalPages: number, currentPage: number, registrations: Registration[]};
+  data: { totalDocuments: number, totalPages: number, currentPage: number, registrations: Registration[] };
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
@@ -2883,19 +2886,19 @@ export const useGetCourseRegistrationRequests = (
     '/course/registration/requests/version/{versionId}' as any,
     {
       params: {
-        path:{versionId},
+        path: { versionId },
         query
       }
     },
     {
-      enabled:!!versionId,
+      enabled: !!versionId,
       retry: 1,
       refetchOnWindowFocus: false
     }
   );
 
   return {
-    data: result.data as {totalDocuments: number, totalPages: number, currentPage: number, registrations: Registration[]} ,
+    data: result.data as { totalDocuments: number, totalPages: number, currentPage: number, registrations: Registration[] },
     isLoading: result.isLoading,
     error: result.error
       ? result.error.message || 'Failed to fetch course registration requests'
@@ -2905,7 +2908,7 @@ export const useGetCourseRegistrationRequests = (
 };
 
 
-export const useUpdateRegistrationStatus  = (): {
+export const useUpdateRegistrationStatus = (): {
   mutate: (registrationId: string, status: RegistrationStatus) => void;
   mutateAsync: (registrationId: string, status: RegistrationStatus) => Promise<{
     message: string;
@@ -2952,7 +2955,7 @@ export const useBulkUpdateRegistrationStatus = (): {
   mutate: (selected: string[]) => void;
   mutateAsync: (selected: string[]) => Promise<{
     message: string;
-    updatedCount?: number; 
+    updatedCount?: number;
   }>;
   data: { message: string; updatedCount?: number } | undefined;
   error: string | null;
@@ -3084,12 +3087,12 @@ export const useCreateRegistrationFields = (versionId: string): {
   return {
     mutate: (fields) =>
       result.mutate({
-        body: fields ,
+        body: fields,
       }),
 
     mutateAsync: (fields) =>
       result.mutateAsync({
-        body:fields,
+        body: fields,
       }),
 
     data: result.data as { message: string } | undefined,
@@ -3152,14 +3155,14 @@ export const useGetDynamicFields = (
 } => {
   const result = api.useQuery(
     "get",
-    "/course/registration/form/version/{versionId}" as any, 
+    "/course/registration/form/version/{versionId}" as any,
     {
       params: {
         path: { versionId },
       },
     },
     {
-      enabled: !!versionId, 
+      enabled: !!versionId,
     }
   );
   return {
@@ -3291,12 +3294,12 @@ export const useCreateFeedbackFormFields = (feedbackId: string): {
   return {
     mutate: (fields) =>
       result.mutate({
-        body: fields ,
+        body: fields,
       }),
 
     mutateAsync: (fields) =>
       result.mutateAsync({
-        body:fields,
+        body: fields,
       }),
 
     data: result.data as { message: string } | undefined,
@@ -3346,7 +3349,7 @@ export const useGetFeedbackFormFields = (
 };
 
 
-export const useSubmitFeedback = (itemId:string): {
+export const useSubmitFeedback = (itemId: string): {
   mutate: (body: ISubmitFeedbackBody) => void;
   mutateAsync: (body: ISubmitFeedbackBody) => Promise<{ message: string }>;
   data: { message: string } | undefined;
@@ -3360,7 +3363,7 @@ export const useSubmitFeedback = (itemId:string): {
 } => {
 
   const result = api.useMutation('post', `/quizzes/${itemId}/feedback/submit` as any);
-  
+
   return {
     mutate: (body) =>
       result.mutate({
@@ -3387,8 +3390,8 @@ export const useSubmitFeedback = (itemId:string): {
 
 
 
-  
-  let navigationQueue = Promise.resolve();
+
+let navigationQueue = Promise.resolve();
 
 export function enqueueNavigation(fn: () => Promise<void>) {
   navigationQueue = navigationQueue.then(fn).catch(err => {
@@ -3448,7 +3451,7 @@ export const useFeedbackSubmissions = ({
       enabled: !!feedbackId && !!courseId,
       retry: 1,
       refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000, 
+      staleTime: 5 * 60 * 1000,
     }
   );
 
@@ -3464,7 +3467,7 @@ export const useFeedbackSubmissions = ({
 
 export const exportQuizSubmissions = async (quizId: string) => {
   const authToken = localStorage.getItem('firebase-auth-token');
-  
+
   const response = await fetch(`${import.meta.env.VITE_BASE_URL}/quizzes/${quizId}/attempts/export`, {
     method: 'GET',
     headers: {
@@ -3503,7 +3506,7 @@ export interface LeaderboardEntry {
 
 export const useLeaderboard = (courseId: string, versionId: string, enabled: boolean = true) => {
   const authToken = localStorage.getItem('firebase-auth-token');
-  
+
   const result = useQuery({
     queryKey: ['leaderboard', courseId, versionId],
     queryFn: async () => {
@@ -3544,7 +3547,7 @@ export interface GenerateAIQuestionsBody {
 }
 
 export function useGenerateAIQuestions(): {
-  mutate: (variables: { body: GenerateAIQuestionsBody  }) => void;
+  mutate: (variables: { body: GenerateAIQuestionsBody }) => void;
   mutateAsync: (variables: { body: GenerateAIQuestionsBody }) => Promise<{ success: boolean; response: TranscriptResponse[] }>;
   data: { success: boolean; response: TranscriptResponse[] } | undefined;
   error: string | null;

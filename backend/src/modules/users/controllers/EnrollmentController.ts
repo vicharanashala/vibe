@@ -153,11 +153,13 @@ export class EnrollmentController {
     @Ability(getEnrollmentAbility) { ability },
   ): Promise<EnrollUserResponse> {
     const { userId, courseId, versionId } = params;
+
     const enrollmentData = await this.enrollmentService.findEnrollment(
       userId,
       courseId,
       versionId,
     );
+
     // Create an enrollment resource object for permission checking
     const enrollmentResource = subject('Enrollment', {
       courseId,
@@ -289,7 +291,7 @@ export class EnrollmentController {
       );
     }
 
-    const enrollmentData = await this.enrollmentService.findEnrollment(
+    const enrollmentData = await this.enrollmentService.findActiveEnrollment(
       userId,
       courseId,
       versionId,
@@ -477,7 +479,7 @@ export class EnrollmentController {
     description: 'Returns quiz scores for all students in the specified course version',
   })
   //TODO:  We should update this Param to Params in both frontend and backend
-  @ResponseSchema(QuizScoresExportResponseDto,{
+  @ResponseSchema(QuizScoresExportResponseDto, {
     description: 'Quiz scores exported successfully',
     statusCode: 200,
   })

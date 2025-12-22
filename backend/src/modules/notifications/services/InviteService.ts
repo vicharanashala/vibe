@@ -39,7 +39,7 @@ export class InviteService extends BaseService {
   constructor(
     @inject(NOTIFICATIONS_TYPES.InviteRepo)
     private readonly inviteRepo: InviteRepository,
-    @inject(GLOBAL_TYPES.UserRepo) 
+    @inject(GLOBAL_TYPES.UserRepo)
     private readonly userRepo: UserRepository,
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
@@ -303,15 +303,15 @@ export class InviteService extends BaseService {
 
 
 
-  async courseContentLength(courseId:string,courseVersionId: string,session?:ClientSession){
-    const course = await this.courseRepo.read(courseId,session);
+  async courseContentLength(courseId: string, courseVersionId: string, session?: ClientSession) {
+    const course = await this.courseRepo.read(courseId, session);
     console.log("reached here ")
     if (!course) {
       throw new NotFoundError('Course not found');
     }
 
     // Get Course Version Details
-      const courseVersion = await this.courseRepo.readVersion(courseVersionId,session);
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId, session);
     if (!courseVersion) {
       throw new NotFoundError('Course version not found');
     }
@@ -409,7 +409,7 @@ export class InviteService extends BaseService {
         const isNewUser = !user;
 
         const isAlreadyEnrolled = user
-          ? !!(await this.enrollmentRepo.findEnrollment(
+          ? !!(await this.enrollmentRepo.findActiveEnrollment(
             user._id.toString(),
             courseId,
             courseVersionId,
@@ -441,7 +441,7 @@ export class InviteService extends BaseService {
 
     for (let i = 0; i < invites.length; i += BATCH_SIZE) {
       const batch = invites.slice(i, i + BATCH_SIZE);
-      
+
       // Send emails for current batch in parallel
       await Promise.all(
         batch.map(async invite => {
@@ -620,12 +620,12 @@ export class InviteService extends BaseService {
 
     try {
       await this.mailService.sendMail(emailMessage);
-      
+
       // Update status to PENDING after successful resend
       await this.inviteRepo.updateInvite(inviteId, {
         inviteStatus: 'PENDING',
       });
-      
+
       return { message: 'Invite resent successfully.' };
     } catch (error) {
       // Update status to EMAIL_FAILED if resend fails

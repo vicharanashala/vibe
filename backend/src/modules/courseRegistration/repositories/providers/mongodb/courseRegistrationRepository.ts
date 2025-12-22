@@ -1,16 +1,16 @@
-import {ICourseRegistration, MongoDatabase} from '#root/shared/index.js';
-import {inject, injectable} from 'inversify';
-import {Collection, ClientSession, ObjectId, SortDirection} from 'mongodb';
+import { ICourseRegistration, MongoDatabase } from '#root/shared/index.js';
+import { inject, injectable } from 'inversify';
+import { Collection, ClientSession, ObjectId, SortDirection } from 'mongodb';
 
-import {GLOBAL_TYPES} from '#root/types.js';
-import {ICourseRegistrationRepository} from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { ICourseRegistrationRepository } from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
 
 class CourseRegistrationRepository implements ICourseRegistrationRepository {
   private courseRegistrationCollection: Collection<ICourseRegistration>;
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
-  ) {}
+  ) { }
 
   private async init() {
     this.courseRegistrationCollection =
@@ -25,8 +25,8 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
     await this.init();
 
     const result = await this.courseRegistrationCollection.findOne(
-      {userId: new ObjectId(userId), versionId: new ObjectId(versionId)},
-      {session},
+      { userId: new ObjectId(userId), versionId: new ObjectId(versionId) },
+      { session },
     );
 
     if (!result) return null;
@@ -58,8 +58,8 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
     await this.init();
 
     const result = await this.courseRegistrationCollection.findOne(
-      {_id: new ObjectId(registrationId)},
-      {session},
+      { _id: new ObjectId(registrationId) },
+      { session },
     );
 
     if (!result) return null;
@@ -75,33 +75,33 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
 
   async findAllregistrations(
     versionId: string,
-    filter: {status?: string; search?: string},
+    filter: { status?: string; search?: string },
     skip: number,
     limit: number,
     sort: 'older' | 'latest',
     session?: ClientSession,
-  ): Promise<{registrations: ICourseRegistration[]; totalDocuments: number}> {
+  ): Promise<{ registrations: ICourseRegistration[]; totalDocuments: number }> {
     await this.init();
 
-    const query: any = {versionId: new ObjectId(versionId)};
+    const query: any = { versionId: new ObjectId(versionId) };
 
     if (filter.status && filter.status !== 'ALL') {
       query.status = filter.status;
     }
     if (filter.search) {
       query.$or = [
-        {'detail.Name': {$regex: filter.search, $options: 'i'}},
-        {'detail.Email': {$regex: filter.search, $options: 'i'}},
+        { 'detail.Name': { $regex: filter.search, $options: 'i' } },
+        { 'detail.Email': { $regex: filter.search, $options: 'i' } },
       ];
     }
 
     const sortOption =
       sort === 'older'
-        ? {createdAt: 1 as SortDirection}
-        : {createdAt: -1 as SortDirection};
+        ? { createdAt: 1 as SortDirection }
+        : { createdAt: -1 as SortDirection };
 
     const result = await this.courseRegistrationCollection
-      .find(query, {session})
+      .find(query, { session })
       .sort(sortOption)
       .skip(skip)
       .limit(limit)
@@ -116,9 +116,9 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
     }));
 
     const totalDocuments =
-      await this.courseRegistrationCollection.countDocuments(query, {session});
+      await this.courseRegistrationCollection.countDocuments(query, { session });
 
-    return {registrations, totalDocuments};
+    return { registrations, totalDocuments };
   }
 
   async updateStatus(
@@ -129,11 +129,11 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
     await this.init();
 
     const data = await this.courseRegistrationCollection.findOneAndUpdate(
-      {_id: new ObjectId(registrationId)},
+      { _id: new ObjectId(registrationId) },
       {
-        $set: {status, updatedAt: new Date()},
+        $set: { status, updatedAt: new Date() },
       },
-      {returnDocument: 'after', session},
+      { returnDocument: 'after', session },
     );
 
     if (!data) return null; // no document found
@@ -155,34 +155,42 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
   ): Promise<number> {
     await this.init();
     const objectIds = registrationIds.map(id => new ObjectId(id));
-      const data = await this.courseRegistrationCollection.updateMany(
-        {_id: {$in: objectIds}},
-        {$set: {status: 'APPROVED', updatedAt: new Date()}},
-        {session},
-      );
-      return data.modifiedCount;
-    }
-  
+    const data = await this.courseRegistrationCollection.updateMany(
+      { _id: { $in: objectIds } },
+      { $set: { status: 'APPROVED', updatedAt: new Date() } },
+      { session },
+    );
+    return data.modifiedCount;
+  }
+
 
   async remove(
     userId: string,
     courseId: string,
     versionId: string,
     session?: ClientSession,
-  ) {
-    return await this.courseRegistrationCollection.deleteOne(
+  ): Promise<void> {
+    await this.init();
+
+    await this.courseRegistrationCollection.deleteOne(
       {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         versionId: new ObjectId(versionId),
       },
-      {session},
+      { session },
     );
   }
 
-  async deleteRegistrationByVersionId(versionId: string, session?: ClientSession) {
+  async deleteRegistrationByVersionId(versionId: string, session?: ClientSession): Promise<void> {
     await this.init();
+
+    await this.courseRegistrationCollection.deleteMany(
+      { versionId: new ObjectId(versionId) },
+      { session },
+    );
   }
+
 }
 
-export {CourseRegistrationRepository};
+export { CourseRegistrationRepository };
