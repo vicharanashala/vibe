@@ -569,13 +569,13 @@ export class ItemRepository implements IItemRepository {
       );
     }
     itemsGroup.items.splice(itemIndex, 1);
-    /*
+    
       await this.itemsGroupCollection.updateOne(
         {_id: new ObjectId(itemGroupsId)},
         {$set: {items: itemsGroup.items}},
         {session},
       );
-    */
+    
     return itemsGroup;
   }
 
@@ -952,9 +952,9 @@ export class ItemRepository implements IItemRepository {
     const itemsGroupIds: ObjectId[] = [];
 
     for (const module of courseVersion.modules ?? []) {
-      if (module.isHidden) continue;
+      if (module.isHidden || module.isDeleted) continue;
       for (const section of module.sections ?? []) {
-        if (!section.isHidden && section.itemsGroupId) {
+        if (!section.isHidden && section.itemsGroupId && !section.isDeleted) {
           itemsGroupIds.push(new ObjectId(section.itemsGroupId));
         }
       }
