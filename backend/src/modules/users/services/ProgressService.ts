@@ -491,6 +491,7 @@ class ProgressService extends BaseService {
       return;
     }
     // Check if the progress module and section are the same as the current progress
+    console.log('Verifying progress:', progress, moduleId, sectionId, itemId);
     if (
       progress.currentModule.toString() !== moduleId ||
       progress.currentSection.toString() !== sectionId ||

@@ -1088,6 +1088,11 @@ export default function CoursePage() {
 
       // Update the course store with the previous video item
       updateCourseNavigation(moduleId, sectionId, itemId);
+      
+      // Clear loading state after successful navigation
+      setTimeout(() => {
+        setIsNavigatingToNext(false);
+      }, 500);
     } catch (error) {
       console.error('Error navigating to previous video:', error);
       // Clear loading state on error
@@ -1099,7 +1104,7 @@ export default function CoursePage() {
     selectedSectionId,
     selectedItemId,
     sectionItems,
-    updateCourseNavigation
+    updateCourseNavigation,
   ]);
 
   // Handle going back to courses
