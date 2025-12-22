@@ -7,15 +7,30 @@ import {GLOBAL_TYPES} from '#root/types.js';
 @injectable()
 class AttemptRepository {
   private attemptCollection: Collection<IAttempt>;
+  private initialized = false;
+
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
   ) {}
 
   private async init() {
+    if (this.initialized) return;
+
     this.attemptCollection = await this.db.getCollection<IAttempt>(
       'quiz_attempts',
     );
+
+    // High-priority indexes for read performance
+    await this.attemptCollection.createIndex(
+      {quizId: 1, userId: 1},
+      {name: 'quizId_1_userId_1', background: true},
+    );
+    await this.attemptCollection.createIndex(
+      {'questionDetails.questionId': 1},
+      {name: 'questionDetails_questionId_1', background: true},
+    );
+    this.initialized = true;
   }
 
   async create(attempt: IAttempt, session?: ClientSession) {
@@ -68,7 +83,6 @@ class AttemptRepository {
     if (!result) {
       return null;
     }
-    console.log('total attempts: ', result);
     return result;
   }
 
@@ -92,7 +106,6 @@ class AttemptRepository {
       },
       {session},
     );
-    console.log(result);
     if (!result) {
       return null;
     }

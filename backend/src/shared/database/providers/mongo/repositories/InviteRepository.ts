@@ -15,6 +15,14 @@ export class InviteRepository {
 
   private async init() {
     this.inviteCollection = await this.db.getCollection<Invite>('invites');
+
+    this.inviteCollection.createIndex({email: 1, inviteStatus: 1});
+    this.inviteCollection.createIndex({
+      courseId: 1,
+      courseVersionId: 1,
+      createdAt: -1,
+    });
+    this.inviteCollection.createIndex({courseVersionId: 1});
   }
 
   async getDBClient(): Promise<MongoClient> {

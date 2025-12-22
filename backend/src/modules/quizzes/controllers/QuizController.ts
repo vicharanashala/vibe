@@ -1,4 +1,4 @@
-﻿  import {QuestionBankRef} from '#quizzes/classes/validators/QuestionBankValidator.js';
+﻿import {QuestionBankRef} from '#quizzes/classes/validators/QuestionBankValidator.js';
 import {
   QuizIdParam,
   AddQuestionBankBody,
@@ -24,7 +24,7 @@ import {
   GetAllQuestionBanksResponse,
   GetQuizSubmissionsQuery,
 } from '#quizzes/classes/validators/QuizValidator.js';
-import { Ability } from '#root/shared/functions/AbilityDecorator.js';
+import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {QuizService} from '#quizzes/services/QuizService.js';
 import {injectable, inject} from 'inversify';
 import {
@@ -44,13 +44,17 @@ import {
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
-import {ISubmission, ISubmissionWithUser, PaginatedSubmissions} from '#quizzes/interfaces/index.js';
-import { QuizActions, getQuizAbility } from '../abilities/quizAbilities.js';
-import { subject } from '@casl/ability';
-import { COURSES_TYPES } from '#root/modules/courses/types.js';
-import { ItemService } from '#root/modules/courses/services/ItemService.js';
-import { BadRequestErrorResponse } from '#root/shared/index.js';
-import { CourseIdParams } from '#root/modules/courses/classes/index.js';
+import {
+  ISubmission,
+  ISubmissionWithUser,
+  PaginatedSubmissions,
+} from '#quizzes/interfaces/index.js';
+import {QuizActions, getQuizAbility} from '../abilities/quizAbilities.js';
+import {subject} from '@casl/ability';
+import {COURSES_TYPES} from '#root/modules/courses/types.js';
+import {ItemService} from '#root/modules/courses/services/ItemService.js';
+import {BadRequestErrorResponse} from '#root/shared/index.js';
+import {CourseIdParams} from '#root/modules/courses/classes/index.js';
 
 @OpenAPI({
   tags: ['Quiz'],
@@ -85,16 +89,25 @@ class QuizController {
   async addQuestionBank(
     @Params() params: QuizIdParam,
     @Body() body: AddQuestionBankBody,
-    @Ability(getQuizAbility) {ability}
+    @Ability(getQuizAbility) {ability},
   ) {
     const {quizId} = params;
-    const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
+    const courseInfo = await this.itemService.getCourseAndVersionByItemId(
+      quizId,
+    );
     // Build the subject context first
-    const quizSubject = subject('Quiz', { courseId: courseInfo.courseId, versionId: courseInfo.versionId });
-    
+    const quizSubject = subject('Quiz', {
+      courseId: courseInfo.courseId,
+      versionId: courseInfo.versionId,
+    });
+
     if (!ability.can(QuizActions.ModifyBank, quizSubject)) {
-      throw new ForbiddenError('You do not have permission to modify quiz question banks');
+      throw new ForbiddenError(
+        'You do not have permission to modify quiz question banks',
+      );
     }
+
+
     await this.quizService.addQuestionBank(quizId, body);
   }
 
@@ -116,17 +129,24 @@ class QuizController {
   })
   async removeQuestionBank(
     @Params() params: RemoveQuestionBankParams,
-    @Ability(getQuizAbility) {ability}
+    @Ability(getQuizAbility) {ability},
   ) {
     const {quizId, questionBankId} = params;
-    const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
+    const courseInfo = await this.itemService.getCourseAndVersionByItemId(
+      quizId,
+    );
     // Build the subject context first
-    const quizSubject = subject('Quiz', { courseId: courseInfo.courseId, versionId: courseInfo.versionId });
-    
+    const quizSubject = subject('Quiz', {
+      courseId: courseInfo.courseId,
+      versionId: courseInfo.versionId,
+    });
+
     if (!ability.can(QuizActions.ModifyBank, quizSubject)) {
-      throw new ForbiddenError('You do not have permission to modify quiz question banks');
+      throw new ForbiddenError(
+        'You do not have permission to modify quiz question banks',
+      );
     }
-    
+
     await this.quizService.removeQuestionBank(quizId, questionBankId);
   }
 
@@ -149,17 +169,24 @@ class QuizController {
   async editQuestionBank(
     @Params() params: QuizIdParam,
     @Body() body: EditQuestionBankBody,
-    @Ability(getQuizAbility) {ability}
+    @Ability(getQuizAbility) {ability},
   ) {
     const {quizId} = params;
-    const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
+    const courseInfo = await this.itemService.getCourseAndVersionByItemId(
+      quizId,
+    );
     // Build the subject context first
-    const quizSubject = subject('Quiz', { courseId: courseInfo.courseId, versionId: courseInfo.versionId });
-    
+    const quizSubject = subject('Quiz', {
+      courseId: courseInfo.courseId,
+      versionId: courseInfo.versionId,
+    });
+
     if (!ability.can(QuizActions.ModifyBank, quizSubject)) {
-      throw new ForbiddenError('You do not have permission to modify quiz question banks');
+      throw new ForbiddenError(
+        'You do not have permission to modify quiz question banks',
+      );
     }
-    
+
     await this.quizService.editQuestionBankConfiguration(quizId, body);
   }
 
@@ -180,17 +207,22 @@ class QuizController {
   })
   async getAllQuestionBanks(
     @Params() params: QuizIdParam,
-    @Ability(getQuizAbility) {ability}
+    @Ability(getQuizAbility) {ability},
   ): Promise<QuestionBankRef[]> {
     const {quizId} = params;
-    const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
+    const courseInfo = await this.itemService.getCourseAndVersionByItemId(
+      quizId,
+    );
     // Build the subject context first
-    const quizSubject = subject('Quiz', { courseId: courseInfo.courseId, versionId: courseInfo.versionId });
-    
+    const quizSubject = subject('Quiz', {
+      courseId: courseInfo.courseId,
+      versionId: courseInfo.versionId,
+    });
+
     if (!ability.can(QuizActions.View, quizSubject)) {
       throw new ForbiddenError('You do not have permission to view this quiz');
     }
-    
+
     return await this.quizService.getAllQuestionBanks(quizId);
   }
 
@@ -201,7 +233,7 @@ class QuizController {
   @Authorized()
   @Get('/:quizId/user/:userId')
   @HttpCode(200)
-  @ResponseSchema(UserQuizMetricsResponse, { 
+  @ResponseSchema(UserQuizMetricsResponse, {
     description: 'User quiz metrics',
     statusCode: 200,
   })
@@ -215,17 +247,24 @@ class QuizController {
   })
   async getUserMetrices(
     @Params() params: GetUserMatricesParams,
-    @Ability(getQuizAbility) {ability}
+    @Ability(getQuizAbility) {ability},
   ): Promise<UserQuizMetricsResponse> {
     const {quizId, userId} = params;
-    const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
+    const courseInfo = await this.itemService.getCourseAndVersionByItemId(
+      quizId,
+    );
     // Build the subject context first
-    const quizSubject = subject('Quiz', { courseId: courseInfo.courseId, versionId: courseInfo.versionId });
-    
+    const quizSubject = subject('Quiz', {
+      courseId: courseInfo.courseId,
+      versionId: courseInfo.versionId,
+    });
+
     if (!ability.can(QuizActions.GetStats, quizSubject)) {
-      throw new ForbiddenError('You do not have permission to view quiz statistics');
+      throw new ForbiddenError(
+        'You do not have permission to view quiz statistics',
+      );
     }
-    
+
     return await this.quizService.getUserMetricsForQuiz(userId, quizId);
   }
 
@@ -236,7 +275,7 @@ class QuizController {
   @Authorized()
   @Get('/:quizId/attempts/:attemptId')
   @HttpCode(200)
-  @ResponseSchema(QuizAttemptResponse, { 
+  @ResponseSchema(QuizAttemptResponse, {
     description: 'Quiz attempt details',
     statusCode: 200,
   })
@@ -246,17 +285,24 @@ class QuizController {
   })
   async getQuizAttempt(
     @Params() params: QuizAttemptParam,
-    @Ability(getQuizAbility) {ability}
+    @Ability(getQuizAbility) {ability},
   ): Promise<QuizAttemptResponse> {
     const {quizId, attemptId} = params;
-    const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
+    const courseInfo = await this.itemService.getCourseAndVersionByItemId(
+      quizId,
+    );
     // Build the subject context first
-    const quizSubject = subject('Quiz', { courseId: courseInfo.courseId, versionId: courseInfo.versionId });
-    
+    const quizSubject = subject('Quiz', {
+      courseId: courseInfo.courseId,
+      versionId: courseInfo.versionId,
+    });
+
     if (!ability.can(QuizActions.View, quizSubject)) {
-      throw new ForbiddenError('You do not have permission to view this quiz attempt');
+      throw new ForbiddenError(
+        'You do not have permission to view this quiz attempt',
+      );
     }
-    
+
     return await this.quizService.getAttemptDetails(attemptId, quizId);
   }
 
@@ -273,17 +319,24 @@ class QuizController {
   })
   async getQuizSubmission(
     @Params() params: QuizSubmissionParam,
-    @Ability(getQuizAbility) {ability}
+    @Ability(getQuizAbility) {ability},
   ): Promise<QuizSubmissionResponse> {
     const {submissionId, quizId} = params;
-    const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
+    const courseInfo = await this.itemService.getCourseAndVersionByItemId(
+      quizId,
+    );
     // Build the subject context first
-    const quizSubject = subject('Quiz', { courseId: courseInfo.courseId, versionId: courseInfo.versionId });
-    
+    const quizSubject = subject('Quiz', {
+      courseId: courseInfo.courseId,
+      versionId: courseInfo.versionId,
+    });
+
     if (!ability.can(QuizActions.View, quizSubject)) {
-      throw new ForbiddenError('You do not have permission to view this quiz submission');
+      throw new ForbiddenError(
+        'You do not have permission to view this quiz submission',
+      );
     }
-    
+
     return await this.quizService.getSubmissionDetails(submissionId, quizId);
   }
 
@@ -309,19 +362,26 @@ class QuizController {
   })
   async getAllSubmissions(
     @Params() params: QuizIdParam,
-    @QueryParams() query:GetQuizSubmissionsQuery,
-    @Ability(getQuizAbility) {ability}
+    @QueryParams() query: GetQuizSubmissionsQuery,
+    @Ability(getQuizAbility) {ability},
   ): Promise<PaginatedSubmissions> {
     const {quizId} = params;
-    const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
+    const courseInfo = await this.itemService.getCourseAndVersionByItemId(
+      quizId,
+    );
     // Build the subject context first
-    const quizSubject = subject('Quiz', { courseId: courseInfo.courseId, versionId: courseInfo.versionId });
-    
+    const quizSubject = subject('Quiz', {
+      courseId: courseInfo.courseId,
+      versionId: courseInfo.versionId,
+    });
+
     if (!ability.can(QuizActions.View, quizSubject)) {
-      throw new ForbiddenError('You do not have permission to view quiz submissions');
+      throw new ForbiddenError(
+        'You do not have permission to view quiz submissions',
+      );
     }
-    
-    const submissions =  await this.quizService.getAllSubmissions(quizId, query);
+
+    const submissions = await this.quizService.getAllSubmissions(quizId, query);
     return submissions;
   }
 
@@ -346,17 +406,24 @@ class QuizController {
   })
   async getQuizDetails(
     @Params() params: QuizIdParam,
-    @Ability(getQuizAbility) {ability}
+    @Ability(getQuizAbility) {ability},
   ): Promise<QuizDetailsResponse> {
     const {quizId} = params;
-    const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
+    const courseInfo = await this.itemService.getCourseAndVersionByItemId(
+      quizId,
+    );
     // Build the subject context first
-    const quizSubject = subject('Quiz', { courseId: courseInfo.courseId, versionId: courseInfo.versionId });
-    
+    const quizSubject = subject('Quiz', {
+      courseId: courseInfo.courseId,
+      versionId: courseInfo.versionId,
+    });
+
     if (!ability.can(QuizActions.View, quizSubject)) {
-      throw new ForbiddenError('You do not have permission to view quiz details');
+      throw new ForbiddenError(
+        'You do not have permission to view quiz details',
+      );
     }
-    
+
     return await this.quizService.getQuizDetails(quizId);
   }
 
@@ -381,25 +448,33 @@ class QuizController {
   })
   async getQuizAnalytics(
     @Params() params: QuizIdParam,
-    @Ability(getQuizAbility) {ability}
+    @Ability(getQuizAbility) {ability},
   ): Promise<QuizAnalyticsResponse> {
     const {quizId} = params;
-    const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
+    const courseInfo = await this.itemService.getCourseAndVersionByItemId(
+      quizId,
+    );
     // Build the subject context first
-    const quizSubject = subject('Quiz', { courseId: courseInfo.courseId, versionId: courseInfo.versionId });
-    
+    const quizSubject = subject('Quiz', {
+      courseId: courseInfo.courseId,
+      versionId: courseInfo.versionId,
+    });
+
     if (!ability.can(QuizActions.GetStats, quizSubject)) {
-      throw new ForbiddenError('You do not have permission to view quiz analytics');
+      throw new ForbiddenError(
+        'You do not have permission to view quiz analytics',
+      );
     }
-    
-    // return 
-    const data =await this.quizService.getQuizAnalytics(quizId);
-    return data
+
+    // return
+    const data = await this.quizService.getQuizAnalytics(quizId);
+    return data;
   }
 
   @OpenAPI({
     summary: 'Get quiz performance statistics',
-    description: 'Retrieves performance statistics for each question in a quiz.',
+    description:
+      'Retrieves performance statistics for each question in a quiz.',
   })
   @Authorized()
   @Get('/:quizId/performance')
@@ -419,17 +494,24 @@ class QuizController {
   })
   async getQuizPerformance(
     @Params() params: QuizIdParam,
-    @Ability(getQuizAbility) {ability}
+    @Ability(getQuizAbility) {ability},
   ): Promise<QuizPerformanceResponse[]> {
     const {quizId} = params;
-    const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
+    const courseInfo = await this.itemService.getCourseAndVersionByItemId(
+      quizId,
+    );
     // Build the subject context first
-    const quizSubject = subject('Quiz', { courseId: courseInfo.courseId, versionId: courseInfo.versionId });
-    
+    const quizSubject = subject('Quiz', {
+      courseId: courseInfo.courseId,
+      versionId: courseInfo.versionId,
+    });
+
     if (!ability.can(QuizActions.GetStats, quizSubject)) {
-      throw new ForbiddenError('You do not have permission to view quiz performance statistics');
+      throw new ForbiddenError(
+        'You do not have permission to view quiz performance statistics',
+      );
     }
-    
+
     return await this.quizService.getQuestionPerformanceStats(quizId);
   }
 
@@ -455,17 +537,24 @@ class QuizController {
   })
   async getQuizResults(
     @Params() params: QuizIdParam,
-    @Ability(getQuizAbility) {ability}
+    @Ability(getQuizAbility) {ability},
   ): Promise<QuizResultsResponse[]> {
     const {quizId} = params;
-    const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
+    const courseInfo = await this.itemService.getCourseAndVersionByItemId(
+      quizId,
+    );
     // Build the subject context first
-    const quizSubject = subject('Quiz', { courseId: courseInfo.courseId, versionId: courseInfo.versionId });
-    
+    const quizSubject = subject('Quiz', {
+      courseId: courseInfo.courseId,
+      versionId: courseInfo.versionId,
+    });
+
     if (!ability.can(QuizActions.GetStats, quizSubject)) {
-      throw new ForbiddenError('You do not have permission to view quiz results');
+      throw new ForbiddenError(
+        'You do not have permission to view quiz results',
+      );
     }
-    
+
     return await this.quizService.getQuizResults(quizId);
   }
   // TODO: to be implemented
@@ -476,7 +565,7 @@ class QuizController {
   // @Authorized()
   // @Get('/:quizId/flagged')
   // @HttpCode(200)
-  // 
+  //
   // // @ResponseSchema(FlaggedQuestionResponse, {
   // //   description: 'Flagged questions',
   // //   statusCode: 200,
@@ -498,7 +587,7 @@ class QuizController {
   //   const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
   //   // Build the subject context first
   //   const quizSubject = subject('Quiz', { courseId: courseInfo.courseId, versionId: courseInfo.versionId });
-    
+
   //   if (!ability.can(QuizActions.View, quizSubject)) {
   //     throw new ForbiddenError('You do not have permission to view flagged questions');
   //   }
@@ -523,17 +612,24 @@ class QuizController {
   })
   async updateQuizSubmissionScore(
     @Params() params: UpdateQuizSubmissionParam,
-    @Ability(getQuizAbility) {ability}
+    @Ability(getQuizAbility) {ability},
   ) {
     const {submissionId, score, quizId} = params;
-    const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
+    const courseInfo = await this.itemService.getCourseAndVersionByItemId(
+      quizId,
+    );
     // Build the subject context first
-    const quizSubject = subject('Quiz', { courseId: courseInfo.courseId, versionId: courseInfo.versionId });
-    
+    const quizSubject = subject('Quiz', {
+      courseId: courseInfo.courseId,
+      versionId: courseInfo.versionId,
+    });
+
     if (!ability.can(QuizActions.ModifySubmissions, quizSubject)) {
-      throw new ForbiddenError('You do not have permission to modify quiz submissions');
+      throw new ForbiddenError(
+        'You do not have permission to modify quiz submissions',
+      );
     }
-    
+
     await this.quizService.overrideSubmissionScore(submissionId, quizId, score);
   }
 
@@ -556,17 +652,24 @@ class QuizController {
   async regradeSubmission(
     @Params() params: QuizSubmissionParam,
     @Body() body: RegradeSubmissionBody,
-    @Ability(getQuizAbility) {ability}
+    @Ability(getQuizAbility) {ability},
   ) {
     const {submissionId, quizId} = params;
-    const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
+    const courseInfo = await this.itemService.getCourseAndVersionByItemId(
+      quizId,
+    );
     // Build the subject context first
-    const quizSubject = subject('Quiz', { courseId: courseInfo.courseId, versionId: courseInfo.versionId });
-    
+    const quizSubject = subject('Quiz', {
+      courseId: courseInfo.courseId,
+      versionId: courseInfo.versionId,
+    });
+
     if (!ability.can(QuizActions.ModifySubmissions, quizSubject)) {
-      throw new ForbiddenError('You do not have permission to regrade quiz submissions');
+      throw new ForbiddenError(
+        'You do not have permission to regrade quiz submissions',
+      );
     }
-    
+
     await this.quizService.regradeSubmission(submissionId, quizId, body);
   }
 
@@ -589,18 +692,25 @@ class QuizController {
   async addFeedbackToQuestion(
     @Params() params: AddFeedbackParams,
     @Body() body: AddFeedbackBody,
-    @Ability(getQuizAbility) {ability}
+    @Ability(getQuizAbility) {ability},
   ) {
     const {submissionId, questionId, quizId} = params;
     const {feedback} = body;
-    const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
+    const courseInfo = await this.itemService.getCourseAndVersionByItemId(
+      quizId,
+    );
     // Build the subject context first
-    const quizSubject = subject('Quiz', { courseId: courseInfo.courseId, versionId: courseInfo.versionId });
-    
+    const quizSubject = subject('Quiz', {
+      courseId: courseInfo.courseId,
+      versionId: courseInfo.versionId,
+    });
+
     if (!ability.can(QuizActions.ModifyBank, quizSubject)) {
-      throw new ForbiddenError('You do not have permission to add feedback to quiz questions');
+      throw new ForbiddenError(
+        'You do not have permission to add feedback to quiz questions',
+      );
     }
-    
+
     await this.quizService.addFeedbackToAnswer(
       submissionId,
       quizId,
@@ -627,19 +737,25 @@ class QuizController {
   })
   async resetAvailableAttempts(
     @Params() params: GetUserMatricesParams,
-    @Ability(getQuizAbility) {ability}
+    @Ability(getQuizAbility) {ability},
   ): Promise<void> {
     const {quizId, userId} = params;
-    const courseInfo = await this.itemService.getCourseAndVersionByItemId(quizId);
+    const courseInfo = await this.itemService.getCourseAndVersionByItemId(
+      quizId,
+    );
     // Build the subject context first
-    const quizSubject = subject('Quiz', { courseId: courseInfo.courseId, versionId: courseInfo.versionId });
-    
+    const quizSubject = subject('Quiz', {
+      courseId: courseInfo.courseId,
+      versionId: courseInfo.versionId,
+    });
+
     if (!ability.can(QuizActions.ModifySubmissions, quizSubject)) {
-      throw new ForbiddenError('You do not have permission to reset quiz attempts');
+      throw new ForbiddenError(
+        'You do not have permission to reset quiz attempts',
+      );
     }
     await this.quizService.resetAvailableAttempts(quizId, userId);
   }
-
 
   @OpenAPI({
     summary: 'Update missing submission result IDs for a quiz',
@@ -658,7 +774,7 @@ class QuizController {
     statusCode: 404,
   })
   async updateMissingSubmissionResultIds(
-    @Ability(getQuizAbility) {ability}  
+    @Ability(getQuizAbility) {ability},
   ): Promise<void> {
     await this.quizService.updateMissingSubmissionResultIds();
   }

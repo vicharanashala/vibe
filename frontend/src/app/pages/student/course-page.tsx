@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation } from "@/hooks/hooks";
+import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation, useSkipOptionalItem } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
@@ -37,7 +37,8 @@ import {
   FlagTriangleRightIcon,
   FileEdit,
   XCircle,
-  X
+  X,
+  CircleCheckIcon
 } from "lucide-react";
 import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
@@ -88,7 +89,9 @@ export default function CoursePage() {
 
   const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
   const [isFlagSubmitted, setIsFlagSubmitted] = useState(false);
+  const [isSkippingItem, setIsSkippingItem] = useState(false);
   const { mutateAsync: submitFlagAsyncMutate, isPending } = useSubmitFlag();
+  const { mutateAsync: skipItemAsync, isPending: isSkipping } = useSkipOptionalItem();
   const [closing, setClosing] = useState(false);
 
   const streamRef = useRef<MediaStream | null>(null);
@@ -207,11 +210,13 @@ export default function CoursePage() {
   )
 
   // Fetch individual item details when an item is selected
-  const shouldFetchItem = Boolean(selectedItemId && COURSE_ID && VERSION_ID);
+  // Don't fetch during navigation to prevent race condition with stopItem
+  const shouldFetchItem = Boolean(selectedItemId && COURSE_ID && VERSION_ID && !isNavigatingToNext);
   const {
     data: itemData,
     isLoading: itemLoading,
-    error: itemError
+    error: itemError,
+    errorName: itemErrorName
   } = useItemById(
     shouldFetchItem ? COURSE_ID : '',
     shouldFetchItem ? VERSION_ID : '',
@@ -235,7 +240,7 @@ export default function CoursePage() {
       return;
     }
 
-    if (itemError && selectedItemId) {
+    if (itemError && selectedItemId && itemErrorName === "ForbiddenError") {
       // Clear loading state on error
       setIsNavigatingToNext(false);
       setIsItemForbidden(true);
@@ -545,6 +550,21 @@ export default function CoursePage() {
     }
   };
 
+  const handleSkipItem = async () => {
+  if (!currentItem?._id) return;
+  
+  try {
+    setIsSkippingItem(true);
+    await skipItemAsync({ params: { path: { itemId: currentItem._id } } });
+    toast.success('Item skipped successfully');
+    handleNext(); // Move to the next item
+  } catch (error) {
+    console.error('Error skipping item:', error);
+    toast.error('Failed to skip item');
+  } finally {
+    setIsSkippingItem(false);
+  }
+};
   // Toggle module expansion
   const toggleModule = (moduleId: string) => {
     setExpandedModules(prev => ({ ...prev, [moduleId]: !prev[moduleId] }));
@@ -902,6 +922,9 @@ export default function CoursePage() {
         updateCourseNavigation(moduleId, sectionId, itemId);
 
         console.log('Successfully navigated to next item:', { moduleId, sectionId, itemId });
+        
+        // Clear loading state after successful navigation
+        setIsNavigatingToNext(false);
       } catch (error) {
         console.error('Error navigating to next item:', error);
         // Clear loading state on error
@@ -1065,6 +1088,11 @@ export default function CoursePage() {
 
       // Update the course store with the previous video item
       updateCourseNavigation(moduleId, sectionId, itemId);
+      
+      // Clear loading state after successful navigation
+      setTimeout(() => {
+        setIsNavigatingToNext(false);
+      }, 500);
     } catch (error) {
       console.error('Error navigating to previous video:', error);
       // Clear loading state on error
@@ -1076,7 +1104,7 @@ export default function CoursePage() {
     selectedSectionId,
     selectedItemId,
     sectionItems,
-    updateCourseNavigation
+    updateCourseNavigation,
   ]);
 
   // Handle going back to courses
@@ -1321,6 +1349,12 @@ export default function CoursePage() {
                                                         return label === ' ' ? `${typeLabel} ${itemIndex + 1}` : `${label}`;
                                                       })()}
                                                     </div>
+                                                    {item.isCompleted && (
+                                                      <div className="text-[10px] text-green-500 font-medium mt-0.5 flex items-center gap-1">
+                                                        <CheckCircle className="h-3 w-3" />
+                                                        Completed
+                                                      </div>
+                                                    )}
                                                   </div>
                                                 </div>
                                               </SidebarMenuSubButton>
@@ -1590,8 +1624,8 @@ export default function CoursePage() {
               />
               {currentItem ? (
                 <div className="relative z-10 h-full flex flex-col mb-2  sm:mb-1">
-                  {!isFlagSubmitted &&
-                    <div className="flex justify-end mb-1 me-10">
+                  <div className="flex justify-end mb-1 me-10 gap-2">
+                    {!isFlagSubmitted &&
                       <Button
                         size="sm"
                         variant="destructive"
@@ -1602,8 +1636,21 @@ export default function CoursePage() {
                         <FlagTriangleRightIcon className="h-4 w-4" />
                         <span className="max-sm:hidden">Submit Flag</span>
                       </Button>
-                    </div>
-                  }
+                    }
+                    {currentItem?.isOptional && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs gap-1 border-amber-500 text-amber-500 hover:bg-amber-50 hover:text-amber-600"
+                        title="Skip this optional item"
+                        onClick={handleSkipItem}
+                        disabled={isSkippingItem || isSkipping}
+                      >
+                        <span className="max-sm:hidden">Skip</span>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                   {currentItem?.type === 'PROJECT' ? (
                     <StudentProjectItem
                       item={currentItem}

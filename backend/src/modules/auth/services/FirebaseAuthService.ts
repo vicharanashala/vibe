@@ -87,7 +87,6 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
         if (!firebaseUser) {
           throw new InternalServerError('Firebase user not found');
         }
-        console.log('Firebase user retrieved:', firebaseUser);
         // Map Firebase user data to our application user model
         const userData: GoogleSignUpBody = {
           email: firebaseUser.email,
@@ -222,8 +221,6 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       lastName: body.lastName,
       roles: 'user',
     };
-
-    console.log(user);
 
     let createdUserId: string;
 

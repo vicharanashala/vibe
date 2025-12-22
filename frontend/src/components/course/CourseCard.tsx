@@ -16,9 +16,16 @@ import { useState } from "react";
 import { bufferToHex } from "@/utils/helpers";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
-import { toast } from "sonner";
+import { Pagination } from "../ui/Pagination";
+
 
 export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard', className, completion, setCompletion }: CourseCardProps) => {
+  // Add null checks to prevent errors when enrollment data is incomplete
+  if (!enrollment || !enrollment.courseId || !enrollment.courseVersionId) {
+    console.error('Invalid enrollment data:', enrollment);
+    return null;
+  }
+
   const courseId = bufferToHex(enrollment.courseId as string);
   const versionId = bufferToHex(enrollment.courseVersionId as string) || "";
 
@@ -189,7 +196,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   Leaderboard
                 </Button>
               </DialogTrigger>
-              <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} />
+              <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name}  isOpen={isLeaderboardOpen} />
             </Dialog>
             <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
               <DialogTrigger asChild>
@@ -512,8 +519,12 @@ export const CourseCardSkeleton = ({ variant = 'dashboard' }: { variant?: 'dashb
 };
 
 // Leaderboard Dialog Component
-const LeaderboardDialog = ({ courseId, versionId, courseName }: { courseId: string; versionId: string; courseName?: string }) => {
-  const { data: leaderboardData, isLoading, error } = useLeaderboard(courseId, versionId, true);
+const LeaderboardDialog = ({ courseId, versionId, courseName,isOpen }: { courseId: string; versionId: string; courseName?: string,isOpen:boolean }) => {
+  const [page, setPage] = useState(1);
+  const { leaderboard,
+  totalPages,
+  totalDocuments,
+  isLoading, error, myStats } = useLeaderboard(courseId, versionId, page, 10, isOpen);
 
   const getInitials = (name: string) => {
     const parts = name.split(" ");
@@ -567,8 +578,8 @@ const LeaderboardDialog = ({ courseId, versionId, courseName }: { courseId: stri
       <ScrollArea className="h-[600px] pr-4">
         {isLoading && (
           <div className="space-y-3">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <Skeleton key={i} className="h-16 w-full" />
+           {Array.from({ length: 10 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full" />
             ))}
           </div>
         )}
@@ -577,15 +588,15 @@ const LeaderboardDialog = ({ courseId, versionId, courseName }: { courseId: stri
           <p className="text-muted-foreground text-center py-8">{error}</p>
         )}
 
-        {!isLoading && !error && (!leaderboardData || leaderboardData.length === 0) && (
+        {!isLoading && !error && (!leaderboard || leaderboard.length === 0) && (
           <p className="text-muted-foreground text-center py-8">
             No students enrolled yet
           </p>
         )}
 
-        {!isLoading && !error && leaderboardData && leaderboardData.length > 0 && (
+        {!isLoading && !error && leaderboard && leaderboard.length > 0 && (
           <div className="space-y-2">
-            {leaderboardData.map((entry) => {
+            {leaderboard.map((entry) => {
               const rankStyle = getRankStyle(entry.rank);
               return (
                 <div
@@ -667,6 +678,33 @@ const LeaderboardDialog = ({ courseId, versionId, courseName }: { courseId: stri
           </div>
         )}
       </ScrollArea>
+        <div className="p-4 border-t border-border/50 bg-gradient-card flex items-center justify-between">
+          {/* My Stats */}
+          {myStats ? (
+            <div className="flex items-center gap-4 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border/50">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">Your Rank</span>
+                <span className="font-display font-bold text-lg text-gold">#{myStats.rank}</span>
+              </div>
+              <div className="w-px h-6 bg-border" />
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">Progress</span>
+                <span className="font-semibold text-foreground">{myStats.completionPercentage}%</span>
+              </div>
+            </div>
+          ) : (
+            <div />
+          )}
+          {(totalPages ?? 0) > 1 && (
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalDocuments={totalDocuments}
+              onPageChange={setPage}
+            />
+          )}
+        </div>
+
     </DialogContent>
   );
 };

@@ -1,7 +1,5 @@
 "use client"
-
-import React from "react"
-import { useState, useEffect, use } from "react"
+import { useState, useEffect, lazy} from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -30,8 +28,6 @@ import {
   BarChart3,
   RotateCcw,
   FlagTriangleRight,
-  User,
-  Link,
   Copy,
   UserCheck,
 } from "lucide-react"
@@ -51,7 +47,6 @@ import {
   useUserEnrollments,
   useCourseById,
   useCourseVersionById,
-  useEditProctoringSettings,
   useGenerateLink,
   useCopyCourseVersion
 } from "@/hooks/hooks"
@@ -64,7 +59,6 @@ import { bufferToHex } from "@/utils/helpers"
 import type { RawEnrollment } from "@/types/course.types"
 import { components } from "@/types/schema"
 import { useAnomalyStore } from "@/store/anomaly-store"
-import { formatDateTime } from "@/utils/utils"
 import { ProjectSubmissionsDownloadButton } from "./components/ProjectSubmissionsDownloadButton"
 import { toast } from "sonner"
 import ConfirmationModal from "./components/confirmation-modal"

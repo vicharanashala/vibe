@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsMongoId,
   ValidateIf,
+  IsBoolean,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {OnlyOneId} from './customValidators.js';
@@ -149,34 +150,65 @@ class VersionModuleParams {
   moduleId: string;
 }
 
+class HideModuleParams {
+  @JSONSchema({
+    title: 'Version ID',
+    description: 'ID of the course version containing the module',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  versionId: string;
+
+  @JSONSchema({
+    title: 'Module ID',
+    description: 'ID of the module to be updated',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  moduleId: string;
+}
+
+class HideModuleBody {
+  @JSONSchema({
+    title: 'Hide Module',
+    description: 'Flag to hide (true) or unhide (false) the module',
+    type: 'boolean',
+    example: true,
+  })
+  @IsNotEmpty()
+  @IsBoolean()
+  hide: boolean;
+}
+
 class ModuleDataResponse {
   @JSONSchema({
     description: 'The updated course version data containing modules',
     type: 'object',
     readOnly: true,
-    example:{
-    "version": {
-        "_id": "68ee228f76e2e45t4t5t4de1e",
-        "courseId": "68d0f72fioy45r01b5",
-        "version": "Version title",
-        "description": "version description ",
-        "modules": [
-            {
-                "moduleId": "68ee2409020303gncb24736e5e",
-                "name": "Untitled Module",
-                "description": "Module description",
-                "order": "0|hzzxcx:",
-                "sections": [],
-                "createdAt": "2025-10-14T10:20:57.770Z",
-                "updatedAt": "2025-10-14T10:20:57.770Z"
-            }
+    example: {
+      version: {
+        _id: '68ee228f76e2e45t4t5t4de1e',
+        courseId: '68d0f72fioy45r01b5',
+        version: 'Version title',
+        description: 'version description ',
+        modules: [
+          {
+            moduleId: '68ee2409020303gncb24736e5e',
+            name: 'Untitled Module',
+            description: 'Module description',
+            order: '0|hzzxcx:',
+            sections: [],
+            createdAt: '2025-10-14T10:20:57.770Z',
+            updatedAt: '2025-10-14T10:20:57.770Z',
+          },
         ],
-        "totalItems": null,
-        "createdAt": "2025-10-14T10:14:39.363Z",
-        "updatedAt": "2025-10-14T10:20:57.770Z"
-    }
-}
-    ,
+        totalItems: null,
+        createdAt: '2025-10-14T10:14:39.363Z',
+        updatedAt: '2025-10-14T10:20:57.770Z',
+      },
+    },
   })
   @IsNotEmpty()
   version: ICourseVersion;
@@ -212,6 +244,8 @@ export {
   ModuleDataResponse,
   ModuleNotFoundErrorResponse,
   ModuleDeletedResponse,
+  HideModuleParams,
+  HideModuleBody,
 };
 
 export const MODULE_VALIDATORS = [
@@ -223,4 +257,6 @@ export const MODULE_VALIDATORS = [
   ModuleDataResponse,
   ModuleNotFoundErrorResponse,
   ModuleDeletedResponse,
-]
+  HideModuleParams,
+  HideModuleBody,
+];

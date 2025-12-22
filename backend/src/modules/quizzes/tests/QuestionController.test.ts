@@ -22,8 +22,8 @@ import {
   IOTLSolution,
 } from '#root/shared/interfaces/quiz.js';
 import {QuestionBody} from '../classes/index.js';
-import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
-import { faker } from '@faker-js/faker';
+import {FirebaseAuthService} from '#root/modules/auth/services/FirebaseAuthService.js';
+import {faker} from '@faker-js/faker';
 
 describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
   const appInstance = Express();
@@ -44,7 +44,10 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
       defaultErrorHandler: true,
       validation: true,
     };
-    vi.spyOn(FirebaseAuthService.prototype, "getUserIdFromReq").mockResolvedValue(faker.database.mongodbObjectId.toString())
+    vi.spyOn(
+      FirebaseAuthService.prototype,
+      'getUserIdFromReq',
+    ).mockResolvedValue(faker.database.mongodbObjectId.toString());
     app = useExpressServer(appInstance, options);
   }, 900000);
 
@@ -522,7 +525,6 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
       const res = await request(app).get(`/quizzes/questions/${questionId}`);
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('text');
-      console.log(res.body);
     });
     // SOL
     it('should get a SOL question by ID', async () => {
@@ -539,7 +541,6 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
       const res = await request(app).get(`/quizzes/questions/${questionId}`);
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('text');
-      console.log(res.body);
     });
     // SML
     it('should get a SML question by ID', async () => {
@@ -556,7 +557,6 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
       const res = await request(app).get(`/quizzes/questions/${questionId}`);
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('text');
-      console.log(res.body);
     });
     // OTL
     it('should get an OTL question by ID', async () => {
@@ -573,7 +573,6 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
       const res = await request(app).get(`/quizzes/questions/${questionId}`);
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('text');
-      console.log(res.body);
     });
     // DES
     it('should get a DES question by ID', async () => {
@@ -590,7 +589,6 @@ describe('Progress Controller Integration Tests', {timeout: 30000}, () => {
       const res = await request(app).get(`/quizzes/questions/${questionId}`);
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('text');
-      console.log(res.body);
     });
     it('should return 404 for non-existent question', async () => {
       const res = await request(app).get(

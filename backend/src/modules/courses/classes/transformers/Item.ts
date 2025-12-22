@@ -1,7 +1,7 @@
-import { calculateNewOrder } from '#courses/utils/calculateNewOrder.js';
+import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
 
-import { Expose, Transform, Type } from 'class-transformer';
-import { ObjectId } from 'mongodb';
+import {Expose, Transform, Type} from 'class-transformer';
+import {ObjectId} from 'mongodb';
 
 import {
   ObjectIdToString,
@@ -20,12 +20,15 @@ export type Item = QuizItem | VideoItem | BlogItem | ProjectItem;
 
 class QuizItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
   name: string;
+
+  @Expose()
+  isOptional?: boolean = false;
 
   @Expose()
   description: string;
@@ -41,6 +44,9 @@ class QuizItem {
 
   @Expose()
   deletedAt?: Date;
+
+  @Expose()
+  isHidden: boolean;
 
   constructor(
     name: string,
@@ -60,12 +66,15 @@ class QuizItem {
 
 class VideoItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
   name: string;
+
+  @Expose()
+  isOptional?: boolean = false;
 
   @Expose()
   description: string;
@@ -75,6 +84,9 @@ class VideoItem {
 
   @Expose()
   details?: IVideoDetails;
+
+  @Expose()
+  isHidden?: boolean;
 
   @Expose()
   isDeleted?: boolean;
@@ -100,12 +112,15 @@ class VideoItem {
 
 class BlogItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
   name: string;
+
+  @Expose()
+  isOptional?: boolean = false;
 
   @Expose()
   description: string;
@@ -121,6 +136,9 @@ class BlogItem {
 
   @Expose()
   deletedAt?: Date;
+
+  @Expose()
+  isHidden?: boolean;
 
   constructor(
     name: string,
@@ -140,8 +158,8 @@ class BlogItem {
 
 class FeedBackFormItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
@@ -164,11 +182,12 @@ class FeedBackFormItem {
     description: string,
     _id: ID,
     details?: IFeedBackFormDetails,
+    isOptional: boolean = false,
   ) {
     this._id = _id;
     this.type = ItemType.FEEDBACK;
     this.name = name;
-    this.isOptional = false;
+    this.isOptional = isOptional;
     this.description = description;
 
     if (details) {
@@ -179,8 +198,8 @@ class FeedBackFormItem {
 
 class FeedbackSubmissionItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
@@ -239,12 +258,15 @@ class FeedbackSubmissionItem {
 
 class ProjectItem {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
   name: string;
+
+  @Expose()
+  isOptional?: boolean = false;
 
   @Expose()
   description: string;
@@ -260,11 +282,21 @@ class ProjectItem {
   @Expose()
   deletedAt?: Date;
 
-  constructor(name: string, description: string, _id: ID, details?: any) {
+  @Expose()
+  isHidden?: boolean;
+
+  constructor(
+    name: string,
+    description: string,
+    _id: ID,
+    details?: any,
+    isOptional: boolean = false,
+  ) {
     this._id = _id;
     this.type = ItemType.PROJECT;
     this.name = name;
     this.description = description;
+    this.isOptional = isOptional;
 
     if (details) {
       this.details = details;
@@ -276,8 +308,8 @@ class ProjectItem {
 
 class ItemBase {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   itemId?: ID;
 
   @Expose()
@@ -366,8 +398,8 @@ class ItemBase {
 
 class ItemRef {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
@@ -375,6 +407,9 @@ class ItemRef {
 
   @Expose()
   order: string;
+
+  @Expose()
+  isHidden?: boolean;
 
   constructor(item: ItemBase) {
     this._id = new ObjectId(item.itemId);
@@ -385,8 +420,8 @@ class ItemRef {
 
 class ItemsGroup {
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   _id?: ID;
 
   @Expose()
@@ -394,9 +429,12 @@ class ItemsGroup {
   items: ItemRef[];
 
   @Expose()
-  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
+  @Transform(StringToObjectId.transformer, {toClassOnly: true})
   sectionId: ID;
+
+  @Expose()
+  isHidden?: boolean;
 
   constructor(sectionId?: ID, items?: ItemRef[]) {
     this.items = items ? items : [];

@@ -44,6 +44,13 @@ export interface ICourseVersion {
   description: string;
   modules: IModule[];
   totalItems?: number;
+  itemCounts?: {
+    VIDEO: number;
+    QUIZ: number;
+    BLOG: number;
+    PROJECT: number;
+    FEEDBACK: number;
+  };
   isDeleted?: boolean;
   deletedAt?: Date;
   createdAt: Date;
@@ -55,6 +62,7 @@ export interface IModule {
   name: string;
   description: string;
   order: string;
+  isHidden: boolean;
   sections: ISection[];
   isDeleted?: boolean;
   deletedAt?: Date;
@@ -67,6 +75,7 @@ export interface ISection {
   name: string;
   description: string;
   order: string;
+  isHidden: boolean;
   itemsGroupId?: ID;
   isDeleted?: boolean;
   deletedAt?: Date;

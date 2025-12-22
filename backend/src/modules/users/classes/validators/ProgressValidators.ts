@@ -35,6 +35,26 @@ export class GetUserProgressParams {
   versionId: string;
 }
 
+export class GetLeaderboardQuery {
+  @JSONSchema({
+    description: 'Page number (starts from 1)',
+    default: 1,
+    minimum: 1,
+    type: 'number',
+  })
+  @IsOptional()
+  page?: number = 1;
+
+  @JSONSchema({
+    description: 'Number of records per page',
+    default: 10,
+    minimum: 1,
+    type: 'number',
+  })
+  @IsOptional()
+  limit?: number = 10;
+}
+
 export class StartItemBody {
   @JSONSchema({
     description: 'ID of the course item to start',
@@ -183,6 +203,15 @@ export class StopItemBody {
     example: true,
   })
   isSkipped?: boolean;
+}
+
+
+export class ItemIdparams{
+  @JSONSchema({
+    description:'Gives as ItemId'
+  })
+  @IsString()
+  itemId:string
 }
 
 export class UpdateProgressBody {

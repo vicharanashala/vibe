@@ -1,7 +1,7 @@
-import {GLOBAL_TYPES} from '#root/types.js';
-import {IDatabase} from '#shared/database/interfaces/IDatabase.js';
-import {injectable, inject} from 'inversify';
-import {Db, MongoClient, Document, Collection} from 'mongodb';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { IDatabase } from '#shared/database/interfaces/IDatabase.js';
+import { injectable, inject } from 'inversify';
+import { Db, MongoClient, Document, Collection } from 'mongodb';
 
 /**
  * @class MongoDatabase
@@ -29,10 +29,9 @@ export class MongoDatabase implements IDatabase<Db> {
     @inject(GLOBAL_TYPES.dbName)
     private readonly dbName: string,
   ) {
-    console.log('uri ',uri)
     // Skip database connection if environment variable is set
-    if (process.env.SKIP_DB_CONNECTION === 'true') {    
-      this.client = null; 
+    if (process.env.SKIP_DB_CONNECTION === 'true') {
+      this.client = null;
       this.database = null;
       console.log(
         'Database connection skipped due to SKIP_DB_CONNECTION environment variable',
@@ -46,6 +45,8 @@ export class MongoDatabase implements IDatabase<Db> {
       tlsAllowInvalidCertificates: false,
       tlsAllowInvalidHostnames: false,
       retryWrites: true,
+      maxPoolSize: 10,        // ✅ LIMIT connections per instance
+      minPoolSize: 2,
       connectTimeoutMS: 30000,
       socketTimeoutMS: 30000
     });
@@ -57,8 +58,8 @@ export class MongoDatabase implements IDatabase<Db> {
    */
   private async connect(): Promise<Db> {
     await this.client?.connect();
-    this.database = this.client?.db(this.dbName) || null; 
-    
+    this.database = this.client?.db(this.dbName) || null;
+
     return this.database;
   }
 

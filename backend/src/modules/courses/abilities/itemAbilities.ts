@@ -49,6 +49,7 @@ export async function setupItemAbilities(
     can('manage', 'Item');
     return;
   }
+
   const progressService = getFromContainer(ProgressService);
   const courseSettingService = getFromContainer(CourseSettingService);
 
@@ -78,7 +79,9 @@ export async function setupItemAbilities(
               enrollment.versionId,
             );
           } catch (error) {
-            console.log('No progress found for student, course not started yet');
+            console.log(
+              'No progress found for student, course not started yet',
+            );
             progress = null;
           }
 
@@ -89,41 +92,8 @@ export async function setupItemAbilities(
             enrollment.versionId,
           );
 
-          if (!progress) {
-            const itemBounded = {
-              courseId: enrollment.courseId,
-              versionId: enrollment.versionId,
-            };
-            can(ItemActions.View, 'Item', itemBounded);
-            break;
-          }
-
-          const allowedItemIds = [...completedItems];
-          const currentItemId = progress.currentItem.toString();
-
-          // check if the user remaining attempts of a quiz is over
-          const quizMetrics = await progressService.getUserMetricsForQuiz(
-            user.userId,
-            currentItemId,
-          );
-
-        //   console.log("Quiz metrics: ", quizMetrics)
-
-          if (quizMetrics && quizMetrics.remainingAttempts == 0) {
-            const {nextItemId} = await progressService.determineNextAllowedItem(
-              currentItemId,
-              quizMetrics,
-              enrollment,
-            );
-
-            if (nextItemId) {
-              allowedItemIds.push(nextItemId);
-            }
-          }
-
-          if (!allowedItemIds.includes(currentItemId)) {
-            allowedItemIds.push(currentItemId);
-          }
+          // Convert all completed items to strings for consistency
+          const completedItemsStr = completedItems.map(id => id.toString());
 
           const itemBounded: {
             courseId: string;
@@ -134,12 +104,69 @@ export async function setupItemAbilities(
             versionId: enrollment.versionId,
           };
 
+          if (!progress.currentItem) {
+            // User has not started the course yet
+            // Allow only ViewAll (or nothing, based on your rules)
+            const firstItem = await progressService.getFirstItem(
+              enrollment.versionId,
+            );
+            // const firstItem = await this.itemService.getFirstItem(enrollment.versionId);
+            can(ItemActions.View, 'Item', {
+              courseId: enrollment.courseId,
+              versionId: enrollment.versionId,
+              ItemId: firstItem?.itemId,
+            });
+            return;
+          }
+
+          if (!progress) {
+            const itemBounded = {
+              courseId: enrollment.courseId,
+              versionId: enrollment.versionId,
+            };
+            can(ItemActions.View, 'Item', itemBounded);
+            break;
+          }
+
+          const allowedItemIds = [...completedItemsStr];
+          const currentItemId = progress.currentItem.toString();
+
+          // Always add current item to allowed list
+          if (!allowedItemIds.includes(currentItemId)) {
+            allowedItemIds.push(currentItemId);
+          }
+
+          // check if the user remaining attempts of a quiz is over
+          const quizMetrics = await progressService.getUserMetricsForQuiz(
+            user.userId,
+            currentItemId,
+          );
+
+          if (quizMetrics && quizMetrics.remainingAttempts == 0) {
+            const {nextItemId} = await progressService.determineNextAllowedItem(
+              currentItemId,
+              quizMetrics,
+              enrollment,
+            );
+
+            if (nextItemId) {
+              const nextItemIdStr = nextItemId.toString();
+              if (!allowedItemIds.includes(nextItemIdStr)) {
+                allowedItemIds.push(nextItemIdStr);
+              }
+            }
+          }
+
+          console.log('Allowed item IDs for user:', {
+            userId: user.userId,
+            currentItemId,
+            allowedItemIds,
+            completedCount: completedItemsStr.length,
+          });
+
           if (linearProgressionEnabled) {
             itemBounded.itemId = {$in: allowedItemIds};
-
-            // console.log('Applied linear progression restrictions:', allowedItemIds);
           } else {
-            // console.log('LINEAR PROGRESSION IS DISABLED - no restrictions applied');
           }
 
           can(ItemActions.View, 'Item', itemBounded);

@@ -1,11 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect,useMemo } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { useUserEnrollments, useWatchtimeTotal } from "@/hooks/hooks";
 import { useNavigate } from "@tanstack/react-router";
 
 // Import new components
 import { StatCard } from "@/components/ui/StatCard";
-import { AnnouncementBanner } from "@/components/ui/AnnouncementBanner";
 import { CourseSection } from "@/components/course/CourseSection";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -66,18 +65,18 @@ function DashboardContent() {
     refetch: refetchEnrollments
   } = useUserEnrollments(1, 5, !!token);
 
-  useEffect(() => {
-    refetchEnrollments();
-  }, [refetchEnrollments]);
+
 
   const enrollments = enrollmentsData?.enrollments || [];
   const totalEnrollments = enrollmentsData?.totalDocuments || 0;
   const { data: watchtimeData } = useWatchtimeTotal();
   // const filteredEnrollement = enrollments.filter(enrollment=>enrollment.role == "STUDENT");
   const [completion, setCompletion] = useState<CoursePctCompletion[]>([]);
-  const totalProgress = Math.round(
-    completion.reduce((acc, curr) => acc + (curr.completedItems || 0), 0) / completion.reduce((acc, curr) => acc + (curr.totalItems || 0), 0) * 100
-  ) || 0;
+const totalProgress = useMemo(() => {
+  const completed = completion.reduce((a, c) => a + (c.completedItems || 0), 0);
+  const total = completion.reduce((a, c) => a + (c.totalItems || 0), 0);
+  return total ? Math.round((completed / total) * 100) : 0;
+}, [completion]);
 
   return (
     <>
@@ -94,8 +93,16 @@ function DashboardContent() {
         </div>
         {/* Right: Stat Cards */}
         <div className="flex flex-col sm:flex-row gap-4 items-stretch w-full sm:w-auto">
-          <StatCard icon="🏆" value={`${totalEnrollments}`} label="Enrolled Courses" />
-          <StatCard icon="⏱️" value={`${(watchtimeData / 3600 || 0).toFixed(2)}h`} label="Study Time" />
+          <StatCard
+  icon="🏆"
+  value={enrollmentsLoading ? "—" : `${totalEnrollments}`}
+  label="Enrolled Courses"
+/>
+<StatCard
+  icon="⏱️"
+  value={!watchtimeData ? "—" : `${(watchtimeData / 3600).toFixed(2)}h`}
+  label="Study Time"
+/>
           <StatCard icon="🎓" value={`${totalProgress}%`} label="Overall Progress" />
         </div>
       </div>

@@ -1,4 +1,4 @@
-import {Type} from 'class-transformer';
+import { Type } from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -19,8 +19,8 @@ import {
   IsEnum,
   IsArray,
 } from 'class-validator';
-import {JSONSchema} from 'class-validator-jsonschema';
-import {CourseVersion} from '../transformers/CourseVersion.js';
+import { JSONSchema } from 'class-validator-jsonschema';
+import { CourseVersion } from '../transformers/CourseVersion.js';
 import {
   FeedBackFormItem,
   Item,
@@ -37,7 +37,7 @@ import {
   IProjectDetails,
   IFeedBackFormDetails,
 } from '#root/shared/interfaces/models.js';
-import {OnlyOneId} from './customValidators.js';
+import { OnlyOneId } from './customValidators.js';
 
 class VideoDetailsPayloadValidator implements IVideoDetails {
   @JSONSchema({
@@ -87,8 +87,7 @@ class VideoDetailsPayloadValidator implements IVideoDetails {
 }
 
 class QuizDetailsPayloadValidator
-  implements Omit<IQuizDetails, 'questionBankRefs'>
-{
+  implements Omit<IQuizDetails, 'questionBankRefs'> {
   @JSONSchema({
     description: 'Minimum percentage required to pass, between 0 and 1',
     example: 0.7,
@@ -337,6 +336,15 @@ class CreateItemBody implements Partial<IBaseItem> {
   type: ItemType;
 
   @JSONSchema({
+    description: 'Is the item optional?',
+    example: false,
+    type: 'boolean',
+  })
+  @IsBoolean()
+  @IsOptional()
+  isOptional?: boolean;
+
+  @JSONSchema({
     description: 'Details specific to video items',
     type: 'object',
   })
@@ -427,11 +435,12 @@ class UpdateItemBody implements Partial<IBaseItem> {
   @IsNotEmpty()
   type: ItemType;
 
-  @ValidateIf(o => o.type === ItemType.FEEDBACK)
-  @IsNotEmpty()
+
   @JSONSchema({
     description: 'isOptional field is required only for Feedback type items',
   })
+  @IsBoolean()
+  @IsOptional()
   isOptional?: boolean;
 
   @JSONSchema({
@@ -552,6 +561,42 @@ class VersionModuleSectionItemParams {
   @IsMongoId()
   @IsString()
   itemId: string;
+}
+class CourseVersionModuleSectionParams {
+  @JSONSchema({
+    title: 'Course ID',
+    description: 'ID of the course',
+    type: 'string',
+  })
+  @IsString()
+  @IsMongoId()
+  courseId: string;
+  @JSONSchema({
+    title: 'Version ID',
+    description: 'ID of the course version',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  versionId: string;
+
+  @JSONSchema({
+    title: 'Module ID',
+    description: 'ID of the module',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  moduleId: string;
+
+  @JSONSchema({
+    title: 'Section ID',
+    description: 'ID of the section',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  sectionId: string;
 }
 
 class VersionItemParams {
@@ -689,7 +734,7 @@ class ItemsGroupResponse implements ItemsGroup {
   })
   @IsNotEmpty()
   @Type(() => ItemRefResponse)
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @IsArray()
   items: ItemRef[];
 
@@ -708,7 +753,7 @@ class ItemDataResponse {
     description: 'The item data',
     type: 'object',
     readOnly: true,
-    items: {$ref: '#/components/schemas/ItemGroupResponse'},
+    items: { $ref: '#/components/schemas/ItemGroupResponse' },
   })
   @IsNotEmpty()
   @ValidateNested()
@@ -724,9 +769,9 @@ class ItemDataResponse {
   version?: CourseVersion;
 
   @JSONSchema({
-    
+
   })
-  createdItem:ItemRef;
+  createdItem: ItemRef;
 }
 
 class DeletedItemResponse {
@@ -734,7 +779,7 @@ class DeletedItemResponse {
     description: 'The deleted item data',
     type: 'object',
     readOnly: true,
-    example: {deletedItemId: '68ee280e1f1beg90c14b68ba'},
+    example: { deletedItemId: '68ee280e1f1beg90c14b68ba' },
   })
   @IsNotEmpty()
   deletedItem: Record<string, any>;
@@ -793,6 +838,93 @@ class GetFeedbackSubmissionsQuery {
   limit?: string;
 }
 
+class CSVRow {
+  @JSONSchema({
+    title: 'Youtube URL',
+    description: 'Youtube URL of the video',
+    example: 'https://www.youtube.com/watch?v=1234567890',
+    type: 'string',
+  })
+  @IsString()
+  'yotube url'?: string;
+
+  @JSONSchema({
+    title: 'Segment',
+    description: 'Segment of the video',
+    example: '1',
+    type: 'string',
+  })
+  @IsString()
+  'Segment'?: string;
+
+  @JSONSchema({
+    title: 'Question Timestamp [mm:ss]',
+    description: 'Question Timestamp [mm:ss]',
+    example: '00:00',
+    type: 'string',
+  })
+  @IsString()
+  'Question Timestamp [mm:ss]'?: string;
+  @IsString()
+  'S.No.'?: string;
+  @IsString()
+  'Question'?: string;
+  @IsString()
+  'Hint'?: string;
+  @IsString()
+  'Option A'?: string;
+  @IsString()
+  'Expln-A'?: string;
+  @IsString()
+  'Option B'?: string;
+  @IsString()
+  'Expln-B'?: string;
+  @IsString()
+  'Option C'?: string;
+  @IsString()
+  'Expln-C'?: string;
+  @IsString()
+  'Option D'?: string;
+  @IsString()
+  'Expln-D'?: string;
+  @IsString()
+  'Correct Answer'?: string;
+
+  [key: string]: string | undefined;
+};
+
+
+class CSVQuizQuestion {
+  Segment: string;
+  'Question Timestamp [mm:ss]': string;
+  'Q.No.*': string;
+  Question: string;
+  Hint: string;
+  'Option A': string;
+  'Expln-A*': string;
+  'Option B': string;
+  'Expln-B*': string;
+  'Option C': string;
+  'Expln-C*': string;
+  'Option D': string;
+  'Expln-D*': string;
+  'Correct Answer': string;
+}
+
+class CSVItemBody {
+  youtubeurl: string;
+  data: CSVQuizQuestion[];
+}
+
+class csvResponse {
+  @IsBoolean()
+  success: boolean;
+  @IsString()
+  message: string;
+  @IsArray()
+  createdItems: any[];
+}
+
 export {
   CreateItemBody,
   UpdateItemBody,
@@ -801,6 +933,9 @@ export {
   QuizDetailsPayloadValidator,
   BlogDetailsPayloadValidator,
   VersionModuleSectionItemParams,
+  CourseVersionModuleSectionParams,
+  CSVItemBody,
+  CSVQuizQuestion,
   VersionItemParams,
   DeleteItemParams,
   ItemNotFoundErrorResponse,
@@ -808,7 +943,9 @@ export {
   DeletedItemResponse,
   GetItemParams,
   GetFeedbackSubmissionsParams,
-  GetFeedbackSubmissionsQuery
+  GetFeedbackSubmissionsQuery,
+  CSVRow,
+  csvResponse
 };
 
 export const ITEM_VALIDATORS = [
@@ -819,6 +956,9 @@ export const ITEM_VALIDATORS = [
   QuizDetailsPayloadValidator,
   BlogDetailsPayloadValidator,
   VersionModuleSectionItemParams,
+  CourseVersionModuleSectionParams,
+  CSVItemBody,
+  CSVQuizQuestion,
   VersionItemParams,
   DeleteItemParams,
   ItemNotFoundErrorResponse,
@@ -826,5 +966,7 @@ export const ITEM_VALIDATORS = [
   DeletedItemResponse,
   GetItemParams,
   GetFeedbackSubmissionsParams,
-  GetFeedbackSubmissionsQuery
+  GetFeedbackSubmissionsQuery,
+  CSVRow,
+  csvResponse
 ];

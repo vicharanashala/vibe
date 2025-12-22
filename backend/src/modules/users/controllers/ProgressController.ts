@@ -16,6 +16,8 @@ import {
   CompletedProgressResponse,
   WatchTimeResponse,
   TotalWatchTimeResponse,
+  ItemIdparams,
+  GetLeaderboardQuery,
 } from '#users/classes/validators/ProgressValidators.js';
 import {ProgressService} from '#users/services/ProgressService.js';
 import {USERS_TYPES} from '#users/types.js';
@@ -33,6 +35,10 @@ import {
   InternalServerError,
   ForbiddenError,
   Authorized,
+  Session,
+  Param,
+  QueryParams,
+  CurrentUser,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {UserNotFoundErrorResponse} from '../classes/validators/UserValidators.js';
@@ -44,8 +50,11 @@ import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {subject} from '@casl/ability';
 import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
 import {QuizService} from '#root/modules/quizzes/services/index.js';
-import { BadRequestErrorResponse } from '#root/shared/index.js';
-import { InternalServerErrorResponse } from '../../../shared/middleware/errorHandler.js';
+import {BadRequestErrorResponse, IUser} from '#root/shared/index.js';
+import {InternalServerErrorResponse} from '../../../shared/middleware/errorHandler.js';
+import {COURSES_TYPES} from '#root/modules/courses/types.js';
+import {ItemService} from '#root/modules/courses/services/ItemService.js';
+import {SuccessResponse} from '#root/modules/projects/classes/validators/ProjectValidators.js';
 
 @OpenAPI({
   tags: ['Progress'],
@@ -59,6 +68,9 @@ class ProgressController {
 
     @inject(QUIZZES_TYPES.QuizService)
     private readonly quizService: QuizService,
+
+    @inject(COURSES_TYPES.ItemService)
+    private readonly itemService: ItemService,
   ) {}
 
   @OpenAPI({
@@ -220,8 +232,6 @@ class ProgressController {
     @Body() body: StopItemBody,
     @Ability(getProgressAbility) {ability, user},
   ): Promise<void> {
-
-    
     const {courseId, versionId} = params;
     const {itemId, sectionId, moduleId, watchItemId, attemptId, isSkipped} =
       body;
@@ -246,7 +256,6 @@ class ProgressController {
       moduleId,
       watchItemId,
     );
-
     await this.progressService.updateProgress(
       userId,
       courseId,
@@ -431,31 +440,78 @@ It returns an empty body with a 200 status code.
     return totalWatchTime;
   }
 
+  // In ItemController.ts
+  @OpenAPI({
+    summary: 'Skip an optional item',
+    description:
+      'this allows to change isOptional for items, does not return anything on success',
+  })
+  @Authorized()
+  @Post('/items/:itemId/skip')
+  @OnUndefined(200)
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Could not skip the item',
+    statusCode: 500,
+  })
+  async skipOptionalItem(
+    @Params() params: ItemIdparams,
+    @Ability(getProgressAbility) {user, ability},
+  ): Promise<void> {
+    const {itemId} = params;
+
+    if (!user || (!user.userId && !user._id)) {
+      throw new Error('User not authenticated or user ID not found');
+    }
+
+    const userId = user.userId || user._id;
+    const {courseId, versionId} =
+      await this.itemService.getCourseAndVersionByItemId(itemId);
+
+    await this.progressService.skipItem(userId, courseId, versionId, itemId);
+  }
   @Get('/progress/courses/:courseId/versions/:versionId/leaderboard')
   @HttpCode(200)
   @OpenAPI({
     summary: 'Get course leaderboard',
-    description: 'Returns ranked list of students based on completion percentage and time',
+    description:
+      'Returns ranked list of students based on completion percentage and time',
   })
   @ResponseSchema(ProgressDataResponse, {
     description: 'Leaderboard retrieved successfully',
     isArray: true,
   })
+  @Authorized()
   @ResponseSchema(InternalServerErrorResponse, {
     description: 'Failed to fetch leaderboard',
     statusCode: 500,
   })
   async getLeaderboard(
     @Params() params: GetUserProgressParams,
-  ): Promise<Array<{
-    userId: string;
-    userName: string;
-    completionPercentage: number;
-    completedAt: Date | null;
-    rank: number;
-  }>> {
+    @QueryParams() query: GetLeaderboardQuery,
+    @CurrentUser() user:IUser
+  ): Promise<{
+    data: Array<{
+      userId: string;
+      userName: string;
+      completionPercentage: number;
+      completedAt: Date | null;
+      rank: number;
+    }>;
+    totalDocuments: number;
+    totalPages: number;
+    currentPage: number;
+  }> {
     const {courseId, versionId} = params;
-    return await this.progressService.getLeaderboard(courseId, versionId);
+    const {page = 1, limit = 10} = query;
+    const userId = user._id.toString();
+
+    return await this.progressService.getLeaderboard(
+      userId,
+      courseId,
+      versionId,
+      page,
+      limit,
+    );
   }
 }
 export {ProgressController};

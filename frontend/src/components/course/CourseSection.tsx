@@ -72,7 +72,9 @@ export const CourseSection = ({
     return (
       <>
         <div className={variant === 'dashboard' ? "space-y-2" : "grid gap-4 md:grid-cols-2"}>
-          {enrollments.map((enrollment: any, index) => {
+          {enrollments
+            .filter((enrollment: any) => enrollment && enrollment.courseVersionId)
+            .map((enrollment: any, index) => {
             const courseId = enrollment.courseVersionId as string;
 
             return (

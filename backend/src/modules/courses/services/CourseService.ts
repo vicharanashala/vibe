@@ -144,45 +144,43 @@ class CourseService extends BaseService {
   }
 
   async updateCourseVersionTotalItemCount(): Promise<void> {
-    return this._withTransaction(async session => {
-      const courses = await this.courseRepo.getAllCourses(session);
-      const courseVersionIds = courses.flatMap(course => course.versions);
 
-      const bulkOperations = [];
+    const courses = await this.courseRepo.getAllCourses();
+    const versionIds = courses.flatMap(c => c.versions);
 
-      for (const courseVersionId of courseVersionIds) {
-        try {
-          const courseVersion = await this.courseRepo.readVersion(
-            courseVersionId as string,
-            session,
+    const bulkOps = [];
+
+    for (const versionId of versionIds) {
+      try {
+        const { totalItems, itemCounts } =
+          await this.itemRepo.calculateItemCountsForVersion(
+            versionId.toString(),
+
           );
 
-          const totalItems = await this.itemRepo.CalculateTotalItemsCount(
-            courseVersion.courseId.toString(),
-            courseVersion._id.toString(),
-            session,
-          );
-
-          bulkOperations.push({
-            updateOne: {
-              filter: { _id: new ObjectId(courseVersion._id) },
-              update: { $set: { totalItems } },
+        bulkOps.push({
+          updateOne: {
+            filter: { _id: new ObjectId(versionId) },
+            update: {
+              $set: {
+                totalItems,
+                itemCounts,
+              },
             },
-          });
-        } catch (error) {
-          console.error(
-            `Failed to prepare update for course version: ${courseVersionId}`,
-            error,
-          );
-        }
+          },
+        });
+      } catch (err) {
+        console.error(`Failed for version ${versionId}`, err);
       }
+    }
 
-      if (bulkOperations.length > 0) {
-        await this.courseRepo.bulkUpdateVersions(bulkOperations, session);
-        console.log(`Bulk updated ${bulkOperations.length} course versions`);
-      }
-    });
+    if (bulkOps.length) {
+      await this.courseRepo.bulkUpdateVersions(bulkOps);
+    }
+
   }
+
+
 }
 
 export { CourseService };

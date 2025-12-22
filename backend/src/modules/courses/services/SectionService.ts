@@ -12,6 +12,8 @@ import {ICourseRepository} from '#root/shared/database/interfaces/ICourseReposit
 import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {ICourseVersion} from '#root/shared/interfaces/models.js';
+import {EnrollmentRepository, ProgressRepository} from '#root/shared/index.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
 @injectable()
 export class SectionService extends BaseService {
   constructor(
@@ -19,6 +21,10 @@ export class SectionService extends BaseService {
     private readonly itemRepo: IItemRepository,
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
+    @inject(GLOBAL_TYPES.EnrollmentRepo)
+    private readonly enrollmentRepo: EnrollmentRepository,
+    @inject(USERS_TYPES.ProgressRepo)
+    private readonly progressRepo: ProgressRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -219,6 +225,109 @@ export class SectionService extends BaseService {
         session,
       );
       return deleteResult;
+    });
+  }
+
+  async toggleSectionVisibility(
+    versionId: string,
+    moduleId: string,
+    sectionId: string,
+    hide: boolean,
+  ): Promise<ICourseVersion> {
+    return this._withTransaction(async session => {
+      const version = await this.courseRepo.readVersion(versionId, session);
+
+      // Find Module
+      const module = version.modules.find(
+        m => m.moduleId.toString() === moduleId,
+      );
+      if (!module) throw new InternalServerError('Module not found');
+
+      // Find Section
+      const section = module.sections.find(
+        s => s.sectionId.toString() === sectionId,
+      );
+      if (!section) throw new InternalServerError('Section not found');
+
+      section.isHidden = hide;
+      section.updatedAt = new Date();
+
+      // Update Module Update Date
+      module.updatedAt = new Date();
+
+      // Update Version Update Date
+      version.updatedAt = new Date();
+
+      // Update Version
+      const updatedVersion = await this.courseRepo.updateVersion(
+        versionId,
+        version,
+        session,
+      );
+      if (!updatedVersion) {
+        throw new InternalServerError('Failed to update Section');
+      }
+
+      // Hide all items in the section
+      const itemsGroupId = section.itemsGroupId.toString();
+      const itemsGroup = await this.itemRepo.readItemsGroup(
+        itemsGroupId,
+        session,
+      );
+      if (itemsGroup) {
+        itemsGroup.isHidden = hide;
+        itemsGroup.items.forEach(item => {
+          item.isHidden = hide;
+        });
+        await this.itemRepo.updateItemsGroup(itemsGroupId, itemsGroup, session);
+      }
+
+      await this.enrollmentRepo.setWatchTimeVisibility(
+        itemsGroup.items.map(item => item._id.toString()),
+        hide,
+        session,
+      );
+
+      if (hide == true) {
+        // Update currentSection for progress to next non-hidden section.
+        const sections = module.sections;
+        const currentIndex = sections.findIndex(s => s.sectionId === sectionId);
+        let nextSection = null;
+        for (let i = currentIndex + 1; i < sections.length; i++) {
+          if (!sections[i].isHidden) {
+            nextSection = sections[i];
+            break;
+          }
+        }
+
+        // fallback backward
+        if (!nextSection) {
+          for (let i = currentIndex - 1; i >= 0; i--) {
+            if (!sections[i].isHidden) {
+              nextSection = sections[i];
+              break;
+            }
+          }
+        }
+
+        if (nextSection) {
+          // first item of the next section
+          const nextItemsGroup = await this.itemRepo.readItemsGroup(
+            nextSection.itemsGroupId.toString(),
+            session,
+          );
+          if (nextItemsGroup && nextItemsGroup.items.length > 0) {
+            const nextItemId = nextItemsGroup.items[0]._id.toString();
+            await this.progressRepo.updateProgressBySectionId(
+              section.sectionId.toString(),
+              {currentSection: nextSection.sectionId, currentItem: nextItemId},
+              session,
+            );
+          }
+        }
+      }
+
+      return updatedVersion;
     });
   }
 }

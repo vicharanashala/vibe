@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useRef, useMemo, ChangeEvent } from "react";
+import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
-import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank } from '@/hooks/hooks';
-import { Upload } from 'lucide-react';
+import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, userParseCSVtoItems, useUpdateItemOptional } from '@/hooks/hooks';
+import { Download, Upload } from 'lucide-react';
+import { useHideItem } from '@/hooks/hooks';
 
 const MAX_DESCRIPTION_LENGTH = 1000;
 
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
-  SidebarInset, SidebarProvider, SidebarTrigger, SidebarFooter, useSidebar
+  SidebarInset, SidebarProvider, SidebarFooter, useSidebar
 } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -27,7 +28,10 @@ import {
   BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus, Sparkles,
   X, FolderKanban,
   Menu,
-  MessageSquare
+  MessageSquare,
+  Eye,
+  EyeOff,
+  Loader2
 } from "lucide-react";
 
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -35,7 +39,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Home, GraduationCap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById, useQuizDetails, useQuizAnalytics, useQuizPerformance, useQuizResults, useMoveModule, useMoveSection, useMoveItem, useUpdateCourseItem, useCourseById } from "@/hooks/hooks";
+import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById, useQuizDetails, useQuizAnalytics, useQuizPerformance, useQuizResults, useMoveModule, useMoveSection, useMoveItem, useUpdateCourseItem, useCourseById, useHideModule, useHideSection } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import VideoModal from "./components/Video-modal";
 import EnhancedQuizEditor from "./components/enhanced-quiz-editor";
@@ -49,101 +53,10 @@ import ProjectItem from "./components/ProjectItem";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import FeedbackFormEditor from "./FeedbackFormEditor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/utils/utils";
 import { QuestionUploadDialog } from "@/components/question-upload-dialog";
 
-// Retry utility function
-const withRetry = async <T,>(fn: () => Promise<T>, maxRetries = 3, delay = 100): Promise<T> => {
-  let lastError: Error;
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await fn();
-    } catch (error: any) {
-      lastError = error;
-      if (error.code === 112) { // WriteConflict error code
-        console.log(`Write conflict detected, retrying (${i + 1}/${maxRetries})...`);
-        await new Promise(resolve => setTimeout(resolve, delay * (i + 1))); // Exponential backoff
-      } else {
-        throw error;
-      }
-    }
-  }
-  throw lastError!;
-};
-
-// Function to process questions sequentially
-const processQuestionsSequentially = async (questions: any[], questionBankId: string, createQuestion: any, addQuestiontoQuestionBank: any) => {
-  const successfulQuestions = [];
-  
-  for (const question of questions) {
-    try {
-      const options = [
-        { text: question['Option A'], explanation: question['Expln-A'] || '' },
-        { text: question['Option B'], explanation: question['Expln-B'] || '' },
-        { text: question['Option C'], explanation: question['Expln-C'] || '' },
-        { text: question['Option D'], explanation: question['Expln-D'] || '' }
-      ].filter(opt => opt.text);
-
-      const correctAnswer = question['Correct Answer']?.toUpperCase();
-      const correctOptionIndex = correctAnswer ? correctAnswer.charCodeAt(0) - 65 : -1;
-
-      if (correctOptionIndex >= 0 && correctOptionIndex < options.length) {
-        // Create question with retry
-        const newQuestion = await withRetry(async () => {
-          return await createQuestion.mutateAsync({
-            body: {
-              question: {
-                text: question.Question || '',
-                type: 'SELECT_ONE_IN_LOT',
-                isParameterized: false,
-                parameters: [],
-                timeLimitSeconds: 60,
-                points: 1,
-                priority: 'MEDIUM',
-                hint: question.Hint || '',
-              },
-              solution: {
-                correctLotItem: {
-                  text: options[correctOptionIndex].text || '',
-                  explaination: options[correctOptionIndex].explanation || 'No explanation provided'
-                },
-                incorrectLotItems: options
-                  .filter((_, i) => i !== correctOptionIndex)
-                  .map(opt => ({
-                    text: opt.text || '',
-                    explaination: opt.explanation || 'No explanation provided'
-                  }))
-              }
-            }
-          });
-        });
-
-        // Add to question bank with retry
-        if (newQuestion?.questionId) {
-          await withRetry(async () => {
-            await addQuestiontoQuestionBank.mutateAsync({
-              params: {
-                path: {
-                  questionBankId: questionBankId,
-                  questionId: newQuestion.questionId
-                }
-              }
-            });
-          });
-          
-          successfulQuestions.push(newQuestion);
-          console.log(`✅ Created question: ${question.Question?.substring(0, 50)}...`);
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error creating question:', error);
-    }
-    
-    // Small delay between questions to reduce write conflicts
-    await new Promise(resolve => setTimeout(resolve, 200));
-  }
-
-  return successfulQuestions;
-};
 
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
@@ -257,6 +170,9 @@ function TeacherCourseContent() {
   const [originalSectionData, setOriginalSectionData] = useState<{ name: string; description: string } | null>(null);
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [hidingModuleId, setHidingModuleId] = useState<string | null>(null);
+  const [hidingSectionId, setHidingSectionId] = useState<string | null>(null);
+  const [hidingItemId, setHidingItemId] = useState<string | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -295,6 +211,8 @@ function TeacherCourseContent() {
   // Store items for each section
   const [sectionItems, setSectionItems] = useState<Record<string, any[]>>({});
 
+  const [togglingItemId, setTogglingItemId] = useState<string | null>(null);
+
   // Check if a project already exists in any section
   const hasExistingProject = useMemo(() => {
     return Object.values(sectionItems).some(items =>
@@ -328,7 +246,7 @@ function TeacherCourseContent() {
   // Fetch item details for selected item
   const shouldFetchItem = selectedEntity?.type === 'item' && !!courseId && !!versionId && !!selectedEntity?.data?._id;
   const {
-    data: selectedItemData, 
+    data: selectedItemData,
     isLoading: isItemLoading,
     refetch: refetchItem
   } = useItemById(
@@ -368,12 +286,14 @@ function TeacherCourseContent() {
   const { mutateAsync: updateModuleAsync, isSuccess: isUpdateModuleSuccess, isError: isUpdateModuleError, error: updateModuleError } = useUpdateModule();
   const { mutateAsync: deleteModuleAsync, isSuccess: isDeleteModuleSuccess, isError: isDeleteModuleError, error: deleteModuleError } = useDeleteModule();
   const { mutateAsync: moveModuleAsync } = useMoveModule();
+  const { mutateAsync: hideModuleAsync } = useHideModule();
 
   // --- SECTIONS ---
   const { mutateAsync: createSectionAsync, isSuccess: isCreateSectionSuccess, isError: isCreateSectionError, error: createSectionError } = useCreateSection();
   const { mutateAsync: updateSectionAsync, isSuccess: isUpdateSectionSuccess, isError: isUpdateSectionError, error: updateSectionError } = useUpdateSection();
   const { mutateAsync: deleteSectionAsync, isSuccess: isDeleteSectionSuccess, isError: isDeleteSectionError, error: deleteSectionError } = useDeleteSection();
   const { mutateAsync: moveSectionAsync } = useMoveSection();
+  const { mutateAsync: hideSectionAsync } = useHideSection();
 
   // --- ITEMS ---
   const { mutateAsync: createItemAsync, isSuccess: isCreateItemSuccess, isError: isCreateItemError, error: createItemError } = useCreateItem();
@@ -382,15 +302,15 @@ function TeacherCourseContent() {
   const { mutateAsync: updateVideoAsync } = useUpdateCourseItem();
   const { mutateAsync: deleteItemAsync, isSuccess: isDeleteItemSuccess, isError: isDeleteItemError, error: deleteItemError } = useDeleteItem();
   const { mutateAsync: moveItemAsync, isPending, isError: isMoveItemError, error: moveItemError } = useMoveItem();
+  const { mutateAsync: updateItemVisibilityAsync } = useHideItem();
 
   const [isProcessingCSV, setIsProcessingCSV] = useState(false);
   const [showCSVUpload, setShowCSVUpload] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
-  const [selectedCSVFile, setSelectedCSVFile] = useState<File | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const createQuestionBank = useCreateQuestionBank();
-  const addQuestionBankToQuiz = useAddQuestionBankToQuiz();
-  const addQuestiontoQuestionBank = useAddQuestionToBank();
+  const userCSVtoItem = userParseCSVtoItems();
+
+
+  const updateItemOptional = useUpdateItemOptional();
 
   // Refetch after any success
   useEffect(() => {
@@ -519,6 +439,7 @@ function TeacherCourseContent() {
     },
   });
 
+
   // Reload items when quiz wizard closes
   useEffect(() => {
     if (!quizWizardOpen && quizModuleId && quizSectionId) {
@@ -569,18 +490,6 @@ function TeacherCourseContent() {
     }
   };
 
-  function formatSecondsToHHMMSS(seconds: string | number): string {
-    const sec = Math.floor(Number(seconds));
-    const hrs = Math.floor(sec / 3600);
-    const mins = Math.floor((sec % 3600) / 60);
-    const secs = sec % 60;
-
-    const pad = (val: number) => val.toString().padStart(2, '0');
-
-    return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
-  }
-
-
   // Add Module
   const handleAddModule = () => {
     if (!versionId) return;
@@ -598,28 +507,25 @@ function TeacherCourseContent() {
   };
 
 
-  // Convert MM:SS to seconds
-  const convertTimeToSeconds = (timeStr: string): number => {
-    const [minutes, seconds] = timeStr.split(':').map(Number);
-    return (minutes * 60) + (seconds || 0);
-  };
-
   // Process CSV file and create items
   const processCSV = async (file: File, moduleId: string, sectionId: string, youtubeUrl: string) => {
     setIsProcessingCSV(true);
     try {
+      setShowCSVUpload(false);
       const text = await file.text();
       const result = Papa.parse<CSVRow>(text, { header: true, skipEmptyLines: true });
 
       // Validate CSV structure
       if (!result.data.length) {
-        throw new Error('CSV file is empty');
+        toast.error('CSV file is empty');
+        return;
       }
 
       // Validate YouTube URL format
       const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/;
       if (!youtubeRegex.test(youtubeUrl)) {
-        throw new Error('Please provide a valid YouTube URL (e.g., https://www.youtube.com/watch?v=... or https://youtu.be/...)');
+        toast.error('Please provide a valid YouTube URL (e.g., https://www.youtube.com/watch?v=... or https://youtu.be/...)');
+        return;
       }
 
       // Validate required columns
@@ -628,141 +534,22 @@ function TeacherCourseContent() {
       const missingColumns = requiredColumns.filter(col => !(col in firstRow));
 
       if (missingColumns.length > 0) {
-        throw new Error(`Missing required columns: ${missingColumns.join(', ')}`);
+        toast.error(`Missing required columns: ${missingColumns.join(', ')}`);
+        return;
       }
 
-      // Group questions by segment
-      const segments = new Map<string, CSVRow[]>();
-      const seenSegments = new Set<string>();
-      let currentSegment = '1'; // Default to segment 1
 
-      result.data.forEach((row) => {
-        // If Segment is empty, use the last seen segment
-        if (!row.Segment) {
-          row.Segment = currentSegment;
-        } else {
-          currentSegment = row.Segment.trim();
+      const response = await userCSVtoItem.mutateAsync({
+        params: { path: { courseId: courseId!, versionId:versionId!, moduleId, sectionId } },
+        body: { youtubeurl: youtubeUrl, data: result.data }
+      }).then((res) => {
+        if(res.success){
+           toast.success('Successfully created items from CSV');
         }
-
-        const segment = currentSegment;
-        if (!segments.has(segment)) {
-          segments.set(segment, []);
-        }
-        segments.get(segment)?.push(row);
-
-        // Track unique segments for better error reporting
-        if (!seenSegments.has(segment)) {
-          seenSegments.add(segment);
-          console.log(`Found segment: ${segment}`);
-        }
+        refetchVersion()
+        refetchItems()
+        setIsProcessingCSV(false);
       });
-
-      if (segments.size === 0) {
-        const errorMsg = 'No valid segments found in the CSV. ';
-        if (seenSegments.size > 0) {
-          console.error('Segments found but not processed:', Array.from(seenSegments).join(', '));
-        }
-        throw new Error(errorMsg + 'Please ensure your CSV has a "Segment" column with valid values.');
-      }
-
-      // Process each segment
-      let previousEndTime = 0;
-      const segmentNumbers = Array.from(segments.keys()).sort((a, b) => parseInt(a) - parseInt(b));
-
-      for (const segmentNumber of segmentNumbers) {
-        const questions = segments.get(segmentNumber) || [];
-        const segmentQuestions = questions.filter(q => q.Question && q['Correct Answer']);
-
-        if (segmentQuestions.length === 0) {
-          console.warn(`No valid questions found for segment ${segmentNumber}`);
-          continue;
-        }
-        
-        console.log(`Processing ${segmentQuestions.length} questions for segment ${segmentNumber}`);
-
-        // Get the first question's timestamp as the end time for the video segment
-        const firstQuestion = segmentQuestions[0];
-        const timestamp = firstQuestion['Question Timestamp [mm:ss]'];
-        if (!timestamp) {
-          console.warn(`No timestamp found for segment ${segmentNumber}, using default`);
-        }
-        const endTime = timestamp ? convertTimeToSeconds(timestamp) : previousEndTime + 300; // Default to 5 minutes if no timestamp
-
-        // Create video item with the provided YouTube URL
-        const videoItem = await createItemAsync({
-          params: { path: { versionId: versionId!, moduleId, sectionId } },
-          body: {
-            type: 'VIDEO',
-            name: `Video ${segmentNumber}`,
-            description: `Video segment ${segmentNumber} from CSV upload`,
-            videoDetails: {
-              URL: youtubeUrl,
-              startTime: formatSecondsToHHMMSS(previousEndTime),
-              endTime: formatSecondsToHHMMSS(endTime),
-              points: 1
-            }
-          }
-        });
-
-        // Create quiz item
-        const quizItem = await createItemAsync({
-          params: { path: { versionId: versionId!, moduleId, sectionId } },
-          body: {
-            type: 'QUIZ',
-            name: `Quiz - Segment ${segmentNumber}`,
-            description: `Quiz for segment ${segmentNumber} from CSV upload`,
-            quizDetails: {
-              questionBankRefs: [], // Will be added after creating the question bank
-              passThreshold: 0.5, // 50% passing threshold
-              maxAttempts: 3,
-              quizType: 'NO_DEADLINE',
-              releaseTime: new Date().toISOString(),
-              questionVisibility: 1,
-              approximateTimeToComplete: '00:00:60',
-              allowPartialGrading: true,
-              allowHint: true,
-              showCorrectAnswersAfterSubmission: true,
-              showExplanationAfterSubmission: true,
-              showScoreAfterSubmission: true,
-              allowSkip: false
-            }
-          }
-        });
-
-        const questionBankData = {
-          courseId: courseId,
-          courseVersionId: versionId!,
-          title: `Question Bank - Segment ${segmentNumber}`, // Generate a title based on the segment
-          description: `Questions for segment ${segmentNumber} from CSV upload`,
-          questions: []// Empty array as requested
-        };
-
-        const data = await createQuestionBank.mutateAsync({ body: questionBankData });
-        await addQuestionBankToQuiz.mutateAsync({
-          params: { path: { quizId: quizItem.createdItem._id || "" } },
-          body: {
-            bankId: data.questionBankId,
-            count: 3
-          }
-        });
-
-        // Process questions sequentially with retry logic
-        console.log(`📝 Processing ${segmentQuestions.length} questions for segment ${segmentNumber}...`);
-        const successfulQuestions = await processQuestionsSequentially(
-          segmentQuestions,
-          data.questionBankId,
-          createQuestion,
-          addQuestiontoQuestionBank
-        );
-        console.log(`✅ Successfully created ${successfulQuestions.length} out of ${segmentQuestions.length} questions for segment ${segmentNumber}`);
-
-
-
-
-        previousEndTime = endTime;
-      }
-
-      toast.success('Successfully created items from CSV');
     } catch (error) {
       console.error('Error processing CSV:', error);
       toast.error(`Failed to process CSV: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -777,7 +564,7 @@ function TeacherCourseContent() {
   const handleFileUpload = (e: ChangeEvent<HTMLInputElement>, moduleId: string, sectionId: string) => {
     const file = e.target.files?.[0];
     if (file) {
-      processCSV(file, moduleId, sectionId,youtubeUrl);
+      processCSV(file, moduleId, sectionId, youtubeUrl);
     }
     // Reset the input
     e.target.value = '';
@@ -796,6 +583,54 @@ function TeacherCourseContent() {
       }
     });
   };
+
+  const handleHideModule = async (moduleId: string, hide: boolean) => {
+    if (!versionId) return;
+    setHidingModuleId(moduleId);
+    try {
+      await hideModuleAsync({
+        params: { path: { versionId, moduleId } },
+        body: { hide: hide }
+      });
+      refetchVersion();
+    } finally {
+      setHidingModuleId(null);
+    }
+  }
+
+  const handleHideSection = async (moduleId: string, sectionId: string, hide: boolean) => {
+    if (!versionId) return;
+    setHidingSectionId(sectionId);
+    try {
+      await hideSectionAsync({
+        params: { path: { versionId, moduleId, sectionId } },
+        body: { hide: hide }
+      });
+      refetchVersion();
+    } finally {
+      setHidingSectionId(null);
+    }
+  }
+
+  const handleHideItem = async (itemId: string, hide: boolean) => {
+    if (!versionId) return;
+    setHidingItemId(itemId);
+    try {
+      console.log("🔄 Starting hide item:", itemId, hide);
+      await updateItemVisibilityAsync({
+        params: { path: { versionId, itemId } },
+        body: { hide: hide }
+      });
+
+      refetchVersion();
+      refetchItems();
+      console.log("✅ RefetchVersion completed");
+    } catch (error) {
+      console.error("❌ Error in handleHideItem:", error);
+    } finally {
+      setHidingItemId(null);
+    }
+  }
 
   // Add Item (handles all item types including video, quiz, article, and project)
   const handleAddItem = (moduleId: string, sectionId: string, type: string, videoData?: any) => {
@@ -1257,36 +1092,28 @@ function TeacherCourseContent() {
           </div>
         </DialogContent>
       </Dialog> */}
-       <QuestionUploadDialog 
-        open={showCSVUpload} 
-        onOpenChange={setShowCSVUpload} 
-        onUploadComplete={async (youtubeUrl: string, csvFile:File) => {
-                            try {
-                              setIsProcessingCSV(true)
-                              await processCSV(
-                                csvFile,
-                                activeSectionInfo.moduleId,
-                                activeSectionInfo.sectionId,
-                                youtubeUrl
-                              );
-                              refetchVersion();
-                              if (shouldFetchItems) {
-                                refetchItems();
-                              }
-                              setIsProcessingCSV(false)
-                              toast.success("Upload processed successfully!");
-                            } catch (error: any) {
-                              console.error("CSV Processing Error:", error);
+      <QuestionUploadDialog
+        open={showCSVUpload}
+        onOpenChange={setShowCSVUpload}
+        onUploadComplete={async (youtubeUrl: string, csvFile: File) => {
+          try {
+            await processCSV(
+              csvFile,
+              activeSectionInfo?.moduleId,
+              activeSectionInfo?.sectionId,
+              youtubeUrl
+            );
+          } catch (error: any) {
+            console.error("CSV Processing Error:", error);
 
-                              const message =
-                                error?.response?.data?.error ||
-                                error?.message ||
-                                "Failed to process uploaded data. Please try again.";
-                              setIsProcessingCSV(false)
-                              toast.error(message);
-                            }
-                          }}
-      /> 
+            const message =
+              error?.response?.data?.error ||
+              error?.message ||
+              "Failed to process uploaded data. Please try again.";
+            toast.error(message);
+          }
+        }}
+      />
       {/* Mobile Sidebar Overlay */}
       {isMobileSidebarOpen && (
         <div
@@ -1335,13 +1162,23 @@ function TeacherCourseContent() {
                             key={module.moduleId}
                             value={module}
                             drag
-                            className="focus:outline-none"
+                            className={module.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
                             whileDrag={{ scale: 1.02 }}
                             onDragEnd={() => {
                               setInitialModules(pendingOrder.current);
                               handleMoveModule(module.moduleId, versionId);
                             }}
                           >
+                            <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideModule(module.moduleId, !module.isHidden)} disabled={hidingModuleId === module.moduleId}>
+                              {hidingModuleId === module.moduleId ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : !module.isHidden ? (
+                                <Eye className="h-4 w-4" />
+                              ) : (
+                                <EyeOff className="h-4 w-4" />
+                              )}
+                              <span className="sr-only">Hide Module</span>
+                            </Button>
                             <SidebarMenuButton
                               onClick={() => {
                                 toggleModule(module.moduleId);
@@ -1357,7 +1194,7 @@ function TeacherCourseContent() {
                                 className={`h-3.5 w-3.5 transition-transform ${expandedModules[module.moduleId] ? "rotate-90" : ""
                                   }`}
                               />
-                              <span className="ml-2 truncate">{module.name}</span>
+                              <span className="ml-2 max-w-[35ch] truncate"title={module.name}>{module.name}</span>
                             </SidebarMenuButton>
                           </Reorder.Item>
 
@@ -1375,7 +1212,7 @@ function TeacherCourseContent() {
                                     key={section.sectionId}
                                     value={section}
                                     drag
-                                    className="focus:outline-none"
+                                    className={section.isHidden || module.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
                                     whileDrag={{ scale: 1.02 }}
                                     onDragEnd={() => {
                                       setInitialModules((prev) =>
@@ -1408,8 +1245,19 @@ function TeacherCourseContent() {
                                           className={`h-3 w-3 transition-transform ${expandedSections[section.sectionId] ? "rotate-90" : ""
                                             }`}
                                         />
-                                        <span className="ml-2 truncate w-[100%] block">{section.name} </span>
+                                        <span className="ml-2 truncate  max-w-[25ch] truncate block" title={section.name}
+                                        >{section.name} </span>
                                       </SidebarMenuSubButton>
+                                      <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideSection(module.moduleId, section.sectionId, !section.isHidden)} disabled={module.isHidden || hidingSectionId === section.sectionId}>
+                                        {hidingSectionId === section.sectionId ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : !section.isHidden ? (
+                                          <Eye className="h-4 w-4" />
+                                        ) : (
+                                          <EyeOff className="h-4 w-4" />
+                                        )}
+                                        <span className="sr-only">Hide Section</span>
+                                      </Button>
 
                                       {expandedSections[section.sectionId] && (
                                         <Reorder.Group
@@ -1432,7 +1280,7 @@ function TeacherCourseContent() {
                                                   key={item._id}
                                                   value={item}
                                                   drag
-                                                  className="focus:outline-none"
+                                                  className={section.isHidden || module.isHidden || item.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
                                                   whileDrag={{ scale: 1.02 }}
                                                   onDragEnd={() => {
 
@@ -1519,6 +1367,16 @@ function TeacherCourseContent() {
                                                         })}
                                                       </span>
                                                     </SidebarMenuSubButton>
+                                                    <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideItem(item._id, !item.isHidden)} disabled={section.isHidden || module.isHidden || hidingItemId === item._id}>
+                                                      {hidingItemId === item._id ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                      ) : !item.isHidden ? (
+                                                        <Eye className="h-4 w-4" />
+                                                      ) : (
+                                                        <EyeOff className="h-4 w-4" />
+                                                      )}
+                                                      <span className="sr-only">Hide Item</span>
+                                                    </Button>
                                                   </SidebarMenuSubItem>
                                                 </Reorder.Item>
                                               ))}
@@ -1529,6 +1387,8 @@ function TeacherCourseContent() {
                                                 className="text-xs border rounded px-2 py-1 bg-background text-foreground"
 
                                                 defaultValue=""
+
+                                                disabled={module.isHidden || section.isHidden}
 
                                                 onChange={(e) => {
 
@@ -1937,9 +1797,113 @@ function TeacherCourseContent() {
                       <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-slate-900 dark:text-gray-100">
                         {selectedEntity.data?.name}
                       </h2>
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600">
-                        {selectedEntity.type.charAt(0).toUpperCase() + selectedEntity.type.slice(1)}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {selectedEntity.type === "item" && (
+                          // <div className="items-center gap-2 bg-muted/40 px-2 py-1 rounded-md border text-sm">
+                          //   <div className="flex items-center justify-center gap-1.5">
+                          //     <Switch
+                          //       id={`optional-${selectedItemData?.item?._id}`}
+                          //       checked={selectedItemData?.item?.isOptional || false}
+                          //       disabled={updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id}
+                          //       onCheckedChange={async (checked) => {
+                          //         if (versionId && selectedItemData?.item?._id) {
+                          //           setTogglingItemId(selectedItemData.item._id);
+                          //           try {
+                          //             await updateItemOptional.mutateAsync({
+                          //               params: {
+                          //                 path: {
+                          //                   versionId: versionId,
+                          //                   itemId: selectedEntity?.data?._id
+                          //                 }
+                          //               },
+                          //               body: { isOptional: checked }
+                          //             });
+                          //             refetchItem();
+                          //           } catch (error) {
+                          //             toast.error('Failed to update item optional status');
+                          //           } finally {
+                          //             setTogglingItemId(null);
+                          //           }
+                          //         }
+                          //       }}
+                          //       className={cn(
+                          //         "data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
+                          //         "h-4 w-8",
+                          //         "relative",
+                          //         "cursor-pointer",
+                          //         updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id
+                          //           ? "opacity-70"
+                          //           : "opacity-100"
+                          //       )}
+                          //     >
+                          //       {(updateItemOptional.isPending || togglingItemId === selectedItemData?.item?._id) && (
+                          //         <Loader2 className="h-2 w-2 animate-spin absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-primary-foreground" />
+                          //       )}
+                          //     </Switch>
+                          //     <Label
+                          //       htmlFor={`optional-${selectedEntity?.data?._id}`}
+                          //       className="text-lg text-white cursor-pointer"
+                          //       title="Students can skip this item if enabled"
+                          //     >
+                          //       Optional
+                          //     </Label>
+                          //   </div>
+                          //   <div>
+                          //     <p className="text-[10px] text-muted-foreground/80">Students can skip this item if enabled</p>
+                          //   </div>
+                          // </div>
+                          <div className="inline-flex items-center gap-2 px-3 py-2 rounded-md border bg-card">
+                            <Switch
+                              id={`optional-${selectedItemData?.item?._id}`}
+                              checked={selectedItemData?.item?.isOptional || false}
+                              disabled={updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id}
+                              onCheckedChange={async (checked) => {
+                                if (versionId && selectedItemData?.item?._id) {
+                                  setTogglingItemId(selectedItemData.item._id);
+                                  try {
+                                    await updateItemOptional.mutateAsync({
+                                      params: {
+                                        path: {
+                                          versionId: versionId,
+                                          itemId: selectedEntity?.data?._id
+                                        }
+                                      },
+                                      body: { isOptional: checked }
+                                    });
+                                    refetchItem();
+                                  } catch (error) {
+                                    toast.error('Failed to update item optional status');
+                                  } finally {
+                                    setTogglingItemId(null);
+                                  }
+                                }
+                              }}
+                              className={cn(
+                                "data-[state=checked]:bg-primary",
+                                updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id
+                                  ? "opacity-50"
+                                  : ""
+                              )}
+                            >
+                              {(updateItemOptional.isPending || togglingItemId === selectedItemData?.item?._id) && (
+                                <Loader2 className="h-3 w-3 animate-spin absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
+                              )}
+                            </Switch>
+                            <div className="flex flex-col gap-0.5">
+                              <Label
+                                htmlFor={`optional-${selectedEntity?.data?._id}`}
+                                className="text-sm font-medium cursor-pointer leading-none"
+                              >
+                                Optional
+                              </Label>
+                              <p className="text-xs text-muted-foreground">Students can skip this item</p>
+                            </div>
+                          </div>
+                        )}
+                        {/* <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600">
+                          {selectedEntity.type.charAt(0).toUpperCase() + selectedEntity.type.slice(1)}
+                        </Badge> */}
+                      </div>
                     </div>
                     <div className="text-sm text-slate-500 dark:text-gray-400 flex items-center gap-2">
                       <BookOpen className="h-4 w-4" />

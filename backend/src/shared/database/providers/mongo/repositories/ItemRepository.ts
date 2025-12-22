@@ -16,6 +16,7 @@ import {
   ProjectItem,
   Item,
   FeedBackFormItem,
+  ItemRef,
 } from '#courses/classes/transformers/Item.js';
 import { UpdateItemBody } from '#root/modules/courses/classes/index.js';
 import { QuestionBank } from '#root/modules/quizzes/classes/transformers/QuestionBank.js';
@@ -51,6 +52,8 @@ export class ItemRepository implements IItemRepository {
     this.feedbackFormCollection = await this.db.getCollection<FeedBackFormItem>(
       'feedback_forms',
     );
+
+    this.itemsGroupCollection.createIndex({ items: 1 });
     this.questionBankCollection = await this.db.getCollection<IQuestionBank>(
       'questionBanks',
     );
@@ -110,7 +113,8 @@ export class ItemRepository implements IItemRepository {
     session?: ClientSession,
   ): Promise<ItemsGroup> {
     await this.init();
-    console.log('Reading ItemsGroup with ID:', itemsGroupId);
+    // console.log('Reading ItemsGroup with ID:', itemsGroupId);
+
     const itemsGroup = await this.itemsGroupCollection.findOne(
       { _id: new ObjectId(itemsGroupId), isDeleted: { $ne: true } },
       { session },
@@ -135,6 +139,9 @@ export class ItemRepository implements IItemRepository {
           break;
         case ItemType.PROJECT:
           collection = this.projectCollection;
+          break;
+        case ItemType.FEEDBACK:
+          collection = this.feedbackFormCollection;
           break;
         default:
           throw new InternalServerError(
@@ -168,7 +175,7 @@ export class ItemRepository implements IItemRepository {
       { $set: fields },
       { session },
     );
-    if (result.modifiedCount !== 1) {
+    if (result.matchedCount === 0) {
       throw new InternalServerError(
         `Failed to update items group ${itemsGroupId}.`,
       );
@@ -307,11 +314,17 @@ export class ItemRepository implements IItemRepository {
     for (const module of courseVersion.modules) {
       for (const section of module.sections) {
         const itemsGroup = await this.readItemsGroup(
-          section.itemsGroupId.toString(),
+          section?.itemsGroupId?.toString(),
         );
-        const found = itemsGroup.items.find(i => i._id.toString() === itemId);
+        const found = itemsGroup?.items?.find(
+          i => i?._id?.toString() === itemId,
+        );
 
         if (found) {
+          if (!found._id) {
+            console.error('Found item has a null or undefined _id:', found);
+            throw new InternalServerError('Item has an invalid ID');
+          }
           console.log(
             await this.feedbackFormCollection.findOne({
               _id: new ObjectId(found._id),
@@ -352,9 +365,6 @@ export class ItemRepository implements IItemRepository {
             default:
               throw new InternalServerError(`Unknown item type: ${found.type}`);
           }
-
-          console.log('Item: ', item);
-
           return item;
         }
       }
@@ -365,6 +375,43 @@ export class ItemRepository implements IItemRepository {
       `Item ${itemId} not found in version ${courseVersionId}.`,
     );
   }
+
+  async readItemById(
+    itemId: string,
+    session?: ClientSession,
+  ): Promise<Item> {
+    await this.init();
+
+    const objectId = new ObjectId(itemId);
+
+    let item: Item =
+      (await this.videoCollection.findOne({
+        _id: objectId,
+        isDeleted: { $ne: true },
+      })) ||
+      (await this.quizCollection.findOne({
+        _id: objectId,
+        isDeleted: { $ne: true },
+      })) ||
+      (await this.blogCollection.findOne({
+        _id: objectId,
+        isDeleted: { $ne: true },
+      })) ||
+      (await this.projectCollection.findOne({
+        _id: objectId,
+        isDeleted: { $ne: true },
+      })) ||
+      (await this.feedbackFormCollection.findOne({
+        _id: objectId,
+      }));
+
+    if (!item) {
+      throw new NotFoundError(`Item ${itemId} not found`);
+    }
+
+    return item;
+  }
+
 
   async updateItem(
     itemId: string,
@@ -386,6 +433,7 @@ export class ItemRepository implements IItemRepository {
         break;
       case ItemType.PROJECT:
         collection = this.projectCollection;
+        break;
       case ItemType.FEEDBACK:
         collection = this.feedbackFormCollection;
         break;
@@ -401,9 +449,9 @@ export class ItemRepository implements IItemRepository {
         $set: {
           name: item.name,
           description: item.description,
-          ...(item.type === ItemType.FEEDBACK && {
-            isOptional: item.isOptional,
-          }),
+          // ...(item.type === ItemType.FEEDBACK && {
+          isOptional: item.isOptional,
+          // }),
           details: item?.details,
         },
       },
@@ -589,29 +637,43 @@ export class ItemRepository implements IItemRepository {
       );
     }
 
-    let totalCount = 0;
+    // let totalCount = 0;
 
-    // Iterate through all modules
-    for (const module of version.modules) {
-      // Iterate through all sections in each module
-      for (const section of module.sections) {
-        try {
-          const itemsGroup = await this.readItemsGroup(
-            section.itemsGroupId.toString(),
-            session,
-          );
-          totalCount += itemsGroup.items.length;
-        } catch (error) {
-          // If itemsGroup is not found, skip this section
-          if (error instanceof NotFoundError) {
-            continue;
-          }
-          throw error;
-        }
-      }
-    }
+    // // Iterate through all modules
+    // for (const module of version.modules) {
+    //   // Iterate through all sections in each module
+    //   for (const section of module.sections) {
+    //     try {
+    //       const itemsGroup = await this.readItemsGroup(
+    //         section.itemsGroupId.toString(),
+    //         session,
+    //       );
+    //       totalCount += itemsGroup.items.length;
+    //     } catch (error) {
+    //       // If itemsGroup is not found, skip this section
+    //       if (error instanceof NotFoundError) {
+    //         continue;
+    //       }
+    //       throw error;
+    //     }
+    //   }
+    // }
 
-    return totalCount;
+    // return totalCount;
+    // Parallelize all section fetches
+    const allItemsPromises = version.modules.flatMap(module =>
+      module.sections.map(section =>
+        this.readItemsGroup(section.itemsGroupId.toString(), session)
+          .then(group => group.items.length)
+          .catch(err =>
+            err instanceof NotFoundError ? 0 : Promise.reject(err),
+          ),
+      ),
+    );
+
+    const itemsCounts = await Promise.all(allItemsPromises);
+
+    return itemsCounts.reduce((sum, count) => sum + count, 0);
   }
 
   async getTotalItemsCount(
@@ -679,8 +741,6 @@ export class ItemRepository implements IItemRepository {
     try {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      console.log('Cascade delete started at:', new Date().toISOString());
 
       // 1. Delete quizzes marked as deleted
       const deletedFilter = { isDeleted: true, deletedAt: { $lte: thirtyDaysAgo } };
@@ -790,4 +850,159 @@ export class ItemRepository implements IItemRepository {
       console.error('Cascade delete failure:', error);
     }
   }
+
+  async getItemGroupsByIds(
+    itemGroupIds: string[],
+    session?: ClientSession,
+  ): Promise<ItemsGroup[]> {
+    await this.init();
+
+    const objectIds = itemGroupIds.map(id => new ObjectId(id));
+    const itemGroups = await this.itemsGroupCollection
+      .find({ _id: { $in: objectIds } }, { session })
+      .toArray();
+
+    return itemGroups.map(ig =>
+      instanceToPlain(Object.assign(new ItemsGroup(), ig)),
+    ) as ItemsGroup[];
+  }
+
+  async updateItemsGroupsBulk(
+    itemGroups: ItemsGroup[],
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+
+    const bulkOps = itemGroups.map(group => ({
+      replaceOne: {
+        filter: { _id: new ObjectId(group._id) },
+        replacement: group,
+        upsert: true,
+      },
+    }));
+
+    const result = await this.itemsGroupCollection.bulkWrite(bulkOps, {
+      session,
+    });
+
+    return result.modifiedCount;
+  }
+
+  async updateItemById(
+    itemId: string,
+    item: Item,
+    itemType: string,
+    session?: ClientSession,
+  ): Promise<Item> {
+    await this.init();
+    let collection: Collection<any>;
+    switch (itemType) {
+      case ItemType.VIDEO:
+        collection = this.videoCollection;
+        break;
+      case ItemType.QUIZ:
+        collection = this.quizCollection;
+        break;
+      case ItemType.BLOG:
+        collection = this.blogCollection;
+        break;
+      case ItemType.PROJECT:
+        collection = this.projectCollection;
+        break;
+      case ItemType.FEEDBACK:
+        collection = this.feedbackFormCollection;
+        break;
+      default:
+        throw new InternalServerError(
+          `Unsupported item type: ${(item as any).type}`,
+        );
+    }
+
+    const result = await collection.findOneAndUpdate(
+      { _id: new ObjectId(itemId) },
+      { $set: item },
+      { session, returnDocument: 'after' },
+    );
+
+    if (!result) {
+      throw new NotFoundError(`Item ${itemId} not found.`);
+    }
+
+    return result as Item;
+  }
+
+  async calculateItemCountsForVersion(
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<{
+    totalItems: number;
+    itemCounts: Record<string, number>;
+  }> {
+    await this.init();
+    // 1️⃣ Load version (modules + sections embedded)
+    const courseVersion = await this.courseRepo.readVersion(
+      courseVersionId,
+      session,
+    );
+    if (!courseVersion) {
+      throw new Error(`CourseVersion ${courseVersionId} not found`);
+    }
+
+    // 2️⃣ Collect all itemsGroupIds
+    const itemsGroupIds: ObjectId[] = [];
+
+    for (const module of courseVersion.modules ?? []) {
+      if (module.isHidden) continue;
+      for (const section of module.sections ?? []) {
+        if (!section.isHidden && section.itemsGroupId) {
+          itemsGroupIds.push(new ObjectId(section.itemsGroupId));
+        }
+      }
+    }
+
+    if (!itemsGroupIds.length) {
+      return { totalItems: 0, itemCounts: {} };
+    }
+
+    // 3️⃣ Aggregate from ItemsGroup
+    const result = await this.itemsGroupCollection
+      .aggregate(
+        [
+          {
+            $match: {
+              _id: { $in: itemsGroupIds },
+              isHidden:{$ne:true}
+            },
+          },
+          { $unwind: '$items' },
+          {
+            $match: {
+              'items.isHidden': { $ne: true }
+            }
+          },
+          {
+            $group: {
+              _id: '$items.type',
+              count: { $sum: 1 },
+            },
+          },
+        ],
+        { session },
+      )
+      .toArray();
+
+    // 4️⃣ Build response
+    const itemCounts: Record<string, number> = {};
+    let totalItems = 0;
+
+    for (const row of result) {
+      itemCounts[row._id] = row.count;
+      totalItems += row.count;
+    }
+
+    return { totalItems, itemCounts };
+  }
+
+
+
 }

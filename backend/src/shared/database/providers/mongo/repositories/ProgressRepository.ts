@@ -16,10 +16,17 @@ class ProgressRepository {
   private progressCollection!: Collection<IProgress>;
   private watchTimeCollection!: Collection<IWatchTime>;
   private attemptCollection: Collection<IAttempt>;
+  private initialized = false;
 
   constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
 
   private async init() {
+    // Initialize only once to prevent catalog change errors
+    if (this.initialized) {
+      return;
+    }
+    this.initialized = true;
+
     this.progressCollection = await this.db.getCollection<IProgress>(
       'progress',
     );
@@ -29,6 +36,46 @@ class ProgressRepository {
     this.attemptCollection = await this.db.getCollection<IAttempt>(
       'quiz_attempts',
     );
+
+    // Create indexes with background: true and error handling
+    try {
+      await this.progressCollection.createIndex(
+        {
+          userId: 1,
+          courseId: 1,
+          courseVersionId: 1,
+        },
+        {background: true},
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      await this.watchTimeCollection.createIndex(
+        {
+          userId: 1,
+          courseId: 1,
+          courseVersionId: 1,
+          itemId: 1,
+        },
+        {background: true},
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      await this.attemptCollection.createIndex(
+        {
+          userId: 1,
+          quizId: 1,
+        },
+        {background: true},
+      );
+    } catch (e) {
+      // Index already exists
+    }
   }
 
   async getCompletedItems(
@@ -360,13 +407,35 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<IProgress | null> {
     await this.init();
+    console.log(
+      '<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Hey from updated progress REPO>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>',
+    );
+    const normalizedProgress: Partial<CurrentProgress> = {
+      ...progress,
+
+      currentModule:
+        typeof progress.currentModule === 'string'
+          ? new ObjectId(progress.currentModule)
+          : progress.currentModule,
+
+      currentSection:
+        typeof progress.currentSection === 'string'
+          ? new ObjectId(progress.currentSection)
+          : progress.currentSection,
+
+      currentItem:
+        typeof progress.currentItem === 'string'
+          ? new ObjectId(progress.currentItem)
+          : progress.currentItem,
+    };
+
     const result = await this.progressCollection.findOneAndUpdate(
       {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      {$set: progress},
+      {$set: normalizedProgress},
       {returnDocument: 'after', session},
     );
     return result;
@@ -413,10 +482,6 @@ class ProgressRepository {
     return result.insertedId.toString();
   }
   async stopItemTracking(
-    userId: string | ObjectId,
-    courseId: string,
-    courseVersionId: string,
-    itemId: string,
     watchTimeId: string,
     session?: ClientSession,
   ): Promise<IWatchTime | null> {
@@ -424,15 +489,12 @@ class ProgressRepository {
     const result = await this.watchTimeCollection.findOneAndUpdate(
       {
         _id: new ObjectId(watchTimeId),
-        userId: new ObjectId(userId),
-        courseId: new ObjectId(courseId),
-        courseVersionId: new ObjectId(courseVersionId),
-        itemId: new ObjectId(itemId),
         isDeleted: {$ne: true},
       },
       {$set: {endTime: new Date()}},
       {returnDocument: 'after', session},
     );
+    console.log(result);
     return result;
   }
 
@@ -582,6 +644,65 @@ class ProgressRepository {
     );
 
     return result.acknowledged && result.deletedCount > 0;
+  }
+
+  async updateProgressByItemId(
+    itemId: string,
+    updateData: Partial<IProgress>,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+    const result = await this.progressCollection.updateMany(
+      {currentItem: new ObjectId(itemId)},
+      {$set: updateData},
+      {session},
+    );
+    return result.modifiedCount;
+  }
+
+  async updateProgressBySectionId(
+    sectionId: string,
+    updateData: Partial<IProgress>,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+    const result = await this.progressCollection.updateMany(
+      {currentSection: new ObjectId(sectionId)},
+      {$set: updateData},
+      {session},
+    );
+    return result.modifiedCount;
+  }
+
+  async updateProgressByModuleId(
+    moduleId: string,
+    updateData: Partial<IProgress>,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+    const result = await this.progressCollection.updateMany(
+      {currentModule: new ObjectId(moduleId)},
+      {$set: updateData},
+      {session},
+    );
+    return result.modifiedCount;
+  }
+
+  async getUserProgressByVersionId(
+    userId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<IProgress | null> {
+    await this.init();
+    const progress = await this.progressCollection.findOne(
+      {
+        userId: new ObjectId(userId),
+        courseVersionId: new ObjectId(courseVersionId),
+        isDeleted: {$ne: true},
+      },
+      {session},
+    );
+    return progress;
   }
 }
 
