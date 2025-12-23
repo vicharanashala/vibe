@@ -169,20 +169,18 @@ export class ItemService extends BaseService {
       // Step 3: Run multiple async operations in parallel
       const [
         createdItemDetailsPersistenceResult,
-        totalItemsCountIfNeeded,
+        // totalItemsCountIfNeeded,
         enrollments,
-        itemCounts_totalItems,
       ] = await Promise.all([
         this.itemRepo.createItem(item.itemDetails, session),
-        version.totalItems
-          ? Promise.resolve(null)
-          : this.itemRepo.CalculateTotalItemsCount(
-            courseId,
-            version._id.toString(),
-            session,
-          ),
+        // version.totalItems
+        //   ? Promise.resolve(null)
+        //   : this.itemRepo.CalculateTotalItemsCount(
+        //     courseId,
+        //     version._id.toString(),
+        //     session,
+        //   ),
         this.enrollmentRepo.getByCourseVersion(courseId, versionId, session),
-        this.itemRepo.calculateItemCountsForVersion(version._id.toString(),session)
       ]);
 
       // Step 3a: Validate creation
@@ -193,13 +191,6 @@ export class ItemService extends BaseService {
       }
       createdItemDetailsPersistenceResult._id =
         createdItemDetailsPersistenceResult._id.toString();
-
-      // Step 3b: Update totalItems
-      version.totalItems = version.totalItems
-        ? version.totalItems + 1
-        : Math.max(totalItemsCountIfNeeded || 0, 1);
-
-      version.itemCounts=itemCounts_totalItems.itemCounts;
 
       // Step 4: Update enrollment progress in bulk
       await this.progressService.updateEnrollmentProgressPercentBulk(
@@ -222,6 +213,15 @@ export class ItemService extends BaseService {
         itemsGroup,
         session,
       );
+
+      // Step 3b: Update totalItems
+      const { totalItems, itemCounts } =
+        await this.itemRepo.calculateItemCountsForVersion(
+          versionId,
+          session
+        );
+      version.totalItems = totalItems;
+      version.itemCounts = itemCounts;
 
       // Step 6: Update hierarchy timestamps
       const updatedVersion = await this._updateHierarchyAndVersion(
@@ -523,15 +523,20 @@ export class ItemService extends BaseService {
         const versionId = version._id.toString();
 
         // Step 3: Run in parallel: count total items, delete watch time, get enrollments
-        const [totalItems, itemCounts_totalItems, _,enrollments] = await Promise.all([
-          this.itemRepo.CalculateTotalItemsCount(courseId, versionId, session),
-          this.itemRepo.calculateItemCountsForVersion(versionId,session),
+        const [_, enrollments] = await Promise.all([
+          // this.itemRepo.CalculateTotalItemsCount(courseId, versionId, session),
           this.progressRepo.deleteWatchTimeByItemId(itemId, session),
           this.enrollmentRepo.getByCourseVersion(courseId, versionId, session),
         ]);
 
+
+        const { totalItems, itemCounts } =
+          await this.itemRepo.calculateItemCountsForVersion(
+            versionId,
+            session
+          );
         version.totalItems = totalItems;
-        version.itemCounts=itemCounts_totalItems.itemCounts;
+        version.itemCounts = itemCounts;
 
         // Step 4: Update progress for all users in parallel
         await this.progressService.updateEnrollmentProgressPercentBulk(
