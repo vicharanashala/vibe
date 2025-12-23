@@ -584,7 +584,7 @@ class ProgressService extends BaseService {
 
   public async getNextItemInSequence(
     courseVersion: ICourseVersion,
-    moduleId: string,
+    moduleId: string, 
     sectionId: string,
     itemId: string,
   ): Promise<{
