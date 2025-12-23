@@ -65,7 +65,7 @@ export interface ItemContainerProps {
 }
 
 export interface ItemContainerRef {
-  stopCurrentItem: () => void;
+  stopCurrentItem: () => Promise<void>;
 }
 
 export type ItemMeta = {
