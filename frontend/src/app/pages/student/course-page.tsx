@@ -818,8 +818,44 @@ export default function CoursePage() {
       try {
         // 1️⃣ Stop current item (clean + API)
         if (itemContainerRef.current) {
-          itemContainerRef.current.stopCurrentItem();
-          await new Promise(res => setTimeout(res, 30));
+          try {
+            await itemContainerRef.current.stopCurrentItem();
+          } catch (error: any) {
+            const errorMessage = error?.response?.data?.message || error?.message || 'Failed to save progress. Please try again.';
+            toast.error(errorMessage);
+            
+            // Navigate to previous video item on stop API failure
+            const previousVideoItem = findPreviousVideoItem();
+            if (previousVideoItem && previousVideoItem.itemId && previousVideoItem.itemId !== selectedItemId) {
+              
+              // Update local React state to trigger re-render
+              setSelectedModuleId(previousVideoItem.moduleId);
+              setSelectedSectionId(previousVideoItem.sectionId);
+              setSelectedItemId(previousVideoItem.itemId);
+              
+              // Expand the module and section
+              setExpandedModules(prev => ({ ...prev, [previousVideoItem.moduleId]: true }));
+              setExpandedSections(prev => ({ ...prev, [previousVideoItem.sectionId]: true }));
+              
+              // Ensure section items are loaded
+              if (!sectionItems[previousVideoItem.sectionId]) {
+                setActiveSectionInfo({
+                  moduleId: previousVideoItem.moduleId,
+                  sectionId: previousVideoItem.sectionId
+                });
+              }
+              
+              // Update course store
+              updateCourseNavigation(
+                previousVideoItem.moduleId,
+                previousVideoItem.sectionId,
+                previousVideoItem.itemId
+              );
+            }
+            
+            setIsNavigatingToNext(false);
+            return;
+          }
         }
 
         // 2️⃣ Determine next item
