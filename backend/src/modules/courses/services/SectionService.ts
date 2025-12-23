@@ -1,19 +1,19 @@
-import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {injectable, inject} from 'inversify';
-import {ObjectId, UpdateResult} from 'mongodb';
-import {NotFoundError, InternalServerError} from 'routing-controllers';
-import {COURSES_TYPES} from '#courses/types.js';
-import {ItemsGroup} from '#courses/classes/transformers/Item.js';
-import {Section} from '#courses/classes/transformers/Section.js';
-import {CreateSectionBody} from '#courses/classes/validators/SectionValidators.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import {ICourseVersion} from '#root/shared/interfaces/models.js';
-import {EnrollmentRepository, ProgressRepository} from '#root/shared/index.js';
-import {USERS_TYPES} from '#root/modules/users/types.js';
+import { calculateNewOrder } from '#courses/utils/calculateNewOrder.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { injectable, inject } from 'inversify';
+import { ObjectId, UpdateResult } from 'mongodb';
+import { NotFoundError, InternalServerError } from 'routing-controllers';
+import { COURSES_TYPES } from '#courses/types.js';
+import { ItemsGroup } from '#courses/classes/transformers/Item.js';
+import { Section } from '#courses/classes/transformers/Section.js';
+import { CreateSectionBody } from '#courses/classes/validators/SectionValidators.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { ICourseVersion } from '#root/shared/interfaces/models.js';
+import { EnrollmentRepository, ProgressRepository } from '#root/shared/index.js';
+import { USERS_TYPES } from '#root/modules/users/types.js';
 @injectable()
 export class SectionService extends BaseService {
   constructor(
@@ -96,10 +96,10 @@ export class SectionService extends BaseService {
       if (!section) throw new InternalServerError('Section not found');
 
       //Update Section
-      Object.assign(section, body.name ? {name: body.name} : {});
+      Object.assign(section, body.name ? { name: body.name } : {});
       Object.assign(
         section,
-        body.description ? {description: body.description} : {},
+        body.description ? { description: body.description } : {},
       );
       section.updatedAt = new Date();
 
@@ -212,18 +212,36 @@ export class SectionService extends BaseService {
       }
 
       // Update total item count
-      const updatedVersion = await this.courseRepo.readVersion(
-        versionId,
+      // const version = await this.courseRepo.readVersion(
+      //   versionId,
+      //   session,
+      // );
+      // if (!version) {
+      //   throw new NotFoundError('Updated version not found');
+      // }
+      readCourseVersion.totalItems = await this.itemRepo.CalculateTotalItemsCount(
+        readCourseVersion.courseId.toString(),
+        readCourseVersion._id.toString(),
         session,
       );
-      if (!updatedVersion) {
-        throw new NotFoundError('Updated version not found');
-      }
-      updatedVersion.totalItems = await this.itemRepo.CalculateTotalItemsCount(
-        updatedVersion.courseId.toString(),
-        updatedVersion._id.toString(),
+
+      const { totalItems, itemCounts } =
+        await this.itemRepo.calculateItemCountsForVersion(
+          readCourseVersion._id.toString(),
+          session
+        );
+
+      readCourseVersion.totalItems = totalItems;
+      readCourseVersion.itemCounts = itemCounts;
+
+      readCourseVersion.updatedAt = new Date();
+
+      const updatedVersion = await this.courseRepo.updateVersion(
+        readCourseVersion._id.toString(),
+        readCourseVersion,
         session,
       );
+
       return deleteResult;
     });
   }
@@ -254,19 +272,6 @@ export class SectionService extends BaseService {
 
       // Update Module Update Date
       module.updatedAt = new Date();
-
-      // Update Version Update Date
-      version.updatedAt = new Date();
-
-      // Update Version
-      const updatedVersion = await this.courseRepo.updateVersion(
-        versionId,
-        version,
-        session,
-      );
-      if (!updatedVersion) {
-        throw new InternalServerError('Failed to update Section');
-      }
 
       // Hide all items in the section
       const itemsGroupId = section.itemsGroupId.toString();
@@ -320,12 +325,34 @@ export class SectionService extends BaseService {
             const nextItemId = nextItemsGroup.items[0]._id.toString();
             await this.progressRepo.updateProgressBySectionId(
               section.sectionId.toString(),
-              {currentSection: nextSection.sectionId, currentItem: nextItemId},
+              { currentSection: nextSection.sectionId, currentItem: nextItemId },
               session,
             );
           }
         }
       }
+
+      // Update Version Update Date
+      const { totalItems, itemCounts } =
+        await this.itemRepo.calculateItemCountsForVersion(
+          version._id.toString(),
+          session
+        );
+
+      version.totalItems = totalItems;
+      version.itemCounts = {...itemCounts};
+
+      version.updatedAt = new Date();
+      // Update Version
+      const updatedVersion = await this.courseRepo.updateVersion(
+        versionId,
+        version,
+        session,
+      );
+      if (!updatedVersion) {
+        throw new InternalServerError('Failed to update Section');
+      }
+
 
       return updatedVersion;
     });
