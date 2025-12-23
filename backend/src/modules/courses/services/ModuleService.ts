@@ -50,6 +50,51 @@ export class ModuleService extends BaseService {
       const version = await this.courseRepo.readVersion(versionId, session);
       if (!version) throw new NotFoundError(`Version ${versionId} not found.`);
 
+      // Prevent creation if there is empty section at last
+      const modules = version.modules.filter(m => !m.isDeleted);
+
+      if (modules.length > 0) {
+        const lastModule = modules[modules.length - 1];
+
+        const sections = lastModule.sections.filter(s => !s.isDeleted);
+
+        // No sections at all
+        if (sections.length === 0) {
+          throw new BadRequestError(
+            'Cannot create a new module. The previous module has no sections.',
+          );
+        }
+
+        const lastSection = sections[sections.length - 1];
+
+        // Section exists but no items group linked
+        if (!lastSection.itemsGroupId) {
+          throw new BadRequestError(
+            'Cannot create a new module. The last section of the previous module is incomplete.',
+          );
+        }
+
+        // Fetch items group
+        const itemsGroup = await this.itemRepo.readItemsGroup(
+          lastSection.itemsGroupId.toString(),
+          session,
+        );
+
+        // Items group missing
+        if (!itemsGroup) {
+          throw new BadRequestError(
+            'Cannot create a new module. The last section has no valid items group.',
+          );
+        }
+
+        // Items group exists but empty
+        if (!itemsGroup.items || itemsGroup.items.length === 0) {
+          throw new BadRequestError(
+            'Cannot create a new module. The last section contains no items.',
+          );
+        }
+      }
+
       const module = new Module(body, version.modules);
       version.modules.push(module);
       version.updatedAt = new Date();
@@ -71,7 +116,9 @@ export class ModuleService extends BaseService {
   ) {
     return this._withTransaction(async session => {
       const version = await this.courseRepo.readVersion(versionId, session);
-      const module = version.modules.find(m => m.moduleId?.toString() === moduleId);
+      const module = version.modules.find(
+        m => m.moduleId?.toString() === moduleId,
+      );
       if (!module) throw new NotFoundError(`Module ${moduleId} not found.`);
 
       if (body.name) module.name = body.name;
@@ -105,7 +152,9 @@ export class ModuleService extends BaseService {
       const sorted = version.modules
         .slice()
         .sort((a, b) => a.order.localeCompare(b.order));
-      const module = version.modules.find(m => m.moduleId?.toString() === moduleId);
+      const module = version.modules.find(
+        m => m.moduleId?.toString() === moduleId,
+      );
       if (!module) throw new NotFoundError(`Module ${moduleId} not found.`);
 
       module.order = calculateNewOrder(
