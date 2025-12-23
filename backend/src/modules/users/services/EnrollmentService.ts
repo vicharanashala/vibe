@@ -698,6 +698,22 @@ export class EnrollmentService extends BaseService {
           results.push({ userId, error: 'User not found' });
           continue;
         }
+        const existingEnrollment = await this.enrollmentRepo.findActiveEnrollment(
+          userId,
+          courseId,
+          courseVersionId,
+          session,
+        );
+
+        if (existingEnrollment) {
+          // User already enrolled, skip
+          results.push({
+            userId,
+            status: 'ALREADY_ENROLLED',
+            enrollmentId: existingEnrollment._id.toString(),
+          });
+          continue;
+        }
 
         enrollmentsToCreate.push({
           userId: new ObjectId(userId),

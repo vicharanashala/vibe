@@ -398,12 +398,35 @@ export class InviteService extends BaseService {
       }
     }
 
+    const seenEmails = new Set<string>();
+    const uniqueInviteData = inviteData.filter(invite => {
+      const normalizedEmail = invite.email.toLowerCase().trim();
+      if (seenEmails.has(normalizedEmail)) {
+        return false; // Skip duplicate
+      }
+      seenEmails.add(normalizedEmail);
+      return true;
+    });
+
     // Create all invites in a single transaction
     const invites = await this._withTransaction(async session => {
       const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
       //  Create all invites in parallel
-      const invitePromises = inviteData.map(async ({ email, role }) => {
+      const invitePromises = uniqueInviteData.map(async ({ email, role }) => {
+        const normalizedEmail = email.toLowerCase().trim();
+        const existingPendingInvite = await this.inviteRepo.findPendingInviteByEmailAndCourse(
+          normalizedEmail,
+          courseId,
+          courseVersionId,
+          session,
+        );
+
+        if (existingPendingInvite) {
+          // Return existing invite ID instead of creating duplicate
+          return existingPendingInvite._id.toString();
+        }
+
         const user = await this.userRepo.findByEmail(email);
         const isNewUser = !user;
 
@@ -415,7 +438,7 @@ export class InviteService extends BaseService {
           ))
           : false;
         const invite = new Invite({
-          email: email,
+          email: normalizedEmail,
           courseId: new ObjectId(courseId),
           courseVersionId: new ObjectId(courseVersionId),
           role,
