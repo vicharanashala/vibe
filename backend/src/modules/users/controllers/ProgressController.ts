@@ -488,7 +488,7 @@ It returns an empty body with a 200 status code.
   async getLeaderboard(
     @Params() params: GetUserProgressParams,
     @QueryParams() query: GetLeaderboardQuery,
-    @CurrentUser() user:IUser
+    @CurrentUser() user: IUser,
   ): Promise<{
     data: Array<{
       userId: string;
