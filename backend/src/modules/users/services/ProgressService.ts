@@ -354,7 +354,7 @@ class ProgressService extends BaseService {
       //   ));
       const [totalItems, completedItems] = await Promise.all([
         totalItemCount ??
-        this.itemRepo.CalculateTotalItemsCount(
+        this.itemRepo.getTotalItemsCount(
           courseId,
           courseVersionId,
           session,
