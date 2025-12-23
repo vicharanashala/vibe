@@ -627,7 +627,7 @@ function showExplanationBox(text: string) {
      
       // No reponse for skipped quiz!
       if (!response) {
-        await stopItemAsync(isSkipped); 
+        // ✅ Stop will be called by course-page.tsx via ref
         setQuizCompleted(true);
         return;
       }
@@ -652,28 +652,14 @@ function showExplanationBox(text: string) {
         });
         setScore(totalScore);
       }
-      try{
-        await stopItemAsync(); 
-      }
-      catch (err){
-        console.error('Error stopping item after quiz submission:', err);
-      }
-      finally{
-        setQuizCompleted(true);
-      }
+      
+      // ✅ Stop will be called by course-page.tsx via ref - don't call it here
+      setQuizCompleted(true);
 
     } catch (err) {
       console.error('Failed to submit quiz:', err);
-      // handleStopItem();
-      try{
-        await stopItemAsync(isSkipped);
-      }
-      catch(err){
-        console.error('Error stopping item after failed quiz submission:', err);
-      }
-      finally{
-        setQuizCompleted(true);
-      }
+      // ✅ Even on error, mark as completed so course-page can handle stop API
+      setQuizCompleted(true);
     }
   }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem]);
 
@@ -964,15 +950,36 @@ if (explanationText.trim()) {
 
   // ===== IMPERATIVE HANDLE =====
   useImperativeHandle(ref, () => ({
-    stopItem: handleStopItem,
+    stopItem: async () => {
+      if (!currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
+      
+      try {
+        await stopItem.mutateAsync({
+          params: {
+            path: {
+              courseId: currentCourse.courseId,
+              courseVersionId: currentCourse.versionId ?? '',
+            },
+          },
+          body: {
+            watchItemId: currentCourse.watchItemId,
+            itemId: currentCourse.itemId,
+            moduleId: currentCourse.moduleId ?? '',
+            sectionId: currentCourse.sectionId ?? '',
+            attemptId,
+            isSkipped: false
+          }
+        });
+        itemStartedRef.current = false;
+      } catch (error: any) {
+        console.error('❌ Quiz stopItem error:', error);
+        throw error; // Re-throw for parent to catch
+      }
+    },
     cleanup: () => {
-      // Remove the stop call here too
-      // if (itemStartedRef.current) {
-      //   handleStopItem();
-      // }
       resetQuiz();
     }
-  }), [handleStopItem, resetQuiz]);
+  }), [stopItem, currentCourse, attemptId, resetQuiz]);
 
   // ===== RENDER LOGIC =====
 
