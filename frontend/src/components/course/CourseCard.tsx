@@ -371,7 +371,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                               <div className="flex items-center gap-2.5 pt-1">
                                 <Button asChild className="flex-1">
                                   <a
-                                    href="https://discord.gg/furXD6JP"
+                                    href="https://discord.gg/kKNBu3PF"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center justify-center gap-2"
@@ -387,7 +387,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                                   onClick={async () => {
                                     try {
                                       await navigator.clipboard.writeText(
-                                        "https://discord.gg/furXD6JP"
+                                        "https://discord.gg/kKNBu3PF"
                                       );
                                       setCopied(true);
                                       setCopyError(false);
