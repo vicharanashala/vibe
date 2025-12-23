@@ -569,13 +569,13 @@ export class ItemRepository implements IItemRepository {
       );
     }
     itemsGroup.items.splice(itemIndex, 1);
-    
-      await this.itemsGroupCollection.updateOne(
-        {_id: new ObjectId(itemGroupsId)},
-        {$set: {items: itemsGroup.items}},
-        {session},
-      );
-    
+
+    await this.itemsGroupCollection.updateOne(
+      { _id: new ObjectId(itemGroupsId) },
+      { $set: { items: itemsGroup.items } },
+      { session },
+    );
+
     return itemsGroup;
   }
 
@@ -954,7 +954,7 @@ export class ItemRepository implements IItemRepository {
     for (const module of courseVersion.modules ?? []) {
       if (module.isHidden || module.isDeleted) continue;
       for (const section of module.sections ?? []) {
-        if (!section.isHidden && section.itemsGroupId && !section.isDeleted) {
+        if (section.itemsGroupId && !section.isDeleted) {
           itemsGroupIds.push(new ObjectId(section.itemsGroupId));
         }
       }
@@ -971,7 +971,7 @@ export class ItemRepository implements IItemRepository {
           {
             $match: {
               _id: { $in: itemsGroupIds },
-              isHidden:{$ne:true}
+              isHidden: { $ne: true }
             },
           },
           { $unwind: '$items' },
