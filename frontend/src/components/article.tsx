@@ -107,21 +107,27 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
    async function handleStopItem() {
         if (!currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
         
-       await stopItem.mutateAsync({
-            params: {
-                path: {
-                    courseId: currentCourse.courseId,
-                    courseVersionId: currentCourse.versionId ?? '',
+        try {
+            await stopItem.mutateAsync({
+                params: {
+                    path: {
+                        courseId: currentCourse.courseId,
+                        courseVersionId: currentCourse.versionId ?? '',
+                    },
                 },
-            },
-            body: {
-                watchItemId: currentCourse.watchItemId,
-                itemId: currentCourse.itemId,
-                moduleId: currentCourse.moduleId ?? '',
-                sectionId: currentCourse.sectionId ?? '',
-            }
-        });
-        itemStartedRef.current = false;
+                body: {
+                    watchItemId: currentCourse.watchItemId,
+                    itemId: currentCourse.itemId,
+                    moduleId: currentCourse.moduleId ?? '',
+                    sectionId: currentCourse.sectionId ?? '',
+                }
+            });
+            itemStartedRef.current = false;
+        } catch (error: any) {
+            console.error('❌ handleStopItem error:', error);
+            // Re-throw the error so it can be caught by the parent
+            throw error;
+        }
     }
 
     // // ✅ Handle Next button click - send stop request only when user clicks Next
