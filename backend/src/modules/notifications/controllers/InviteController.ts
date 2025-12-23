@@ -322,4 +322,22 @@ export class InviteController {
 
     return this.inviteService.cancelInvite(inviteId);
   }
+
+  @Post('/remove-pending')
+  @HttpCode(200)
+  @OpenAPI({
+    summary: 'Remove Pending Invite',
+    description: 'Remove a pending invite ',
+  })
+  @ResponseSchema(MessageResponse, {
+    description: 'Pending invites removed successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid input data',
+    statusCode: 400,
+  })
+  async removePendingInvite(): Promise<MessageResponse> {
+    return this.inviteService.removePendingInvites();
+  }
 }

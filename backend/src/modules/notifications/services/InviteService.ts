@@ -10,7 +10,7 @@ import type { ICourseRepository } from '#shared/database/interfaces/ICourseRepos
 import { UserRepository } from '#shared/database/providers/mongo/repositories/UserRepository.js';
 import { InviteRepository } from '#shared/database/providers/mongo/repositories/InviteRepository.js';
 import { MailService } from './MailService.js';
-import { Invite } from '../classes/transformers/Invite.js';
+import { Invite, MessageResponse } from '../classes/transformers/Invite.js';
 import {
   EnrollmentRole,
   ICourseVersion,
@@ -772,4 +772,15 @@ export class InviteService extends BaseService {
       invite.courseVersionId,
     );
   }
+
+
+  async removePendingInvites(): Promise<any> {
+
+  return await this.inviteRepo.removePendingInvite();
+
+  // return {
+  //   message: 'Pending invite removed successfully',
+  // };
+}
+
 }
