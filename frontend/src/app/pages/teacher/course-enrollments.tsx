@@ -786,9 +786,10 @@ const {
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
                                   <p className="font-semibold text-foreground truncate text-base md:text-lg">
-                                    {enrollment?.user?.firstName && enrollment?.user?.lastName
-                                      ? `${enrollment.user.firstName} ${enrollment.user.lastName}`
-                                      : "Unknown User"}
+                                   {enrollment?.user?.firstName || enrollment?.user?.lastName
+  ? `${enrollment?.user?.firstName ?? ""} ${enrollment?.user?.lastName ?? ""}`.trim()
+  : "Unknown User"}
+
                                   </p>
                                   <span>{getRoleBadge(enrollment?.role)}</span>
                                 </div>
