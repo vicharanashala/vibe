@@ -687,7 +687,6 @@ class AttemptService extends BaseService {
         quizId,
         session,
       );
-
       // Transform attempts data as needed for export
 
       let exportData: IQuizSubmissionExport[] = [];
