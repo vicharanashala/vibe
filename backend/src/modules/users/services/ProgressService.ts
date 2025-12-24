@@ -74,44 +74,48 @@ class ProgressService extends BaseService {
    * Initialize student progress tracking to the first item in the course.
    * Private helper method for the enrollment process.
    */
+
+
+
+
+  getFirstByOrder<T extends { order?: string }>(arr?: T[]): T | null {
+    if (!arr?.length) return null;
+
+    return arr.reduce((min, curr) => {
+      if (!curr?.order) return min;
+      if (!min?.order) return curr;
+      return curr.order < min.order ? curr : min;
+    });
+  }
+
+
+
   async initializeProgress(
     userId: string,
     courseId: string,
     courseVersionId: string,
-    courseVersion: ICourseVersion, // Replace with the actual type of courseVersion
+    courseVersion: ICourseVersion,
   ) {
-    // Get the first module, section, and item
-    if (!courseVersion.modules || courseVersion.modules.length === 0) {
-      return null; // No modules to track progress for
-    }
+    // 1. First module
+    const firstModule = this.getFirstByOrder(courseVersion.modules);
+    if (!firstModule) return null;
 
-    const firstModule = courseVersion.modules.sort((a, b) =>
-      a.order.localeCompare(b.order),
-    )[0];
+    // 2. First section
+    const firstSection = this.getFirstByOrder(firstModule.sections);
+    if (!firstSection) return null;
 
-    if (!firstModule.sections || firstModule.sections.length === 0) {
-      return null; // No sections to track progress for
-    }
-
-    const firstSection = firstModule.sections.sort((a, b) =>
-      a.order.localeCompare(b.order),
-    )[0];
-
-    // Get the first item from the itemsGroup
+    // 3. Load items group
     const itemsGroup = await this.itemRepo.readItemsGroup(
       firstSection.itemsGroupId.toString(),
     );
 
-    if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
-      return null; // No items to track progress for
-    }
+    if (!itemsGroup?.items?.length) return null;
 
-    const firstItem = itemsGroup.items.sort((a, b) =>
-      a.order.localeCompare(b.order),
-    )[0];
+    // 4. First item
+    const firstItem = this.getFirstByOrder(itemsGroup.items);
+    if (!firstItem) return null;
 
-    // Create progress record with the actual first item
-    // Blank quiz skipping will happen naturally during progression
+    // 5. Create progress
     return new Progress(
       userId,
       courseId,
@@ -129,13 +133,8 @@ class ProgressService extends BaseService {
     courseVersion: ICourseVersion,
     moduleId: string,
   ) {
-    // Get the first module, section, and item
-    if (!courseVersion.modules || courseVersion.modules.length === 0) {
-      return null; // No modules to track progress for
-    }
-
-    const module = courseVersion.modules.find(
-      module => module.moduleId.toString() === moduleId,
+    const module = courseVersion.modules?.find(
+      m => m.moduleId.toString() === moduleId,
     );
 
     if (!module) {
@@ -144,47 +143,35 @@ class ProgressService extends BaseService {
       );
     }
 
-    if (!module.sections || module.sections.length === 0) {
-      return null; // No sections to track progress for
-    }
+    const firstSection = this.getFirstByOrder(module.sections);
+    if (!firstSection) return null;
 
-    const firstSection = module.sections.sort((a, b) =>
-      a.order.localeCompare(b.order),
-    )[0];
-
-    // Get the first item from the itemsGroup
     const itemsGroup = await this.itemRepo.readItemsGroup(
       firstSection.itemsGroupId.toString(),
     );
 
-    if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
-      return null; // No items to track progress for
-    }
+    const firstItem = this.getFirstByOrder(itemsGroup?.items);
+    if (!firstItem) return null;
 
-    const firstItem = itemsGroup.items.sort((a, b) =>
-      a.order.localeCompare(b.order),
-    )[0];
-
-    const firstNonBlankItem = await this.findNextNonBlankItem(
+    const next = await this.findNextNonBlankItem(
       courseVersion,
       module.moduleId.toString(),
       firstSection.sectionId.toString(),
       firstItem._id.toString(),
     );
 
-    if (!firstNonBlankItem) {
-      return null;
-    }
+    if (!next) return null;
 
     return new Progress(
       userId,
       courseId,
       courseVersionId,
-      firstNonBlankItem.moduleId,
-      firstNonBlankItem.sectionId,
-      firstNonBlankItem.itemId,
+      next.moduleId,
+      next.sectionId,
+      next.itemId,
     );
   }
+
 
   private async initializeProgressToSection(
     userId: string,
@@ -194,13 +181,8 @@ class ProgressService extends BaseService {
     moduleId: string,
     sectionId: string,
   ) {
-    // Get the first module, section, and item
-    if (!courseVersion.modules || courseVersion.modules.length === 0) {
-      return null; // No modules to track progress for
-    }
-
-    const module = courseVersion.modules.find(
-      module => module.moduleId.toString() === moduleId,
+    const module = courseVersion.modules?.find(
+      m => m.moduleId.toString() === moduleId,
     );
 
     if (!module) {
@@ -209,47 +191,40 @@ class ProgressService extends BaseService {
       );
     }
 
-    const section = module.sections.find(
-      section => section.sectionId.toString() === sectionId,
+    const section = module.sections?.find(
+      s => s.sectionId.toString() === sectionId,
     );
 
     if (!section) {
       throw new NotFoundError('Section not found in the specified module.');
     }
 
-    // Get the first item from the itemsGroup
     const itemsGroup = await this.itemRepo.readItemsGroup(
       section.itemsGroupId.toString(),
     );
 
-    if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
-      return null; // No items to track progress for
-    }
+    const firstItem = this.getFirstByOrder(itemsGroup?.items);
+    if (!firstItem) return null;
 
-    const firstItem = itemsGroup.items.sort((a, b) =>
-      a.order.localeCompare(b.order),
-    )[0];
-
-    const firstNonBlankItem = await this.findNextNonBlankItem(
+    const next = await this.findNextNonBlankItem(
       courseVersion,
       module.moduleId.toString(),
       section.sectionId.toString(),
       firstItem._id.toString(),
     );
 
-    if (!firstNonBlankItem) {
-      return null;
-    }
+    if (!next) return null;
 
     return new Progress(
       userId,
       courseId,
       courseVersionId,
-      firstNonBlankItem.moduleId,
-      firstNonBlankItem.sectionId,
-      firstNonBlankItem.itemId,
+      next.moduleId,
+      next.sectionId,
+      next.itemId,
     );
   }
+
 
   private async initializeProgressToItem(
     userId: string,
@@ -260,13 +235,8 @@ class ProgressService extends BaseService {
     sectionId: string,
     itemId: string,
   ) {
-    // Get the first module, section, and item
-    if (!courseVersion.modules || courseVersion.modules.length === 0) {
-      return null; // No modules to track progress for
-    }
-
-    const module = courseVersion.modules.find(
-      module => module.moduleId.toString() === moduleId,
+    const module = courseVersion.modules?.find(
+      m => m.moduleId.toString() === moduleId,
     );
 
     if (!module) {
@@ -275,49 +245,45 @@ class ProgressService extends BaseService {
       );
     }
 
-    const section = module.sections.find(
-      section => section.sectionId.toString() === sectionId,
+    const section = module.sections?.find(
+      s => s.sectionId.toString() === sectionId,
     );
 
     if (!section) {
       throw new NotFoundError('Section not found in the specified module.');
     }
 
-    // Get the first item from the itemsGroup
     const itemsGroup = await this.itemRepo.readItemsGroup(
       section.itemsGroupId.toString(),
     );
 
-    if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
-      return null; // No items to track progress for
-    }
+    const itemExists = itemsGroup?.items?.some(
+      i => i._id.toString() === itemId,
+    );
 
-    const item = itemsGroup.items.find(item => item._id.toString() === itemId);
-
-    if (!item) {
+    if (!itemExists) {
       throw new NotFoundError('Item not found in the specified section.');
     }
 
-    const firstNonBlankItem = await this.findNextNonBlankItem(
+    const next = await this.findNextNonBlankItem(
       courseVersion,
       module.moduleId.toString(),
       section.sectionId.toString(),
-      item._id.toString(),
+      itemId,
     );
 
-    if (!firstNonBlankItem) {
-      return null;
-    }
+    if (!next) return null;
 
     return new Progress(
       userId,
       courseId,
       courseVersionId,
-      firstNonBlankItem.moduleId,
-      firstNonBlankItem.sectionId,
-      firstNonBlankItem.itemId,
+      next.moduleId,
+      next.sectionId,
+      next.itemId,
     );
   }
+
   async updateEnrollmentProgressPercent(
     userId: string,
     courseId: string,
