@@ -471,16 +471,27 @@ class ProgressService extends BaseService {
     sectionId: string,
     itemId: string,
   ): Promise<void> {
-    const [progress, completedItems] = await Promise.all([
-      this.progressRepository.findProgress(userId, courseId, courseVersionId),
-      this.progressRepository.getCompletedItems(userId, courseId, courseVersionId),
-    ]);
+
+    const progress = await this.progressRepository.findProgress(
+      userId,
+      courseId,
+      courseVersionId,
+    );
 
     if (!progress) {
       throw new NotFoundError('Progress not found');
     }
 
-    if (completedItems.includes(itemId)) {
+    // 🔥 O(1) check instead of distinct scan
+    const isCompleted =
+      await this.progressRepository.isItemCompleted(
+        userId,
+        courseId,
+        courseVersionId,
+        itemId,
+      );
+
+    if (isCompleted) {
       return;
     }
 
@@ -494,6 +505,7 @@ class ProgressService extends BaseService {
       );
     }
   }
+
 
 
   /**
@@ -584,7 +596,7 @@ class ProgressService extends BaseService {
 
   public async getNextItemInSequence(
     courseVersion: ICourseVersion,
-    moduleId: string, 
+    moduleId: string,
     sectionId: string,
     itemId: string,
   ): Promise<{
@@ -962,50 +974,60 @@ class ProgressService extends BaseService {
     courseVersionId: string,
   ): Promise<CompletedProgressResponse> {
     return this._withTransaction(async session => {
-      // Verify if the user, course, and course version exist
-      await this.verifyDetails(userId, courseId, courseVersionId);
 
-      const progress = await this.progressRepository.findProgress(
-        userId,
-        courseId,
-        courseVersionId,
-      );
+      // 🔥 Run independent reads in parallel
+      const [
+        _,
+        progress,
+        totalItems,
+        completedItemsArray,
+        enrollment,
+      ] = await Promise.all([
+        this.verifyDetails(userId, courseId, courseVersionId),
+
+        this.progressRepository.findProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          session,
+        ),
+
+        this.itemRepo.getTotalItemsCount(
+          courseId,
+          courseVersionId,
+          session,
+        ),
+
+        this.progressRepository.getCompletedItems(
+          userId.toString(),
+          courseId,
+          courseVersionId,
+          session,
+        ),
+
+        this.enrollmentRepo.findEnrollment(
+          userId,
+          courseId,
+          courseVersionId,
+          session,
+        ),
+      ]);
 
       if (!progress) {
         throw new NotFoundError('Progress not found');
       }
 
-      const totalItems = await this.itemRepo.getTotalItemsCount(
-        courseId,
-        courseVersionId,
-        session,
-      );
-
-      const completedItemsArray =
-        await this.progressRepository.getCompletedItems(
-          userId.toString(),
-          courseId,
-          courseVersionId,
-          session,
-        );
-
-      const enrollment = await this.enrollmentRepo.findEnrollment(
-        userId,
-        courseId,
-        courseVersionId,
-      );
-
-      // Use Set to ensure unique completed items and for efficient size comparison
       const completedItemsSet = new Set(completedItemsArray);
 
       return {
         completed: progress.completed,
         percentCompleted: enrollment.percentCompleted,
-        totalItems: totalItems,
+        totalItems,
         completedItems: completedItemsSet.size,
       };
     });
   }
+
 
   async getUserProgressPercentageWithoutTotal(
     userId: string | ObjectId,
@@ -1013,41 +1035,30 @@ class ProgressService extends BaseService {
     courseVersionId: string,
     existingSession?: ClientSession,
   ): Promise<number> {
-    if (existingSession) {
-      await this.verifyDetails(userId, courseId, courseVersionId);
 
-      const completedItemsArray =
-        await this.progressRepository.getCompletedItems(
-          userId.toString(),
-          courseId,
-          courseVersionId,
-          existingSession,
-        );
+    const run = async (session?: ClientSession): Promise<number> => {
+      // 🔥 Parallelize independent work
+      const [, completedItemsArray] = await Promise.all([
+        this.verifyDetails(userId, courseId, courseVersionId),
 
-      //
-
-      const completedItemsSet = new Set(completedItemsArray);
-      return completedItemsSet.size;
-    }
-
-    return this._withTransaction(async session => {
-      // Verify if the user, course, and course version exist
-      await this.verifyDetails(userId, courseId, courseVersionId);
-
-      const completedItemsArray =
-        await this.progressRepository.getCompletedItems(
+        this.progressRepository.getCompletedItems(
           userId.toString(),
           courseId,
           courseVersionId,
           session,
-        );
+        ),
+      ]);
 
-      // Use Set to ensure unique completed items and for efficient size comparison
-      const completedItemsSet = new Set(completedItemsArray);
+      return new Set(completedItemsArray).size;
+    };
 
-      return completedItemsSet.size;
-    });
+    if (existingSession) {
+      return run(existingSession);
+    }
+
+    return this._withTransaction(session => run(session));
   }
+
 
   async startItem(
     userId: string,
@@ -1085,7 +1096,6 @@ class ProgressService extends BaseService {
     });
   }
 
-
   async stopItem(
     userId: string,
     courseId: string,
@@ -1096,37 +1106,42 @@ class ProgressService extends BaseService {
     watchItemId: string,
   ): Promise<void> {
     return this._withTransaction(async session => {
-      // Verify if the user, course, and course version exist
-      await this.verifyDetails(userId, courseId, courseVersionId);
-      await this.verifyProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        moduleId,
-        sectionId,
-        itemId,
-      );
 
-      //Verify if the watchItemId is valid
-      const watchItem = await this.progressRepository.getWatchTimeById(
-        watchItemId,
-        session,
-      );
+      // 🔥 Run independent validations in parallel
+      const [, , watchItem] = await Promise.all([
+        this.verifyDetails(userId, courseId, courseVersionId),
+
+        this.verifyProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          moduleId,
+          sectionId,
+          itemId,
+        ),
+
+        this.progressRepository.getWatchTimeById(
+          watchItemId,
+          session,
+        ),
+      ]);
 
       if (!watchItem) {
         throw new NotFoundError('Watch item not found');
       }
 
-      // Stop tracking the item
-      const result: IWatchTime = await this.progressRepository.stopItemTracking(
+      // 🔒 Write happens after validations
+      const result = await this.progressRepository.stopItemTracking(
         watchItemId,
         session,
       );
+
       if (!result) {
         throw new InternalServerError('Failed to stop tracking item');
       }
     });
   }
+
 
   async updateProgress(
     userId: string,
