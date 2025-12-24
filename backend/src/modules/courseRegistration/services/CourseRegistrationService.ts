@@ -449,17 +449,17 @@ export class CourseRegistrationService extends BaseService {
           status,
           session,
         );
-        if(status==='APPROVED'){
-        const THROUGH_INVITE = true;
-        await this.enrollmentService.enrollUser(
-          data.userId.toString(),
-          data.courseId.toString(),
-          data.versionId.toString(),
-          'STUDENT',
-          THROUGH_INVITE,
-          session,
-        );
-      }
+        if (status === 'APPROVED') {
+          const THROUGH_INVITE = true;
+          await this.enrollmentService.enrollUser(
+            data.userId.toString(),
+            data.courseId.toString(),
+            data.versionId.toString(),
+            'STUDENT',
+            THROUGH_INVITE,
+            session,
+          );
+        }
         const emailMessage = await this.createStatusEmailMessage(
           data,
           course,
@@ -468,9 +468,10 @@ export class CourseRegistrationService extends BaseService {
         try {
           await this.mailService.sendMail(emailMessage);
         } catch (emailError) {
-          throw new InternalServerError(
-            `Failed to send email /MORE ${emailError}`,
-          );
+          console.log(`Failed to send email /MORE ${emailError}`);
+          // throw new InternalServerError(
+          //   `Failed to send email /MORE ${emailError}`,
+          // );
         }
 
         return updateResult;
