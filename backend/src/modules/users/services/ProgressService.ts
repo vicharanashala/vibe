@@ -334,8 +334,9 @@ class ProgressService extends BaseService {
         ),
       ]);
 
-      percentCompleted = Math.round(
-        (totalItems > 0 ? completedItems / totalItems : 0) * 100,
+      percentCompleted = this._calculateProgress(
+        totalItems,
+        completedItems,
       );
     }
 
@@ -374,7 +375,7 @@ class ProgressService extends BaseService {
             update: {
               $set: {
                 percentCompleted: this._calculateProgress(
-                  enrollment,
+
                   totalItems,
                   completedItems,
                 ),
@@ -394,7 +395,6 @@ class ProgressService extends BaseService {
 
   // Helper to calculate progress based on completed items
   private _calculateProgress(
-    enrollment: any,
     totalItems: number,
     completedItems: number,
   ): number {
