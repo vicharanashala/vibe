@@ -303,8 +303,19 @@ export default function CoursePage() {
         ...prev,
         [activeSectionInfo.sectionId]: sortedItems
       }));
+
+      if (!selectedItemId && sortedItems.length > 0) {
+        const firstItem = sortedItems[0];
+        console.log('Auto-selecting first item:', firstItem._id);
+        setSelectedItemId(firstItem._id);
+
+        // Update course store
+        if (selectedModuleId && selectedSectionId) {
+          updateCourseNavigation(selectedModuleId, selectedSectionId, firstItem._id);
+        }
+      }
     }
-  }, [currentSectionItems, itemsLoading, activeSectionInfo, shouldFetchItems]);
+  }, [currentSectionItems, itemsLoading, activeSectionInfo, shouldFetchItems, selectedItemId, selectedModuleId, selectedSectionId, updateCourseNavigation]);
   // console.log('Section items:', sectionItems);
 
   // Handle navigation to next section after items are loaded
@@ -427,6 +438,43 @@ export default function CoursePage() {
       setInitialLoadComplete(true);
     }
   }, [progressData, updateCourseNavigation, initialLoadComplete]);
+
+  // Effect to initialize to first item when there's NO progress data (new student)
+  useEffect(() => {
+    if (!progressLoading && !progressData && courseVersionData && !initialLoadComplete) {
+      const modules = (courseVersionData as any)?.modules || [];
+
+      if (modules.length > 0) {
+        const firstModule = modules[0];
+        const sections = firstModule.sections || [];
+
+        if (sections.length > 0) {
+          const firstSection = sections[0];
+          const moduleId = firstModule.moduleId;
+          const sectionId = firstSection.sectionId;
+
+          console.log('No progress found - initializing to first item:', { moduleId, sectionId });
+
+          // Set selected module and section
+          setSelectedModuleId(moduleId);
+          setSelectedSectionId(sectionId);
+
+          // Auto-expand the module and section
+          setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
+          setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
+
+          // Set active section to fetch items
+          setActiveSectionInfo({
+            moduleId,
+            sectionId
+          });
+
+          // Mark initial load as complete
+          setInitialLoadComplete(true);
+        }
+      }
+    }
+  }, [progressLoading, progressData, courseVersionData, initialLoadComplete]);
 
   // Effect to set current item when item data is fetched
   useEffect(() => {

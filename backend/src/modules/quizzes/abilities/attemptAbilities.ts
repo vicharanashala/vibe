@@ -92,10 +92,12 @@ export async function setupAttemptAbilities(
             courseSettings?.settings?.linearProgressionEnabled ?? true;
 
           const allowedItemIds = [...completedItems];
-          allowedItemIds.push(progress.currentItem.toString());
+          if (progress.currentItem) {
+            allowedItemIds.push(progress.currentItem.toString());
+          }
 
-          const attemptBounded: {quizId?: any} = {};
-          
+          const attemptBounded: { quizId?: any } = {};
+
           if (linearProgressionEnabled) {
             attemptBounded.quizId = {$in: allowedItemIds};
           }

@@ -67,12 +67,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const [dontStart, setDontStart] = useState(false);
   const [isEmptyQuiz, setIsEmptyQuiz] = useState(false);
   const [noAttemptsLeft, setNoAttemptsLeft] = useState(false);
-const [explanationBox, setExplanationBox] = useState<{
-  open: boolean;
-  text: string;
-  resolve?: () => void;
-}>({ open: false, text: "" });
-const [showExplanation,setShowExplanation] = useState(false)
+  const [explanationBox, setExplanationBox] = useState<{
+    open: boolean;
+    text: string;
+    resolve?: () => void;
+  }>({ open: false, text: "" });
+  const [showExplanation, setShowExplanation] = useState(false)
 
   // ===== REFS AND CONSTANTS =====
   const itemStartedRef = useRef(false);
@@ -81,7 +81,7 @@ const [showExplanation,setShowExplanation] = useState(false)
 
   // ===== HOOKS =====
   const { currentCourse, setWatchItemId } = useCourseStore();
-  const { mutateAsync: attemptQuiz, isPending, error: attemptError,data: attemptData} = useAttemptQuiz();
+  const { mutateAsync: attemptQuiz, isPending, error: attemptError, data: attemptData } = useAttemptQuiz();
   const [attempts, setAttempts] = useState<number>(0);
   const { mutateAsync: submitQuiz, isPending: isSubmitting, error: submitError } = useSubmitQuiz();
   const { mutateAsync: saveQuiz, isPending: isSaving, error: saveError } = useSaveQuiz();
@@ -92,26 +92,26 @@ const [showExplanation,setShowExplanation] = useState(false)
   // ===== UTILITY FUNCTIONS =====
 
 
-function showExplanationBox(text: string) {
-  setShowExplanation(true)
-  return new Promise<void>((resolve) => {
-    setExplanationBox({
-      open: true,
-      text,
-      resolve,
-    });
-    // AUTO-CLOSE after 3 seconds
-    setTimeout(() => {
-      setExplanationBox(prev => {
-        if (prev.open) {
-          prev.resolve?.(); 
-        }
-        setShowExplanation(false)
-        return { open: false, text: "" };
+  function showExplanationBox(text: string) {
+    setShowExplanation(true)
+    return new Promise<void>((resolve) => {
+      setExplanationBox({
+        open: true,
+        text,
+        resolve,
       });
-    }, 3500);
-  });
-}
+      // AUTO-CLOSE after 3 seconds
+      setTimeout(() => {
+        setExplanationBox(prev => {
+          if (prev.open) {
+            prev.resolve?.();
+          }
+          setShowExplanation(false)
+          return { open: false, text: "" };
+        });
+      }, 3500);
+    });
+  }
 
 
 
@@ -216,26 +216,26 @@ function showExplanationBox(text: string) {
           if ('lotItems' in question) {
             // Map the backend lotItems to frontend format
             // baseQuestion.lotItems = question.lotItems.map(item => ({
-              
+
             //   text: item.text,
             //   explaination: item.explaination ||'', // This field doesn't exist in LotItem from API
             //   _id: typeof item._id === 'string' ? item._id : item._id
             // }));
             baseQuestion.lotItems = question.lotItems.map(item => {
-  let optionId: string;
+              let optionId: string;
 
-  if (item._id && typeof item._id === 'object' && 'buffer' in item._id) {
-    optionId = bufferToHex(item._id);  // ✅ convert buffer to string
-  } else {
-    optionId = String(item._id);
-  }
+              if (item._id && typeof item._id === 'object' && 'buffer' in item._id) {
+                optionId = bufferToHex(item._id);  // ✅ convert buffer to string
+              } else {
+                optionId = String(item._id);
+              }
 
-  return {
-    text: item.text,
-    explaination: item.explaination || '',
-    _id: optionId,
-  };
-});
+              return {
+                text: item.text,
+                explaination: item.explaination || '',
+                _id: optionId,
+              };
+            });
             baseQuestion.options = question.lotItems.map(item => item.text);
           }
           break;
@@ -279,7 +279,7 @@ function showExplanationBox(text: string) {
           value?: number;
           orders?: Order[];
         } = {};
-        
+
         /*if (!userAnswer&& typeof userAnswer !== 'number') {
           // Default values for empty answers
           saveAnswer.lotItemId = '111111111111111111111111';
@@ -402,17 +402,17 @@ function showExplanationBox(text: string) {
     }
   }, [currentCourse, startItem, setWatchItemId]);
 
-  const handleStopItem = useCallback(async(isSkipped?:boolean) => {
+  const handleStopItem = useCallback(async (isSkipped?: boolean) => {
     if (!currentCourse?.itemId || !currentCourse.watchItemId) {
       itemStartedRef.current = false;
       return;
     }
-    
+
     if (!itemStartedRef.current) {
       return;
     }
-    
-   await stopItem.mutateAsync({
+
+    await stopItem.mutateAsync({
       params: {
         path: {
           courseId: currentCourse.courseId,
@@ -470,22 +470,22 @@ function showExplanationBox(text: string) {
   const handleEmptyQuiz = useCallback(async () => {
     try {
       console.log('Handling empty quiz - bypassing quiz attempt completely');
-      
+
       // Set empty quiz states
       setIsEmptyQuiz(true);
       setQuizStarted(true);
       setQuizCompleted(true);
       setQuizPassed?.(1);
-      
+
       // Start progress tracking
       await handleSendStartItem();
-      
+
       setTimeout(() => {
-        handleStopItem(true); 
-        
+        handleStopItem(true);
+
         // Displaying  a Toast Message
         toast.info('No questions available in this quiz. Moving to next item...');
-        
+
         setTimeout(() => {
           if (onNext) {
             onNext();
@@ -494,7 +494,7 @@ function showExplanationBox(text: string) {
           }
         }, 1500);
       }, 500);
-      
+
     } catch (error) {
       console.error('Error handling empty quiz:', error);
       toast.error('Error processing empty quiz. Please try refreshing.');
@@ -505,21 +505,21 @@ function showExplanationBox(text: string) {
   const handleEmptyQuizAfterAttempt = useCallback(async () => {
     try {
       console.log('Handling empty quiz after attempt - completing quiz and navigating');
-      
+
       // Set empty quiz states
       setIsEmptyQuiz(true);
       setQuizStarted(true);
       setQuizCompleted(true);
       setQuizPassed?.(1);
-      
+
       // We already have an attempt ID, so the item tracking should already be started
       // Just mark it as completed with skip
       setTimeout(() => {
-        handleStopItem(true); 
+        handleStopItem(true);
 
         // Displaying  a Toast Message
         toast.info('No questions available in this quiz. Moving to next item...');
-        
+
         setTimeout(() => {
           if (onNext) {
             onNext();
@@ -528,7 +528,7 @@ function showExplanationBox(text: string) {
           }
         }, 1500);
       }, 500);
-      
+
     } catch (error) {
       console.error('Error handling empty quiz after attempt:', error);
       toast.error('Error processing empty quiz. Please try refreshing.');
@@ -541,9 +541,9 @@ function showExplanationBox(text: string) {
     if (quizAttemptedRef.current || quizStarted || isPending) {
       return;
     }
-    
+
     quizAttemptedRef.current = true;
-    
+
     try {
       // Remove previous stop call
       // if (itemStartedRef.current) {
@@ -559,31 +559,31 @@ function showExplanationBox(text: string) {
       if ('message' in response) {
         console.log('Quiz attempt failed with message:', response.message);
         toast.error(response.message);
-        
+
         // Instead of showing UI, properly mark the quiz as completed with skip
         setQuizCompleted(true);
         setQuizPassed?.(1);
-        
+
         // Start tracking item first so we can stop it with isSkipped
         await handleSendStartItem();
-        
+
         // Mark the quiz as skipped in the progress system
         setTimeout(() => {
           handleStopItem(true); // isSkipped = true
         }, 500);
-        
+
         // Set flag to show completion UI
         setNoAttemptsLeft(true);
         return;
       }
-      
+
       const currentAttemptId = response.attemptId;
       setAttemptId?.(currentAttemptId);
-      
+
       // Convert backend questions to frontend format
       const convertedQuestions = convertBackendQuestions(response.questionRenderViews);
       setQuizQuestions(convertedQuestions);
-      
+
       // Check if quiz is empty (no questions available)
       if (convertedQuestions.length === 0) {
         console.log('Empty quiz detected after attempt - no questions returned');
@@ -591,13 +591,13 @@ function showExplanationBox(text: string) {
         await handleEmptyQuizAfterAttempt();
         return;
       }
-      
+
       // Reset quiz state for non-empty quizzes
       setAnswers({});
       setQuizStarted(true);
       setCurrentQuestionIndex(0);
       setIsEmptyQuiz(false);
-      
+
       // Set timer for first question if available
       if (convertedQuestions.length > 0 && convertedQuestions[0]?.timeLimit) {
         setTimeLeft(convertedQuestions[0].timeLimit);
@@ -605,14 +605,45 @@ function showExplanationBox(text: string) {
 
       // Start tracking item
       await handleSendStartItem();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to start quiz:', err);
-      // Reset the flag on error so user can try again
-      quizAttemptedRef.current = false;
-    }
-  }, [attemptQuiz, processedQuizId, setAttemptId, convertBackendQuestions, handleSendStartItem, quizStarted, isPending]);
 
-  const completeQuiz = useCallback(async (isSkipped?:boolean) => {
+      // Check if error is about no attempts left - check multiple possible error formats
+      const errorMessage = err?.message || err?.error?.message || err?.response?.data?.message || JSON.stringify(err);
+      console.log('Error message:', errorMessage);
+
+      if (errorMessage.includes('No available attempts left') || errorMessage.includes('no available attempts')) {
+        console.log('No attempts left - navigating to next item');
+        toast.info('You have used all available attempts for this quiz. Moving to next item...');
+
+        // Mark quiz as completed and trigger navigation
+        setQuizCompleted(true);
+        setQuizPassed?.(1);
+        setNoAttemptsLeft(true);
+
+        // Start and stop item tracking to mark as skipped
+        await handleSendStartItem();
+        setTimeout(() => {
+          handleStopItem(true); // isSkipped = true
+
+          // Navigate to next item after a short delay
+          setTimeout(() => {
+            if (onNext) {
+              onNext();
+            }
+          }, 1500);
+        }, 500);
+
+        return;
+      }
+
+      // Reset the flag on other errors so user can try again
+      quizAttemptedRef.current = false;
+      toast.error('Failed to start quiz: ' + errorMessage);
+    }
+  }, [attemptQuiz, processedQuizId, setAttemptId, convertBackendQuestions, handleSendStartItem, handleStopItem, setQuizPassed, onNext, quizStarted, isPending]);
+
+  const completeQuiz = useCallback(async (isSkipped?: boolean) => {
     if (!attemptId) {
       console.error('No attempt ID available for submission');
       return;
@@ -624,10 +655,10 @@ function showExplanationBox(text: string) {
         params: { path: { quizId: processedQuizId, attemptId: attemptId } },
         body: { answers: answersForSubmission, isSkipped }
       });
-     
+
       // No reponse for skipped quiz!
       if (!response) {
-        await stopItemAsync(isSkipped); 
+        await stopItemAsync(isSkipped);
         setQuizCompleted(true);
         return;
       }
@@ -652,26 +683,26 @@ function showExplanationBox(text: string) {
         });
         setScore(totalScore);
       }
-      try{
-        await stopItemAsync(); 
+      try {
+        await stopItemAsync();
       }
-      catch (err){
+      catch (err) {
         console.error('Error stopping item after quiz submission:', err);
       }
-      finally{
+      finally {
         setQuizCompleted(true);
       }
 
     } catch (err) {
       console.error('Failed to submit quiz:', err);
       // handleStopItem();
-      try{
+      try {
         await stopItemAsync(isSkipped);
       }
-      catch(err){
+      catch (err) {
         console.error('Error stopping item after failed quiz submission:', err);
       }
-      finally{
+      finally {
         setQuizCompleted(true);
       }
     }
@@ -689,30 +720,30 @@ function showExplanationBox(text: string) {
           body: { answers: answersForSaving }
         });
 
-let explanationText = "";
-for (const sub of answersForSaving) {
-  const question = quizQuestions.find(q => q.id === sub.questionId);
-  if (!question) continue;
+        let explanationText = "";
+        for (const sub of answersForSaving) {
+          const question = quizQuestions.find(q => q.id === sub.questionId);
+          if (!question) continue;
 
-  const selected = question.lotItems!.find(
-    item => item._id === sub.answer.lotItemId
-  );
+          const selected = question.lotItems!.find(
+            item => item._id === sub.answer.lotItemId
+          );
 
-  if (selected?.explaination) {
-    explanationText = selected.explaination;
-  }
-}
-if(explanationText==='Nil'){
-  explanationText=''
-}
-if (explanationText.trim()) {
-  await showExplanationBox(explanationText)
-}
+          if (selected?.explaination) {
+            explanationText = selected.explaination;
+          }
+        }
+        if (explanationText === 'Nil') {
+          explanationText = ''
+        }
+        if (explanationText.trim()) {
+          await showExplanationBox(explanationText)
+        }
         // if(result)
-      } catch (err:any) {
+      } catch (err: any) {
         const errorMessage =
-        err?.message || (typeof err === 'string' ? err : null) || 
-      "Failed to save, try again!"; 
+          err?.message || (typeof err === 'string' ? err : null) ||
+          "Failed to save, try again!";
         toast.error(errorMessage);
         console.error('Failed to auto-save progress:', err);
       }
@@ -725,14 +756,14 @@ if (explanationText.trim()) {
     }
   }, [currentQuestionIndex, quizQuestions.length, completeQuiz, attemptId, processedQuizId, saveQuiz, convertAnswersToSaveFormat]);
 
-    // Track attempts using the attempt data from the hook
-    useEffect(() => {
-      if (attemptData) {
+  // Track attempts using the attempt data from the hook
+  useEffect(() => {
+    if (attemptData) {
 
-        // Update the attempt count when a new attempt is created
-        setAttempts(attemptData.userAttempts);
-      }
-    }, [attemptData]);
+      // Update the attempt count when a new attempt is created
+      setAttempts(attemptData.userAttempts);
+    }
+  }, [attemptData]);
 
   const handleSkipQuiz = useCallback(async () => {
 
@@ -744,11 +775,11 @@ if (explanationText.trim()) {
       const isSkipped = true;
       // submit the quiz with isSkipped payload
       completeQuiz(isSkipped);
-      } catch (error) {
-        setIsQuizSkipped(false);
-        console.error('Error during quiz skip:', error);
-      }
-  }, [attempts, processedQuizId,handleStopItem,onNext]);
+    } catch (error) {
+      setIsQuizSkipped(false);
+      console.error('Error during quiz skip:', error);
+    }
+  }, [attempts, processedQuizId, handleStopItem, onNext]);
 
 
   const saveProgress = useCallback(async () => {     //one here
@@ -832,7 +863,7 @@ if (explanationText.trim()) {
   }, [processedQuizId, resetQuiz]);
 
   useEffect(() => {
-    if (rewindVid){
+    if (rewindVid) {
       onPrevVideo?.();
       resetQuiz();
       setQuizStarted(false);
@@ -848,10 +879,11 @@ if (explanationText.trim()) {
       setIsEmptyQuiz(false);
       setNoAttemptsLeft(false);
       quizAttemptedRef.current = false;
-    }}, [rewindVid]);
+    }
+  }, [rewindVid]);
 
   // Timer effect
-   useEffect(() => {
+  useEffect(() => {
     if (!quizStarted || quizCompleted || doGesture || timeLeft <= 0) return;
 
     const timer = setInterval(() => {
@@ -902,12 +934,12 @@ if (explanationText.trim()) {
   // Handle quiz completion for all quiz types
   useEffect(() => {
     if (quizCompleted && !isEmptyQuiz) {
-      console.log('Quiz completed, processing results...', { 
+      console.log('Quiz completed, processing results...', {
         gradingStatus: submissionResults?.gradingStatus,
         quizType,
-        noAttemptsLeft 
+        noAttemptsLeft
       });
-      
+
       // For no attempts left, always proceed to next (since we marked it as passed)
       if (noAttemptsLeft) {
         setQuizPassed?.(1);
@@ -917,7 +949,7 @@ if (explanationText.trim()) {
         }, 1000);
         return;
       }
-      
+
       // For regular completion, check grading status
       if (submissionResults?.gradingStatus !== "FAILED") {
         console.log('Quiz graded successfully, navigating to next video/item');
@@ -978,9 +1010,9 @@ if (explanationText.trim()) {
 
 
   // Quiz not started
-  
+
   if (!quizStarted) {
-    if (quizType === 'DEADLINE'){
+    if (quizType === 'DEADLINE') {
       return (
         <div className="mx-auto space-y-8">
           <Card className="border-2 border-primary/20 bg-gradient-to-br from-background to-muted/50">
@@ -1129,7 +1161,7 @@ if (explanationText.trim()) {
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader />
           <span
-          className='text-lg text-muted-foreground ml-4'
+            className='text-lg text-muted-foreground ml-4'
           > Loading quiz...</span>
         </div>
       );
@@ -1160,7 +1192,7 @@ if (explanationText.trim()) {
         </Card>
       );
     }
-    
+
     // Special handling for no attempts left
     if (noAttemptsLeft) {
       return (
@@ -1182,7 +1214,7 @@ if (explanationText.trim()) {
         </Card>
       );
     }
-    
+
     return (
       <Card className="mx-auto">
         <CardHeader className="text-center">
@@ -1460,10 +1492,10 @@ if (explanationText.trim()) {
               {preprocessMathContent(currentQuestion.question.replace(/\\n/g, '\n'))}
             </MathRenderer> */}
             <div className="whitespace-pre-wrap">
-            <MathRenderer>
-              {preprocessMathContent(currentQuestion.question.replace(/\\n/g, '\n'))}
-            </MathRenderer>
-          </div>
+              <MathRenderer>
+                {preprocessMathContent(currentQuestion.question.replace(/\\n/g, '\n'))}
+              </MathRenderer>
+            </div>
           </h2>
           {/* Hint section with reveal button */}
           {allowHint && currentQuestion.hint && (
@@ -1488,11 +1520,11 @@ if (explanationText.trim()) {
           )}
 
           {explanationBox.open && (
-  <div className="mb-4 p-3 rounded-lg bg-green-100 text-green-900 border border-green-300 animate-in fade-in">
-    <p className="text-sm leading-relaxed">{explanationBox.text}</p>
+            <div className="mb-4 p-3 rounded-lg bg-green-100 text-green-900 border border-green-300 animate-in fade-in">
+              <p className="text-sm leading-relaxed">{explanationBox.text}</p>
 
-    {/* OPTIONAL Next Button */}
-    {/* <button
+              {/* OPTIONAL Next Button */}
+              {/* <button
       className="mt-2 px-3 py-1 rounded bg-green-600 text-white text-sm"
       onClick={() => {
         explanationBox.resolve?.();
@@ -1501,8 +1533,8 @@ if (explanationText.trim()) {
     >
       Next →
     </button> */}
-  </div>
-)}
+            </div>
+          )}
 
           {/* Single Select (SELECT_ONE_IN_LOT) */}
           {currentQuestion.type === 'SELECT_ONE_IN_LOT' && currentQuestion.options && (
@@ -1594,7 +1626,7 @@ if (explanationText.trim()) {
                   <p className="text-xs">
                     Decimal precision: {currentQuestion.decimalPrecision} places
                   </p>
-              )}
+                )}
             </div>
           )}
 
@@ -1643,7 +1675,7 @@ if (explanationText.trim()) {
               {isSubmitting ? 'Skipping...' : 'Skip Quiz'}
             </Button>
           )}
-          
+
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -1719,7 +1751,7 @@ if (explanationText.trim()) {
       </CardContent>
     </Card>
 
-    
+
   );
 });
 
