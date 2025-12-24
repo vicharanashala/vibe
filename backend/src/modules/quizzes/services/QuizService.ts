@@ -10,7 +10,7 @@ import {SubmissionRepository} from '../repositories/providers/mongodb/Submission
 import {QuizRepository} from '../repositories/providers/mongodb/QuizRepository.js';
 import {QuestionBankRepository} from '../repositories/providers/mongodb/QuestionBankRepository.js';
 import {UserQuizMetricsRepository} from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
-import {IQuestionBankRef} from '#root/shared/interfaces/models.js';
+import {IQuestionBankRef, ItemType} from '#root/shared/interfaces/models.js';
 import {
   IGradingResult,
   IQuestionAnswerFeedback,
@@ -20,7 +20,11 @@ import {
 } from '../interfaces/grading.js';
 import {GetQuizSubmissionsQuery, QuestionBankRef} from '../classes/index.js';
 import {QuestionBankService} from './QuestionBankService.js';
-import {EnrollmentRepository, ICourseRepository} from '#root/shared/index.js';
+import {
+  EnrollmentRepository,
+  ICourseRepository,
+  IItemRepository,
+} from '#root/shared/index.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 @injectable()
 class QuizService extends BaseService {
@@ -51,6 +55,9 @@ class QuizService extends BaseService {
 
     @inject(USERS_TYPES.EnrollmentRepo)
     private readonly enrollmentRepo: EnrollmentRepository,
+
+    @inject(USERS_TYPES.ItemRepo)
+    private readonly itemRepo: IItemRepository,
   ) {
     super(database);
   }
@@ -718,6 +725,65 @@ class QuizService extends BaseService {
       throw error;
     }
   }
+
+  async bulkUpdateVideoName(
+    courseId: string,
+    courseVersionId: string,
+    videoName: string,
+  ): Promise<{modifiedCount: number}> {
+    return this._withTransaction(async session => {
+      const course = await this.courseRepo.read(courseId, session);
+      if (!course) {
+        throw new NotFoundError(`Course ${courseId} not found`);
+      }
+
+      const courseVersion = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      if (!courseVersion) {
+        throw new NotFoundError(`Course version ${courseVersionId} not found`);
+      }
+
+      const modules = courseVersion.modules ?? [];
+      if (!modules.length) {
+        return {modifiedCount: 0};
+      }
+
+      const videoIds: string[] = [];
+
+      for (const module of modules) {
+        for (const section of module.sections ?? []) {
+          if (!section.itemsGroupId) continue;
+
+          const itemGroup = await this.itemRepo.readItemsGroup(
+            section.itemsGroupId.toString(),
+            session,
+          );
+
+          if (!itemGroup?.items?.length) continue;
+
+          for (const item of itemGroup.items) {
+            if (item.type === ItemType.VIDEO && item._id) {
+              videoIds.push(item._id.toString());
+            }
+          }
+        }
+      }
+
+      const uniqueVideoIds = [...new Set(videoIds)];
+      if (!uniqueVideoIds.length) {
+        return {modifiedCount: 0};
+      }
+      return await this.itemRepo.bulkUpdateVideoName(
+        videoIds,
+        videoName,
+        session,
+      );
+    });
+  }
+
+  
 }
 
 export {QuizService};

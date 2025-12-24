@@ -54,7 +54,10 @@ import {subject} from '@casl/ability';
 import {COURSES_TYPES} from '#root/modules/courses/types.js';
 import {ItemService} from '#root/modules/courses/services/ItemService.js';
 import {BadRequestErrorResponse} from '#root/shared/index.js';
-import {CourseIdParams} from '#root/modules/courses/classes/index.js';
+import {
+  CourseIdParams,
+  CourseNotFoundErrorResponse,
+} from '#root/modules/courses/classes/index.js';
 
 @OpenAPI({
   tags: ['Quiz'],
@@ -106,7 +109,6 @@ class QuizController {
         'You do not have permission to modify quiz question banks',
       );
     }
-
 
     await this.quizService.addQuestionBank(quizId, body);
   }
@@ -778,6 +780,37 @@ class QuizController {
   ): Promise<void> {
     await this.quizService.updateMissingSubmissionResultIds();
   }
+
+  @OpenAPI({
+    summary: 'Bulk update video names',
+    description: `
+  Updates the video name for all matching videos under a given course
+  and course version.<br/>
+  Returns an empty response with a 200 status code on success.
+  `,
+  })
+  @Patch('/bulk-update-video-name')
+  @OnUndefined(200)
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid input data',
+    statusCode: 400,
+  })
+  @ResponseSchema(CourseNotFoundErrorResponse, {
+    description: 'Course or version not found',
+    statusCode: 404,
+  })
+  async bulkUpdateVideoName(@Body() body: any): Promise<void> {
+    const {courseId, courseVersionId, videoName} = body;
+
+    await this.quizService.bulkUpdateVideoName(
+      courseId, 
+      courseVersionId,
+      videoName,
+    );
+  }
+
+
+
 }
 
 export {QuizController};

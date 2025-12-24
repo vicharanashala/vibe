@@ -1,6 +1,6 @@
-import { Item, ItemsGroup } from '#courses/classes/transformers/Item.js';
-import { UpdateItemBody } from '#root/modules/courses/classes/index.js';
-import { ClientSession, ObjectId } from 'mongodb';
+import {Item, ItemsGroup} from '#courses/classes/transformers/Item.js';
+import {UpdateItemBody} from '#root/modules/courses/classes/index.js';
+import {ClientSession, ObjectId} from 'mongodb';
 
 export interface IItemRepository {
   readItem(
@@ -9,11 +9,7 @@ export interface IItemRepository {
     session?: ClientSession,
   ): Promise<Item | null>;
 
-  readItemById(
-
-    itemId: string,
-    session?: ClientSession,
-  ): Promise<Item | null>;
+  readItemById(itemId: string, session?: ClientSession): Promise<Item | null>;
 
   deleteItem(
     itemGroupsId: string,
@@ -85,13 +81,22 @@ export interface IItemRepository {
     itemType: string,
     session?: ClientSession,
   ): Promise<Item>;
-  calculateItemCountsForVersion(versionId: string,
-    session?: ClientSession,): Promise<{ totalItems: any, itemCounts: any }>;
+  calculateItemCountsForVersion(
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<{totalItems: any; itemCounts: any}>;
   // createVideoDetails(details: IVideoDetails): Promise<string>;
-  // createQuizDetails(details: IQuizDetails): Promise<string>;
+  // createQuizDetails(details: IQuizDetails): Promise<string>; 
   // createBlogDetails(details: IBlogDetails): Promise<string>;
 
   // readVideoDetails(detailsId: string): Promise<IVideoDetails | null>;
   // readQuizDetails(detailsId: string): Promise<IQuizDetails | null>;
   // readBlogDetails(detailsId: string): Promise<IBlogDetails | null>;
+
+  bulkUpdateVideoName(
+    videoIds: string[],
+    newName: string,
+    session?: ClientSession,
+  ): Promise<{modifiedCount: number}>;
+
 }
