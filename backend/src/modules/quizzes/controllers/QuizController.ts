@@ -663,7 +663,7 @@ class QuizController {
     // Build the subject context first
     const quizSubject = subject('Quiz', {
       courseId: courseInfo.courseId,
-      versionId: courseInfo.versionId,
+      versionId: courseInfo.versionId, 
     });
 
     if (!ability.can(QuizActions.ModifySubmissions, quizSubject)) {
