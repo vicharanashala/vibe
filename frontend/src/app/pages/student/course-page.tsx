@@ -469,87 +469,148 @@ export default function CoursePage() {
 
   // Handle item selection
   // Handle item selection - simplified and more robust
-  const handleSelectItem = (moduleId: string, sectionId: string, itemId: string) => {
-    // Set loading state when changing items from sidebar - same as with Next button
+  // const handleSelectItem = (moduleId: string, sectionId: string, itemId: string) => {
+  //   // Set loading state when changing items from sidebar - same as with Next button
+  //   setIsNavigatingToNext(true);
+
+  //   // Stop current item before switching - make this more robust
+  //   if (itemContainerRef.current) {
+  //     console.log('Stopping current item before switching');
+  //     itemContainerRef.current.stopCurrentItem();
+
+  //     // Add a small delay to ensure cleanup completes
+  //     setTimeout(() => {
+  //       // Store current valid item before switching (only if not in error state)
+  //       if (selectedItemId && selectedSectionId && selectedModuleId && !isItemForbidden) {
+  //         setPreviousValidItem({
+  //           moduleId: selectedModuleId,
+  //           sectionId: selectedSectionId,
+  //           itemId: selectedItemId
+  //         });
+  //       }
+
+  //       // Always clear any existing item errors when manually selecting an item
+  //       setIsItemForbidden(false);
+
+  //       // Attempt the switch
+  //       setSelectedModuleId(moduleId);
+  //       setSelectedSectionId(sectionId);
+  //       setSelectedItemId(itemId);
+
+  //       // Ensure section items are loaded if not already
+  //       if (!sectionItems[sectionId]) {
+  //         setActiveSectionInfo({
+  //           moduleId,
+  //           sectionId
+  //         });
+  //       }
+
+  //       // Expand the module and section automatically
+  //       setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
+  //       setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
+
+  //       // Update the course store with the new navigation state
+  //       updateCourseNavigation(moduleId, sectionId, itemId);
+  //       console.log('States updated - unblocking fetch for', itemId);
+  //     setIsNavigatingToNext(false);
+  //     }, 50); // Small delay to ensure cleanup completes
+  //   } else {
+  //     // Set loading state even without a ref
+  //     setIsNavigatingToNext(true);
+
+  //     // Store current valid item before switching (only if not in error state)
+  //     if (selectedItemId && selectedSectionId && selectedModuleId && !isItemForbidden) {
+  //       setPreviousValidItem({
+  //         moduleId: selectedModuleId,
+  //         sectionId: selectedSectionId,
+  //         itemId: selectedItemId
+  //       });
+  //     }
+
+  //     // Always clear any existing item errors when manually selecting an item
+  //     setIsItemForbidden(false);
+
+  //     // Attempt the switch
+  //     setSelectedModuleId(moduleId);
+  //     setSelectedSectionId(sectionId);
+  //     setSelectedItemId(itemId);
+
+  //     // Ensure section items are loaded if not already
+  //     if (!sectionItems[sectionId]) {
+  //       setActiveSectionInfo({
+  //         moduleId,
+  //         sectionId
+  //       });
+  //     }
+
+  //     // Expand the module and section automatically
+  //     setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
+  //     setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
+
+  //     // Update the course store with the new navigation state
+  //     updateCourseNavigation(moduleId, sectionId, itemId);
+  //     console.log('States updated - unblocking fetch for', itemId);
+  //   setIsNavigatingToNext(false);
+  //   }
+  // };
+  // Handle item selection - now with immediate flag clear and enqueued for safety
+const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemId: string) => {
+  enqueueNavigation(async () => {
     setIsNavigatingToNext(true);
 
-    // Stop current item before switching - make this more robust
-    if (itemContainerRef.current) {
-      console.log('Stopping current item before switching');
-      itemContainerRef.current.stopCurrentItem();
+    try {
+      // Stop current item immediately
+      if (itemContainerRef.current) {
+        await itemContainerRef.current.stopCurrentItem();
+        // Small delay for API/callback cleanup
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
 
-      // Add a small delay to ensure cleanup completes
-      setTimeout(() => {
-        // Store current valid item before switching (only if not in error state)
-        if (selectedItemId && selectedSectionId && selectedModuleId && !isItemForbidden) {
-          setPreviousValidItem({
-            moduleId: selectedModuleId,
-            sectionId: selectedSectionId,
-            itemId: selectedItemId
-          });
-        }
-
-        // Always clear any existing item errors when manually selecting an item
-        setIsItemForbidden(false);
-
-        // Attempt the switch
-        setSelectedModuleId(moduleId);
-        setSelectedSectionId(sectionId);
-        setSelectedItemId(itemId);
-
-        // Ensure section items are loaded if not already
-        if (!sectionItems[sectionId]) {
-          setActiveSectionInfo({
-            moduleId,
-            sectionId
-          });
-        }
-
-        // Expand the module and section automatically
-        setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
-        setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
-
-        // Update the course store with the new navigation state
-        updateCourseNavigation(moduleId, sectionId, itemId);
-      }, 50); // Small delay to ensure cleanup completes
-    } else {
-      // Set loading state even without a ref
-      setIsNavigatingToNext(true);
-
-      // Store current valid item before switching (only if not in error state)
+      // Store previous valid for fallback (only if not forbidden)
       if (selectedItemId && selectedSectionId && selectedModuleId && !isItemForbidden) {
         setPreviousValidItem({
-          moduleId: selectedModuleId,
-          sectionId: selectedSectionId,
-          itemId: selectedItemId
+          moduleId: selectedModuleId!,
+          sectionId: selectedSectionId!,
+          itemId: selectedItemId!,
         });
       }
 
-      // Always clear any existing item errors when manually selecting an item
+      // Clear errors 
       setIsItemForbidden(false);
 
-      // Attempt the switch
+      // Update states to trigger fetch/expansion
       setSelectedModuleId(moduleId);
       setSelectedSectionId(sectionId);
       setSelectedItemId(itemId);
 
-      // Ensure section items are loaded if not already
+      // Load section items if needed
       if (!sectionItems[sectionId]) {
-        setActiveSectionInfo({
-          moduleId,
-          sectionId
-        });
+        setActiveSectionInfo({ moduleId, sectionId });
       }
 
-      // Expand the module and section automatically
+      // Auto-expand sidebar
       setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
       setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
 
-      // Update the course store with the new navigation state
+      // Update store
       updateCourseNavigation(moduleId, sectionId, itemId);
-    }
-  };
+      setIsNavigatingToNext(false);
 
+    } catch (error) {
+      console.error('Error in handleSelectItem:', error);
+      toast.error('Failed to switch item. Please try again.');
+      setIsNavigatingToNext(false);
+    }
+  });
+}, [
+  selectedModuleId,
+  selectedSectionId,
+  selectedItemId,
+  sectionItems,
+  isItemForbidden,
+  updateCourseNavigation,
+  itemContainerRef,
+]);
   const handleSkipItem = async () => {
   if (!currentItem?._id) return;
   
