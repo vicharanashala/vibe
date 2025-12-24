@@ -168,76 +168,76 @@ class AttemptRepository {
           quizId: new ObjectId(quizId),
         },
       },
+
       {
-        // Lookup all questions used by this attempt
-        $lookup: {
-          from: 'questions',
-          localField: 'answers.questionId',
-          foreignField: '_id',
-          as: 'questionDocs',
-        },
-      },
-      {
-        $lookup:
-          /**
-           * from: The target collection.
-           * localField: The local join field.
-           * foreignField: The target join field.
-           * as: The name for the results.
-           * pipeline: Optional pipeline to run on the foreign collection.
-           * let: Optional variables to use in the pipeline field stages.
-           */
-          {
-            from: 'users',
-            localField: 'userId',
-            foreignField: '_id',
-            as: 'user',
-          },
-      },
-      {
-        $lookup: {
-          from: 'questions',
-          localField: 'questionDetails.questionId',
-          foreignField: '_id',
-          as: 'questionDetails',
-        },
-      },
-      {
-        $set:
-          /**
-           * field: The field name
-           * expression: The expression.
-           */
-          {
-            user: {
-              $arrayElemAt: ['$user', 0],
+        $addFields: {
+          answerQuestionIds: {
+            $map: {
+              input: {$ifNull: ['$answers', []]},
+              as: 'a',
+              in: {$toObjectId: '$$a.questionId'},
             },
           },
+          detailQuestionIds: {
+            $map: {
+              input: {$ifNull: ['$questionDetails', []]},
+              as: 'q',
+              in: {$toObjectId: '$$q.questionId'},
+            },
+          },
+        },
       },
       {
-        // Merge questions back into each answers[i]
+        $addFields: {
+          allQuestionIds: {
+            $setUnion: ['$answerQuestionIds', '$detailQuestionIds'],
+          },
+        },
+      },
+
+      {
+        $lookup: {
+          from: 'questions',
+          localField: 'allQuestionIds',
+          foreignField: '_id',
+          as: 'questions',
+        },
+      },
+
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      {
+        $set: {
+          user: {$first: '$user'},
+        },
+      },
+
+      {
         $addFields: {
           answers: {
             $map: {
-              input: '$answers',
+              input: {$ifNull: ['$answers', []]},
               as: 'ans',
               in: {
                 $mergeObjects: [
                   '$$ans',
                   {
                     question: {
-                      $arrayElemAt: [
-                        {
-                          $filter: {
-                            input: '$questionDocs',
-                            as: 'qd',
-                            cond: {
-                              $eq: ['$$qd._id', '$$ans.questionId'],
-                            },
+                      $first: {
+                        $filter: {
+                          input: '$questions',
+                          as: 'q',
+                          cond: {
+                            $eq: ['$$q._id', {$toObjectId: '$$ans.questionId'}],
                           },
                         },
-                        0,
-                      ],
+                      },
                     },
                   },
                 ],
@@ -246,11 +246,36 @@ class AttemptRepository {
           },
         },
       },
+
       {
-        // Remove temporary data
-        $project: {
-          questionDocs: 0,
+        $addFields: {
+          questionDetails: {
+            $map: {
+              input: {$ifNull: ['$questionDetails', []]},
+              as: 'qd',
+              in: {
+                $first: {
+                  $filter: {
+                    input: '$questions',
+                    as: 'q',
+                    cond: {
+                      $eq: ['$$q._id', {$toObjectId: '$$qd.questionId'}],
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
+      },
+
+      {
+        $unset: [
+          'questions',
+          'answerQuestionIds',
+          'detailQuestionIds',
+          'allQuestionIds',
+        ],
       },
     ];
 
