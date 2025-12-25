@@ -38,7 +38,10 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const [copyError, setCopyError] = useState(false);  
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
 
-  const progress = Math.round(enrollment.percentCompleted || 0) as number 
+  // const progress = Math.round(enrollment.percentCompleted || 0) as number 
+  const rawProgress = Math.round(enrollment.percentCompleted || 0); // Temporary
+  const progress = rawProgress >= 99 ? 100 : rawProgress;
+
   const contentCounts = enrollment.contentCounts as { totalItems?: number; videos?: number; quizzes?: number; articles?: number;project?: number } || {};
   const totalLessons = contentCounts.totalItems || 0;
   const completedLessons = enrollment.completedItems as number || 0;
