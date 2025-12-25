@@ -594,7 +594,11 @@ class ProgressRepository {
         courseVersionId: new ObjectId(courseVersionId),
       },
       { $set: progress },
-      { returnDocument: 'after', session },
+      {
+        upsert: true,              // ⭐ creates document if not found
+        returnDocument: 'after',   // return updated or inserted doc
+        session,
+      },
     );
     return result;
   }
@@ -731,6 +735,29 @@ class ProgressRepository {
     );
     return progress;
   }
+
+  async deleteUserWatchTimeByItemIds(
+    userId: string,
+    itemIds: string[],
+    session?: ClientSession,
+  ): Promise<{ deletedCount: number }> {
+    if (!itemIds.length) {
+      return { deletedCount: 0 };
+    }
+
+    const result = await this.watchTimeCollection.deleteMany(
+      {
+        userId: new ObjectId(userId),
+        itemId: { $in: itemIds.map(id => new ObjectId(id)) },
+      },
+      { session },
+    );
+
+    return {
+      deletedCount: result.deletedCount ?? 0,
+    };
+  }
+
 }
 
 export { ProgressRepository };
