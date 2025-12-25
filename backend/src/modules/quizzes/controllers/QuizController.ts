@@ -23,6 +23,7 @@ import {
   QuizNotFoundErrorResponse,
   GetAllQuestionBanksResponse,
   GetQuizSubmissionsQuery,
+  BulkUpdateQuizAttemptsBody,
 } from '#quizzes/classes/validators/QuizValidator.js';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {QuizService} from '#quizzes/services/QuizService.js';
@@ -106,7 +107,6 @@ class QuizController {
         'You do not have permission to modify quiz question banks',
       );
     }
-
 
     await this.quizService.addQuestionBank(quizId, body);
   }
@@ -778,6 +778,8 @@ class QuizController {
   ): Promise<void> {
     await this.quizService.updateMissingSubmissionResultIds();
   }
+
+ 
 }
 
 export {QuizController};

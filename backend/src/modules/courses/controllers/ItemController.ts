@@ -11,10 +11,12 @@ import {
   Put,
   Authorized,
   QueryParams,
+  Patch,
+  OnUndefined,
 } from 'routing-controllers';
-import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
-import { COURSES_TYPES } from '#courses/types.js';
-import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {COURSES_TYPES} from '#courses/types.js';
+import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
 import {
   ItemDataResponse,
   ItemNotFoundErrorResponse,
@@ -32,16 +34,20 @@ import {
   CourseVersionModuleSectionParams,
   csvResponse,
 } from '#courses/classes/validators/ItemValidators.js';
-import { ItemService } from '#courses/services/ItemService.js';
-import { injectable, inject } from 'inversify';
-import { VersionModuleSectionParams } from '../classes/index.js';
-import { ItemActions, getItemAbility } from '../abilities/itemAbilities.js';
-import { Ability } from '#root/shared/functions/AbilityDecorator.js';
-import { subject } from '@casl/ability';
-import { QuizService } from '#root/modules/quizzes/services/QuizService.js';
-import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
-import { ItemType } from '#shared/interfaces/models.js';
-import { HideModuleBody } from '../classes/index.js';
+import {ItemService} from '#courses/services/ItemService.js';
+import {injectable, inject} from 'inversify';
+import {VersionModuleSectionParams} from '../classes/index.js';
+import {ItemActions, getItemAbility} from '../abilities/itemAbilities.js';
+import {Ability} from '#root/shared/functions/AbilityDecorator.js';
+import {subject} from '@casl/ability';
+import {QuizService} from '#root/modules/quizzes/services/QuizService.js';
+import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
+import {ItemType} from '#shared/interfaces/models.js';
+import {HideModuleBody} from '../classes/index.js';
+import {
+  BulkUpdateQuizAttemptsBody,
+  QuizNotFoundErrorResponse,
+} from '#root/modules/quizzes/classes/index.js';
 
 @OpenAPI({
   tags: ['Course Items'],
@@ -54,7 +60,58 @@ export class ItemController {
     private readonly itemService: ItemService,
     @inject(QUIZZES_TYPES.QuizService)
     private readonly quizService: QuizService,
-  ) { }
+  ) {}
+
+  //////////////////////////////////////////////////////////  BULK UPDATE QUIZ ATTEMPT ///////////////////////////////////////
+
+  @OpenAPI({
+    summary: 'Get all quiz IDs',
+    description: `Returns all quiz IDs under a specific course and version.<br/>
+  It returns an array of quiz IDs with a 200 status code.`,
+  })
+  @Patch('/quiz/get-all-quiz-ids')
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid request data',
+    statusCode: 400,
+  })
+  @ResponseSchema(QuizNotFoundErrorResponse, {
+    description: 'Quizzes not found for the given course and version',
+    statusCode: 404,
+  })
+  async getAllQuizIds(@Body() body: any): Promise<string[]> {
+    const {courseId, versionId} = body;
+    return this.itemService.getAllQuizIds(courseId, versionId);
+  }
+
+  @OpenAPI({
+    summary: 'Bulk update quiz attempts',
+    description: `Bulk updates quiz attempts for all quizzes under a specific course and version.<br/>
+  It returns an empty body with a 200 status code.`,
+  })
+  @Patch('/quiz/bulk-update-quiz-attempts')
+  @OnUndefined(200)
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid request data',
+    statusCode: 400,
+  })
+  @ResponseSchema(QuizNotFoundErrorResponse, {
+    description: 'Quizzes not found for the given course and version',
+    statusCode: 404,
+  })
+  async bulkUpdateQuizAttempts(
+    @Body() body: BulkUpdateQuizAttemptsBody,
+  ): Promise<void> {
+    const {courseId, versionId, newAttemptCount} = body; 
+
+    await this.itemService.bulkUpdateQuizAttempts(
+      courseId,
+      versionId,
+      newAttemptCount,
+    );
+  }
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
   @OpenAPI({
     summary: 'Create an item',
     description: `Creates a new item within a section.
@@ -78,12 +135,12 @@ export class ItemController {
   async create(
     @Params() params: VersionModuleSectionParams,
     @Body() body: CreateItemBody,
-    @Ability(getItemAbility) { ability },
+    @Ability(getItemAbility) {ability},
   ) {
-    const { versionId, moduleId, sectionId } = params;
+    const {versionId, moduleId, sectionId} = params;
 
     // Create an item resource object for permission checking
-    const itemResource = subject('Item', { versionId });
+    const itemResource = subject('Item', {versionId});
 
     // Check permission using ability.can() with the actual item resource
     if (!ability.can(ItemActions.Create, itemResource)) {
@@ -120,12 +177,12 @@ export class ItemController {
   })
   async readAll(
     @Params() params: VersionModuleSectionParams,
-    @Ability(getItemAbility) { ability, user },
+    @Ability(getItemAbility) {ability, user},
   ) {
-    const { versionId, moduleId, sectionId } = params;
+    const {versionId, moduleId, sectionId} = params;
 
     // Create an item resource object for permission checking
-    const itemResource = subject('Item', { versionId });
+    const itemResource = subject('Item', {versionId});
 
     // Check permission using ability.can() with the actual item resource
     if (!ability.can(ItemActions.ViewAll, itemResource)) {
@@ -143,10 +200,8 @@ export class ItemController {
 
     // Filter out blank quizzes for students
     try {
-      const sampleItemResource = subject('Item', { versionId, _id: 'sample' });
+      const sampleItemResource = subject('Item', {versionId, _id: 'sample'});
       const canManage = ability.can(ItemActions.Modify, sampleItemResource);
-
- 
 
       if (canManage) {
         // Instructors/managers/TAs can see all items including blank quizzes
@@ -207,12 +262,12 @@ export class ItemController {
   async update(
     @Params() params: VersionItemParams,
     @Body() body: UpdateItemBody,
-    @Ability(getItemAbility) { ability },
+    @Ability(getItemAbility) {ability},
   ) {
-    const { versionId, itemId } = params;
+    const {versionId, itemId} = params;
 
     // Create an item resource object for permission checking
-    const itemResource = subject('Item', { versionId });
+    const itemResource = subject('Item', {versionId});
 
     // Check permission using ability.can() with the actual item resource
     if (!ability.can(ItemActions.Modify, itemResource)) {
@@ -245,12 +300,12 @@ export class ItemController {
   })
   async delete(
     @Params() params: DeleteItemParams,
-    @Ability(getItemAbility) { ability },
+    @Ability(getItemAbility) {ability},
   ) {
-    const { itemsGroupId, itemId } = params;
+    const {itemsGroupId, itemId} = params;
     const version = await this.itemService.findVersion(itemsGroupId);
     // Create an item resource object for permission checking
-    const itemResource = subject('Item', { versionId: version._id.toString() });
+    const itemResource = subject('Item', {versionId: version._id.toString()});
 
     if (!ability.can(ItemActions.Delete, itemResource)) {
       throw new ForbiddenError(
@@ -285,12 +340,12 @@ Accessible to:
   async move(
     @Params() params: VersionModuleSectionItemParams,
     @Body() body: MoveItemBody,
-    @Ability(getItemAbility) { ability },
+    @Ability(getItemAbility) {ability},
   ) {
-    const { versionId, moduleId, sectionId, itemId } = params;
+    const {versionId, moduleId, sectionId, itemId} = params;
 
     // Create an item resource object for permission checking
-    const itemResource = subject('Item', { versionId });
+    const itemResource = subject('Item', {versionId});
 
     // Check permission using ability.can() with the actual item resource
     if (!ability.can(ItemActions.Modify, itemResource)) {
@@ -329,12 +384,12 @@ Access control logic:
   })
   async getItem(
     @Params() params: GetItemParams,
-    @Ability(getItemAbility) { ability },
+    @Ability(getItemAbility) {ability},
   ) {
-    const { versionId, itemId, courseId } = params;
+    const {versionId, itemId, courseId} = params;
 
     // Create an item resource object for permission checking
-    const itemResource = subject('Item', { courseId, versionId, itemId });
+    const itemResource = subject('Item', {courseId, versionId, itemId});
 
     // Check permission using ability.can() with the actual item resource
     if (!ability.can(ItemActions.View, itemResource)) {
@@ -346,7 +401,7 @@ Access control logic:
     };
   }
 
-  async submitProject(): Promise<void> { }
+  async submitProject(): Promise<void> {}
 
   @OpenAPI({
     summary: 'Get feedback submissions',
@@ -371,8 +426,8 @@ Access control logic:
     @QueryParams() query: GetFeedbackSubmissionsQuery,
     // @Ability(getItemAbility) { ability },
   ) {
-    const { courseId, feedbackId } = params;
-    const { search = '', page = 1, limit = 1 } = query;
+    const {courseId, feedbackId} = params;
+    const {search = '', page = 1, limit = 1} = query;
     return await this.itemService.getFeedbackSubmissions(
       courseId,
       feedbackId,
@@ -404,12 +459,12 @@ Accessible to:
   })
   async updateOptionalStatus(
     @Params() params: VersionItemParams,
-    @Body() body: { isOptional: boolean },
-    @Ability(getItemAbility) { ability },
+    @Body() body: {isOptional: boolean},
+    @Ability(getItemAbility) {ability},
   ) {
-    const { versionId, itemId } = params;
+    const {versionId, itemId} = params;
     // Check permission
-    const itemResource = subject('Item', { versionId: versionId });
+    const itemResource = subject('Item', {versionId: versionId});
     if (!ability.can(ItemActions.Modify, itemResource)) {
       throw new ForbiddenError(
         'You do not have permission to modify this item',
@@ -446,14 +501,13 @@ Accessible to:
   async toggleItemVisibility(
     @Params() params: VersionItemParams,
     @Body() body: HideModuleBody,
-    @Ability(getItemAbility) { ability },
+    @Ability(getItemAbility) {ability},
   ) {
-    const { versionId, itemId } = params;
-    const { hide } = body;
-
+    const {versionId, itemId} = params;
+    const {hide} = body;
 
     // Create an item resource object for permission checking
-    const itemResource = subject('Item', { versionId });
+    const itemResource = subject('Item', {versionId});
 
     // Check permission using ability.can() with the actual item resource
     if (!ability.can(ItemActions.Modify, itemResource)) {
@@ -464,7 +518,7 @@ Accessible to:
 
     await this.itemService.toggleItemVisibility(versionId, itemId, hide);
 
-    return { itemId: itemId, isHidden: hide };
+    return {itemId: itemId, isHidden: hide};
   }
 
   @OpenAPI({
@@ -474,9 +528,11 @@ Accessible to:
   - Instructors, managers, and teaching assistants of the course.`,
   })
   @Authorized()
-  @Post("/:courseId/versions/:versionId/module/:moduleId/section/:sectionId/items/csv")
+  @Post(
+    '/:courseId/versions/:versionId/module/:moduleId/section/:sectionId/items/csv',
+  )
   @HttpCode(200)
-  @ResponseSchema(csvResponse,{
+  @ResponseSchema(csvResponse, {
     description: 'CSV processed successfully',
     statusCode: 200,
   })
@@ -491,20 +547,20 @@ Accessible to:
   async processCSVtoItem(
     @Params() params: CourseVersionModuleSectionParams,
     @Body() body: CSVItemBody,
-    @Ability(getItemAbility) { user, ability },
+    @Ability(getItemAbility) {user, ability},
   ) {
-    const { courseId, versionId, moduleId, sectionId } = params;
+    const {courseId, versionId, moduleId, sectionId} = params;
     const userId = user.userId || user._id;
-    const { youtubeurl, data } = body;
+    const {youtubeurl, data} = body;
 
     const result = await this.itemService.processCSVAndCreateItems(
       youtubeurl,
-      moduleId,    
-      sectionId,   
-      versionId,   
-      courseId,    
-      userId,      
-      data
+      moduleId,
+      sectionId,
+      versionId,
+      courseId,
+      userId,
+      data,
     );
     return result;
   }

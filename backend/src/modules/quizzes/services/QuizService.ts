@@ -1,6 +1,10 @@
 import {injectable, inject} from 'inversify';
 import {ObjectId} from 'mongodb';
-import {NotFoundError, InternalServerError} from 'routing-controllers';
+import {
+  NotFoundError,
+  InternalServerError,
+  BadRequestError,
+} from 'routing-controllers';
 import {QUIZZES_TYPES} from '../types.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
@@ -22,6 +26,8 @@ import {GetQuizSubmissionsQuery, QuestionBankRef} from '../classes/index.js';
 import {QuestionBankService} from './QuestionBankService.js';
 import {EnrollmentRepository, ICourseRepository} from '#root/shared/index.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
+import { COURSES_TYPES } from '#root/modules/courses/types.js';
+import { ItemService } from '#root/modules/courses/services/ItemService.js';
 @injectable()
 class QuizService extends BaseService {
   constructor(
@@ -33,6 +39,7 @@ class QuizService extends BaseService {
 
     @inject(QUIZZES_TYPES.SubmissionRepo)
     public readonly submissionRepo: SubmissionRepository,
+    
 
     @inject(QUIZZES_TYPES.QuestionBankService)
     public readonly questionBankService: QuestionBankService,
@@ -51,6 +58,7 @@ class QuizService extends BaseService {
 
     @inject(USERS_TYPES.EnrollmentRepo)
     private readonly enrollmentRepo: EnrollmentRepository,
+
   ) {
     super(database);
   }
@@ -718,6 +726,8 @@ class QuizService extends BaseService {
       throw error;
     }
   }
+
+
 }
 
 export {QuizService};

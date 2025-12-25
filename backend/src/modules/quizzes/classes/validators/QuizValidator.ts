@@ -762,6 +762,17 @@ class GetUserMatricesParams {
   userId: string;
 }
 
+export class BulkUpdateQuizAttemptsBody {
+  @IsMongoId()
+  courseId: string;
+
+  @IsMongoId()
+  versionId: string;
+
+  @IsNumber()
+  newAttemptCount: number;
+}
+
 class AddQuestionBankBody implements QuestionBankRef {
   @IsMongoId()
   @IsNotEmpty()
