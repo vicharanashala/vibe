@@ -335,6 +335,19 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
     }
   }, [startItem.data?.watchItemId, setWatchItemId]);
 
+
+  const forceHighestQuality = (player: YTPlayerInstance) => {
+    const qualities = player.getAvailableQualityLevels();
+    // console.log("Qualities: ", qualities)
+
+    if (!qualities || qualities.length === 0) return;
+
+    if (qualities.includes('highres')) player.setPlaybackQuality('highres');
+    else if (qualities.includes('hd1080')) player.setPlaybackQuality('hd1080');
+    else if (qualities.includes('hd720')) player.setPlaybackQuality('hd720');
+    else if (qualities.includes('large')) player.setPlaybackQuality('large');
+  };
+
   // Load YouTube IFrame API
   useEffect(() => {
     if(!readyToDetect) return;
@@ -392,6 +405,9 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
                 setVideoEnded(false);
                 progressStartedRef.current = true;
               }
+              setTimeout(() => {
+                forceHighestQuality(event.target);
+              }, 500);
             } else if (window.YT && event.data === window.YT.PlayerState.ENDED) {
               // Video naturally ended (when no endTimeSeconds constraint)
               setPlaying(false);
