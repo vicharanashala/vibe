@@ -2,8 +2,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent } from '@/components/ui/card';
-import { Play, Pause, SkipBack, Volume2,  Captions, Loader2 } from 'lucide-react';
-import { useStartItem, useStopItem } from '../hooks/hooks';
+import { Play, Pause, SkipBack, Volume2,  Captions, Loader2, XCircle } from 'lucide-react';
+import { useSkipOptionalItem, useStartItem, useStopItem } from '../hooks/hooks';
 
 import { useCourseStore } from '../store/course-store';
 import { usePlayerStore } from '../store/player-store'; // Import the new store
@@ -78,6 +78,26 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   // Track grace period completion
   const [gracePeriodCompleted, setGracePeriodCompleted] = useState(false);
 
+
+  // HANDLE STOP FAILED CASE, SHOW SKIP OPTION IF FAILED
+  const [isStopFailed, setIsStopFailed] = useState(false);
+  const { mutateAsync: skipItemAsync, isPending: isSkipping } = useSkipOptionalItem();
+  
+
+     const handleSkipItem = async () => {
+      if (!currentCourse?.itemId) return;
+      try {
+        
+        await skipItemAsync({ params: { path: { itemId: currentCourse?.itemId } } });
+        // toast.success('Item skipped successfully');
+        handlePlayPause()
+        onNext?.(); 
+      } catch (error) {
+        console.error('Error skipping item:', error);
+        toast.error('Failed to skip item');
+      } 
+    };
+
   // Wait 10 seconds after readyToDetect becomes true (to match FloatingVideo's grace period)
   useEffect(() => {
     if (readyToDetect && !gracePeriodCompleted) {
@@ -113,7 +133,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   const handlePlayPause = useCallback(() => {
     const player = playerRef.current;
     if (!player || typeof player.pauseVideo !== 'function' || stopInFlightRef.current) return;
-    if (playing) {
+    if (playing || isSkipping || isStopFailed || isStopping) {
       player.pauseVideo();
     } else {
       player.playVideo();
@@ -401,6 +421,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
                     progressStoppedRef.current = true; // Prevent infinite retries
                     toast.warning('Unable to stop video, try again!');
                     console.error('Stop item failed:', err);
+                    setIsStopFailed(true);
                     return;
                   }  finally {
                     stopInFlightRef.current = false;
@@ -548,6 +569,7 @@ useEffect(() => {
               progressStoppedRef.current = true; // Prevent infinite retries
               toast.warning('Unable to stop video, try again!');
               console.error('Stop item failed:', err);
+              setIsStopFailed(true);
               return;
             } finally {
               stopInFlightRef.current = false;
@@ -584,6 +606,7 @@ useEffect(() => {
               progressStoppedRef.current = true; // Prevent infinite retries
               toast.error('Unable to stop video, try again!');
               console.error('Stop item failed:', err);
+              setIsStopFailed(true);
               return;
             } finally {
               stopInFlightRef.current = false
@@ -676,6 +699,8 @@ useEffect(() => {
 
 
 
+
+
   const handleToggleSubtitles = () => {
     setSubtitlesEnabled((prev) => {
       const newState = !prev;
@@ -719,7 +744,21 @@ useEffect(() => {
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
-      <NavigatingOverlay visible={isStopping} />
+
+      <ConfirmOverlay
+        visible={isStopFailed}
+        title="Failed to stop video"
+        message="Click Continue to proceed to the next item."
+        position="bottom-right"
+        onCancel={() => setIsStopFailed(false)}
+        onConfirm={() => {
+          handleSkipItem();       
+          setIsStopFailed(false);
+        }}
+      />
+
+      <NavigatingOverlay visible={isStopping || isSkipping} />
+
       <div style={{
         width: '100%',
         height: '100%',
@@ -729,6 +768,7 @@ useEffect(() => {
         flexDirection: 'column',
         borderRadius: '12px',
         overflow: 'hidden',
+
       }}>
         {/* Video Container */}
       <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
@@ -1560,6 +1600,70 @@ export function NavigatingOverlay({
             <p className="text-sm font-medium leading-relaxed">
               {message}
             </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+interface ConfirmOverlayProps {
+  visible: boolean;
+  title: string;
+  message: string;
+  position?: "top-right" | "top-left" | "bottom-right" | "bottom-left";
+  onCancel: () => void;
+  onConfirm: () => void;
+}
+
+export function ConfirmOverlay({
+  visible,
+  title,
+  message,
+  position = "bottom-right",
+  onCancel,
+  onConfirm,
+}: ConfirmOverlayProps) {
+  if (!visible) return null;
+
+  const positionClasses: Record<typeof position, string> = {
+    "top-right": "top-4 right-4",
+    "top-left": "top-4 left-4",
+    "bottom-right": "bottom-4 right-4",
+    "bottom-left": "bottom-4 left-4",
+  };
+
+  return (
+    <div
+      className={`absolute z-50 animate-in slide-in-from-right-3 duration-300 ${positionClasses[position]}`}
+    >
+      <Card className="border-red-400/40 bg-red-600/95 text-red-50 shadow-lg backdrop-blur-md w-80">
+        <CardContent className="flex flex-col gap-3 p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50/10">
+              <XCircle className="h-6 w-6 text-red-50" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <p className="text-sm font-semibold text-red-50">{title}</p>
+              <p className="text-sm text-red-50/90">{message}</p>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 mt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-red-200/30 bg-transparent text-red-50 hover:bg-red-50/10 hover:text-red-50"
+              onClick={onCancel}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="bg-red-50 text-red-600 hover:bg-white hover:text-red-700 font-semibold"
+              onClick={onConfirm}
+            >
+              Continue
+            </Button>
           </div>
         </CardContent>
       </Card>
