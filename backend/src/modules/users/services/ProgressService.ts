@@ -1850,9 +1850,9 @@ class ProgressService extends BaseService {
       throw new NotFoundError(`Item ${itemId} not found`);
     }
 
-    if (item.isOptional !== true) {
-      throw new BadRequestError('Item is not marked as optional');
-    }
+    // if (item.isOptional !== true) {
+    //   throw new BadRequestError('Item is not marked as optional');
+    // }
 
     // Get or create progress
 

@@ -611,6 +611,7 @@ const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemI
   updateCourseNavigation,
   itemContainerRef,
 ]);
+
   const handleSkipItem = async () => {
   if (!currentItem?._id) return;
   
