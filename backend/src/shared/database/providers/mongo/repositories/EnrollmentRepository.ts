@@ -2132,6 +2132,7 @@ export class EnrollmentRepository {
     session?: ClientSession,
   ): Promise<IEnrollment[]> {
     try {
+      await this.init()
       const courseObjectId = new ObjectId(courseId);
       const versionObjectId = new ObjectId(courseVersionId);
 
@@ -2158,6 +2159,7 @@ export class EnrollmentRepository {
     session?: ClientSession,
   ): Promise<IEnrollment[]> {
     try {
+      await this.init()
       const courseObjectId = new ObjectId(courseId);
       const versionObjectId = new ObjectId(courseVersionId);
 
