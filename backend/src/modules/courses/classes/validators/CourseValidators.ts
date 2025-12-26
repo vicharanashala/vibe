@@ -107,6 +107,16 @@ class CourseIdParams {
   courseId: string;
 }
 
+export class CourseVersionQuery {
+  @IsOptional()
+  @IsString()
+  courseId?: string;
+
+  @IsOptional()
+  @IsString()
+  courseVersionId?: string;
+}
+
 export class CourseVersionParams {
   @IsMongoId()
   @JSONSchema({

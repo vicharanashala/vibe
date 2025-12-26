@@ -143,20 +143,58 @@ class CourseService extends BaseService {
     });
   }
 
-  async updateCourseVersionTotalItemCount(): Promise<void> {
+  async updateCourseVersionTotalItemCount(
+    courseId?: string,
+    courseVersionId?: string,
+  ): Promise<void> {
 
-    const courses = await this.courseRepo.getAllCourses();
-    const versionIds = courses.flatMap(c => c.versions);
+    let versionIds: string[] = [];
+
+    // 1️⃣ If courseVersionId is provided, use it directly
+    if (courseVersionId) {
+      // Optional safety check: ensure version belongs to courseId
+      if (courseId) {
+        const course = await this.courseRepo.read(courseId);
+        if (!course) {
+          throw new Error(`Course with id ${courseId} not found`);
+        }
+
+        const belongsToCourse = course.versions.some(
+          v => v.toString() === courseVersionId,
+        );
+
+        if (!belongsToCourse) {
+          throw new Error(
+            `Version ${courseVersionId} does not belong to course ${courseId}`,
+          );
+        }
+      }
+
+      versionIds = [courseVersionId];
+    }
+    // 2️⃣ If only courseId is provided, process all its versions
+    else if (courseId) {
+      const course = await this.courseRepo.read(courseId);
+      if (!course) {
+        throw new Error(`Course with id ${courseId} not found`);
+      }
+
+      versionIds = course.versions.map(v => v.toString());
+    }
+    // 3️⃣ Otherwise, process all courses and all versions
+    else {
+      const courses = await this.courseRepo.getAllCourses();
+      versionIds = courses.flatMap(c =>
+        c.versions.map(v => v.toString()),
+      );
+    }
 
     const bulkOps = [];
 
     for (const versionId of versionIds) {
       try {
         const { totalItems, itemCounts } =
-          await this.itemRepo.calculateItemCountsForVersion(
-            versionId.toString(),
-
-          );
+          await this.itemRepo.calculateItemCountsForVersion(versionId);
 
         bulkOps.push({
           updateOne: {
@@ -177,8 +215,8 @@ class CourseService extends BaseService {
     if (bulkOps.length) {
       await this.courseRepo.bulkUpdateVersions(bulkOps);
     }
-
   }
+
 
 
 }
