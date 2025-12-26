@@ -92,6 +92,7 @@ class ProgressRepository {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
+        endTime: {$exists: true, $ne: null},
         isDeleted: {$ne: true},
       },
       {session},
@@ -109,18 +110,19 @@ class ProgressRepository {
   ): Promise<boolean> {
     await this.init();
 
-    const count = await this.watchTimeCollection.countDocuments(
+    const existing = await this.watchTimeCollection.findOne(
       {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
         itemId: new ObjectId(itemId),
+        endTime: {$exists: true, $ne: null},
         isDeleted: {$ne: true},
       },
       {session, limit: 1},
     );
 
-    return count > 0;
+    return existing !== null;
   }
 
   async getAllWatchTime(
@@ -730,6 +732,74 @@ class ProgressRepository {
       {session},
     );
     return progress;
+  }
+
+  async deleteUserWatchTimeByItemIds(
+    userId: string,
+
+    itemIds: string[],
+
+    session?: ClientSession,
+  ): Promise<{deletedCount: number}> {
+    if (!itemIds.length) {
+      return {deletedCount: 0};
+    }
+
+    const result = await this.watchTimeCollection.deleteMany(
+      {
+        userId: new ObjectId(userId),
+
+        itemId: {$in: itemIds.map(id => new ObjectId(id))},
+      },
+
+      {session},
+    );
+
+    return {
+      deletedCount: result.deletedCount ?? 0,
+    };
+  }
+
+  async addBulkWatchTime(
+    userId: string,
+
+    courseId: string,
+
+    versionId: string,
+
+    itemIds: string[],
+
+    session?: ClientSession,
+  ) {
+    await this.init();
+
+    if (!itemIds.length) return {insertedCount: 0};
+
+    const now = new Date();
+
+    const docs: IWatchTime[] = itemIds.map(itemId => ({
+      userId: new ObjectId(userId),
+
+      courseId: new ObjectId(courseId),
+
+      courseVersionId: new ObjectId(versionId),
+
+      itemId: new ObjectId(itemId),
+
+      startTime: now,
+
+      endTime: now,
+
+      isBulk: true,
+    }));
+
+    const result = await this.watchTimeCollection.insertMany(docs, {
+      session,
+    });
+
+    return {
+      insertedCount: result.insertedCount,
+    };
   }
 }
 

@@ -506,6 +506,8 @@ class ProgressService extends BaseService {
       itemId,
     );
 
+    console.log('Is Item Completed:', isItemCompleted, userId);
+
     if (isItemCompleted) {
       return;
     }
@@ -1140,6 +1142,9 @@ class ProgressService extends BaseService {
       );
 
       if (isItemCompleted) {
+        console.log(
+          `[ProgressService.stopItem] Item ${itemId} is already completed. Returning early. ${userId}`,
+        );
         return;
       }
 
@@ -1240,6 +1245,7 @@ class ProgressService extends BaseService {
 
       let newProgress;
       if (!nextSequenceItem) {
+        console.log('Next sequence Item', nextSequenceItem);
         newProgress = {
           completed: true,
           completedAt: new Date(),
@@ -1255,6 +1261,8 @@ class ProgressService extends BaseService {
           nextSequenceItem.sectionId,
           nextSequenceItem.itemId,
         );
+        console.log('Next sequence Item', nextSequenceItem);
+        console.log('Next nonblank item', nextNonBlankItem);
 
         if (!nextNonBlankItem) {
           newProgress = {
@@ -1269,6 +1277,9 @@ class ProgressService extends BaseService {
           nextNonBlankItem.itemId &&
           completedItemsArray.includes(nextNonBlankItem.itemId)
         ) {
+          console.log('Next sequence Item', nextSequenceItem);
+          console.log('Next nonblank item', nextNonBlankItem);
+          console.log('Completed Items', completedItemsArray);
           newProgress = null;
         } else {
           newProgress = {
@@ -1282,6 +1293,9 @@ class ProgressService extends BaseService {
       }
 
       if (!newProgress) {
+        console.log(
+          `[ProgressService.stopItem] newProgress is null (next item already completed). Returning early without updating progress.`,
+        );
         return;
       }
 
@@ -1338,7 +1352,6 @@ class ProgressService extends BaseService {
         (totalItems > 0 ? completedItemsSet.size / totalItems : 0) * 100,
       );
 
-      // Update enrollment and progress in parallel
       await Promise.all([
         this.enrollmentRepo.updateProgressPercentById(
           enrollment._id.toString(),
