@@ -521,6 +521,23 @@ It returns an empty body with a 200 status code.
     );
   }
 
+  ///////////////////////////////////////////////////// TO CORRECT THE WATCHTIME DOC COUNT OF STUDENTS ////////////////////////////////////////////
+  @Post('/progress/watch-time/bulk')
+  @HttpCode(201)
+  @OpenAPI({
+    summary: 'Create bulk watch-time records',
+    description:
+      'Creates multiple watch-time entries in a single request for better performance',
+  })
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Failed to create watch-time records',
+    statusCode: 500,
+  })
+  async createBulkWatchiTimeDocs(@Body() body: any): Promise<any> {
+    const {courseId, versionId} = body;
+    return this.progressService.createBulkWatchiTimeDocs(courseId, versionId);
+  }
+
   /////////////////////////////// TEMP ENDPOINT WITHOUT AUTH //////////////////////////////////
   @Get('/progress/courses/:courseId/versions/:versionId/leaderboard/no-auth')
   @OpenAPI({
@@ -530,7 +547,7 @@ It returns an empty body with a 200 status code.
   })
   @ResponseSchema(GetLeaderboardResponse, {
     description: 'Leaderboard retrieved successfully',
-    statusCode: 200
+    statusCode: 200,
   })
   @ResponseSchema(InternalServerErrorResponse, {
     description: 'Failed to fetch leaderboard',

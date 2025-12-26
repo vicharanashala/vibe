@@ -448,7 +448,7 @@ class SubmissionRepository {
     if (result.length > 0 && result[0].averagePercentage !== null) {
       return Math.round(result[0].averagePercentage * 10) / 10;
     }
-  
+
     return 0;
   }
 
@@ -469,6 +469,21 @@ class SubmissionRepository {
         'Failed to find submission results ' + error,
       );
     }
+  }
+
+  async getByQuizAndUserId(
+    quizId: string,
+    userId: string,
+    session?: ClientSession,
+  ): Promise<ISubmission> {
+    await this.init();
+    return await this.submissionResultCollection.findOne(
+      {
+        quizId: new ObjectId(quizId),
+        userId: new ObjectId(userId),
+      },
+      {session},
+    );
   }
 }
 
