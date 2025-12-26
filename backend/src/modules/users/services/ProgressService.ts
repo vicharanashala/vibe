@@ -2076,8 +2076,8 @@ class ProgressService extends BaseService {
     // Combine progress and enrollment data
     const leaderboardData = progressRecords.map(progress => ({
       userId: progress.userId.toString(),
-      userName: userMap.get(progress.userId.toString()).name || 'Unknown User',
-      email: userMap.get(progress.userId.toString()).email || 'No email',
+      userName: userMap.get(progress.userId.toString())?.name || 'Unknown User',
+      email: userMap.get(progress.userId.toString())?.email || 'No email',
       completionPercentage:
         enrollmentMap.get(progress.userId.toString())?.completionPercentage ||
         0,
