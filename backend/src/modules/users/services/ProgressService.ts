@@ -1,4 +1,4 @@
-import {Item} from '#courses/classes/transformers/Item.js';
+import {Item, ItemsGroup} from '#courses/classes/transformers/Item.js';
 import {COURSES_TYPES} from '#courses/types.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
@@ -25,7 +25,11 @@ import {
 import {SubmissionRepository} from '#quizzes/repositories/providers/mongodb/SubmissionRepository.js';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
 import {WatchTime} from '../classes/transformers/WatchTime.js';
-import {CompletedProgressResponse, GetLeaderboardResponse, LeaderboardNoAuthResponse} from '../classes/index.js';
+import {
+  CompletedProgressResponse,
+  GetLeaderboardResponse,
+  LeaderboardNoAuthResponse,
+} from '../classes/index.js';
 import {
   QuizRepository,
   UserQuizMetricsRepository,
@@ -33,6 +37,7 @@ import {
 import {EnrollmentRepository} from '#root/shared/index.js';
 import {PROJECTS_TYPES} from '#root/modules/projects/types.js';
 import {IProjectSubmissionRepository} from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
+import {FeedbackRepository} from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
 
 @injectable()
 class ProgressService extends BaseService {
@@ -63,6 +68,9 @@ class ProgressService extends BaseService {
 
     @inject(PROJECTS_TYPES.projectSubmissionRepository)
     private projectSubmissionRepo: IProjectSubmissionRepository,
+
+    @inject(QUIZZES_TYPES.FeedbackRepo)
+    private feedbackRepository: FeedbackRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase, // inject the database provider
@@ -2026,6 +2034,155 @@ class ProgressService extends BaseService {
       currentPage: page,
       myStats,
     };
+  }
+
+  async getAllItemIds(courseVersionId: string): Promise<string[]> {
+    if (!courseVersionId) {
+      throw new BadRequestError('courseVersionId is required');
+    }
+
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    if (!courseVersion) {
+      throw new NotFoundError(`Course version ${courseVersionId} not found`);
+    }
+
+    const allItemIds: string[] = [];
+
+    for (const module of courseVersion.modules) {
+      for (const section of module.sections) {
+        const itemGroupId = section.itemsGroupId;
+        if (!itemGroupId) continue;
+
+        const itemGroup = await this.itemRepo.readItemsGroup(
+          itemGroupId.toString(),
+        );
+        if (!itemGroup || !itemGroup.items) continue;
+
+        for (const item of itemGroup.items) {
+          if (item._id) {
+            allItemIds.push(item._id.toString());
+          }
+        }
+      }
+    }
+
+    return allItemIds;
+  }
+
+  async createBulkWatchiTimeDocs(courseId: string, versionId: string) {
+    if (!courseId || !versionId) {
+      throw new BadRequestError('courseId and versionId are required');
+    }
+
+    const enrollments = await this.enrollmentRepo.getByCourseVersion(
+      courseId,
+      versionId,
+    );
+
+    if (!enrollments.length) {
+      throw new NotFoundError('No enrollments found for this course version');
+    }
+
+    const enrolledUsersId = enrollments.map(e => e.userId.toString());
+
+    const courseVersion = await this.courseRepo.readVersion(versionId);
+    if (!courseVersion) {
+      throw new NotFoundError('Course version not found');
+    }
+
+    const lastModule = courseVersion.modules.at(-1);
+    if (!lastModule) {
+      throw new BadRequestError('Course version has no modules');
+    }
+
+    const lastSection = lastModule.sections.at(-1);
+    if (!lastSection) {
+      throw new BadRequestError('Last module has no sections');
+    }
+
+    const lastItemGroupId = lastSection.itemsGroupId;
+    if (!lastItemGroupId) {
+      throw new BadRequestError('Last section has no item group');
+    }
+
+    const lastItemGroup = await this.itemRepo.readItemsGroup(
+      lastItemGroupId.toString(),
+    );
+
+    if (!lastItemGroup || !lastItemGroup.items.length) {
+      throw new NotFoundError('Last item group not found or empty');
+    }
+
+    const lastItem = lastItemGroup.items.at(-1);
+
+    if (
+      !lastItem ||
+      (lastItem.type !== 'QUIZ' && lastItem.type !== 'FEEDBACK')
+    ) {
+      throw new BadRequestError(
+        'Last item is not a quiz or feedback cannot determine completion',
+      );
+    }
+
+    const quizId = lastItem._id!.toString();
+
+    const allItemIds = await this.getAllItemIds(versionId);
+
+    if (!allItemIds.length) {
+      throw new NotFoundError('No items found for this course version');
+    }
+
+    for (const userId of enrolledUsersId) {
+      let isProceed = true;
+      if (lastItem.type == 'QUIZ') {
+        const quizSubmission =
+          await this.submissionRepository.getByQuizAndUserId(quizId, userId);
+        if (!quizSubmission) isProceed = false;
+        if (quizSubmission?.gradingResult?.gradingStatus !== 'PASSED')
+          isProceed = false;
+      } else if (lastItem.type == 'FEEDBACK') {
+        const feedbackSubmission =
+          await this.feedbackRepository.getByUserAndVersionId(
+            userId,
+            versionId,
+          );
+        if (!feedbackSubmission) isProceed = false;
+      }
+      if (!isProceed) {
+        console.log(
+          'Skiping item...',
+          'Item type: ',
+          lastItem.type,
+          'userId: ',
+          userId,
+        );
+        continue;
+      }
+
+      const completedItemIds = await this.progressRepository.getCompletedItems(
+        userId,
+        courseId,
+        versionId,
+      );
+
+      const missedItemIds = allItemIds.filter(
+        itemId => !completedItemIds.includes(itemId),
+      );
+      console.log(`UserId: ${userId}`);
+      console.log(`Missed Items:`, missedItemIds);
+      console.log(`Missed Items Count: ${missedItemIds.length}`);
+      console.log(`Completed Items length:`, completedItemIds.length);
+      console.log(`Total Items length:`, allItemIds.length);
+
+      if (!missedItemIds.length) continue;
+
+      await this.progressRepository.addBulkWatchTime(
+        userId,
+        courseId,
+        versionId,
+        missedItemIds,
+      );
+    }
   }
 
   /////////////////////////////// TEMP SERVICE WITHOUT AUTH //////////////////////////////////
