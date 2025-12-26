@@ -2137,8 +2137,17 @@ class ProgressService extends BaseService {
       if (lastItem.type == 'QUIZ') {
         const quizSubmission =
           await this.submissionRepository.getByQuizAndUserId(quizId, userId);
+        const userQuizMetrics = await this.userQuizMetricsRepository.get(
+          userId,
+          quizId,
+        );
+        if (!userQuizMetrics) isProceed = false;
         if (!quizSubmission) isProceed = false;
-        if (quizSubmission?.gradingResult?.gradingStatus !== 'PASSED')
+        if (
+          quizSubmission?.gradingResult?.gradingStatus !== 'PASSED' &&
+          userQuizMetrics?.remainingAttempts > 0 &&
+          userQuizMetrics?.remainingAttempts !== -1
+        )
           isProceed = false;
       } else if (lastItem.type == 'FEEDBACK') {
         const feedbackSubmission =
