@@ -598,6 +598,10 @@ export class BulkEnrollmentsQuery {
   @IsOptional()
   @IsString()
   courseId?: string;
+
+  @IsOptional()
+  @IsString()
+  userId?: string;
 }
 
 export interface IUserAnomaly {
