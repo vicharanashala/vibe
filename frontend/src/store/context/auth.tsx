@@ -95,8 +95,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         clearUser();
       }
-
-      useAuthStore.getState().setAuthLoading(false);
     });
 
     // Cleanup function
