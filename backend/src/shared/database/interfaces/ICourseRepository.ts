@@ -45,6 +45,7 @@ export interface ICourseRepository {
   readVersion(
     versionId: string,
     session?: ClientSession,
+    filterDeleted?: boolean,
   ): Promise<ICourseVersion | null>;
 
   getActiveVersion(

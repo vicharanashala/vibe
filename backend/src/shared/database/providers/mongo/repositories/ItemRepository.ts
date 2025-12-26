@@ -584,12 +584,24 @@ export class ItemRepository implements IItemRepository {
   ): Promise<{ moduleId: ObjectId; sectionId: ObjectId; itemId: ObjectId }> {
     await this.init();
 
-    const version = await this.courseRepo.readVersion(courseVersionId);
+    const version = await this.courseRepo.readVersion(courseVersionId, undefined, false);
     if (!version || version.modules.length === 0) {
       throw new InternalServerError('Course version has no modules');
     }
 
-    const firstModule = version.modules
+    // Filter out deleted modules and sections
+    const activeModules = version.modules
+      .filter(m => !m.isDeleted)
+      .map(m => ({
+        ...m,
+        sections: m.sections ? m.sections.filter(s => !s.isDeleted) : [],
+      }));
+
+    if (activeModules.length === 0) {
+      throw new InternalServerError('Course version has no active modules');
+    }
+
+    const firstModule = activeModules
       .slice()
       .sort((a, b) => a.order.localeCompare(b.order))[0];
     if (!firstModule.sections.length) {
