@@ -2133,6 +2133,7 @@ class ProgressService extends BaseService {
     }
 
     for (const userId of enrolledUsersId) {
+
       let isProceed = true;
       if (lastItem.type == 'QUIZ') {
         const quizSubmission =
@@ -2141,6 +2142,7 @@ class ProgressService extends BaseService {
           userId,
           quizId,
         );
+
         if (!userQuizMetrics) isProceed = false;
         if (!quizSubmission) isProceed = false;
         if (
