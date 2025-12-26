@@ -101,16 +101,24 @@ export async function setupItemAbilities(
 
           if (!progress.currentItem) {
             // User has not started the course yet
-            // Allow only ViewAll (or nothing, based on your rules)
-            const firstItem = await progressService.getFirstItem(
-              enrollment.versionId,
-            );
-            // const firstItem = await this.itemService.getFirstItem(enrollment.versionId);
-            can(ItemActions.View, 'Item', {
-              courseId: enrollment.courseId,
-              versionId: enrollment.versionId,
-              ItemId: firstItem?.itemId,
-            });
+            try {
+              // Try to get the first item, but don't throw if none found
+              const firstItem = await progressService.getFirstItem(
+                enrollment.versionId,
+              );
+              
+              // Only add view permission if we found a first item
+              if (firstItem?.itemId) {
+                can(ItemActions.View, 'Item', {
+                  courseId: enrollment.courseId,
+                  versionId: enrollment.versionId,
+                  ItemId: firstItem.itemId,
+                });
+              }
+            } catch (error) {
+              // Log the error but continue execution
+              console.error('Error getting first item:', error);
+            }
             return;
           }
 
@@ -133,14 +141,19 @@ export async function setupItemAbilities(
           );
 
           if (quizMetrics && quizMetrics.remainingAttempts == 0) {
-            const {nextItemId} = await progressService.determineNextAllowedItem(
-              currentItemId,
-              quizMetrics,
-              enrollment,
-            );
+            try {
+              const {nextItemId} = await progressService.determineNextAllowedItem(
+                currentItemId,
+                quizMetrics,
+                enrollment,
+              );
 
-            if (nextItemId) {
-              allowedItemIds.push(nextItemId);
+              if (nextItemId) {
+                allowedItemIds.push(nextItemId);
+              }
+            } catch (error) {
+              // Log the error but continue execution
+              console.error('Error determining next allowed item:', error);
             }
           }
 
