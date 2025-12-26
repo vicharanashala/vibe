@@ -32,7 +32,7 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-export default function Video({ URL, startTime, endTime, points, anomalies,readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange,keyboardLockEnabled= true }: VideoProps) {
+export default function Video({ URL, startTime, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true }: VideoProps) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const [playerReady, setPlayerReady] = useState(false);
@@ -49,7 +49,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   const { currentCourse, setWatchItemId } = useCourseStore();
   const startItem = useStartItem();
   const stopItem = useStopItem();
- const isStopping = stopItem.isPending;
+  const isStopping = stopItem.isPending;
 
   // Parse start and end times
   const startTimeSeconds = parseTimeToSeconds(startTime || '0');
@@ -106,7 +106,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
         setGracePeriodCompleted(true);
         console.log('✅ Video: Grace period completed, ready for auto-play');
       }, 10000); // 10 seconds to match FloatingVideo's grace period
-      
+
       return () => clearTimeout(timer);
     }
   }, [readyToDetect, gracePeriodCompleted]);
@@ -137,7 +137,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
       player.pauseVideo();
     } else {
       player.playVideo();
-      setTimeout(() => {playerRef.current?.setPlaybackRate?.(playbackRate);}, 50);
+      setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
     }
   }, [playing, readyToDetect]);
 
@@ -164,7 +164,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
       // Resume if it was playing before gesture
       if (wasPlayingBeforeGesture.current) {
         player.playVideo();
-        setTimeout(() => {playerRef.current?.setPlaybackRate?.(playbackRate);}, 50);
+        setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
         wasPlayingBeforeGesture.current = false;
       }
     }
@@ -199,14 +199,14 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
       if (playing) {
         player.pauseVideo();
         console.log('Video paused due to anomaly detection');
-         wasPlayingBeforeRewind.current = true; // Remember it was playing
+        wasPlayingBeforeRewind.current = true; // Remember it was playing
       }
     } else {
       // Resume video when anomalies are cleared
       // Only resume if it was playing before the rewind/pause
       if (wasPlayingBeforeRewind.current) {
         player.playVideo();
-        setTimeout(() => {playerRef.current?.setPlaybackRate?.(playbackRate);}, 50);
+        setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
         console.log('Video resumed after anomalies cleared');
         wasPlayingBeforeRewind.current = false; // Reset the flag
       }
@@ -214,43 +214,43 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   }, [pauseVid, playing]);
 
 
-  
+
   // Autoplay: Wait for grace period completion
   useEffect(() => {
     const player = playerRef.current;
-    
+
     // Only auto-play if ALL conditions are perfect:
     // 1. Player is ready
     // 2. Camera permissions granted AND grace period completed
     // 3. Video is not already playing
     // 4. Not blocked by any anomalies
     // 5. We haven't auto-played yet
-    if (playerReady && 
-        readyToDetect && 
-        gracePeriodCompleted && // Wait for grace period
-        player && 
-        !playing && 
-        !pauseVid && 
-        !rewindVid && 
-        !doGesture &&
-        !hasAutoPlayedRef.current) {
-      
+    if (playerReady &&
+      readyToDetect &&
+      gracePeriodCompleted && // Wait for grace period
+      player &&
+      !playing &&
+      !pauseVid &&
+      !rewindVid &&
+      !doGesture &&
+      !hasAutoPlayedRef.current) {
+
       console.log('🎬 Auto-playing video: Grace period completed, all conditions met');
-      
+
       const timer = setTimeout(() => {
-        if (playerRef.current && 
-            !playing && 
-            !pauseVid && 
-            !rewindVid && 
-            !doGesture) {
-          
+        if (playerRef.current &&
+          !playing &&
+          !pauseVid &&
+          !rewindVid &&
+          !doGesture) {
+
           playerRef.current.playVideo();
           setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
           hasAutoPlayedRef.current = true;
           console.log('✅ Video auto-played successfully after grace period');
         }
       }, 1000); // 1 second final delay
-      
+
       return () => clearTimeout(timer);
     }
   }, [playerReady, readyToDetect, gracePeriodCompleted, playing, pauseVid, rewindVid, doGesture]);
@@ -258,7 +258,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   // Autoplay: Only trigger once when everything becomes ready
   // useEffect(() => {
   //   const player = playerRef.current;
-    
+
   //   // Only auto-play if ALL conditions are perfect:
   //   // 1. Player is ready
   //   // 2. Camera permissions granted (readyToDetect = true after grace period)
@@ -273,9 +273,9 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   //       !rewindVid && 
   //       !doGesture &&
   //       !hasAutoPlayedRef.current) {
-      
+
   //     console.log('🎬 Auto-playing video: All conditions met');
-      
+
   //     // Small delay to ensure everything is settled
   //     const timer = setTimeout(() => {
   //       if (playerRef.current && 
@@ -283,14 +283,14 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   //           !pauseVid && 
   //           !rewindVid && 
   //           !doGesture) {
-          
+
   //         playerRef.current.playVideo();
   //         setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
   //         hasAutoPlayedRef.current = true;
   //         console.log('✅ Video auto-played successfully');
   //       }
   //     }, 1000); // 1 second delay
-      
+
   //     return () => clearTimeout(timer);
   //   }
   // }, [playerReady, readyToDetect, playing, pauseVid, rewindVid, doGesture]);
@@ -350,13 +350,13 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
 
   // Load YouTube IFrame API
   useEffect(() => {
-    if(!readyToDetect) return;
+    if (!readyToDetect) return;
 
     function createPlayer() {
       if (!iframeRef.current || !videoId) return;
 
       console.log('Creating YouTube player - camera permissions granted');
-      
+
       playerRef.current = new window.YT!.Player(iframeRef.current, {
         videoId,
         playerVars: {
@@ -370,7 +370,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
           autohide: 1,
           showinfo: 0,
           playsinline: 1,
-          cc_load_policy: subtitlesEnabled ? 1 : 0, 
+          cc_load_policy: subtitlesEnabled ? 1 : 0,
           cc_lang_pref: 'en',
           enablejsapi: 1,
           origin: window.location.origin,
@@ -397,7 +397,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
             console.log('✅ YouTube player ready - waiting for camera to be ready');
 
           },
-          onStateChange: async(event: { data: number; target: YTPlayerInstance }) => {
+          onStateChange: async (event: { data: number; target: YTPlayerInstance }) => {
             if (window.YT && event.data === window.YT.PlayerState.PLAYING) {
               setPlaying(true);
               if (!progressStartedRef.current) {
@@ -413,7 +413,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
               setPlaying(false);
               if (!progressStoppedRef.current && watchItemIdRef.current && currentCourse) {
                 const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
-               if (watchItemId ) {
+                if (watchItemId) {
                   stopInFlightRef.current = true;
                   try {
                     await stopItem.mutateAsync({
@@ -439,7 +439,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
                     console.error('Stop item failed:', err);
                     setIsStopFailed(true);
                     return;
-                  }  finally {
+                  } finally {
                     stopInFlightRef.current = false;
                   }
                 }
@@ -500,7 +500,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
 
   // // Handle keyboard events including space for play/pause
   // useEffect(() => {
-    
+
   //   if(!keyboardLockEnabled) return;
   //   const handleKeyDown = (e: KeyboardEvent) => {
   //     // Handle space key for play/pause
@@ -531,53 +531,22 @@ export default function Video({ URL, startTime, endTime, points, anomalies,ready
   // }, [handlePlayPause]);
 
   // Poll current time and enforce time constraints
-useEffect(() => {
-  let interval: ReturnType<typeof setInterval>;
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
 
-  if (playerReady) {
-    interval = setInterval(async() => {
+    if (playerReady) {
+      interval = setInterval(async () => {
 
-      if (progressStoppedRef.current || stopInFlightRef.current) {
-        return;
-      }
-
-      const player = playerRef.current;
-      if (player && player.getCurrentTime) {
-        const time = player.getCurrentTime();
-        setCurrentTime(time);
-        setDuration(player.getDuration());
-        setVolume(player.getVolume());
-
-        // Enforce startTime constraint
-        if (time < startTimeSeconds) {
-          if (!player) return;
-          player.seekTo(startTimeSeconds, true);
-          setMaxTime(startTimeSeconds);
+        if (progressStoppedRef.current || stopInFlightRef.current) {
           return;
         }
 
-        // Enforce endTime constraint
-        if (endTimeSeconds > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= endTimeSeconds - 1 && currentCourse) {
-          const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
-          stopInFlightRef.current = true;
-          if (watchItemId) {
-            // Pause video immediately
-            player?.pauseVideo();
-            try {
-              await stopItem.mutateAsync({
-                params: {
-                  path: {
-                    courseId: currentCourse.courseId,
-                    courseVersionId: currentCourse.versionId ?? '',
-                  },
-                },
-                body: {
-                  watchItemId,
-                  itemId: currentCourse.itemId ?? '',
-                  moduleId: currentCourse.moduleId ?? '',
-                  sectionId: currentCourse.sectionId ?? '',
-                },
-              });
+        const player = playerRef.current;
+        if (player && player.getCurrentTime) {
+          const time = player.getCurrentTime();
+          setCurrentTime(time);
+          setDuration(player.getDuration());
+          setVolume(player.getVolume());
 
               progressStoppedRef.current = true;
               onNext?.();
@@ -591,31 +560,29 @@ useEffect(() => {
               stopInFlightRef.current = false;
             }
           }
-        }
-        
-        // Handle videos without endTime constraint that reach near completion
-        if (endTimeSeconds === 0 && duration > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= duration - 2 && currentCourse) {
-          const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
-          if (watchItemId) {
-            // Pause video immediately when stop is triggered
-            player?.pauseVideo();
+
+          // Enforce endTime constraint
+          if (endTimeSeconds > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= endTimeSeconds - 1 && currentCourse) {
+            const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
             stopInFlightRef.current = true;
-            try {
-              await stopItem.mutateAsync({
-                params: {
-                  path: {
-                    courseId: currentCourse.courseId,
-                    courseVersionId: currentCourse.versionId ?? '',
+            if (watchItemId) {
+              // Pause video immediately
+              player?.pauseVideo();
+              try {
+                await stopItem.mutateAsync({
+                  params: {
+                    path: {
+                      courseId: currentCourse.courseId,
+                      courseVersionId: currentCourse.versionId ?? '',
+                    },
                   },
-                },
-                body: {
-                  watchItemId,
-                  itemId: currentCourse.itemId ?? '',
-                  moduleId: currentCourse.moduleId ?? '',
-                  sectionId: currentCourse.sectionId ?? '',
-                },
-              });
-              progressStoppedRef.current = true;
+                  body: {
+                    watchItemId,
+                    itemId: currentCourse.itemId ?? '',
+                    moduleId: currentCourse.moduleId ?? '',
+                    sectionId: currentCourse.sectionId ?? '',
+                  },
+                });
 
               onNext?.();
             } catch (err) {
@@ -629,89 +596,127 @@ useEffect(() => {
             }
           }
 
-        }
-        if (endTimeSeconds > 0 && time >= endTimeSeconds) {
-          player.pauseVideo();
-          if (!player) return;
-          player.seekTo(endTimeSeconds, true);
-          setMaxTime(endTimeSeconds);
-          if (!videoEnded) {
-            setVideoEnded(true);
+          // Handle videos without endTime constraint that reach near completion
+          if (endTimeSeconds === 0 && duration > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= duration - 2 && currentCourse) {
+            const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
+            if (watchItemId) {
+              // Pause video immediately when stop is triggered
+              player?.pauseVideo();
+              stopInFlightRef.current = true;
+              try {
+                await stopItem.mutateAsync({
+                  params: {
+                    path: {
+                      courseId: currentCourse.courseId,
+                      courseVersionId: currentCourse.versionId ?? '',
+                    },
+                  },
+                  body: {
+                    watchItemId,
+                    itemId: currentCourse.itemId ?? '',
+                    moduleId: currentCourse.moduleId ?? '',
+                    sectionId: currentCourse.sectionId ?? '',
+                  },
+                });
+                progressStoppedRef.current = true;
+
+                onNext?.();
+              } catch (err) {
+                progressStoppedRef.current = true; // Prevent infinite retries
+                toast.error('Unable to stop video, try again!');
+                console.error('Stop item failed:', err);
+                return;
+              } finally {
+                stopInFlightRef.current = false
+              }
+            }
+
           }
+          if (endTimeSeconds > 0 && time >= endTimeSeconds) {
+            player.pauseVideo();
+            if (!player) return;
+            player.seekTo(endTimeSeconds, true);
+            setMaxTime(endTimeSeconds);
+            if (!videoEnded) {
+              setVideoEnded(true);
+            }
+            return;
+          }
+
+          // Prevent forward seeking beyond what they've already watched
+          const speedTolerance = playbackRate * 1.0;
+          const timeDifference = time - maxTime;
+
+          // Calculate the effective end time - use endTimeSeconds if set, otherwise use duration
+          const effectiveEndTime = endTimeSeconds > 0 ? endTimeSeconds : duration;
+
+          if (timeDifference > speedTolerance + 1.0 && time < effectiveEndTime) {
+            if (!player) return;
+            player.seekTo(maxTime, true);
+          } else if (time >= startTimeSeconds && time < effectiveEndTime) {
+            setMaxTime(Math.max(maxTime, time));
+          }
+        }
+      }, Math.max(200, 500 / playbackRate));
+    }
+    return () => clearInterval(interval);
+  }, [playerReady, maxTime, playbackRate, startTimeSeconds, endTimeSeconds, videoEnded]);
+
+  useEffect(() => {
+    if (!keyboardLockEnabled) return;
+
+    const blockedKeys = new Set([
+      't', 'i', 'o', 'k', 'f', 'c', 'm', ',', '.',
+      'T', 'I', 'O', 'K', 'F', 'C', 'M', '<', '>'
+    ]);
+
+    const handler = (rawEvent: KeyboardEvent) => {
+      try {
+        const tgt = rawEvent.target as HTMLElement | null;
+
+        // Allow typing inside input/textarea/contentEditable
+        if (tgt) {
+          const tag = tgt.tagName;
+          if (tag === 'INPUT' || tag === 'TEXTAREA' || (tgt as HTMLElement).isContentEditable) {
+            return;
+          }
+        }
+
+        // Space: only toggle play/pause, do NOT re-dispatch
+        if (rawEvent.code === 'Space') {
+          rawEvent.preventDefault();
+          rawEvent.stopImmediatePropagation();
+          handlePlayPause();
           return;
         }
 
-        // Prevent forward seeking beyond what they've already watched
-        const speedTolerance = playbackRate * 1.0;
-        const timeDifference = time - maxTime;
+        // Only handle keys in our blocked set
+        if (!blockedKeys.has(rawEvent.key)) return;
 
-        if (timeDifference > speedTolerance + 1.0 && time <= endTimeSeconds) {
-          if (!player) return;
-          player.seekTo(maxTime, true);
-        } else if (time >= startTimeSeconds && time <= endTimeSeconds) {
-          setMaxTime(Math.max(maxTime, time));
-        }
-      }
-    }, Math.max(200, 500 / playbackRate));
-  }
-  return () => clearInterval(interval);
-}, [playerReady, maxTime, playbackRate, startTimeSeconds, endTimeSeconds, videoEnded]);
-
-useEffect(() => {
-  if (!keyboardLockEnabled) return;
-
-  const blockedKeys = new Set([
-    't','i','o','k','f','c','m',',','.',
-    'T','I','O','K','F','C','M','<','>'
-  ]);
-
-  const handler = (rawEvent: KeyboardEvent) => {
-    try {
-      const tgt = rawEvent.target as HTMLElement | null;
-
-      // Allow typing inside input/textarea/contentEditable
-      if (tgt) {
-        const tag = tgt.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || (tgt as HTMLElement).isContentEditable) {
-          return;
-        }
-      }
-
-      // Space: only toggle play/pause, do NOT re-dispatch
-      if (rawEvent.code === 'Space') {
+        // For these keys, block default and re-dispatch a clean event
         rawEvent.preventDefault();
         rawEvent.stopImmediatePropagation();
-        handlePlayPause();
-        return;
+
+        const synthetic = new KeyboardEvent('keydown', {
+          key: rawEvent.key,
+          code: rawEvent.code,
+          bubbles: true,
+          cancelable: true,
+          shiftKey: rawEvent.shiftKey,
+          ctrlKey: rawEvent.ctrlKey,
+          altKey: rawEvent.altKey,
+          metaKey: rawEvent.metaKey,
+        });
+
+        setTimeout(() => document.dispatchEvent(synthetic), 0);
+      } catch (err) {
+        console.error('Keyboard capture error', err);
       }
+    };
 
-      // Only handle keys in our blocked set
-      if (!blockedKeys.has(rawEvent.key)) return;
-
-      // For these keys, block default and re-dispatch a clean event
-      rawEvent.preventDefault();
-      rawEvent.stopImmediatePropagation();
-
-      const synthetic = new KeyboardEvent('keydown', {
-        key: rawEvent.key,
-        code: rawEvent.code,
-        bubbles: true,
-        cancelable: true,
-        shiftKey: rawEvent.shiftKey,
-        ctrlKey: rawEvent.ctrlKey,
-        altKey: rawEvent.altKey,
-        metaKey: rawEvent.metaKey,
-      });
-
-      setTimeout(() => document.dispatchEvent(synthetic), 0);
-    } catch (err) {
-      console.error('Keyboard capture error', err);
-    }
-  };
-
-  window.addEventListener('keydown', handler, true);
-  return () => window.removeEventListener('keydown', handler, true);
-}, [handlePlayPause, keyboardLockEnabled]);
+    window.addEventListener('keydown', handler, true);
+    return () => window.removeEventListener('keydown', handler, true);
+  }, [handlePlayPause, keyboardLockEnabled]);
 
 
 
@@ -733,7 +738,7 @@ useEffect(() => {
       return newState;
     });
   };
-  
+
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -787,81 +792,81 @@ useEffect(() => {
 
       }}>
         {/* Video Container */}
-      <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-  
-   {!readyToDetect ? (  // Show preparing message before player is ready 
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'hsl(var(--muted))',
-        borderRadius: '12px 12px 0 0',
-      }}
-    >
-      <div
-        style={{
-          fontSize: 18,
-          fontWeight: 600,
-          color: 'hsl(var(--foreground))',
-          marginBottom: 8,
-        }}
-      >
-        Preparing environment...
-      </div>
-      <div
-        style={{
-          fontSize: 14,
-          fontWeight: 400,
-          opacity: 0.7,
-        }}
-      >
-        Please wait while we get things ready.
-      </div>
-    </div>
-  ) : (
-    // YouTube iframe container
-    <>
-     <div
+        <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
 
-            ref={iframeRef}
+          {!readyToDetect ? (  // Show preparing message before player is ready 
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'hsl(var(--muted))',
+                borderRadius: '12px 12px 0 0',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 600,
+                  color: 'hsl(var(--foreground))',
+                  marginBottom: 8,
+                }}
+              >
+                Preparing environment...
+              </div>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 400,
+                  opacity: 0.7,
+                }}
+              >
+                Please wait while we get things ready.
+              </div>
+            </div>
+          ) : (
+            // YouTube iframe container
+            <>
+              <div
 
-            style={{
+                ref={iframeRef}
 
-              width: '100%',
+                style={{
 
-              height: '100%',
+                  width: '100%',
 
-              background: 'hsl(var(--background))',
+                  height: '100%',
 
-              borderRadius: '12px 12px 0 0',
+                  background: 'hsl(var(--background))',
 
-              overflow: 'hidden',
+                  borderRadius: '12px 12px 0 0',
 
-              pointerEvents: 'none',
+                  overflow: 'hidden',
 
-              position: 'relative',
+                  pointerEvents: 'none',
 
-              userSelect: 'none',
+                  position: 'relative',
 
-              WebkitUserSelect: 'none',
+                  userSelect: 'none',
 
-              MozUserSelect: 'none',
+                  WebkitUserSelect: 'none',
 
-              msUserSelect: 'none',
+                  MozUserSelect: 'none',
 
-            }}
+                  msUserSelect: 'none',
 
-          />
+                }}
+
+              />
 
 
 
-          {/* Multiple overlay layers to block YouTube controls */}
+              {/* Multiple overlay layers to block YouTube controls */}
 
-          {/* <div
+              {/* <div
 
             style={{
 
@@ -931,539 +936,538 @@ useEffect(() => {
             tabIndex={-1}
 
           /> */}
-          {/* /* add data-video-overlay so the focus-burring effect can detect it */ }
-<div data-video-overlay="true"
-  style={{
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    background: 'transparent',
-    pointerEvents: 'auto',
-    zIndex: 10,
-    userSelect: 'none',
-    cursor: 'pointer',
-  }}
-  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePlayPause(); }}
-  onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
-  onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-/>
+              {/* /* add data-video-overlay so the focus-burring effect can detect it */}
+              <div data-video-overlay="true"
+                style={{
+                  position: 'absolute',
+                  top: 0, left: 0, right: 0, bottom: 0,
+                  background: 'transparent',
+                  pointerEvents: 'auto',
+                  zIndex: 10,
+                  userSelect: 'none',
+                  cursor: 'pointer',
+                }}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePlayPause(); }}
+                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              />
 
 
 
 
-          {/* Additional security overlay */}
-
-          <div
-
-            style={{
-
-              position: 'absolute',
-
-              top: 0,
-
-              left: 0,
-
-              right: 0,
-
-              bottom: 0,
-
-              background: 'rgba(0,0,0,0.001)',
-
-              pointerEvents: 'auto',
-
-              zIndex: 9,
-
-            }}
-
-            onContextMenu={(e) => e.preventDefault()}
-
-            onDoubleClick={(e) => e.preventDefault()}
-
-            onMouseDown={(e) => e.preventDefault()}
-
-            onMouseUp={(e) => e.preventDefault()}
-
-            onTouchStart={(e) => e.preventDefault()}
-
-            onTouchEnd={(e) => e.preventDefault()}
-
-          />
-
-
-
-          {/* Anomaly Overlay */}
-
-          {(rewindVid || doGesture || (pauseVid && !anomalies?.includes("faceCountDetection"))) && (
-
-          // {(rewindVid || doGesture || pauseVid) && ( ----- to be uncommented later
-
-            <div
-
-              className='shadow-2xl'
-
-              style={{
-
-                position: 'absolute',
-
-                top: 0,
-
-                left: 0,
-
-                right: 0,
-
-                bottom: 0,
-
-                background: 'rgba(70,50,0,0.85)',
-
-                zIndex: 20,
-
-                display: 'flex',
-
-                flexDirection: 'column',
-
-                alignItems: 'center',
-
-                justifyContent: 'center',
-
-                pointerEvents: 'auto',
-
-                borderRadius: '12px 12px 0 0',
-
-                transition: 'background 0.2s',
-
-              }}
-
-            >
+              {/* Additional security overlay */}
 
               <div
 
-                className='shadow-2xl'
-
                 style={{
 
-                  background: 'rgba(255, 255, 255, 1)',
+                  position: 'absolute',
 
-                  borderRadius: 16,
+                  top: 0,
 
-                  padding: '32px 32px 24px 32px',
+                  left: 0,
 
-                  boxShadow: '0 4px 32px rgba(30,41,59,0.10)',
+                  right: 0,
 
-                  display: 'flex',
+                  bottom: 0,
 
-                  flexDirection: 'column',
+                  background: 'rgba(0,0,0,0.001)',
 
-                  alignItems: 'center',
+                  pointerEvents: 'auto',
 
-                  justifyContent: 'center',
-
-                  maxWidth: 400,
-
-                  margin: '0 auto',
+                  zIndex: 9,
 
                 }}
 
-              >
+                onContextMenu={(e) => e.preventDefault()}
+
+                onDoubleClick={(e) => e.preventDefault()}
+
+                onMouseDown={(e) => e.preventDefault()}
+
+                onMouseUp={(e) => e.preventDefault()}
+
+                onTouchStart={(e) => e.preventDefault()}
+
+                onTouchEnd={(e) => e.preventDefault()}
+
+              />
+
+
+
+              {/* Anomaly Overlay */}
+
+              {(rewindVid || doGesture || (pauseVid && !anomalies?.includes("faceCountDetection"))) && (
+
+                // {(rewindVid || doGesture || pauseVid) && ( ----- to be uncommented later
 
                 <div
 
+                  className='shadow-2xl'
+
                   style={{
 
-                    // background: '#fbbf24',
+                    position: 'absolute',
 
-                    borderRadius: '50%',
+                    top: 0,
 
-                    width: 150,
+                    left: 0,
 
-                    height: 150,
+                    right: 0,
+
+                    bottom: 0,
+
+                    background: 'rgba(70,50,0,0.85)',
+
+                    zIndex: 20,
 
                     display: 'flex',
+
+                    flexDirection: 'column',
 
                     alignItems: 'center',
 
                     justifyContent: 'center',
 
-                    marginBottom: 18,
+                    pointerEvents: 'auto',
 
-                    // boxShadow: '0 2px 12px rgba(30,41,59,0.10)',
+                    borderRadius: '12px 12px 0 0',
+
+                    transition: 'background 0.2s',
 
                   }}
 
                 >
 
-                  {/* Warning SVG icon */}
+                  <div
 
-                  {(rewindVid || pauseVid) && (<svg
+                    className='shadow-2xl'
 
-                    width="140"
+                    style={{
 
-                    height="140"
+                      background: 'rgba(255, 255, 255, 1)',
 
-                    viewBox="0 0 156.262 144.407"
+                      borderRadius: 16,
 
-                    fill="none"
+                      padding: '32px 32px 24px 32px',
 
-                    xmlns="http://www.w3.org/2000/svg"
+                      boxShadow: '0 4px 32px rgba(30,41,59,0.10)',
+
+                      display: 'flex',
+
+                      flexDirection: 'column',
+
+                      alignItems: 'center',
+
+                      justifyContent: 'center',
+
+                      maxWidth: 400,
+
+                      margin: '0 auto',
+
+                    }}
 
                   >
 
-                    <g transform="matrix(0.99073487,0,0,0.99073487,186.61494,2.4370252)">
+                    <div
 
-                      <path
+                      style={{
 
-                        d="m -109.16602,7.2265625 c -0.13666,0.0017 -0.27279,0.017412 -0.40625,0.046875 -3.19494,0.029452 -6.17603,1.6944891 -7.78515,4.4824215 l -31.25,54.126953 -31.25,54.126958 h 0.002 c -3.41988,5.92217 1.01692,13.60908 7.85547,13.60937 h 62.5 62.501953 c 6.838552,-3.2e-4 11.277321,-7.68721 7.857422,-13.60937 l -31.25,-54.126958 -31.251955,-54.126953 c -1.46518,-2.5386342 -4.07917,-4.1634136 -6.97851,-4.4492184 -0.14501,-0.042788 -0.2944,-0.068998 -0.44532,-0.078125 h -0.004 c -0.0312,-0.00138 -0.0625,-0.00203 -0.0937,-0.00195 z"
+                        // background: '#fbbf24',
 
-                        style={{ fill: "#000" }}
+                        borderRadius: '50%',
 
-                      />
+                        width: 150,
 
-                      <path
+                        height: 150,
 
-                        d="m -109.16545,9.2265625 c -2.63992,-0.1247523 -5.13786,1.2403375 -6.45899,3.5292965 l -31.25,54.126953 -31.25,54.126958 c -2.67464,4.63164 0.77657,10.60914 6.125,10.60937 h 62.5 62.50196 c 5.34844,-2.5e-4 8.79965,-5.97774 6.125,-10.60937 l -31.25,-54.126958 -31.25196,-54.126953 c -1.20213,-2.082863 -3.38689,-3.4150037 -5.78906,-3.5292965 h -0.002 z"
+                        display: 'flex',
 
-                        style={{ fill: "#fff" }}
+                        alignItems: 'center',
 
-                      />
+                        justifyContent: 'center',
 
-                      <path
+                        marginBottom: 18,
 
-                        d="m -109.25919,11.224609 c -1.89626,-0.08961 -3.68385,0.887082 -4.63282,2.53125 l -31.25,54.126953 -31.25,54.126958 c -1.95283,3.38168 0.48755,7.6092 4.39258,7.60937 h 62.5 62.50196 c 3.905026,-1.8e-4 6.345394,-4.2277 4.39257,-7.60937 l -31.25,-54.126958 -31.25195,-54.126953 c -0.86311,-1.495461 -2.42763,-2.44919 -4.15234,-2.53125 z"
+                        // boxShadow: '0 2px 12px rgba(30,41,59,0.10)',
 
-                        style={{ fill: "#000" }}
+                      }}
 
-                      />
+                    >
 
-                      <path
+                      {/* Warning SVG icon */}
 
-                        d="m -46.997381,124.54655 -62.501079,0 -62.50108,0 31.25054,-54.127524 31.25054,-54.127522 31.25054,54.127521 z"
+                      {(rewindVid || pauseVid) && (<svg
 
-                        style={{ fill: "#df0000" }}
+                        width="140"
 
-                      />
+                        height="140"
 
-                      <g transform="translate(-188.06236)">
+                        viewBox="0 0 156.262 144.407"
 
-                        <circle
+                        fill="none"
 
-                          r="8.8173475"
+                        xmlns="http://www.w3.org/2000/svg"
 
-                          cy="111.11701"
+                      >
 
-                          cx="78.564362"
+                        <g transform="matrix(0.99073487,0,0,0.99073487,186.61494,2.4370252)">
 
-                          style={{ fill: "#000" }}
+                          <path
 
-                        />
+                            d="m -109.16602,7.2265625 c -0.13666,0.0017 -0.27279,0.017412 -0.40625,0.046875 -3.19494,0.029452 -6.17603,1.6944891 -7.78515,4.4824215 l -31.25,54.126953 -31.25,54.126958 h 0.002 c -3.41988,5.92217 1.01692,13.60908 7.85547,13.60937 h 62.5 62.501953 c 6.838552,-3.2e-4 11.277321,-7.68721 7.857422,-13.60937 l -31.25,-54.126958 -31.251955,-54.126953 c -1.46518,-2.5386342 -4.07917,-4.1634136 -6.97851,-4.4492184 -0.14501,-0.042788 -0.2944,-0.068998 -0.44532,-0.078125 h -0.004 c -0.0312,-0.00138 -0.0625,-0.00203 -0.0937,-0.00195 z"
 
-                        <path
+                            style={{ fill: "#000" }}
 
-                          d="m 78.564453,42.955078 c -4.869714,-5.59e-4 -8.817839,3.946692 -8.818359,8.816406 3.15625,37.460938 0,0 3.15625,37.460938 8.93e-4,3.126411 2.535698,5.660342 5.662109,5.660156 3.126411,1.86e-4 5.661216,-2.533745 5.662109,-5.660156 3.154297,-37.460938 0,0 3.154297,-37.460938 -5.2e-4,-4.868951 -3.947455,-8.815886 -8.816406,-8.816406 z"
+                          />
 
-                          style={{ fill: "#000" }}
+                          <path
 
-                        />
+                            d="m -109.16545,9.2265625 c -2.63992,-0.1247523 -5.13786,1.2403375 -6.45899,3.5292965 l -31.25,54.126953 -31.25,54.126958 c -2.67464,4.63164 0.77657,10.60914 6.125,10.60937 h 62.5 62.50196 c 5.34844,-2.5e-4 8.79965,-5.97774 6.125,-10.60937 l -31.25,-54.126958 -31.25196,-54.126953 c -1.20213,-2.082863 -3.38689,-3.4150037 -5.78906,-3.5292965 h -0.002 z"
 
-                      </g>
+                            style={{ fill: "#fff" }}
 
-                    </g>
+                          />
 
-                  </svg>)}
+                          <path
 
-                  {doGesture && !rewindVid && !pauseVid && (<img src="https://em-content.zobj.net/source/microsoft/309/thumbs-up_1f44d.png" className="w-auto h-full" />)}
+                            d="m -109.25919,11.224609 c -1.89626,-0.08961 -3.68385,0.887082 -4.63282,2.53125 l -31.25,54.126953 -31.25,54.126958 c -1.95283,3.38168 0.48755,7.6092 4.39258,7.60937 h 62.5 62.50196 c 3.905026,-1.8e-4 6.345394,-4.2277 4.39257,-7.60937 l -31.25,-54.126958 -31.25195,-54.126953 c -0.86311,-1.495461 -2.42763,-2.44919 -4.15234,-2.53125 z"
+
+                            style={{ fill: "#000" }}
+
+                          />
+
+                          <path
+
+                            d="m -46.997381,124.54655 -62.501079,0 -62.50108,0 31.25054,-54.127524 31.25054,-54.127522 31.25054,54.127521 z"
+
+                            style={{ fill: "#df0000" }}
+
+                          />
+
+                          <g transform="translate(-188.06236)">
+
+                            <circle
+
+                              r="8.8173475"
+
+                              cy="111.11701"
+
+                              cx="78.564362"
+
+                              style={{ fill: "#000" }}
+
+                            />
+
+                            <path
+
+                              d="m 78.564453,42.955078 c -4.869714,-5.59e-4 -8.817839,3.946692 -8.818359,8.816406 3.15625,37.460938 0,0 3.15625,37.460938 8.93e-4,3.126411 2.535698,5.660342 5.662109,5.660156 3.126411,1.86e-4 5.661216,-2.533745 5.662109,-5.660156 3.154297,-37.460938 0,0 3.154297,-37.460938 -5.2e-4,-4.868951 -3.947455,-8.815886 -8.816406,-8.816406 z"
+
+                              style={{ fill: "#000" }}
+
+                            />
+
+                          </g>
+
+                        </g>
+
+                      </svg>)}
+
+                      {doGesture && !rewindVid && !pauseVid && (<img src="https://em-content.zobj.net/source/microsoft/309/thumbs-up_1f44d.png" className="w-auto h-full" />)}
+
+                    </div>
+
+                    <div
+
+                      style={{
+
+                        color: '#1e293b',
+
+                        background: '#fbbf24',
+
+                        padding: '14px 28px',
+
+                        borderRadius: 10,
+
+                        fontWeight: 1000,
+
+                        fontSize: 21,
+
+                        boxShadow: '0 30px 16px rgba(30,41,59,0.13)',
+
+                        textAlign: 'center',
+
+                        letterSpacing: 0.1,
+
+                        maxWidth: 340,
+
+                        lineHeight: 1.2,
+
+                        border: '1px solid #f59e42',
+
+
+
+                      }}
+
+                    >
+
+                      {rewindVid || pauseVid
+
+                        ? (
+
+                          <span style={{ fontWeight: 500, fontSize: 15 }}>
+
+                            {anomalies?.includes("voiceDetection") ? (
+
+                              <div style={{ marginBottom: 6 }}>
+
+                                <strong>Don't speak!</strong>
+
+                              </div>
+
+                            ) : <></>}
+
+                            {anomalies?.includes("faceCountDetection") ? (
+
+                              <div style={{ marginBottom: 6 }}>
+
+                                <strong>Only one face!</strong>
+
+                              </div>
+
+                            ) : <></>}
+
+                            {anomalies?.includes("blurDetection") ? (
+
+                              <div style={{ marginBottom: 6 }}>
+
+                                <strong>Keep your camera clear!</strong>
+
+                              </div>
+
+                            ) : <></>}
+
+                            {anomalies?.includes("focus") ? (
+
+                              <div style={{ marginBottom: 6 }}>
+
+                                <strong>Stay focused!</strong>
+
+                              </div>
+
+                            ) : <></>}
+
+                          </span>
+
+                        )
+
+                        : (
+
+                          <span style={{ fontWeight: 500, fontSize: 15 }}>
+
+                            `Gesture Needed!`
+
+                            <br />
+
+                            <>
+
+                              <span>
+
+                                To continue watching your lesson, please show a <strong>thumbs up gesture</strong> in front of your camera.
+
+                              </span>
+
+                              <br />
+
+                              <span style={{ fontWeight: 200, fontSize: 14 }}>
+
+                                This helps us know you’re present and engaged. Once we detect your gesture, the video will resume automatically.
+
+                              </span>
+
+                            </></span>
+
+                        )
+
+                      }
+
+                    </div>
+
+                  </div>
 
                 </div>
 
-                <div
+              )
 
-                  style={{
+              }
 
-                    color: '#1e293b',
 
-                    background: '#fbbf24',
-
-                    padding: '14px 28px',
-
-                    borderRadius: 10,
-
-                    fontWeight: 1000,
-
-                    fontSize: 21,
-
-                    boxShadow: '0 30px 16px rgba(30,41,59,0.13)',
-
-                    textAlign: 'center',
-
-                    letterSpacing: 0.1,
-
-                    maxWidth: 340,
-
-                    lineHeight: 1.2,
-
-                    border: '1px solid #f59e42',
-
-
-
-                  }}
-
-                >
-
-                  {rewindVid || pauseVid
-
-                    ? (
-
-                      <span style={{ fontWeight: 500, fontSize: 15 }}>
-
-                        {anomalies?.includes("voiceDetection") ? (
-
-                          <div style={{ marginBottom: 6 }}>
-
-                            <strong>Don't speak!</strong>
-
-                          </div>
-
-                        ) : <></>}
-
-                        {anomalies?.includes("faceCountDetection") ? (
-
-                          <div style={{ marginBottom: 6 }}>
-
-                            <strong>Only one face!</strong>
-
-                          </div>
-
-                        ) : <></>}
-
-                        {anomalies?.includes("blurDetection") ? (
-
-                          <div style={{ marginBottom: 6 }}>
-
-                            <strong>Keep your camera clear!</strong>
-
-                          </div>
-
-                        ) : <></>}
-
-                        {anomalies?.includes("focus") ? (
-
-                          <div style={{ marginBottom: 6 }}>
-
-                            <strong>Stay focused!</strong>
-
-                          </div>
-
-                        ) : <></>}
-
-                      </span>
-
-                    )
-
-                    : (
-
-                      <span style={{ fontWeight: 500, fontSize: 15 }}>
-
-                      `Gesture Needed!`
-
-                      <br />
-
-                      <>
-
-                        <span>
-
-                          To continue watching your lesson, please show a <strong>thumbs up gesture</strong> in front of your camera.
-
-                        </span>
-
-                        <br />
-
-                        <span style={{ fontWeight: 200, fontSize: 14 }}>
-
-                          This helps us know you’re present and engaged. Once we detect your gesture, the video will resume automatically.
-
-                        </span>
-
-                      </></span>
-
-                    )
-
-                  }
-
-              </div>
-
-            </div>
-
-            </div>
-
-        )
-
-          }
-
-
-    </>
-  )}
-      </div>
-
-
-      {/* Custom Controls Below Video */}
-     
-      <div
-        style={{
-          background: 'hsl(var(--card))',
-          padding: '8px 16px',
-          borderTop: '1px solid hsl(var(--primary) / 0.2)',
-          borderRadius: '0 0 12px 12px',
-          userSelect: 'none',
-          WebkitUserSelect: 'none',
-          MozUserSelect: 'none',
-          msUserSelect: 'none',
-          flexShrink: 0,
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Progress Bar - Visual indicator only, no seeking */}
-        <div style={{ marginBottom: 8 }}>
-          <Slider
-            value={[currentTime]}
-            min={startTimeSeconds}
-            max={endTimeSeconds > 0 ? endTimeSeconds : duration}
-            step={0.1}
-            onValueChange={() => {
-              // Disabled - no seeking allowed
-            }}
-            className="w-full pointer-events-none"
-            disabled
-          />
+            </>
+          )}
         </div>
 
-        {/* Control Bar */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          flexWrap: 'wrap'
-        }}>
-          {/* Left Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                handlePlayPause();
-              }}
-              size="icon"
-              variant={playing ? "default" : "secondary"}
-              className="rounded-full w-11 h-11 flex-shrink-0"
-              aria-label={playing ? 'Pause' : 'Play'}
-            >
-              {playing ? <Pause className="h-7 w-7 scale-130" /> : <Play className="h-7 w-7 scale-130" />}
-            </Button>
 
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleBackward();
-              }}
-              size="icon"
-              variant="secondary"
-              className="rounded-full w-11 h-11 flex-shrink-0"
-              aria-label="Back 10 seconds"
-            >
-              <SkipBack className="h-3 w-3 scale-130" />
-            </Button>
+        {/* Custom Controls Below Video */}
 
-            <span style={{
-              color: 'hsl(var(--foreground))',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 16,
-              fontWeight: 700,
-              minWidth: 80,
-              textShadow: '0 1px 3px hsl(var(--background) / 0.5)',
-              flexShrink: 0
-            }}>
-              {formatTime(Math.max(startTimeSeconds, currentTime))} / {formatTime(endTimeSeconds > 0 ? endTimeSeconds : duration)}
-            </span>
+        <div
+          style={{
+            background: 'hsl(var(--card))',
+            padding: '8px 16px',
+            borderTop: '1px solid hsl(var(--primary) / 0.2)',
+            borderRadius: '0 0 12px 12px',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            MozUserSelect: 'none',
+            msUserSelect: 'none',
+            flexShrink: 0,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Progress Bar - Visual indicator only, no seeking */}
+          <div style={{ marginBottom: 8 }}>
+            <Slider
+              value={[currentTime]}
+              min={startTimeSeconds}
+              max={endTimeSeconds > 0 ? endTimeSeconds : duration}
+              step={0.1}
+              onValueChange={() => {
+                // Disabled - no seeking allowed
+              }}
+              className="w-full pointer-events-none"
+              disabled
+            />
           </div>
 
-          {/* Right Controls */}
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+          {/* Control Bar */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            flexWrap: 'wrap'
+          }}>
+            {/* Left Controls */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePlayPause();
+                }}
+                size="icon"
+                variant={playing ? "default" : "secondary"}
+                className="rounded-full w-11 h-11 flex-shrink-0"
+                aria-label={playing ? 'Pause' : 'Play'}
+              >
+                {playing ? <Pause className="h-7 w-7 scale-130" /> : <Play className="h-7 w-7 scale-130" />}
+              </Button>
 
-          {/* Subtitles */}
-          <Button
-            onClick={handleToggleSubtitles}
-            variant="ghost"
-            size="icon"
-            className={`rounded-sm relative group transition-colors duration-200 ${
-              subtitlesEnabled
-                ? "text-black dark:text-white"
-                : "text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
-            }`}
-          >
-            <span className="scale-[1.4] flex items-center justify-center">
-            <Captions className="h-6 w-6" strokeWidth={2.5} />
-            </span>
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleBackward();
+                }}
+                size="icon"
+                variant="secondary"
+                className="rounded-full w-11 h-11 flex-shrink-0"
+                aria-label="Back 10 seconds"
+              >
+                <SkipBack className="h-3 w-3 scale-130" />
+              </Button>
 
-            {subtitlesEnabled && (
-              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-[2px] bg-red-500 rounded-full"></span>
-            )}
-          </Button>
-
-            {/* Speed Control */}
-            <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
-              <span className="text-md font-bold text-foreground min-w-[24px]">
-                Speed
+              <span style={{
+                color: 'hsl(var(--foreground))',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 16,
+                fontWeight: 700,
+                minWidth: 80,
+                textShadow: '0 1px 3px hsl(var(--background) / 0.5)',
+                flexShrink: 0
+              }}>
+                {formatTime(Math.max(startTimeSeconds, currentTime))} / {formatTime(endTimeSeconds > 0 ? endTimeSeconds : duration)}
               </span>
-              <Slider
-                value={[playbackRate]}
-                min={0.25}
-                max={2}
-                step={0.05}
-                onValueChange={(value) => {
-                  const rate = value[0];
-                  const player = playerRef.current;
-                  if (player && typeof player.getAvailablePlaybackRates === 'function') {
-                    const availableRates = player.getAvailablePlaybackRates!();
-                    let closest = availableRates[0];
-                    for (const r of availableRates) {
-                      if (Math.abs(r - rate) < Math.abs(closest - rate)) closest = r;
+            </div>
+
+            {/* Right Controls */}
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+
+              {/* Subtitles */}
+              <Button
+                onClick={handleToggleSubtitles}
+                variant="ghost"
+                size="icon"
+                className={`rounded-sm relative group transition-colors duration-200 ${subtitlesEnabled
+                    ? "text-black dark:text-white"
+                    : "text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
+                  }`}
+              >
+                <span className="scale-[1.4] flex items-center justify-center">
+                  <Captions className="h-6 w-6" strokeWidth={2.5} />
+                </span>
+
+                {subtitlesEnabled && (
+                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-[2px] bg-red-500 rounded-full"></span>
+                )}
+              </Button>
+
+              {/* Speed Control */}
+              <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
+                <span className="text-md font-bold text-foreground min-w-[24px]">
+                  Speed
+                </span>
+                <Slider
+                  value={[playbackRate]}
+                  min={0.25}
+                  max={2}
+                  step={0.05}
+                  onValueChange={(value) => {
+                    const rate = value[0];
+                    const player = playerRef.current;
+                    if (player && typeof player.getAvailablePlaybackRates === 'function') {
+                      const availableRates = player.getAvailablePlaybackRates!();
+                      let closest = availableRates[0];
+                      for (const r of availableRates) {
+                        if (Math.abs(r - rate) < Math.abs(closest - rate)) closest = r;
+                      }
+                      player.setPlaybackRate(closest);
+                      // Update both local state and global store
+                      setPlaybackRate(closest);
+                    } else {
+                      playerRef.current?.setPlaybackRate(rate);
+                      // Update both local state and global store
+                      setPlaybackRate(rate);
                     }
-                    player.setPlaybackRate(closest);
-                    // Update both local state and global store
-                    setPlaybackRate(closest);
-                  } else {
-                    playerRef.current?.setPlaybackRate(rate);
-                    // Update both local state and global store
-                    setPlaybackRate(rate);
-                  }
-                }}
-                className="w-[80px]"
-              />
-              <span className="text-md font-semibold text-primary min-w-[24px] text-center">
-                {playbackRate.toFixed(2)}x
-              </span>
-            </Card>
+                  }}
+                  className="w-[80px]"
+                />
+                <span className="text-md font-semibold text-primary min-w-[24px] text-center">
+                  {playbackRate.toFixed(2)}x
+                </span>
+              </Card>
 
-            {/* Volume Control */}
-            <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
-              <Volume2 className="h-3 w-3 text-accent flex-shrink-0 scale-160" />
-              <Slider
-                value={[volume]}
-                min={0}
-                max={100}
-                onValueChange={(value) => {
-                  const v = value[0];
-                  setVolume(v);
-                  playerRef.current?.setVolume(v);
-                }}
-                className="w-[80px]"
-              />
-              <span className="text-md font-bold text-foreground min-w-[24px] text-center">
-                {Math.round(volume)}%
-              </span>
-            </Card>
+              {/* Volume Control */}
+              <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
+                <Volume2 className="h-3 w-3 text-accent flex-shrink-0 scale-160" />
+                <Slider
+                  value={[volume]}
+                  min={0}
+                  max={100}
+                  onValueChange={(value) => {
+                    const v = value[0];
+                    setVolume(v);
+                    playerRef.current?.setVolume(v);
+                  }}
+                  className="w-[80px]"
+                />
+                <span className="text-md font-bold text-foreground min-w-[24px] text-center">
+                  {Math.round(volume)}%
+                </span>
+              </Card>
+            </div>
           </div>
-        </div>
 
-        {/* Next Lesson Button */}
-        {/*onNext && (
+          {/* Next Lesson Button */}
+          {/*onNext && (
             <div style={{
               borderTop: '1px solid hsl(var(--border))',
               paddingTop: '12px',
@@ -1494,11 +1498,11 @@ useEffect(() => {
               </Button>
             </div>
           )*/}
+        </div>
       </div>
-    </div>
 
-      {/* Global CSS to block YouTube interface */ }
-  <style>{`
+      {/* Global CSS to block YouTube interface */}
+      <style>{`
         iframe[src*="youtube.com"] {
           pointer-events: none !important;
         }

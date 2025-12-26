@@ -9,8 +9,8 @@ export const useAuthStore = create<AuthStore>()(
       user: null,
       token: localStorage.getItem('firebase-auth-token'),
       isAuthenticated: !!localStorage.getItem('firebase-auth-token'),
-      
-      setUser: (user) => {        
+      authLoading: true,
+      setUser: (user) => {
         set({ user, isAuthenticated: true });
       },
       setToken: (token) => {
@@ -29,11 +29,14 @@ export const useAuthStore = create<AuthStore>()(
       hasRole: (role) => {
         const user = get().user;
         if (!user || !user.role) return false;
-        
+
         if (Array.isArray(role)) {
           return role.includes(user.role);
         }
         return user.role === role;
+      },
+      setAuthLoading: (loading) => {
+        set({ authLoading: loading });
       }
     }),
     {
