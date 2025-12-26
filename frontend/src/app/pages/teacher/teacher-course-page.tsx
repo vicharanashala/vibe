@@ -282,7 +282,7 @@ function TeacherCourseContent() {
   // CRUD hooks
 
   // --- MODULES ---
-  const { mutateAsync: createModuleAsync, isSuccess: isCreateModuleSuccess, isError: isCreateModuleError, error: createModuleError } = useCreateModule();
+  const { mutateAsync: createModuleAsync, isSuccess: isCreateModuleSuccess, isError: isCreateModuleError, error: createModuleError,  } = useCreateModule();
   const { mutateAsync: updateModuleAsync, isSuccess: isUpdateModuleSuccess, isError: isUpdateModuleError, error: updateModuleError } = useUpdateModule();
   const { mutateAsync: deleteModuleAsync, isSuccess: isDeleteModuleSuccess, isError: isDeleteModuleError, error: deleteModuleError } = useDeleteModule();
   const { mutateAsync: moveModuleAsync } = useMoveModule();
@@ -491,20 +491,54 @@ function TeacherCourseContent() {
   };
 
   // Add Module
-  const handleAddModule = () => {
-    if (!versionId) return;
-    createModuleAsync({
-      params: { path: { versionId } },
-      body: { name: "Untitled Module", description: "Module description" }
-    }).then((res) => {
-      refetchVersion();
-      if (shouldFetchItems) {
-        refetchItems();
+  // const handleAddModule = () => {
+  //   if (!versionId) return;
+  //   createModuleAsync({
+  //     params: { path: { versionId } },
+  //     body: { name: "Untitled Module", description: "Module description" }
+  //   }).then((res) => {
+  //     refetchVersion();
+  //     if (shouldFetchItems) {
+  //       refetchItems();
+  //     }
+  //     setIsEditingModule(true);
+  //     setOriginalModuleData({ name: "Untitled Module", description: "Module description" });
+  //   });
+  // };
+
+    const handleAddModule = async () => {
+      if (!versionId) return;
+
+      try {
+        await createModuleAsync({
+          params: { path: { versionId } },
+          body: {
+            name: "Untitled Module",
+            description: "Module description",
+          },
+        });
+
+        refetchVersion();
+        if (shouldFetchItems) {
+          refetchItems();
+        }
+
+        setIsEditingModule(true);
+        setOriginalModuleData({
+          name: "Untitled Module",
+          description: "Module description",
+        });
+
+      } catch (error: any) {
+        const message =
+          error?.response?.data?.message ||
+          error?.message ||
+          "Failed to create module";
+
+        toast.error(message);
       }
-      setIsEditingModule(true);
-      setOriginalModuleData({ name: "Untitled Module", description: "Module description" });
-    });
-  };
+    };
+
 
 
   // Process CSV file and create items

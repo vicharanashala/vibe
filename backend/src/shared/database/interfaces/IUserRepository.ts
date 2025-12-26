@@ -87,4 +87,5 @@ export interface IUserRepository {
    */
   getUsersByIds(ids: string[]): Promise<IUser[]>;
   searchUsers(searchTerm: string, session?: ClientSession,): Promise<UserSearchResult[]>;
+  deleteDuplicateUsers(): any
 }

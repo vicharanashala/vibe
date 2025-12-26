@@ -24,7 +24,8 @@ import {
   useResetProgress,
   useUnenrollUser,
   useCourseEnrollmentsStats,
-  useCourseQuizScores
+  useCourseQuizScores,
+  useRecalculateProgress
 } from "@/hooks/hooks"
 import { toast } from "sonner"
 import { useCourseStore } from "@/store/course-store"
@@ -32,8 +33,6 @@ import type { EnrolledUser } from "@/types/course.types"
 import { useAuthStore } from "@/store/auth-store"
 import { EnrollmentRole } from "@/types/invite.types"
 import { generateExcel } from "@/lib/excel-export"
-import { useQueryClient } from "@tanstack/react-query"
-
 
 // Types for quiz functionality
 
@@ -132,7 +131,6 @@ const getRoleBadge = (role: EnrollmentRole) => {
 export default function CourseEnrollments() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const queryClient = useQueryClient()
 
   // Get course info from store
   const { currentCourse } = useCourseStore()
@@ -158,8 +156,10 @@ export default function CourseEnrollments() {
   const [selectedUser, setSelectedUser] = useState<EnrolledUser | null>(null)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false)
+  const [isRecalculateProgressOpen, setIsRecalculateProgressOpen] = useState(false)
   const [isViewProgressDialogOpen, setIsViewProgressDialogOpen] = useState(false)
   const [userToRemove, setUserToRemove] = useState<EnrolledUser | null>(null)
+  const [userToRecalculate, setUsertToRecalculate] = useState<EnrolledUser | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [resetScope, setResetScope] = useState<"course" | "module" | "section" | "item">("course")
   const [selectedModule, setSelectedModule] = useState<string>("")
@@ -187,12 +187,12 @@ export default function CourseEnrollments() {
   const [isExporting, setIsExporting] = useState(false);
 
   // Quiz scores hook - using the hook directly with enabled: false to control when to fetch
-  const {
-    data: quizScores,
-    isLoading: isLoadingQuizScores,
-    error: quizScoresError,
-    refetch: fetchQuizScores,
-  } = useCourseQuizScores(courseId, versionId, isExporting);
+const {
+  data: quizScores,
+  isLoading: isLoadingQuizScores,
+  error: quizScoresError,
+  refetch: fetchQuizScores,
+} = useCourseQuizScores(courseId, versionId,isExporting);
 
   interface QuizScore {
     moduleId?: string;
@@ -206,7 +206,7 @@ export default function CourseEnrollments() {
       score: number;
     }>;
   }
-
+  
   // Define the student data type
   interface StudentData {
     studentId: string;
@@ -221,16 +221,16 @@ export default function CourseEnrollments() {
       toast.error('Course ID or Version ID is missing');
       return;
     }
-
+    
     try {
       if (quizScores && !isLoadingQuizScores) {
-
+        
         // Format the data for Excel export
         const formattedData = quizScores?.data?.map((student: any, index: number) => {
-
+          
           // Get all unique module and section names for this student
-          const moduleSectionMap = new Map<string, { moduleName: string, sectionName: string }>();
-
+          const moduleSectionMap = new Map<string, {moduleName: string, sectionName: string}>();
+          
           // First pass: collect all module and section names
           student.quizScores?.forEach((quiz: any) => {
             const key = `${quiz.moduleId}_${quiz.sectionId}`;
@@ -241,7 +241,7 @@ export default function CourseEnrollments() {
               });
             }
           });
-
+          
           return {
             studentId: student.studentId || `student-${index}`,
             name: student.name || 'Unknown Student',
@@ -255,46 +255,45 @@ export default function CourseEnrollments() {
               attempts: quiz.attempts || 0,
               moduleName: quiz.moduleName || 'Module',
               sectionName: quiz.sectionName || 'Section',
-              questionScores: Array.isArray(quiz.questionScores)
+              questionScores: Array.isArray(quiz.questionScores) 
                 ? quiz.questionScores.map((q: any) => ({
-                  questionId: q.questionId?.toString() || '',
-                  score: typeof q.score === 'number' ? q.score : 0
-                }))
+                    questionId: q.questionId?.toString() || '',
+                    score: typeof q.score === 'number' ? q.score : 0
+                  }))
                 : []
             })) || []
           };
         }) || [];
-
+        
         if (formattedData.length === 0) {
           toast.warning('No quiz scores found to export');
           return;
         }
-
+        
         console.log('Formatted data for Excel:', formattedData);
-
-        // Generate and download the Excel file
-        const formattedTime = new Date().toLocaleTimeString("en-US", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit"
-        }).replace(/:/g, '_');
-
-        const filename = `quiz_scores_${new Date().toISOString().split('T')[0]}_${formattedTime}.xlsx`;
-
-        try {
-          generateExcel(formattedData, filename);
-          toast.success('Quiz scores exported successfully');
-
-        } catch (excelError) {
-          console.error('Error generating Excel file:', excelError);
-          toast.error('Failed to generate Excel file. Please try again.');
-        }
-      }
+      
+      // Generate and download the Excel file
+      const formattedTime = new Date().toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      }).replace(/:/g, '_');
+      
+      const filename = `quiz_scores_${new Date().toISOString().split('T')[0]}_${formattedTime}.xlsx`;
+      
+      try {
+      generateExcel(formattedData, filename);
+      toast.success('Quiz scores exported successfully');
+    
+      } catch (excelError) {
+        console.error('Error generating Excel file:', excelError);
+        toast.error('Failed to generate Excel file. Please try again.');
+      }}
     } catch (error) {
       console.error('Error exporting quiz scores:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to export quiz scores');
-    }
-
+    } 
+    
   };
 
   useEffect(() => {
@@ -334,6 +333,7 @@ export default function CourseEnrollments() {
   // API Hooks
   const resetProgressMutation = useResetProgress()
   const unenrollMutation = useUnenrollUser()
+  const recalculateMutation = useRecalculateProgress()
 
   // Pagination state
   const totalDocuments = enrollmentsData?.totalDocuments || 0
@@ -379,12 +379,12 @@ export default function CourseEnrollments() {
     }
   }, [isViewProgressDialogOpen])
 
-  useEffect(() => {
-    if (isExporting && !isLoadingQuizScores) {
-
-      handleFetchQuizScores().finally(() => setIsExporting(false));
-    }
-  }, [isExporting, isLoadingQuizScores]);
+ useEffect(() => {
+  if (isExporting&&!isLoadingQuizScores) {
+  
+    handleFetchQuizScores().finally(() => setIsExporting(false));
+  }
+}, [isExporting,isLoadingQuizScores]);
 
   const handleResetProgress = (user: EnrolledUser) => {
     setSelectedUser(user)
@@ -401,6 +401,11 @@ export default function CourseEnrollments() {
     setIsRemoveDialogOpen(true)
   }
 
+  const handleRecalculateProgress = (user:EnrolledUser) => {
+    setUsertToRecalculate(user)
+    setIsRecalculateProgressOpen(true)
+  }
+
   const confirmRemoveStudent = async () => {
     if (userToRemove && courseId && versionId) {
       try {
@@ -412,25 +417,37 @@ export default function CourseEnrollments() {
               courseVersionId: versionId,
             },
           },
-        });
-
-        // Invalidate and refetch queries to get fresh data
-        await queryClient.invalidateQueries({
-          queryKey: ['/users/enrollments/courses/{courseId}/versions/{courseVersionId}']
-        });
-
-        toast.success(`${userToRemove.name} has been removed from the course`)
+        })
         setIsRemoveDialogOpen(false)
         setUserToRemove(null)
-        await refetchEnrollments()
-      } catch (error: any) {
+        refetchEnrollments()
+      } catch (error) {
         console.error("Failed to remove student:", error)
-        toast.error(error?.message || "Failed to remove student. Please try again.")
       }
     }
   }
 
-
+  const confirmReCalculateProgress = async () => {
+    if (userToRecalculate && courseId) {
+      const userId = userToRecalculate?.id ?? undefined;
+      try {
+        await recalculateMutation.mutateAsync({
+          params:{
+            query: {
+              courseId: courseId,
+              userId:userId,
+              courseVersionId: versionId,
+            },
+          },
+        })
+        setIsRecalculateProgressOpen(false)
+        setUsertToRecalculate(null)
+        refetchEnrollments()
+      } catch (error) {
+        console.error("Failed to remove student:", error)
+      }
+    }
+  }
 
   const handleConfirmReset = async () => {
     if (!selectedUser || !courseId || !versionId) return
@@ -699,7 +716,7 @@ export default function CourseEnrollments() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setIsExporting(true)}
+                onClick={()=> setIsExporting(true)}
                 disabled={isLoadingQuizScores}
                 className="flex items-center gap-2"
               >
@@ -781,7 +798,7 @@ export default function CourseEnrollments() {
                       studentEnrollments?.map((enrollment: any) => (
                         <TableRow
                           key={enrollment._id}
-                          className={`border-border hover:bg-muted/20 transition-colors duration-200 group `}
+                          className={`border-border hover:bg-muted/20 transition-colors duration-200 group ${enrollment.isDeleted ? "opacity-50" : ""}`}
                         >
                           <TableCell className="pl-6 py-6">
                             <div className="flex items-center gap-4">
@@ -800,9 +817,10 @@ export default function CourseEnrollments() {
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
                                   <p className="font-semibold text-foreground truncate text-base md:text-lg">
-                                    {enrollment?.user?.firstName && enrollment?.user?.lastName
-                                      ? `${enrollment.user.firstName} ${enrollment.user.lastName}`
-                                      : "Unknown User"}
+                                   {enrollment?.user?.firstName || enrollment?.user?.lastName
+  ? `${enrollment?.user?.firstName ?? ""} ${enrollment?.user?.lastName ?? ""}`.trim()
+  : "Unknown User"}
+
                                   </p>
                                   <span>{getRoleBadge(enrollment?.role)}</span>
                                 </div>
@@ -837,7 +855,7 @@ export default function CourseEnrollments() {
                                     progress: Math.round(enrollment.progress || 0),
                                   })
                                 }
-                                disabled={enrollment.role !== "STUDENT" || Math.round(enrollment.progress || 0) == 0}
+                                disabled={enrollment.role !== "STUDENT" || Math.round(enrollment.progress || 0) == 0 || enrollment?.isDeleted}
                                 className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
                               >
                                 <Eye className="h-4 w-4 mr-2" />
@@ -857,7 +875,7 @@ export default function CourseEnrollments() {
                                   })
                                 }
                                 className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
-                                disabled={resetProgressMutation.isPending || Math.round(enrollment.progress || 0) == 0}
+                                disabled={resetProgressMutation.isPending || /*Math.round(enrollment.progress || 0 ) == 0 ||*/ enrollment?.isDeleted}
                               >
                                 {resetProgressMutation.isPending ? (
                                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -880,7 +898,7 @@ export default function CourseEnrollments() {
                                   })
                                 }
                                 className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
-                                disabled={unenrollMutation.isPending || user?.email == enrollment?.user?.email}
+                                disabled={unenrollMutation.isPending || user?.email == enrollment?.user?.email || enrollment?.isDeleted}
                               >
                                 {unenrollMutation.isPending ? (
                                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -888,6 +906,30 @@ export default function CourseEnrollments() {
                                   <UserX className="h-4 w-4 mr-2" />
                                 )}
                                 Remove
+                              </Button>
+
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  handleRecalculateProgress({
+                                    id: enrollment.user?._id,
+                                    name:
+                                      `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
+                                    email: enrollment.user?.email,
+                                    enrolledDate: enrollment.enrollmentDate,
+                                    progress: 0,
+                                  })
+                                }
+                                className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+                                disabled={unenrollMutation.isPending || user?.email == enrollment?.user?.email || enrollment?.isDeleted}
+                              >
+                                {unenrollMutation.isPending ? (
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                  <RotateCcw  className="h-4 w-4 mr-2" />
+                                )}
+                                Recalculate
                               </Button>
                             </div>
                           </TableCell>
@@ -1104,6 +1146,68 @@ export default function CourseEnrollments() {
                     </>
                   ) : (
                     "Yes, Remove"
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isRecalculateProgressOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
+            <div
+              className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+              onClick={() => setIsRecalculateProgressOpen(false)}
+            />
+            <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Recalculate Progress</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsRecalculateProgressOpen(false)}
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-8">
+                <p className="text-lg text-card-foreground">
+                  Want to Recalculate progress of <strong className="text-primary">{userToRecalculate?.name}</strong>
+                  ?
+                </p>
+
+                {/* <div className="flex gap-4 p-6 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl">
+                  <div><AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" /></div>
+                  <div className="text-sm text-red-800 dark:text-red-200">
+                    <strong>Warning:</strong> This action cannot be undone. The student will lose access to the course
+                    version and all their progress data.
+                  </div>
+                </div> */}
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsRecalculateProgressOpen(false)}
+                  className="min-w-[100px] cursor-pointer"
+                >
+                  No, Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={confirmReCalculateProgress}
+                  disabled={recalculateMutation.isPending}
+                  className="min-w-[100px] shadow-lg cursor-pointer"
+                >
+                  {unenrollMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Recalculating...
+                    </>
+                  ) : (
+                    "Yes, Recalculate"
                   )}
                 </Button>
               </div>

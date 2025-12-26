@@ -38,7 +38,9 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const [copyError, setCopyError] = useState(false);  
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
 
-  const progress = Math.round(enrollment.percentCompleted || 0) as number 
+  // const progress = Math.round(enrollment.percentCompleted || 0) as number 
+  const progress = Number(((enrollment.percentCompleted || 0)).toFixed(1));
+
   const contentCounts = enrollment.contentCounts as { totalItems?: number; videos?: number; quizzes?: number; articles?: number;project?: number } || {};
   const totalLessons = contentCounts.totalItems || 0;
   const completedLessons = enrollment.completedItems as number || 0;
@@ -371,7 +373,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                               <div className="flex items-center gap-2.5 pt-1">
                                 <Button asChild className="flex-1">
                                   <a
-                                    href="https://discord.gg/furXD6JP"
+                                    href="https://discord.gg/kKNBu3PF"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center justify-center gap-2"
@@ -387,7 +389,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                                   onClick={async () => {
                                     try {
                                       await navigator.clipboard.writeText(
-                                        "https://discord.gg/furXD6JP"
+                                        "https://discord.gg/kKNBu3PF"
                                       );
                                       setCopied(true);
                                       setCopyError(false);

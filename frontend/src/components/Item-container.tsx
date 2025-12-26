@@ -4,6 +4,7 @@ import Quiz from './quiz';
 import Article from './article';
 import ProjectItem from '../app/pages/teacher/components/ProjectItem';
 import type { ArticleRef } from "@/types/article.types";
+import type { QuizRef } from "@/types/quiz.types";
 import type { ItemContainerProps, ItemContainerRef } from '@/types/item-container.types';
 import FeedbackForm from '@/app/pages/student/components/FeedbackForm';
 import { useSubmitFeedback } from '@/hooks/hooks';
@@ -16,12 +17,15 @@ export interface ISubmitFeedbackBody {
 }
 const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, onPrevVideo, isProgressUpdating,readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson,keyboardLockEnabled,setIsQuizSkipped, linearProgressionEnabled,courseId,versionId}, ref) => {
   const articleRef = useRef<ArticleRef>(null);
+  const quizRef = useRef<QuizRef>(null);
 
-  // ✅ Expose stop function to parent
+  // ✅ Expose stop function to parent - handles both article and quiz
   useImperativeHandle(ref, () => ({
-    stopCurrentItem: () => {
+    stopCurrentItem: async () => {
       if (articleRef.current) {
-        articleRef.current.stopItem();
+        await articleRef.current.stopItem();
+      } else if (quizRef.current) {
+        await quizRef.current.stopItem();
       }
     }
   }));
@@ -55,6 +59,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
 
       case 'quiz':
         return <Quiz
+          ref={quizRef}
           questionBankRefs={item.details?.questionBankRefs || []}
           passThreshold={item.details?.passThreshold || 0}
           maxAttempts={item.details?.maxAttempts || 1}

@@ -18,6 +18,8 @@ import {
   TotalWatchTimeResponse,
   ItemIdparams,
   GetLeaderboardQuery,
+  LeaderboardNoAuthResponse,
+  GetLeaderboardResponse,
 } from '#users/classes/validators/ProgressValidators.js';
 import {ProgressService} from '#users/services/ProgressService.js';
 import {USERS_TYPES} from '#users/types.js';
@@ -235,38 +237,43 @@ class ProgressController {
     const {courseId, versionId} = params;
     const {itemId, sectionId, moduleId, watchItemId, attemptId, isSkipped} =
       body;
-    const userId = user._id.toString();
 
-    // Create a progress resource object for permission checking
-    const progressResource = subject('Progress', {userId, courseId, versionId});
+    const userId = String(user._id);
 
-    // Check permission using ability.can() with the actual progress resource
+    const progressResource = subject('Progress', {
+      userId,
+      courseId,
+      versionId,
+    });
+
     if (!ability.can(ProgressActions.Modify, progressResource)) {
       throw new ForbiddenError(
         'You do not have permission to modify this progress',
       );
     }
 
-    await this.progressService.stopItem(
-      userId,
-      courseId,
-      versionId,
-      itemId,
-      sectionId,
-      moduleId,
-      watchItemId,
-    );
-    await this.progressService.updateProgress(
-      userId,
-      courseId,
-      versionId,
-      moduleId,
-      sectionId,
-      itemId,
-      watchItemId,
-      attemptId,
-      isSkipped,
-    );
+    await Promise.all([
+      this.progressService.stopItem(
+        userId,
+        courseId,
+        versionId,
+        itemId,
+        sectionId,
+        moduleId,
+        watchItemId,
+      ),
+      this.progressService.updateProgress(
+        userId,
+        courseId,
+        versionId,
+        moduleId,
+        sectionId,
+        itemId,
+        watchItemId,
+        attemptId,
+        isSkipped,
+      ),
+    ]);
   }
 
   @OpenAPI({
@@ -488,7 +495,7 @@ It returns an empty body with a 200 status code.
   async getLeaderboard(
     @Params() params: GetUserProgressParams,
     @QueryParams() query: GetLeaderboardQuery,
-    @CurrentUser() user:IUser
+    @CurrentUser() user: IUser,
   ): Promise<{
     data: Array<{
       userId: string;
@@ -511,6 +518,36 @@ It returns an empty body with a 200 status code.
       versionId,
       page,
       limit,
+    );
+  }
+
+  /////////////////////////////// TEMP ENDPOINT WITHOUT AUTH //////////////////////////////////
+  @Get('/progress/courses/:courseId/versions/:versionId/leaderboard/no-auth')
+  @OpenAPI({
+    summary: 'Get course leaderboard without authorization',
+    description:
+      'Returns ranked list of students based on completion percentage and time',
+  })
+  @ResponseSchema(GetLeaderboardResponse, {
+    description: 'Leaderboard retrieved successfully',
+    statusCode: 200
+  })
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Failed to fetch leaderboard',
+    statusCode: 500,
+  })
+  async getNoAuthLeaderboard(
+    @Params() params: GetUserProgressParams,
+    @QueryParams() query: GetLeaderboardQuery,
+  ): Promise<GetLeaderboardResponse> {
+    const {courseId, versionId} = params;
+    // const {page = 1, limit = 10} = query;
+
+    return await this.progressService.getLeaderboardNoAuth(
+      courseId,
+      versionId,
+      // page,
+      // limit,
     );
   }
 }

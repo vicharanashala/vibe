@@ -45,11 +45,11 @@ export interface ICourseVersion {
   modules: IModule[];
   totalItems?: number;
   itemCounts?: {
-    VIDEO: number;
-    QUIZ: number;
-    BLOG: number;
-    PROJECT: number;
-    FEEDBACK: number;
+    VIDEO?: number;
+    QUIZ?: number;
+    BLOG?: number;
+    PROJECT?: number;
+    FEEDBACK?: number;
   };
   isDeleted?: boolean;
   deletedAt?: Date;
@@ -598,6 +598,10 @@ export class BulkEnrollmentsQuery {
   @IsOptional()
   @IsString()
   courseId?: string;
+
+  @IsOptional()
+  @IsString()
+  userId?: string;
 }
 
 export interface IUserAnomaly {
