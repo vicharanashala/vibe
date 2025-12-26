@@ -405,9 +405,9 @@ export class EnrollmentController {
     @Ability(getEnrollmentAbility) { ability },
     @QueryParams() query: BulkEnrollmentsQuery,
   ) {
-    const { courseId } = query;
+    const { courseId,userId } = query;
     const updatedEnrollment =
-      await this.enrollmentService.bulkUpdateAllEnrollments(courseId);
+      await this.enrollmentService.bulkUpdateAllEnrollments(courseId,userId);
     return updatedEnrollment;
   }
 

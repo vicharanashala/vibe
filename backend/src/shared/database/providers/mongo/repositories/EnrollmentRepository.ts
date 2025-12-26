@@ -1359,6 +1359,28 @@ export class EnrollmentRepository {
     }
   }
 
+  async getEnrollmentsByFilters(filters: {
+  courseId?: string;
+  courseVersionId?: string;
+  userId?: string;
+}) {
+  await this.init();
+
+  const query: any = {};
+
+  if (filters.courseId)
+    query.courseId = new ObjectId(filters.courseId);
+
+  if (filters.courseVersionId)
+    query.courseVersionId = new ObjectId(filters.courseVersionId);
+
+  if (filters.userId)
+    query.userId = new ObjectId(filters.userId);
+
+  return this.enrollmentCollection.find(query).toArray();
+}
+
+
   async addEnrollmentIndexes(session?: ClientSession): Promise<void> {
     try {
       await this.enrollmentCollection.dropIndex('courseVersionId_1');

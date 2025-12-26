@@ -1495,6 +1495,25 @@ export function useResetProgress(): {
   };
 }
 
+export function useRecalculateProgress():{
+  mutate: (variables: { params: { query: { courseId?: string, userId?: string, courseVersionId?: string } } }) => void,
+  mutateAsync: (variables: { params: { query: { courseId?: string, userId?: string, courseVersionId?: string } } }) => Promise<unknown>,
+  data: unknown | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("patch", "/users/enrollments/progress");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to reset progress') : null
+  };
+}
+
 export function useProctoringSettings(courseId: string, versionId: string): {
   data: ProctoringSettings | undefined,
   isLoading: boolean,
