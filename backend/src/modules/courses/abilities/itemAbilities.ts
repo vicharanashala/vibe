@@ -107,18 +107,15 @@ export async function setupItemAbilities(
           if (!progress.currentItem) {
             // User has not started the course yet
             // Allow only ViewAll (or nothing, based on your rules)
-            try {
-              const firstItem = await progressService.getFirstItem(
-                enrollment.versionId,
-              );
-              // const firstItem = await this.itemService.getFirstItem(enrollment.versionId);
-              can(ItemActions.View, 'Item', {
-                courseId: enrollment.courseId,
-                versionId: enrollment.versionId,
-                ItemId: firstItem?.itemId,
-              });
-            } catch (error) {
-            }
+            const firstItem = await progressService.getFirstItem(
+              enrollment.versionId,
+            );
+            // const firstItem = await this.itemService.getFirstItem(enrollment.versionId);
+            can(ItemActions.View, 'Item', {
+              courseId: enrollment.courseId,
+              versionId: enrollment.versionId,
+              ItemId: firstItem?.itemId,
+            });
             return;
           }
 

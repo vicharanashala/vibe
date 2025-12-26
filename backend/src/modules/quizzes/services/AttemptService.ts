@@ -13,14 +13,14 @@ import {
   QuestionAnswerFeedback,
   Submission,
 } from '#quizzes/classes/transformers/Submission.js';
-import { IQuestionRenderView } from '#quizzes/question-processing/index.js';
-import { QuestionProcessor } from '#quizzes/question-processing/QuestionProcessor.js';
+import {IQuestionRenderView} from '#quizzes/question-processing/index.js';
+import {QuestionProcessor} from '#quizzes/question-processing/QuestionProcessor.js';
 
 import {
   generateRandomParameterMap,
   getSelectedItemTexts,
 } from '#quizzes/utils/index.js';
-import { GLOBAL_TYPES } from '#root/types.js';
+import {GLOBAL_TYPES} from '#root/types.js';
 import {
   BaseService,
   IItemRepository,
@@ -29,27 +29,27 @@ import {
   MongoDatabase,
   ILotItem,
 } from '#shared/index.js';
-import { injectable, inject } from 'inversify';
-import { ClientSession, ObjectId } from 'mongodb';
-import { NotFoundError, BadRequestError } from 'routing-controllers';
-import { QuestionBankService } from './QuestionBankService.js';
-import { QuestionService } from './QuestionService.js';
-import { QUIZZES_TYPES } from '../types.js';
-import { instanceToPlain } from 'class-transformer';
-import { QuizRepository } from '../repositories/providers/mongodb/QuizRepository.js';
-import { AttemptRepository } from '../repositories/providers/mongodb/AttemptRepository.js';
-import { SubmissionRepository } from '../repositories/providers/mongodb/SubmissionRepository.js';
-import { UserQuizMetricsRepository } from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
-import { BaseQuestion, NATQuestion } from '../classes/transformers/Question.js';
-import { UserQuizMetrics } from '../classes/transformers/UserQuizMetrics.js';
-import { Attempt } from '../classes/transformers/Attempt.js';
+import {injectable, inject} from 'inversify';
+import {ClientSession, ObjectId} from 'mongodb';
+import {NotFoundError, BadRequestError} from 'routing-controllers';
+import {QuestionBankService} from './QuestionBankService.js';
+import {QuestionService} from './QuestionService.js';
+import {QUIZZES_TYPES} from '../types.js';
+import {instanceToPlain} from 'class-transformer';
+import {QuizRepository} from '../repositories/providers/mongodb/QuizRepository.js';
+import {AttemptRepository} from '../repositories/providers/mongodb/AttemptRepository.js';
+import {SubmissionRepository} from '../repositories/providers/mongodb/SubmissionRepository.js';
+import {UserQuizMetricsRepository} from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
+import {BaseQuestion, NATQuestion} from '../classes/transformers/Question.js';
+import {UserQuizMetrics} from '../classes/transformers/UserQuizMetrics.js';
+import {Attempt} from '../classes/transformers/Attempt.js';
 import {
   FeedbackSubmissionItem,
   QuizItem,
 } from '#root/modules/courses/classes/transformers/Item.js';
-import { QuestionRepository } from '../repositories/index.js';
-import { FeedbackRepository } from '../repositories/providers/mongodb/FeedbackRepository.js';
-import { COURSES_TYPES } from '#root/modules/courses/types.js';
+import {QuestionRepository} from '../repositories/index.js';
+import {FeedbackRepository} from '../repositories/providers/mongodb/FeedbackRepository.js';
+import {COURSES_TYPES} from '#root/modules/courses/types.js';
 @injectable()
 class AttemptService extends BaseService {
   constructor(
@@ -120,7 +120,7 @@ class AttemptService extends BaseService {
         new QuestionProcessor(question).render(questionDetail.parameterMap),
       );
     }
-    return { questionDetails, questionRenderViews };
+    return {questionDetails, questionRenderViews};
   }
 
   private _buildGradingResult(
@@ -207,8 +207,8 @@ class AttemptService extends BaseService {
     userId: string | ObjectId,
     quizId: string,
   ): Promise<
-    | { attemptId: string; questionRenderViews: IQuestionRenderView[] }
-    | { message: string }
+    | {attemptId: string; questionRenderViews: IQuestionRenderView[]}
+    | {message: string}
   > {
     return this._withTransaction(async session => {
       //1. Check if UserQuizMetrics exists for the user and quiz
@@ -219,16 +219,15 @@ class AttemptService extends BaseService {
       );
 
       const quiz = await this.quizRepository.getById(quizId, session);
-
-      if (!quiz) {
-        throw new NotFoundError(`Quiz with ID ${quizId} not found`);
-      }
-
       const userObjecId = new ObjectId(userId);
       const quizObjecId = new ObjectId(quizId);
 
       if (!metrics) {
         //1a If not, create a new UserQuizMetrics
+        if (!quiz) {
+          throw new NotFoundError(`Quiz with ID ${quizId} not found`);
+        }
+
         const newMetrics: UserQuizMetrics = new UserQuizMetrics(
           userObjecId,
           quizObjecId,
@@ -252,24 +251,17 @@ class AttemptService extends BaseService {
         throw new BadRequestError('Quiz deadline has passed');
       }
 
-      //3. Check if available attempts > 0 BEFORE decrementing
-      // If maxAttempts is 2, remainingAttempts starts at 2
-      // After 1st attempt: remainingAttempts becomes 1 (1 left)
-      // After 2nd attempt: remainingAttempts becomes 0 (0 left) - should block 3rd
-      if (quiz.details.maxAttempts !== -1 && metrics.remainingAttempts <= 0) {
-        throw new BadRequestError('No available attempts left for this quiz. Please proceed to the next item.');
+      //3. Check if available attempts > 0
+      if (metrics.remainingAttempts <= 0 && quiz.details.maxAttempts !== -1) {
+        return {message: 'No available attempts left for this quiz'};
       }
 
-      //4. Decrement remaining attempts AFTER checking
-      if (quiz.details.maxAttempts !== -1) {
-        metrics.remainingAttempts = metrics.remainingAttempts - 1;
-      }
-
-      //5. Fetch questions for the quiz attempt
-      const { questionDetails, questionRenderViews } =
+      //4. Fetch questions for the quiz attempt
+      const {questionDetails, questionRenderViews} =
         await this._getQuestionsForAttempt(quiz);
 
-      //6. Create a new attempt
+      //5. Create a new attempt
+
       const newAttempt = new Attempt(quizObjecId, userObjecId, questionDetails);
 
       const attemptId = await this.attemptRepository.create(
@@ -279,17 +271,20 @@ class AttemptService extends BaseService {
 
       const attemptObjectId = new ObjectId(attemptId);
 
-      //7. Update UserQuizMetrics with the new attempt
+      //6. Update UserQuizMetrics with the new attempt
       metrics.latestAttemptStatus = 'ATTEMPTED';
       metrics.latestAttemptId = attemptObjectId;
-      metrics.attempts.push({ attemptId: attemptObjectId });
 
+      // if the quiz maxAttempts is -1, the no need to changes remainingAttempts
+      metrics.remainingAttempts =
+        quiz.details.maxAttempts === -1 ? -1 : metrics.remainingAttempts - 1;
+      metrics.attempts.push({attemptId: attemptObjectId});
       const updatedMetrics = await this.userQuizMetricsRepository.update(
         metrics._id.toString(),
         metrics,
       );
 
-      //8. Return the attempt ID
+      //6. Return the attempt ID
       return {
         attemptId,
         questionRenderViews,
@@ -394,7 +389,7 @@ class AttemptService extends BaseService {
       } else {
         metrics.latestAttemptStatus = 'SKIPPED';
         metrics.skipCount = +1;
-        const details: IAttemptDetails = { attemptId: new ObjectId(attemptId) };
+        const details: IAttemptDetails = {attemptId: new ObjectId(attemptId)};
         metrics.attempts.push(details);
         //6. update the quiz metrics
         await this.userQuizMetricsRepository.update(
@@ -547,15 +542,15 @@ class AttemptService extends BaseService {
       attempt.quizId = new ObjectId(attempt.quizId);
 
       if (answers?.length) {
-        const { questionId, answer: ans } = answers[0];
+        const {questionId, answer: ans} = answers[0];
         const question = await this.questionRepository.getById(
           questionId,
           session,
         );
 
         if (question.type === 'NUMERIC_ANSWER_TYPE') {
-          const submittedAnswer = (ans as { value: number }).value;
-          const { lowerLimit, upperLimit } = question as NATQuestion;
+          const submittedAnswer = (ans as {value: number}).value;
+          const {lowerLimit, upperLimit} = question as NATQuestion;
 
           if (submittedAnswer < lowerLimit || submittedAnswer > upperLimit) {
             throw new BadRequestError(
@@ -631,7 +626,7 @@ class AttemptService extends BaseService {
           // Step 3: Add to bulk operations
           bulkOperations.push({
             updateOne: {
-              filter: { _id: new ObjectId(metric._id) },
+              filter: {_id: new ObjectId(metric._id)},
               update: {
                 $set: {
                   // latestAttemptId: latestAttempt?._id.toString(),
@@ -654,7 +649,8 @@ class AttemptService extends BaseService {
                 session,
               );
               console.log(
-                `✅ Batch ${++batchCount}: Updated ${bulkOperations.length
+                `✅ Batch ${++batchCount}: Updated ${
+                  bulkOperations.length
                 } user_quiz_metrics`,
               );
               bulkOperations.length = 0;
@@ -680,7 +676,7 @@ class AttemptService extends BaseService {
     }
 
     console.log(`🔹 Done! Updated ${updatedCount} / ${totalCount} records`);
-    return { updatedCount, totalCount };
+    return {updatedCount, totalCount};
   }
 
   async exportQuizSubmissions(
@@ -819,4 +815,4 @@ class AttemptService extends BaseService {
   }
 }
 
-export { AttemptService };
+export {AttemptService};
