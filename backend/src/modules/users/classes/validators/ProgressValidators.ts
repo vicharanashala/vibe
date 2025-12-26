@@ -10,6 +10,10 @@ import {
   IsNumber,
   IsEnum,
   ValidateNested,
+  IsEmail,
+  Min,
+  Max,
+  IsArray,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {WatchTime} from '../transformers/WatchTime.js';
@@ -53,6 +57,110 @@ export class GetLeaderboardQuery {
   })
   @IsOptional()
   limit?: number = 10;
+}
+
+export class LeaderboardNoAuthResponse {
+  @JSONSchema({
+    description: 'User ID',
+    type: 'string',
+  })
+  @IsString()
+  userId!: string;
+
+  @JSONSchema({
+    description: 'User full name',
+    type: 'string',
+  })
+  @IsString()
+  userName!: string;
+
+  @JSONSchema({
+    description: 'User email address',
+    type: 'string',
+    format: 'email',
+  })
+  @IsEmail()
+  email!: string;
+
+  @JSONSchema({
+    description: 'Completion percentage of the course',
+    type: 'number',
+    minimum: 0,
+    maximum: 100,
+  })
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  completionPercentage!: number;
+
+  @JSONSchema({
+    description: 'Completion timestamp (null if not completed)',
+    oneOf: [{type: 'string', format: 'date-time'}, {type: 'null'}],
+  })
+  @IsOptional()
+  completedAt!: Date | string | null;
+
+  @JSONSchema({
+    description: 'Rank in leaderboard',
+    type: 'number',
+    minimum: 1,
+  })
+  @IsNumber()
+  @Min(1)
+  rank!: number;
+}
+
+export class GetLeaderboardResponse {
+  @JSONSchema({
+    description: 'Course name',
+    type: 'string',
+  })
+  @IsString()
+  course!: string;
+
+  @JSONSchema({
+    description: 'Course version',
+    type: 'string',
+  })
+  @IsString()
+  version!: string;
+
+  @JSONSchema({
+    description: 'Leaderboard data',
+    type: 'array',
+    items: {$ref: '#/components/schemas/LeaderboardNoAuthResponse'},
+  })
+  @IsArray()
+  @ValidateNested({each: true})
+  @Type(() => LeaderboardNoAuthResponse)
+  data!: LeaderboardNoAuthResponse[];
+
+  @JSONSchema({
+    description: 'Total number of documents',
+    type: 'number',
+    minimum: 0,
+  })
+  @IsNumber()
+  @Min(0)
+  totalDocuments!: number;
+
+  @JSONSchema({
+    description: 'Total number of pages',
+    type: 'number',
+    minimum: 0,
+  })
+  @IsNumber()
+  @Min(0)
+  totalPages!: number;
+
+  @JSONSchema({
+    description: 'Current page number',
+    type: 'number',
+    minimum: 1,
+  })
+  @IsNumber()
+  @Min(1)
+  currentPage!: number;
 }
 
 export class StartItemBody {
@@ -205,13 +313,12 @@ export class StopItemBody {
   isSkipped?: boolean;
 }
 
-
-export class ItemIdparams{
+export class ItemIdparams {
   @JSONSchema({
-    description:'Gives as ItemId'
+    description: 'Gives as ItemId',
   })
   @IsString()
-  itemId:string
+  itemId: string;
 }
 
 export class UpdateProgressBody {
@@ -249,7 +356,6 @@ export class UpdateProgressBody {
     description: 'Watch item ID used for tracking progress',
     example: '60d5ec49b3f1c8e4a8f8b8c7',
     type: 'string',
-    
   })
   @IsOptional()
   @IsString()
@@ -343,7 +449,7 @@ export class ResetCourseProgressBody {
     description: 'Optional item ID to reset progress to',
     example: '60d5ec49b3f1c8e4a8f8b8c4',
     type: 'string',
-    
+
     nullable: true,
   })
   @IsOptional()
@@ -519,7 +625,6 @@ export class WatchTimeParams {
   @JSONSchema({
     description: 'user ID to get watch time for',
     type: 'string',
-    
   })
   @IsNotEmpty()
   @IsString()
@@ -583,7 +688,7 @@ export class WatchTimeResponse {
   quizMetrics?: UserQuizMetrics;
 }
 
-export class TotalWatchTimeResponse{
+export class TotalWatchTimeResponse {
   @JSONSchema({
     description: 'Total watch time of the user',
     example: 120,
