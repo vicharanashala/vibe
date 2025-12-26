@@ -20,7 +20,7 @@ const fetchClient = createFetchClient<paths>({
   fetch: (url, options) => {
     return fetch(url, {
       ...options,
-      credentials: "include",  
+      credentials: "include",
     });
   },
 });
@@ -36,8 +36,9 @@ fetchClient.use({
   },
   
   async onResponse({ response, request }) {
-    // Handle 401 errors by attempting token refresh
-    if (response.status === 401 && refreshTokenFunction) {
+    // Handle 401 (Unauthorized) and 403 (Forbidden) errors by attempting token refresh
+    // routing-controllers returns 403 when authorizationChecker returns false
+    if ((response.status === 401 || response.status === 403) && refreshTokenFunction) {
       try {
         // Attempt to refresh the token
         await refreshTokenFunction();
@@ -56,16 +57,16 @@ fetchClient.use({
         console.error('Token refresh failed during API call:', error);
         // If refresh fails, redirect to login or handle as needed
         // This could trigger a logout in your auth context
-        
+
         try {
           console.log('API interceptor: Retrying token refresh with Firebase...');
           const { auth: firebaseAuth } = await import('@/lib/firebase');
           const firebaseUser = firebaseAuth.currentUser;
-          
+
           if (firebaseUser) {
             const freshToken = await firebaseUser.getIdToken(true);
             localStorage.setItem('firebase-auth-token', freshToken);
-            
+
             // Retry the request with fresh token
             const retryRequest = request.clone();
             retryRequest.headers.set('Authorization', `Bearer ${freshToken}`);
@@ -74,11 +75,11 @@ fetchClient.use({
           }
         } catch (retryError) {
           console.error('API interceptor: Final token refresh attempt failed:', retryError);
-  
+
         }
       }
     }
-    
+
     return response;
   },
 });
