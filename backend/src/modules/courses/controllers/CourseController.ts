@@ -237,7 +237,8 @@ Accessible to:
   ) {
     const { courseId, courseVersionId } = query;
     // Update total item count in service
-    await this.courseService.updateCourseVersionTotalItemCount(courseId, courseVersionId);
+    const updatedVersion = await this.courseService.updateCourseVersionTotalItemCount(courseId, courseVersionId);
+    return updatedVersion;
   }
 }
 
