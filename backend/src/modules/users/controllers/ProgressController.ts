@@ -555,7 +555,6 @@ It returns an empty body with a 200 status code.
   })
   async getNoAuthLeaderboard(
     @Params() params: GetUserProgressParams,
-    @QueryParams() query: GetLeaderboardQuery,
   ): Promise<GetLeaderboardResponse> {
     const {courseId, versionId} = params;
     // const {page = 1, limit = 10} = query;
