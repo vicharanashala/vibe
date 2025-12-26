@@ -548,7 +548,7 @@ export class EnrollmentService extends BaseService {
    * Private helper method for the enrollment process.
    */
   async bulkUpdateAllEnrollments(
-    courseId?: string,
+    courseId?: string,userId?:string
   ): Promise<{ totalCount: number; updatedCount: number }> {
     const BATCH_SIZE = 5000;
 
@@ -583,10 +583,12 @@ export class EnrollmentService extends BaseService {
           courseVersion._id.toString(),
         );
 
-        const enrollments = await this.enrollmentRepo.getByCourseVersion(
-          courseVersion.courseId.toString(),
-          courseVersion._id.toString(),
-        );
+        // const enrollments = await this.enrollmentRepo.getByCourseVersion(
+        //   courseVersion.courseId.toString(),
+        //   courseVersion._id.toString(),
+        // );
+
+        const enrollments = await this.enrollmentRepo.getEnrollmentsByFilters({courseId:courseVersion.courseId.toString(),courseVersionId:courseVersion._id.toString(),userId})
 
         totalCount += enrollments.length;
 
