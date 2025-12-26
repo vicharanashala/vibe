@@ -606,10 +606,13 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
           const speedTolerance = playbackRate * 1.0;
           const timeDifference = time - maxTime;
 
-          if (timeDifference > speedTolerance + 1.0 && time <= endTimeSeconds) {
+          // Calculate the effective end time - use endTimeSeconds if set, otherwise use duration
+          const effectiveEndTime = endTimeSeconds > 0 ? endTimeSeconds : duration;
+
+          if (timeDifference > speedTolerance + 1.0 && time < effectiveEndTime) {
             if (!player) return;
             player.seekTo(maxTime, true);
-          } else if (time >= startTimeSeconds && time <= endTimeSeconds) {
+          } else if (time >= startTimeSeconds && time < effectiveEndTime) {
             setMaxTime(Math.max(maxTime, time));
           }
         }
