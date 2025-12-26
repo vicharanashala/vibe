@@ -146,13 +146,15 @@ class CourseService extends BaseService {
   async updateCourseVersionTotalItemCount(
     courseId?: string,
     courseVersionId?: string,
-  ): Promise<void> {
-
+  ): Promise<{
+    totalVersions: number;
+    updatedVersions: number;
+    failedVersions: number;
+  }> {
     let versionIds: string[] = [];
 
-    // 1️⃣ If courseVersionId is provided, use it directly
+    // 1️⃣ If courseVersionId is provided
     if (courseVersionId) {
-      // Optional safety check: ensure version belongs to courseId
       if (courseId) {
         const course = await this.courseRepo.read(courseId);
         if (!course) {
@@ -172,7 +174,8 @@ class CourseService extends BaseService {
 
       versionIds = [courseVersionId];
     }
-    // 2️⃣ If only courseId is provided, process all its versions
+
+    // 2️⃣ If only courseId is provided
     else if (courseId) {
       const course = await this.courseRepo.read(courseId);
       if (!course) {
@@ -181,7 +184,8 @@ class CourseService extends BaseService {
 
       versionIds = course.versions.map(v => v.toString());
     }
-    // 3️⃣ Otherwise, process all courses and all versions
+
+    // 3️⃣ Otherwise process all versions
     else {
       const courses = await this.courseRepo.getAllCourses();
       versionIds = courses.flatMap(c =>
@@ -190,6 +194,8 @@ class CourseService extends BaseService {
     }
 
     const bulkOps = [];
+    let updatedVersions = 0;
+    let failedVersions = 0;
 
     for (const versionId of versionIds) {
       try {
@@ -207,7 +213,10 @@ class CourseService extends BaseService {
             },
           },
         });
+
+        updatedVersions++;
       } catch (err) {
+        failedVersions++;
         console.error(`Failed for version ${versionId}`, err);
       }
     }
@@ -215,7 +224,14 @@ class CourseService extends BaseService {
     if (bulkOps.length) {
       await this.courseRepo.bulkUpdateVersions(bulkOps);
     }
+
+    return {
+      totalVersions: versionIds.length,
+      updatedVersions,
+      failedVersions,
+    };
   }
+
 
 
 
