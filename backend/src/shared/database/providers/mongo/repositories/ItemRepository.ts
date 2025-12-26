@@ -971,13 +971,16 @@ export class ItemRepository implements IItemRepository {
           {
             $match: {
               _id: { $in: itemsGroupIds },
-              isHidden: { $ne: true }
+              isHidden: { $ne: true },
+              isDeleted: { $ne: true }
             },
           },
           { $unwind: '$items' },
           {
             $match: {
-              'items.isHidden': { $ne: true }
+              'items.isHidden': { $ne: true },
+              'items.isDeleted': { $ne: true }
+
             }
           },
           {
