@@ -79,18 +79,23 @@ export async function setupItemAbilities(
               enrollment.versionId,
             );
           } catch (error) {
-            console.log(
-              'No progress found for student, course not started yet',
-            );
             progress = null;
           }
 
-          // return all the itemId having watchtime doc
           const completedItems = await progressService.getCompletedItems(
             user.userId,
             enrollment.courseId,
             enrollment.versionId,
           );
+
+          if (!progress) {
+            const itemBounded = {
+              courseId: enrollment.courseId,
+              versionId: enrollment.versionId,
+            };
+            can(ItemActions.View, 'Item', itemBounded);
+            break;
+          }
 
           // Convert all completed items to strings for consistency
           const completedItemsStr = completedItems.map(id => id.toString());
@@ -105,27 +110,29 @@ export async function setupItemAbilities(
           };
 
           if (!progress.currentItem) {
-            // User has not started the course yet
-            // Allow only ViewAll (or nothing, based on your rules)
-            const firstItem = await progressService.getFirstItem(
-              enrollment.versionId,
-            );
-            // const firstItem = await this.itemService.getFirstItem(enrollment.versionId);
-            can(ItemActions.View, 'Item', {
-              courseId: enrollment.courseId,
-              versionId: enrollment.versionId,
-              ItemId: firstItem?.itemId,
-            });
+            try {
+              const firstItem = await progressService.getFirstItem(
+                enrollment.versionId,
+              );
+              if (firstItem) {
+                can(ItemActions.View, 'Item', {
+                  courseId: enrollment.courseId,
+                  versionId: enrollment.versionId,
+                  ItemId: firstItem.itemId,
+                });
+              } else {
+                can(ItemActions.View, 'Item', {
+                  courseId: enrollment.courseId,
+                  versionId: enrollment.versionId,
+                });
+              }
+            } catch (error) {
+              can(ItemActions.View, 'Item', {
+                courseId: enrollment.courseId,
+                versionId: enrollment.versionId,
+              });
+            }
             return;
-          }
-
-          if (!progress) {
-            const itemBounded = {
-              courseId: enrollment.courseId,
-              versionId: enrollment.versionId,
-            };
-            can(ItemActions.View, 'Item', itemBounded);
-            break;
           }
 
           const allowedItemIds = [...completedItemsStr];
