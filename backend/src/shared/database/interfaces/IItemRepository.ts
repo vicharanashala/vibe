@@ -55,7 +55,7 @@ export interface IItemRepository {
     moduleId: ObjectId;
     sectionId: ObjectId;
     itemId: ObjectId;
-  }>;
+  } | null>;
 
   createItem(item: Item, session?: ClientSession): Promise<Item | null>;
   CalculateTotalItemsCount(
