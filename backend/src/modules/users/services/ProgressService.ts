@@ -1357,6 +1357,7 @@ class ProgressService extends BaseService {
           enrollment._id.toString(),
           percentCompleted,
           session,
+          completedItemsSet.size,
         ),
         this.progressRepository.updateProgress(
           userId,
@@ -2365,7 +2366,6 @@ class ProgressService extends BaseService {
     }
 
     for (const userId of enrolledUsersId) {
-
       let isProceed = true;
       if (lastItem.type == 'QUIZ') {
         const quizSubmission =
