@@ -1,30 +1,30 @@
-import {Item, ItemsGroup} from '#courses/classes/transformers/Item.js';
-import {COURSES_TYPES} from '#courses/types.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
-import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { Item, ItemsGroup } from '#courses/classes/transformers/Item.js';
+import { COURSES_TYPES } from '#courses/types.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
+import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   ICourseVersion,
   IWatchTime,
   IProgress,
   IVideoDetails,
 } from '#root/shared/interfaces/models.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {ProgressRepository} from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
-import {Progress} from '#users/classes/transformers/Progress.js';
-import {USERS_TYPES} from '#users/types.js';
-import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId} from 'mongodb';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { ProgressRepository } from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
+import { Progress } from '#users/classes/transformers/Progress.js';
+import { USERS_TYPES } from '#users/types.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, ObjectId } from 'mongodb';
 import {
   NotFoundError,
   BadRequestError,
   InternalServerError,
 } from 'routing-controllers';
-import {SubmissionRepository} from '#quizzes/repositories/providers/mongodb/SubmissionRepository.js';
-import {QUIZZES_TYPES} from '#quizzes/types.js';
-import {WatchTime} from '../classes/transformers/WatchTime.js';
+import { SubmissionRepository } from '#quizzes/repositories/providers/mongodb/SubmissionRepository.js';
+import { QUIZZES_TYPES } from '#quizzes/types.js';
+import { WatchTime } from '../classes/transformers/WatchTime.js';
 import {
   CompletedProgressResponse,
   GetLeaderboardResponse,
@@ -34,10 +34,10 @@ import {
   QuizRepository,
   UserQuizMetricsRepository,
 } from '#root/modules/quizzes/repositories/index.js';
-import {EnrollmentRepository} from '#root/shared/index.js';
-import {PROJECTS_TYPES} from '#root/modules/projects/types.js';
-import {IProjectSubmissionRepository} from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
-import {FeedbackRepository} from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
+import { EnrollmentRepository } from '#root/shared/index.js';
+import { PROJECTS_TYPES } from '#root/modules/projects/types.js';
+import { IProjectSubmissionRepository } from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
+import { FeedbackRepository } from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
 
 @injectable()
 class ProgressService extends BaseService {
@@ -83,7 +83,7 @@ class ProgressService extends BaseService {
    * Private helper method for the enrollment process.
    */
 
-  private getFirstByOrder<T extends {order?: string}>(arr?: T[]): T | null {
+  private getFirstByOrder<T extends { order?: string }>(arr?: T[]): T | null {
     if (!arr?.length) return null;
 
     return arr.reduce((min, curr) => {
@@ -132,7 +132,7 @@ class ProgressService extends BaseService {
       }
     }
 
-    return {itemIds, quizItemIds};
+    return { itemIds, quizItemIds };
   }
 
   private async clearWatchTime(
@@ -142,7 +142,7 @@ class ProgressService extends BaseService {
   ) {
     if (!itemIds.length) return 0;
 
-    const {deletedCount} =
+    const { deletedCount } =
       await this.progressRepository.deleteUserWatchTimeByItemIds(
         userId,
         itemIds,
@@ -380,14 +380,14 @@ class ProgressService extends BaseService {
       //   ));
       const [totalItems, completedItems] = await Promise.all([
         totalItemCount ??
-          this.itemRepo.getTotalItemsCount(courseId, courseVersionId, session),
+        this.itemRepo.getTotalItemsCount(courseId, courseVersionId, session),
         completedItemCount ??
-          this.getUserProgressPercentageWithoutTotal(
-            userId,
-            courseId,
-            courseVersionId,
-            session,
-          ),
+        this.getUserProgressPercentageWithoutTotal(
+          userId,
+          courseId,
+          courseVersionId,
+          session,
+        ),
       ]);
 
       percentCompleted = this._calculateProgress(totalItems, completedItems);
@@ -498,17 +498,15 @@ class ProgressService extends BaseService {
       throw new NotFoundError('Progress not found');
     }
 
-    // Check if item is completed directly in db.
-    const isItemCompleted = await this.progressRepository.isItemCompleted(
+    // 🔥 O(1) check instead of distinct scan
+    const isCompleted = await this.progressRepository.isItemCompleted(
       userId,
       courseId,
       courseVersionId,
       itemId,
     );
 
-    console.log('Is Item Completed:', isItemCompleted, userId);
-
-    if (isItemCompleted) {
+    if (isCompleted) {
       return;
     }
 
@@ -730,7 +728,7 @@ class ProgressService extends BaseService {
     currentItemId: string,
     quizMetrics: any,
     enrollment: any,
-  ): Promise<{nextItemId?: string}> {
+  ): Promise<{ nextItemId?: string }> {
     try {
       if (quizMetrics?.remainingAttempts !== 0) {
         return {}; // No permission update needed
@@ -759,7 +757,7 @@ class ProgressService extends BaseService {
       const nextItem = items[currentIndex + 1];
 
       if (nextItem && nextItem?._id) {
-        return {nextItemId: nextItem?._id?.toString()};
+        return { nextItemId: nextItem?._id?.toString() };
       }
 
       // No next item → check next section/module
@@ -783,7 +781,7 @@ class ProgressService extends BaseService {
         throw new NotFoundError('Invalid course version');
       }
 
-      const {moduleId, sectionId} = groupInfo;
+      const { moduleId, sectionId } = groupInfo;
       if (!moduleId || !sectionId) {
         throw new NotFoundError(
           'Invalid course mapping: Module or Section missing',
@@ -798,7 +796,7 @@ class ProgressService extends BaseService {
       );
 
       if (nextItemDetails?.itemId) {
-        return {nextItemId: nextItemDetails.itemId.toString()};
+        return { nextItemId: nextItemDetails.itemId.toString() };
       }
 
       return {};
@@ -1105,79 +1103,36 @@ class ProgressService extends BaseService {
     sectionId: string,
     moduleId: string,
     watchItemId: string,
-    attemptId?: string,
-    isSkipped?: boolean,
   ): Promise<void> {
     return this._withTransaction(async session => {
-      // Optimized inline verification - get all required data in parallel
-      const [user, course, courseVersion, progress] = await Promise.all([
-        this.userRepo.findById(userId),
-        this.courseRepo.read(courseId),
-        this.courseRepo.readVersion(courseVersionId),
-        this.progressRepository.findProgress(userId, courseId, courseVersionId),
+      // 🔥 Run independent validations in parallel
+      const [, , watchItem] = await Promise.all([
+        this.verifyDetails(userId, courseId, courseVersionId),
+
+        this.verifyProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          moduleId,
+          sectionId,
+          itemId,
+        ),
+
+        this.progressRepository.getWatchTimeById(watchItemId, session),
       ]);
 
-      // Validate existence
-      if (!user) {
-        throw new NotFoundError('User not found');
-      }
-      if (!course) {
-        throw new NotFoundError('Course not found');
-      }
-      if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
-        throw new NotFoundError(
-          'Course version not found or does not belong to this course',
-        );
-      }
-      if (!progress) {
-        throw new NotFoundError('Progress not found');
-      }
-
-      // Early check: if item is already completed, return early
-      const isItemCompleted = await this.progressRepository.isItemCompleted(
-        userId,
-        courseId,
-        courseVersionId,
-        itemId,
-      );
-
-      if (isItemCompleted) {
-        console.log(
-          `[ProgressService.stopItem] Item ${itemId} is already completed. Returning early. ${userId}`,
-        );
-        return;
-      }
-
-      // Validate progress matches current position
-      if (
-        progress.currentModule.toString() !== moduleId ||
-        progress.currentSection.toString() !== sectionId ||
-        progress.currentItem.toString() !== itemId
-      ) {
-        throw new BadRequestError(
-          'ModuleId, sectionId and itemId do not match current progress',
-        );
-      }
-
-      // Stop tracking the item
-      const stoppedWatchTime: IWatchTime =
-        await this.progressRepository.stopItemTracking(watchItemId, session);
-
-      if (!stoppedWatchTime) {
+      if (!watchItem) {
         throw new NotFoundError('Watch item not found');
       }
 
-      // Read item to determine validation logic
-      const item = await this.itemRepo.readItem(
-        courseVersionId,
-        itemId,
+      // 🔒 Write happens after validations
+      const result = await this.progressRepository.stopItemTracking(
+        watchItemId,
         session,
       );
-      if (!item) {
-        console.error(
-          `[ProgressService] Item ${itemId} not found in course version ${courseVersionId}`,
-        );
-        throw new NotFoundError('Item not found in Course Version');
+
+      if (!result) {
+        throw new InternalServerError('Failed to stop tracking item');
       }
 
       // Only require watch time validation for VIDEO or BLOG items
@@ -1544,7 +1499,7 @@ class ProgressService extends BaseService {
     }, {} as Record<string, number>);
 
     // Collect attemptIds to delete and bulk ops for all collections
-    const {attemptDeletes, metricsUpdates, submissionDeletes} =
+    const { attemptDeletes, metricsUpdates, submissionDeletes } =
       await this.progressRepository.prepareBulkQuizOperations(
         userId,
         quizItemIds,
@@ -1654,11 +1609,11 @@ class ProgressService extends BaseService {
           : Promise.resolve(),
         projectItemIds.length
           ? this.resetUserProjectData(
-              userId,
-              projectItemIds,
-              courseVersionId,
-              session,
-            )
+            userId,
+            projectItemIds,
+            courseVersionId,
+            session,
+          )
           : Promise.resolve(),
       ]);
 
@@ -1749,11 +1704,11 @@ class ProgressService extends BaseService {
           : Promise.resolve(),
         projectItemIds.length
           ? this.resetUserProjectData(
-              userId,
-              projectItemIds,
-              courseVersionId,
-              session,
-            )
+            userId,
+            projectItemIds,
+            courseVersionId,
+            session,
+          )
           : Promise.resolve(),
       ]);
     });
@@ -1820,7 +1775,7 @@ class ProgressService extends BaseService {
 
       const itemsGroupIds = module.sections.map(s => s.itemsGroupId as string);
 
-      const {itemIds, quizItemIds} = await this.collectItemsFromGroups(
+      const { itemIds, quizItemIds } = await this.collectItemsFromGroups(
         itemsGroupIds,
         session,
       );
@@ -1891,7 +1846,7 @@ class ProgressService extends BaseService {
         sectionId,
       );
 
-      const {itemIds, quizItemIds} = await this.collectItemsFromGroups(
+      const { itemIds, quizItemIds } = await this.collectItemsFromGroups(
         [section.itemsGroupId as string],
         session,
       );
@@ -2041,7 +1996,7 @@ class ProgressService extends BaseService {
     courseVersionId: string,
     itemId: string,
     session?: ClientSession,
-  ): Promise<{message: String}> {
+  ): Promise<{ message: String }> {
     const item = await this.itemRepo.readItem(courseVersionId, itemId);
     if (!item) {
       throw new NotFoundError(`Item ${itemId} not found`);
@@ -2121,7 +2076,7 @@ class ProgressService extends BaseService {
         },
         session,
       );
-      return {message: 'Course completed - no next item found'};
+      return { message: 'Course completed - no next item found' };
     }
 
     // Update progress to the next item
@@ -2137,7 +2092,7 @@ class ProgressService extends BaseService {
       session,
     );
 
-    return {message: 'Item skipped successfully'};
+    return { message: 'Item skipped successfully' };
   }
   async getFirstItem(versionId: string) {
     if (!versionId) {
@@ -2490,7 +2445,7 @@ class ProgressService extends BaseService {
         const fullName =
           `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
           'Unknown User';
-        userMap.set(user._id?.toString(), {name: fullName, email: user.email});
+        userMap.set(user._id?.toString(), { name: fullName, email: user.email });
       }
     }
 
@@ -2543,4 +2498,4 @@ class ProgressService extends BaseService {
   }
 }
 
-export {ProgressService};
+export { ProgressService };
