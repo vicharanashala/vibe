@@ -521,21 +521,21 @@ It returns an empty body with a 200 status code.
   }
 
   ///////////////////////////////////////////////////// TO CORRECT THE WATCHTIME DOC COUNT OF STUDENTS ////////////////////////////////////////////
-  @Post('/progress/watch-time/bulk')
-  @HttpCode(201)
-  @OpenAPI({
-    summary: 'Create bulk watch-time records',
-    description:
-      'Creates multiple watch-time entries in a single request for better performance',
-  })
-  @ResponseSchema(InternalServerErrorResponse, {
-    description: 'Failed to create watch-time records',
-    statusCode: 500,
-  })
-  async createBulkWatchiTimeDocs(@Body() body: any): Promise<any> {
-    const {courseId, versionId} = body;
-    return this.progressService.createBulkWatchiTimeDocs(courseId, versionId);
-  }
+    @Post('/progress/watch-time/bulk')
+    @HttpCode(201)
+    @OpenAPI({
+      summary: 'Create bulk watch-time records',
+      description:
+        'Creates multiple watch-time entries in a single request for better performance',
+    })
+    @ResponseSchema(InternalServerErrorResponse, {
+      description: 'Failed to create watch-time records',
+      statusCode: 500,
+    })
+    async createBulkWatchiTimeDocs(@Body() body: any): Promise<any> {
+      const {courseId, versionId,userId} = body;
+      return this.progressService.createBulkWatchiTimeDocs(courseId, versionId,userId ?? null);
+    }
 
   /////////////////////////////// TEMP ENDPOINT WITHOUT AUTH //////////////////////////////////
   @Get('/progress/courses/:courseId/versions/:versionId/leaderboard/no-auth')
