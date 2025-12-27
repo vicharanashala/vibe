@@ -252,28 +252,17 @@ class ProgressController {
       );
     }
 
-    await Promise.all([
-      this.progressService.stopItem(
-        userId,
-        courseId,
-        versionId,
-        itemId,
-        sectionId,
-        moduleId,
-        watchItemId,
-      ),
-      this.progressService.updateProgress(
-        userId,
-        courseId,
-        versionId,
-        moduleId,
-        sectionId,
-        itemId,
-        watchItemId,
-        attemptId,
-        isSkipped,
-      ),
-    ]);
+    await this.progressService.stopItem(
+      userId,
+      courseId,
+      versionId,
+      itemId,
+      sectionId,
+      moduleId,
+      watchItemId,
+      attemptId,
+      isSkipped,
+    );
   }
 
   @OpenAPI({
