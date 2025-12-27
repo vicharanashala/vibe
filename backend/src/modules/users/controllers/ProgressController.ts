@@ -500,7 +500,6 @@ It returns an empty body with a 200 status code.
     const {courseId, versionId} = params;
     const {page = 1, limit = 10} = query;
     const userId = user._id.toString();
-
     return await this.progressService.getLeaderboard(
       userId,
       courseId,
