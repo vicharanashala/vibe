@@ -164,14 +164,11 @@ export async function setupItemAbilities(
             }
           }
 
-          console.log('Allowed item IDs for user:', {
-            userId: user.userId,
-            currentItemId,
-            allowedItemIds,
-            completedCount: completedItemsStr.length,
-          });
-
           if (linearProgressionEnabled) {
+            console.log(
+              '[itemAbilities] Linear progression enabled - restricting items for student',
+              allowedItemIds,
+            );
             itemBounded.itemId = {$in: allowedItemIds};
           } else {
           }
