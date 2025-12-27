@@ -724,6 +724,113 @@ class ProgressService extends BaseService {
     return null;
   }
 
+  public async getPreviousItemInSequence(
+    courseVersion: ICourseVersion,
+    moduleId: string,
+    sectionId: string,
+    itemId: string,
+  ): Promise<{
+    moduleId: string;
+    sectionId: string;
+    itemId: string;
+  } | null> {
+    let isFirstItem = false;
+    let isFirstSection = false;
+    let isFirstModule = false;
+
+    const sortedModules = courseVersion.modules.sort((a, b) =>
+      a.order.localeCompare(b.order),
+    );
+    const firstModule = sortedModules[0].moduleId;
+    if (firstModule?.toString() === moduleId) {
+      isFirstModule = true;
+    }
+
+    const sortedSections = courseVersion.modules
+      .find(module => module.moduleId?.toString() === moduleId)
+      ?.sections.sort((a, b) => a.order.localeCompare(b.order));
+    const firstSection = sortedSections?.[0].sectionId;
+    if (firstSection?.toString() === sectionId) {
+      isFirstSection = true;
+    }
+
+    const itemsGroupId = courseVersion.modules
+      .find(module => module.moduleId?.toString() === moduleId)
+      ?.sections.find(
+        section => section.sectionId?.toString() === sectionId,
+      )?.itemsGroupId;
+    const itemsGroup = await this.itemRepo.readItemsGroup(
+      itemsGroupId?.toString(),
+    );
+    const sortedItems = itemsGroup.items.sort((a, b) =>
+      a.order.localeCompare(b.order),
+    );
+    const firstItem = sortedItems[0]._id;
+    if (firstItem === itemId) {
+      isFirstItem = true;
+    }
+
+    if (isFirstItem && isFirstSection && isFirstModule) {
+      return null;
+    }
+
+    if (isFirstItem && isFirstSection && !isFirstModule) {
+      const currentModuleIndex = sortedModules.findIndex(
+        module => module.moduleId?.toString() === moduleId,
+      );
+      const prevModule = sortedModules[currentModuleIndex - 1];
+      const lastSection = prevModule?.sections.sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[prevModule.sections.length - 1];
+      const itemsGroup = await this.itemRepo.readItemsGroup(
+        lastSection?.itemsGroupId.toString(),
+      );
+      const lastItem = itemsGroup.items.sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[itemsGroup.items.length - 1];
+
+      return {
+        moduleId: prevModule?.moduleId.toString(),
+        sectionId: lastSection?.sectionId.toString(),
+        itemId: lastItem._id.toString(),
+      };
+    }
+
+    if (isFirstItem && !isFirstSection) {
+      const currentSectionIndex = sortedSections?.findIndex(
+        section => section.sectionId?.toString() === sectionId,
+      );
+      const prevSection = sortedSections?.[currentSectionIndex - 1];
+      const itemsGroup = await this.itemRepo.readItemsGroup(
+        prevSection?.itemsGroupId.toString(),
+      );
+      const lastItem = itemsGroup.items.sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[itemsGroup.items.length - 1];
+
+      return {
+        moduleId,
+        sectionId: prevSection?.sectionId.toString(),
+        itemId: lastItem._id.toString(),
+      };
+    }
+
+    if (!isFirstItem) {
+      const currentItemIndex = sortedItems.findIndex(
+        item => item._id === itemId,
+      );
+      const prevItem = sortedItems[currentItemIndex - 1];
+
+      return {
+        moduleId,
+        sectionId,
+        itemId: prevItem._id.toString(),
+      };
+    }
+
+    return null;
+  }
+
   public async determineNextAllowedItem(
     currentItemId: string,
     quizMetrics: any,
@@ -738,13 +845,13 @@ class ProgressService extends BaseService {
         currentItemId,
       );
       if (!itemsGroup) {
-        return 
+        return
         // throw new NotFoundError('Item group not found for current item');
       }
 
       const items = itemsGroup.items || [];
       if (!Array.isArray(items) || items.length === 0) {
-        
+
         throw new NotFoundError('No items found inside the item group');
       }
 
@@ -1199,11 +1306,7 @@ class ProgressService extends BaseService {
             'Quiz not submitted or attemptId is invalid',
           );
         }
-        if (submittedQuiz.gradingResult.gradingStatus !== 'PASSED') {
-          throw new BadRequestError(
-            'Quiz not passed, user cannot proceed to the next item',
-          );
-        }
+        // Quiz validation will be done after courseVersion is fetched
       } else if (item.type === 'PROJECT') {
         const projectSubmission = await this.projectSubmissionRepo.getByUser(
           userId,
@@ -1228,6 +1331,48 @@ class ProgressService extends BaseService {
       );
       if (!courseVersion) {
         throw new NotFoundError('Course version not found');
+      }
+
+      // Handle quiz failure - reset progress to previous video
+      if (item.type === 'QUIZ' && !isSkipped) {
+        const submittedQuiz = await this.submissionRepository.get(
+          itemId,
+          userId,
+          attemptId,
+          session,
+        );
+
+        if (submittedQuiz && submittedQuiz.gradingResult.gradingStatus !== 'PASSED') {
+          const previousItem = await this.getPreviousItemInSequence(
+            courseVersion,
+            moduleId,
+            sectionId,
+            itemId,
+          );
+
+          if (!previousItem) {
+            throw new BadRequestError(
+              'Quiz not passed and no previous item found to reset to',
+            );
+          }
+
+          const resetProgress = {
+            currentModule: previousItem.moduleId,
+            currentSection: previousItem.sectionId,
+            currentItem: previousItem.itemId,
+            completed: false,
+          };
+
+          await this.progressRepository.updateProgress(
+            userId,
+            courseId,
+            courseVersionId,
+            resetProgress,
+            session,
+          );
+
+          return;
+        }
       }
 
       const newProgress = await this.getNewProgress(
@@ -1916,9 +2061,9 @@ class ProgressService extends BaseService {
       return await this.itemRepo.getFirstOrderItems(versionId);
     } catch (error) {
       // If no items found, return null instead of throwing an error
-      if (error.message === 'Items group has no items' || 
-          error.message === 'Module has no sections' ||
-          error.message === 'Course version has no modules') {
+      if (error.message === 'Items group has no items' ||
+        error.message === 'Module has no sections' ||
+        error.message === 'Course version has no modules') {
         return null;
       }
       throw error;
