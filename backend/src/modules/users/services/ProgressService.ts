@@ -2137,8 +2137,17 @@ class ProgressService extends BaseService {
       if (lastItem.type == 'QUIZ') {
         const quizSubmission =
           await this.submissionRepository.getByQuizAndUserId(quizId, userId);
+        const userQuizMetrics = await this.userQuizMetricsRepository.get(
+          userId,
+          quizId,
+        );
+        if (!userQuizMetrics) isProceed = false;
         if (!quizSubmission) isProceed = false;
-        if (quizSubmission?.gradingResult?.gradingStatus !== 'PASSED')
+        if (
+          quizSubmission?.gradingResult?.gradingStatus !== 'PASSED' &&
+          userQuizMetrics?.remainingAttempts > 0 &&
+          userQuizMetrics?.remainingAttempts !== -1
+        )
           isProceed = false;
       } else if (lastItem.type == 'FEEDBACK') {
         const feedbackSubmission =
@@ -2190,11 +2199,16 @@ class ProgressService extends BaseService {
   async getLeaderboardNoAuth(
     courseId: string,
     courseVersionId: string,
-    // page: number = 1,
-    // limit: number = 10,
   ): Promise<GetLeaderboardResponse> {
     const course = await this.courseRepo.read(courseId);
+    if (!course) {
+      throw new BadRequestError(`Invalid courseId: ${courseId}`);
+    }
+
     const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    if (!courseVersion) {
+      throw new BadRequestError(`Invalid courseVersionId: ${courseVersionId}`);
+    }
 
     // Get all progress records for this course version
     const progressRecords =
@@ -2203,11 +2217,23 @@ class ProgressService extends BaseService {
         courseVersionId,
       );
 
+    if (!progressRecords) {
+      throw new BadRequestError(
+        `No progress records found for course ${courseId} and version ${courseVersionId}`,
+      );
+    }
+
     // Get all enrollments to fetch completion percentages
     const enrollments = await this.enrollmentRepo.getEnrollmentsByCourseVersion(
       courseId,
       courseVersionId,
     );
+
+    if (!enrollments || enrollments.length === 0) {
+      throw new BadRequestError(
+        `No enrollments found for course ${courseId} and version ${courseVersionId}`,
+      );
+    }
 
     const enrollmentMap = new Map();
     for (const enrollment of enrollments) {
@@ -2219,7 +2245,11 @@ class ProgressService extends BaseService {
     // Get user names for all enrolled students
     const userIds = enrollments.map(e => e.userId.toString());
     const users = await this.userRepo.getUsersByIds(userIds);
-
+    if (!users || users.length === 0) {
+      throw new BadRequestError(
+        'No users found for the given course and version',
+      );
+    }
     const userMap = new Map();
     for (const user of users) {
       if (user) {
@@ -2266,31 +2296,15 @@ class ProgressService extends BaseService {
       return 0;
     });
 
-    // Assign ranks
-    // return sortedLeaderboard.map((student, index) => ({
-    //   ...student,
-    //   rank: index + 1,
-    // }));
-
     const rankedLeaderboard = sortedLeaderboard.map((student, index) => ({
       ...student,
       rank: index + 1,
     }));
 
-    const totalDocuments = rankedLeaderboard.length;
-    // const totalPages = Math.ceil(totalDocuments / limit);
-
-    // const startIndex = (page - 1) * limit;
-    // const endIndex = startIndex + limit;
-
-    // const paginatedData = rankedLeaderboard.slice(startIndex, endIndex);
     return {
       course: course.name,
       version: courseVersion.version,
       data: rankedLeaderboard,
-      totalDocuments,
-      totalPages: 0,
-      currentPage: 0,
     };
   }
 }

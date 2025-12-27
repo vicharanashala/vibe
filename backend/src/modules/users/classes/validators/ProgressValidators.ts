@@ -134,33 +134,6 @@ export class GetLeaderboardResponse {
   @ValidateNested({each: true})
   @Type(() => LeaderboardNoAuthResponse)
   data!: LeaderboardNoAuthResponse[];
-
-  @JSONSchema({
-    description: 'Total number of documents',
-    type: 'number',
-    minimum: 0,
-  })
-  @IsNumber()
-  @Min(0)
-  totalDocuments!: number;
-
-  @JSONSchema({
-    description: 'Total number of pages',
-    type: 'number',
-    minimum: 0,
-  })
-  @IsNumber()
-  @Min(0)
-  totalPages!: number;
-
-  @JSONSchema({
-    description: 'Current page number',
-    type: 'number',
-    minimum: 1,
-  })
-  @IsNumber()
-  @Min(1)
-  currentPage!: number;
 }
 
 export class StartItemBody {
