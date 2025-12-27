@@ -252,11 +252,7 @@ class AttemptService extends BaseService {
       }
 
       //3. Check if available attempts > 0
-      if (
-        metrics.remainingAttempts <= 0 &&
-        quiz.details.maxAttempts !== -1 &&
-        false
-      ) {
+      if (metrics.remainingAttempts <= 0 && quiz.details.maxAttempts !== -1) {
         return {message: 'No available attempts left for this quiz'};
       }
 
