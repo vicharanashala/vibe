@@ -361,6 +361,7 @@ class ProgressService extends BaseService {
     if (!enrollment) throw new NotFoundError('User has no enrollments');
 
     let percentCompleted = 0;
+    let totalCompletedItemtsCount = 0;
     if (!isReset) {
       // const totalItems =
       //   totalItemCount ||
@@ -389,7 +390,7 @@ class ProgressService extends BaseService {
           session,
         ),
       ]);
-
+      totalCompletedItemtsCount = completedItems
       percentCompleted = this._calculateProgress(totalItems, completedItems);
     }
 
@@ -397,6 +398,7 @@ class ProgressService extends BaseService {
       enrollment._id.toString(),
       percentCompleted,
       session,
+      totalCompletedItemtsCount,
     );
   }
 
@@ -1952,13 +1954,13 @@ class ProgressService extends BaseService {
 
     const enrollmentMap = new Map();
     for (const enrollment of enrollments) {
-      enrollmentMap.set(enrollment.userId.toString(), {
+      enrollmentMap.set(enrollment.userId?.toString(), {
         completionPercentage: enrollment.percentCompleted || 0,
       });
     }
 
     // Get user names for all enrolled students
-    const userIds = enrollments.map(e => e.userId.toString());
+    const userIds = enrollments.map(e => e.userId?.toString());
     const users = await this.userRepo.getUsersByIds(userIds);
 
     const userMap = new Map();
@@ -1973,10 +1975,10 @@ class ProgressService extends BaseService {
 
     // Combine progress and enrollment data
     const leaderboardData = progressRecords.map(progress => ({
-      userId: progress.userId.toString(),
-      userName: userMap.get(progress.userId.toString()) || 'Unknown User',
+      userId: progress.userId?.toString(),
+      userName: userMap.get(progress.userId?.toString()) || 'Unknown User',
       completionPercentage:
-        enrollmentMap.get(progress.userId.toString())?.completionPercentage ||
+        enrollmentMap.get(progress.userId?.toString())?.completionPercentage ||
         0,
       completedAt:
         progress.completed && progress.completedAt

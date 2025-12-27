@@ -392,7 +392,7 @@ export interface IEnrollment {
   status: EnrollmentStatus;
   enrollmentDate: Date;
   percentCompleted: number;
-  completedItemsCount: number;
+  completedItemsCount?: number;
 }
 
 export interface IProgress {
