@@ -20,6 +20,8 @@ import {
 } from '#courses/classes/transformers/Item.js';
 import { UpdateItemBody } from '#root/modules/courses/classes/index.js';
 import { QuestionBank } from '#root/modules/quizzes/classes/transformers/QuestionBank.js';
+import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
+
 
 @injectable()
 export class ItemRepository implements IItemRepository {
@@ -31,6 +33,7 @@ export class ItemRepository implements IItemRepository {
   private feedbackFormCollection: Collection<FeedBackFormItem>;
   private questionBankCollection: Collection<QuestionBank>;
   private questionsCollection: Collection<any>;
+  private courseVersionCollection: Collection<any>;
 
   constructor(
     @inject(GLOBAL_TYPES.Database)
@@ -58,6 +61,9 @@ export class ItemRepository implements IItemRepository {
       'questionBanks',
     );
     this.questionsCollection = await this.db.getCollection('questions');
+    this.courseVersionCollection = await this.db.getCollection<CourseVersion>(
+      'newCourseVersion',
+    );
   }
 
   // Methods for ItemsGroup operations
@@ -163,6 +169,7 @@ export class ItemRepository implements IItemRepository {
       Object.assign(new ItemsGroup(), itemsGroup),
     ) as ItemsGroup;
   }
+
   async updateItemsGroup(
     itemsGroupId: string,
     itemsGroup: ItemsGroup,
@@ -637,29 +644,6 @@ export class ItemRepository implements IItemRepository {
       );
     }
 
-    // let totalCount = 0;
-
-    // // Iterate through all modules
-    // for (const module of version.modules) {
-    //   // Iterate through all sections in each module
-    //   for (const section of module.sections) {
-    //     try {
-    //       const itemsGroup = await this.readItemsGroup(
-    //         section.itemsGroupId.toString(),
-    //         session,
-    //       );
-    //       totalCount += itemsGroup.items.length;
-    //     } catch (error) {
-    //       // If itemsGroup is not found, skip this section
-    //       if (error instanceof NotFoundError) {
-    //         continue;
-    //       }
-    //       throw error;
-    //     }
-    //   }
-    // }
-
-    // return totalCount;
     // Parallelize all section fetches
     const allItemsPromises = version.modules.flatMap(module =>
       module.sections.map(section =>
@@ -675,6 +659,9 @@ export class ItemRepository implements IItemRepository {
 
     return itemsCounts.reduce((sum, count) => sum + count, 0);
   }
+
+
+
 
   async getTotalItemsCount(
     courseId: string,
@@ -939,54 +926,242 @@ export class ItemRepository implements IItemRepository {
     itemCounts: Record<string, number>;
   }> {
     await this.init();
-    // 1️⃣ Load version (modules + sections embedded)
-    const courseVersion = await this.courseRepo.readVersion(
+
+    const version = await this.courseRepo.readVersion(
       courseVersionId,
       session,
     );
-    if (!courseVersion) {
+
+    if (!version) {
       throw new Error(`CourseVersion ${courseVersionId} not found`);
     }
 
-    // 2️⃣ Collect all itemsGroupIds
-    const itemsGroupIds: ObjectId[] = [];
-
-    for (const module of courseVersion.modules ?? []) {
-      if (module.isHidden || module.isDeleted) continue;
-      for (const section of module.sections ?? []) {
-        if (section.itemsGroupId && !section.isDeleted) {
-          itemsGroupIds.push(new ObjectId(section.itemsGroupId));
-        }
-      }
-    }
-
-    if (!itemsGroupIds.length) {
-      return { totalItems: 0, itemCounts: {} };
-    }
-
-    // 3️⃣ Aggregate from ItemsGroup
-    const result = await this.itemsGroupCollection
+    const result = await this.courseVersionCollection
       .aggregate(
         [
           {
             $match: {
-              _id: { $in: itemsGroupIds },
-              isHidden: { $ne: true },
-              isDeleted: { $ne: true }
+              _id: new ObjectId(courseVersionId),
             },
           },
-          { $unwind: '$items' },
+
+          { $unwind: "$modules" },
+          { $unwind: "$modules.sections" },
+
+          {
+            $lookup: {
+              from: "itemsGroup",
+              let: { igId: "$modules.sections.itemsGroupId" },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $eq: ["$_id", { $toObjectId: "$$igId" }],
+                    },
+                  },
+                },
+              ],
+              as: "itemGroup",
+            },
+          },
+
+          { $unwind: "$itemGroup" },
+          { $unwind: "$itemGroup.items" },
+
           {
             $match: {
-              'items.isHidden': { $ne: true },
-              'items.isDeleted': { $ne: true }
-
-            }
+              "itemGroup.items.isHidden": { $ne: true },
+              "itemGroup.items.isDeleted": { $ne: true },
+            },
           },
+
+          /**
+           * Validate item existence per type
+           */
+          {
+            $facet: {
+              VIDEO: [
+                { $match: { "itemGroup.items.type": "VIDEO" } },
+                {
+                  $lookup: {
+                    from: "videos",
+                    let: { itemId: "$itemGroup.items._id" },
+                    pipeline: [
+                      {
+                        $match: {
+                          $expr: {
+                            $and: [
+                              { $eq: ["$_id", { $toObjectId: "$$itemId" }] },
+                              { $ne: ["$isDeleted", true] },
+                              { $ne: ["$isHidden", true] },
+                            ],
+                          },
+                        },
+                      },
+                    ],
+                    as: "item",
+                  },
+                },
+                { $unwind: "$item" },
+              ],
+
+              QUIZ: [
+                { $match: { "itemGroup.items.type": "QUIZ" } },
+                {
+                  $lookup: {
+                    from: "quizzes",
+                    let: { itemId: "$itemGroup.items._id" },
+                    pipeline: [
+                      {
+                        $match: {
+                          $expr: {
+                            $and: [
+                              { $eq: ["$_id", { $toObjectId: "$$itemId" }] },
+                              { $ne: ["$isDeleted", true] },
+                              { $ne: ["$isHidden", true] },
+                            ],
+                          },
+                        },
+                      },
+                    ],
+                    as: "item",
+                  },
+                },
+                { $unwind: "$item" },
+              ],
+
+              BLOG: [
+                { $match: { "itemGroup.items.type": "BLOG" } },
+                {
+                  $lookup: {
+                    from: "blogs",
+                    let: { itemId: "$itemGroup.items._id" },
+                    pipeline: [
+                      {
+                        $match: {
+                          $expr: {
+                            $and: [
+                              { $eq: ["$_id", { $toObjectId: "$$itemId" }] },
+                              { $ne: ["$isDeleted", true] },
+                              { $ne: ["$isHidden", true] },
+                            ],
+                          },
+                        },
+                      },
+                    ],
+                    as: "item",
+                  },
+                },
+                { $unwind: "$item" },
+              ],
+
+              PROJECT: [
+                { $match: { "itemGroup.items.type": "PROJECT" } },
+                {
+                  $lookup: {
+                    from: "projects",
+                    let: { itemId: "$itemGroup.items._id" },
+                    pipeline: [
+                      {
+                        $match: {
+                          $expr: {
+                            $and: [
+                              { $eq: ["$_id", { $toObjectId: "$$itemId" }] },
+                              { $ne: ["$isDeleted", true] },
+                              { $ne: ["$isHidden", true] },
+                            ],
+                          },
+                        },
+                      },
+                    ],
+                    as: "item",
+                  },
+                },
+                { $unwind: "$item" },
+              ],
+
+              FEEDBACK: [
+                { $match: { "itemGroup.items.type": "FEEDBACK" } },
+                {
+                  $lookup: {
+                    from: "feedbackForms",
+                    let: { itemId: "$itemGroup.items._id" },
+                    pipeline: [
+                      {
+                        $match: {
+                          $expr: {
+                            $and: [
+                              { $eq: ["$_id", { $toObjectId: "$$itemId" }] },
+                              { $ne: ["$isDeleted", true] },
+                              { $ne: ["$isHidden", true] },
+                            ],
+                          },
+                        },
+                      },
+                    ],
+                    as: "item",
+                  },
+                },
+                { $unwind: "$item" },
+              ],
+            },
+          },
+
+          /**
+           * Merge + count
+           */
+          {
+            $project: {
+              items: {
+                $concatArrays: [
+                  "$VIDEO",
+                  "$QUIZ",
+                  "$BLOG",
+                  "$PROJECT",
+                  "$FEEDBACK",
+                ],
+              },
+            },
+          },
+
+          { $unwind: "$items" },
+
           {
             $group: {
-              _id: '$items.type',
+              _id: "$items.itemGroup.items.type",
               count: { $sum: 1 },
+            },
+          },
+
+          {
+            $group: {
+              _id: null,
+              totalItems: { $sum: "$count" },
+              itemCounts: {
+                $push: {
+                  type: "$_id",
+                  count: "$count",
+                },
+              },
+            },
+          },
+
+          {
+            $project: {
+              _id: 0,
+              totalItems: 1,
+              itemCounts: {
+                $arrayToObject: {
+                  $map: {
+                    input: "$itemCounts",
+                    as: "t",
+                    in: {
+                      k: "$$t.type",
+                      v: "$$t.count",
+                    },
+                  },
+                },
+              },
             },
           },
         ],
@@ -994,16 +1169,12 @@ export class ItemRepository implements IItemRepository {
       )
       .toArray();
 
-    // 4️⃣ Build response
-    const itemCounts: Record<string, number> = {};
-    let totalItems = 0;
-
-    for (const row of result) {
-      itemCounts[row._id] = row.count;
-      totalItems += row.count;
-    }
-
-    return { totalItems, itemCounts };
+    return (
+      result[0] as { totalItems: number; itemCounts: Record<string, number> } ?? {
+        totalItems: 0,
+        itemCounts: {},
+      }
+    );
   }
 
 
