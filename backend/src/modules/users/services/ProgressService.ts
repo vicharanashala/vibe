@@ -738,11 +738,13 @@ class ProgressService extends BaseService {
         currentItemId,
       );
       if (!itemsGroup) {
-        throw new NotFoundError('Item group not found for current item');
+        return 
+        // throw new NotFoundError('Item group not found for current item');
       }
 
       const items = itemsGroup.items || [];
       if (!Array.isArray(items) || items.length === 0) {
+        
         throw new NotFoundError('No items found inside the item group');
       }
 
@@ -1910,7 +1912,17 @@ class ProgressService extends BaseService {
     if (!versionId) {
       throw new BadRequestError('Version ID is required');
     }
-    return this.itemRepo.getFirstOrderItems(versionId);
+    try {
+      return await this.itemRepo.getFirstOrderItems(versionId);
+    } catch (error) {
+      // If no items found, return null instead of throwing an error
+      if (error.message === 'Items group has no items' || 
+          error.message === 'Module has no sections' ||
+          error.message === 'Course version has no modules') {
+        return null;
+      }
+      throw error;
+    }
   }
   async getLeaderboard(
     userId: string,
