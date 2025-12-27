@@ -1,30 +1,30 @@
-import {Item, ItemsGroup} from '#courses/classes/transformers/Item.js';
-import {COURSES_TYPES} from '#courses/types.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
-import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { Item, ItemsGroup } from '#courses/classes/transformers/Item.js';
+import { COURSES_TYPES } from '#courses/types.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
+import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   ICourseVersion,
   IWatchTime,
   IProgress,
   IVideoDetails,
 } from '#root/shared/interfaces/models.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {ProgressRepository} from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
-import {Progress} from '#users/classes/transformers/Progress.js';
-import {USERS_TYPES} from '#users/types.js';
-import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId} from 'mongodb';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { ProgressRepository } from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
+import { Progress } from '#users/classes/transformers/Progress.js';
+import { USERS_TYPES } from '#users/types.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, ObjectId } from 'mongodb';
 import {
   NotFoundError,
   BadRequestError,
   InternalServerError,
 } from 'routing-controllers';
-import {SubmissionRepository} from '#quizzes/repositories/providers/mongodb/SubmissionRepository.js';
-import {QUIZZES_TYPES} from '#quizzes/types.js';
-import {WatchTime} from '../classes/transformers/WatchTime.js';
+import { SubmissionRepository } from '#quizzes/repositories/providers/mongodb/SubmissionRepository.js';
+import { QUIZZES_TYPES } from '#quizzes/types.js';
+import { WatchTime } from '../classes/transformers/WatchTime.js';
 import {
   CompletedProgressResponse,
   GetLeaderboardResponse,
@@ -34,10 +34,10 @@ import {
   QuizRepository,
   UserQuizMetricsRepository,
 } from '#root/modules/quizzes/repositories/index.js';
-import {EnrollmentRepository} from '#root/shared/index.js';
-import {PROJECTS_TYPES} from '#root/modules/projects/types.js';
-import {IProjectSubmissionRepository} from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
-import {FeedbackRepository} from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
+import { EnrollmentRepository } from '#root/shared/index.js';
+import { PROJECTS_TYPES } from '#root/modules/projects/types.js';
+import { IProjectSubmissionRepository } from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
+import { FeedbackRepository } from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
 
 @injectable()
 class ProgressService extends BaseService {
@@ -83,7 +83,7 @@ class ProgressService extends BaseService {
    * Private helper method for the enrollment process.
    */
 
-  private getFirstByOrder<T extends {order?: string}>(arr?: T[]): T | null {
+  private getFirstByOrder<T extends { order?: string }>(arr?: T[]): T | null {
     if (!arr?.length) return null;
 
     return arr.reduce((min, curr) => {
@@ -132,7 +132,7 @@ class ProgressService extends BaseService {
       }
     }
 
-    return {itemIds, quizItemIds};
+    return { itemIds, quizItemIds };
   }
 
   private async clearWatchTime(
@@ -142,7 +142,7 @@ class ProgressService extends BaseService {
   ) {
     if (!itemIds.length) return 0;
 
-    const {deletedCount} =
+    const { deletedCount } =
       await this.progressRepository.deleteUserWatchTimeByItemIds(
         userId,
         itemIds,
@@ -380,14 +380,14 @@ class ProgressService extends BaseService {
       //   ));
       const [totalItems, completedItems] = await Promise.all([
         totalItemCount ??
-          this.itemRepo.getTotalItemsCount(courseId, courseVersionId, session),
+        this.itemRepo.getTotalItemsCount(courseId, courseVersionId, session),
         completedItemCount ??
-          this.getUserProgressPercentageWithoutTotal(
-            userId,
-            courseId,
-            courseVersionId,
-            session,
-          ),
+        this.getUserProgressPercentageWithoutTotal(
+          userId,
+          courseId,
+          courseVersionId,
+          session,
+        ),
       ]);
 
       percentCompleted = this._calculateProgress(totalItems, completedItems);
@@ -724,6 +724,113 @@ class ProgressService extends BaseService {
     return null;
   }
 
+  public async getPreviousItemInSequence(
+    courseVersion: ICourseVersion,
+    moduleId: string,
+    sectionId: string,
+    itemId: string,
+  ): Promise<{
+    moduleId: string;
+    sectionId: string;
+    itemId: string;
+  } | null> {
+    let isFirstItem = false;
+    let isFirstSection = false;
+    let isFirstModule = false;
+
+    const sortedModules = courseVersion.modules.sort((a, b) =>
+      a.order.localeCompare(b.order),
+    );
+    const firstModule = sortedModules[0].moduleId;
+    if (firstModule?.toString() === moduleId) {
+      isFirstModule = true;
+    }
+
+    const sortedSections = courseVersion.modules
+      .find(module => module.moduleId?.toString() === moduleId)
+      ?.sections.sort((a, b) => a.order.localeCompare(b.order));
+    const firstSection = sortedSections?.[0].sectionId;
+    if (firstSection?.toString() === sectionId) {
+      isFirstSection = true;
+    }
+
+    const itemsGroupId = courseVersion.modules
+      .find(module => module.moduleId?.toString() === moduleId)
+      ?.sections.find(
+        section => section.sectionId?.toString() === sectionId,
+      )?.itemsGroupId;
+    const itemsGroup = await this.itemRepo.readItemsGroup(
+      itemsGroupId?.toString(),
+    );
+    const sortedItems = itemsGroup.items.sort((a, b) =>
+      a.order.localeCompare(b.order),
+    );
+    const firstItem = sortedItems[0]._id;
+    if (firstItem === itemId) {
+      isFirstItem = true;
+    }
+
+    if (isFirstItem && isFirstSection && isFirstModule) {
+      return null;
+    }
+
+    if (isFirstItem && isFirstSection && !isFirstModule) {
+      const currentModuleIndex = sortedModules.findIndex(
+        module => module.moduleId?.toString() === moduleId,
+      );
+      const prevModule = sortedModules[currentModuleIndex - 1];
+      const lastSection = prevModule?.sections.sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[prevModule.sections.length - 1];
+      const itemsGroup = await this.itemRepo.readItemsGroup(
+        lastSection?.itemsGroupId.toString(),
+      );
+      const lastItem = itemsGroup.items.sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[itemsGroup.items.length - 1];
+
+      return {
+        moduleId: prevModule?.moduleId.toString(),
+        sectionId: lastSection?.sectionId.toString(),
+        itemId: lastItem._id.toString(),
+      };
+    }
+
+    if (isFirstItem && !isFirstSection) {
+      const currentSectionIndex = sortedSections?.findIndex(
+        section => section.sectionId?.toString() === sectionId,
+      );
+      const prevSection = sortedSections?.[currentSectionIndex - 1];
+      const itemsGroup = await this.itemRepo.readItemsGroup(
+        prevSection?.itemsGroupId.toString(),
+      );
+      const lastItem = itemsGroup.items.sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[itemsGroup.items.length - 1];
+
+      return {
+        moduleId,
+        sectionId: prevSection?.sectionId.toString(),
+        itemId: lastItem._id.toString(),
+      };
+    }
+
+    if (!isFirstItem) {
+      const currentItemIndex = sortedItems.findIndex(
+        item => item._id === itemId,
+      );
+      const prevItem = sortedItems[currentItemIndex - 1];
+
+      return {
+        moduleId,
+        sectionId,
+        itemId: prevItem._id.toString(),
+      };
+    }
+
+    return null;
+  }
+
   public async determineNextAllowedItem(
     currentItemId: string,
     quizMetrics: any,
@@ -796,7 +903,7 @@ class ProgressService extends BaseService {
       );
 
       if (nextItemDetails?.itemId) {
-        return {nextItemId: nextItemDetails.itemId.toString()};
+        return { nextItemId: nextItemDetails.itemId.toString() };
       }
 
       return {};
@@ -1197,11 +1304,7 @@ class ProgressService extends BaseService {
             'Quiz not submitted or attemptId is invalid',
           );
         }
-        if (submittedQuiz.gradingResult.gradingStatus !== 'PASSED') {
-          throw new BadRequestError(
-            'Quiz not passed, user cannot proceed to the next item',
-          );
-        }
+        // Quiz validation will be done after courseVersion is fetched
       } else if (item.type === 'PROJECT') {
         const projectSubmission = await this.projectSubmissionRepo.getByUser(
           userId,
@@ -1226,6 +1329,48 @@ class ProgressService extends BaseService {
       );
       if (!courseVersion) {
         throw new NotFoundError('Course version not found');
+      }
+
+      // Handle quiz failure - reset progress to previous video
+      if (item.type === 'QUIZ' && !isSkipped) {
+        const submittedQuiz = await this.submissionRepository.get(
+          itemId,
+          userId,
+          attemptId,
+          session,
+        );
+
+        if (submittedQuiz && submittedQuiz.gradingResult.gradingStatus !== 'PASSED') {
+          const previousItem = await this.getPreviousItemInSequence(
+            courseVersion,
+            moduleId,
+            sectionId,
+            itemId,
+          );
+
+          if (!previousItem) {
+            throw new BadRequestError(
+              'Quiz not passed and no previous item found to reset to',
+            );
+          }
+
+          const resetProgress = {
+            currentModule: previousItem.moduleId,
+            currentSection: previousItem.sectionId,
+            currentItem: previousItem.itemId,
+            completed: false,
+          };
+
+          await this.progressRepository.updateProgress(
+            userId,
+            courseId,
+            courseVersionId,
+            resetProgress,
+            session,
+          );
+
+          return;
+        }
       }
 
       const newProgress = await this.getNewProgress(
@@ -1587,7 +1732,7 @@ class ProgressService extends BaseService {
 
       const itemsGroupIds = module.sections.map(s => s.itemsGroupId as string);
 
-      const {itemIds, quizItemIds} = await this.collectItemsFromGroups(
+      const { itemIds, quizItemIds } = await this.collectItemsFromGroups(
         itemsGroupIds,
         session,
       );
@@ -1658,7 +1803,7 @@ class ProgressService extends BaseService {
         sectionId,
       );
 
-      const {itemIds, quizItemIds} = await this.collectItemsFromGroups(
+      const { itemIds, quizItemIds } = await this.collectItemsFromGroups(
         [section.itemsGroupId as string],
         session,
       );
@@ -1808,7 +1953,7 @@ class ProgressService extends BaseService {
     courseVersionId: string,
     itemId: string,
     session?: ClientSession,
-  ): Promise<{message: String}> {
+  ): Promise<{ message: String }> {
     const item = await this.itemRepo.readItem(courseVersionId, itemId);
     if (!item) {
       throw new NotFoundError(`Item ${itemId} not found`);
@@ -1888,7 +2033,7 @@ class ProgressService extends BaseService {
         },
         session,
       );
-      return {message: 'Course completed - no next item found'};
+      return { message: 'Course completed - no next item found' };
     }
 
     // Update progress to the next item
@@ -1904,7 +2049,7 @@ class ProgressService extends BaseService {
       session,
     );
 
-    return {message: 'Item skipped successfully'};
+    return { message: 'Item skipped successfully' };
   }
   async getFirstItem(versionId: string) {
     if (!versionId) {
@@ -2256,7 +2401,7 @@ class ProgressService extends BaseService {
         const fullName =
           `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
           'Unknown User';
-        userMap.set(user._id?.toString(), {name: fullName, email: user.email});
+        userMap.set(user._id?.toString(), { name: fullName, email: user.email });
       }
     }
 
@@ -2309,4 +2454,4 @@ class ProgressService extends BaseService {
   }
 }
 
-export {ProgressService};
+export { ProgressService };
