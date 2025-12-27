@@ -11,7 +11,7 @@ import {
 import { Expose, Transform, Type } from 'class-transformer';
 import { ObjectId } from 'mongodb';
 import { Progress } from './Progress.js';
-import { IsString, ValidateNested } from 'class-validator';
+import { IsOptional, IsString, ValidateNested } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 
 @Expose()
@@ -50,8 +50,10 @@ export class Enrollment implements IEnrollment {
   @Expose()
   percentCompleted: number;
 
+  @IsString()
   @Expose()
-  completedItemsCount: number;
+  @IsOptional()
+  completedItemsCount?: number;
 
   constructor(userId?: string, courseId?: string, courseVersionId?: string) {
     if (userId && courseId && courseVersionId) {
