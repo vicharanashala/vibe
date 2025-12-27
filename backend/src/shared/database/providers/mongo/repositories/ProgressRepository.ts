@@ -92,6 +92,7 @@ class ProgressRepository {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
+        endTime: {$exists: true, $ne: null},
         isDeleted: {$ne: true},
       },
       {session},
@@ -109,21 +110,19 @@ class ProgressRepository {
   ): Promise<boolean> {
     await this.init();
 
-    const result = await this.watchTimeCollection.findOne(
+    const existing = await this.watchTimeCollection.findOne(
       {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
         itemId: new ObjectId(itemId),
+        endTime: {$exists: true, $ne: null},
         isDeleted: {$ne: true},
       },
-      {
-        projection: {_id: 1},
-        session,
-      },
+      {session, limit: 1},
     );
 
-    return !!result;
+    return existing !== null;
   }
 
   async getAllWatchTime(
@@ -737,7 +736,9 @@ class ProgressRepository {
 
   async deleteUserWatchTimeByItemIds(
     userId: string,
+
     itemIds: string[],
+
     session?: ClientSession,
   ): Promise<{deletedCount: number}> {
     if (!itemIds.length) {
@@ -747,8 +748,10 @@ class ProgressRepository {
     const result = await this.watchTimeCollection.deleteMany(
       {
         userId: new ObjectId(userId),
+
         itemId: {$in: itemIds.map(id => new ObjectId(id))},
       },
+
       {session},
     );
 
@@ -759,9 +762,13 @@ class ProgressRepository {
 
   async addBulkWatchTime(
     userId: string,
+
     courseId: string,
+
     versionId: string,
+
     itemIds: string[],
+
     session?: ClientSession,
   ) {
     await this.init();
@@ -772,10 +779,15 @@ class ProgressRepository {
 
     const docs: IWatchTime[] = itemIds.map(itemId => ({
       userId: new ObjectId(userId),
+
       courseId: new ObjectId(courseId),
+
       courseVersionId: new ObjectId(versionId),
+
       itemId: new ObjectId(itemId),
+
       startTime: now,
+
       endTime: now,
       isBulk: true,
     }));
