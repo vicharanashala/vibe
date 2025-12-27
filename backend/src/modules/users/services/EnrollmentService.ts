@@ -112,6 +112,7 @@ export class EnrollmentService extends BaseService {
         status: 'ACTIVE' as EnrollmentStatus,
         enrollmentDate: new Date(),
         percentCompleted: 0,
+        completedItemsCount: 0,
       };
 
       const createdEnrollment = await this.enrollmentRepo.createEnrollment(
@@ -708,6 +709,7 @@ export class EnrollmentService extends BaseService {
           status: 'ACTIVE' as EnrollmentStatus,
           enrollmentDate: new Date(),
           percentCompleted: 0,
+          completedItemsCount: 0,
         });
       }
 
