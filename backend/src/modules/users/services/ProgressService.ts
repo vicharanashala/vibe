@@ -2228,15 +2228,17 @@ class ProgressService extends BaseService {
     return allItemIds;
   }
 
-  async createBulkWatchiTimeDocs(courseId: string, versionId: string) {
+  async createBulkWatchiTimeDocs(courseId: string, versionId: string,userId?:string | null) {
     if (!courseId || !versionId) {
       throw new BadRequestError('courseId and versionId are required');
     }
 
-    const enrollments = await this.enrollmentRepo.getByCourseVersion(
-      courseId,
-      versionId,
-    );
+    // const enrollments = await this.enrollmentRepo.getByCourseVersion(
+    //   courseId,
+    //   versionId,
+    // );
+
+    const enrollments = await this.enrollmentRepo.getEnrollmentsByFilters({courseId,courseVersionId:versionId,userId:userId ?? undefined})
 
     if (!enrollments.length) {
       throw new NotFoundError('No enrollments found for this course version');
@@ -2302,8 +2304,8 @@ class ProgressService extends BaseService {
           quizId,
         );
 
-        if (!userQuizMetrics) isProceed = false;
-        if (!quizSubmission) isProceed = false;
+        if (!userQuizMetrics || !quizSubmission) isProceed = false;
+        // if (!quizSubmission) isProceed = false;
         if (
           quizSubmission?.gradingResult?.gradingStatus !== 'PASSED' &&
           userQuizMetrics?.remainingAttempts > 0 &&
