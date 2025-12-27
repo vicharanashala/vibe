@@ -152,7 +152,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                         style={{ width: `${progress}%` }}
                       />
                     </div>
-                    <span>{progress}% ({completedLessons}/{totalLessons})</span>
+                    <span>{Math.round(progress)}% ({completedLessons}/{totalLessons})</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
