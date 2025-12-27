@@ -652,12 +652,12 @@ class ProgressRepository {
     return progressRecords.map(progress => ({
       ...progress,
       _id: progress._id?.toString() || null,
-      userId: progress.userId.toString(),
-      courseId: progress.courseId.toString(),
-      courseVersionId: progress.courseVersionId.toString(),
-      currentModule: progress.currentModule.toString(),
-      currentSection: progress.currentSection.toString(),
-      currentItem: progress.currentItem.toString(),
+      userId: progress.userId?.toString(),
+      courseId: progress.courseId?.toString(),
+      courseVersionId: progress.courseVersionId?.toString(),
+      currentModule: progress.currentModule?.toString(),
+      currentSection: progress.currentSection?.toString(),
+      currentItem: progress.currentItem?.toString(),
     }));
   }
   async deleteUserProgressByVersionIds(
@@ -777,7 +777,7 @@ class ProgressRepository {
       itemId: new ObjectId(itemId),
       startTime: now,
       endTime: now,
-      isBulk: true
+      isBulk: true,
     }));
 
     const result = await this.watchTimeCollection.insertMany(docs, {
