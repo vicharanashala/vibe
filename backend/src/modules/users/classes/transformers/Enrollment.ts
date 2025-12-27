@@ -50,6 +50,9 @@ export class Enrollment implements IEnrollment {
   @Expose()
   percentCompleted: number;
 
+  @Expose()
+  completedItemsCount: number;
+
   constructor(userId?: string, courseId?: string, courseVersionId?: string) {
     if (userId && courseId && courseVersionId) {
       this.userId = new ObjectId(userId);
@@ -58,6 +61,7 @@ export class Enrollment implements IEnrollment {
       this.status = 'ACTIVE';
       this.enrollmentDate = new Date();
       this.percentCompleted = 0;
+      this.completedItemsCount = 0;
     }
   }
 }

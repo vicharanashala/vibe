@@ -79,18 +79,23 @@ export async function setupItemAbilities(
               enrollment.versionId,
             );
           } catch (error) {
-            console.log(
-              'No progress found for student, course not started yet',
-            );
             progress = null;
           }
 
-          // return all the itemId having watchtime doc
           const completedItems = await progressService.getCompletedItems(
             user.userId,
             enrollment.courseId,
             enrollment.versionId,
           );
+
+          if (!progress) {
+            const itemBounded = {
+              courseId: enrollment.courseId,
+              versionId: enrollment.versionId,
+            };
+            can(ItemActions.View, 'Item', itemBounded);
+            break;
+          }
 
           // Convert all completed items to strings for consistency
           const completedItemsStr = completedItems.map(id => id.toString());
@@ -125,15 +130,6 @@ export async function setupItemAbilities(
               console.error('Error getting first item:', error);
             }
             return;
-          }
-
-          if (!progress) {
-            const itemBounded = {
-              courseId: enrollment.courseId,
-              versionId: enrollment.versionId,
-            };
-            can(ItemActions.View, 'Item', itemBounded);
-            break;
           }
 
           const allowedItemIds = [...completedItemsStr];

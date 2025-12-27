@@ -588,29 +588,34 @@ export class ItemRepository implements IItemRepository {
 
   async getFirstOrderItems(
     courseVersionId: string,
-  ): Promise<{ moduleId: ObjectId; sectionId: ObjectId; itemId: ObjectId }> {
+  ): Promise<{ moduleId: ObjectId; sectionId: ObjectId; itemId: ObjectId } | null> {
     await this.init();
 
     const version = await this.courseRepo.readVersion(courseVersionId);
-    if (!version || version.modules.length === 0) {
-      throw new InternalServerError('Course version has no modules');
+    if (!version || !version.modules || version.modules.length === 0) {
+      return null;
     }
 
     const firstModule = version.modules
       .slice()
       .sort((a, b) => a.order.localeCompare(b.order))[0];
-    if (!firstModule.sections.length) {
-      throw new InternalServerError('Module has no sections');
+    if (!firstModule || !firstModule.sections || !firstModule.sections.length) {
+      return null;
     }
 
     const firstSection = firstModule.sections
       .slice()
       .sort((a, b) => a.order.localeCompare(b.order))[0];
+    
+    if (!firstSection || !firstSection.itemsGroupId) {
+      return null;
+    }
+    
     const itemsGroup = await this.readItemsGroup(
       firstSection.itemsGroupId.toString(),
     );
-    if (!itemsGroup.items.length) {
-      throw new InternalServerError('Items group has no items');
+    if (!itemsGroup || !itemsGroup.items || !itemsGroup.items.length) {
+      return null;
     }
 
     const firstItem = itemsGroup.items
