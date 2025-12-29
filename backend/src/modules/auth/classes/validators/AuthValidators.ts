@@ -16,7 +16,9 @@ class SignUpBody {
     type: 'string',
     format: 'email',
   })
-  @IsEmail()
+  @IsEmail(undefined, {
+    message: 'Invalid email address',
+  })
   email: string;
 
   @JSONSchema({
@@ -68,7 +70,9 @@ class GoogleSignUpBody {
     type: 'string',
     format: 'email',
   })
-  @IsEmail()
+  @IsEmail(undefined, {
+    message: 'Invalid email address',
+  })
   email: string;
 
   @JSONSchema({
