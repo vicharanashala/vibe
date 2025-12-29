@@ -1464,15 +1464,22 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           <Badge variant="outline">
             Question {currentQuestionIndex + 1} of {quizQuestions.length}
           </Badge>
-          {timeLeft > 0 && (
+         {timeLeft > 0 && (
             <Badge
               variant="secondary"
-              className={`font-mono text-lg px-3 py-2 ${timeLeft <= 10 ? 'bg-destructive/20 text-destructive animate-pulse border-destructive/50' : ''}`}
+              className={`font-mono text-lg font-semibold px-3 py-2 border
+                ${
+                  timeLeft <= 10
+                    ? 'bg-destructive text-destructive-foreground border-destructive ring-2 ring-destructive/60 animate-pulse'
+                    : 'bg-muted text-foreground border-border'
+                }
+              `}
             >
               <Clock className="mr-2 h-4 w-4" />
               {formatTime(timeLeft)}
             </Badge>
           )}
+
         </div>
         <Progress
           value={((currentQuestionIndex + 1) / quizQuestions.length) * 100}
