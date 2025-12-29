@@ -509,4 +509,19 @@ export class EnrollmentController {
       versionId,
     );
   }
+
+  @Post('/enrollments/update-completed-items-count')
+  @HttpCode(200)
+  @OpenAPI({
+    summary: 'Test: Update completed items count for all enrollments',
+    description: 'Testing endpoint to update completedItemsCount field for all enrollments',
+  })
+  async updateAllCompletedItemsCount(): Promise<{ message: string; totalUpdated: number }> {
+    const totalUpdated = await this.enrollmentService.updateAllEnrollmentsCompletedItemsCount();
+    
+    return {
+      message: 'Completed items count updated successfully',
+      totalUpdated: totalUpdated
+    };
+  }
 }
