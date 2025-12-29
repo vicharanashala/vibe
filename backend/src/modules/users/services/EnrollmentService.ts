@@ -718,4 +718,12 @@ export class EnrollmentService extends BaseService {
       );
     });
   }
+
+  async updateAllEnrollmentsCompletedItemsCount(): Promise<number> {
+    
+    return this._withTransaction(async (session: ClientSession) => {
+      const result = await this.enrollmentRepo.updateAllEnrollmentsCompletedItemsCount(session);
+      return result;
+    });
+  }
 }
