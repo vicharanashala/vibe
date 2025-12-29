@@ -1267,7 +1267,15 @@ const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemI
 
   return (
     <>
-      <Dialog open={showProctorDialog}>
+      <Dialog open={showProctorDialog} onOpenChange={(open) => {
+          if (!open) {
+            setShowProctorDialog(false);
+            router.navigate({ to: '/student' });
+            setTimeout(()=>{
+              window.location.reload()
+            },1000)
+          }
+        }}>
         <DialogContent className="sm:max-w-lg w-[calc(100%-2rem)] max-w-full">
           <DialogHeader>
             <DialogTitle className="text-lg font-extrabold">Declaration</DialogTitle>
