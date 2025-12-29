@@ -1439,6 +1439,97 @@ export class EnrollmentRepository {
     await this.enrollmentCollection.bulkWrite(operations, {session});
   }
 
+
+  /* Update completed items count for all enrollments in batches of 100 */
+  async updateAllEnrollmentsCompletedItemsCount(
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+    
+    try {
+      const batchSize = 100;
+      let skip = 0;
+      let hasMore = true;
+      let totalUpdated = 0;
+
+      while (hasMore) {
+        // Get batch of enrollments
+        const enrollments = await this.enrollmentCollection
+          .find({ isDeleted: { $ne: true } })
+          .project({ userId: 1, courseId: 1, courseVersionId: 1 })
+          .skip(skip)
+          .limit(batchSize)
+          .toArray();
+
+        if (enrollments.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        // Prepare bulk operations for this batch
+        const operations = await Promise.all(
+          enrollments.map(async (enrollment) => {
+            const userId = enrollment.userId.toString();
+            const courseId = enrollment.courseId.toString();
+            const courseVersionId = enrollment.courseVersionId.toString();
+
+            // Get completed items count
+            const completedItems = await this.watchTimeCollection.distinct(
+              'itemId',
+              {
+                userId: new ObjectId(userId),
+                courseId: new ObjectId(courseId),
+                courseVersionId: new ObjectId(courseVersionId),
+                isDeleted: { $ne: true },
+              },
+              { session },
+            );
+
+
+            return {
+              updateOne: {
+                filter: { _id: enrollment._id },
+                update: {
+                  $set: {
+                    completedItemsCount: completedItems.length,
+                    updatedAt: new Date()
+                  }
+                },
+              },
+            };
+          })
+        );
+
+        // Execute bulk update for this batch
+        if (operations.length > 0) {
+          const result = await this.enrollmentCollection.bulkWrite(operations, { session });
+          totalUpdated += result.modifiedCount;
+        }
+
+        skip += batchSize;
+
+        // If we got less than batch size, we're done
+        if (enrollments.length < batchSize) {
+          hasMore = false;
+        }
+      }
+
+      console.log(`\n===================================`);
+      console.log(`=== FINAL SUMMARY ===`);
+      console.log(`Total batches processed: ${Math.ceil(skip / batchSize)}`);
+      console.log(`Total enrollments processed: ${skip}`);
+      console.log(`Total operations executed: ${totalUpdated}`);
+      console.log(`Batch size used: ${batchSize}`);
+      console.log(`Total updated completedItemsCount for ${totalUpdated} enrollments`);
+      console.log(`===================================\n`);
+      return totalUpdated;
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed to update all enrollments completed items count: ${error.message}`,
+      );
+    }
+  }
+
   /**
    * Retrieves quiz IDs organized by modules and sections for a given course version
 
