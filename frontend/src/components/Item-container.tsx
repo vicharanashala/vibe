@@ -75,6 +75,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           showExplanationAfterSubmission={item.details?.showExplanationAfterSubmission || false}
           showScoreAfterSubmission={item.details?.showScoreAfterSubmission || false}
           quizId={item._id || ''}
+          isItemCompleted={item.isCompleted || false}
           doGesture={doGesture}
           onNext={onNext}
           onPrevVideo={onPrevVideo}

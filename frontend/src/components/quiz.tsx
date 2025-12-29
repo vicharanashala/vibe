@@ -41,6 +41,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   showExplanationAfterSubmission,
   showScoreAfterSubmission,
   quizId,
+  isItemCompleted = false,
   doGesture = false,
   onNext,
   isProgressUpdating,
@@ -1672,8 +1673,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
         {/* Navigation */}
         <div className="flex justify-between items-center">
-          {/* Skip button (shown after 5 attempts) */}
-          {(attempts >= 5 && allowSkip == true) && (
+          {/* Skip button (shown if item is completed OR after 5 attempts with allowSkip) */}
+          {(isItemCompleted || (attempts >= 5 && allowSkip == true)) && (
             <Button
               // variant="outline"
               onClick={handleSkipQuiz}

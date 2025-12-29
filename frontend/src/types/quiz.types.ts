@@ -62,6 +62,7 @@ export interface QuizProps {
   showExplanationAfterSubmission: boolean;
   showScoreAfterSubmission: boolean;
   quizId: string | BufferLike;
+  isItemCompleted?: boolean;
   doGesture?: boolean;
   onNext?: () => void;
   onPrevVideo?: () => void;

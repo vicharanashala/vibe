@@ -6,6 +6,7 @@ export interface Item {
   description?: string;
   type: string;
   order?: string;
+  isCompleted?: boolean;
   details?: {
     points?: string;
 
