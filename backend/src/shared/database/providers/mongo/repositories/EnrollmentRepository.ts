@@ -561,12 +561,7 @@ export class EnrollmentRepository {
       },
 
       {$sort: {enrollmentDate: -1}},
-      {$skip: skip},
-      {$limit: limit},
-      /* ---------------- SEARCH ---------------- */
-      ...(search?.trim()
-        ? [{$match: {'course.name': {$regex: search, $options: 'i'}}}]
-        : []),
+      
 
       /* ---------------- COURSE LOOKUP ---------------- */
       {
@@ -607,6 +602,12 @@ export class EnrollmentRepository {
       },
 
       {$unwind: {path: '$courseVersion', preserveNullAndEmptyArrays: true}},
+      {$skip: skip},
+      {$limit: limit},
+      /* ---------------- SEARCH ---------------- */
+      ...(search?.trim()
+        ? [{$match: {'course.name': {$regex: search, $options: 'i'}}}]
+        : []),
 
       /* ---------------- FINAL SHAPE ---------------- */
       {
