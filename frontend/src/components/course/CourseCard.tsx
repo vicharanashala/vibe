@@ -653,7 +653,7 @@ const LeaderboardDialog = ({ courseId, versionId, courseName,isOpen }: { courseI
                           </span>
                           {entry.completedAt && (
                             <span className="ml-2">
-                              on {new Date(entry.completedAt).toLocaleDateString()}
+                              on {new Date(entry.completedAt).toLocaleString()}
                             </span>
                           )}
                         </>
