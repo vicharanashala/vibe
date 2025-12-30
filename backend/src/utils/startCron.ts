@@ -6,7 +6,7 @@ export const startCron = () => {
     // Get DeleteCronService from the existing container and schedule it
     const deleteCronService = getFromContainer(DeleteCronService);
     deleteCronService.scheduleDeleteCron();
-    deleteCronService.scheduleBulkUpdateProgress();
+    // deleteCronService.scheduleBulkUpdateProgress();
 
     console.log('✅ Delete cron job scheduled successfully');
   } catch (error) {

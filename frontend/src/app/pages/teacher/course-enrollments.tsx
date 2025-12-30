@@ -216,86 +216,69 @@ export default function CourseEnrollments() {
   }
 
   // Handle fetch and export quiz scores
-  const handleFetchQuizScores = async () => {
-    if (!courseId || !versionId) {
-      toast.error('Course ID or Version ID is missing');
+ const handleFetchQuizScores = async () => {
+  if (!courseId || !versionId) {
+    toast.error('Course ID or Version ID is missing');
+    return;
+  }
+
+  if (!quizScores?.data?.length || isLoadingQuizScores) {
+    toast.warning('No quiz scores available');
+    return;
+  }
+
+  try {
+    // ⚡ FAST: single-pass formatting, no unused maps
+    const formattedData = quizScores.data.map(
+      (student: any, index: number) => ({
+        studentId: student.studentId ?? `student-${index}`,
+        name: student.name ?? 'Unknown Student',
+        email: student.email ?? '',
+        quizScores: Array.isArray(student.quizScores)
+          ? student.quizScores.map((quiz: any) => ({
+              moduleId: quiz.moduleId ?? 'unknown',
+              sectionId: quiz.sectionId ?? 'unknown',
+              quizId: quiz.quizId ?? 'unknown',
+              quizName: quiz.quizName ?? 'Untitled Quiz',
+              moduleName: quiz.moduleName ?? 'Module',
+              sectionName: quiz.sectionName ?? 'Section',
+              maxScore: Number(quiz.maxScore) || 0,
+              attempts: Number(quiz.attempts) || 0,
+              questionScores: Array.isArray(quiz.questionScores)
+                ? quiz.questionScores.map((q: any) => ({
+                    questionId: String(q.questionId ?? ''),
+                    score: Number(q.score) || 0,
+                  }))
+                : [],
+            }))
+          : [],
+      }),
+    );
+
+    if (!formattedData.length) {
+      toast.warning('No quiz scores found to export');
       return;
     }
 
-    try {
-      if (quizScores && !isLoadingQuizScores) {
+    // ⏱️ Stable filename (no locale overhead)
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '_');
+    const filename = `quiz_scores_${timestamp}.xlsx`;
 
-        // Format the data for Excel export
-        const formattedData = quizScores?.data?.map((student: any, index: number) => {
+    // 🧠 Let UI breathe before heavy Excel generation
+    await new Promise(resolve => setTimeout(resolve, 0));
 
-          // Get all unique module and section names for this student
-          const moduleSectionMap = new Map<string, { moduleName: string, sectionName: string }>();
+    generateExcel(formattedData, filename);
+    toast.success('Quiz scores exported successfully');
+  } catch (error) {
+    console.error('Error exporting quiz scores:', error);
+    toast.error(
+      error instanceof Error
+        ? error.message
+        : 'Failed to export quiz scores',
+    );
+  }
+};
 
-          // First pass: collect all module and section names
-          student.quizScores?.forEach((quiz: any) => {
-            const key = `${quiz.moduleId}_${quiz.sectionId}`;
-            if (!moduleSectionMap.has(key)) {
-              moduleSectionMap.set(key, {
-                moduleName: quiz.moduleName || 'Module',
-                sectionName: quiz.sectionName || 'Section'
-              });
-            }
-          });
-
-          return {
-            studentId: student.studentId || `student-${index}`,
-            name: student.name || 'Unknown Student',
-            email: student.email || '',
-            quizScores: student.quizScores?.map((quiz: any) => ({
-              moduleId: quiz.moduleId || 'unknown',
-              sectionId: quiz.sectionId || 'unknown',
-              quizId: quiz.quizId || 'unknown',
-              quizName: quiz.quizName || 'Untitled Quiz',
-              maxScore: quiz.maxScore || 0,
-              attempts: quiz.attempts || 0,
-              moduleName: quiz.moduleName || 'Module',
-              sectionName: quiz.sectionName || 'Section',
-              questionScores: Array.isArray(quiz.questionScores)
-                ? quiz.questionScores.map((q: any) => ({
-                  questionId: q.questionId?.toString() || '',
-                  score: typeof q.score === 'number' ? q.score : 0
-                }))
-                : []
-            })) || []
-          };
-        }) || [];
-
-        if (formattedData.length === 0) {
-          toast.warning('No quiz scores found to export');
-          return;
-        }
-
-        console.log('Formatted data for Excel:', formattedData);
-
-        // Generate and download the Excel file
-        const formattedTime = new Date().toLocaleTimeString("en-US", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit"
-        }).replace(/:/g, '_');
-
-        const filename = `quiz_scores_${new Date().toISOString().split('T')[0]}_${formattedTime}.xlsx`;
-
-        try {
-          generateExcel(formattedData, filename);
-          toast.success('Quiz scores exported successfully');
-
-        } catch (excelError) {
-          console.error('Error generating Excel file:', excelError);
-          toast.error('Failed to generate Excel file. Please try again.');
-        }
-      }
-    } catch (error) {
-      console.error('Error exporting quiz scores:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to export quiz scores');
-    }
-
-  };
 
   useEffect(() => {
     setIsSearching(true);
