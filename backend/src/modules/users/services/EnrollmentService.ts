@@ -594,7 +594,12 @@ export class EnrollmentService extends BaseService {
             bulkOperations.push({
               updateOne: {
                 filter: { _id: new ObjectId(enrollment._id) },
-                update: { $set: { percentCompleted } },
+                update: {
+                  $set: {
+                    percentCompleted,
+                    completedItemsCount: completedItems
+                  }
+                },
               },
             });
 

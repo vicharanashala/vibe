@@ -89,6 +89,7 @@ export interface EnrolledUser {
   avatar?: string
   enrolledDate: string
   progress: number
+  completedItemsCount?: number
 }
 
 export interface ResetProgressData {
