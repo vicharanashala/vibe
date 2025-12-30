@@ -1,4 +1,4 @@
-import { useState, useEffect,useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { useUserEnrollments, useWatchtimeTotal } from "@/hooks/hooks";
 import { useNavigate } from "@tanstack/react-router";
@@ -72,11 +72,11 @@ function DashboardContent() {
   const { data: watchtimeData } = useWatchtimeTotal();
   // const filteredEnrollement = enrollments.filter(enrollment=>enrollment.role == "STUDENT");
   const [completion, setCompletion] = useState<CoursePctCompletion[]>([]);
-const totalProgress = useMemo(() => {
-  const completed = completion.reduce((a, c) => a + (c.completedItems || 0), 0);
-  const total = completion.reduce((a, c) => a + (c.totalItems || 0), 0);
-  return total ? Math.round((completed / total) * 100) : 0;
-}, [completion]);
+  const totalProgress = useMemo(() => {
+    const completed = completion.reduce((a, c) => a + (c.completedItems || 0), 0);
+    const total = completion.reduce((a, c) => a + (c.totalItems || 0), 0);
+    return total ? Math.round((completed / total) * 100) : 0;
+  }, [completion]);
 
   return (
     <>
@@ -94,16 +94,16 @@ const totalProgress = useMemo(() => {
         {/* Right: Stat Cards */}
         <div className="flex flex-col sm:flex-row gap-4 items-stretch w-full sm:w-auto">
           <StatCard
-  icon="🏆"
-  value={enrollmentsLoading ? "—" : `${totalEnrollments}`}
-  label="Enrolled Courses"
-/>
-<StatCard
-  icon="⏱️"
-  value={!watchtimeData ? "—" : `${(watchtimeData / 3600).toFixed(2)}h`}
-  label="Study Time"
-/>
-          <StatCard icon="🎓" value={`${totalProgress}%`} label="Overall Progress" />
+            icon="🏆"
+            value={enrollmentsLoading ? "—" : `${totalEnrollments}`}
+            label="Enrolled Courses"
+          />
+          <StatCard
+            icon="⏱️"
+            value={!watchtimeData ? "—" : `${(watchtimeData / 3600).toFixed(2)}h`}
+            label="Study Time"
+          />
+          <StatCard icon="🎓" value={`${totalProgress}%`} label="Completion Percentage" />
         </div>
       </div>
       {/* Announcement Banner */}
