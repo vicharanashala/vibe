@@ -1562,7 +1562,7 @@ export class EnrollmentRepository {
   }
 
   /**
-   * Get maximum scores and individual question scores for a list of quizzes
+   * Get maximum scores and individual question scores for a list of quizzes (Optimized for large datasets)
    * @param userIds Array of user IDs (can be string or ObjectId)
    * @param quizIds Array of quiz IDs (can be string or ObjectId)
    * @returns Object containing:
@@ -1576,7 +1576,7 @@ export class EnrollmentRepository {
     maxScores: Map<string, Map<string, number>>;
     questionScores: Map<string, Map<string, Map<string, number>>>;
   }> {
-    if (!quizIds.length) {
+    if (!quizIds.length || !userIds.length) {
       return {
         maxScores: new Map<string, Map<string, number>>(),
         questionScores: new Map<string, Map<string, Map<string, number>>>(),
@@ -1606,7 +1606,8 @@ export class EnrollmentRepository {
       const stringUserIds = userIds.map(id => id.toString());
       const stringQuizIds = quizIds.map(id => id.toString());
 
-      const results = await this.submissionCollection
+      // Optimized: Use aggregation to get max scores as percentages in a single pass
+      const maxScoreResults = await this.submissionCollection
         .aggregate([
           {
             $match: {
@@ -1623,17 +1624,9 @@ export class EnrollmentRepository {
                     {quizId: {$in: stringQuizIds}},
                   ],
                 },
-                {'gradingResult.totalMaxScore': {$exists: true}},
-                {'gradingResult.totalScore': {$exists: true}},
+                { 'gradingResult.totalMaxScore': { $exists: true, $gt: 0 } },
+                { 'gradingResult.totalScore': { $exists: true } },
               ],
-            },
-          },
-          {
-            $project: {
-              userId: 1,
-              quizId: 1,
-              score: {$ifNull: ['$gradingResult.totalScore', 0]},
-              maxPossibleScore: {$ifNull: ['$gradingResult.totalMaxScore', 0]},
             },
           },
           {
@@ -1642,56 +1635,39 @@ export class EnrollmentRepository {
                 userId: '$userId',
                 quizId: '$quizId',
               },
-              bestScore: {$max: '$score'},
-              maxPossibleScore: {$first: '$maxPossibleScore'},
+              maxScore: { $max: '$gradingResult.totalScore' },
+              maxPossibleScore: { $first: '$gradingResult.totalMaxScore' },
             },
           },
           {
             $project: {
               _id: 0,
-              userId: {$toString: '$_id.userId'},
-              quizId: {$toString: '$_id.quizId'},
-              bestScore: 1,
-              maxPossibleScore: 1,
-              scorePercentage: {
-                $let: {
-                  vars: {
-                    percentage: {
-                      $cond: [
-                        {$eq: ['$maxPossibleScore', 0]},
-                        0,
-                        {
-                          $multiply: [
-                            {$divide: ['$bestScore', '$maxPossibleScore']},
-                            100,
-                          ],
-                        },
-                      ],
-                    },
-                  },
-                  in: {
-                    $cond: [
-                      {$eq: [{$mod: ['$$percentage', 1]}, 0]},
-                      '$$percentage',
-                      {$round: ['$$percentage', 2]},
-                    ],
-                  },
-                },
+              userId: { $toString: '$_id.userId' },
+              quizId: { $toString: '$_id.quizId' },
+              maxScorePercentage: {
+                $cond: {
+                  if: { $eq: ['$maxPossibleScore', 0] },
+                  then: 0,
+                  else: {
+                    $round: [
+                      {
+                        $multiply: [
+                          { $divide: ['$maxScore', '$maxPossibleScore'] },
+                          100
+                        ]
+                      },
+                      2
+                    ]
+                  }
+                }
               },
             },
           },
         ])
         .toArray();
 
-      // Initialize result maps
-      const maxScores = new Map<string, Map<string, number>>();
-      const questionScores = new Map<
-        string,
-        Map<string, Map<string, number>>
-      >();
-
-      // First pass: Process all attempts to get max scores and question details
-      const allAttempts = await this.submissionCollection
+      // Optimized: Get question-level scores in a separate efficient query
+      const questionScoreResults = await this.submissionCollection
         .find({
           $and: [
             {
@@ -1709,17 +1685,36 @@ export class EnrollmentRepository {
             {'gradingResult.overallFeedback': {$exists: true, $ne: []}},
           ],
         })
+        .project({
+          userId: 1,
+          quizId: 1,
+          'gradingResult.overallFeedback': 1,
+        })
         .toArray();
 
-      // Process each attempt to build question scores
-      allAttempts.forEach(attempt => {
+      // Build result maps efficiently
+      const maxScores = new Map<string, Map<string, number>>();
+      const questionScores = new Map<string, Map<string, Map<string, number>>>();
+
+      // Process max scores (now as percentages)
+      maxScoreResults.forEach(result => {
+        const { userId, quizId, maxScorePercentage } = result;
+        if (!maxScores.has(userId)) {
+          maxScores.set(userId, new Map<string, number>());
+        }
+        maxScores.get(userId)?.set(quizId, maxScorePercentage);
+      });
+
+      // Process question scores
+      questionScoreResults.forEach(attempt => {
         const userId = attempt.userId?.toString();
         const quizId = attempt.quizId?.toString();
 
-        if (!userId || !quizId || !attempt.gradingResult?.overallFeedback)
+        if (!userId || !quizId || !attempt.gradingResult?.overallFeedback) {
           return;
+        }
 
-        // Initialize user and quiz in the questionScores map
+        // Initialize maps if they don't exist
         if (!questionScores.has(userId)) {
           questionScores.set(userId, new Map<string, Map<string, number>>());
         }
@@ -1727,40 +1722,31 @@ export class EnrollmentRepository {
           questionScores.get(userId)?.set(quizId, new Map<string, number>());
         }
 
-        // Get the user's quiz map for question scores
         const userQuizQuestions = questionScores.get(userId)?.get(quizId);
+        if (userQuizQuestions && attempt.gradingResult?.overallFeedback) {
+          attempt.gradingResult.overallFeedback.forEach((feedback: any) => {
+            if (!feedback.questionId || typeof feedback.score !== 'number') {
+              return;
+            }
 
-        // Process each question in the attempt
-        attempt.gradingResult.overallFeedback.forEach((feedback: any) => {
-          if (!feedback.questionId || typeof feedback.score !== 'number')
-            return;
+            const questionId = feedback.questionId.toString();
+            const currentQuestionScore = userQuizQuestions.get(questionId) || 0;
 
-          const questionId = feedback.questionId.toString();
-          const currentMax = userQuizQuestions?.get(questionId) || 0;
-
-          // Store the maximum score for each question
-          if (feedback.score > currentMax) {
-            userQuizQuestions?.set(questionId, feedback.score);
-          }
-        });
-      });
-
-      // Second pass: Process aggregated results for max scores
-      results.forEach(result => {
-        const userId = result.userId;
-        const quizId = result.quizId;
-
-        if (userId && quizId) {
-          if (!maxScores.has(userId)) {
-            maxScores.set(userId, new Map<string, number>());
-          }
-          maxScores.get(userId)?.set(quizId, result.scorePercentage);
+            // Store the maximum score for each question
+            if (feedback.score > currentQuestionScore) {
+              userQuizQuestions.set(questionId, feedback.score);
+            }
+          });
         }
       });
 
       return {maxScores, questionScores};
     } catch (error) {
       console.error('Error in getMaxScoresForQuizzes:', error);
+      return {
+        maxScores: new Map<string, Map<string, number>>(),
+        questionScores: new Map<string, Map<string, Map<string, number>>>(),
+      };
     }
   }
 
@@ -1827,7 +1813,98 @@ export class EnrollmentRepository {
    * @returns Array of student quiz scores with their max scores and attempts
    */
 
-  private readonly BATCH_SIZE = 100;
+  private readonly BATCH_SIZE = 500; // Increased from 100 to 500 for better performance
+
+  /**
+   * Get all question IDs for multiple quizzes in bulk (optimized for large datasets)
+   * @param quizIds Array of quiz IDs
+   * @returns Map of quizId to array of question IDs
+   */
+  private async getQuizQuestionIdsBulk(quizIds: string[]): Promise<Map<string, string[]>> {
+    await this.init();
+
+    if (quizIds.length === 0) {
+      return new Map();
+    }
+
+    try {
+      // Get all quizzes in a single query
+      const quizzes = await this.quizCollection
+        .find({ 
+          _id: { $in: quizIds.map(id => new ObjectId(id)) },
+          'details.questionBankRefs': { $exists: true, $ne: [] }
+        })
+        .project({
+          _id: 1,
+          'details.questionBankRefs': 1
+        })
+        .toArray();
+
+      // Collect all unique bank IDs
+      const allBankIds = new Set<string>();
+      quizzes.forEach(quiz => {
+        if (quiz.details?.questionBankRefs?.length) {
+          quiz.details.questionBankRefs.forEach((ref: any) => {
+            if (ref.bankId && ObjectId.isValid(ref.bankId)) {
+              allBankIds.add(ref.bankId);
+            }
+          });
+        }
+      });
+
+      if (allBankIds.size === 0) {
+        return new Map(quizIds.map(id => [id, []]));
+      }
+
+      // Get all question banks in a single query
+      const questionBanks = await this.questionBankCollection
+        .find({ _id: { $in: Array.from(allBankIds).map(id => new ObjectId(id)) } })
+        .project({
+          _id: 1,
+          'questions': 1
+        })
+        .toArray();
+
+      // Create bank ID to questions map
+      const bankQuestionsMap = new Map<string, string[]>();
+      questionBanks.forEach(bank => {
+        if (bank.questions?.length) {
+          bankQuestionsMap.set(bank._id.toString(), bank.questions.map(q => q.toString()));
+        }
+      });
+
+      // Build the final quiz to questions map
+      const quizQuestionsMap = new Map<string, string[]>();
+      quizzes.forEach(quiz => {
+        const quizId = quiz._id.toString();
+        const questionIds = new Set<string>();
+
+        if (quiz.details?.questionBankRefs?.length) {
+          quiz.details.questionBankRefs.forEach((ref: any) => {
+            if (ref.bankId && bankQuestionsMap.has(ref.bankId)) {
+              const bankQuestions = bankQuestionsMap.get(ref.bankId) || [];
+              bankQuestions.forEach(qId => questionIds.add(qId));
+            }
+          });
+        }
+
+        quizQuestionsMap.set(quizId, Array.from(questionIds));
+      });
+
+      // Ensure all quiz IDs are present in the map (even if no questions)
+      quizIds.forEach(quizId => {
+        if (!quizQuestionsMap.has(quizId)) {
+          quizQuestionsMap.set(quizId, []);
+        }
+      });
+
+      return quizQuestionsMap;
+    } catch (error) {
+      console.error('Error in getQuizQuestionIdsBulk:', error);
+      // Return empty map as fallback
+      return new Map(quizIds.map(id => [id, []]));
+    }
+  }
 
   /**
    * Get all question IDs for a quiz by fetching from question banks
@@ -2070,6 +2147,7 @@ export class EnrollmentRepository {
         studentFilter,
       );
       if (totalStudents === 0) {
+        console.warn(`[WARN] No students found for course ${courseId}, version ${versionId}`);
         return {
           data: [],
           metadata: {
@@ -2118,48 +2196,55 @@ export class EnrollmentRepository {
       const quizIdsObj = validQuizIds.map(id => new ObjectId(id));
       const quizDetails = await this.getQuizDetails(quizIdsObj);
 
-      // Pre-fetch all questions for each quiz only once
-      const quizQuestionsMap = new Map<string, string[]>();
-      await Promise.all(
-        validQuizIds.map(async quizId => {
-          const questions = await this.getQuizQuestionIds(quizId);
-          quizQuestionsMap.set(quizId, questions);
-        }),
-      );
+      // Optimized: Fetch all quiz questions in bulk instead of individual calls
+      const quizQuestionsMap = await this.getQuizQuestionIdsBulk(validQuizIds);
 
+      const allEnrollmentsWithUsers = await this.enrollmentCollection
+        .aggregate([
+          { $match: studentFilter },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'userId',
+              foreignField: '_id',
+              as: 'user',
+            },
+          },
+          { $unwind: '$user' },
+          {
+            $project: {
+              _id: 1,
+              userId: 1,
+              'user.firstName': 1,
+              'user.lastName': 1,
+              'user.email': 1,
+            },
+          },
+        ])
+        .toArray();
+
+      if (allEnrollmentsWithUsers.length === 0) {
+        console.warn(`[WARN] No enrollments found after user lookup`);
+        return {
+          data: [],
+          metadata: {
+            courseId,
+            versionId,
+            totalStudents: 0,
+            durationMs: Date.now() - startTime,
+            generatedAt: new Date().toISOString(),
+          },
+        };
+      }
+
+      // Process in batches for score fetching, but reuse the enrollment data
       const result: StudentQuizScoreDto[] = [];
-      const totalBatches = Math.ceil(totalStudents / this.BATCH_SIZE);
+      const totalBatches = Math.ceil(allEnrollmentsWithUsers.length / this.BATCH_SIZE);
 
       for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
-        const skip = batchNum * this.BATCH_SIZE;
-
-        const enrollments = await this.enrollmentCollection
-          .aggregate([
-            {$match: studentFilter},
-            {$skip: skip},
-            {$limit: this.BATCH_SIZE},
-            {
-              $lookup: {
-                from: 'users',
-                localField: 'userId',
-                foreignField: '_id',
-                as: 'user',
-              },
-            },
-            {$unwind: '$user'},
-            {
-              $project: {
-                _id: 1,
-                userId: 1,
-                'user.firstName': 1,
-                'user.lastName': 1,
-                'user.email': 1,
-              },
-            },
-          ])
-          .toArray();
-
-        if (enrollments.length === 0) continue;
+        const startIndex = batchNum * this.BATCH_SIZE;
+        const endIndex = Math.min(startIndex + this.BATCH_SIZE, allEnrollmentsWithUsers.length);
+        const enrollments = allEnrollmentsWithUsers.slice(startIndex, endIndex);
 
         const batchUserIds = enrollments.map(e => e.userId);
         const [scoresData, totalAttempts] = await Promise.all([
@@ -2217,6 +2302,7 @@ export class EnrollmentRepository {
       }
 
       const duration = Date.now() - startTime;
+      
       return {
         data: result,
         metadata: {
