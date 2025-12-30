@@ -1200,6 +1200,7 @@ export class EnrollmentRepository {
           firstName: '$userInfo.firstName',
           lastName: '$userInfo.lastName',
           email: '$userInfo.email',
+          completedItemsCount: { $ifNull: ['$completedItemsCount', 0] },
         },
       },
     ];
