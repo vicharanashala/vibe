@@ -14,6 +14,8 @@ import {
   Loader2,
   Plus,
   Search,
+  Download,
+  Upload,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -55,12 +57,18 @@ export default function InvitePage() {
   const [resendingInviteId, setResendingInviteId] = useState<string | null>(null);
   const [cancelingInviteId, setCancelingInviteId] = useState<string | null>(null);
 
+  // CSV parsed emails state
+  const [parsedEmails, setParsedEmails] = useState<string[]>([]);
+
   // filters
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [sort, setSort] = useState("");
   const [inviteStatus, setInviteStatus] = useState("");
+  const [itemsPerPage, setItemsPerPage] = useState(15);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const inviteStatusOptions = ['All', 'ACCEPTED', 'PENDING', 'CANCELLED', 'EMAIL_FAILED', 'ALREADY_ENROLLED'];
   const sortOptions = [
     { label: "All Invites", value: "All" },
@@ -75,7 +83,7 @@ export default function InvitePage() {
     error: invitesError,
     refetch: refetchInvites,
   } = useCourseInvites(courseId || "", versionId || "", !!(courseId && versionId), debouncedSearchQuery, 
-      currentPage, 15, inviteStatus, sort);
+      currentPage, itemsPerPage, inviteStatus, sort, startDate, endDate);
 
   // Add course version data hook to check structure
   const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(versionId || "")
@@ -120,6 +128,11 @@ export default function InvitePage() {
     if (invitesData && newPage >= 1 && newPage <= invitesData.totalPages) {
       setCurrentPage(newPage)
     }
+  }
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage)
+    setCurrentPage(1)
   }
 
   // Function to get the reason why invites can't be sent
@@ -290,11 +303,14 @@ const addInviteRow = () => {
         params: { path: { inviteId } },
       })
 
-      toast.success("Invite resent successfully")
+      await refetchInvites()
 
-      refetchInvites()
+      // Show success message after confirming status update
+      toast.success("Invitation sent successfully")
     } catch {
-      toast.error(resendInvite.error || "Failed to resend invite")
+      // Refetch to show EMAIL_FAILED status
+      await refetchInvites()
+      toast.error("Failed to send email")
     } finally {
       setResendingInviteId(null)
     }
@@ -315,6 +331,121 @@ const addInviteRow = () => {
       toast.error(cancelInvite.error || "Failed to cancel invite")
     } finally {
       setCancelingInviteId(null)
+    }
+  }
+
+  // Handle CSV file selection and parsing
+  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const validExtensions = ['.csv']
+    const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'))
+    
+    if (!validExtensions.includes(fileExtension)) {
+      toast.error("Please upload a CSV file")
+      e.target.value = ''
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File size must be less than 5MB")
+      e.target.value = ''
+      return
+    }
+
+    try {
+      // Read and parse CSV file
+      const text = await file.text()
+      const lines = text.split(/\r?\n/).filter(line => line.trim())
+
+      if (lines.length === 0) {
+        toast.error("CSV file is empty")
+        e.target.value = ''
+        return
+      }
+
+      const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g
+      const emails: string[] = []
+
+      for (const line of lines) {
+        const matches = line.match(emailRegex)
+        if (matches) {
+          matches.forEach(email => {
+            const cleanedEmail = email.trim().toLowerCase()
+            if (/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(cleanedEmail)) {
+              emails.push(cleanedEmail)
+            }
+          })
+        }
+      }
+
+      if (emails.length === 0) {
+        toast.error("No valid email addresses found in the file")
+        e.target.value = ''
+        return
+      }
+
+      const uniqueEmails = [...new Set(emails)]
+      
+      if (uniqueEmails.length > 500) {
+        toast.error(`CSV contains ${uniqueEmails.length} emails. Maximum allowed is 500 emails per upload.`)
+        e.target.value = ''
+        return
+      }
+      
+      setParsedEmails(uniqueEmails)
+      
+      toast.success(`Found ${uniqueEmails.length} email(s) from CSV file`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to process CSV file")
+      e.target.value = ''
+    }
+  }
+
+  // Handle sending bulk invites from parsed CSV
+  const handleSendBulkInvites = async () => {
+    if (!courseId || !versionId || parsedEmails.length === 0) {
+      toast.error("No emails to send")
+      return
+    }
+
+    try {
+      const inviteData = parsedEmails.map(email => ({
+        email,
+        role: 'STUDENT' as EnrollmentRole
+      }))
+
+      const response = await inviteUsers.mutateAsync({
+        params: {
+          path: {
+            courseId,
+            courseVersionId: versionId,
+          },
+        },
+        body: {
+          inviteData,
+        },
+      })
+
+      const results = response.invites || []
+      const succeeded = results.filter(r => r.inviteStatus === 'PENDING' || r.inviteStatus === 'ALREADY_ENROLLED')
+      const failed = results.filter(r => r.inviteStatus === 'EMAIL_FAILED')
+      const total = results.length
+
+      if (failed.length === 0) {
+        toast.success(`Successfully sent all ${total} invitations`)
+      } else {
+        toast.warning(`${succeeded.length} out of ${total} invitations sent successfully. ${failed.length} failed to send.`)
+      }
+
+      setParsedEmails([])
+      const input = document.getElementById('csv-upload') as HTMLInputElement
+      if (input) input.value = ''
+
+      refetchInvites()
+    } catch (error) {
+      toast.error(inviteUsers.error || "Failed to send invites")
     }
   }
 
@@ -510,6 +641,125 @@ const addInviteRow = () => {
         </CardContent>
       </Card>
 
+      {/* Bulk CSV Upload Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <UserPlus className="w-5 h-5" />
+            <span>Bulk Invite via CSV</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!canSendInvites && (
+            <div className="p-4 border border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20 rounded-lg">
+              <div className="flex items-center space-x-2 text-orange-800 dark:text-orange-200">
+                <AlertTriangle className="w-5 h-5" />
+                <span className="font-medium">Course Structure Required</span>
+              </div>
+              <p className="mt-2 text-sm text-orange-700 dark:text-orange-300">
+                {getInviteBlockReason()}.
+              </p>
+            </div>
+          )}
+
+          <div className="relative">
+            <input
+              id="csv-upload"
+              type="file"
+              accept=".csv"
+              onChange={handleCsvUpload}
+              disabled={inviteUsers.isPending || !canSendInvites}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
+            />
+            <div className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
+              !canSendInvites 
+                ? 'border-muted-foreground/10 bg-muted/20 opacity-50 cursor-not-allowed' 
+                : 'border-muted-foreground/25 hover:border-muted-foreground/50 cursor-pointer'
+            }`}>
+              <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-base font-medium mb-1">Click to upload or drag and drop</p>
+              <p className="text-sm text-muted-foreground">CSV file with student emails (max 5MB)</p>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            className="w-full"
+            disabled={!canSendInvites}
+            onClick={() => {
+              const link = document.createElement('a')
+              link.href = '/templates/Bulk registration - Template_Sheet1.csv'
+              link.download = 'Bulk registration - Template_Sheet1.csv'
+              document.body.appendChild(link)
+              link.click()
+              document.body.removeChild(link)
+            }}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Download Sample CSV Template
+          </Button>
+
+          <div className="text-sm space-y-2">
+            <p className="font-medium">CSV Format:</p>
+            <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+              <li>First row should be the header with column names</li>
+              <li>Required column: Email</li>
+              <li>Optional columns: SNo, Name</li>
+              <li>Example: SNo, Name, Email</li>
+            </ul>
+          </div>
+
+          {parsedEmails.length > 0 && (
+            <>
+              <div className="p-4 border rounded-lg bg-muted/50 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">
+                    {parsedEmails.length} email(s) found
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setParsedEmails([])
+                      const input = document.getElementById('csv-upload') as HTMLInputElement
+                      if (input) input.value = ''
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="max-h-32 overflow-y-auto text-xs text-muted-foreground space-y-1">
+                  {parsedEmails.slice(0, 10).map((email, idx) => (
+                    <div key={idx}>{email}</div>
+                  ))}
+                  {parsedEmails.length > 10 && (
+                    <div className="italic">...and {parsedEmails.length - 10} more</div>
+                  )}
+                </div>
+              </div>
+
+              <Button
+                onClick={handleSendBulkInvites}
+                disabled={inviteUsers.isPending}
+                className="w-full"
+              >
+                {inviteUsers.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Send {parsedEmails.length} Invite(s)
+                  </>
+                )}
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Current Invites Section */}
       <Card>
         <CardHeader>
@@ -534,8 +784,8 @@ const addInviteRow = () => {
               )}
             </Button>
           </CardTitle>
-          <div className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 mt-5 px-10 mb-2">
-            <div className="relative flex-1 max-w-md">
+          <div className="w-full flex flex-col gap-4 mt-5 px-4">
+            <div className="relative w-full max-w-md">
             <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg blur-sm"></div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -543,15 +793,20 @@ const addInviteRow = () => {
                 placeholder="Search by student name, email ... "
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value) }}
-                className="pl-10 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
+                className="pl-10 pr-10 w-full bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
               />
+              <X className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground cursor-pointer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setSearchQuery("");
+                }} />
             </div>
             </div>
-          
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground">
-                Filter by Status:
+          <div className="flex items-center flex-wrap gap-3">
+            <div className="flex items-center gap-2 w-auto">
+              <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                Status:
               </label>
               <Select
                 value={inviteStatus}
@@ -560,22 +815,21 @@ const addInviteRow = () => {
                   setCurrentPage(1);
                 }}
               >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Select status" />
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="All" />
                 </SelectTrigger>
                 <SelectContent>
                   {inviteStatusOptions.map((status) => (
                     <SelectItem key={status} value={status}>
-                      {status === "All" ? "Select an option" : status}
+                      {status === "All" ? "All" : status}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          
-            <div className="flex items-center gap-2">
-              <label htmlFor="sortFilter" className="text-sm font-medium text-muted-foreground">
-                Sort by:
+            <div className="flex items-center gap-2 w-auto">
+              <label htmlFor="sortFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                Sort:
               </label>
               <Select
                 value={sort}
@@ -583,17 +837,59 @@ const addInviteRow = () => {
                   setSort(value === "All" ? "" : value);
                 }}
               >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Select type" />
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Recent" />
                 </SelectTrigger>
                 <SelectContent>
                   {sortOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
-                      {option.label === "All Invites" ? "Select an option" : option.label}
+                      {option.label === "All Invites" ? "All" : option.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="flex items-center gap-2 w-auto">
+              <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                From:
+              </label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-[140px]"
+              />
+            </div>
+            <div className="flex items-center gap-2 w-auto">
+              <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                To:
+              </label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => {
+                  setEndDate(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-[140px]"
+              />
+            </div>
+            <div className="flex items-center gap-2 w-auto">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">Show</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm w-[70px]"
+              >
+                <option value={10}>10</option>
+                <option value={15}>15</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+              <span className="text-sm text-muted-foreground whitespace-nowrap">per page</span>
             </div>
           </div>
         </div>

@@ -74,7 +74,7 @@ setStatus(selectedStatus)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} >
-      <DialogContent className="sm:max-w-[425px] mx-2"
+      <DialogContent className="sm:max-w-[425px] max-w-sm max-[425px]:w-[90vw]"
       onInteractOutside={(e) => e.preventDefault()} >
         <DialogHeader>
           <DialogTitle>{teacher?Teacher.title:Student.title}</DialogTitle>

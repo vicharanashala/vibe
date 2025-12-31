@@ -88,11 +88,17 @@ export const QuestionEditForm = ({ question, onSave, onCancel }: {
     const handleAddOption = () => setOptions(opts => [...opts, { text: '', explaination: '', correct: false }]);
     const handleRemoveOption = (idx: number) => setOptions(opts => opts.filter((_, i) => i !== idx));
 
-    const canSave = questionText.trim() && options.length >= 2 && options.every(o => o.text.trim() && o.explaination.trim()) && options.some(o => o.correct);
+    const canSave = questionText.trim() && options.length >= 2 && options.every(o => o.text.trim()) && options.some(o => o.correct);
 
     const buildSolution = () => {
-      const correctOpts = options.filter(o => o.correct).map(o => ({ text: o.text, explaination: o.explaination }));
-      const incorrectOpts = options.filter(o => !o.correct).map(o => ({ text: o.text, explaination: o.explaination }));
+      const correctOpts = options.filter(o => o.correct).map(o => ({ 
+        text: o.text, 
+        explaination: o.explaination.trim() || "Nil" 
+      }));
+      const incorrectOpts = options.filter(o => !o.correct).map(o => ({ 
+        text: o.text, 
+        explaination: o.explaination.trim() || "Nil" 
+      }));
       if (normalized.type === 'SELECT_ONE_IN_LOT') {
         return {
           correctLotItem: correctOpts[0] || { text: '', explaination: '' },

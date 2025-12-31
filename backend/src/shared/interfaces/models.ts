@@ -44,6 +44,15 @@ export interface ICourseVersion {
   description: string;
   modules: IModule[];
   totalItems?: number;
+  itemCounts?: {
+    VIDEO?: number;
+    QUIZ?: number;
+    BLOG?: number;
+    PROJECT?: number;
+    FEEDBACK?: number;
+  };
+  isDeleted?: boolean;
+  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,7 +62,10 @@ export interface IModule {
   name: string;
   description: string;
   order: string;
+  isHidden: boolean;
   sections: ISection[];
+  isDeleted?: boolean;
+  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -63,9 +75,20 @@ export interface ISection {
   name: string;
   description: string;
   order: string;
+  isHidden: boolean;
   itemsGroupId?: ID;
+  isDeleted?: boolean;
+  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface IItemGroupInfo {
+  courseVersionId: ID;
+  moduleId: ID;
+  moduleName: string;
+  sectionId: ID;
+  sectionName: string;
 }
 
 export interface IItemId {
@@ -81,6 +104,8 @@ export interface IItem {
   createdAt: Date;
   type: 'VIDEO' | 'QUIZ' | 'BLOG';
   itemId: string;
+  isDeleted?: boolean;
+  deletedAt?: Date;
 }
 
 export interface IVideoItem {
@@ -144,6 +169,7 @@ export interface IQuestionOptionsLot {
 export interface IQuesionOptionsLotItem {
   _id: string;
   itemText: string;
+  explaination: string;
 }
 
 export interface ISOLQuestionSolution {
@@ -270,6 +296,7 @@ export enum ItemType {
   QUIZ = 'QUIZ',
   BLOG = 'BLOG',
   PROJECT = 'PROJECT',
+  FEEDBACK = 'FEEDBACK',
 }
 
 export interface IBaseItem {
@@ -343,6 +370,11 @@ export interface IBlogDetails {
   estimatedReadTimeInMinutes: number;
 }
 
+export interface IFeedBackFormDetails {
+  jsonSchema: Record<string, any>;
+  uiSchema: Record<string, any>;
+}
+
 export type EnrollmentRole =
   | 'INSTRUCTOR'
   | 'STUDENT'
@@ -360,6 +392,7 @@ export interface IEnrollment {
   status: EnrollmentStatus;
   enrollmentDate: Date;
   percentCompleted: number;
+  completedItemsCount?: number;
 }
 
 export interface IProgress {
@@ -371,6 +404,7 @@ export interface IProgress {
   currentSection: string | ObjectId;
   currentItem: string | ObjectId;
   completed: boolean;
+  completedAt?: Date;
 }
 
 export interface IWatchTime {
@@ -565,6 +599,10 @@ export class BulkEnrollmentsQuery {
   @IsOptional()
   @IsString()
   courseId?: string;
+
+  @IsOptional()
+  @IsString()
+  userId?: string;
 }
 
 export interface IUserAnomaly {
@@ -619,4 +657,33 @@ export interface ICourseRegistration {
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+export interface TranscriptResponse {
+  segmentNumber: number;
+  timestamp: string;
+  questions: TranscriptQuestion[];
+}
+
+export interface TranscriptQuestion {
+  sno: number;
+  question: string;
+  hint: string;
+  options: TranscriptOptions;
+  explanations: TranscriptExplanations;
+  correctAnswer: string;
+}
+
+export interface TranscriptOptions {
+  A: string;
+  B: string;
+  C: string;
+  D: string;
+}
+
+export interface TranscriptExplanations {
+  A: string;
+  B: string;
+  C: string;
+  D: string;
 }

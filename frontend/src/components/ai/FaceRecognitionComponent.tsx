@@ -73,42 +73,102 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
   useEffect(() => {
     let isMounted = true;
 
-    const initializeModels = async () => {
-      try {
-        updateDebugInfo({ backendStatus: 'loading' });
-        
-        const modelUrl = '/models/face-api/model';
-        
-        await Promise.all([
-          faceapi.nets.ssdMobilenetv1.loadFromUri(modelUrl),
-          faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl),
-          faceapi.nets.faceRecognitionNet.loadFromUri(modelUrl)
-        ]);
-        
-        if (isMounted) {
-          await loadKnownFaces();
+      const initializeModels = async () => {
+        try {
+          updateDebugInfo({ backendStatus: 'loading' });
+          
+          // Try multiple possible model paths
+          const possiblePaths = [
+            '/models',
+            '/face-api-models',
+            'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model',
+            './models'
+          ];
+          
+          let modelsLoaded = false;
+          let lastErrorMessage = '';
+          
+          for (const modelPath of possiblePaths) {
+            try {
+              console.log(`[FaceRecognitionComponent] Trying to load models from: ${modelPath}`);
+              
+              await Promise.all([
+                faceapi.nets.ssdMobilenetv1.loadFromUri(modelPath),
+                faceapi.nets.faceLandmark68Net.loadFromUri(modelPath),
+                faceapi.nets.faceRecognitionNet.loadFromUri(modelPath)
+              ]);
+              
+              console.log(`✅ Models loaded successfully from: ${modelPath}`);
+              modelsLoaded = true;
+              break;
+            } catch (pathError: unknown) {
+              const errorMessage = pathError instanceof Error ? pathError.message : String(pathError);
+              console.warn(`Failed to load from ${modelPath}:`, errorMessage);
+              lastErrorMessage = errorMessage;
+              continue;
+            }
+          }
+          
+          if (!modelsLoaded) {
+            throw new Error(`Could not load models from any path. Last error: ${lastErrorMessage}`);
+          }
+          
+          if (isMounted) {
+            await loadKnownFaces();
+          }
+        } catch (error: unknown) {
+          console.error('[FaceRecognitionComponent] Error loading face-api models:', error);
+          if (isMounted) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            updateDebugInfo({
+              backendStatus: 'error',
+              errorMessage: `Failed to load models: ${errorMessage}`
+            });
+          }
         }
-      } catch (error) {
-        console.error('[FaceRecognitionComponent] Error loading face-api models:', error);
-        if (isMounted) {
-          updateDebugInfo({
-            backendStatus: 'error',
-            errorMessage: `Failed to load models: ${error}`
-          });
-        }
-      }
-    };
+      };
+
+    // const initializeModels = async () => {
+    //   try {
+    //     updateDebugInfo({ backendStatus: 'loading' });
+        
+    //     const modelUrl = '/models/face-api/model';
+        
+    //     await Promise.all([
+    //       faceapi.nets.ssdMobilenetv1.loadFromUri(modelUrl),
+    //       faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl),
+    //       faceapi.nets.faceRecognitionNet.loadFromUri(modelUrl)
+    //     ]);
+        
+    //     if (isMounted) {
+    //       await loadKnownFaces();
+    //     }
+    //   } catch (error) {
+    //     console.error('[FaceRecognitionComponent] Error loading face-api models:', error);
+    //     if (isMounted) {
+    //       updateDebugInfo({
+    //         backendStatus: 'error',
+    //         errorMessage: `Failed to load models: ${error}`
+    //       });
+    //     }
+    //   }
+    // };
 
     const loadKnownFaces = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_BASE_URL}/activity/known-faces`);
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        // Known Faces API call commented out temporarily - since it's unavailable
+        // const response = await fetch(`${import.meta.env.VITE_BASE_URL}/activity/known-faces`);
+
+        // if (!response.ok) {
+        //   throw new Error(`HTTP error! status: ${response.status}`);
+        // }
         
-        const data = await response.json();
-        const peopleData = data.faces || [];
+        // const data = await response.json();
+        // const peopleData = data.faces || [];
+
+        // Temporary placeholder for peopleData until API is restored
+        const peopleData: Array<{label: string; imagePaths: string[]}> = [];
         
         if (!Array.isArray(peopleData)) {
           console.error('[FaceRecognitionComponent] API response is not an array:', peopleData);

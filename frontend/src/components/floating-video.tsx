@@ -9,18 +9,13 @@ import FaceDetectors from './ai/FaceDetectors';
 import FaceRecognitionOverlay from './ai/FaceRecognitionOverlay';
 // import FaceRecognitionIntegrated from '../ai-components/FaceRecognitionIntegrated';
 import useCameraProcessor from './ai/useCameraProcessor';
-
-
 import { AnomalyType } from '@/types/reportanomaly.types';
-
 import { useAuthStore } from '@/store/auth-store';
-
 import { useCourseStore } from '@/store/course-store';
-
 import type { FloatingVideoProps } from '@/types/video.types';
 import { useReportAnomalyAudio, useReportAnomalyImage } from '@/hooks/hooks';
 
-let flag = 0;
+// let flag = 0;
 function FloatingVideo({
   isVisible = true,
   setDoGesture,
@@ -31,7 +26,7 @@ function FloatingVideo({
   setPauseVid,
   setAnomalies,
   readyToDetect,
-                setReadyToDetect,
+  setReadyToDetect,
   anomalies = []
 }: FloatingVideoProps): JSX.Element | null {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -49,8 +44,11 @@ function FloatingVideo({
    const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
+  const [isVideoActive, setIsVideoActive] = useState(false);
 
-
+  // Grace period state for anomaly detection
+  const [anomalyDetectionStartTime, setAnomalyDetectionStartTime] = useState<number | null>(null);
+  const gracePeriod = 10000; // 10 seconds grace period
 
   // Original aspect ratio (maintain the initial component ratio)
   const ORIGINAL_ASPECT_RATIO = 320 / 280; // width / height from initial size
@@ -70,8 +68,31 @@ function FloatingVideo({
   const [isThumbsUpChallenge, setIsThumbsUpChallenge] = useState(false);
   const [thumbsUpCountdown, setThumbsUpCountdown] = useState(0);
   const [lastChallengeTime, setLastChallengeTime] = useState(Date.now());
+
+  // Reset anomaly points when component mounts or visibility changes
+  useEffect(() => {
+    setContiguousAnomalyPoints(0);
+    setPenaltyPoints(0);
+    setAnomaly(false);
+    setRewindVid(false);
+    setPauseVid(false);
+    setAnomalyDetectionStartTime(null);
+  }, [setRewindVid, setPauseVid]);
+
   // Get our videoRef and face data from the custom hook
   const { videoRef, modelReady, faces } = useCameraProcessor(1);
+
+  // Use refs to track initialization without causing re-renders
+  const faceDetectorsKeyRef = useRef(0);
+  const initializedRef = useRef(false);
+
+   // Set grace period start time when ready
+  useEffect(() => {
+    if (modelReady && isVideoActive && readyToDetect && !anomalyDetectionStartTime) {
+      setAnomalyDetectionStartTime(Date.now());
+      console.log("⏰ Anomaly detection grace period started");
+    }
+  }, [modelReady, isVideoActive, readyToDetect, anomalyDetectionStartTime]);
 
   // Helper function to check if a specific proctoring component is enabled
   const isComponentEnabled = useCallback((componentName: string): boolean => {
@@ -93,7 +114,6 @@ function FloatingVideo({
   const isRighClickDisabled = isComponentEnabled("rightClickDisabled");
   const isFocusEnabled = false; //isComponentEnabled('focus');
 
-
   // Log enabled components for debugging
   // useEffect(() => {
   //   if (settings) {
@@ -111,15 +131,15 @@ function FloatingVideo({
   const courseStore = useCourseStore();
   // Handle face recognition results
   const handleFaceRecognitionResult = useCallback((recognitions: any[]) => {
-    console.log('🎯 [FloatingVideo] Face recognition callback triggered with recognitions:', recognitions);
+    // console.log('🎯 [FloatingVideo] Face recognition callback triggered with recognitions:', recognitions);
     setRecognizedFaces(recognitions);
 
     // Log additional info about the recognition
     const knownFaces = recognitions.filter(r => r.isMatch);
     if (knownFaces.length > 0) {
-      console.log('✅ [FloatingVideo] Known faces detected:', knownFaces.map(f => f.label).join(', '));
+      // console.log('✅ [FloatingVideo] Known faces detected:', knownFaces.map(f => f.label).join(', '));
     } else {
-      console.log('❓ [FloatingVideo] No known faces recognized');
+      // console.log('❓ [FloatingVideo] No known faces recognized');
     }
   }, []);
 
@@ -131,18 +151,29 @@ function FloatingVideo({
 
   // Store current media stream
   const [currentStream, setCurrentStream] = useState<MediaStream | null>(null);
-  const [faceDetectorsKey, setFaceDetectorsKey] = useState(0);
+  // const [faceDetectorsKey, setFaceDetectorsKey] = useState(0);
   const [aiComponentsKey, setAiComponentsKey] = useState(0);
-  if (flag === 0) {
-    setFaceDetectorsKey(prev => prev + 1);
-    flag++;
-  }
+  // if (flag === 0) {
+  //   setFaceDetectorsKey(prev => prev + 1);
+  //   flag++;
+  // }
+
+  // Use the ref value for the key
+  const currentFaceDetectorsKey = faceDetectorsKeyRef.current;
+
+   // Initialize face detectors key once on mount
+  useEffect(() => {
+    if (!initializedRef.current) {
+      faceDetectorsKeyRef.current += 1;
+      initializedRef.current = true;
+    }
+  }, []);
 
   useEffect(() => {
   if (modelReady) {
     // wait 5 seconds after models are ready before enabling anomaly detection
     const timer = setTimeout(() => {
-      console.log("[FloatingVideo] Environment ready, enabling anomaly detection");
+      // console.log("[FloatingVideo] Environment ready, enabling anomaly detection");
       setReadyToDetect(true);
     }, 5000);
 
@@ -153,7 +184,7 @@ function FloatingVideo({
 
   // Effect to handle isPoppedOut changes - reset everything
   useEffect(() => {
-    console.log('[FloatingVideo] isPoppedOut changed to:', isPoppedOut);
+    // console.log('[FloatingVideo] isPoppedOut changed to:', isPoppedOut);
     // Small delay to ensure DOM is ready, then restart video
     setTimeout(() => {
       restartVideo();
@@ -187,14 +218,20 @@ const lastCalledRef = useRef<number>(0);
       }
       lastCalledRef.current = now;
 
-
-
       if (anomaly && anomalyType !== "voiceDetection") {
-        const video = videoRef.current;
-        if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
-          console.log("Video not ready for screenshot");
-          return;
-        }
+      const video = videoRef.current;
+      if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+        console.log("Video not ready for screenshot");
+        return;
+      }
+      
+      // Add validation for course data
+      if (!courseStore.currentCourse?.courseId || 
+          !courseStore.currentCourse?.versionId || 
+          !courseStore.currentCourse?.itemId) {
+        console.log("Missing course data, skipping image report");
+        return;
+      }
 
         // to convert binary to File type
         function dataURLtoFile(dataurl: string, filename: string) {
@@ -221,11 +258,41 @@ const lastCalledRef = useRef<number>(0);
         const screenshot = canvas.toDataURL("image/png");
         const imageFile = dataURLtoFile(screenshot, "image");
 
+        // report anomaly type checking
+        let reportAnomalyType: AnomalyType;
+        if (anomalyType === "blurDetection") {
+          reportAnomalyType = AnomalyType.BLUR_DETECTION;
+        } else if (anomalyType === "faceCountDetection") {
+          // Differentiate between no face and multiple faces
+          if (facesCount === 0) {
+            reportAnomalyType = AnomalyType.NO_FACE;
+          } else if (facesCount > 1) {
+            reportAnomalyType = AnomalyType.MULTIPLE_FACES;
+          } else {
+            console.log("Invalid face count for anomaly reporting");
+            return;
+          }
+        } else {
+          console.log("Unknown anomaly type:", anomalyType);
+          return;
+        }
+
+        // let reportAnomalyType;
+        // if (anomalyType == "blurDetection") reportAnomalyType = "BLUR_DETECTION";
+        // if (anomalyType == "faceCountDetection") {
+        //   // Differentiate between no face and multiple faces
+        //   if (facesCount === 0) {
+        //     reportAnomalyType = "NO_FACE";
+        //   } else if (facesCount > 1) {
+        //     reportAnomalyType = "MULTIPLE_FACES";
+        //   }
+        // }
+
         // report anomaly type checking 
-        let reportAnomalyType;
-        if (anomalyType == "blurDetection") reportAnomalyType = "BLUR_DETECTION";
-        if (anomalyType == "faceCountDetection") reportAnomalyType = "MULTIPLE_FACES";
-        if (facesCount === 0) reportAnomalyType = "NO_FACE";
+        // let reportAnomalyType;
+        // if (anomalyType == "blurDetection") reportAnomalyType = "BLUR_DETECTION";
+        // if (anomalyType == "faceCountDetection") reportAnomalyType = "MULTIPLE_FACES";
+        // if (facesCount === 0) reportAnomalyType = "NO_FACE";
 
         // // Log for debugging
         // console.log("Image File", imageFile);
@@ -340,7 +407,8 @@ const lastCalledRef = useRef<number>(0);
 
       // Reset all AI components by incrementing their keys
       setAiComponentsKey(prev => prev + 1);
-      setFaceDetectorsKey(prev => prev + 1);
+      faceDetectorsKeyRef.current += 1;
+      // setFaceDetectorsKey(prev => prev + 1);
 
       // Get new stream with standard configuration
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -384,30 +452,112 @@ const lastCalledRef = useRef<number>(0);
     setFacesCount(faces.length);
   }, [faces, modelReady]);
 
-  // Update penalty score every second when anomalies are detected
+  // Debug why TensorFlow sees 0 faces
   useEffect(() => {
+    console.log('🔍 TensorFlow Face Detection Debug:', {
+      facesCount,
+      modelReady,
+      isVideoActive,
+      videoReady: videoRef.current?.readyState,
+      videoDimensions: {
+        width: videoRef.current?.videoWidth,
+        height: videoRef.current?.videoHeight
+      },
+      hasStream: !!videoRef.current?.srcObject
+    });
+  }, [facesCount, modelReady, isVideoActive]);
+
+  // Debug face detection
+  useEffect(() => {
+    if (faces.length > 0) {
+      // console.log('👤 [FloatingVideo] Faces detected:', {
+      //   count: faces.length,
+      //   details: faces.map(face => ({
+      //     // TensorFlow face detection properties
+      //     box: {
+      //       x: face.box?.xMin,
+      //       y: face.box?.yMin, 
+      //       width: face.box?.width,
+      //       height: face.box?.height
+      //     }
+      //   }))
+      // });
+    } else if (modelReady && isVideoActive) {
+      // console.log('❌ [FloatingVideo] No faces detected (camera active)');
+    }
+  }, [faces, modelReady, isVideoActive]);
+
+  // Update penalty score every second when anomalies are detected
+  // useEffect(() => {
+
+    // Don't run anomaly detection if camera isn't ready or no video stream
+    // if (!readyToDetect || !videoRef.current || !videoRef.current.srcObject) {
+    //   return;
+    // }
+
+    // const interval = setInterval(() => {
+    //   if (!readyToDetect || !videoRef.current || !videoRef.current.srcObject) {
+    //     return;
+    //   }
+  
+    // Update penalty score every second when anomalies are detected
+    useEffect(() => {
+    if (!readyToDetect || !videoRef.current || !isVideoActive) {
+      if (contiguousAnomalyPoints > 0) {
+        setContiguousAnomalyPoints(0); // Reset when video is not active
+      }
+      return;
+    }
+
+    // Grace period check
+    const currentTime = Date.now();
+    const isInGracePeriod = anomalyDetectionStartTime && 
+                            (currentTime - anomalyDetectionStartTime < gracePeriod);
+    
+    if (isInGracePeriod) {
+      const remainingGrace = gracePeriod - (currentTime - anomalyDetectionStartTime);
+      console.log(`⏳ In grace period: ${Math.ceil(remainingGrace / 1000)}s remaining`);
+      return; // Skip anomaly detection during grace period
+    }
+
     const interval = setInterval(() => {
-       if (!readyToDetect){ return; // 🚀 Skip anomaly detection until warmed up
-   }let newPenaltyPoints = 0;
+    if (!readyToDetect || !videoRef.current || !isVideoActive) {
+      return;
+    }
+      //  if (!readyToDetect){ return; // Skip anomaly detection until warmed up
+      // }
+      let newPenaltyPoints = 0;
       let newPenaltyType = "";
       setAnomalies(['']);
 
       // Condition 1: If speaking is detected (only if voice detection is enabled)
       if (isSpeaking === "Yes" && isVoiceDetectionEnabled) {
-        // setRewindVid(true);
         setPauseVid(true);
         setAnomalies([...anomalies, "voiceDetection"]);
         newPenaltyType = "Speaking";
         newPenaltyPoints += 1;
       }
 
-      // Condition 2: If faces count is not exactly 1 (only if face count detection is enabled)
-      if (facesCount !== 1 && isFaceCountDetectionEnabled) {
-        setRewindVid(true);
-        setPauseVid(true);
-        setAnomalies([...anomalies, "faceCountDetection"]);
-        newPenaltyType = "Faces Count";
-        newPenaltyPoints += 1;
+      // Condition 2: Handle different face count scenarios separately (only if face count detection is enabled)
+      if (isFaceCountDetectionEnabled && modelReady) {
+        if (facesCount === 0) {
+          // No faces detected - this might be normal during initialization
+          // Only penalize if we're sure the camera is active and should see a face
+          if (isVideoActive && readyToDetect) {
+            setPauseVid(true); // Just pause, don't rewind
+            setAnomalies([...anomalies, "faceCountDetection"]);
+            newPenaltyType = "No Face Detected";
+            newPenaltyPoints += 1;
+          }
+        } else if (facesCount > 1) {
+          // Multiple faces detected - this is an anomaly
+          setRewindVid(true);
+          setPauseVid(true);
+          setAnomalies([...anomalies, "faceCountDetection"]);
+          newPenaltyType = "Multiple Faces";
+          newPenaltyPoints += 2; // More severe penalty for multiple faces
+        }
+        // facesCount === 1 is normal, no penalty
       }
 
       // Condition 3: If the screen is blurred (only if blur detection is enabled)
@@ -423,6 +573,38 @@ const lastCalledRef = useRef<number>(0);
         newPenaltyType = "Focus";
         newPenaltyPoints += 1;
       }
+
+      // // Condition 1: If speaking is detected (only if voice detection is enabled)
+      // if (isSpeaking === "Yes" && isVoiceDetectionEnabled) {
+      //   // setRewindVid(true);
+      //   setPauseVid(true);
+      //   setAnomalies([...anomalies, "voiceDetection"]);
+      //   newPenaltyType = "Speaking";
+      //   newPenaltyPoints += 1;
+      // }
+
+      // // Condition 2: If faces count is not exactly 1 (only if face count detection is enabled)
+      // if (facesCount !== 1 && isFaceCountDetectionEnabled && modelReady) {
+      //   setRewindVid(true);
+      //   setPauseVid(true);
+      //   setAnomalies([...anomalies, "faceCountDetection"]);
+      //   newPenaltyType = "Faces Count";
+      //   newPenaltyPoints += 1;
+      // }
+
+      // // Condition 3: If the screen is blurred (only if blur detection is enabled)
+      // if (isBlur === "Yes" && isBlurDetectionEnabled) {
+      //   setAnomalies([...anomalies, "blurDetection"]);
+      //   newPenaltyType = "Blur";
+      //   newPenaltyPoints += 1;
+      // }
+
+      // // Condition 4: If not focused (only if focus tracking is enabled)
+      // if (!isFocused && isFocusEnabled) {
+      //   setAnomalies([...anomalies, "focus"]);
+      //   newPenaltyType = "Focus";
+      //   newPenaltyPoints += 1;
+      // }
       // console.log("[anomaly]",anomalies);
 
       // If there are any new penalty points, increment the cumulative score
@@ -479,7 +661,12 @@ const lastCalledRef = useRef<number>(0);
     pauseVid,
     setPauseVid,
     contiguousAnomalyPoints,
+    modelReady,
+    anomalyDetectionStartTime,
+    gracePeriod
   ]);
+
+
   const min = 2 * 60 * 1000;
   const max = 5 * 60 * 1000;
   // Random thumbs-up challenge system - only run if gesture detection is enabled
@@ -669,6 +856,81 @@ const lastCalledRef = useRef<number>(0);
     };
   }, [isDragging, isResizing, handleMouseMove]);
 
+  // Comprehensive face detection debug
+  useEffect(() => {
+    // console.log('🔍 [FloatingVideo] FACE DETECTION DEBUG:', {
+    //   // TensorFlow detection
+    //   tensorFlowFaces: faces.length,
+    //   tensorFlowFacesCount: facesCount,
+      
+    //   // Face-api.js recognition  
+    //   recognizedFacesCount: recognizedFaces.length,
+      
+    //   // System states
+    //   modelReady,
+    //   isVideoActive,
+    //   readyToDetect,
+      
+    //   // Video status
+    //   videoReady: videoRef.current?.readyState,
+    //   videoWidth: videoRef.current?.videoWidth,
+    //   videoHeight: videoRef.current?.videoHeight,
+    //   hasStream: !!videoRef.current?.srcObject
+    // });
+
+    // Log actual face data if available
+    if (faces.length > 0) {
+      console.log('👤 TensorFlow Face Details:', faces);
+    }
+    if (recognizedFaces.length > 0) {
+      console.log('🎭 Face-api Recognition Details:', recognizedFaces);
+    }
+  }, [faces, facesCount, recognizedFaces, modelReady, isVideoActive, readyToDetect]);
+
+  // Monitor video stream state
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const checkStreamState = () => {
+      const hasStream = !!video.srcObject;
+      const isPlaying = !video.paused && !video.ended && video.readyState > 2;
+      const isActive = hasStream && isPlaying;
+      setIsVideoActive(isActive);
+      
+      // Debug log
+      if (!isActive) {
+        console.log('[FloatingVideo] Video not active:', {
+          hasStream,
+          isPlaying,
+          paused: video.paused,
+          ended: video.ended,
+          readyState: video.readyState
+        });
+      }
+    };
+
+  // Check initially
+  checkStreamState();
+
+  // Set up interval to check stream state
+  const interval = setInterval(checkStreamState, 2000);
+
+  // Listen for video events
+  video.addEventListener('play', checkStreamState);
+  video.addEventListener('pause', checkStreamState);
+  video.addEventListener('ended', checkStreamState);
+  video.addEventListener('loadedmetadata', checkStreamState);
+
+  return () => {
+    clearInterval(interval);
+    video.removeEventListener('play', checkStreamState);
+    video.removeEventListener('pause', checkStreamState);
+    video.removeEventListener('ended', checkStreamState);
+    video.removeEventListener('loadedmetadata', checkStreamState);
+  };
+}, [videoRef]);
+
   // Enhanced video lifecycle management
   useEffect(() => {
     const video = videoRef.current;
@@ -741,6 +1003,12 @@ const lastCalledRef = useRef<number>(0);
     setIsCollapsed(!isCollapsed);
   };
 
+  // Calculate grace period remaining
+  const currentTime = Date.now();
+  const isInGracePeriod = anomalyDetectionStartTime && 
+                          (currentTime - anomalyDetectionStartTime < gracePeriod);
+  const remainingGrace = isInGracePeriod ? gracePeriod - (currentTime - anomalyDetectionStartTime) : 0;
+
   const floatingVideoContent = (
     <div
       ref={containerRef}
@@ -762,6 +1030,14 @@ const lastCalledRef = useRef<number>(0);
       }}
       onMouseDown={isPoppedOut ? handleMouseDown : undefined}
     >
+
+      {/* Grace period status display */}
+      {isInGracePeriod && (
+        <div className="absolute top-2 left-2 bg-blue-500 text-white px-2 py-1 rounded text-xs z-50">
+          ⏳ Calibrating: {Math.ceil(remainingGrace / 1000)}s
+        </div>
+      )}
+
       {/* Header - Anomaly state */}
       {isAnomaliesDetected && (
         <div className="bg-green-600 text-white px-3 py-1 flex justify-between items-center text-sm min-h-[34px]">
@@ -1084,14 +1360,27 @@ const lastCalledRef = useRef<number>(0);
         )}
         {(isFaceCountDetectionEnabled || isFaceRecognitionEnabled || isFocusEnabled) && (
           <FaceDetectors 
-            key={`face-${faceDetectorsKey}`}
+            key={`face-${faceDetectorsKeyRef.current}`}
             faces={faces} 
-            setIsFocused={()=>{}} // CHANGE THIS LATER.
+            setIsFocused={()=>{}}
             videoRef={videoRef}
             onRecognitionResult={handleFaceRecognitionResult}
-            // onDebugInfoUpdate={handleFaceRecognitionDebugUpdate}
-            settings={isFaceCountDetectionEnabled, isFaceRecognitionEnabled, isFocusEnabled}
+            settings={{
+              isFaceCountDetectionEnabled,
+              isFaceRecognitionEnabled, 
+              isFocusEnabled
+            }}
           />
+  
+          // <FaceDetectors 
+          //   key={`face-${faceDetectorsKey}`}
+          //   faces={faces} 
+          //   setIsFocused={()=>{}} // CHANGE THIS LATER.
+          //   videoRef={videoRef}
+          //   onRecognitionResult={handleFaceRecognitionResult}
+          //   // onDebugInfoUpdate={handleFaceRecognitionDebugUpdate}
+          //   settings={isFaceCountDetectionEnabled, isFaceRecognitionEnabled, isFocusEnabled}
+          // />
         )}
       </div>
 

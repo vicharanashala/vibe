@@ -118,13 +118,28 @@ class InviteQueryParams {
     minimum: 1,
   })
   limit: number = 10;
+
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    description: 'Filter invites from this date (ISO 8601 format)',
+    example: '2025-01-01',
+  })
+  startDate?: string;
+
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    description: 'Filter invites until this date (ISO 8601 format)',
+    example: '2025-12-31',
+  })
+  endDate?: string;
 }
 
 class EmailInvite {
   @JSONSchema({
     description: 'Email address of the user to be invited',
     type: 'string',
-    format: 'email',
     example: 'user@example.com',
   })
   @IsEmail()
@@ -144,6 +159,11 @@ class EmailInvite {
 }
 
 class InviteBody {
+  @JSONSchema({
+    description: 'Array of email invitations (maximum 500)',
+    type: 'array',
+    maxItems: 500,
+  })
   @IsArray()
   @ArrayNotEmpty()
   @ValidateNested({each: true})
@@ -162,7 +182,6 @@ class InviteResult {
   @JSONSchema({
     description: 'Unique identifier for the invite',
     type: 'string',
-    format: 'Mongo Object ID',
     example: '60c72b2f9b1e8d3f4c8b4567',
   })
   @IsString()
@@ -235,7 +254,7 @@ class InviteResult {
   @Transform(StringToObjectId.transformer, {toClassOnly: true})
   @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
   @Type(() => Course)
-  @ValidateNested({each: true})
+  @ValidateNested()
   course?: Course;
 
   constructor(
@@ -262,6 +281,9 @@ class InviteResult {
 }
 
 class InviteResponse {
+  @JSONSchema({
+    description:'Results of the invite'
+  })
   @IsArray()
   @ArrayNotEmpty()
   @ValidateNested({each: true})
@@ -270,10 +292,16 @@ class InviteResponse {
 
   @IsOptional()
   @IsInt()
+  @JSONSchema({
+    description:'total documents returned'
+  })
   totalDocuments?: number;
 
   @IsOptional()
   @IsInt()
+  @JSONSchema({
+    description:'total pages'
+  })
   totalPages?: number;
 
   constructor(
@@ -287,6 +315,15 @@ class InviteResponse {
   }
 }
 
+class InviteLinkResponse {
+  @JSONSchema({
+    description:'Invite link',
+  })
+  @IsString()
+  link: string;
+
+}
+
 export {
   InviteBody,
   CourseAndVersionId,
@@ -295,5 +332,6 @@ export {
   InviteResult,
   InviteIdParams,
   InviteQueryParams,
-  CourseVersionIdParams
+  CourseVersionIdParams,
+  InviteLinkResponse
 };

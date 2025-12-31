@@ -92,7 +92,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
     // State for fields
     const [name, setName] = useState(item?.name || "");
     const [description, setDescription] = useState(item?.description || "");
-    const [url, setUrl] = useState(item?.details.URL || "");
+    const [url, setUrl] = useState(item?.details?.URL || "");
     const [duration, setDuration] = useState(0);
     const [playerReady, setPlayerReady] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
@@ -103,14 +103,14 @@ const VideoModal: React.FC<VideoModalProps> = ({
     });
 
     const [range, setRange] = useState<[number, number]>([
-        item?.details.startTime ? parseTimeToSeconds(item.details.startTime) : 0,
-        item?.details.endTime ? parseTimeToSeconds(item.details.endTime) : 0,
+        item?.details?.startTime ? parseTimeToSeconds(item.details?.startTime) : 0,
+        item?.details?.endTime ? parseTimeToSeconds(item.details?.endTime) : 0,
     ]);
-    const [videoId, setVideoId] = useState<string | null>(getYouTubeId(item?.details.URL+"?rel=0" || ""));
-    const [points, setPoints] = useState<number>(item?.details.points ?? 0);
+    const [videoId, setVideoId] = useState<string | null>(getYouTubeId(item?.details?.URL+"?rel=0" || ""));
+    const [points, setPoints] = useState<number>(item?.details?.points ?? 0);
     const [timeInputs, setTimeInputs] = useState({
-        start: item?.details.startTime || "0:00:00",
-        end: item?.details.endTime || "0:00:00",
+        start: item?.details?.startTime || "0:00:00",
+        end: item?.details?.endTime || "0:00:00",
     });
 
     const playerRef = useRef<any>(null);
@@ -141,11 +141,11 @@ const VideoModal: React.FC<VideoModalProps> = ({
     useEffect(() => {
         setName(item?.name || "");
         setDescription(item?.description || "");
-        setUrl(item?.details.URL || "");
-        setPoints(item?.details.points ?? 0);
+        setUrl(item?.details?.URL || "");
+        setPoints(item?.details?.points ?? 0);
         
-        const startTime = item?.details.startTime || "0:00:00";
-        const endTime = item?.details.endTime || "0:00:00";
+        const startTime = item?.details?.startTime || "0:00:00";
+        const endTime = item?.details?.endTime || "0:00:00";
         
         setRange([
             parseTimeToSeconds(startTime),
@@ -158,13 +158,18 @@ const VideoModal: React.FC<VideoModalProps> = ({
         });
         
         setVideoId(getYouTubeId((item?.details.URL ?? "") + "?rel=0"));
-        setPlayerReady(false);
+        // setPlayerReady(false);
         setDuration(0);
         setCurrentTime(0);
     }, [item]);
 
+    
+// useEffect(() => {
+//   setPlayerReady(false);   // ✅ move it here
+// }, [videoId]);
     // Create/destroy player on videoId change
     useEffect(() => {
+        setPlayerReady(false)
         if (!videoId || !iframeRef.current || !(window.YT && window.YT.Player)) return;
 
         playerRef.current = new window.YT.Player(iframeRef.current, {
@@ -408,7 +413,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
     return (
         <>
             {isLoading ? <Loader /> :
-                <div className={`bg-background ${url && "mt-45"} rounded-lg border p-6 min-w-[700px] backdrop-blur-md bg-background/80`}>
+                <div className={`bg-background rounded-lg border p-6 xl:min-w-[700px] backdrop-blur-md bg-background/80`}>
                     <div className="mb-4 flex justify-between items-center">
                         <h2 className="text-lg font-semibold">
                             {action === "add" && "Add Video"}
@@ -536,10 +541,10 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                         msUserSelect: 'none',
                                         flexShrink: 0,
                                     }}
-                                    className="md:flex items-center justify-start relative gap-2"
+                                    className="xl:flex items-center justify-start relative gap-2"
                                 >
                                     <div className="flex flex-col gap-2">
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center lg:gap-2 gap-6 lg:flex-row flex-col">
                                             <div>
                                                 <div className="flex items-center gap-2">
                                                     <label className="font-medium mr-2">Start Time (mm:ss):</label>
@@ -549,7 +554,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                                             value={timeInputs.start}
                                                             onChange={e => handleTimeInputChange('start', e.target.value)}
                                                             onBlur={() => handleTimeInputBlur('start')}
-                                                            disabled={!playerReady || action === "view"}
+                                                            disabled={action === "view"}
                                                             style={{ width: 100 }}
                                                             placeholder="0:00"
                                                             maxLength={5}
@@ -570,7 +575,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                                             value={timeInputs.end}
                                                             onChange={e => handleTimeInputChange('end', e.target.value)}
                                                             onBlur={() => handleTimeInputBlur('end')}
-                                                            disabled={!playerReady || action === "view"}
+                                                            disabled={action === "view"}
                                                             style={{ width: 100 }}
                                                             placeholder="0:00"
                                                             maxLength={5}
@@ -585,7 +590,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                         </div>
                                     </div>
                                     {/* Go to Start/End Buttons */}
-                                    <div className="mt-4 md:mt-0" style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                                    <div className="mt-4 xl:mt-0 justify-center" style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
                                         <Button
                                             variant="secondary"
                                             size="sm"

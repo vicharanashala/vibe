@@ -1,10 +1,10 @@
-import {IProgress, IWatchTime} from '#shared/interfaces/models.js';
-import {IAttempt} from '#quizzes/interfaces/grading.js';
-import {injectable, inject} from 'inversify';
-import {Collection, ObjectId, ClientSession} from 'mongodb';
-import {MongoDatabase} from '../MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {InternalServerError} from 'routing-controllers';
+import { IProgress, IWatchTime } from '#shared/interfaces/models.js';
+import { IAttempt } from '#quizzes/interfaces/grading.js';
+import { injectable, inject } from 'inversify';
+import { Collection, ObjectId, ClientSession } from 'mongodb';
+import { MongoDatabase } from '../MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { InternalServerError } from 'routing-controllers';
 
 type CurrentProgress = Pick<
   IProgress,
@@ -16,10 +16,17 @@ class ProgressRepository {
   private progressCollection!: Collection<IProgress>;
   private watchTimeCollection!: Collection<IWatchTime>;
   private attemptCollection: Collection<IAttempt>;
+  private initialized = false;
 
-  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
+  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
 
   private async init() {
+    // Initialize only once to prevent catalog change errors
+    if (this.initialized) {
+      return;
+    }
+    this.initialized = true;
+
     this.progressCollection = await this.db.getCollection<IProgress>(
       'progress',
     );
@@ -29,6 +36,46 @@ class ProgressRepository {
     this.attemptCollection = await this.db.getCollection<IAttempt>(
       'quiz_attempts',
     );
+
+    // Create indexes with background: true and error handling
+    try {
+      await this.progressCollection.createIndex(
+        {
+          userId: 1,
+          courseId: 1,
+          courseVersionId: 1,
+        },
+        { background: true },
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      await this.watchTimeCollection.createIndex(
+        {
+          userId: 1,
+          courseId: 1,
+          courseVersionId: 1,
+          itemId: 1,
+        },
+        { background: true },
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      await this.attemptCollection.createIndex(
+        {
+          userId: 1,
+          quizId: 1,
+        },
+        { background: true },
+      );
+    } catch (e) {
+      // Index already exists
+    }
   }
 
   async getCompletedItems(
@@ -39,19 +86,44 @@ class ProgressRepository {
   ): Promise<string[]> {
     await this.init();
 
-
     const distinctItemIds = await this.watchTimeCollection.distinct(
       'itemId',
       {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
+        isDeleted: { $ne: true },
       },
-      {session},
+      { session },
     );
 
     return distinctItemIds.map(id => id.toString());
+  }
 
+  async isItemCompleted(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    itemId: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+
+    const result = await this.watchTimeCollection.findOne(
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        itemId: new ObjectId(itemId),
+        isDeleted: { $ne: true },
+      },
+      {
+        projection: { _id: 1 },
+        session,
+      },
+    );
+
+    return !!result;
   }
 
   async getAllWatchTime(
@@ -60,8 +132,8 @@ class ProgressRepository {
   ): Promise<IWatchTime[]> {
     await this.init();
     const result = await this.watchTimeCollection
-      .find({userId: new ObjectId(userId)}, {session})
-      .toArray();   
+      .find({ userId: new ObjectId(userId), isDeleted: { $ne: true } }, { session })
+      .toArray();
     return result.map(item => ({
       ...item,
       _id: item._id.toString(),
@@ -77,9 +149,10 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
-    await this.watchTimeCollection.deleteMany(
-      {itemId: new ObjectId(itemId)},
-      {session},
+    await this.watchTimeCollection.updateMany(
+      { itemId: new ObjectId(itemId) },
+      { $set: { isDeleted: true, deletedAt: new Date() } },
+      { session },
     );
   }
 
@@ -88,11 +161,12 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
-    const result = await this.watchTimeCollection.deleteMany(
-      {courseId: new ObjectId(courseId)},
-      {session},
+    const result = await this.watchTimeCollection.updateMany(
+      { courseId: new ObjectId(courseId) },
+      { $set: { isDeleted: true, deletedAt: new Date() } },
+      { session },
     );
-    if (result.deletedCount === 0) {
+    if (result.modifiedCount === 0) {
       throw new Error(`No watch time records found for course ID: ${courseId}`);
     }
   }
@@ -102,11 +176,12 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
-    const result = await this.watchTimeCollection.deleteMany(
-      {courseVersionId: new ObjectId(courseVersionId)},
-      {session},
+    const result = await this.watchTimeCollection.updateMany(
+      { courseVersionId: new ObjectId(courseVersionId) },
+      { $set: { isDeleted: true, deletedAt: new Date() } },
+      { session },
     );
-    if (result.deletedCount === 0) {
+    if (result.modifiedCount === 0) {
       console.log(
         `No watch time records found for version ID: ${courseVersionId}`,
       );
@@ -120,11 +195,12 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
-    const result = await this.watchTimeCollection.deleteMany(
-      {userId: new ObjectId(userId), courseId: new ObjectId(courseId)},
-      {session},
+    const result = await this.watchTimeCollection.updateMany(
+      { userId: new ObjectId(userId), courseId: new ObjectId(courseId) },
+      { $set: { isDeleted: true, deletedAt: new Date() } },
+      { session },
     );
-    if (result.deletedCount === 0) {
+    if (result.modifiedCount === 0) {
       throw new Error(
         `No watch time records found for user ID: ${userId} and course ID: ${courseId}`,
       );
@@ -138,16 +214,17 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
-    const result = await this.watchTimeCollection.deleteMany(
+    const result = await this.watchTimeCollection.updateMany(
       {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      {session},
+      { $set: { isDeleted: true, deletedAt: new Date() } },
+      { session },
     );
 
-    if (result?.deletedCount === 0) {
+    if (result?.modifiedCount === 0) {
       console.log(
         `No watch time records found for course version ID: ${courseVersionId}, user ID: ${userId} and course ID: ${courseId}`,
       );
@@ -159,36 +236,37 @@ class ProgressRepository {
     userId: string,
     itemId: string,
     session?: ClientSession,
-  ): Promise<{deletedCount: number; remainingCount: number}> {
+  ): Promise<{ deletedCount: number; remainingCount: number }> {
     await this.init();
 
-    const deleteResult = await this.watchTimeCollection.deleteMany(
+    const deleteResult = await this.watchTimeCollection.updateMany(
       {
         userId: new ObjectId(userId),
         itemId: new ObjectId(itemId),
       },
-      {session},
+      { $set: { isDeleted: true, deletedAt: new Date() } },
+      { session },
     );
 
     const distinctItems = await this.watchTimeCollection.distinct(
       'itemId',
-      {userId: new ObjectId(userId)},
-      {session},
+      { userId: new ObjectId(userId) },
+      { session },
     );
 
     return {
-      deletedCount: deleteResult.deletedCount ?? 0,
+      deletedCount: deleteResult.modifiedCount ?? 0,
       remainingCount: distinctItems.length,
     };
   }
 
   async executeBulkAttemptDelete(
-    operations: Array<{deleteOne: {filter: any}}>,
+    operations: Array<{ deleteOne: { filter: any } }>,
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
     if (operations.length) {
-      await this.attemptCollection.bulkWrite(operations, {session});
+      await this.attemptCollection.bulkWrite(operations, { session });
     }
   }
 
@@ -198,13 +276,13 @@ class ProgressRepository {
     maxAttemptsMap: Record<string, number>,
     session?: ClientSession,
   ): Promise<{
-    attemptDeletes: Array<{deleteOne: {filter: any}}>;
-    metricsUpdates: Array<{updateOne: {filter: any; update: any}}>;
+    attemptDeletes: Array<{ deleteOne: { filter: any } }>;
+    metricsUpdates: Array<{ updateOne: { filter: any; update: any } }>;
     submissionDeletes: string[];
   }> {
     await this.init();
-    const attemptDeletes: Array<{deleteOne: {filter: any}}> = [];
-    const metricsUpdates: Array<{updateOne: {filter: any; update: any}}> = [];
+    const attemptDeletes: Array<{ deleteOne: { filter: any } }> = [];
+    const metricsUpdates: Array<{ updateOne: { filter: any; update: any } }> = [];
     let submissionDeletes: string[] = [];
 
     for (const quizIdRaw of quizItemIds) {
@@ -217,12 +295,12 @@ class ProgressRepository {
       const docsToDelete = await this.attemptCollection
         .find(
           {
-            userId: {$in: [userIdStr, userIdObj]},
-            quizId: {$in: [quizIdStr, quizIdObj]},
+            userId: { $in: [userIdStr, userIdObj] },
+            quizId: { $in: [quizIdStr, quizIdObj] },
           },
-          {session},
+          { session },
         )
-        .project({_id: 1})
+        .project({ _id: 1 })
         .toArray();
 
       // 2. If no docs then no need to include in bulk operation
@@ -232,8 +310,8 @@ class ProgressRepository {
       attemptDeletes.push({
         deleteOne: {
           filter: {
-            userId: {$in: [userIdStr, userIdObj]},
-            quizId: {$in: [quizIdStr, quizIdObj]},
+            userId: { $in: [userIdStr, userIdObj] },
+            quizId: { $in: [quizIdStr, quizIdObj] },
           },
         },
       });
@@ -242,8 +320,8 @@ class ProgressRepository {
       metricsUpdates.push({
         updateOne: {
           filter: {
-            quizId: {$in: [quizIdStr, quizIdObj]},
-            userId: {$in: [userIdStr, userIdObj]},
+            quizId: { $in: [quizIdStr, quizIdObj] },
+            userId: { $in: [userIdStr, userIdObj] },
           },
           update: {
             $set: {
@@ -263,7 +341,7 @@ class ProgressRepository {
       );
     }
 
-    return {attemptDeletes, metricsUpdates, submissionDeletes};
+    return { attemptDeletes, metricsUpdates, submissionDeletes };
   }
 
   async deleteUserQuizAttemptsByCourseVersion(
@@ -274,8 +352,8 @@ class ProgressRepository {
     try {
       await this.init();
       const docsToDelete = await this.attemptCollection
-        .find({userId, quizId}, {session})
-        .project({_id: 1})
+        .find({ userId, quizId }, { session })
+        .project({ _id: 1 })
         .toArray();
 
       // if (!docsToDelete?.length) {
@@ -284,7 +362,7 @@ class ProgressRepository {
       //   );
       // }
 
-      await this.attemptCollection.deleteMany({userId, quizId}, {session});
+      await this.attemptCollection.deleteMany({ userId, quizId }, { session });
 
       return docsToDelete.map(doc => doc._id.toString());
     } catch (error) {
@@ -306,6 +384,7 @@ class ProgressRepository {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
+        isDeleted: { $ne: true },
       },
       {
         session,
@@ -320,12 +399,13 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
-    await this.progressCollection.deleteOne(
+    await this.progressCollection.updateOne(
       {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
+      { $set: { isDeleted: true, deletedAt: new Date() } },
       {
         session,
       },
@@ -338,7 +418,7 @@ class ProgressRepository {
   ): Promise<IProgress | null> {
     await this.init();
     return await this.progressCollection.findOne(
-      {_id: new ObjectId(id)},
+      { _id: new ObjectId(id), isDeleted: { $ne: true } },
       {
         session,
       },
@@ -353,14 +433,36 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<IProgress | null> {
     await this.init();
+    console.log(
+      '<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Hey from updated progress REPO>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>',
+    );
+    const normalizedProgress: Partial<CurrentProgress> = {
+      ...progress,
+
+      currentModule:
+        typeof progress.currentModule === 'string'
+          ? new ObjectId(progress.currentModule)
+          : progress.currentModule,
+
+      currentSection:
+        typeof progress.currentSection === 'string'
+          ? new ObjectId(progress.currentSection)
+          : progress.currentSection,
+
+      currentItem:
+        typeof progress.currentItem === 'string'
+          ? new ObjectId(progress.currentItem)
+          : progress.currentItem,
+    };
+
     const result = await this.progressCollection.findOneAndUpdate(
       {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      {$set: progress},
-      {returnDocument: 'after', session},
+      { $set: normalizedProgress },
+      { returnDocument: 'after', session },
     );
     return result;
   }
@@ -370,7 +472,7 @@ class ProgressRepository {
     session: ClientSession,
   ): Promise<IProgress> {
     await this.init();
-    const result = await this.progressCollection.insertOne(progress, {session});
+    const result = await this.progressCollection.insertOne(progress, { session });
     const newProgress = await this.progressCollection.findOne(
       {
         _id: result.insertedId,
@@ -406,10 +508,6 @@ class ProgressRepository {
     return result.insertedId.toString();
   }
   async stopItemTracking(
-    userId: string | ObjectId,
-    courseId: string,
-    courseVersionId: string,
-    itemId: string,
     watchTimeId: string,
     session?: ClientSession,
   ): Promise<IWatchTime | null> {
@@ -417,14 +515,12 @@ class ProgressRepository {
     const result = await this.watchTimeCollection.findOneAndUpdate(
       {
         _id: new ObjectId(watchTimeId),
-        userId: new ObjectId(userId),
-        courseId: new ObjectId(courseId),
-        courseVersionId: new ObjectId(courseVersionId),
-        itemId: new ObjectId(itemId),
+        isDeleted: { $ne: true },
       },
-      {$set: {endTime: new Date()}},
-      {returnDocument: 'after', session},
+      { $set: { endTime: new Date() } },
+      { returnDocument: 'after', session },
     );
+    console.log(result);
     return result;
   }
 
@@ -450,8 +546,9 @@ class ProgressRepository {
     if (courseVersionId) {
       query.courseVersionId = new ObjectId(courseVersionId);
     }
+    query.isDeleted = { $ne: true };
     const result = await this.watchTimeCollection
-      .find(query, {session})
+      .find(query, { session })
       .toArray();
     return result.map(item => ({
       ...item,
@@ -471,6 +568,7 @@ class ProgressRepository {
     const result = await this.watchTimeCollection.findOne(
       {
         _id: new ObjectId(id),
+        isDeleted: { $ne: true },
       },
       {
         session,
@@ -494,8 +592,12 @@ class ProgressRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      {$set: progress},
-      {returnDocument: 'after', session},
+      { $set: progress },
+      {
+        upsert: true, // ⭐ creates document if not found
+        returnDocument: 'after', // return updated or inserted doc
+        session,
+      },
     );
     return result;
   }
@@ -513,13 +615,179 @@ class ProgressRepository {
           userId: new ObjectId(userId),
           courseId: new ObjectId(courseId),
           courseVersionId: new ObjectId(courseVersionId),
+          isDeleted: { $ne: true },
         },
-        {session},
+        { session },
       )
       .toArray();
 
     return result;
   }
+
+  async deleteProgressByVersionId(versionId: string, session?: ClientSession) {
+    await this.init();
+    await this.progressCollection.updateMany(
+      { courseVersionId: new ObjectId(versionId) },
+      { $set: { isDeleted: true, deletedAt: new Date() } },
+      { session },
+    );
+  }
+
+  async getAllProgressForCourseVersion(
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<IProgress[]> {
+    await this.init();
+    const progressRecords = await this.progressCollection
+      .find(
+        {
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+        },
+        { session },
+      )
+      .toArray();
+
+    return progressRecords.map(progress => ({
+      ...progress,
+      _id: progress._id?.toString() || null,
+      userId: progress.userId?.toString(),
+      courseId: progress.courseId?.toString(),
+      courseVersionId: progress.courseVersionId?.toString(),
+      currentModule: progress.currentModule?.toString(),
+      currentSection: progress.currentSection?.toString(),
+      currentItem: progress.currentItem?.toString(),
+    }));
+  }
+  async deleteUserProgressByVersionIds(
+    courseVersionIds: ObjectId[],
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+    if (!courseVersionIds.length) return false;
+    const result = await this.progressCollection.deleteMany(
+      {
+        courseVersionId: { $in: courseVersionIds },
+      },
+      { session },
+    );
+
+    return result.acknowledged && result.deletedCount > 0;
+  }
+
+  async updateProgressByItemId(
+    itemId: string,
+    updateData: Partial<IProgress>,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+    const result = await this.progressCollection.updateMany(
+      { currentItem: new ObjectId(itemId) },
+      { $set: updateData },
+      { session },
+    );
+    return result.modifiedCount;
+  }
+
+  async updateProgressBySectionId(
+    sectionId: string,
+    updateData: Partial<IProgress>,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+    const result = await this.progressCollection.updateMany(
+      { currentSection: new ObjectId(sectionId) },
+      { $set: updateData },
+      { session },
+    );
+    return result.modifiedCount;
+  }
+
+  async updateProgressByModuleId(
+    moduleId: string,
+    updateData: Partial<IProgress>,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+    const result = await this.progressCollection.updateMany(
+      { currentModule: new ObjectId(moduleId) },
+      { $set: updateData },
+      { session },
+    );
+    return result.modifiedCount;
+  }
+
+  async getUserProgressByVersionId(
+    userId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<IProgress | null> {
+    await this.init();
+    const progress = await this.progressCollection.findOne(
+      {
+        userId: new ObjectId(userId),
+        courseVersionId: new ObjectId(courseVersionId),
+        isDeleted: { $ne: true },
+      },
+      { session },
+    );
+    return progress;
+  }
+
+  async deleteUserWatchTimeByItemIds(
+    userId: string,
+    itemIds: string[],
+    session?: ClientSession,
+  ): Promise<{ deletedCount: number }> {
+    if (!itemIds.length) {
+      return { deletedCount: 0 };
+    }
+
+    const result = await this.watchTimeCollection.deleteMany(
+      {
+        userId: new ObjectId(userId),
+        itemId: { $in: itemIds.map(id => new ObjectId(id)) },
+      },
+      { session },
+    );
+
+    return {
+      deletedCount: result.deletedCount ?? 0,
+    };
+  }
+
+  async addBulkWatchTime(
+    userId: string,
+    courseId: string,
+    versionId: string,
+    itemIds: string[],
+    session?: ClientSession,
+  ) {
+    await this.init();
+
+    if (!itemIds.length) return { insertedCount: 0 };
+
+    const now = new Date();
+
+    const docs: IWatchTime[] = itemIds.map(itemId => ({
+      userId: new ObjectId(userId),
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(versionId),
+      itemId: new ObjectId(itemId),
+      startTime: now,
+      endTime: now,
+      isBulk: true,
+    }));
+
+    const result = await this.watchTimeCollection.insertMany(docs, {
+      session,
+    });
+
+    return {
+      insertedCount: result.insertedCount,
+    };
+  }
 }
 
-export {ProgressRepository};
+export { ProgressRepository };

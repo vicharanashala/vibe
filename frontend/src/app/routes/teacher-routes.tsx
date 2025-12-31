@@ -15,6 +15,7 @@ import InvitePage from "../pages/teacher/invite";
 import AISectionPage from "@/app/pages/teacher/AISectionPage";
 import AnomaliesList from "../pages/teacher/AnomaliesList";
 import RegisteredUsers from "../pages/teacher/CourseRegistrationRequests";
+import FeedbackFormEditor from "../pages/teacher/FeedbackFormEditor";
 
 const teacherRoutes: RouteObject = {
   path: "/teacher",
@@ -87,6 +88,9 @@ const teacherRoutes: RouteObject = {
     },{
       path:"requests",
       element: <RegisteredUsers />
+    },{
+      path:"editor/feedback",
+      element:<FeedbackFormEditor/>
     }
   ],
 };

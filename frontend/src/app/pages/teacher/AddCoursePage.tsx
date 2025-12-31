@@ -113,8 +113,8 @@ export default function CreateCourse() {
   };
 
   return (
-    <div className="flex-1 overflow-auto p-6 bg-gradient-to-br from-background via-background to-muted/20">
-      <div className="max-w-4xl mx-auto space-y-8">
+    <div>
+      <div className="max-w-4xl mx-auto py-4 space-y-8">
         <CreateCourseHeader/>
 
         <div className="space-y-8">
@@ -235,9 +235,9 @@ export const ErrorMessage = ({ message }: ErrorMessageProps) => {
   if (!message) return null;
 
   return (
-    <div className="text-red-500 text-sm flex items-center gap-2 bg-red-50 dark:bg-red-950/20 p-2 rounded-md">
-      <AlertCircle className="h-4 w-4 shrink-0" />
-      <span>{message}</span>
+    <div className="text-red-500 text-sm flex items-center sm:gap-2 gap-1 bg-red-50 dark:bg-red-950/20 p-2 rounded-md">
+      <AlertCircle className="sm:h-4 h-3 sm:w-4 w-3 shrink-0" />
+      <span className="text-xs sm:text-sm">{message}</span>
     </div>
   );
 }
@@ -315,18 +315,18 @@ export const CourseMetaForm: React.FC<CourseMetaFormProps> = ({
                 Course Information
               </h3>
             </div>
-            <p className="text-muted-foreground pl-11">
+            <p className="text-muted-foreground sm:pl-11 pl-0">
               Define the core details of your course. This information will be
               displayed to students and helps them understand what they'll
               learn.
             </p>
           </div>
 
-          <div className="grid gap-6 pl-6">
+          <div className="grid gap-6 sm:pl-6 pl-0">
             <div className="space-y-3">
               <Label
                 htmlFor="courseTitle"
-                className="text-sm font-semibold text-foreground flex items-center gap-2"
+                className="text-sm font-semibold text-foreground flex sm:flex-row flex-col sm:items-center items-start gap-2"
               >
                 Course Title *
                 <span className="text-xs text-muted-foreground font-normal">
@@ -354,7 +354,7 @@ export const CourseMetaForm: React.FC<CourseMetaFormProps> = ({
             <div className="space-y-3 overflow-auto">
               <Label
                 htmlFor="courseDescription"
-                className="text-sm font-semibold text-foreground flex items-center gap-2"
+                className="text-sm font-semibold text-foreground flex sm:flex-row flex-col sm:items-center items-start gap-2"
               >
                 Course Description *
                 <span className="text-xs text-muted-foreground font-normal">
@@ -364,7 +364,7 @@ export const CourseMetaForm: React.FC<CourseMetaFormProps> = ({
               <div className="relative">
                 <Textarea
                   id="courseDescription"
-                  className="w-full overflow-auto bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300 min-h-[130px] resize-none text-base pr-16 w-full"
+                  className="bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300 min-h-[130px] resize-none text-base pr-16 w-full"
                   placeholder="Provide a comprehensive description of what students will learn, the skills they'll gain, and any prerequisites..."
                   value={courseDescription}
                   onChange={e => {
@@ -441,7 +441,7 @@ const CourseVersionMetaForm: React.FC<CourseVersionMetaFormProps> = ({
                   <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
                 </div>
                 <div className="absolute left-1/2 transform -translate-x-1/2 bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-50">
-                  <div className="bg-popover border border-border rounded-lg shadow-lg p-4 text-sm text-popover-foreground w-80">
+                  <div className="bg-popover border border-border rounded-lg shadow-lg p-4 text-sm text-popover-foreground lg:w-80">
                     <div className="font-semibold mb-2 flex items-center gap-2">
                       <Info className="h-4 w-4" />
                       About Course Versions
@@ -461,18 +461,18 @@ const CourseVersionMetaForm: React.FC<CourseVersionMetaFormProps> = ({
                 </div>
               </div>
             </div>
-            <p className="text-muted-foreground pl-11">
+            <p className="text-muted-foreground sm:pl-11 pl-0">
               Every course starts with an initial version. Versions help you
               organize different iterations of your content, track changes, and
               maintain course evolution over time.
             </p>
           </div>
 
-          <div className="grid gap-6 pl-6">
+          <div className="grid gap-6 sm:pl-6 pl-0">
             <div className="space-y-3">
               <Label
                 htmlFor="versionLabel"
-                className="text-sm font-semibold text-foreground flex items-center gap-2"
+                className="text-sm font-semibold text-foreground flex sm:flex-row flex-col sm:items-center items-start gap-2"
               >
                 Version Label *
                 <span className="text-xs text-muted-foreground font-normal">
@@ -495,7 +495,7 @@ const CourseVersionMetaForm: React.FC<CourseVersionMetaFormProps> = ({
                 <ErrorMessage message={createErrors?.versionName} />
               )}
               <div className="text-xs text-muted-foreground flex items-center gap-1">
-                <Lightbulb className="h-3 w-3" />
+                <div><Lightbulb className="h-4 w-4" /></div>
                 <span>
                   Pro tip: Use semantic versioning (v1.0) or term-based labels
                   (Fall 2025)
@@ -506,7 +506,7 @@ const CourseVersionMetaForm: React.FC<CourseVersionMetaFormProps> = ({
             <div className="space-y-3 overflow-auto">
               <Label
                 htmlFor="versionDescription"
-                className="text-sm font-semibold text-foreground flex items-center gap-2"
+                className="text-sm font-semibold text-foreground flex sm:flex-row flex-col sm:items-center items-start gap-2"
               >
                 Version Description *
                 <span className="text-xs text-muted-foreground font-normal">
@@ -567,7 +567,7 @@ const  CreateCourseCard = ({
       <div className="absolute inset-0 bg-gradient-to-r from-primary/3 to-accent/3 rounded-xl blur-sm"></div>
 
       <Card className="relative bg-card/95 backdrop-blur-sm border border-border/50 p-6">
-        <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center justify-between">
+        <div className="flex flex-col lg:flex-row gap-6 items-start sm:items-center justify-between">
           <div className="space-y-2">
             <div className="text-base font-medium text-foreground flex items-center gap-2">
               <Rocket className="h-5 w-5 text-primary" />
@@ -583,7 +583,7 @@ const  CreateCourseCard = ({
           <Button
             onClick={handleCreateCourse}
             disabled={isPending}
-            className="relative overflow-hidden bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_auto] hover:bg-[length:100%_auto] shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105 hover:-translate-y-1 px-8 py-4 group min-w-[220px]"
+            className="relative overflow-hidden bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_auto] hover:bg-[length:100%_auto] shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105 hover:-translate-y-1 px-8 py-4 group lg:min-w-[220px]"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
 

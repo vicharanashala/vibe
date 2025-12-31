@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
@@ -12,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings, useSubmitFlag } from "@/hooks/hooks";
+import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation, useSkipOptionalItem } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
@@ -34,7 +35,10 @@ import {
   ArrowLeft,
   CheckCircle,
   FlagTriangleRightIcon,
-  FileEdit
+  FileEdit,
+  XCircle,
+  X,
+  CircleCheckIcon
 } from "lucide-react";
 import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
@@ -44,6 +48,7 @@ import { FlagModal } from "@/components/FlagModal";
 import { EntityType } from "@/types/flag.types";
 import { toast } from "sonner";
 import ItemContainer from "@/components/Item-container";
+import logo from "../../../../public/img/vibe_logo_img.ico"
 
 // Helper function to get icon for item type
 const getItemIcon = (type: string) => {
@@ -83,43 +88,46 @@ export default function CoursePage() {
   const { getSettings, settingLoading: proctoringLoading } = useGetProcotoringSettings();
 
   const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
-  const [isFlagSubmitted,setIsFlagSubmitted] = useState(false);
-  const {mutateAsync:submitFlagAsyncMutate,isPending} = useSubmitFlag();
+  const [isFlagSubmitted, setIsFlagSubmitted] = useState(false);
+  const [isSkippingItem, setIsSkippingItem] = useState(false);
+  const { mutateAsync: submitFlagAsyncMutate, isPending } = useSubmitFlag();
+  const { mutateAsync: skipItemAsync, isPending: isSkipping } = useSkipOptionalItem();
+  const [closing, setClosing] = useState(false);
 
   const streamRef = useRef<MediaStream | null>(null);
-  
+
   // Check for microphone and camera access, otherwise redirect to dashboard
-    useEffect(() => {
-        async function checkMediaPermissions() {
-          try {
-          // Try to get both camera and microphone access
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-          streamRef.current = stream;
+  useEffect(() => {
+    async function checkMediaPermissions() {
+      try {
+        // Try to get both camera and microphone access
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        streamRef.current = stream;
+      } catch (err) {
+        alert("Please allow camera and microphone access to continue. You will be redirected to the dashboard if access is denied.");
+        try {
+          const retryStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          streamRef.current = retryStream;
         } catch (err) {
-          alert("Please allow camera and microphone access to continue. You will be redirected to the dashboard if access is denied.");
-          try {
-            const retryStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            streamRef.current = retryStream;
-          } catch (err) {
-            router.navigate({ to: '/student' });
-          }
+          router.navigate({ to: '/student' });
         }
       }
-      if (!showProctorDialog) {
-        checkMediaPermissions();
-      }
-      return () => {
+    }
+    if (!showProctorDialog) {
+      checkMediaPermissions();
+    }
+    return () => {
       // Clean up media tracks on unmount or navigation
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
         setTimeout(() => {
           window.location.reload();
-        },1500)
+        }, 1500)
       }
     };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [showProctorDialog]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showProctorDialog]);
 
   // Get the setCurrentCourse function from the store
   const { setCurrentCourse } = useCourseStore();
@@ -159,7 +167,7 @@ export default function CoursePage() {
   const [anomalies, setAnomalies] = useState<string[]>([]);
   const [isQuizSkipped, setIsQuizSkipped] = useState(false);
   const [readyToDetect, setReadyToDetect] = useState(false);
-  
+
 
   // State to track when we're waiting for next section items to load
   const [waitingForNextSection, setWaitingForNextSection] = useState<{
@@ -178,7 +186,7 @@ export default function CoursePage() {
   } | null>(null);
 
   // Fetch course version data
-  const { data: courseVersionData, isLoading: versionLoading, error: versionError ,refetch: refetchVersion} =
+  const { data: courseVersionData, isLoading: versionLoading, error: versionError, refetch: refetchVersion } =
     useCourseVersionById(VERSION_ID);
 
   // Fetch user progress
@@ -202,11 +210,13 @@ export default function CoursePage() {
   )
 
   // Fetch individual item details when an item is selected
-  const shouldFetchItem = Boolean(selectedItemId && COURSE_ID && VERSION_ID);
+  // Don't fetch during navigation to prevent race condition with stopItem
+  const shouldFetchItem = Boolean(selectedItemId && COURSE_ID && VERSION_ID && !isNavigatingToNext);
   const {
     data: itemData,
     isLoading: itemLoading,
-    error: itemError
+    error: itemError,
+    errorName: itemErrorName
   } = useItemById(
     shouldFetchItem ? COURSE_ID : '',
     shouldFetchItem ? VERSION_ID : '',
@@ -221,16 +231,16 @@ export default function CoursePage() {
 
   // Separate effect for handling item errors - prevents circular dependencies
   useEffect(() => {
-    if(!itemError) return;
+    if (!itemError) return;
     console.error('Current item error:', itemError);
     // if (itemError === "Firebase ID token has expired. Get a fresh ID token from your client app and try again (auth/id-token-expired). See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.")
-    if(itemError.includes("auth/id-token-expired")){
+    if (itemError.includes("auth/id-token-expired")) {
       logout();
       Navigate({ to: '/auth' });
       return;
     }
 
-    if (itemError && selectedItemId) {
+    if (itemError && selectedItemId && itemErrorName === "ForbiddenError") {
       // Clear loading state on error
       setIsNavigatingToNext(false);
       setIsItemForbidden(true);
@@ -269,7 +279,7 @@ export default function CoursePage() {
   useEffect(() => {
     async function fetch() {
       const data = await getSettings(COURSE_ID, VERSION_ID);
-      console.log("Current proctoring data: ",data);
+      console.log("Current proctoring data: ", data);
       setProctoringData(data);
     }
     fetch();
@@ -299,41 +309,41 @@ export default function CoursePage() {
 
   // Handle navigation to next section after items are loaded
   useEffect(() => {
-    if (waitingForNextSection && 
-        sectionItems[waitingForNextSection.sectionId] && 
-        sectionItems[waitingForNextSection.sectionId].length > 0) {
-      
+    if (waitingForNextSection &&
+      sectionItems[waitingForNextSection.sectionId] &&
+      sectionItems[waitingForNextSection.sectionId].length > 0) {
+
       const firstItem = sectionItems[waitingForNextSection.sectionId][0];
-      
+
       // Clear waiting state
       setWaitingForNextSection(null);
-      
+
       // Navigate to the first item of the newly loaded section
       setSelectedModuleId(waitingForNextSection.moduleId);
       setSelectedSectionId(waitingForNextSection.sectionId);
       setSelectedItemId(firstItem._id);
-      
+
       // Auto-expand the module and section
       setExpandedModules(prev => ({ ...prev, [waitingForNextSection.moduleId]: true }));
       setExpandedSections(prev => ({ ...prev, [waitingForNextSection.sectionId]: true }));
-      
+
       // Update course store navigation
       updateCourseNavigation(waitingForNextSection.moduleId, waitingForNextSection.sectionId, firstItem._id);
-      
+
       // Clear loading state
       setIsNavigatingToNext(false);
-      
+
       console.log('Successfully navigated to next section:', waitingForNextSection.sectionId);
     }
   }, [sectionItems, waitingForNextSection, updateCourseNavigation]);
 
   // Notification effects
   useEffect(() => {
-    if (quizPassed !== 2) setTimeout(() => setQuizPassed(2), 5000);
+    if (quizPassed !== 2) setTimeout(() => setQuizPassed(2), 2000);
   }, [quizPassed]);
   // Add a flag to track if initial load from progress is complete
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-  
+
   // Track the last known progress data to detect resets
   const [lastProgressData, setLastProgressData] = useState<any>(null);
 
@@ -344,47 +354,47 @@ export default function CoursePage() {
       const currentModule = progressData.currentModule;
       const currentSection = progressData.currentSection;
       const currentItem = progressData.currentItem;
-      
+
       const lastModule = lastProgressData.currentModule;
       const lastSection = lastProgressData.currentSection;
       const lastItem = lastProgressData.currentItem;
-      
+
       // If we've moved to a different module/section/item that suggests a reset
       const hasProgressChanged = (
         currentModule !== lastModule ||
         currentSection !== lastSection ||
         currentItem !== lastItem
       );
-      
+
       if (hasProgressChanged) {
         console.log('Progress reset detected, clearing cached section items');
-        
+
         // Clear all cached section items to force fresh load
         setSectionItems({});
-        
+
         // Clear waiting states
         setWaitingForNextSection(null);
-        
+
         // Update selected items
         setSelectedModuleId(currentModule);
         setSelectedSectionId(currentSection);
         setSelectedItemId(currentItem);
-        
+
         // Auto-expand the module and section
         setExpandedModules(prev => ({ ...prev, [currentModule]: true }));
         setExpandedSections(prev => ({ ...prev, [currentSection]: true }));
-        
+
         // Set active section to fetch items fresh
         setActiveSectionInfo({
           moduleId: currentModule,
           sectionId: currentSection
         });
-        
+
         // Update the course store with the current progress
         updateCourseNavigation(currentModule, currentSection, currentItem);
       }
     }
-    
+
     // Update last known progress data
     setLastProgressData(progressData);
   }, [progressData, lastProgressData, updateCourseNavigation]);
@@ -435,22 +445,22 @@ export default function CoursePage() {
   // Flag handling function
   const handleFlagSubmit = async (reason: string) => {
     try {
-      if(!currentItem){
-        console.warn("Current item not founded",currentItem);
+      if (!currentItem) {
+        console.warn("Current item not founded", currentItem);
         return;
       }
       const submitFlagBody = {
-        courseId:COURSE_ID,
-        versionId:VERSION_ID,
-        entityId:currentItem._id,
-        entityType:currentItem.type as EntityType,
+        courseId: COURSE_ID,
+        versionId: VERSION_ID,
+        entityId: currentItem._id,
+        entityType: currentItem.type as EntityType,
         reason,
       }
-      await submitFlagAsyncMutate({body:submitFlagBody})
-      toast.success("Flag submitted successfully", {position: 'top-right'})
-    } catch(error:any){
+      await submitFlagAsyncMutate({ body: submitFlagBody })
+      toast.success("Flag submitted successfully", { position: 'top-right' })
+    } catch (error: any) {
       toast.error(error?.message || "Failed to submit flag", { position: 'top-right' });
-    } finally{
+    } finally {
       setIsFlagSubmitted(true);
       setIsFlagModalOpen(false);
     }
@@ -459,87 +469,164 @@ export default function CoursePage() {
 
   // Handle item selection
   // Handle item selection - simplified and more robust
-  const handleSelectItem = (moduleId: string, sectionId: string, itemId: string) => {
-    // Set loading state when changing items from sidebar - same as with Next button
+  // const handleSelectItem = (moduleId: string, sectionId: string, itemId: string) => {
+  //   // Set loading state when changing items from sidebar - same as with Next button
+  //   setIsNavigatingToNext(true);
+
+  //   // Stop current item before switching - make this more robust
+  //   if (itemContainerRef.current) {
+  //     console.log('Stopping current item before switching');
+  //     itemContainerRef.current.stopCurrentItem();
+
+  //     // Add a small delay to ensure cleanup completes
+  //     setTimeout(() => {
+  //       // Store current valid item before switching (only if not in error state)
+  //       if (selectedItemId && selectedSectionId && selectedModuleId && !isItemForbidden) {
+  //         setPreviousValidItem({
+  //           moduleId: selectedModuleId,
+  //           sectionId: selectedSectionId,
+  //           itemId: selectedItemId
+  //         });
+  //       }
+
+  //       // Always clear any existing item errors when manually selecting an item
+  //       setIsItemForbidden(false);
+
+  //       // Attempt the switch
+  //       setSelectedModuleId(moduleId);
+  //       setSelectedSectionId(sectionId);
+  //       setSelectedItemId(itemId);
+
+  //       // Ensure section items are loaded if not already
+  //       if (!sectionItems[sectionId]) {
+  //         setActiveSectionInfo({
+  //           moduleId,
+  //           sectionId
+  //         });
+  //       }
+
+  //       // Expand the module and section automatically
+  //       setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
+  //       setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
+
+  //       // Update the course store with the new navigation state
+  //       updateCourseNavigation(moduleId, sectionId, itemId);
+  //       console.log('States updated - unblocking fetch for', itemId);
+  //     setIsNavigatingToNext(false);
+  //     }, 50); // Small delay to ensure cleanup completes
+  //   } else {
+  //     // Set loading state even without a ref
+  //     setIsNavigatingToNext(true);
+
+  //     // Store current valid item before switching (only if not in error state)
+  //     if (selectedItemId && selectedSectionId && selectedModuleId && !isItemForbidden) {
+  //       setPreviousValidItem({
+  //         moduleId: selectedModuleId,
+  //         sectionId: selectedSectionId,
+  //         itemId: selectedItemId
+  //       });
+  //     }
+
+  //     // Always clear any existing item errors when manually selecting an item
+  //     setIsItemForbidden(false);
+
+  //     // Attempt the switch
+  //     setSelectedModuleId(moduleId);
+  //     setSelectedSectionId(sectionId);
+  //     setSelectedItemId(itemId);
+
+  //     // Ensure section items are loaded if not already
+  //     if (!sectionItems[sectionId]) {
+  //       setActiveSectionInfo({
+  //         moduleId,
+  //         sectionId
+  //       });
+  //     }
+
+  //     // Expand the module and section automatically
+  //     setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
+  //     setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
+
+  //     // Update the course store with the new navigation state
+  //     updateCourseNavigation(moduleId, sectionId, itemId);
+  //     console.log('States updated - unblocking fetch for', itemId);
+  //   setIsNavigatingToNext(false);
+  //   }
+  // };
+  // Handle item selection - now with immediate flag clear and enqueued for safety
+const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemId: string) => {
+  enqueueNavigation(async () => {
     setIsNavigatingToNext(true);
 
-    // Stop current item before switching - make this more robust
-    if (itemContainerRef.current) {
-      console.log('Stopping current item before switching');
-      itemContainerRef.current.stopCurrentItem();
+    try {
+      // Stop current item immediately
+      if (itemContainerRef.current) {
+        await itemContainerRef.current.stopCurrentItem();
+        // Small delay for API/callback cleanup
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
 
-      // Add a small delay to ensure cleanup completes
-      setTimeout(() => {
-        // Store current valid item before switching (only if not in error state)
-        if (selectedItemId && selectedSectionId && selectedModuleId && !isItemForbidden) {
-          setPreviousValidItem({
-            moduleId: selectedModuleId,
-            sectionId: selectedSectionId,
-            itemId: selectedItemId
-          });
-        }
-
-        // Always clear any existing item errors when manually selecting an item
-        setIsItemForbidden(false);
-
-        // Attempt the switch
-        setSelectedModuleId(moduleId);
-        setSelectedSectionId(sectionId);
-        setSelectedItemId(itemId);
-
-        // Ensure section items are loaded if not already
-        if (!sectionItems[sectionId]) {
-          setActiveSectionInfo({
-            moduleId,
-            sectionId
-          });
-        }
-
-        // Expand the module and section automatically
-        setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
-        setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
-
-        // Update the course store with the new navigation state
-        updateCourseNavigation(moduleId, sectionId, itemId);
-      }, 50); // Small delay to ensure cleanup completes
-    } else {
-      // Set loading state even without a ref
-      setIsNavigatingToNext(true);
-
-      // Store current valid item before switching (only if not in error state)
+      // Store previous valid for fallback (only if not forbidden)
       if (selectedItemId && selectedSectionId && selectedModuleId && !isItemForbidden) {
         setPreviousValidItem({
-          moduleId: selectedModuleId,
-          sectionId: selectedSectionId,
-          itemId: selectedItemId
+          moduleId: selectedModuleId!,
+          sectionId: selectedSectionId!,
+          itemId: selectedItemId!,
         });
       }
 
-      // Always clear any existing item errors when manually selecting an item
+      // Clear errors 
       setIsItemForbidden(false);
 
-      // Attempt the switch
+      // Update states to trigger fetch/expansion
       setSelectedModuleId(moduleId);
       setSelectedSectionId(sectionId);
       setSelectedItemId(itemId);
 
-      // Ensure section items are loaded if not already
+      // Load section items if needed
       if (!sectionItems[sectionId]) {
-        setActiveSectionInfo({
-          moduleId,
-          sectionId
-        });
+        setActiveSectionInfo({ moduleId, sectionId });
       }
 
-      // Expand the module and section automatically
+      // Auto-expand sidebar
       setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
       setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
 
-      // Update the course store with the new navigation state
+      // Update store
       updateCourseNavigation(moduleId, sectionId, itemId);
-    }
-  };
+      setIsNavigatingToNext(false);
 
+    } catch (error) {
+      console.error('Error in handleSelectItem:', error);
+      toast.error('Failed to switch item. Please try again.');
+      setIsNavigatingToNext(false);
+    }
+  });
+}, [
+  selectedModuleId,
+  selectedSectionId,
+  selectedItemId,
+  sectionItems,
+  isItemForbidden,
+  updateCourseNavigation,
+  itemContainerRef,
+]);
+
+  const handleSkipItem = async () => {
+  if (!currentItem?._id) return;
+  
+  try {
+    setIsSkippingItem(true);
+    await skipItemAsync({ params: { path: { itemId: currentItem._id } } });
+    toast.success('Item skipped successfully');
+    handleNext(); // Move to the next item
+  } catch (error) {
+    console.error('Error skipping item:', error);
+    toast.error('Failed to skip item');
+  } finally {
+    setIsSkippingItem(false);
+  }
+};
   // Toggle module expansion
   const toggleModule = (moduleId: string) => {
     setExpandedModules(prev => ({ ...prev, [moduleId]: !prev[moduleId] }));
@@ -640,147 +727,320 @@ export default function CoursePage() {
     return null;
   }, [courseVersionData, selectedModuleId, selectedSectionId, selectedItemId, sectionItems]);
 
-  const handleNext = useCallback(async () => {
-    // Set loading state
-    setIsNavigatingToNext(true);
+  // const handleNext = useCallback(async () => {
+  //   // Set loading state
+  //   setIsNavigatingToNext(true);
 
-    try {
-      // Stop current item before moving to next with proper cleanup
-      if (itemContainerRef.current) {
-        itemContainerRef.current.stopCurrentItem();
+  //   try {
+  //     // Stop current item before moving to next with proper cleanup
+  //     if (itemContainerRef.current) {
+  //       itemContainerRef.current.stopCurrentItem();
 
-        // Allow a small delay for cleanup
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
+  //       // Allow a small delay for cleanup
+  //       await new Promise(resolve => setTimeout(resolve, 50));
+  //     }
 
-      // Find and navigate to the actual next item
-      const nextItem = findNextItem();
+  //     // Find and navigate to the actual next item
+  //     const nextItem = findNextItem();
 
-      if (!nextItem) {
-        console.log('No next item found - course completed!');
+  //     if (!nextItem) {
+  //       console.log('No next item found - course completed!');
 
-        // Clear loading state
-        setIsNavigatingToNext(false);
+  //       // Clear loading state
+  //       setIsNavigatingToNext(false);
 
-        // Trigger confetti celebration
-        const end = Date.now() + 3 * 1000; // 3 seconds
-        const colors = ["#a786ff", "#fd8bbc", "#eca184", "#f8deb1"];
+  //       // Trigger confetti celebration
+  //       const end = Date.now() + 3 * 1000; // 3 seconds
+  //       const colors = ["#a786ff", "#fd8bbc", "#eca184", "#f8deb1"];
 
-        const frame = () => {
-          if (Date.now() > end) return;
+  //       const frame = () => {
+  //         if (Date.now() > end) return;
 
-          confetti({
-            particleCount: 2,
-            angle: 60,
-            spread: 55,
-            startVelocity: 60,
-            origin: { x: 0, y: 0.5 },
-            colors: colors,
-          });
-          confetti({
-            particleCount: 2,
-            angle: 120,
-            spread: 55,
-            startVelocity: 60,
-            origin: { x: 1, y: 0.5 },
-            colors: colors,
-          });
+  //         confetti({
+  //           particleCount: 2,
+  //           angle: 60,
+  //           spread: 55,
+  //           startVelocity: 60,
+  //           origin: { x: 0, y: 0.5 },
+  //           colors: colors,
+  //         });
+  //         confetti({
+  //           particleCount: 2,
+  //           angle: 120,
+  //           spread: 55,
+  //           startVelocity: 60,
+  //           origin: { x: 1, y: 0.5 },
+  //           colors: colors,
+  //         });
 
-          requestAnimationFrame(frame);
-        };
+  //         requestAnimationFrame(frame);
+  //       };
 
-        frame();
+  //       frame();
 
-        // Redirect to dashboard after celebration
-        setTimeout(() => {
-          router.navigate({ to: '/student' });
-        }, 3500);
+  //       // Redirect to dashboard after celebration
+  //       setTimeout(() => {
+  //         router.navigate({ to: '/student' });
+  //       }, 3500);
 
-        return;
-      }
+  //       return;
+  //     }
 
-      // Check if we need to load items for the next section
-      if ((nextItem as any).needsLoading) {
-        const { moduleId, sectionId } = nextItem;
-        console.log('Next section items need loading. Triggering load for:', { moduleId, sectionId });
-        
-        // Store current valid item before switching
+  //     // Check if we need to load items for the next section
+  //     if ((nextItem as any).needsLoading) {
+  //       const { moduleId, sectionId } = nextItem;
+  //       console.log('Next section items need loading. Triggering load for:', { moduleId, sectionId });
+
+  //       // Store current valid item before switching
+  //       if (selectedItemId && selectedSectionId && selectedModuleId) {
+  //         setPreviousValidItem({
+  //           moduleId: selectedModuleId,
+  //           sectionId: selectedSectionId,
+  //           itemId: selectedItemId
+  //         });
+  //       }
+
+  //       // Set waiting state to track when items are loaded
+  //       setWaitingForNextSection({ moduleId, sectionId });
+
+  //       // Trigger loading of next section items
+  //       setActiveSectionInfo({ moduleId, sectionId });
+
+  //       // Keep loading state active (will be cleared when navigation completes)
+  //       return;
+  //     }
+
+  //     const { moduleId, sectionId, itemId } = nextItem;
+
+  //     // Ensure all values are defined before switching (for regular navigation)
+  //     if (!moduleId || !sectionId || !itemId) {
+  //       console.log('Invalid next item data');
+  //       setIsNavigatingToNext(false);
+  //       return;
+  //     }
+
+  //     // Store current valid item before switching
+  //     if (selectedItemId && selectedSectionId && selectedModuleId) {
+  //       setPreviousValidItem({
+  //         moduleId: selectedModuleId,
+  //         sectionId: selectedSectionId,
+  //         itemId: selectedItemId
+  //       });
+  //     }
+
+  //     // Clear any existing item errors to ensure navigation works
+  //     setIsItemForbidden(false);
+
+  //     // Update local state immediately to the NEXT item
+  //     setSelectedModuleId(moduleId);
+  //     setSelectedSectionId(sectionId);
+  //     setSelectedItemId(itemId);
+
+  //     // Auto-expand the module and section
+  //     setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
+  //     setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
+
+  //     // Set active section to fetch items if not already loaded
+  //     if (!sectionItems[sectionId]) {
+  //       setActiveSectionInfo({
+  //         moduleId,
+  //         sectionId
+  //       });
+  //     }
+
+  //     // Update the course store with the next item
+  //     updateCourseNavigation(moduleId, sectionId, itemId);
+
+  //     console.log('Successfully navigated to next item:', { moduleId, sectionId, itemId });
+  //   } catch (error) {
+  //     console.error('Error navigating to next item:', error);
+  //     // Clear loading state on error
+  //     setIsNavigatingToNext(false);
+  //   }
+  // }, [
+  //   findNextItem,
+  //   selectedModuleId,
+  //   selectedSectionId,
+  //   selectedItemId,
+  //   sectionItems,
+  //   updateCourseNavigation,
+  //   router
+  // ]);
+
+  // Helper function to find the last video item before the current item
+
+
+
+  const handleNext = useCallback(() => {
+    enqueueNavigation(async () => {
+      console.log("🔵 QUEUED: handleNext");
+
+      setIsNavigatingToNext(true);
+
+      try {
+        // 1️⃣ Stop current item (clean + API)
+        if (itemContainerRef.current) {
+          try {
+            await itemContainerRef.current.stopCurrentItem();
+          } catch (error: any) {
+            const errorMessage = error?.response?.data?.message || error?.message || 'Failed to save progress. Please try again.';
+            toast.error(errorMessage);
+            
+            // Navigate to previous video item on stop API failure
+            const previousVideoItem = findPreviousVideoItem();
+            if (previousVideoItem && previousVideoItem.itemId && previousVideoItem.itemId !== selectedItemId) {
+              
+              // Update local React state to trigger re-render
+              setSelectedModuleId(previousVideoItem.moduleId);
+              setSelectedSectionId(previousVideoItem.sectionId);
+              setSelectedItemId(previousVideoItem.itemId);
+              
+              // Expand the module and section
+              setExpandedModules(prev => ({ ...prev, [previousVideoItem.moduleId]: true }));
+              setExpandedSections(prev => ({ ...prev, [previousVideoItem.sectionId]: true }));
+              
+              // Ensure section items are loaded
+              if (!sectionItems[previousVideoItem.sectionId]) {
+                setActiveSectionInfo({
+                  moduleId: previousVideoItem.moduleId,
+                  sectionId: previousVideoItem.sectionId
+                });
+              }
+              
+              // Update course store
+              updateCourseNavigation(
+                previousVideoItem.moduleId,
+                previousVideoItem.sectionId,
+                previousVideoItem.itemId
+              );
+            }
+            
+            setIsNavigatingToNext(false);
+            return;
+          }
+        }
+
+        // 2️⃣ Determine next item
+        const nextItem = findNextItem();
+
+        if (!nextItem) {
+          console.log("🎉 Course complete");
+          setIsNavigatingToNext(false);
+
+          // Confetti celebration
+          const end = Date.now() + 3000;
+          const colors = ["#a786ff", "#fd8bbc", "#eca184", "#f8deb1"];
+
+          const frame = () => {
+            if (Date.now() > end) return;
+
+            confetti({
+              particleCount: 2,
+              angle: 60,
+              spread: 55,
+              startVelocity: 60,
+              origin: { x: 0, y: 0.5 },
+              colors,
+            });
+            confetti({
+              particleCount: 2,
+              angle: 120,
+              spread: 55,
+              startVelocity: 60,
+              origin: { x: 1, y: 0.5 },
+              colors,
+            });
+
+            requestAnimationFrame(frame);
+          };
+          frame();
+
+          setTimeout(() => router.navigate({ to: "/student" }), 3500);
+          return;
+        }
+
+        // 3️⃣ If next section requires loading
+        if ((nextItem as any).needsLoading) {
+          const { moduleId, sectionId } = nextItem;
+          console.log('Next section items need loading. Triggering load for:', { moduleId, sectionId });
+
+          // Store current valid item before switching
+          if (selectedItemId && selectedSectionId && selectedModuleId) {
+            setPreviousValidItem({
+              moduleId: selectedModuleId,
+              sectionId: selectedSectionId,
+              itemId: selectedItemId,
+            });
+          }
+
+          // Set waiting state to track when items are loaded
+          setWaitingForNextSection({ moduleId, sectionId });
+
+          // Trigger loading of next section items
+          setActiveSectionInfo({ moduleId, sectionId });
+
+          // Keep loading state active (will be cleared when navigation completes)
+          return;
+        }
+
+        // 4️⃣ Normal next item navigation
+        const { moduleId, sectionId, itemId } = nextItem;
+
+        if (!moduleId || !sectionId || !itemId) {
+          console.log("❌ Invalid next item data");
+          setIsNavigatingToNext(false);
+          return;
+        }
+
+        // Store current valid item
         if (selectedItemId && selectedSectionId && selectedModuleId) {
           setPreviousValidItem({
             moduleId: selectedModuleId,
             sectionId: selectedSectionId,
-            itemId: selectedItemId
+            itemId: selectedItemId,
           });
         }
-        
-        // Set waiting state to track when items are loaded
-        setWaitingForNextSection({ moduleId, sectionId });
-        
-        // Trigger loading of next section items
-        setActiveSectionInfo({ moduleId, sectionId });
-        
-        // Keep loading state active (will be cleared when navigation completes)
-        return;
-      }
 
-      const { moduleId, sectionId, itemId } = nextItem;
+        setIsItemForbidden(false);
 
-      // Ensure all values are defined before switching (for regular navigation)
-      if (!moduleId || !sectionId || !itemId) {
-        console.log('Invalid next item data');
+        // 5️⃣ Update UI state
+        setSelectedModuleId(moduleId);
+        setSelectedSectionId(sectionId);
+        setSelectedItemId(itemId);
+
+        setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
+        setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
+
+        // Fetch section if needed
+        if (!sectionItems[sectionId]) {
+          setActiveSectionInfo({ moduleId, sectionId });
+        }
+
+        // Update global course store
+        updateCourseNavigation(moduleId, sectionId, itemId);
+
+        console.log('Successfully navigated to next item:', { moduleId, sectionId, itemId });
+        
+        // Clear loading state after successful navigation
         setIsNavigatingToNext(false);
-        return;
+      } catch (error) {
+        console.error('Error navigating to next item:', error);
+        // Clear loading state on error
+        setIsNavigatingToNext(false);
       }
-
-      // Store current valid item before switching
-      if (selectedItemId && selectedSectionId && selectedModuleId) {
-        setPreviousValidItem({
-          moduleId: selectedModuleId,
-          sectionId: selectedSectionId,
-          itemId: selectedItemId
-        });
-      }
-
-      // Clear any existing item errors to ensure navigation works
-      setIsItemForbidden(false);
-
-      // Update local state immediately to the NEXT item
-      setSelectedModuleId(moduleId);
-      setSelectedSectionId(sectionId);
-      setSelectedItemId(itemId);
-
-      // Auto-expand the module and section
-      setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
-      setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
-
-      // Set active section to fetch items if not already loaded
-      if (!sectionItems[sectionId]) {
-        setActiveSectionInfo({
-          moduleId,
-          sectionId
-        });
-      }
-
-      // Update the course store with the next item
-      updateCourseNavigation(moduleId, sectionId, itemId);
-      
-      console.log('Successfully navigated to next item:', { moduleId, sectionId, itemId });
-    } catch (error) {
-      console.error('Error navigating to next item:', error);
-      // Clear loading state on error
-      setIsNavigatingToNext(false);
-    }
+    });
   }, [
     findNextItem,
+    itemContainerRef,
     selectedModuleId,
     selectedSectionId,
     selectedItemId,
     sectionItems,
     updateCourseNavigation,
-    router
+    router,
   ]);
 
-  // Helper function to find the last video item before the current item
+
   const findPreviousVideoItem = useCallback(() => {
     if (!courseVersionData || !selectedModuleId || !selectedSectionId || !selectedItemId) {
       return null;
@@ -926,6 +1186,11 @@ export default function CoursePage() {
 
       // Update the course store with the previous video item
       updateCourseNavigation(moduleId, sectionId, itemId);
+      
+      // Clear loading state after successful navigation
+      setTimeout(() => {
+        setIsNavigatingToNext(false);
+      }, 500);
     } catch (error) {
       console.error('Error navigating to previous video:', error);
       // Clear loading state on error
@@ -937,7 +1202,7 @@ export default function CoursePage() {
     selectedSectionId,
     selectedItemId,
     sectionItems,
-    updateCourseNavigation
+    updateCourseNavigation,
   ]);
 
   // Handle going back to courses
@@ -957,9 +1222,9 @@ export default function CoursePage() {
     }
   }, [selectedItemId]);
 
-  useEffect(()=>{
+  useEffect(() => {
     refetchVersion();
-  },[courseVersionData]);
+  }, [courseVersionData]);
 
   if (versionLoading || progressLoading || proctoringLoading) {
     return (
@@ -1002,8 +1267,16 @@ export default function CoursePage() {
 
   return (
     <>
-      <Dialog open={showProctorDialog}>
-        <DialogContent className="max-w-lg">
+      <Dialog open={showProctorDialog} onOpenChange={(open) => {
+          if (!open) {
+            setShowProctorDialog(false);
+            router.navigate({ to: '/student' });
+            setTimeout(()=>{
+              window.location.reload()
+            },1000)
+          }
+        }}>
+        <DialogContent className="sm:max-w-lg w-[calc(100%-2rem)] max-w-full">
           <DialogHeader>
             <DialogTitle className="text-lg font-extrabold">Declaration</DialogTitle>
           </DialogHeader>
@@ -1023,7 +1296,7 @@ export default function CoursePage() {
           </div>
         </DialogContent>
       </Dialog>
-      
+
       <SidebarProvider defaultOpen={true}>
         <div className="flex h-screen w-full">
           {/* Enhanced Course Navigation Sidebar */}
@@ -1033,7 +1306,7 @@ export default function CoursePage() {
               <div className="flex items-center gap-3">
                 <div className="h-8 w-8 rounded-lg overflow-hidden">
                   <img
-                    src="https://continuousactivelearning.github.io/vibe/img/logo.png"
+                    src={logo}
                     alt="Vibe Logo"
                     className="h-8 w-8 object-contain"
                   />
@@ -1084,10 +1357,17 @@ export default function CoursePage() {
                               }`}
                           />
                           <div className="flex-1 text-left min-w-0 ml-2">
-                            <div className="font-medium text-xs truncate" title={module.name}>
-                              {module.name.length > 34 ? `${module.name.substring(0, 31)}...` : module.name}
-                            </div>
-                            <div className="text-[10px] text-muted-fore</div>ground truncate">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="font-medium text-xs truncate">
+                                  {module.name.length > 34 ? `${module.name.substring(0, 31)}...` : module.name}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="right" align="center">
+                                {module.name}
+                              </TooltipContent>
+                            </Tooltip>
+                            <div className="text-[10px] text-muted-foreground truncate">
                               {module.sections?.length || 0} sections
                             </div>
                           </div>
@@ -1112,8 +1392,17 @@ export default function CoursePage() {
                                       className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 ${isSectionExpanded ? 'rotate-90' : ''
                                         }`}
                                     />
-                                    <div className="font-medium truncate flex-1 min-w-0 ml-2" title={section.name}>
-                                      {section.name.length > 27 ? `${section.name.substring(0, 24)}...` : section.name}
+                                    <div className="font-medium truncate flex-1 min-w-0 ml-2">
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <div className="font-medium text-xs truncate">
+                                            {section.name.length > 27 ? `${section.name.substring(0, 24)}...` : section.name}
+                                          </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="right" align="center">
+                                          {section.name}
+                                        </TooltipContent>
+                                      </Tooltip>
                                     </div>
                                   </SidebarMenuSubButton>
 
@@ -1166,6 +1455,12 @@ export default function CoursePage() {
                                                         return label === ' ' ? `${typeLabel} ${itemIndex + 1}` : `${label}`;
                                                       })()}
                                                     </div>
+                                                    {item.isCompleted && (
+                                                      <div className="text-[10px] text-green-500 font-medium mt-0.5 flex items-center gap-1">
+                                                        <CheckCircle className="h-3 w-3" />
+                                                        Completed
+                                                      </div>
+                                                    )}
                                                   </div>
                                                 </div>
                                               </SidebarMenuSubButton>
@@ -1275,7 +1570,7 @@ export default function CoursePage() {
           </Sidebar>
 
           {/* Main Content Area */}
-          <SidebarInset className="flex-1 bg-gradient-to-br from-background via-background to-background/95">
+          <SidebarInset className="flex-1 bg-gradient-to-br from-background via-background to-background/95 peer-data-[variant=inset]:!m-0">
             <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border/20 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 px-4">
               <SidebarTrigger className="-ml-1 h-8 w-8 rounded-md hover:bg-accent/10 transition-colors" />
               <Separator orientation="vertical" className="mr-2 h-4" />
@@ -1353,77 +1648,115 @@ export default function CoursePage() {
                 )}
 
                 {/* Quiz Passed/Failed */}
+
                 {quizPassed !== 2 && !isQuizSkipped && (
-                  <Card className={`border shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300 ${quizPassed === 1
-                    ? "border-green-400/40 bg-green-500/95 text-green-50"
-                    : "border-red-400/40 bg-red-500/95 text-red-50"
-                    }`}>
-                    <CardContent className="flex items-center gap-3 px-4 py-0">
-                      <div className={`flex h-22 w-22 items-center justify-center rounded-l ${quizPassed === 1
-                        ? "border-green-50/30 bg-green-50/10"
-                        : "border-red-50/30 bg-red-50/10"
-                        } text-4xl p-4`}>
-                        {quizPassed === 1 ? (
-                          <CheckCircle className="h-16 w-16" />
-                        ) : (
-                          // Use XCircle for fail/cross icon
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" />
-                            <line x1="15" y1="9" x2="9" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                            <line x1="9" y1="9" x2="15" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                          </svg>
-                        )}
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <Badge variant="outline" className={`text-lg font-bold ${quizPassed === 1
-                          ? "border-green-50/30 bg-green-50/10 text-green-50"
-                          : "border-red-50/30 bg-red-50/10 text-red-50"
-                          }`}>
-                          {quizPassed === 1 ? "Quiz Passed" : "Quiz Failed"}
-                        </Badge>
-                        <p className="text-md font-medium leading-relaxed">
-                          {quizPassed === 1
-                            ? "Congratulations! You passed the quiz."
-                            : "Redirecting to the previous video..."}
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setQuizPassed(2)}
-                        className={`h-6 w-6 p-0 ${quizPassed === 1
-                          ? "text-green-50 hover:bg-green-50/10"
-                          : "text-red-50 hover:bg-red-50/10"
-                          }`}
+                  <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-top-5 fade-in duration-200">
+                    <div
+                      className={`relative w-[380px] rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300 
+        ${quizPassed === 1
+                          ? 'bg-gradient-to-br from-emerald-500 to-green-600'
+                          : 'bg-gradient-to-br from-rose-500 to-red-600'
+                        }`}
+                    >
+                      {/* Close Button */}
+                      <button
+                        onClick={() =>{ 
+                          setClosing(true)
+                          // setQuizPassed(2)
+                          setTimeout(() => setQuizPassed(2),300)
+                        }}
+                        className="absolute top-3 right-3 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors duration-200 group"
+                        aria-label="Close"
                       >
-                        ×
-                      </Button>
-                    </CardContent>
-                  </Card>
+                        <X className="h-5 w-5 text-white group-hover:rotate-90 transition-transform duration-200" />
+                      </button>
+
+                      <div className="p-6 space-y-4">
+                        {/* Icon + Title */}
+                        <div className="flex items-center gap-4">
+                          <div className="relative">
+                            <div
+                              className={`absolute inset-0 rounded-full blur-xl opacity-50 
+              ${quizPassed === 1 ? 'bg-emerald-200' : 'bg-rose-200'}`}
+                            />
+                            <div className="relative bg-white/20 backdrop-blur-sm rounded-full p-4 border border-white/40">
+                              {quizPassed === 1 ? (
+                                <CheckCircle className="h-12 w-12 text-white" strokeWidth={2.5} />
+                              ) : (
+                                <XCircle className="h-12 w-12 text-white" strokeWidth={2.5} />
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex-1 space-y-1">
+                            <h2 className="text-xl font-bold text-white">
+                              {quizPassed === 1 ? 'Quiz Passed!' : 'Quiz Failed'}
+                            </h2>
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm border border-white/30">
+                              <div
+                                className={`h-2 w-2 rounded-full animate-pulse 
+                ${quizPassed === 1 ? 'bg-emerald-200' : 'bg-rose-200'}`}
+                              />
+                              <span className="text-xs font-medium text-white/90">
+                                {quizPassed === 1 ? 'Great job!' : 'Keep learning'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Redirect Indicator */}
+                        <div className="flex items-center gap-2 pt-1">
+                          <div className="flex gap-1">
+                            <div className="h-2 w-2 rounded-full bg-white/60 animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <div className="h-2 w-2 rounded-full bg-white/60 animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <div className="h-2 w-2 rounded-full bg-white/60 animate-bounce" style={{ animationDelay: '300ms' }} />
+                          </div>
+                          <p className="text-white/90 text-xs font-medium">
+                            {quizPassed === 1 ? 'Moving to the next video' : 'Redirecting to the previous video'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 )}
+
+
               </div>
-                <FlagModal
-                  open={isFlagModalOpen}
-                  onOpenChange={setIsFlagModalOpen}
-                  onSubmit={handleFlagSubmit}
-                  isSubmitting={isPending}
-                />
+              <FlagModal
+                open={isFlagModalOpen}
+                onOpenChange={setIsFlagModalOpen}
+                onSubmit={handleFlagSubmit}
+                isSubmitting={isPending}
+              />
               {currentItem ? (
                 <div className="relative z-10 h-full flex flex-col mb-2  sm:mb-1">
-                {!isFlagSubmitted &&
-                  <div className="flex justify-end mb-1 me-10">
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      className="text-xs gap-1"
-                      title="Flag this content"
-                      onClick={()=>setIsFlagModalOpen(true)}
-                    >
-                      <FlagTriangleRightIcon className="h-4 w-4" />
-                      <span className="max-sm:hidden">Submit Flag</span>
-                    </Button>
-                    </div>
-                   }
+                  <div className="flex justify-end mb-1 me-10 gap-2">
+                    {!isFlagSubmitted &&
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="text-xs gap-1"
+                        title="Flag this content"
+                        onClick={() => setIsFlagModalOpen(true)}
+                      >
+                        <FlagTriangleRightIcon className="h-4 w-4" />
+                        <span className="max-sm:hidden">Submit Flag</span>
+                      </Button>
+                    }
+                    {currentItem?.isOptional && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs gap-1 border-amber-500 text-amber-500 hover:bg-amber-50 hover:text-amber-600"
+                        title="Skip this optional item"
+                        onClick={handleSkipItem}
+                        disabled={isSkippingItem || isSkipping}
+                      >
+                        <span className="max-sm:hidden">Skip</span>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                   {currentItem?.type === 'PROJECT' ? (
                     <StudentProjectItem
                       item={currentItem}
@@ -1441,14 +1774,17 @@ export default function CoursePage() {
                       attemptId={attemptId || undefined}
                       setAttemptId={setAttemptId}
                       rewindVid={rewindVid}
-                       readyToDetect={readyToDetect}
+                      readyToDetect={readyToDetect}
                       pauseVid={pauseVid}
                       displayNextLesson={false}
                       setQuizPassed={setQuizPassed}
                       anomalies={anomalies}
                       keyboardLockEnabled={!isFlagModalOpen}
-                      linearProgressionEnabled = {proctoringData?.settings.linearProgressionEnabled || true}
-                      setIsQuizSkipped= {setIsQuizSkipped}
+                      linearProgressionEnabled={proctoringData?.settings.linearProgressionEnabled || true}
+                      setIsQuizSkipped={setIsQuizSkipped}
+                      courseId={COURSE_ID}
+                      versionId={VERSION_ID}
+                      sectionId={sectionId}
                     />
                   )}
 

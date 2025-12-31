@@ -15,6 +15,14 @@ export class InviteRepository {
 
   private async init() {
     this.inviteCollection = await this.db.getCollection<Invite>('invites');
+
+    this.inviteCollection.createIndex({ email: 1, inviteStatus: 1 });
+    this.inviteCollection.createIndex({
+      courseId: 1,
+      courseVersionId: 1,
+      createdAt: -1,
+    });
+    this.inviteCollection.createIndex({ courseVersionId: 1 });
   }
 
   async getDBClient(): Promise<MongoClient> {
@@ -29,24 +37,29 @@ export class InviteRepository {
     await this.init();
     try {
       if (invite.type === InviteType.BULK) {
-        invite.usedCount = 0
+        invite.usedCount = 0;
       }
       const result = await this.inviteCollection.insertOne(invite, { session });
-      const invitee = await this.inviteCollection.findOne({ _id: result.insertedId })
+      const invitee = await this.inviteCollection.findOne({
+        _id: result.insertedId,
+      });
       return result.insertedId.toString();
     } catch {
       throw new InternalServerError('Failed to create invite');
     }
   }
 
-  async incrementUsedCount(inviteId: string, session?: ClientSession): Promise<void> {
-    await this.init()
+  async incrementUsedCount(
+    inviteId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
     // const result = await this.inviteCollection.updateOne(
     //   {_id: new ObjectId(inviteId)},{$inc:{usedCount:1}},{session})
   }
 
   async all() {
-    return this.inviteCollection.find()
+    return this.inviteCollection.find();
   }
 
   async findInviteById(
@@ -64,7 +77,7 @@ export class InviteRepository {
       ...invite,
       courseId: invite.courseId?.toString(),
       courseVersionId: invite.courseVersionId?.toString(),
-      usedCount: invite.usedCount || 0
+      usedCount: invite.usedCount || 0,
     };
   }
 
@@ -103,7 +116,7 @@ export class InviteRepository {
       { session },
     );
 
-    if (result.modifiedCount === 0) {
+    if (result.matchedCount === 0) {
       throw new Error(`Failed to update invite with ID: ${inviteId}`);
     }
   }
@@ -133,7 +146,7 @@ export class InviteRepository {
     await this.init(); // Ensure collection is initialized
 
     const invites = await this.inviteCollection
-      .find({ email, inviteStatus: "PENDING" }, { session })
+      .find({ email, inviteStatus: 'PENDING' }, { session })
       .toArray();
 
     return invites.map(invite => ({
@@ -144,6 +157,34 @@ export class InviteRepository {
     }));
   }
 
+  async findPendingInviteByEmailAndCourse(
+    email: string,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<Invite | null> {
+    await this.init();
+
+    const invite = await this.inviteCollection.findOne(
+      {
+        email: email.toLowerCase(),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        inviteStatus: 'PENDING',
+      },
+      { session },
+    );
+
+    if (!invite) return null;
+
+    return {
+      ...invite,
+      _id: invite._id.toString(),
+      courseId: invite.courseId?.toString(),
+      courseVersionId: invite.courseVersionId?.toString(),
+    };
+  }
+
   async findInvitesByCourse(
     courseId: string,
     courseVersionId: string,
@@ -152,6 +193,8 @@ export class InviteRepository {
     limit: number,
     search: string,
     sort: string,
+    startDate?: string,
+    endDate?: string,
     session?: ClientSession,
   ): Promise<{ invites: Invite[]; totalDocuments: number; totalPages: number }> {
     await this.init();
@@ -180,6 +223,20 @@ export class InviteRepository {
 
     if (search) {
       filter.email = { $regex: search, $options: 'i' };
+    }
+
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) {
+        const startDateTime = new Date(startDate);
+        startDateTime.setUTCHours(0, 0, 0, 0);
+        filter.createdAt.$gte = startDateTime;
+      }
+      if (endDate) {
+        const endDateTime = new Date(endDate);
+        endDateTime.setUTCHours(23, 59, 59, 999);
+        filter.createdAt.$lte = endDateTime;
+      }
     }
 
     const sortStage: Record<string, 1 | -1> = (() => {
@@ -214,5 +271,13 @@ export class InviteRepository {
     }));
 
     return { invites: normalizedInvites, totalDocuments, totalPages };
+  }
+
+  async deleteInviteByVersionId(versionId: string, session?: ClientSession) {
+    await this.init();
+    await this.inviteCollection.deleteMany(
+      { courseVersionId: new ObjectId(versionId) },
+      { session },
+    );
   }
 }

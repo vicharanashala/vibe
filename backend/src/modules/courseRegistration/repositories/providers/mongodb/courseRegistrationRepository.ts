@@ -15,6 +15,17 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
   private async init() {
     this.courseRegistrationCollection =
       await this.db.getCollection<ICourseRegistration>('course_registrations');
+
+    this.courseRegistrationCollection.createIndex({
+      userId: 1,
+      versionId: 1,
+    });
+
+    this.courseRegistrationCollection.createIndex({
+      versionId: 1,
+      status: 1,
+      createdAt: -1,
+    });
   }
 
   async findByUserId(
@@ -154,20 +165,13 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
     session?: ClientSession,
   ): Promise<number> {
     await this.init();
-    if (registrationIds.length <= 0) {
-      const data = await this.courseRegistrationCollection.updateMany(
-        {_id: {$in: registrationIds}},
-        {$set: {status: 'APPROVED', updatedAt: new Date()}},
-        {session},
-      );
-      return data.modifiedCount;
-    } else {
-      const data = await this.courseRegistrationCollection.updateMany(
-        {},
-        {$set: {status: 'APPROVED', updatedAt: new Date()}},
-      );
-      return data.modifiedCount;
-    }
+    const objectIds = registrationIds.map(id => new ObjectId(id));
+    const data = await this.courseRegistrationCollection.updateMany(
+      {_id: {$in: objectIds}},
+      {$set: {status: 'APPROVED', updatedAt: new Date()}},
+      {session},
+    );
+    return data.modifiedCount;
   }
 
   async remove(
@@ -176,14 +180,23 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
     versionId: string,
     session?: ClientSession,
   ) {
-    return await this.courseRegistrationCollection.deleteOne(
+    await this.init();
+    return await this.courseRegistrationCollection.updateOne(
       {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         versionId: new ObjectId(versionId),
       },
+      {$set: {isDeleted: true, deletedAt: new Date()}},
       {session},
     );
+  }
+
+  async deleteRegistrationByVersionId(
+    versionId: string,
+    session?: ClientSession,
+  ) {
+    await this.init();
   }
 }
 

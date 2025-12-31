@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Outlet, useMatches, Link, useNavigate } from "@tanstack/react-router";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -33,6 +33,8 @@ export default function TeacherLayout() {
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]);
   const [showInvites, setShowInvites] = useState(false);
   const [confirmLogout,setConfirmLogout] = useState(false);
+  const [pendingInvites, setPendingInvites] = useState<any[]>([]);
+  const invitesRef = useRef<HTMLDivElement | null>(null);
 
   const handleLogout = () => {
     logout();
@@ -71,11 +73,38 @@ export default function TeacherLayout() {
     setBreadcrumbs(items);
   }, [matches]);
 
+  useEffect(() => {
+    if (!showInvites) return;
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (invitesRef.current && target && !invitesRef.current.contains(target)) {
+        setShowInvites(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowInvites(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown, { passive: true } as any);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown as any);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showInvites]);
+
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear">
+      <SidebarInset className="max-w-full overflow-hidden h-screen flex flex-col">
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear sticky top-0 z-50 bg-background">
           <div className="flex w-full items-center justify-between px-4">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="-ml-1" />
@@ -85,10 +114,10 @@ export default function TeacherLayout() {
                 <BreadcrumbList>
                   {breadcrumbs.map((item, index) => (
                     <React.Fragment key={index}>
-                      {index > 0 && <BreadcrumbSeparator />}
+                      {index > 0 && breadcrumbs.length - 1 && <BreadcrumbSeparator />}
                       <BreadcrumbItem>
                         {item.isCurrentPage ? (
-                          <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                          <BreadcrumbPage className="lg:flex md:hidden">{item.label}</BreadcrumbPage>
                         ) : (
                           <BreadcrumbLink href={item.path} asChild>
                             <Link to={item.path}>{item.label}</Link>
@@ -103,7 +132,7 @@ export default function TeacherLayout() {
 
             <div className="flex items-center gap-3">
 
-              <div className="relative">
+              <div className="relative"  ref={invitesRef}>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -114,7 +143,7 @@ export default function TeacherLayout() {
                   <span className="hidden sm:block ml-2">Invites</span>
                 </Button>
 
-                {showInvites && <InviteDropdown />}
+                {showInvites && <InviteDropdown setPendingInvites={setPendingInvites} pendingInvites={pendingInvites} />}
               </div>
 
               <ConfirmationModal isOpen={confirmLogout} 
@@ -153,7 +182,7 @@ export default function TeacherLayout() {
           </div>
         </header>
 
-        <div className="flex flex-1 flex-col p-6">
+        <div className="flex flex-1 flex-col md:p-6 p-4 max-w-full overflow-auto">
           <Outlet />
         </div>
       </SidebarInset >

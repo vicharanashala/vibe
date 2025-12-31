@@ -7,7 +7,7 @@ import {COURSES_TYPES} from '#courses/types.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {QuestionBankRepository} from '../repositories/providers/mongodb/QuestionBankRepository.js';
 import {QuestionRepository} from '../repositories/providers/mongodb/QuestionRepository.js';
-import {CourseRepository} from '#root/shared/database/providers/mongo/repositories/CourseRepository.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {IQuestionBank} from '#root/shared/interfaces/quiz.js';
 import {IQuestionBankRef} from '#root/shared/interfaces/models.js';
@@ -23,7 +23,7 @@ class QuestionBankService extends BaseService {
     private readonly questionRepository: QuestionRepository,
 
     @inject(GLOBAL_TYPES.CourseRepo)
-    private readonly courseRepository: CourseRepository,
+    private readonly courseRepository: ICourseRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
@@ -97,6 +97,7 @@ class QuestionBankService extends BaseService {
           `Question bank with ID ${questionBankId} not found`,
         );
       }
+
       const result = await this.questionBankRepository.delete(
         questionBankId,
         txnSession,
@@ -131,6 +132,7 @@ class QuestionBankService extends BaseService {
       questionBank.questions.push(questionObjectId);
       questionBank.courseVersionId = new ObjectId(questionBank.courseVersionId);
       questionBank.courseId = new ObjectId(questionBank.courseId.toString());
+
       return this.questionBankRepository.update(
         questionBankId,
         questionBank,
@@ -158,14 +160,26 @@ class QuestionBankService extends BaseService {
           `Question with ID ${questionId} not found in question bank`,
         );
       }
+      /*
+      Maintain the reference to perform a soft delete in question repository
       questionBank.questions.splice(questionIndex, 1);
       questionBank.courseVersionId = new ObjectId(questionBank.courseVersionId);
       questionBank.courseId = new ObjectId(questionBank.courseId.toString());
-      return this.questionBankRepository.update(
+
+      const updatedQuestionBank = await this.questionBankRepository.update(
         questionBankId,
         questionBank,
         session,
+      );*/
+
+      // soft delete question from questionRepository.
+
+      const deleteResult = await this.questionRepository.delete(
+        questionId,
+        session,
       );
+
+      return questionBank;
     });
   }
 
@@ -227,8 +241,8 @@ class QuestionBankService extends BaseService {
         questionId,
         session,
       );
-
-      questionBank.questions[index] = duplicatedQuestion._id.toString();
+      // Push the duplicated question into the question bank.
+      questionBank.questions.push(duplicatedQuestion._id.toString());
       questionBank.courseVersionId = new ObjectId(questionBank.courseVersionId);
       questionBank.courseId = new ObjectId(questionBank.courseId.toString());
       await this.questionBankRepository.update(bankId, questionBank, session);

@@ -1,10 +1,16 @@
-import {Item, ItemsGroup} from '#courses/classes/transformers/Item.js';
-import {UpdateItemBody} from '#root/modules/courses/classes/index.js';
-import {ClientSession, ObjectId} from 'mongodb';
+import { Item, ItemsGroup } from '#courses/classes/transformers/Item.js';
+import { UpdateItemBody } from '#root/modules/courses/classes/index.js';
+import { ClientSession, ObjectId } from 'mongodb';
 
 export interface IItemRepository {
   readItem(
     courseVersionId: string,
+    itemId: string,
+    session?: ClientSession,
+  ): Promise<Item | null>;
+
+  readItemById(
+
     itemId: string,
     session?: ClientSession,
   ): Promise<Item | null>;
@@ -14,7 +20,7 @@ export interface IItemRepository {
     itemId: string,
     session?: ClientSession,
   ): Promise<ItemsGroup | null>;
-  getItemsCountByGroupIds(groupIds:string[],session?:ClientSession)
+  getItemsCountByGroupIds(groupIds: string[], session?: ClientSession);
   createItemsGroup(
     itemsGroup: ItemsGroup,
     session?: ClientSession,
@@ -49,7 +55,7 @@ export interface IItemRepository {
     moduleId: ObjectId;
     sectionId: ObjectId;
     itemId: ObjectId;
-  }>;
+  } | null>;
 
   createItem(item: Item, session?: ClientSession): Promise<Item | null>;
   CalculateTotalItemsCount(
@@ -62,6 +68,26 @@ export interface IItemRepository {
     versionId: string,
     session?: ClientSession,
   ): Promise<number>;
+
+
+  cascadeDeleteItem(session?: ClientSession): Promise<void>;
+
+  getItemGroupsByIds(
+    groupIds: (string | ObjectId)[],
+    session?: ClientSession,
+  ): Promise<ItemsGroup[]>;
+  updateItemsGroupsBulk(
+    itemGroups: ItemsGroup[],
+    session?: ClientSession,
+  ): Promise<number>;
+  updateItemById(
+    itemId: string,
+    item: Item,
+    itemType: string,
+    session?: ClientSession,
+  ): Promise<Item>;
+  calculateItemCountsForVersion(versionId: string,
+    session?: ClientSession,): Promise<{ totalItems: any, itemCounts: any }>;
   // createVideoDetails(details: IVideoDetails): Promise<string>;
   // createQuizDetails(details: IQuizDetails): Promise<string>;
   // createBlogDetails(details: IBlogDetails): Promise<string>;

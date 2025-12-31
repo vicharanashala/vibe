@@ -6,7 +6,7 @@ import {
 } from 'routing-controllers';
 import { injectable, inject } from 'inversify';
 import { EnrollmentRepository } from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
-import { CourseRepository } from '#shared/database/providers/mongo/repositories/CourseRepository.js';
+import type { ICourseRepository } from '#shared/database/interfaces/ICourseRepository.js';
 import { UserRepository } from '#shared/database/providers/mongo/repositories/UserRepository.js';
 import { InviteRepository } from '#shared/database/providers/mongo/repositories/InviteRepository.js';
 import { MailService } from './MailService.js';
@@ -39,9 +39,10 @@ export class InviteService extends BaseService {
   constructor(
     @inject(NOTIFICATIONS_TYPES.InviteRepo)
     private readonly inviteRepo: InviteRepository,
-    @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: UserRepository,
+    @inject(GLOBAL_TYPES.UserRepo)
+    private readonly userRepo: UserRepository,
     @inject(GLOBAL_TYPES.CourseRepo)
-    private readonly courseRepo: CourseRepository,
+    private readonly courseRepo: ICourseRepository,
     @inject(USERS_TYPES.EnrollmentRepo)
     private readonly enrollmentRepo: EnrollmentRepository,
     @inject(NOTIFICATIONS_TYPES.MailService)
@@ -302,49 +303,48 @@ export class InviteService extends BaseService {
 
 
 
-  async courseContentLength(courseId:string,courseVersionId: string,session?:ClientSession){
-    const course = await this.courseRepo.read(courseId,session);
-      console.log("reached here ")
-      if (!course) {
-        throw new NotFoundError('Course not found');
-      }
+  async courseContentLength(courseId: string, courseVersionId: string, session?: ClientSession) {
+    const course = await this.courseRepo.read(courseId, session);
+    if (!course) {
+      throw new NotFoundError('Course not found');
+    }
 
-      // Get Course Version Details
-      const courseVersion = await this.courseRepo.readVersion(courseVersionId,session);
-      if (!courseVersion) {
-        throw new NotFoundError('Course version not found');
-      }
+    // Get Course Version Details
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId, session);
+    if (!courseVersion) {
+      throw new NotFoundError('Course version not found');
+    }
 
-        if (!courseVersion.modules || courseVersion.modules.length === 0) {
-          throw new BadRequestError(
-            'Course version has no modules. Please add modules before proceeding.',
-          );
-        }
+    if (!courseVersion.modules || courseVersion.modules.length === 0) {
+      throw new BadRequestError(
+        'Course version has no modules. Please add modules before proceeding.',
+      );
+    }
 
-        const firstModule = [...courseVersion.modules].sort((a, b) =>
-          a.order.localeCompare(b.order),
-        )[0];
+    const firstModule = [...courseVersion.modules].sort((a, b) =>
+      a.order.localeCompare(b.order),
+    )[0];
 
-        if (!firstModule.sections || firstModule.sections.length === 0) {
-          throw new BadRequestError(
-            `Module "${firstModule.name}" has no sections. Add sections to continue.`,
-          );
-        }
+    if (!firstModule.sections || firstModule.sections.length === 0) {
+      throw new BadRequestError(
+        `Module "${firstModule.name}" has no sections. Add sections to continue.`,
+      );
+    }
 
-        const firstSection = [...firstModule.sections].sort((a, b) =>
-          a.order.localeCompare(b.order),
-        )[0];
+    const firstSection = [...firstModule.sections].sort((a, b) =>
+      a.order.localeCompare(b.order),
+    )[0];
 
-        const itemsGroup = await this.itemRepo.readItemsGroup(
-          firstSection.itemsGroupId.toString(),session
-        );
+    const itemsGroup = await this.itemRepo.readItemsGroup(
+      firstSection.itemsGroupId.toString(), session
+    );
 
-        if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
-          throw new BadRequestError(
-            `Section "${firstSection.name}" has no items. Add content before sending invites.`,
-          );
+    if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
+      throw new BadRequestError(
+        `Section "${firstSection.name}" has no items. Add content before sending invites.`,
+      );
+    }
   }
-}
 
 
   async inviteUserToCourse(
@@ -352,72 +352,95 @@ export class InviteService extends BaseService {
     courseId: string,
     courseVersionId: string,
   ): Promise<InviteResult[]> {
-    return this._withTransaction(async session => {
-      // Get Course Details
-      const course = await this.courseRepo.read(courseId.toString());
-      if (!course) {
-        throw new NotFoundError('Course not found');
-      }
+    // Get Course Details (outside transaction)
+    const course = await this.courseRepo.read(courseId.toString());
+    if (!course) {
+      throw new NotFoundError('Course not found');
+    }
 
-      // Get Course Version Details
-      const courseVersion = await this.courseRepo.readVersion(courseVersionId.toString());
-      if (!courseVersion) {
-        throw new NotFoundError('Course version not found');
-      }
+    // Get Course Version Details (outside transaction)
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId.toString());
+    if (!courseVersion) {
+      throw new NotFoundError('Course version not found');
+    }
 
-      // ✅ Validate course content only if any user is a STUDENT
-      const hasStudent = inviteData.some(invite => invite.role === 'STUDENT');
-      if (hasStudent) {
-        if (!courseVersion.modules || courseVersion.modules.length === 0) {
-          throw new BadRequestError(
-            'Course version has no modules. Please add modules before proceeding.',
-          );
-        }
-
-        const firstModule = [...courseVersion.modules].sort((a, b) =>
-          a.order.localeCompare(b.order),
-        )[0];
-
-        if (!firstModule.sections || firstModule.sections.length === 0) {
-          throw new BadRequestError(
-            `Module "${firstModule.name}" has no sections. Add sections to continue.`,
-          );
-        }
-
-        const firstSection = [...firstModule.sections].sort((a, b) =>
-          a.order.localeCompare(b.order),
-        )[0];
-
-        const itemsGroup = await this.itemRepo.readItemsGroup(
-          firstSection.itemsGroupId.toString(),
+    // Validate course content only if any user is a STUDENT
+    const hasStudent = inviteData.some(invite => invite.role === 'STUDENT');
+    if (hasStudent) {
+      if (!courseVersion.modules || courseVersion.modules.length === 0) {
+        throw new BadRequestError(
+          'Course version has no modules. Please add modules before proceeding.',
         );
-
-        if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
-          throw new BadRequestError(
-            `Section "${firstSection.name}" has no items. Add content before sending invites.`,
-          );
-        }
       }
 
+      const firstModule = [...courseVersion.modules].sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[0];
+
+      if (!firstModule.sections || firstModule.sections.length === 0) {
+        throw new BadRequestError(
+          `Module "${firstModule.name}" has no sections. Add sections to continue.`,
+        );
+      }
+
+      const firstSection = [...firstModule.sections].sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[0];
+
+      const itemsGroup = await this.itemRepo.readItemsGroup(
+        firstSection.itemsGroupId.toString(),
+      );
+
+      if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
+        throw new BadRequestError(
+          `Section "${firstSection.name}" has no items. Add content before sending invites.`,
+        );
+      }
+    }
+
+    const seenEmails = new Set<string>();
+    const uniqueInviteData = inviteData.filter(invite => {
+      const normalizedEmail = invite.email.toLowerCase().trim();
+      if (seenEmails.has(normalizedEmail)) {
+        return false; // Skip duplicate
+      }
+      seenEmails.add(normalizedEmail);
+      return true;
+    });
+
+    // Create all invites in a single transaction
+    const invites = await this._withTransaction(async session => {
       const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-      // ✅ Parallel invite creation
-      const invitePromises = inviteData.map(async ({ email, role }) => {
+      //  Create all invites in parallel
+      const invitePromises = uniqueInviteData.map(async ({ email, role }) => {
+        const normalizedEmail = email.toLowerCase().trim();
+        const existingPendingInvite = await this.inviteRepo.findPendingInviteByEmailAndCourse(
+          normalizedEmail,
+          courseId,
+          courseVersionId,
+          session,
+        );
+
+        if (existingPendingInvite) {
+          // Return existing invite ID instead of creating duplicate
+          return existingPendingInvite._id.toString();
+        }
+
         const user = await this.userRepo.findByEmail(email);
         const isNewUser = !user;
 
         const isAlreadyEnrolled = user
-          ? !!(await this.enrollmentRepo.findEnrollment(
+          ? !!(await this.enrollmentRepo.findActiveEnrollment(
             user._id.toString(),
             courseId,
             courseVersionId,
           ))
           : false;
         const invite = new Invite({
-          email: email,
+          email: normalizedEmail,
           courseId: new ObjectId(courseId),
-          courseVersionId
-            : new ObjectId(courseVersionId),
+          courseVersionId: new ObjectId(courseVersionId),
           role,
           isAlreadyEnrolled,
           isNewUser,
@@ -425,19 +448,25 @@ export class InviteService extends BaseService {
           type: InviteType.SINGLE
         });
 
-
-
         return this.inviteRepo.create(invite, session);
       });
 
       const inviteIds = await Promise.all(invitePromises);
 
       // Fetch created invites
-      const invites = await this.inviteRepo.findInvitesByIds(inviteIds, session);
+      return await this.inviteRepo.findInvitesByIds(inviteIds, session);
+    });
 
-      // ✅ Parallel email sending
+    // Send emails in batches with delays (outside transaction to avoid timeout)
+    const BATCH_SIZE = 10;
+    const DELAY_BETWEEN_BATCHES = 90000; // 90 seconds
+
+    for (let i = 0; i < invites.length; i += BATCH_SIZE) {
+      const batch = invites.slice(i, i + BATCH_SIZE);
+
+      // Send emails for current batch in parallel
       await Promise.all(
-        invites.map(async invite => {
+        batch.map(async invite => {
           const emailMessage = await this.createInviteEmailMessage(
             invite,
             course,
@@ -445,25 +474,30 @@ export class InviteService extends BaseService {
           );
           try {
             await this.mailService.sendMail(emailMessage);
+            console.log(`Email sent successfully to: ${invite.email}`);
           } catch (error) {
-            // Update Status to EMAIL_FAILED
-            invite.inviteStatus = 'EMAIL_FAILED';
-            const updatePayload = {
-              ...invite,
-              courseId: new ObjectId(invite.courseId),
-              courseVersionId: new ObjectId(invite.courseVersionId),
-            };
-            await this.inviteRepo.updateInvite(invite._id.toString(), updatePayload);
+
+            console.error(`⚠️  Email delivery failed for ${invite.email} (Invite still PENDING):`, error);
+            console.error('Email error details:', {
+              message: error?.message,
+              code: error?.code,
+              response: error?.response,
+            });
           }
         }),
       );
 
-      // Return results
-      return invites.map(
-        invite =>
-          new InviteResult(invite._id, invite.email, invite.inviteStatus, invite.role),
-      );
-    });
+      // Add delay between batches (except for the last batch)
+      if (i + BATCH_SIZE < invites.length) {
+        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
+      }
+    }
+
+    // Return results
+    return invites.map(
+      invite =>
+        new InviteResult(invite._id, invite.email, invite.inviteStatus, invite.role),
+    );
   }
 
 
@@ -522,9 +556,8 @@ export class InviteService extends BaseService {
     invite.acceptedAt = date;
 
     const updatedPayload = {
-      ...invite,
-      courseId: new ObjectId(invite.courseId),
-      courseVersionId: new ObjectId(invite.courseVersionId),
+      inviteStatus: 'ACCEPTED' as const,
+      acceptedAt: date,
     };
 
     await this.inviteRepo.updateInvite(inviteId, updatedPayload);
@@ -576,9 +609,7 @@ export class InviteService extends BaseService {
     // Update invite status to CANCELLED
     invite.inviteStatus = 'CANCELLED';
     const updatePayload = {
-      ...invite,
-      courseId: new ObjectId(invite.courseId),
-      courseVersionId: new ObjectId(invite.courseVersionId),
+      inviteStatus: 'CANCELLED' as const,
     };
     await this.inviteRepo.updateInvite(inviteId, updatePayload);
 
@@ -613,8 +644,18 @@ export class InviteService extends BaseService {
 
     try {
       await this.mailService.sendMail(emailMessage);
+
+      // Update status to PENDING after successful resend
+      await this.inviteRepo.updateInvite(inviteId, {
+        inviteStatus: 'PENDING',
+      });
+
       return { message: 'Invite resent successfully.' };
     } catch (error) {
+      // Update status to EMAIL_FAILED if resend fails
+      await this.inviteRepo.updateInvite(inviteId, {
+        inviteStatus: 'EMAIL_FAILED',
+      });
       throw new InternalServerError('Failed to resend invite email');
     }
   }
@@ -627,6 +668,8 @@ export class InviteService extends BaseService {
     limit: number,
     search: string,
     sort: string,
+    startDate?: string,
+    endDate?: string,
   ): Promise<{
     invites: InviteResult[];
     totalDocuments: number;
@@ -651,6 +694,8 @@ export class InviteService extends BaseService {
         limit,
         search,
         sort,
+        startDate,
+        endDate,
       );
     return {
       invites: invites.map(

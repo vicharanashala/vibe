@@ -64,6 +64,8 @@ const plugins = [
     Code,
 ];
 import type { ArticleProps, ArticleRef } from "@/types/article.types";
+import { NavigatingOverlay } from "./video";
+import { toast } from "sonner";
 
 
 const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTimeInMinutes, points, tags, onNext, isProgressUpdating }, ref) => {
@@ -75,7 +77,8 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
     const { currentCourse, setWatchItemId } = useCourseStore();
     const startItem = useStartItem();
     const stopItem = useStopItem();
-    
+    const isStopping = stopItem.isPending;
+
     // ✅ Track if item has been started and if start request has been sent
     const itemStartedRef = useRef(false);
     const startRequestSentRef = useRef(false);
@@ -101,33 +104,52 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
         });
     }
 
-    function handleStopItem() {
+   async function handleStopItem() {
         if (!currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
         
-        stopItem.mutate({
-            params: {
-                path: {
-                    courseId: currentCourse.courseId,
-                    courseVersionId: currentCourse.versionId ?? '',
+        try {
+            await stopItem.mutateAsync({
+                params: {
+                    path: {
+                        courseId: currentCourse.courseId,
+                        courseVersionId: currentCourse.versionId ?? '',
+                    },
                 },
-            },
-            body: {
-                watchItemId: currentCourse.watchItemId,
-                itemId: currentCourse.itemId,
-                moduleId: currentCourse.moduleId ?? '',
-                sectionId: currentCourse.sectionId ?? '',
-            }
-        });
-        itemStartedRef.current = false;
+                body: {
+                    watchItemId: currentCourse.watchItemId,
+                    itemId: currentCourse.itemId,
+                    moduleId: currentCourse.moduleId ?? '',
+                    sectionId: currentCourse.sectionId ?? '',
+                }
+            });
+            itemStartedRef.current = false;
+        } catch (error: any) {
+            console.error('❌ handleStopItem error:', error);
+            // Re-throw the error so it can be caught by the parent
+            throw error;
+        }
     }
 
-    // ✅ Handle Next button click - send stop request only when user clicks Next
-    const handleNextClick = () => {
-        if (itemStartedRef.current) {
-            handleStopItem();
-        }
-        if (onNext) {
-            onNext();
+    // // ✅ Handle Next button click - send stop request only when user clicks Next
+    // const handleNextClick = () => {
+    //     if (itemStartedRef.current) {
+    //         handleStopItem();
+    //     }
+    //     if (onNext) {
+    //         onNext();
+    //     }
+    // };
+
+    const handleNextClick = async () => {
+        try {
+            if (itemStartedRef.current) {
+            await handleStopItem(); //  wait until stop finishes
+            }
+
+            onNext?.(); //  only after stop succeeds
+        } catch (err) {
+            toast.error('Unable to save progress. Please try again.');
+            console.error('Stop item failed:', err);
         }
     };
 
@@ -209,6 +231,7 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
     return (
         <MathRenderer className="h-full w-full bg-background">
             <div className="h-full w-full flex flex-col">
+                <NavigatingOverlay visible={isStopping} />
                 {/* Article Metadata Topbar */}
                 {(estimatedReadTimeInMinutes || points || tags?.length) && (
                     <div className="border-b bg-muted/50 px-4 py-3">

@@ -8,8 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
-import { useCourseById, useCourseEnrollmentsStats, useCourseVersionById, useCourseVersionEnrollments, useUnenrollUser } from "@/hooks/hooks"
+import { useCourseById, useCourseVersionById, useCourseVersionEnrollments, useUnenrollUser } from "@/hooks/hooks"
 import { useCourseStore } from "@/store/course-store"
+import { useAuthStore } from "@/store/auth-store" 
 import type { EnrolledUser } from "@/types/course.types"
 import { useNavigate } from "@tanstack/react-router"
 import { Pagination } from "@/components/ui/Pagination"
@@ -101,6 +102,7 @@ export default function CourseInstructors() {
 
   // Get course info from store and router
   const { currentCourse } = useCourseStore();
+  const { user } = useAuthStore();
   const courseId = currentCourse?.courseId;
   const versionId = currentCourse?.versionId;
 
@@ -260,7 +262,7 @@ export default function CourseInstructors() {
                     instructorEnrollments.map((instructor: any) => (
                       <TableRow
                         key={instructor._id}
-                        className="border-border hover:bg-muted/20 transition-colors duration-200 group"
+                        className={`border-border hover:bg-muted/20 transition-colors duration-200 group ${instructor.isDeleted ? 'opacity-10' : ''}`}
                       >
                         <TableCell className="pl-6 py-6">
                           <div className="flex items-center gap-4">
@@ -314,6 +316,9 @@ export default function CourseInstructors() {
                                   progress: 0,
                                 })
                               }
+                              disabled={
+                                instructor.user?.firebaseUID === user?.uid
+                              }
                               className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
                               title="Remove instructor"
                             >
@@ -346,9 +351,9 @@ export default function CourseInstructors() {
               className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
               onClick={() => setIsRemoveDialogOpen(false)}
             />
-            <div className="relative bg-card border border-border rounded-2xl shadow-2xl max-w-lg w-full mx-4 p-10 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+            <div className="relative bg-card border border-border rounded-2xl shadow-2xl max-w-lg w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-card-foreground">Remove Instructor</h2>
+                <h2 className="sm:text-2xl text-xl font-bold text-card-foreground">Remove Instructor</h2>
                 <Button
                   variant="ghost"
                   size="sm"

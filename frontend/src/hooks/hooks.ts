@@ -21,10 +21,13 @@ import type {
 import type { ProctoringSettings } from '@/types/video.types';
 import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.types';
 import { EntityType, IReport, ReportStatus } from '@/types/flag.types';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { VersionWithCourse } from '@/app/pages/student/CourseRegistration';
 import { Registration, RegistrationStatus } from '@/app/pages/teacher/CourseRegistrationRequests';
 import { Field } from '@/app/pages/teacher/components/course-registration-modal';
+import { IssueSort, IssueStatus } from '@/app/pages/student/FlagResponse';
+import { ISubmitFeedbackBody } from '@/components/Item-container';
+import { TranscriptResponse } from '@/types/ai.types';
 
 // Add missing ObjectId type
 type ObjectId = string;
@@ -333,7 +336,9 @@ export function useAnomaliesByCourseItem(
   page: number = 1,
   limit: number = 10,
   sortField?: string,
-  sortOrder: 'asc' | 'desc' = 'desc'
+  sortOrder: 'asc' | 'desc' = 'desc',
+  search?: string,
+  type?: string
 ): {
   data: Anomaly[];
   isLoading: boolean;
@@ -356,7 +361,9 @@ export function useAnomaliesByCourseItem(
           page,
           limit,
           sortField,
-          sortOrder
+          sortOrder,
+          ...(search && { search }),
+          ...(type && { type })
         }
       }
     },
@@ -525,7 +532,7 @@ export async function useProcessInvites(inviteId: string): Promise<{
     throw new Error(`Failed to update settings: ${res.status}`);
   }
 
-  
+
   return {
     data: null,
     isLoading: isLoading,
@@ -617,7 +624,7 @@ export function useGenerateLink(): {
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
   const result = api.useMutation("post", "/notifications/invite/courses/{courseId}/versions/{versionId}/bulk");
-  
+
   return {
     ...result,
     error: result.error ? (result.error.message || 'Failed to generate link') : null
@@ -882,9 +889,19 @@ export function useItemsBySectionId(versionId: string, moduleId: string, section
   error: string | null,
   refetch: () => void
 } {
+  const isEnabled: boolean | null =
+    versionId !== "SKIP" &&
+      moduleId !== "SKIP" &&
+      sectionId !== "SKIP" &&
+      !!versionId &&
+      !!moduleId &&
+      !!sectionId
+      ? true
+      : null;
+
   const result = api.useQuery("get", "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items", {
     params: { path: { versionId, moduleId, sectionId } }
-  }, { enabled: !!versionId && !!moduleId && !!sectionId });
+  }, { enabled: isEnabled ?? false });
 
   return {
     data: result.data,
@@ -896,8 +913,8 @@ export function useItemsBySectionId(versionId: string, moduleId: string, section
 
 // POST /courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items
 export function useCreateItem(): {
-  mutate: (variables: { params: { path: { versionId: string, moduleId: string, sectionId: string } }, body: components['schemas']['CreateItemBody'] }) => void,
-  mutateAsync: (variables: { params: { path: { versionId: string, moduleId: string, sectionId: string } }, body: components['schemas']['CreateItemBody'] }) => Promise<components['schemas']['ItemDataResponse']>,
+  mutate: (variables: { params: { path: { versionId: string, moduleId: string, sectionId: string } }, body: any }) => void,
+  mutateAsync: (variables: { params: { path: { versionId: string, moduleId: string, sectionId: string } }, body: any }) => Promise<components['schemas']['ItemDataResponse']>,
   data: components['schemas']['ItemDataResponse'] | undefined,
   error: string | null,
   isPending: boolean,
@@ -914,6 +931,33 @@ export function useCreateItem(): {
   };
 }
 
+export function userParseCSVtoItems(): {
+  mutate: (variables: { params: { path: { courseId: string, versionId: string, moduleId: string, sectionId: string } }, body: any }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, moduleId: string, sectionId: string } }, body: any }) => Promise<{
+    success: boolean;
+    message: string;
+    createdItems: any[];
+  }>,
+  data: {
+    success: boolean;
+    message: string;
+    createdItems: any[];
+  } | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/courses/{courseId}/versions/{versionId}/module/{moduleId}/section/{sectionId}/items/csv");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Item creation failed') : null
+  };
+}
+
 // GET /courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items/{itemId}
 export function useItemById(
   courseId: string,
@@ -923,6 +967,7 @@ export function useItemById(
   data: components['schemas']['ItemDataResponse'] | undefined;
   isLoading: boolean;
   error: string | null;
+  errorName: string | null;
   refetch: () => void;
 } {
   const result = api.useQuery(
@@ -940,6 +985,7 @@ export function useItemById(
     data: result.data,
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Item fetch failed') : null,
+    errorName: result.error ? (result.error.name || null) : null,
     refetch: result.refetch,
   };
 }
@@ -1304,26 +1350,115 @@ export function useStartItem(): {
 }
 
 // POST /users/progress/courses/{courseId}/versions/{courseVersionId}/stop
-export function useStopItem(): {
-  mutate: (variables: {
-    params: { path: { courseId: string, courseVersionId: string } }, body: {
-      watchItemId: string;
-      itemId: string;
-      sectionId: string;
-      moduleId: string;
-      attemptId?: string | null | undefined;
-      isSkipped?: boolean
+// export function useStopItem(): {
+//   mutate: (variables: {
+//     params: { path: { courseId: string, courseVersionId: string } }, body: {
+//       watchItemId: string;
+//       itemId: string;
+//       sectionId: string;
+//       moduleId: string;
+//       attemptId?: string | null | undefined;
+//       isSkipped?: boolean
+//     }
+//   }) => void,
+//   mutateAsync: (variables: {
+//     params: { path: { courseId: string, courseVersionId: string } }, body: {
+//       watchItemId: string;
+//       itemId: string;
+//       sectionId: string;
+//       moduleId: string;
+//       attemptId?: string | null | undefined;
+//       isSkipped?: boolean
+//     }
+//   }) => Promise<unknown>,
+//   data: unknown | undefined,
+//   error: string | null,
+//   isPending: boolean,
+//   isSuccess: boolean,
+//   isError: boolean,
+//   isIdle: boolean,
+//   reset: () => void,
+//   status: 'idle' | 'pending' | 'success' | 'error'
+// } {
+//   const result = api.useMutation("post", "/users/progress/courses/{courseId}/versions/{courseVersionId}/stop");
+//   return {
+//     ...result,
+//     error: result.error ? (result.error.message || 'Failed to stop item') : null
+//   };
+// }
+
+
+export function useStopItem() {
+  const queryClient = useQueryClient();
+
+  const result = api.useMutation(
+    "post",
+    "/users/progress/courses/{courseId}/versions/{courseVersionId}/stop",
+    {
+      onSuccess: (_data, variables) => {
+        const {
+          params: {
+            path: { courseId, courseVersionId },
+          },
+          body: { itemId },
+        } = variables;
+
+      //  queryClient.invalidateQueries({
+        //   queryKey: [
+        //     "get",
+        //     "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items",
+        //     {
+        //       params: {
+        //         path: {
+        //           versionId: courseVersionId,
+        //           moduleId,
+        //           sectionId,
+        //         },
+        //       },
+        //     },
+        //   ],
+        // });
+        queryClient.invalidateQueries({
+  predicate: (query) =>
+    query.queryKey[0] === "get" &&
+    query.queryKey[1] ===
+      "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items",
+});
+
+      },
     }
-  }) => void,
+  );
+
+  return {
+    ...result,
+    error: result.error
+      ? result.error.message || 'Failed to stop item'
+      : null,
+  };
+}
+
+export function useSkipOptionalItem(): {
+  mutate: (variables: { params: { path: { itemId: String } } }) => void,
+  mutateAsync: (variables: { params: { path: { itemId: String } } }) => Promise<unknown>,
+  data: unknown | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+} {
+  const result = api.useMutation("post", "/users/items/{itemId}/skip");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to skip item') : null
+  }
+}
+
+export function useUpdateItemOptional(): {
+  mutate: (variables: { params: { path: { versionId: ObjectId, itemId: ObjectId } } }) => void,
   mutateAsync: (variables: {
-    params: { path: { courseId: string, courseVersionId: string } }, body: {
-      watchItemId: string;
-      itemId: string;
-      sectionId: string;
-      moduleId: string;
-      attemptId?: string | null | undefined;
-      isSkipped?: boolean
-    }
+    params: { path: { versionId: ObjectId, itemId: ObjectId } },
+    body: { isOptional: boolean }
   }) => Promise<unknown>,
   data: unknown | undefined,
   error: string | null,
@@ -1331,15 +1466,14 @@ export function useStopItem(): {
   isSuccess: boolean,
   isError: boolean,
   isIdle: boolean,
-  reset: () => void,
-  status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("post", "/users/progress/courses/{courseId}/versions/{courseVersionId}/stop");
+  const result = api.useMutation("put", "/courses/versions/{versionId}/items/{itemId}/optional");
   return {
     ...result,
-    error: result.error ? (result.error.message || 'Failed to stop item') : null
-  };
+    error: result.error ? (result.error.message || 'Failed to skip item') : null
+  }
 }
+
 
 // PATCH /users/{userid}/progress/courses/{courseId}/versions/{courseVersionId}/reset
 export function useResetProgress(): {
@@ -1355,6 +1489,25 @@ export function useResetProgress(): {
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
   const result = api.useMutation("patch", "/users/{userId}/progress/courses/{courseId}/versions/{courseVersionId}/reset");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to reset progress') : null
+  };
+}
+
+export function useRecalculateProgress():{
+  mutate: (variables: { params: { query: { courseId?: string, userId?: string, courseVersionId?: string } } }) => void,
+  mutateAsync: (variables: { params: { query: { courseId?: string, userId?: string, courseVersionId?: string } } }) => Promise<unknown>,
+  data: unknown | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("patch", "/users/enrollments/progress");
   return {
     ...result,
     error: result.error ? (result.error.message || 'Failed to reset progress') : null
@@ -1450,14 +1603,20 @@ export function useInviteUsers(): {
   };
 }
 
-export function useCourseInvites(courseId: string, courseVersionId: string, enabled: boolean = true, search: string = "", currentPage: number = 1, limit: number = 10, inviteStatus: string, sort?: string,): {
+export function useCourseInvites(courseId: string, courseVersionId: string, enabled: boolean = true, search: string = "", currentPage: number = 1, limit: number = 10, inviteStatus: string, sort?: string, startDate?: string, endDate?: string): {
   data: InviteResponse | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 } {
+  const queryParams: any = { search, currentPage, limit };
+  if (sort) queryParams.sort = sort;
+  if (inviteStatus) queryParams.inviteStatus = inviteStatus;
+  if (startDate) queryParams.startDate = startDate;
+  if (endDate) queryParams.endDate = endDate;
+
   const result = api.useQuery("get", "/notifications/invite/courses/{courseId}/versions/{courseVersionId}", {
-    params: { path: { courseId, courseVersionId }, query: { search, currentPage, limit, sort, inviteStatus } },
+    params: { path: { courseId, courseVersionId }, query: queryParams },
     enabled: enabled
   });
 
@@ -2745,8 +2904,8 @@ export function useProjectSubmissions(courseId: string, versionId: string): {
 
 // POST (copy course version)
 export function useCopyCourseVersion(): {
-  mutate: (variables: { params: { path: {  courseId: string; courseVersionId: string }}} ) => void,
-  mutateAsync: (variables: { params: { path: {  courseId: string; courseVersionId: string }}} ) => Promise<{ message: string }>,
+  mutate: (variables: { params: { path: { courseId: string; courseVersionId: string } } }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string; courseVersionId: string } } }) => Promise<{ message: string }>,
   data: { message: string } | undefined,
   error: string | null,
   isPending: boolean,
@@ -2855,10 +3014,10 @@ export interface RegistrationRequestQuery {
 
 
 export const useGetCourseRegistrationRequests = (
-  versionId:string,
+  versionId: string,
   query: RegistrationRequestQuery = {},
 ): {
-  data: {totalDocuments: number, totalPages: number, currentPage: number, registrations: Registration[]};
+  data: { totalDocuments: number, totalPages: number, currentPage: number, registrations: Registration[] };
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
@@ -2868,19 +3027,19 @@ export const useGetCourseRegistrationRequests = (
     '/course/registration/requests/version/{versionId}' as any,
     {
       params: {
-        path:{versionId},
+        path: { versionId },
         query
       }
     },
     {
-      enabled:!!versionId,
+      enabled: !!versionId,
       retry: 1,
       refetchOnWindowFocus: false
     }
   );
 
   return {
-    data: result.data as {totalDocuments: number, totalPages: number, currentPage: number, registrations: Registration[]} ,
+    data: result.data as { totalDocuments: number, totalPages: number, currentPage: number, registrations: Registration[] },
     isLoading: result.isLoading,
     error: result.error
       ? result.error.message || 'Failed to fetch course registration requests'
@@ -2890,7 +3049,7 @@ export const useGetCourseRegistrationRequests = (
 };
 
 
-export const useUpdateRegistrationStatus  = (): {
+export const useUpdateRegistrationStatus = (): {
   mutate: (registrationId: string, status: RegistrationStatus) => void;
   mutateAsync: (registrationId: string, status: RegistrationStatus) => Promise<{
     message: string;
@@ -2937,7 +3096,7 @@ export const useBulkUpdateRegistrationStatus = (): {
   mutate: (selected: string[]) => void;
   mutateAsync: (selected: string[]) => Promise<{
     message: string;
-    updatedCount?: number; 
+    updatedCount?: number;
   }>;
   data: { message: string; updatedCount?: number } | undefined;
   error: string | null;
@@ -3069,12 +3228,12 @@ export const useCreateRegistrationFields = (versionId: string): {
   return {
     mutate: (fields) =>
       result.mutate({
-        body: fields ,
+        body: fields,
       }),
 
     mutateAsync: (fields) =>
       result.mutateAsync({
-        body:fields,
+        body: fields,
       }),
 
     data: result.data as { message: string } | undefined,
@@ -3124,6 +3283,9 @@ export const useGetRegistrationFields = (
   };
 };
 
+
+
+
 export const useGetDynamicFields = (
   versionId: string,
 ): {
@@ -3134,14 +3296,14 @@ export const useGetDynamicFields = (
 } => {
   const result = api.useQuery(
     "get",
-    "/course/registration/form/version/{versionId}" as any, 
+    "/course/registration/form/version/{versionId}" as any,
     {
       params: {
         path: { versionId },
       },
     },
     {
-      enabled: !!versionId, 
+      enabled: !!versionId,
     }
   );
   return {
@@ -3151,3 +3313,510 @@ export const useGetDynamicFields = (
     refetch: result.refetch,
   };
 };
+
+
+
+export type IssueStatus =
+  | "ALL"
+  | "REPORTED"
+  | "IN_REVIEW"
+  | "RESOLVED"
+  | "DISCARDED"
+  | "CLOSED";
+
+export type IssueSort = "ALL" | "VIDEO" | "QUIZ" | "ARTICLE" | "QUESTION";
+
+export type EntityType = "VIDEO" | "QUIZ" | "ARTICLE" | "QUESTION";
+
+export interface IssueStatusHistory {
+  status: IssueStatus;
+  comment: string;
+  createdAt: string;
+  createdBy?: string;
+}
+
+export interface IssueReport {
+  _id: string;
+  courseId: string;
+  versionId: string;
+  entityId: string;
+  entityType: EntityType;
+  reason: string;
+  reportedBy: string;
+  status: IssueStatusHistory[]; // ✅ fixed: array of objects
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Params {
+  status: IssueStatus;
+  search: string;
+  sort: IssueSort;
+  page: number;
+  limit: number;
+}
+
+export interface IssueReportsResponse {
+  issues: IssueReport[];
+  totalDocuments: number;
+  totalPages: number;
+}
+
+export const useGetCourseIssueReports = (
+  versionId: string,
+  params: Params
+): {
+  data: IssueReportsResponse;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} => {
+  const result = api.useQuery(
+    "get",
+    `/reports/student/issues/flag` as any,
+    {
+      params: {
+        query: params,
+      },
+    },
+    {
+      enabled: !!versionId,
+    }
+  );
+
+  return {
+    data: result.data as IssueReportsResponse,
+    isLoading: result.isLoading,
+    error: result.error
+      ? result.error.message || "Failed to fetch issue reports"
+      : null,
+    refetch: result.refetch,
+  };
+};
+
+
+
+export const useUpdateStudentInterest = () => {
+  const result = api.useMutation(
+    "patch",
+    `/reports/student/issues/interest` as any // replace with your real endpoint
+  );
+
+  return {
+    mutate: (data: { issueId: string; interest: "yes" | "no" }) =>
+      result.mutate({ body: data }),
+    mutateAsync: (data: { issueId: string; interest: "yes" | "no" }) =>
+      result.mutateAsync({ body: data }),
+    data: result.data as { message: string } | undefined,
+    error: result.error ? result.error.message || "Failed to submit comment" : null,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+  };
+};
+
+export const useCreateFeedbackFormFields = (feedbackId: string): {
+  mutate: (fields: any) => void;
+  mutateAsync: (fields: any) => Promise<{ message: string }>;
+  data: { message: string } | undefined;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} => {
+
+  const result = api.useMutation('put', `/course/registration/build-form/version/${feedbackId}` as any);
+  return {
+    mutate: (fields) =>
+      result.mutate({
+        body: fields,
+      }),
+
+    mutateAsync: (fields) =>
+      result.mutateAsync({
+        body: fields,
+      }),
+
+    data: result.data as { message: string } | undefined,
+    error: result.error
+      ? result.error.message || 'Failed to update registration fields'
+      : null,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+  };
+};
+
+export const useGetFeedbackFormFields = (
+  versionId: string,
+): {
+  data: { jsonSchema: RJSFSchema; uiSchema: Record<string, any> } | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} => {
+  const result = api.useQuery(
+    'get',
+    '/course/registration/build-form/version/{versionId}' as any,
+    {
+      params: {
+        path: { versionId },
+      },
+    },
+    {
+      enabled: !!versionId,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    }
+  );
+
+  return {
+    data: result.data as { jsonSchema: RJSFSchema; uiSchema: Record<string, any> } | undefined,
+    isLoading: result.isLoading,
+    error: result.error
+      ? result.error.message || 'Failed to fetch registration fields'
+      : null,
+    refetch: result.refetch,
+  };
+};
+
+
+export const useSubmitFeedback = (itemId: string): {
+  mutate: (body: ISubmitFeedbackBody) => void;
+  mutateAsync: (body: ISubmitFeedbackBody) => Promise<{ message: string }>;
+  data: { message: string } | undefined;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} => {
+
+  const result = api.useMutation('post', `/quizzes/${itemId}/feedback/submit` as any);
+
+  return {
+    mutate: (body) =>
+      result.mutate({
+        body: body,
+      }),
+
+    mutateAsync: (body) =>
+      result.mutateAsync({
+        body: body,
+      }),
+
+    data: result.data as { message: string } | undefined,
+    error: result.error
+      ? result.error.message || 'Failed to submit feedback'
+      : null,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+  };
+};
+
+
+
+
+let navigationQueue = Promise.resolve();
+
+export function enqueueNavigation(fn: () => Promise<void>) {
+  navigationQueue = navigationQueue.then(fn).catch(err => {
+    console.error("Navigation error:", err);
+  });
+  return navigationQueue;
+}
+
+
+interface Submission {
+  _id: string;
+  userInfo: { firstName: string; lastName: string; email?: string };
+  submittedAt: string;
+  // Add fields like responses, status if available
+}
+
+interface SubmissionsData {
+  data: Submission[];
+  totalPages: number;
+  totalCount: number;
+}
+
+interface UseFeedbackSubmissionsProps {
+  feedbackId: string;
+  courseId: string;
+  searchQuery?: string;
+  statusFilter?: string; // e.g., 'All', 'Submitted'
+  page?: number;
+  limit?: number;
+}
+
+export const useFeedbackSubmissions = ({
+  feedbackId,
+  courseId,
+  searchQuery = '',
+  page = 1,
+  limit = 10
+}: UseFeedbackSubmissionsProps): {
+  data: SubmissionsData | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} => {
+  const result = api.useQuery(
+    'get',
+    `/courses/${courseId}/item/${feedbackId}/feedback/submissions` as any,
+    {
+      params: {
+        query: {
+          page: page.toString(),
+          limit: limit.toString(),
+          search: searchQuery,
+        }
+      }
+    },
+    {
+      enabled: !!feedbackId && !!courseId,
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000,
+    }
+  );
+
+  return {
+    data: result.data as SubmissionsData | undefined,
+    isLoading: result.isLoading,
+    error: result.error
+      ? result.error.message || 'Failed to fetch feedback submissions'
+      : null,
+    refetch: result.refetch,
+  };
+};
+
+export const exportQuizSubmissions = async (quizId: string) => {
+  const authToken = localStorage.getItem('firebase-auth-token');
+
+  const response = await fetch(`${import.meta.env.VITE_BASE_URL}/quizzes/${quizId}/attempts/export`, {
+    method: 'GET',
+    headers: {
+      'Authorization': authToken ? `Bearer ${authToken}` : '',
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to export quiz submissions: ${response.statusText}`);
+  }
+
+  const csvData = await response.text();
+
+  const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `quiz_${quizId}_submissions.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+}
+
+export const useHideModule = (): {
+  mutate: (variables: { params: { path: { versionId: string, moduleId: string } }, body: { hide: boolean } }) => void,
+  mutateAsync: (variables: { params: { path: { versionId: string, moduleId: string } }, body: { hide: boolean } }) => Promise<void>,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} => {
+  const result = api.useMutation('put', '/courses/versions/{versionId}/modules/{moduleId}/toggle-visibility');
+  return {
+    ...result,
+    error: result.error ? (result?.error?.message || 'Failed to hide/unhide module') : null
+  }
+}
+// Leaderboard hook
+export interface LeaderboardEntry {
+  userId: string;
+  userName: string;
+  completionPercentage: number;
+  completedAt: Date | null;
+  rank: number;
+}
+
+export const useLeaderboard = (
+  courseId: string,
+  versionId: string,
+  page: number,
+  limit: number = 10,
+  enabled: boolean = true,
+) => {
+  const authToken = localStorage.getItem('firebase-auth-token');
+
+  const result = useQuery({
+    queryKey: ['leaderboard', courseId, versionId, page, limit],
+    queryFn: async () => {
+      const response = await fetch(
+        `${import.meta.env.VITE_BASE_URL}/users/progress/courses/${courseId}/versions/${versionId}/leaderboard?page=${page}&limit=${limit}`,
+        {
+          method: 'GET',
+          headers: {
+            Authorization: authToken ? `Bearer ${authToken}` : '',
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch leaderboard');
+      }
+
+      return response.json() as Promise<{
+        data: LeaderboardEntry[];
+        totalDocuments: number;
+        totalPages: number;
+        currentPage: number;
+        myStats: LeaderboardEntry | null;
+      }>;
+    },
+    enabled: enabled && !!courseId && !!versionId,
+  });
+
+  return {
+    leaderboard: result.data?.data ?? [],
+    totalDocuments: result.data?.totalDocuments ?? 0,
+    totalPages: result.data?.totalPages ?? 0,
+    currentPage: result.data?.currentPage ?? page,
+    myStats: result.data?.myStats ?? null,
+    isLoading: result.isLoading,
+    isFetching: result.isFetching,
+    error: result.isError
+      ? result.error?.message || 'Failed to fetch leaderboard'
+      : null,
+    refetch: result.refetch,
+  };
+};
+
+// export const useLeaderboard = (courseId: string, versionId: string, enabled: boolean = true, page: number,
+//   limit: number = 10,) => {
+//   const authToken = localStorage.getItem('firebase-auth-token');
+
+//   const result = useQuery({
+//     queryKey: ['leaderboard', courseId, versionId, page, limit],
+//     queryFn: async () => {
+//       const response = await fetch(
+//         `${import.meta.env.VITE_BASE_URL}/users/progress/courses/${courseId}/versions/${versionId}/leaderboard?page=${page}&limit=${limit}`,
+//         {
+//           method: 'GET',
+//           headers: {
+//             'Authorization': authToken ? `Bearer ${authToken}` : '',
+//             'Content-Type': 'application/json',
+//           },
+//           credentials: 'include',
+//         }
+//       );
+
+//       if (!response.ok) {
+//         throw new Error(`Failed to fetch leaderboard: ${response.statusText}`);
+//       }
+
+//       // const data = await response.json();
+//       // return data as LeaderboardEntry[];
+//        return response.json() as Promise<{
+//         data: LeaderboardEntry[];
+//         totalDocuments: number;
+//         totalPages: number;
+//         currentPage: number;
+//       }>;
+//     },
+//     enabled: enabled && !!courseId && !!versionId,
+//   });
+
+//   return {
+//     data: result.data,
+//     isLoading: result.isLoading,
+//     error: result.isError ? result.error.message || 'Failed to fetch leaderboard' : null,
+//     refetch: result.refetch,
+//   };
+// };
+
+export const useHideSection = (): {
+  mutate: (variables: { params: { path: { versionId: string, moduleId: string, sectionId: string } }, body: { hide: boolean } }) => void,
+  mutateAsync: (variables: { params: { path: { versionId: string, moduleId: string, sectionId: string } }, body: { hide: boolean } }) => Promise<void>,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} => {
+  const result = api.useMutation('put', '/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/toggle-visibility');
+  return {
+    ...result,
+    error: result.error ? (result?.error?.message || 'Failed to hide/unhide section') : null
+  }
+}
+
+export const useHideItem = (): {
+  mutate: (variables: { params: { path: { versionId: string, itemId: string } }, body: { hide: boolean } }) => void,
+  mutateAsync: (variables: { params: { path: { versionId: string, itemId: string } }, body: { hide: boolean } }) => Promise<void>,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} => {
+
+  const result = api.useMutation('put', '/courses/versions/{versionId}/items/{itemId}/toggle-visibility');
+  return {
+    ...result,
+    error: result.error ? (result?.error?.message || 'Failed to hide/unhide item') : null
+  }
+
+}
+
+export interface GenerateAIQuestionsBody {
+  text?: string;
+}
+
+export const useGenerateAIQuestions = (): {
+  mutate: (variables: { body: GenerateAIQuestionsBody }) => void;
+  mutateAsync: (variables: { body: GenerateAIQuestionsBody }) => Promise<{ success: boolean; response: TranscriptResponse[] }>;
+  data: { success: boolean; response: TranscriptResponse[] } | undefined;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} => {
+  const result = api.useMutation('post', '/quizzes/questions/generate-csv-res');
+
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to generate AI questions') : null,
+  };
+}

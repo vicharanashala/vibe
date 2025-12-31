@@ -131,7 +131,7 @@ Accessible to:
   })
   async read(
     @Params() params: ReadCourseVersionParams,
-    @Ability(getCourseVersionAbility) {ability},
+    @Ability(getCourseVersionAbility) {ability, user},
   ): Promise<CourseVersion> {
     const {versionId} = params;
 
@@ -145,7 +145,7 @@ Accessible to:
     }
 
     const retrievedCourseVersion =
-      await this.courseVersionService.readCourseVersion(versionId);
+      await this.courseVersionService.readCourseVersion(versionId, user._id);
     return retrievedCourseVersion;
   }
 
@@ -231,6 +231,10 @@ Accessible to:
       );
     }
 
+    if (versionId == '692f030a945e82ec875e9117') {
+      throw new BadRequestError(`You can't delete this version!`);
+    }
+
     const deletedVersion = await this.courseVersionService.deleteCourseVersion(
       courseId,
       versionId,
@@ -284,8 +288,6 @@ Accessible to:
         'You do not have permission to copy this course version',
       );
     }
-
-
 
     const newVersion = await this.courseVersionService.copyCourseVersion(
       courseId,

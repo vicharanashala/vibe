@@ -2,12 +2,14 @@ import {
   Body,
   Get,
   HttpCode,
-  JsonController,
   OnUndefined,
   Params,
   Post,
   ForbiddenError,
   Authorized,
+  Res,
+  Controller,
+  Req
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
@@ -27,16 +29,23 @@ import {
   SubmitAttemptResponse,
   GetAttemptResponse,
   AttemptNotFoundErrorResponse,
+  SubmitFeedbackParams,
+  SubmitFeedbackBody,
+  ExportQuizAttemptsParams,
+  QuestionAnswersBodydto
 } from '#quizzes/classes/validators/QuizValidator.js';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
 import {IAttempt} from '#quizzes/interfaces/index.js';
 import {BadRequestErrorResponse} from '#root/shared/index.js';
+import {getCourseAbility} from '#root/modules/courses/abilities/courseAbilities.js';
+import {createObjectCsvStringifier} from 'csv-writer';
+import {Response,Request} from 'express';
 
 @OpenAPI({
   tags: ['Quiz Attempts'],
 })
 @injectable()
-@JsonController('/quizzes')
+@Controller('/quizzes')
 class AttemptController {
   constructor(
     @inject(QUIZZES_TYPES.AttemptService)
@@ -85,8 +94,8 @@ class AttemptController {
 
   @OpenAPI({
     summary: 'Save answers for an ongoing attempt',
-    description:
-      'Saves the current answers for a quiz attempt without submitting.',
+    description: `Saves the current answers for a quiz attempt without submitting.<br/>
+      It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @OnUndefined(200)
@@ -100,10 +109,26 @@ class AttemptController {
   })
   @Post('/:quizId/attempt/:attemptId/save')
   async save(
+    @Req() req: Request,
+    @Res() res: Response,
     @Params() params: SaveAttemptParams,
-    @Body() body: QuestionAnswersBody,
+   // @Body() body: QuestionAnswersBody,
     @Ability(getAttemptAbility) {ability, user},
   ): Promise<void> {
+    const body: QuestionAnswersBodydto = await new Promise((resolve, reject) => {
+      let data = '';
+      req.on('data', chunk => {
+        data += chunk;
+      });
+      req.on('end', () => {
+        try {
+          resolve(JSON.parse(data || '{}') as QuestionAnswersBodydto);
+        } catch (err) {
+          reject(err);
+        }
+      });
+      req.on('error', err => reject(err));
+    });
     const {quizId, attemptId} = params;
     const userId = user._id.toString();
     // Build subject context first
@@ -139,14 +164,29 @@ class AttemptController {
     statusCode: 404,
   })
   async submit(
+    @Req() req: Request,
+    @Res() res: Response,
     @Params() params: SubmitAttemptParams,
-    @Body() body: QuestionAnswersBody,
+    // @Body() body: QuestionAnswersBody,
     @Ability(getAttemptAbility) {ability, user},
   ): Promise<SubmitAttemptResponse> {
-    const { quizId, attemptId } = params;
-    const { isSkipped, answers } = body;
+    const {quizId, attemptId} = params;
+    const body: QuestionAnswersBodydto = await new Promise((resolve, reject) => {
+      let data = '';
+      req.on('data', chunk => {
+        data += chunk;
+      });
+      req.on('end', () => {
+        try {
+          resolve(JSON.parse(data || '{}') as QuestionAnswersBodydto);
+        } catch (err) {
+          reject(err);
+        }
+      });
+      req.on('error', err => reject(err));
+    });
+    const {isSkipped, answers} = body;
     const userId = user._id.toString();
-
     // Build subject context first
     const attemptSubject = subject('Attempt', {quizId});
 
@@ -164,6 +204,45 @@ class AttemptController {
       isSkipped,
     );
     return result as SubmitAttemptResponse;
+  }
+
+  @OpenAPI({
+    summary: 'Submit feedback for an item',
+    description:
+      'Submits the feedback form response for a given item and stores the results.',
+  })
+  @Authorized()
+  @Post('/:itemId/feedback/submit')
+  @HttpCode(200)
+  @ResponseSchema(SubmitAttemptResponse, {
+    description: 'Feedback submitted successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid feedback submission request',
+    statusCode: 400,
+  })
+  @ResponseSchema(AttemptNotFoundErrorResponse, {
+    description: 'Attempt or feedback form not found',
+    statusCode: 404,
+  })
+  async submitFeedback(
+    @Params() params: SubmitFeedbackParams,
+    @Body() body: SubmitFeedbackBody,
+    @Ability(getCourseAbility) {ability, user},
+  ): Promise<string> {
+    const {itemId} = params;
+    const {details, courseId, courseVersionId, sectionId} = body;
+    const userId = user._id.toString();
+
+    return await this.attemptService.submitFeedBackForm(
+      userId,
+      courseId,
+      courseVersionId,
+      itemId,
+      details,
+      // isSkipped,
+    );
   }
 
   @OpenAPI({
@@ -208,6 +287,48 @@ class AttemptController {
       attemptId,
     );
     return attempt as IAttempt;
+  }
+
+  @Get('/:quizId/attempts/export')
+  @OnUndefined(200)
+  @OpenAPI({
+    summary: 'Export quiz attempts as CSV',
+    description: 'Exports all attempts for a specific quiz.',
+  })
+  async exportQuizAttempts(
+    @Params() params: ExportQuizAttemptsParams,
+    @Res() res: Response,
+  ): Promise<void> {
+    const result = await this.attemptService.exportQuizSubmissions(
+      params.quizId,
+    );
+
+    const header = [
+      {id: 'Name', title: 'Name'},
+      {id: 'Question', title: 'Question'},
+      {id: 'questionType', title: 'Question Type'},
+      {id: 'Response', title: 'Response'},
+    ];
+
+    const csvStringifier = createObjectCsvStringifier({
+      header: header,
+    });
+
+    const csvContent =
+      csvStringifier.getHeaderString() +
+      csvStringifier.stringifyRecords(result);
+
+    // Clear any existing headers and set new ones
+    res.removeHeader('Content-Type');
+    res.status(200);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="quiz_attempts.csv"',
+    );
+    res.setHeader('Cache-Control', 'no-cache');
+    res.write(csvContent);
+    res.end();
   }
 }
 

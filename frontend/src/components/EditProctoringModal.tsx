@@ -103,7 +103,7 @@ export function ProctoringModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="bg-background text-foreground max-w-md">
+      <DialogContent className="bg-background text-foreground md:max-w-md max-w-sm max-[425px]:w-[90vw]">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-center">Proctoring Settings</DialogTitle>
         </DialogHeader>

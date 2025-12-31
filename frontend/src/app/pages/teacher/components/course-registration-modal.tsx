@@ -494,7 +494,7 @@ export const FormBuilder = ({ versionId,  handleNavigateToRequests }: { versionI
               </TooltipProvider>
             </div>
           </div>
-          <div className="p-6">
+          <div className="sm:p-6 p-4">
             <ConfirmationModal
               isOpen={isConfirmationModalOpen}
               onClose={() => setIsConfirmationModalOpen(false)}
@@ -519,9 +519,9 @@ export const FormBuilder = ({ versionId,  handleNavigateToRequests }: { versionI
               isDestructive={true}
             />
 
-            <div className="flex flex-col gap-1 h-[110vh]">
+            <div className="flex flex-col lg:gap-1 gap-3 h-[110vh]">
             <Card className="flex-shrink-0">
-              <CardHeader className=" border-b">
+              <CardHeader className="sm:px-6 px-4 border-b">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <PlusCircle className="w-5 h-5 text-muted-foreground" />
                   Add Elements
@@ -551,15 +551,15 @@ export const FormBuilder = ({ versionId,  handleNavigateToRequests }: { versionI
             </Card>
 
           
-            <div className="flex gap-1 flex-1 min-h-0">
-              <Card className="flex-[2] flex flex-col min-w-0">
-                <CardHeader className="pb-2 border-b">
+            <div className="flex flex-col lg:flex-row lg:gap-1 gap-3 flex-1 pb-6">
+              <Card className="flex-1 lg:flex-[2] flex flex-col min-w-0">
+                <CardHeader className="sm:px-6 px-4 pb-2 border-b">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg flex items-center gap-2">
-                      <Eye className="w-4 h-4" />
-                      Form Preview
+                      <div><Eye className="w-4 h-4" /></div>
+                      <div className='xl:text-lg lg:text-sm text-base'>Form Preview</div>
                     </CardTitle>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center xl:gap-2 lg:gap-1 gap-2">
                       <span className="text-xs text-muted-foreground">
                         {fields.length} {fields.length === 1 ? "field" : "fields"}
                       </span>
@@ -814,8 +814,8 @@ export const FormBuilder = ({ versionId,  handleNavigateToRequests }: { versionI
               </Card>
 
               {/* Field Settings - Right Sidebar */}
-              <Card className="w-[380px] flex-shrink-0 flex flex-col min-h-0">
-                <CardHeader className="pb-2 border-b">
+              <Card className="w-full lg:w-[380px] flex-shrink-0 flex flex-col min-h-0 lg:min-h-[400px]">
+                <CardHeader className="sm:px-6 px-4 pb-2 border-b">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Settings className="w-5 h-5" />
                     Field Settings
@@ -1104,9 +1104,9 @@ export const FormBuilder = ({ versionId,  handleNavigateToRequests }: { versionI
                 </CardContent>
               </Card>
             </div>
+            </div>
           </div>
-        </div>
+       </div>
       </div>
-    </div>
   );
 };

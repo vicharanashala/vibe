@@ -375,7 +375,7 @@ export default function FlaggedList() {
                         </TableCell>
                         <TableCell className="py-6 pr-6 ">
                           {report.latestStatus !== "DISCARDED" && report.latestStatus !== "CLOSED" &&
-                            <div className="flex items-center gap-3 border-2 border-blue-100 dark:border-blue-950 rounded-2xl ">
+                            <div className="flex items-center gap-3 border-2 border-blue-100 dark:border-blue-950 rounded-2xl w-fit">
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -404,7 +404,7 @@ export default function FlaggedList() {
 
                         {selectedFlagData && selectedReport && (
                           <Dialog open={!isUpdatingStatus && !!selectedFlagData} onOpenChange={() => setSelectedReport(null)}>
-                            <DialogContent className="sm:max-w-3xl max-h-[85vh]">
+                            <DialogContent className="lg:max-w-3xl md:max-w-2xl max-w-sm max-[425px]:w-[90vw] max-h-[85vh]">
                               <DialogHeader className="pb-4">
                                 <DialogTitle className="flex items-center gap-2 text-xl">
                                   <Flag className="h-5 w-5 text-primary" />

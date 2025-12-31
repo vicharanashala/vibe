@@ -1,5 +1,5 @@
 import { Expose, Type } from 'class-transformer';
-import { IsArray, IsNumber, IsString } from 'class-validator';
+import { IsArray, IsNumber, IsString, ValidateNested } from 'class-validator';
 
 export class StudentQuizScoreDto {
   @Expose()
@@ -53,6 +53,7 @@ export class QuizScoresMetadataDto {
 }
 
 export class QuizScoresExportResponseDto {
+  @ValidateNested()
   @Expose()
   @Type(() => StudentQuizScoreDto)
   @IsArray()

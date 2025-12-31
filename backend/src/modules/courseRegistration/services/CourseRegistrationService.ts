@@ -72,10 +72,10 @@ export class CourseRegistrationService extends BaseService {
     switch (status) {
       case 'APPROVED':
         greeting = 'Congratulations!';
-        bodyText = `Your registration for the course "${course.name}" has been approved. You can now access the course via our platform.\n\nTo get started, please click the link below:\n${appConfig.origins}/student/courses \n\nWe look forward to your participation!`;
+        bodyText = `Your registration for the course "${course.name}" has been approved. You can now access the course via our platform.\n\nTo get started, please click the link below:\n${appConfig.origins[0]}/student/courses \n\nWe look forward to your participation!`;
         buttonText = 'Access Course';
         // buttonHref = `${appConfig.url}${appConfig.routePrefix}/courses/${course._id.toString()}`;
-        buttonHref = `${appConfig.origins}/student/courses`;
+        buttonHref = `${appConfig.origins[0]}/student/courses`;
         break;
       case 'REJECTED':
         greeting = 'We regret to inform you...';
@@ -344,49 +344,63 @@ export class CourseRegistrationService extends BaseService {
       }
 
       const courseId = version.courseId.toString();
-
-      const defaultJsonSchema = {
-        type: 'object',
-        properties: {
-          Name: {
-            type: 'string',
-            title: 'Name',
-            minLength: 1,
-          },
-          Email: {
-            type: 'string',
-            format: 'email',
-            title: 'Email',
-          },
-          phone: {
-            type: 'string',
-            title: 'Phone',
-          },
-        },
-        required: ['Name', 'Email'],
-      };
-
-      const defaultUiSchema = {
-        Name: {
-          'ui:placeholder': 'Enter your Name',
-        },
-        Email: {
-          'ui:placeholder': 'Enter your Email',
-        },
-        Mobile: {
-          'ui:options': {
-            inputType: 'tel',
-          },
-        },
-      };
-
-      await this.settingsRepo.updateRegistrationSchemas(
+      let courseSettings = await this.settingsRepo.readCourseSettings(
         courseId,
         versionId,
-        {jsonSchema: defaultJsonSchema, uiSchema: defaultUiSchema},
         session,
       );
 
+      if (!courseSettings) {
+        throw new NotFoundError(
+          `Course settings for course ID ${courseId} and version ID ${versionId} not found.`,
+        );
+      }
+
+      let {jsonSchema, uiSchema} = courseSettings.settings?.registration || {};
+      if (!jsonSchema || !uiSchema) {
+        const defaultJsonSchema = {
+          type: 'object',
+          properties: {
+            Name: {
+              type: 'string',
+              title: 'Name',
+              minLength: 1,
+            },
+            Email: {
+              type: 'string',
+              format: 'email',
+              title: 'Email',
+            },
+            Phone: {
+              type: 'string',
+              title: 'Phone',
+            },
+          },
+          required: ['Name', 'Email'],
+        };
+
+        const defaultUiSchema = {
+          Name: {
+            'ui:placeholder': 'Enter your Name',
+          },
+          Email: {
+            'ui:placeholder': 'Enter your Email',
+          },
+          Phone: {
+            'ui:options': {
+              inputType: 'tel',
+            },
+            'ui:placeholder': 'Enter your Phone Number',
+          },
+        };
+
+        await this.settingsRepo.updateRegistrationSchemas(
+          courseId,
+          versionId,
+          {jsonSchema: defaultJsonSchema, uiSchema: defaultUiSchema},
+          session,
+        );
+      }
       return {
         totalDocuments,
         totalPages: Math.ceil(totalDocuments / limit),
@@ -435,15 +449,17 @@ export class CourseRegistrationService extends BaseService {
           status,
           session,
         );
-        const THROUGH_INVITE = true;
-        await this.enrollmentService.enrollUser(
-          data.userId.toString(),
-          data.courseId.toString(),
-          data.versionId.toString(),
-          'STUDENT',
-          THROUGH_INVITE,
-          session,
-        );
+        if (status === 'APPROVED') {
+          const THROUGH_INVITE = true;
+          await this.enrollmentService.enrollUser(
+            data.userId.toString(),
+            data.courseId.toString(),
+            data.versionId.toString(),
+            'STUDENT',
+            THROUGH_INVITE,
+            session,
+          );
+        }
         const emailMessage = await this.createStatusEmailMessage(
           data,
           course,
@@ -452,9 +468,10 @@ export class CourseRegistrationService extends BaseService {
         try {
           await this.mailService.sendMail(emailMessage);
         } catch (emailError) {
-          throw new InternalServerError(
-            `Failed to send email /MORE ${emailError}`,
-          );
+          console.log(`Failed to send email /MORE ${emailError}`);
+          // throw new InternalServerError(
+          //   `Failed to send email /MORE ${emailError}`,
+          // );
         }
 
         return updateResult;
@@ -567,7 +584,6 @@ export class CourseRegistrationService extends BaseService {
 
         let {jsonSchema, uiSchema} =
           courseSettings.settings?.registration || {};
- 
 
         //   // const defaultUiSchema = {
         //   //   type: 'VerticalLayout',
@@ -586,7 +602,6 @@ export class CourseRegistrationService extends BaseService {
         //   //     },
         //   //   ],
         //   // };
-
 
         return {jsonSchema, uiSchema};
 

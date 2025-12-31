@@ -1,4 +1,4 @@
-import {Type} from 'class-transformer';
+import { Type } from 'class-transformer';
 import {
   IsMongoId,
   IsString,
@@ -12,22 +12,21 @@ import {
   IsOptional,
   IsNumber,
 } from 'class-validator';
-import {JSONSchema} from 'class-validator-jsonschema';
-import {ProgressDataResponse} from './ProgressValidators.js';
+import { JSONSchema } from 'class-validator-jsonschema';
+import { ProgressDataResponse } from './ProgressValidators.js';
 import {
   EnrollmentRole,
   EnrollmentStatus,
   ICourse,
   ID,
 } from '#root/shared/interfaces/models.js';
-import {CourseDataResponse} from '#root/modules/courses/classes/index.js';
-import {ContentCountsValidator} from './ContentCountsValidators.js';
+import { CourseDataResponse } from '#root/modules/courses/classes/index.js';
+import { ContentCountsValidator } from './ContentCountsValidators.js';
 
 export class EnrollmentParams {
   @JSONSchema({
     description: 'User ID of the student to enroll',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -37,7 +36,6 @@ export class EnrollmentParams {
   @JSONSchema({
     description: 'ID of the course to enroll in',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -47,7 +45,6 @@ export class EnrollmentParams {
   @JSONSchema({
     description: 'ID of the specific course version to enroll in',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsMongoId()
   @IsString()
@@ -72,7 +69,6 @@ export class EnrollmentDataResponse {
     description: 'Unique identifier for the enrollment record',
     example: '60d5ec49b3f1c8e4a8f8b8d2',
     type: 'string',
-    format: 'Mongo Object ID',
     readOnly: true,
   })
   @IsString()
@@ -83,7 +79,6 @@ export class EnrollmentDataResponse {
     description: 'Course ID associated with this enrollment',
     example: '60d5ec49b3f1c8e4a8f8b8c2',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -94,7 +89,6 @@ export class EnrollmentDataResponse {
     description: 'Course version ID associated with this enrollment',
     example: '60d5ec49b3f1c8e4a8f8b8c3',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -134,7 +128,6 @@ export class EnrollmentDataResponse {
 
   @JSONSchema({
     description: 'Optional course details related to the enrollment',
-    $ref: '#/components/schemas/CourseResponse',
   })
   @IsOptional()
   @ValidateNested()
@@ -155,7 +148,7 @@ export class EnrollUserResponseData {
   @JSONSchema({
     description: 'Enrollment data for the user',
     type: 'object',
-    items: {$ref: '#/components/schemas/EnrollmentDataResponse'},
+    items: { $ref: '#/components/schemas/EnrollmentDataResponse' },
   })
   @ValidateNested()
   @Type(() => EnrollmentDataResponse)
@@ -165,7 +158,7 @@ export class EnrollUserResponseData {
   @JSONSchema({
     description: 'Progress data for the user',
     type: 'object',
-    items: {$ref: '#/components/schemas/ProgressDataResponse'},
+    items: { $ref: '#/components/schemas/ProgressDataResponse' },
   })
   @IsNotEmpty()
   @ValidateNested()
@@ -209,7 +202,6 @@ class UserResponse {
     description: 'Unique identifier for the user',
     example: '60d5ec49b3f1c8e4a8f8b8d2',
     type: 'string',
-    format: 'Mongo Object ID',
   })
   @IsNotEmpty()
   @IsString()
@@ -238,7 +230,6 @@ class UserResponse {
     description: 'Email address of the user',
     example: 'user@example.com',
     type: 'string',
-    format: 'email',
   })
   @IsNotEmpty()
   @IsString()
@@ -276,6 +267,14 @@ class ProgressResponse {
   percentCompleted: number;
 }
 
+export class UpdateEnrollmentProgressResponse {
+  @IsNumber()
+  totalCount: number;
+
+  @IsNumber()
+  updatedCount: number;
+}
+
 class AllEnrollmentsResponse {
   @JSONSchema({
     description: 'Role of the user',
@@ -311,7 +310,7 @@ class AllEnrollmentsResponse {
   @JSONSchema({
     description: 'User data associated with the enrollment',
     type: 'object',
-    items: {$ref: '#/components/schemas/EnrolledUserResponseData'},
+    items: { $ref: '#/components/schemas/EnrolledUserResponseData' },
   })
   @IsNotEmpty()
   @ValidateNested()
@@ -321,7 +320,7 @@ class AllEnrollmentsResponse {
   @JSONSchema({
     description: 'Progress data for the user in the course',
     type: 'object',
-    items: {$ref: '#/components/schemas/ProgressDataResponse'},
+    items: { $ref: '#/components/schemas/ProgressDataResponse' },
   })
   @IsNotEmpty()
   @ValidateNested()
@@ -360,11 +359,11 @@ export class EnrollmentResponse {
   @JSONSchema({
     description: 'Array of enrollment data for the user',
     type: 'array',
-    items: {$ref: '#/components/schemas/EnrollmentDataResponse'},
+    items: { $ref: '#/components/schemas/EnrollmentDataResponse' },
   })
   @IsNotEmpty()
   @IsArray()
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @Type(() => EnrollmentDataResponse)
   enrollments: EnrollmentDataResponse[];
 
@@ -382,11 +381,11 @@ export class CourseVersionEnrollmentResponse {
   @JSONSchema({
     description: 'Array of enrollment data for the course version',
     type: 'array',
-    items: {$ref: '#/components/schemas/AllEnrollmentsResponse'},
+    items: { $ref: '#/components/schemas/AllEnrollmentsResponse' },
   })
   @IsNotEmpty()
   @IsArray()
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @Type(() => AllEnrollmentsResponse)
   enrollments: AllEnrollmentsResponse[];
   totalDocuments: number;
@@ -422,4 +421,5 @@ export const ENROLLMENT_VALIDATORS = [
   EnrollmentDataResponse,
   EnrollmentResponse,
   EnrollmentNotFoundErrorResponse,
+  UpdateEnrollmentProgressResponse
 ];

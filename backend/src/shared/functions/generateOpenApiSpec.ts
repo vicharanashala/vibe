@@ -9,6 +9,8 @@ import {
 } from 'class-validator';
 import { routingControllersToSpec } from 'routing-controllers-openapi';
 
+import fs from 'fs';
+
 import { appConfig } from '../../config/app.js'; // adjust path as needed
 import { metadata } from 'reflect-metadata/no-conflict';
 import { ValidationMetadata } from 'class-validator/types/metadata/ValidationMetadata.js';
@@ -71,6 +73,24 @@ const getOpenApiServers = () => {
   return servers;
 };
 
+function removeInvalidRefs(obj) {
+  if (Array.isArray(obj)) {
+    return obj.map(removeInvalidRefs);
+  } else if (typeof obj === 'object' && obj !== null ) {
+    const newObj = {};
+    for (const [key, value] of Object.entries(obj)) {
+      // 🚫 Skip key-value if it matches your condition
+      if (key === '$ref' && (value === '#/components/schemas/Object' || value === '#/components/schemas/Array')) {
+        continue;
+      }
+      // 🔁 Recursively process children
+      newObj[key] = removeInvalidRefs(value);
+    }
+    return newObj;
+  }
+  return obj;
+}
+
 export function filterMetadataByModulePrefix(modulePrefix: string) {
   const storage = getMetadataArgsStorage();
   const normalizedPrefix = `/${modulePrefix.toLowerCase()}`;
@@ -117,6 +137,8 @@ function getSchemasForValidators(validators: Function[]) {
 
   return schemas;
 }
+
+
 
 
 export function generateOpenAPISpec(
@@ -251,6 +273,7 @@ export function generateOpenAPISpec(
           'Course Modules',
           'Course Sections',
           'Course Items',
+          'CourseRegistration'
         ],
       },
       {
@@ -302,5 +325,15 @@ export function generateOpenAPISpec(
     ],
   });
 
-  return spec;
+
+  const cleanedSpec=removeInvalidRefs(spec);
+// For Debugging Purpose
+  // const specLog = JSON.stringify(cleanedSpec, null, 2);
+  // const logFile = fs.createWriteStream('openapi-spec.json');
+  // logFile.write(specLog);
+  // logFile.end();
+
+  
+
+  return cleanedSpec;
 }

@@ -1,11 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { useUserEnrollments, useWatchtimeTotal } from "@/hooks/hooks";
 import { useNavigate } from "@tanstack/react-router";
 
 // Import new components
 import { StatCard } from "@/components/ui/StatCard";
-import { AnnouncementBanner } from "@/components/ui/AnnouncementBanner";
 import { CourseSection } from "@/components/course/CourseSection";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -40,7 +39,7 @@ export default function Page() {
       </div>
     );
   }
-  return <DashboardContent/>;
+  return <DashboardContent />;
 }
 
 
@@ -63,28 +62,28 @@ function DashboardContent() {
     data: enrollmentsData,
     isLoading: enrollmentsLoading,
     error: enrollmentsError,
-    refetch:refetchEnrollments
+    refetch: refetchEnrollments
   } = useUserEnrollments(1, 5, !!token);
-  
-  useEffect(()=>{
-    refetchEnrollments();
-  },[refetchEnrollments]);
+
+
 
   const enrollments = enrollmentsData?.enrollments || [];
   const totalEnrollments = enrollmentsData?.totalDocuments || 0;
   const { data: watchtimeData } = useWatchtimeTotal();
   // const filteredEnrollement = enrollments.filter(enrollment=>enrollment.role == "STUDENT");
   const [completion, setCompletion] = useState<CoursePctCompletion[]>([]);
-  const totalProgress = Math.round(
-    completion.reduce((acc, curr) => acc + (curr.completedItems || 0), 0) / completion.reduce((acc, curr) => acc + (curr.totalItems || 0), 0) * 100
-  ) || 0;
-  
+  const totalProgress = useMemo(() => {
+    const completed = completion.reduce((a, c) => a + (c.completedItems || 0), 0);
+    const total = completion.reduce((a, c) => a + (c.totalItems || 0), 0);
+    return total ? Math.round((completed / total) * 100) : 0;
+  }, [completion]);
+
   return (
     <>
       {/* Greeting and Stat Cards in two separate flex boxes */}
-      <div className="flex flex-col md:flex-row justify-between items-start mb-8 px-4 sm:px-6 lg:px-8 xl:px-0 gap-6 transition-all duration-300">
+      <div className="flex flex-col lg:flex-row justify-between items-start mb-8 px-0 sm:px-6 lg:px-8 xl:px-0 gap-6 transition-all duration-300">
         {/* Left: Greeting Box */}
-        <div className="flex-1 bg-background rounded-lg p-6">
+        <div className="flex-1 bg-background rounded-lg lg:px-6 py-6 px-0">
           <h1 className="text-3xl font-bold mb-1">
             {greeting}, {studentName} 👋
           </h1>
@@ -93,21 +92,31 @@ function DashboardContent() {
           </p>
         </div>
         {/* Right: Stat Cards */}
-        <div className="flex flex-col sm:flex-row gap-4 items-center w-full sm:w-auto">
-          <StatCard icon="🏆" value={`${totalEnrollments}`} label="Enrolled Courses" />
-          <StatCard icon="⏱️" value={`${(watchtimeData / 3600 || 0).toFixed(2)}h`} label="Study Time" />
-          <StatCard icon="🎓" value={`${totalProgress}%`} label="Overall Progress" />
+        <div className="flex flex-col sm:flex-row gap-4 items-stretch w-full sm:w-auto">
+          <StatCard
+            icon="🏆"
+            value={enrollmentsLoading ? "—" : `${totalEnrollments}`}
+            label="Enrolled Courses"
+          />
+          <StatCard
+            icon="⏱️"
+            value={!watchtimeData ? "—" : `${(watchtimeData / 3600).toFixed(2)}h`}
+            label="Study Time"
+          />
+          <StatCard icon="🎓" value={`${totalProgress}%`} label="Completion Percentage" />
         </div>
       </div>
       {/* Announcement Banner */}
-      <div className="mb-2 px-4 sm:px-6 lg:px-8 xl:px-0 transition-all duration-300">
-        <AnnouncementBanner
-          title="Achievement Unlocked!"
-          description="Congratulations! You've earned the 'Quick Learner' badge by completing 5 lessons in a single day."
-        />
-      </div>
+      {/* <div className="mb-2 px-0 sm:px-6 lg:px-8 xl:px-0 transition-all duration-300">
+        {totalProgress > 0 && (
+          <AnnouncementBanner
+            title="Achievement Unlocked!"
+            description="Congratulations! You've earned the 'Quick Learner' badge by completing 5 lessons in a single day."
+          />
+        )}
+      </div> */}
       {/* Main content and sidebar */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-0 py-6 flex flex-col md:flex-row gap-6 transition-all duration-300">
+      <div className="container mx-auto px-0 sm:px-6 lg:px-8 xl:px-0 py-6 flex flex-col lg:flex-row gap-6 transition-all duration-300">
         <main className="flex-1">
           <CourseSection
             title="In progress learning content"
@@ -144,7 +153,7 @@ function DashboardContent() {
             }}
           />
         </main>
-        <aside className="w-full md:w-80">
+        <aside className="w-full lg:w-80">
           <div className="sticky top-6">
             <DashboardSidebar enrollments={enrollments} />
           </div>

@@ -5,40 +5,59 @@ import {
   IQuestionAnswerFeedback,
   IAttempt,
   IAttemptDetails,
+  IQuizSubmissionExport,
+  IQuestionInfo,
+  IResponseAnswer,
 } from '#quizzes/interfaces/grading.js';
 import {
   QuestionAnswerFeedback,
   Submission,
 } from '#quizzes/classes/transformers/Submission.js';
-import {IQuestionRenderView} from '#quizzes/question-processing/index.js';
-import {QuestionProcessor} from '#quizzes/question-processing/QuestionProcessor.js';
+import { IQuestionRenderView } from '#quizzes/question-processing/index.js';
+import { QuestionProcessor } from '#quizzes/question-processing/QuestionProcessor.js';
 
 import {
   generateRandomParameterMap,
   getSelectedItemTexts,
 } from '#quizzes/utils/index.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {BaseService, MongoDatabase} from '#shared/index.js';
-import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId} from 'mongodb';
-import {NotFoundError, BadRequestError} from 'routing-controllers';
-import {QuestionBankService} from './QuestionBankService.js';
-import {QuestionService} from './QuestionService.js';
-import {QUIZZES_TYPES} from '../types.js';
-import {instanceToPlain} from 'class-transformer';
-import {QuizRepository} from '../repositories/providers/mongodb/QuizRepository.js';
-import {AttemptRepository} from '../repositories/providers/mongodb/AttemptRepository.js';
-import {SubmissionRepository} from '../repositories/providers/mongodb/SubmissionRepository.js';
-import {UserQuizMetricsRepository} from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
-import {BaseQuestion} from '../classes/transformers/Question.js';
-import {UserQuizMetrics} from '../classes/transformers/UserQuizMetrics.js';
-import {Attempt} from '../classes/transformers/Attempt.js';
-import {QuizItem} from '#root/modules/courses/classes/transformers/Item.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import {
+  BaseService,
+  IItemRepository,
+  ItemType,
+  QuestionType,
+  MongoDatabase,
+  ILotItem,
+} from '#shared/index.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, ObjectId } from 'mongodb';
+import { NotFoundError, BadRequestError } from 'routing-controllers';
+import { QuestionBankService } from './QuestionBankService.js';
+import { QuestionService } from './QuestionService.js';
+import { QUIZZES_TYPES } from '../types.js';
+import { instanceToPlain } from 'class-transformer';
+import { QuizRepository } from '../repositories/providers/mongodb/QuizRepository.js';
+import { AttemptRepository } from '../repositories/providers/mongodb/AttemptRepository.js';
+import { SubmissionRepository } from '../repositories/providers/mongodb/SubmissionRepository.js';
+import { UserQuizMetricsRepository } from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
+import { BaseQuestion, NATQuestion } from '../classes/transformers/Question.js';
+import { UserQuizMetrics } from '../classes/transformers/UserQuizMetrics.js';
+import { Attempt } from '../classes/transformers/Attempt.js';
+import {
+  FeedbackSubmissionItem,
+  QuizItem,
+} from '#root/modules/courses/classes/transformers/Item.js';
+import { QuestionRepository } from '../repositories/index.js';
+import { FeedbackRepository } from '../repositories/providers/mongodb/FeedbackRepository.js';
+import { COURSES_TYPES } from '#root/modules/courses/types.js';
 @injectable()
 class AttemptService extends BaseService {
   constructor(
     @inject(QUIZZES_TYPES.QuizRepo)
     private quizRepository: QuizRepository,
+
+    @inject(QUIZZES_TYPES.QuestionRepo)
+    private questionRepository: QuestionRepository,
 
     @inject(QUIZZES_TYPES.AttemptRepo)
     private attemptRepository: AttemptRepository,
@@ -54,6 +73,12 @@ class AttemptService extends BaseService {
 
     @inject(QUIZZES_TYPES.QuestionBankService)
     private questionBankService: QuestionBankService,
+
+    @inject(QUIZZES_TYPES.FeedbackRepo)
+    private feedbackRepository: FeedbackRepository,
+
+    @inject(COURSES_TYPES.ItemRepo)
+    private readonly itemRepo: IItemRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
@@ -95,7 +120,7 @@ class AttemptService extends BaseService {
         new QuestionProcessor(question).render(questionDetail.parameterMap),
       );
     }
-    return {questionDetails, questionRenderViews};
+    return { questionDetails, questionRenderViews };
   }
 
   private _buildGradingResult(
@@ -181,10 +206,7 @@ class AttemptService extends BaseService {
   async attempt(
     userId: string | ObjectId,
     quizId: string,
-  ): Promise<
-    | {attemptId: string; questionRenderViews: IQuestionRenderView[]}
-    | {message: string}
-  > {
+  ): Promise<{ attemptId: string; questionRenderViews: IQuestionRenderView[] }> {
     return this._withTransaction(async session => {
       //1. Check if UserQuizMetrics exists for the user and quiz
       let metrics = await this.userQuizMetricsRepository.get(
@@ -194,15 +216,16 @@ class AttemptService extends BaseService {
       );
 
       const quiz = await this.quizRepository.getById(quizId, session);
+
+      if (!quiz) {
+        throw new NotFoundError(`Quiz with ID ${quizId} not found`);
+      }
+
       const userObjecId = new ObjectId(userId);
       const quizObjecId = new ObjectId(quizId);
 
       if (!metrics) {
         //1a If not, create a new UserQuizMetrics
-        if (!quiz) {
-          throw new NotFoundError(`Quiz with ID ${quizId} not found`);
-        }
-
         const newMetrics: UserQuizMetrics = new UserQuizMetrics(
           userObjecId,
           quizObjecId,
@@ -218,6 +241,11 @@ class AttemptService extends BaseService {
         );
       }
 
+      // Ensure metrics exists after creation/fetch
+      if (!metrics || !metrics._id) {
+        throw new BadRequestError('Unable to get or create quiz metrics for user');
+      }
+
       //2. Check if the quiz is of type 'DEADLINE' and if the deadline has passed
       if (
         quiz.details.quizType === 'DEADLINE' &&
@@ -228,11 +256,11 @@ class AttemptService extends BaseService {
 
       //3. Check if available attempts > 0
       if (metrics.remainingAttempts <= 0 && quiz.details.maxAttempts !== -1) {
-        return {message: 'No available attempts left for this quiz'};
+        throw new BadRequestError('No available attempts left for this quiz');
       }
 
       //4. Fetch questions for the quiz attempt
-      const {questionDetails, questionRenderViews} =
+      const { questionDetails, questionRenderViews } =
         await this._getQuestionsForAttempt(quiz);
 
       //5. Create a new attempt
@@ -244,7 +272,7 @@ class AttemptService extends BaseService {
         session,
       );
 
-      const attemptObjectId =  new ObjectId(attemptId)
+      const attemptObjectId = new ObjectId(attemptId);
 
       //6. Update UserQuizMetrics with the new attempt
       metrics.latestAttemptStatus = 'ATTEMPTED';
@@ -253,7 +281,7 @@ class AttemptService extends BaseService {
       // if the quiz maxAttempts is -1, the no need to changes remainingAttempts
       metrics.remainingAttempts =
         quiz.details.maxAttempts === -1 ? -1 : metrics.remainingAttempts - 1;
-      metrics.attempts.push({attemptId: attemptObjectId});
+      metrics.attempts.push({ attemptId: attemptObjectId });
       const updatedMetrics = await this.userQuizMetricsRepository.update(
         metrics._id.toString(),
         metrics,
@@ -307,7 +335,11 @@ class AttemptService extends BaseService {
       const userObjectId = new ObjectId(userId);
       const attemptObjectId = new ObjectId(attemptId);
       if (!isSkipped) {
-        const submission = new Submission(quizObjectId, userObjectId, attemptObjectId);
+        const submission = new Submission(
+          quizObjectId,
+          userObjectId,
+          attemptObjectId,
+        );
         const submissionId = await this.submissionRepository.create(
           submission,
           session,
@@ -318,10 +350,11 @@ class AttemptService extends BaseService {
         metrics.latestAttemptStatus = 'SUBMITTED';
 
         metrics.latestAttemptId = new ObjectId(metrics.latestAttemptId);
-        metrics.latestSubmissionResultId = new ObjectId(metrics.latestSubmissionResultId);
+        metrics.latestSubmissionResultId = new ObjectId(
+          metrics.latestSubmissionResultId,
+        );
         metrics.quizId = new ObjectId(metrics.quizId);
         metrics.userId = new ObjectId(metrics.userId);
-        
 
         const gradingResult = await this._grade(
           attemptId,
@@ -359,7 +392,7 @@ class AttemptService extends BaseService {
       } else {
         metrics.latestAttemptStatus = 'SKIPPED';
         metrics.skipCount = +1;
-        const details: IAttemptDetails = {attemptId: new ObjectId(attemptId)};
+        const details: IAttemptDetails = { attemptId: new ObjectId(attemptId) };
         metrics.attempts.push(details);
         //6. update the quiz metrics
         await this.userQuizMetricsRepository.update(
@@ -368,6 +401,103 @@ class AttemptService extends BaseService {
         );
         return null;
       }
+    });
+  }
+
+  async submitFeedBackForm(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    feedbackFormId: string,
+    details: Record<string, any>,
+  ): Promise<string> {
+    return this._withTransaction(async session => {
+      // 1. Validate Item Group
+      const ItemsGroup = await this.itemRepo.findItemsGroupByItemId(
+        feedbackFormId,
+        session,
+      );
+
+      if (!ItemsGroup)
+        throw new NotFoundError(
+          'No item group found for the provided feedback form.',
+        );
+
+      const items = ItemsGroup.items;
+
+      // 2. Find feedback item
+      const feedbackIndex = items.findIndex(
+        item => item._id.toString() === feedbackFormId,
+      );
+
+      if (feedbackIndex === -1)
+        throw new NotFoundError(
+          'Feedback form item not found inside the item group.',
+        );
+
+      // 3. Find previous item
+      const previousItem = items[feedbackIndex - 1];
+
+      if (!previousItem)
+        throw new NotFoundError(
+          'No previous learning item exists before this feedback form.',
+        );
+
+      const previousItemId = previousItem._id.toString();
+      const previousItemType = previousItem.type;
+
+      // 4. Prevent feedback on feedback items
+      if (previousItemType === 'FEEDBACK') {
+        throw new BadRequestError(
+          'Feedback cannot be submitted for a previous feedback item.',
+        );
+      }
+
+      // 5. Validate the feedback form
+      const feedbackForm = await this.feedbackRepository.getFormById(
+        feedbackFormId,
+        session,
+      );
+
+      if (!feedbackForm) {
+        throw new NotFoundError(
+          `Feedback form with ID ${feedbackFormId} does not exist.`,
+        );
+      }
+
+      // 6. Check if the user already submitted feedback for this specific item
+      const existingSubmission =
+        await this.feedbackRepository.findByUserAndPreviousItem(
+          userId.toString(),
+          previousItemId.toString(),
+          session,
+        );
+
+      // if (existingSubmission) {
+      //   throw new BadRequestError(
+      //     `You have already submitted feedback for the previous item (${previousItemType}).`,
+      //   );
+      // }
+
+      // 7. Create new feedback submission record
+      const newFeedbackSubmission: FeedbackSubmissionItem = {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        details,
+        feedbackFormId: new ObjectId(feedbackFormId),
+        previousItemId: new ObjectId(previousItemId),
+        previousItemType,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      await this.feedbackRepository.createFeedback(
+        newFeedbackSubmission,
+        session,
+      );
+
+      return 'Your feedback has been submitted successfully. Thank you for your response!';
     });
   }
 
@@ -413,6 +543,25 @@ class AttemptService extends BaseService {
       attempt.updatedAt = new Date();
       attempt.userId = new ObjectId(attempt.userId);
       attempt.quizId = new ObjectId(attempt.quizId);
+
+      if (answers?.length) {
+        const { questionId, answer: ans } = answers[0];
+        const question = await this.questionRepository.getById(
+          questionId,
+          session,
+        );
+
+        if (question.type === 'NUMERIC_ANSWER_TYPE') {
+          const submittedAnswer = (ans as { value: number }).value;
+          const { lowerLimit, upperLimit } = question as NATQuestion;
+
+          if (submittedAnswer < lowerLimit || submittedAnswer > upperLimit) {
+            throw new BadRequestError(
+              `Answer should be in the range of ${lowerLimit} - ${upperLimit}`,
+            );
+          }
+        }
+      }
 
       //4. Save the updated attempt
       await this.attemptRepository.update(attemptId, attempt);
@@ -480,7 +629,7 @@ class AttemptService extends BaseService {
           // Step 3: Add to bulk operations
           bulkOperations.push({
             updateOne: {
-              filter: {_id: new ObjectId(metric._id)},
+              filter: { _id: new ObjectId(metric._id) },
               update: {
                 $set: {
                   // latestAttemptId: latestAttempt?._id.toString(),
@@ -503,8 +652,7 @@ class AttemptService extends BaseService {
                 session,
               );
               console.log(
-                `✅ Batch ${++batchCount}: Updated ${
-                  bulkOperations.length
+                `✅ Batch ${++batchCount}: Updated ${bulkOperations.length
                 } user_quiz_metrics`,
               );
               bulkOperations.length = 0;
@@ -530,8 +678,143 @@ class AttemptService extends BaseService {
     }
 
     console.log(`🔹 Done! Updated ${updatedCount} / ${totalCount} records`);
-    return {updatedCount, totalCount};
+    return { updatedCount, totalCount };
+  }
+
+  async exportQuizSubmissions(
+    quizId: string,
+  ): Promise<IQuizSubmissionExport[]> {
+    return this._withTransaction(async session => {
+      const attempts = await this.attemptRepository.getAttemptsByQuizId(
+        quizId,
+        session,
+      );
+      // Transform attempts data as needed for export
+
+      let exportData: IQuizSubmissionExport[] = [];
+
+      const lotItemTextProcessors: Record<
+        QuestionType,
+        (
+          questionInfo: IQuestionInfo,
+          responseAnswer: IResponseAnswer,
+        ) => string | string[]
+      > = {
+        SELECT_ONE_IN_LOT: (
+          questionInfo: IQuestionInfo,
+          responseAnswer: IResponseAnswer,
+        ) => {
+          // For SELECT_ONE_IN_LOT, responseAnswer.answer is a single lotItemId
+          let selectedLotItemId: string =
+            responseAnswer.answer.lotItemId.toString();
+
+          // Find the lot item text from questionInfo
+
+          const lotItem =
+            questionInfo.correctLotItems?.find(
+              item => item._id?.toString() === selectedLotItemId,
+            ) ||
+            questionInfo.incorrectLotItems?.find(
+              item => item._id?.toString() === selectedLotItemId,
+            ) ||
+            (questionInfo.correctLotItem?._id.toString() === selectedLotItemId
+              ? questionInfo.correctLotItem
+              : undefined);
+
+          if (lotItem) {
+            return lotItem.text;
+          }
+        },
+        SELECT_MANY_IN_LOT: (
+          questionInfo: IQuestionInfo,
+          responseAnswer: IResponseAnswer,
+        ) => {
+          // For SELECT_MANY_IN_LOT, responseAnswer.answer is an array of lotItemIds
+          let selectedLotItemIds: string[] =
+            responseAnswer.answer.lotItemIds?.map(id => id.toString()) || [];
+
+          // Fetch all selectedLotItem texts from questionInfo
+          const selectedLotItems: string[] = [];
+
+          selectedLotItemIds.forEach(lotItemId => {
+            const selectedLotItem =
+              questionInfo.correctLotItems.find(
+                item => item._id?.toString() === lotItemId,
+              ) ||
+              questionInfo.incorrectLotItems.find(
+                item => item._id?.toString() === lotItemId,
+              );
+
+            if (selectedLotItem) {
+              selectedLotItems.push(selectedLotItem.text);
+            }
+          });
+
+          return selectedLotItems;
+        },
+        ORDER_THE_LOTS: (
+          questionInfo: IQuestionInfo,
+          responseAnswer: IResponseAnswer,
+        ) => {
+          // Ingore this for now
+          return [];
+        },
+        NUMERIC_ANSWER_TYPE: (
+          questionInfo: IQuestionInfo,
+          responseAnswer: IResponseAnswer,
+        ) => {
+          // For NUMERIC_ANSWER_TYPE, responseAnswer.answer is a numeric value
+          const numericAnswer = responseAnswer.answer.value;
+
+          return numericAnswer?.toString();
+        },
+        DESCRIPTIVE: (
+          questionInfo: IQuestionInfo,
+          responseAnswer: IResponseAnswer,
+        ) => {
+          // For DESCRIPTIVE, responseAnswer.answer is a text answer
+          const textAnswer = responseAnswer.answer.answerText;
+
+          return textAnswer;
+        },
+      };
+
+      for (const attempt of attempts) {
+        if (!attempt.user) continue;
+        const userName = attempt.user.firstName + ' ' + attempt.user?.lastName;
+
+        for (let i = 0; i < attempt.questionDetails.length; i++) {
+          const questionDetail = attempt.questionDetails[i];
+          const responseAnswer = attempt.answers.find(
+            ans => ans.questionId.toString() === questionDetail._id.toString(),
+          );
+
+          if (!responseAnswer) continue;
+
+          // QuestionDetail will always have questionText.
+          // To fetch response text, we need to fetch the lotItem text from the question's lotItems based on question type.
+          const questionType = responseAnswer.questionType;
+          // Use the function dispatcher to get the appropriate processor
+          const processor = lotItemTextProcessors[questionType];
+          if (processor) {
+            const reponseText = processor(questionDetail, responseAnswer);
+
+            // Prepare export entry
+            exportData.push({
+              Name: userName,
+              Question: questionDetail.text,
+              questionType: questionType,
+              Response: Array.isArray(reponseText)
+                ? reponseText.join(', ')
+                : reponseText || '',
+            });
+          }
+        }
+      }
+
+      return exportData;
+    });
   }
 }
 
-export {AttemptService};
+export { AttemptService };

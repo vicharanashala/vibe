@@ -761,6 +761,8 @@ class WebhookBody {
     description: 'Additional data related to the task status',
     type: 'object',
   })
+
+  //TODO: need to modified later
   @IsOptional()
   @IsObject()
   @ValidateNested()
@@ -831,6 +833,36 @@ class EditTranscript {
   index: number;
 }
 
+// TODO : To be modified for later
+class TaskStatusdetailsResponse{
+  @JSONSchema({
+    title: 'Task Status Details',
+    description: 'Additional data related to the task status',
+    type: 'object',
+    oneOf: [
+      {
+        $ref: '#/components/schemas/audioData',
+      },
+      {
+        $ref: '#/components/schemas/trascriptGenerationData',
+      },
+      {
+        $ref: '#/components/schemas/segmentationData',
+      },
+      {
+        $ref: '#/components/schemas/questionGenerationData',
+      },
+      {
+        $ref: '#/components/schemas/contentUploadData',
+      },
+    ],
+  })
+  @IsObject()
+  @ValidateNested()
+  @Type(() => Object)
+  data: audioData | trascriptGenerationData | segmentationData | questionGenerationData | contentUploadData;
+}
+
 export {
   JobType,
   GenAIResponse,
@@ -846,6 +878,7 @@ export {
   EditSegmentMapBody,
   EditQuestionData,
   EditTranscript,
+  TaskStatusdetailsResponse,
 };
 
 export const GENAI_VALIDATORS = [
@@ -862,4 +895,5 @@ export const GENAI_VALIDATORS = [
   EditSegmentMapBody,
   EditQuestionData,
   EditTranscript,
+  TaskStatusdetailsResponse,
 ];

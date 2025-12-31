@@ -18,6 +18,7 @@ import { NavMain } from "./nav-main"
 import { AuroraText } from "@/components/magicui/aurora-text"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Link } from "@tanstack/react-router"
+import logo from "../../public/img/vibe_logo_img.ico"
 
 import {
   Sidebar,
@@ -64,7 +65,7 @@ export function AppSidebar() {
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg overflow-hidden shrink-0">
             <img
-              src="https://continuousactivelearning.github.io/vibe/img/logo.png"
+              src={logo}
               alt="Vibe Logo"
               className="h-10 w-10 object-contain"
             />

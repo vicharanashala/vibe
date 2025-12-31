@@ -56,7 +56,8 @@ export class UserController {
 
   @OpenAPI({
     summary: 'Edit user information',
-    description: 'Edit user information like first and last name.',
+    description: `Edit user information like first and last name.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @Patch('/edit')
@@ -79,7 +80,8 @@ export class UserController {
 
   @OpenAPI({
     summary: 'Make a user an admin',
-    description: 'Promotes a user to admin status based on the provided user ID.',
+    description: `Promotes a user to admin status based on the provided user ID.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @Post('/make-admin/:userId')

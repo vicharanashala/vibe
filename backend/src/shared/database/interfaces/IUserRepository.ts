@@ -1,5 +1,12 @@
-import {IUser } from '#shared/interfaces/models.js';
-import {MongoClient, ClientSession, ObjectId} from 'mongodb';
+import { IUser } from '#shared/interfaces/models.js';
+import { MongoClient, ClientSession, ObjectId } from 'mongodb';
+
+type UserSearchResult = {
+  _id: ObjectId;
+  firstName: string;
+  lastName: string;
+  email: string;
+};
 
 /**
  * Interface representing a repository for user-related operations.
@@ -16,7 +23,7 @@ export interface IUserRepository {
    * @returns A promise that resolves to the created user.
    */
   create(user: IUser, session?: ClientSession): Promise<string>;
-  getUserNamesByIds(userIds:string[],session:ClientSession)
+  getUserNamesByIds(userIds: string[], session: ClientSession)
   /**
    * Finds a user by their email.
    * @param email - The email of the user to find.
@@ -79,4 +86,6 @@ export interface IUserRepository {
    * @returns A promise that resolves to an array of users.
    */
   getUsersByIds(ids: string[]): Promise<IUser[]>;
+  searchUsers(searchTerm: string, session?: ClientSession,): Promise<UserSearchResult[]>;
+  deleteDuplicateUsers(): any
 }

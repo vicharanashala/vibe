@@ -115,7 +115,6 @@ ${registrationUrl}`;
       return;
     }
     const idsToApprove = selectedIds && selectedIds.length > 0 ? selectedIds : allPendingRegistrationIds;
-
     try {
       await updateBulkStatus(idsToApprove);
 
@@ -510,6 +509,7 @@ ${registrationUrl}`;
                           selectedIds?.length === registrations?.length &&
                           registrations?.length > 0
                         }
+                        disabled={registrations.filter((item)=> item.status==="PENDING")?.length===0}
                         onCheckedChange={checked =>
                           handleSelectAll(checked as boolean)
                         }
@@ -894,13 +894,13 @@ export const RegistrationActions = ({
             Get Registration URL
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-w-sm max-[425px]:w-[90vw]">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold flex items-center gap-2">
+            <DialogTitle className="text-xl font-semibold flex items-center gap-3">
               <Share2 className="h-5 w-5 text-primary" />
-              Student Registration URL
+              <div className="xl:text-lg lg:text-sm text-base">Student Registration URL</div>
             </DialogTitle>
-            <p className="text-sm text-muted-foreground leading-relaxed mt-2">
+            <p className="text-sm text-muted-foreground leading-relaxed mt-2 text-start">
               Share this URL with students to allow them to view available course versions and submit registration requests.
             </p>
           </DialogHeader>
@@ -1027,7 +1027,7 @@ export function RegistrationFilters({
   setCurrentPage,
 }: RegistrationFiltersProps) {
   return (
-    <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
+    <div className="flex flex-col lg:flex-row md:items-center gap-4 mb-4">
       <div className="flex-1 relative">
         <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
           <Search size={20} />
@@ -1053,7 +1053,7 @@ export function RegistrationFilters({
           </Button>
         )}
       </div>
-
+      <div className="flex gap-4">
       <Select
         value={filterStatus}
         onValueChange={(value: RegistrationStatus) => {
@@ -1107,6 +1107,7 @@ export function RegistrationFilters({
           <SelectItem value="older">Oldest</SelectItem>
         </SelectContent>
       </Select>
+      </div>
     </div>
   );
 }

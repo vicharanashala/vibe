@@ -18,7 +18,7 @@ const TYPES = {
 
   //Constants
   uri: Symbol.for('dbURI'),
-  dbName: Symbol.for('dbName'),
+  dbName: Symbol.for('dbName'), 
 };
 
 export {TYPES as GLOBAL_TYPES};

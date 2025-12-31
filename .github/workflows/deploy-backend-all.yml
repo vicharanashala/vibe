@@ -100,7 +100,8 @@ jobs:
             SMTP_PASS=${{ secrets.SMTP_PASS }}
             TAILSCALE_AUTHKEY=${{ secrets.TAILSCALE_AUTHKEY }}
             AI_PROXY_ADDRESS=socks5h://localhost:1055
-          flags: --allow-unauthenticated --no-traffic
+            SESSION_SECRET=${{ secrets.SESSION_SECRET }}
+          flags: --allow-unauthenticated
 
   deploy_production:
     name: Deploy to Cloud Run (Production)
@@ -140,4 +141,5 @@ jobs:
             SMTP_PASS=${{ secrets.SMTP_PASS }}
             TAILSCALE_AUTHKEY=${{ secrets.TAILSCALE_AUTHKEY }}
             AI_PROXY_ADDRESS=socks5h://localhost:1055
-          flags: --allow-unauthenticated --no-traffic
+            SESSION_SECRET=${{ secrets.SESSION_SECRET }}
+          flags: --allow-unauthenticated

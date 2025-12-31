@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -108,6 +108,35 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
   const editor = useMemo(() => createYooptaEditor(), []);
   const [editorValue, setEditorValue] = useState<YooptaContentValue>();
   const editorContainerRef = useRef<HTMLDivElement>(null);
+  const [rawContentBackup, setRawContentBackup] = useState<string>('');
+  const [contentLoadKey, setContentLoadKey] = useState<number>(0);
+
+  const normalizeMarkdown = useCallback((content: string): string => {
+    if (!content) return '';
+    const lines = content.split('\n');
+    const result: string[] = [];
+    let inList = false;
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const isListItem = /^[-*+]\s+/.test(trimmed) || /^\d+\.\s+/.test(trimmed);
+      if (isListItem) {
+        inList = true;
+        result.push(line);
+      } else {
+        if (inList && trimmed.length > 0) {
+          result.push('');
+          inList = false;
+        } else {
+          inList = false;
+        }
+        result.push(line);
+      }
+    }
+    while (result.length > 1 && result[result.length - 1] === '' && result[result.length - 2] === '') {
+      result.pop();
+    }
+    return result.join('\n');
+  }, []);
 
   const focusEditor = () => {
     if (!editor || !isEditMode) return;
@@ -256,20 +285,74 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
         .dark [data-yoopta-editor] .yoopta-action-menu,
         .dark [data-yoopta-editor] .yoopta-action-menu *,
         .dark .yoopta-action-menu,
-        .dark .yoopta-action-menu * {
+        .dark .yoopta-action-menu *,
+        .dark [data-yoopta-editor] [class*="action-menu"],
+        .dark [class*="action-menu"],
+        .dark [data-yoopta-editor] [class*="ActionMenu"],
+        .dark [class*="ActionMenu"] {
           background-color: #1f2937 !important;
           color: #ffffff !important;
           border-color: #374151 !important;
         }
         
         .dark [data-yoopta-editor] .yoopta-action-menu-item,
-        .dark .yoopta-action-menu-item {
+        .dark .yoopta-action-menu-item,
+        .dark [data-yoopta-editor] [class*="action-menu-item"],
+        .dark [class*="action-menu-item"],
+        .dark [data-yoopta-editor] [class*="ActionMenu"] li,
+        .dark [class*="ActionMenu"] li,
+        .dark [data-yoopta-editor] [class*="ActionMenu"] div,
+        .dark [class*="ActionMenu"] div {
           background-color: #1f2937 !important;
           color: #ffffff !important;
         }
         
         .dark [data-yoopta-editor] .yoopta-action-menu-item:hover,
-        .dark .yoopta-action-menu-item:hover {
+        .dark .yoopta-action-menu-item:hover,
+        .dark [data-yoopta-editor] [class*="action-menu-item"]:hover,
+        .dark [class*="action-menu-item"]:hover,
+        .dark [data-yoopta-editor] [class*="ActionMenu"] li:hover,
+        .dark [class*="ActionMenu"] li:hover,
+        .dark [data-yoopta-editor] [class*="ActionMenu"] div:hover,
+        .dark [class*="ActionMenu"] div:hover {
+          background-color: #374151 !important;
+          color: #ffffff !important;
+        }
+        
+        /* Force override any white backgrounds in action menus */
+        .dark [data-yoopta-editor] *[style*="background-color: white"],
+        .dark [data-yoopta-editor] *[style*="background-color: #fff"],
+        .dark [data-yoopta-editor] *[style*="background-color: #ffffff"],
+        .dark [class*="action-menu"] *[style*="background-color: white"],
+        .dark [class*="action-menu"] *[style*="background-color: #fff"],
+        .dark [class*="action-menu"] *[style*="background-color: #ffffff"],
+        .dark [class*="ActionMenu"] *[style*="background-color: white"],
+        .dark [class*="ActionMenu"] *[style*="background-color: #fff"],
+        .dark [class*="ActionMenu"] *[style*="background-color: #ffffff"] {
+          background-color: #1f2937 !important;
+          color: #ffffff !important;
+        }
+        
+        /* Specific targeting for dropdown menus */
+        .dark [data-yoopta-editor] [role="menu"],
+        .dark [data-yoopta-editor] [role="menuitem"],
+        .dark [role="menu"],
+        .dark [role="menuitem"],
+        .dark [data-yoopta-editor] .dropdown-menu,
+        .dark .dropdown-menu,
+        .dark [data-yoopta-editor] .menu,
+        .dark .menu {
+          background-color: #1f2937 !important;
+          color: #ffffff !important;
+          border-color: #374151 !important;
+        }
+        
+        .dark [data-yoopta-editor] [role="menuitem"]:hover,
+        .dark [role="menuitem"]:hover,
+        .dark [data-yoopta-editor] .dropdown-menu li:hover,
+        .dark .dropdown-menu li:hover,
+        .dark [data-yoopta-editor] .menu li:hover,
+        .dark .menu li:hover {
           background-color: #374151 !important;
           color: #ffffff !important;
         }
@@ -344,14 +427,156 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
           color: #6b7280 !important;
         }
 
-        /* Make the entire editor container clickable */
-        .yoopta-editor-container {
-          cursor: text;
-        }
-        
-        .yoopta-editor-container:not(.edit-mode) {
-          cursor: default;
-        }
+         /* Make the entire editor container clickable */
+         .yoopta-editor-container {
+           cursor: text;
+         }
+         
+         .yoopta-editor-container:not(.edit-mode) {
+           cursor: default;
+         }
+         
+         /* Make simple text white with text shadow for visibility */
+         .dark [data-yoopta-editor] .yoopta-editor *,
+         .dark [data-yoopta-editor] .yoopta-paragraph,
+         .dark [data-yoopta-editor] .yoopta-heading,
+         .dark [data-yoopta-editor] .yoopta-blockquote,
+         .dark [data-yoopta-editor] .yoopta-list,
+         .dark [data-yoopta-editor] .yoopta-todo-list,
+         .dark [data-yoopta-editor] .yoopta-image,
+         .dark [data-yoopta-editor] .yoopta-divider,
+         .dark [data-yoopta-editor] p,
+         .dark [data-yoopta-editor] div,
+         .dark [data-yoopta-editor] span {
+           color: #ffffff !important;
+           text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8) !important;
+         }
+         
+         /* Ensure editor content has white text */
+         .dark [data-yoopta-editor] .yoopta-editor,
+         .dark [data-yoopta-editor] [contenteditable="true"],
+         .dark [data-yoopta-editor] .yoopta-editor-content {
+           color: #ffffff !important;
+         }
+         
+         /* Specific styling for links to ensure visibility in dark mode */
+         .dark [data-yoopta-editor] .yoopta-link,
+         .dark [data-yoopta-editor] a,
+         .dark [data-yoopta-editor] [data-yoopta-mark="link"],
+         .dark [data-yoopta-editor] a[href],
+         .dark [data-yoopta-editor] .yoopta-link a,
+         .dark [data-yoopta-editor] .yoopta-link span,
+         .dark [data-yoopta-editor] .yoopta-link div,
+         .dark [data-yoopta-editor] .yoopta-link p {
+           color: #3b82f6 !important;
+           text-decoration: underline !important;
+         }
+         
+         /* Force link styling for any element with link attributes */
+         .dark [data-yoopta-editor] [data-yoopta-link],
+         .dark [data-yoopta-editor] [data-yoopta-link] *,
+         .dark [data-yoopta-editor] [data-yoopta-link] span,
+         .dark [data-yoopta-editor] [data-yoopta-link] div,
+         .dark [data-yoopta-editor] [data-yoopta-link] p {
+           color: #3b82f6 !important;
+           text-decoration: underline !important;
+         }
+         
+         /* Additional link styling for nested elements */
+         .dark [data-yoopta-editor] .yoopta-link *,
+         .dark [data-yoopta-editor] a * {
+           color: #3b82f6 !important;
+           text-decoration: underline !important;
+         }
+         
+         /* Fix link tool popup for dark mode */
+         .dark .yoopta-link-tool,
+         .dark .yoopta-link-tool *,
+         .dark .yoopta-link-tool .yoopta-link-tool-content,
+         .dark .yoopta-link-tool .yoopta-link-tool-header,
+         .dark .yoopta-link-tool .yoopta-link-tool-body,
+         .dark .yoopta-link-tool .yoopta-link-tool-footer {
+           background-color: #1f2937 !important;
+           color: #ffffff !important;
+           border-color: #374151 !important;
+         }
+         
+         /* Style link tool popup input fields */
+         .dark .yoopta-link-tool input,
+         .dark .yoopta-link-tool textarea {
+           background-color: #374151 !important;
+           color: #ffffff !important;
+           border-color: #4b5563 !important;
+         }
+         
+         /* Style link tool popup buttons */
+         .dark .yoopta-link-tool button {
+           background-color: #3b82f6 !important;
+           color: #ffffff !important;
+           border-color: #3b82f6 !important;
+         }
+         
+         .dark .yoopta-link-tool button:hover {
+           background-color: #2563eb !important;
+         }
+         
+         /* Fix inline link input fields in editor content */
+         .dark [data-yoopta-editor] input[type="text"],
+         .dark [data-yoopta-editor] input[type="url"],
+         .dark [data-yoopta-editor] input[placeholder*="link"],
+         .dark [data-yoopta-editor] input[placeholder*="url"],
+         .dark [data-yoopta-editor] .yoopta-link input,
+         .dark [data-yoopta-editor] .yoopta-link-tool input,
+         .dark [data-yoopta-editor] [data-yoopta-link] input {
+           background-color: #374151 !important;
+           color: #ffffff !important;
+           border-color: #4b5563 !important;
+         }
+         
+         /* Fix any input fields within the editor */
+         .dark [data-yoopta-editor] input,
+         .dark [data-yoopta-editor] textarea {
+           background-color: #374151 !important;
+           color: #ffffff !important;
+           border-color: #4b5563 !important;
+         }
+         
+         /* Fix all input fields in the editor for dark mode */
+         .dark [data-yoopta-editor] input[type="text"],
+         .dark [data-yoopta-editor] input[type="email"],
+         .dark [data-yoopta-editor] input[type="password"],
+         .dark [data-yoopta-editor] input[type="search"],
+         .dark [data-yoopta-editor] input[type="tel"],
+         .dark [data-yoopta-editor] input[type="url"],
+         .dark [data-yoopta-editor] input:not([type]),
+         .dark [data-yoopta-editor] input[type=""] {
+           background-color: #374151 !important;
+           color: #ffffff !important;
+           border: 1px solid #4b5563 !important;
+           border-radius: 4px !important;
+         }
+         
+         /* Fix input field focus states */
+         .dark [data-yoopta-editor] input:focus,
+         .dark [data-yoopta-editor] textarea:focus {
+           background-color: #374151 !important;
+           color: #ffffff !important;
+           border-color: #3b82f6 !important;
+           outline: none !important;
+         }
+         
+         /* Fix for any nested content text color */
+         .dark [data-yoopta-editor] div,
+         .dark [data-yoopta-editor] span,
+         .dark [data-yoopta-editor] p,
+         .dark [data-yoopta-editor] h1,
+         .dark [data-yoopta-editor] h2,
+         .dark [data-yoopta-editor] h3,
+         .dark [data-yoopta-editor] h4,
+         .dark [data-yoopta-editor] h5,
+         .dark [data-yoopta-editor] h6 {
+           color: #000000 !important;
+         }
       `;
       
       const existingStyle = document.getElementById('yoopta-dark-mode-styles');
@@ -429,14 +654,108 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
 
       if (blogData.content) {
         try {
-          const deserializedValue = markdown.deserialize(editor, blogData.content);
+          const contentWords = blogData.content.split(/\s+/).length;
+          
+          let processedContent = blogData.content;
+          processedContent = processedContent.replace(/\n- \*\*(.*?):\*\*\s*([^\n-]+)/g, '\n- **$1:** $2');
+          processedContent = processedContent.replace(/\n\n\n+/g, '\n\n');
+          processedContent = processedContent.replace(/\n- \*\*(.*?):\*\*\s*\n\s*([^\n-]+)/g, '\n- **$1:** $2');
+          processedContent = processedContent.replace(/\n- \*\*(.*?):\*\*\s*([^\n-]+?)\[([^\]]+)\]\(([^)]+)\)([^\n-]*)/g, '\n- **$1:** $2[$3]($4)$5');
+          processedContent = processedContent.replace(/\s+\[([^\]]+)\]\(([^)]+)\)\s+/g, ' [$1]($2) ');
+          processedContent = processedContent.replace(/\]\([^)]+\)([a-zA-Z])/g, ']($1) $2');
+
+          const normalizedContent = normalizeMarkdown(processedContent);
+          const deserializedValue = markdown.deserialize(editor, normalizedContent);
           setEditorValue(deserializedValue);
           editor.setEditorValue(deserializedValue);
+          setContentLoadKey(prev => prev + 1);
+          setTimeout(() => {
+            const editorElement = editorContainerRef.current?.querySelector('[contenteditable="true"]');
+            const loadedText = editorElement?.textContent || '';
+            if (loadedText.length < blogData.content.length * 0.3) {
+              console.warn('Content appears truncated, trying alternative deserialization');
+              try {
+                const altProcessed = normalizeMarkdown(blogData.content);
+                const alternativeValue = markdown.deserialize(editor, altProcessed);
+                setEditorValue(alternativeValue);
+                editor.setEditorValue(alternativeValue);
+                
+                setContentLoadKey(prev => prev + 1);
+                
+                setTimeout(() => {
+                  try {
+                    const finalProcessed = normalizeMarkdown(blogData.content);
+                    const finalValue = markdown.deserialize(editor, finalProcessed);
+                    setEditorValue(finalValue);
+                    editor.setEditorValue(finalValue);
+                    setContentLoadKey(prev => prev + 1);
+                  } catch (finalError) {
+                    console.error('Final deserialization attempt failed:', finalError);
+                  }
+                }, 300);
+              } catch (altError) {
+                console.error('Alternative deserialization failed:', altError);
+              }
+            }
+            
+            if (blogData.content.includes('[') && blogData.content.includes('](') && loadedText.length < blogData.content.length * 0.5) {
+              console.warn('Content with links appears truncated, trying link-specific deserialization');
+              try {
+                const linkContent = blogData.content.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1');
+                const normalizedLink = normalizeMarkdown(linkContent);
+                const linkValue = markdown.deserialize(editor, normalizedLink);
+                setEditorValue(linkValue);
+                editor.setEditorValue(linkValue);
+                setContentLoadKey(prev => prev + 1);
+              } catch (linkError) {
+                console.error('Link-specific deserialization failed:', linkError);
+              }
+            }
+          }, 200);
+          
         } catch (error) {
           console.error('Error deserializing content:', error);
-          const plainTextValue = markdown.deserialize(editor, blogData.content);
-          setEditorValue(plainTextValue);
-          editor.setEditorValue(plainTextValue);
+          try {
+            const plainProcessed = normalizeMarkdown(blogData.content);
+            const plainTextValue = markdown.deserialize(editor, plainProcessed);
+            setEditorValue(plainTextValue);
+            editor.setEditorValue(plainTextValue);
+          } catch (plainTextError) {
+            console.error('Error deserializing as plain text:', plainTextError);
+            const fallbackProcessed = normalizeMarkdown(blogData.content);
+            const fallbackValue = markdown.deserialize(editor, fallbackProcessed);
+            setEditorValue(fallbackValue);
+            editor.setEditorValue(fallbackValue);
+          }
+        }
+        
+        if (blogData.content.includes('[') && blogData.content.includes('](') && blogData.content.includes('hello')) {
+          setTimeout(() => {
+            try {
+              const aggressiveProcessed = normalizeMarkdown(blogData.content);
+              const aggressiveValue = markdown.deserialize(editor, aggressiveProcessed);
+              setEditorValue(aggressiveValue);
+              editor.setEditorValue(aggressiveValue);
+              setContentLoadKey(prev => prev + 1);
+              
+              setTimeout(() => {
+                const editorElement = editorContainerRef.current?.querySelector('[contenteditable="true"]');
+                const loadedText = editorElement?.textContent || '';
+                
+                if (loadedText.length < blogData.content.length * 0.6) {
+                  console.warn('Aggressive loading still shows truncation, trying final approach');
+                  // Final attempt: try to force load the content
+                  const finalProcessed = normalizeMarkdown(blogData.content);
+                  const finalValue = markdown.deserialize(editor, finalProcessed);
+                  setEditorValue(finalValue);
+                  editor.setEditorValue(finalValue);
+                  setContentLoadKey(prev => prev + 1);
+                }
+              }, 200);
+            } catch (aggressiveError) {
+              console.error('Aggressive loading failed:', aggressiveError);
+            }
+          }, 500);
         }
       } else {
         const emptyValue = markdown.deserialize(editor, '');
@@ -472,7 +791,8 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
       setBlogForm(originalForm);
       if (originalForm.content) {
         try {
-          const deserializedValue = markdown.deserialize(editor, originalForm.content);
+          const processedContent = normalizeMarkdown(originalForm.content);
+          const deserializedValue = markdown.deserialize(editor, processedContent);
           setEditorValue(deserializedValue);
           editor.setEditorValue(deserializedValue);
         } catch (error) {
@@ -493,7 +813,37 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
     try {
       setOriginalForm(null);
       const editorData = editor.getEditorValue();
-      const markdownContent = markdown.serialize(editor, editorData);
+      
+      const editorElement = editorContainerRef.current?.querySelector('[contenteditable="true"]');
+      const rawTextContent = editorElement?.textContent || '';
+      const editorHTML = editorElement?.innerHTML || '';
+      
+      setRawContentBackup(rawTextContent);
+      
+      let markdownContent = '';
+      try {
+        markdownContent = markdown.serialize(editor, editorData);
+        
+        if (rawTextContent.length > 0 && markdownContent.length < rawTextContent.length * 0.5) {
+          console.warn('Markdown content seems truncated, using raw content backup');
+          markdownContent = rawContentBackup || rawTextContent;
+        }
+        
+        if (rawTextContent.includes('framework') && markdownContent.length < rawTextContent.length * 0.7) {
+          console.warn('Content with links appears truncated, using raw content');
+          markdownContent = rawContentBackup || rawTextContent;
+        }
+        
+        if (editorHTML.includes('<a ') && markdownContent.length < rawTextContent.length * 0.8) {
+          console.warn('Content with HTML links appears truncated, using raw content');
+          markdownContent = rawContentBackup || rawTextContent;
+        }
+      } catch (error) {
+        console.error('Markdown serialization failed, using raw text:', error);
+        markdownContent = rawContentBackup || rawTextContent;
+      }
+
+      markdownContent = normalizeMarkdown(markdownContent);
 
       const updatedBlogData = {
         name: blogForm.name,
@@ -537,17 +887,282 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
     return Math.max(1, Math.ceil(wordCount / wordsPerMinute));
   };
 
-  const handleContentChange = (value: YooptaContentValue) => {
+  const convertHTMLToMarkdown = (html: string): string => {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    
+    let markdown = '';
+    
+    const processNode = (node: Node, isListItem: boolean = false): string => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return node.textContent || '';
+      }
+      
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const element = node as Element;
+        const tagName = element.tagName.toLowerCase();
+        
+        switch (tagName) {
+          case 'h1':
+            return `# ${element.textContent || ''}\n\n`;
+          case 'h2':
+            return `## ${element.textContent || ''}\n\n`;
+          case 'h3':
+            return `### ${element.textContent || ''}\n\n`;
+          case 'h4':
+            return `#### ${element.textContent || ''}\n\n`;
+          case 'h5':
+            return `##### ${element.textContent || ''}\n\n`;
+          case 'h6':
+            return `###### ${element.textContent || ''}\n\n`;
+          case 'p':
+            const pContent = Array.from(element.childNodes)
+              .map(child => processNode(child, isListItem))
+              .join('');
+            return isListItem ? pContent : `${pContent}\n\n`;
+          case 'ul':
+            const ulContent = Array.from(element.children)
+              .map(li => {
+                const liText = Array.from(li.childNodes)
+                  .map(child => processNode(child, true))
+                  .join('');
+                return `- ${liText}`;
+              })
+              .join('\n');
+            return `${ulContent}\n\n`;
+          case 'ol':
+            const olContent = Array.from(element.children)
+              .map((li, index) => {
+                const liText = Array.from(li.childNodes)
+                  .map(child => processNode(child, true))
+                  .join('');
+                return `${index + 1}. ${liText}`;
+              })
+              .join('\n');
+            return `${olContent}\n\n`;
+          case 'li':
+            const liContent = Array.from(element.childNodes)
+              .map(child => processNode(child, true))
+              .join('');
+            return liContent;
+          case 'strong':
+          case 'b':
+            return `**${element.textContent || ''}**`;
+          case 'em':
+          case 'i':
+            return `*${element.textContent || ''}*`;
+          case 'code':
+            return `\`${element.textContent || ''}\``;
+          case 'blockquote':
+            return `> ${element.textContent || ''}\n\n`;
+          case 'br':
+            return '\n';
+          case 'hr':
+            return '---\n\n';
+          case 'a':
+            const href = element.getAttribute('href') || '';
+            return `[${element.textContent || ''}](${href})`;
+          case 'img':
+            const src = element.getAttribute('src') || '';
+            const alt = element.getAttribute('alt') || '';
+            return `![${alt}](${src})`;
+          case 'div':
+            const divContent = Array.from(element.childNodes)
+              .map(child => processNode(child, isListItem))
+              .join('');
+            return isListItem ? divContent : `${divContent}\n\n`;
+          default:
+            return Array.from(element.childNodes)
+              .map(child => processNode(child, isListItem))
+              .join('');
+        }
+      }
+      
+      return '';
+    };
+    
+    Array.from(tempDiv.childNodes).forEach(node => {
+      markdown += processNode(node);
+    });
+    
+    return markdown.replace(/\n{3,}/g, '\n\n').trim();
+  };
+
+  const processStructuredContent = (text: string): string => {
+    const lines = text.split('\n');
+    let processedLines: string[] = [];
+    let inList = false;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      if (line.length === 0) {
+        if (inList) {
+          processedLines.push('');
+          inList = false;
+        }
+        continue;
+      }
+      
+      if (line.match(/^[•\-\*]\s+/) || line.match(/^\d+\.\s+/)) {
+        if (!inList) {
+          inList = true;
+        }
+        if (line.match(/^[•\-\*]\s+/)) {
+          processedLines.push(`- ${line.replace(/^[•\-\*]\s+/, '')}`);
+        } else {
+          processedLines.push(line);
+        }
+      } else {
+        if (inList) {
+          processedLines.push('');
+          inList = false;
+        }
+        
+        if (line.match(/^\*\*.*:\*\*$/)) {
+          processedLines.push(line);
+        } else {
+          processedLines.push(line);
+        }
+      }
+    }
+    
+    return processedLines.join('\n');
+  };
+
+  const handleContentChange = useCallback((value: YooptaContentValue) => {
     if (!isEditMode) return;
     
     setEditorValue(value);
-    const markdownContent = markdown.serialize(editor, value);
-    const readTime = calculateReadTime(markdownContent);
-    setBlogForm(prev => ({
-      ...prev,
-      estimatedReadTimeInMinutes: readTime,
-    }));
-  };
+    
+    setTimeout(() => {
+      const editorElement = editorContainerRef.current?.querySelector('[contenteditable="true"]');
+      const rawText = editorElement?.textContent || '';
+      setRawContentBackup(rawText);
+    }, 100);
+    
+    setTimeout(() => {
+      try {
+        const markdownContent = markdown.serialize(editor, value);
+        const readTime = calculateReadTime(markdownContent);
+        setBlogForm(prev => ({
+          ...prev,
+          estimatedReadTimeInMinutes: readTime,
+        }));
+      } catch (error) {
+        console.error('Error calculating read time:', error);
+      }
+    }, 200);
+  }, [isEditMode, editor]);
+
+  const handleDirectPaste = useCallback((event: ClipboardEvent) => {
+    if (!isEditMode) return;
+    
+    const target = event.target as HTMLElement;
+    if (target && (
+      target.closest('.yoopta-link-tool') ||
+      target.closest('[data-yoopta-link-tool]') ||
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA'
+    )) {
+      return;
+    }
+    
+    const clipboardData = event.clipboardData;
+    if (!clipboardData) return;
+    
+    const plainText = clipboardData.getData('text/plain').trim();
+    
+    // Check if pasted content is a URL
+    const urlPattern = /^(https?:\/\/[^\s]+)$/;
+    const isURL = urlPattern.test(plainText);
+    
+    if (isURL) {
+      // Don't prevent default - let Yoopta paste it first, then convert to link
+      try {
+        // Wait for Yoopta to paste the URL as text, then convert to markdown link
+        setTimeout(() => {
+          const currentValue = editor.getEditorValue();
+          const currentMarkdown = markdown.serialize(editor, currentValue);
+          
+          // Find the last occurrence of the plain URL (the one just pasted)
+          const lastIndex = currentMarkdown.lastIndexOf(plainText);
+          
+          if (lastIndex !== -1) {
+            // Replace only the last occurrence with markdown link format and add space after
+            const before = currentMarkdown.substring(0, lastIndex);
+            const after = currentMarkdown.substring(lastIndex + plainText.length);
+            const markdownWithLink = before + `[${plainText}](${plainText}) ` + after;
+            
+            const newContent = markdown.deserialize(editor, markdownWithLink);
+            setEditorValue(newContent);
+            editor.setEditorValue(newContent);
+            
+            const readTime = calculateReadTime(markdownWithLink);
+            setBlogForm(prev => ({
+              ...prev,
+              estimatedReadTimeInMinutes: readTime,
+            }));
+          }
+        }, 100);
+      } catch (error) {
+        console.error('Error converting URL to link:', error);
+      }
+    } else {
+      // Not a URL, just update read time
+      setTimeout(() => {
+        try {
+          const currentValue = editor.getEditorValue();
+          const serializedContent = markdown.serialize(editor, currentValue);
+          const readTime = calculateReadTime(serializedContent);
+          setBlogForm(prev => ({
+            ...prev,
+            estimatedReadTimeInMinutes: readTime,
+          }));
+        } catch (error) {
+          console.error('Error updating read time after paste:', error);
+        }
+      }, 100);
+    }
+  }, [isEditMode, editor, calculateReadTime]);
+
+
+  useEffect(() => {
+    const editorContainer = editorContainerRef.current;
+    if (!editorContainer || !isEditMode) return;
+    
+    // Add paste event listener
+    const pasteHandler = (e: Event) => handleDirectPaste(e as ClipboardEvent);
+    editorContainer.addEventListener('paste', pasteHandler);
+    
+    return () => {
+      editorContainer.removeEventListener('paste', pasteHandler);
+    };
+  }, [isEditMode, handleDirectPaste]);
+
+  useEffect(() => {
+    const editorContainer = editorContainerRef.current;
+    if (!editorContainer || !isEditMode) return;
+
+    const handlePasteEvent = (e: Event) => {
+      handleDirectPaste(e as ClipboardEvent);
+    };
+
+    editorContainer.addEventListener('paste', handlePasteEvent, true);
+    
+    const editorContent = editorContainer.querySelector('[contenteditable="true"]');
+    if (editorContent) {
+      editorContent.addEventListener('paste', handlePasteEvent, true);
+    }
+
+    return () => {
+      editorContainer.removeEventListener('paste', handlePasteEvent, true);
+      const editorContent = editorContainer.querySelector('[contenteditable="true"]');
+      if (editorContent) {
+        editorContent.removeEventListener('paste', handlePasteEvent, true);
+      }
+    };
+  }, [isEditMode, handleDirectPaste]);
 
   if (isLoading) {
     return (
@@ -562,14 +1177,14 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
     <div className="space-y-6">
       <div>
         <div className="pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="flex lg:flex-row flex-col gap-3 items-center justify-between">
+            <div className="flex items-center gap-3 w-full">
               <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/20">
                 <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <CardTitle className="text-xl">{selectedItemName}</CardTitle>
-                <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-4 mt-1 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
                     <span>{blogForm.estimatedReadTimeInMinutes} min read</span>
@@ -584,7 +1199,7 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex lg:flex-nowrap flex-wrap items-center gap-2 justify-center">
               {isEditMode ? (
                 <>
                   <Button
@@ -686,7 +1301,7 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
                 onClick={handleContainerClick}
               >
                 <YooptaEditor
-                  key={`editor-${blogId}-${isEditMode}`}
+                  key={`editor-${blogId}-${isEditMode}-${contentLoadKey}`}
                   width="100%"
                   value={editorValue}
                   editor={editor}
