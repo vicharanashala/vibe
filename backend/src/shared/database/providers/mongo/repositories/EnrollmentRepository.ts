@@ -223,9 +223,14 @@ export class EnrollmentRepository {
   ): Promise<void> {
     try {
       await this.init();
+      const update: any = { percentCompleted };
+      if (typeof completedItemsCount === 'number') {
+        update.completedItemsCount = completedItemsCount;
+      }
+
       await this.enrollmentCollection.findOneAndUpdate(
         { _id: new ObjectId(enrollmentId) },
-        { $set: { percentCompleted, completedItemsCount } },
+        { $set: update },
         { session },
       );
     } catch (error) {
