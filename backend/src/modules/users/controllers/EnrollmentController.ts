@@ -526,13 +526,13 @@ export class EnrollmentController {
   })
 
   async updateAllCompletedItemsCount(@Ability(getEnrollmentAbility) { ability },
-    @QueryParams() query: BulkEnrollmentsQuery,): Promise<{ message: string; totalUpdated: any }> {
+    @QueryParams() query: BulkEnrollmentsQuery,): Promise<{ message: string/*; totalUpdated: any*/ }> {
     const { courseId, userId } = query;
-    const totalUpdated = await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion(courseId, userId);
+    // const totalUpdated = await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion(courseId, userId);
 
     return {
       message: 'Completed items count updated successfully',
-      totalUpdated,
+      // totalUpdated,
     };
   }
 }
