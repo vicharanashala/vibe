@@ -359,13 +359,13 @@ class ProgressService extends BaseService {
             courseVersionId,
             session,
           ),
-        completedItemCount ??
-          this.getUserProgressPercentageWithoutTotal(
-            userId,
-            courseId,
-            courseVersionId,
-            session,
-          ),
+        completedItemCount ?? enrollment.completedItemsCount ?? 0
+          // this.getUserProgressPercentageWithoutTotal(
+          //   userId,
+          //   courseId,
+          //   courseVersionId,
+          //   session,
+          // ),
       ]);
 
       percentCompleted = Math.round(
@@ -392,11 +392,13 @@ class ProgressService extends BaseService {
       enrollments.map(async enrollment => {
         const userId = enrollment.userId?.toString();
 
-        const completedItems = await this.getUserProgressPercentageWithoutTotal(
-          userId,
-          courseId,
-          versionId,
-        );
+        // const completedItems = await this.getUserProgressPercentageWithoutTotal(
+        //   userId,
+        //   courseId,
+        //   versionId,
+        // );
+        
+        const completedItems=enrollment.completedItemsCount;
 
         return {
           updateOne: {
@@ -1024,18 +1026,22 @@ class ProgressService extends BaseService {
     if (existingSession) {
       await this.verifyDetails(userId, courseId, courseVersionId);
 
-      const completedItemsArray =
-        await this.progressRepository.getCompletedItems(
-          userId.toString(),
-          courseId,
-          courseVersionId,
-          existingSession,
-        );
+      // const completedItemsArray =
+      //   await this.progressRepository.getCompletedItems(
+      //     userId.toString(),
+      //     courseId,
+      //     courseVersionId,
+      //     existingSession,
+      //   );
 
-      //
+      // //
 
-      const completedItemsSet = new Set(completedItemsArray);
-      return completedItemsSet.size;
+      // const completedItemsSet = new Set(completedItemsArray);
+      const enrollment=await this.enrollmentRepo.findEnrollment(userId,courseId,courseVersionId,existingSession);
+      if(!enrollment){
+        throw new NotFoundError('Enrollment not found');
+      }
+      return enrollment.completedItemsCount;
     }
 
     return this._withTransaction(async session => {
