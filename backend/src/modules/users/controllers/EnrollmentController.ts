@@ -510,10 +510,12 @@ export class EnrollmentController {
       versionId,
     );
   }
-
-  @Patch('/enrollments/update-completed-items-count')
-  @HttpCode(200)
+  @OpenAPI({
+    summary: 'Update completed items count for all enrollments',
+    description: 'Endpoint to update completedItemsCount field for all enrollments',
+  })
   @Authorized()
+  @Patch('/enrollments/update-completed-items-count')
   @ResponseSchema(UpdateEnrollmentProgressResponse, {
     description: 'Completed items count updated successfully',
     statusCode: 200,
@@ -522,10 +524,7 @@ export class EnrollmentController {
     description: 'Bad Request Error',
     statusCode: 400,
   })
-  @OpenAPI({
-    summary: 'Update completed items count for all enrollments',
-    description: 'Endpoint to update completedItemsCount field for all enrollments',
-  })
+
   async updateAllCompletedItemsCount(@Ability(getEnrollmentAbility) { ability },
     @QueryParams() query: BulkEnrollmentsQuery,): Promise<{ message: string; totalUpdated: any }> {
     const { courseId, userId } = query;
