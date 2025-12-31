@@ -38,6 +38,10 @@ import AnomaliesList from '../pages/teacher/AnomaliesList'
 import CourseInstructors from '../pages/teacher/course-instructors'
 import RegisteredUsers from '../pages/teacher/CourseRegistrationRequests'
 import CourseRegistration from '../pages/student/CourseRegistration'
+import CourseIssueReports from '../pages/student/FlagResponse'
+import LoginPage from '../pages/LoginPage'
+import FeedbackFormEditor from '../pages/teacher/FeedbackFormEditor'
+import Leaderboard from '../pages/student/leaderboard'
 
 
 // Root route with error and notFound handling
@@ -264,6 +268,13 @@ const teacherAddCourseRoute = new Route({
   component: AddCoursePage,
 });
 
+//Teacher feedback form route 
+const teacherFeedBackEditorRoute = new Route({
+  getParentRoute:() => teacherLayoutRoute,
+  path:'editor/feedback',
+  component:FeedbackFormEditor
+})
+
 // Teacher generate section route
 const teacherGenerateSectionRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -297,6 +308,21 @@ const studentCoursesRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
   path: '/courses',
   component: StudentCourses,
+});
+
+// student issues routes 
+
+const studentIssuesRoute = new Route({
+  getParentRoute:() => studentLayoutRoute,
+  path:'/issues',
+  component:CourseIssueReports,
+})
+
+// Student leaderboard route
+const studentLeaderboardRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/leaderboard',
+  component: Leaderboard,
 });
 
 // Student profile route
@@ -347,11 +373,17 @@ const testAISectionModalRoute = new Route({
   path: '/test-ai-section-modal',
   component: AISectionPage,
 });
+export const loginRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/login',
+  component: LoginPage,
+})
 
 // Create the router with the route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
   authRoute,
+  loginRoute,
   teacherLayoutRoute.addChildren([
     // teacherDashboardRoute,
     teacherCreateArticleRoute,
@@ -368,13 +400,16 @@ const routeTree = rootRoute.addChildren([
     testAISectionModalRoute,
     teacherCourseAnomaliesRoute,
     teacherCourseInstructorsRoute,
-    teacherCourseRegistrationRequests
+    teacherCourseRegistrationRequests,
+    teacherFeedBackEditorRoute
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
     studentCoursesRoute,
     studentProfileRoute,
-    studentCourseInviteRegistration
+    studentCourseInviteRegistration,
+    studentIssuesRoute,
+    studentLeaderboardRoute
   ]),
   coursePageRoute,
 ]);

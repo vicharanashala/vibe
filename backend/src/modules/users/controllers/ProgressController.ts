@@ -15,6 +15,11 @@ import {
   WatchTimeParams,
   CompletedProgressResponse,
   WatchTimeResponse,
+  TotalWatchTimeResponse,
+  ItemIdparams,
+  GetLeaderboardQuery,
+  LeaderboardNoAuthResponse,
+  GetLeaderboardResponse,
 } from '#users/classes/validators/ProgressValidators.js';
 import {ProgressService} from '#users/services/ProgressService.js';
 import {USERS_TYPES} from '#users/types.js';
@@ -32,6 +37,10 @@ import {
   InternalServerError,
   ForbiddenError,
   Authorized,
+  Session,
+  Param,
+  QueryParams,
+  CurrentUser,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {UserNotFoundErrorResponse} from '../classes/validators/UserValidators.js';
@@ -43,6 +52,11 @@ import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {subject} from '@casl/ability';
 import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
 import {QuizService} from '#root/modules/quizzes/services/index.js';
+import {BadRequestErrorResponse, IUser} from '#root/shared/index.js';
+import {InternalServerErrorResponse} from '../../../shared/middleware/errorHandler.js';
+import {COURSES_TYPES} from '#root/modules/courses/types.js';
+import {ItemService} from '#root/modules/courses/services/ItemService.js';
+import {SuccessResponse} from '#root/modules/projects/classes/validators/ProjectValidators.js';
 
 @OpenAPI({
   tags: ['Progress'],
@@ -56,6 +70,9 @@ class ProgressController {
 
     @inject(QUIZZES_TYPES.QuizService)
     private readonly quizService: QuizService,
+
+    @inject(COURSES_TYPES.ItemService)
+    private readonly itemService: ItemService,
   ) {}
 
   @OpenAPI({
@@ -154,7 +171,7 @@ class ProgressController {
     description: 'Progress not found',
     statusCode: 404,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description:
       'courseVersionId, moduleId, sectionId, or itemId do not match user progress',
     statusCode: 400,
@@ -193,7 +210,8 @@ class ProgressController {
 
   @OpenAPI({
     summary: 'Stop an item for user progress',
-    description: 'Marks the stop of an item for a user in a course version.',
+    description: `Marks the stop of an item for a user in a course version.<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @Post('/progress/courses/:courseId/versions/:versionId/stop')
@@ -202,12 +220,12 @@ class ProgressController {
     description: 'Progress not found',
     statusCode: 404,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description:
       'courseVersionId, moduleId, sectionId, or itemId do not match user progress',
     statusCode: 400,
   })
-  @ResponseSchema(InternalServerError, {
+  @ResponseSchema(InternalServerErrorResponse, {
     description: 'Failed to stop tracking item',
     statusCode: 500,
   })
@@ -219,39 +237,43 @@ class ProgressController {
     const {courseId, versionId} = params;
     const {itemId, sectionId, moduleId, watchItemId, attemptId, isSkipped} =
       body;
-    const userId = user._id.toString();
 
-    // Create a progress resource object for permission checking
-    const progressResource = subject('Progress', {userId, courseId, versionId});
+    const userId = String(user._id);
 
-    // Check permission using ability.can() with the actual progress resource
+    const progressResource = subject('Progress', {
+      userId,
+      courseId,
+      versionId,
+    });
+
     if (!ability.can(ProgressActions.Modify, progressResource)) {
       throw new ForbiddenError(
         'You do not have permission to modify this progress',
       );
     }
 
-    await this.progressService.stopItem(
-      userId,
-      courseId,
-      versionId,
-      itemId,
-      sectionId,
-      moduleId,
-      watchItemId,
-    );
-
-    await this.progressService.updateProgress(
-      userId,
-      courseId,
-      versionId,
-      moduleId,
-      sectionId,
-      itemId,
-      watchItemId,
-      attemptId,
-      isSkipped,
-    );
+    await Promise.all([
+      this.progressService.stopItem(
+        userId,
+        courseId,
+        versionId,
+        itemId,
+        sectionId,
+        moduleId,
+        watchItemId,
+      ),
+      this.progressService.updateProgress(
+        userId,
+        courseId,
+        versionId,
+        moduleId,
+        sectionId,
+        itemId,
+        watchItemId,
+        attemptId,
+        isSkipped,
+      ),
+    ]);
   }
 
   @OpenAPI({
@@ -260,7 +282,9 @@ class ProgressController {
 If only moduleId is provided, resets to the beginning of the module. 
 If moduleId and sectionId are provided, resets to the beginning of the section. 
 If moduleId, sectionId, and itemId are provided, resets to the beginning of the item. 
-If none are provided, resets to the beginning of the course.`,
+If none are provided, resets to the beginning of the course.<br/>
+It returns an empty body with a 200 status code.
+`,
   })
   @Authorized()
   @Patch('/:userId/progress/courses/:courseId/versions/:versionId/reset')
@@ -269,7 +293,7 @@ If none are provided, resets to the beginning of the course.`,
     description: 'User not found',
     statusCode: 404,
   })
-  @ResponseSchema(InternalServerError, {
+  @ResponseSchema(InternalServerErrorResponse, {
     description: 'Progress could not be reset',
     statusCode: 500,
   })
@@ -346,11 +370,15 @@ If none are provided, resets to the beginning of the course.`,
     '/:userId/watchTime/course/:courseId/version/:versionId/item/:itemId/type/:type',
   )
   @HttpCode(200)
+  @ResponseSchema(WatchTimeResponse, {
+    description: 'Watch time fetched successfully',
+    statusCode: 200,
+  })
   @ResponseSchema(UserNotFoundErrorResponse, {
     description: 'User not found',
     statusCode: 404,
   })
-  @ResponseSchema(InternalServerError, {
+  @ResponseSchema(InternalServerErrorResponse, {
     description: 'Could not Fetch the Watch Time',
     statusCode: 500,
   })
@@ -396,6 +424,18 @@ If none are provided, resets to the beginning of the course.`,
   @Authorized()
   @Get('/watchtime/total')
   @HttpCode(200)
+  @ResponseSchema(TotalWatchTimeResponse, {
+    description: 'Total watch time fetched successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(UserNotFoundErrorResponse, {
+    description: 'User not found',
+    statusCode: 404,
+  })
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Could not Fetch the Total Watch Time',
+    statusCode: 500,
+  })
   async getTotalWatchtimeOfUser(
     @Ability(getProgressAbility) {user},
   ): Promise<number> {
@@ -405,6 +445,125 @@ If none are provided, resets to the beginning of the course.`,
       userId,
     );
     return totalWatchTime;
+  }
+
+  // In ItemController.ts
+  @OpenAPI({
+    summary: 'Skip an optional item',
+    description:
+      'this allows to change isOptional for items, does not return anything on success',
+  })
+  @Authorized()
+  @Post('/items/:itemId/skip')
+  @OnUndefined(200)
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Could not skip the item',
+    statusCode: 500,
+  })
+  async skipOptionalItem(
+    @Params() params: ItemIdparams,
+    @Ability(getProgressAbility) {user, ability},
+  ): Promise<void> {
+    const {itemId} = params;
+
+    if (!user || (!user.userId && !user._id)) {
+      throw new Error('User not authenticated or user ID not found');
+    }
+
+    const userId = user.userId || user._id;
+    const {courseId, versionId} =
+      await this.itemService.getCourseAndVersionByItemId(itemId);
+
+    await this.progressService.skipItem(userId, courseId, versionId, itemId);
+  }
+  @Get('/progress/courses/:courseId/versions/:versionId/leaderboard')
+  @HttpCode(200)
+  @OpenAPI({
+    summary: 'Get course leaderboard',
+    description:
+      'Returns ranked list of students based on completion percentage and time',
+  })
+  @ResponseSchema(ProgressDataResponse, {
+    description: 'Leaderboard retrieved successfully',
+    isArray: true,
+  })
+  @Authorized()
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Failed to fetch leaderboard',
+    statusCode: 500,
+  })
+  async getLeaderboard(
+    @Params() params: GetUserProgressParams,
+    @QueryParams() query: GetLeaderboardQuery,
+    @CurrentUser() user: IUser,
+  ): Promise<{
+    data: Array<{
+      userId: string;
+      userName: string;
+      completionPercentage: number;
+      completedAt: Date | null;
+      rank: number;
+    }>;
+    totalDocuments: number;
+    totalPages: number;
+    currentPage: number;
+  }> {
+    const {courseId, versionId} = params;
+    const {page = 1, limit = 10} = query;
+    const userId = user._id?.toString();
+    return await this.progressService.getLeaderboard(
+      userId,
+      courseId,
+      versionId,
+      page,
+      limit,
+    );
+  }
+
+  ///////////////////////////////////////////////////// TO CORRECT THE WATCHTIME DOC COUNT OF STUDENTS ////////////////////////////////////////////
+    @Post('/progress/watch-time/bulk')
+    @HttpCode(201)
+    @OpenAPI({
+      summary: 'Create bulk watch-time records',
+      description:
+        'Creates multiple watch-time entries in a single request for better performance',
+    })
+    @ResponseSchema(InternalServerErrorResponse, {
+      description: 'Failed to create watch-time records',
+      statusCode: 500,
+    })
+    async createBulkWatchiTimeDocs(@Body() body: any): Promise<any> {
+      const {courseId, versionId,userId} = body;
+      return this.progressService.createBulkWatchiTimeDocs(courseId, versionId,userId ?? null);
+    }
+
+  /////////////////////////////// TEMP ENDPOINT WITHOUT AUTH //////////////////////////////////
+  @Get('/progress/courses/:courseId/versions/:versionId/leaderboard/no-auth')
+  @OpenAPI({
+    summary: 'Get course leaderboard without authorization',
+    description:
+      'Returns ranked list of students based on completion percentage and time',
+  })
+  @ResponseSchema(GetLeaderboardResponse, {
+    description: 'Leaderboard retrieved successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Failed to fetch leaderboard',
+    statusCode: 500,
+  })
+  async getNoAuthLeaderboard(
+    @Params() params: GetUserProgressParams,
+  ): Promise<GetLeaderboardResponse> {
+    const {courseId, versionId} = params;
+    // const {page = 1, limit = 10} = query;
+
+    return await this.progressService.getLeaderboardNoAuth(
+      courseId,
+      versionId,
+      // page,
+      // limit,
+    );
   }
 }
 export {ProgressController};

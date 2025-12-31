@@ -1,12 +1,12 @@
-import {AbilityBuilder, MongoAbility} from '@casl/ability';
+import { AbilityBuilder, MongoAbility } from '@casl/ability';
 import {
   AuthenticatedUser,
   AuthenticatedUserEnrollements,
 } from '#root/shared/interfaces/models.js';
-import {AttemptScope, createAbilityBuilder} from './types.js';
-import {getFromContainer, InternalServerError} from 'routing-controllers';
-import {ProgressService} from '#root/modules/users/services/ProgressService.js';
-import {CourseSettingService} from '#root/modules/setting/index.js';
+import { AttemptScope, createAbilityBuilder } from './types.js';
+import { getFromContainer, InternalServerError } from 'routing-controllers';
+import { ProgressService } from '#root/modules/users/services/ProgressService.js';
+import { CourseSettingService } from '#root/modules/setting/index.js';
 
 // Actions
 export enum AttemptActions {
@@ -32,7 +32,7 @@ export async function setupAttemptAbilities(
   builder: AbilityBuilder<any>,
   user: AuthenticatedUser,
 ) {
-  const {can, cannot} = builder;
+  const { can, cannot } = builder;
 
   if (user.globalRole === 'admin') {
     can('manage', 'Attempt');
@@ -45,7 +45,7 @@ export async function setupAttemptAbilities(
   // Use Promise.all to handle async operations properly
   await Promise.all(
     user.enrollments.map(async (enrollment: AuthenticatedUserEnrollements) => {
-      const courseBounded = {courseId: enrollment.courseId};
+      const courseBounded = { courseId: enrollment.courseId };
       const courseVersionBounded = {
         courseId: enrollment.courseId,
         versionId: enrollment.versionId,
@@ -53,18 +53,32 @@ export async function setupAttemptAbilities(
 
       switch (enrollment.role) {
         case 'STUDENT':
-          const progress = await progressService.getUserProgress(
-            user.userId,
-            enrollment.courseId,
-            enrollment.versionId,
-          );
+          let progress;
+          try {
+            progress = await progressService.getUserProgress(
+              user.userId,
+              enrollment.courseId,
+              enrollment.versionId,
+            );
+          } catch (error) {
+            progress = null;
+          }
+
           const completedItems = await progressService.getCompletedItems(
             user.userId,
             enrollment.courseId,
             enrollment.versionId,
           );
+
           if (!progress) {
-            throw new InternalServerError('No progress found for user');
+            const basicAttemptBounded = {
+              courseId: enrollment.courseId,
+              versionId: enrollment.versionId,
+            };
+            can(AttemptActions.Start, 'Attempt', basicAttemptBounded);
+            can(AttemptActions.Save, 'Attempt', basicAttemptBounded);
+            can(AttemptActions.Submit, 'Attempt', basicAttemptBounded);
+            break;
           }
           // fetch courseVersion (to get linearProgression flag)
           const courseSettings = await courseSettingService.readCourseSettings(
@@ -76,13 +90,14 @@ export async function setupAttemptAbilities(
             courseSettings?.settings?.linearProgressionEnabled ?? true;
 
           const allowedItemIds = [...completedItems];
-          allowedItemIds.push(progress.currentItem.toString());
+          if (progress.currentItem) {
+            allowedItemIds.push(progress.currentItem.toString());
+          }
 
-          const attemptBounded: {quizId?: any} = {};
-          
+          const attemptBounded: { quizId?: any } = {};
+
           if (linearProgressionEnabled) {
-              // Grant permission for attempts on quizzes that correspond to allowed items
-            attemptBounded.quizId = {$in: allowedItemIds};
+            attemptBounded.quizId = { $in: allowedItemIds };
           }
           can(AttemptActions.Start, 'Attempt', attemptBounded);
           can(AttemptActions.Save, 'Attempt', attemptBounded);

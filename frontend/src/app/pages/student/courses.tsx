@@ -25,12 +25,16 @@ export default function StudentCourses() {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchQuery);
       setIsSearching(false);
-    }, 300);
+    }, 400);
 
     return () => {
       clearTimeout(handler);
     };
   }, [searchQuery, debouncedSearch]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   // Get the current user from auth store
   const { isAuthenticated, token } = useAuthStore();
@@ -102,11 +106,8 @@ export default function StudentCourses() {
     );
   }
 
-  // Check if progress data is still loading
-  const isProgressLoading = false;
-
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+    <div className="flex flex-1 flex-col gap-4 md:px-4 px-0 p-4 pt-0">
       <div className="flex flex-col space-y-6">
         <section className="flex flex-col space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">My Courses</h1>
@@ -114,8 +115,8 @@ export default function StudentCourses() {
         </section>
          
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-          <div className="flex items-center justify-between gap-2">
-            <div className="relative flex-1 max-w-md">
+          <div className="flex md:flex-row flex-col items-center justify-between gap-2">
+            <div className="relative flex-1 md:max-w-md w-full">
               <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg blur-sm"></div>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -130,12 +131,12 @@ export default function StudentCourses() {
                 <X className="h-4 w-4 cursor-pointer" onClick={() => setSearchQuery('')} />
               </div>
             </div>
-            <TabsList>
-              <TabsTrigger value="enrolled">
+            <TabsList className="md:w-fit w-full">
+              <TabsTrigger value="enrolled" className="cursor-pointer">
                 Enrolled ({isLoading ? "..." : activeEnrollments.length})
               </TabsTrigger>
-              <TabsTrigger value="available">Available</TabsTrigger>
-              <TabsTrigger value="completed">
+              <TabsTrigger value="available" className="cursor-pointer">Available</TabsTrigger>
+              <TabsTrigger value="completed" className="cursor-pointer">
                 Completed ({isLoading ? "..." : completedEnrollments.length})
               </TabsTrigger>
             </TabsList>

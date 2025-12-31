@@ -1,40 +1,54 @@
-import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId} from 'mongodb';
-import {NotFoundError, InternalServerError} from 'routing-controllers';
-import {COURSES_TYPES} from '#courses/types.js';
-import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, ObjectId } from 'mongodb';
+import { NotFoundError, InternalServerError } from 'routing-controllers';
+import { COURSES_TYPES } from '#courses/types.js';
+import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
 import {
   ItemsGroup,
   ItemBase,
   ItemRef,
+  Item,
 } from '#courses/classes/transformers/Item.js';
-import {Section} from '#courses/classes/transformers/Section.js';
+import { Section } from '#courses/classes/transformers/Section.js';
 import {
   CreateItemBody,
   UpdateItemBody,
   MoveItemBody,
+  QuizDetailsPayloadValidator,
+  CSVRow,
+  CSVQuizQuestion,
 } from '#courses/classes/validators/ItemValidators.js';
-import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {Module} from '#courses/classes/transformers/Module.js';
+import { calculateNewOrder } from '#courses/utils/calculateNewOrder.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { Module } from '#courses/classes/transformers/Module.js';
 import {
   EnrollmentRepository,
+  IBaseItem,
   ICourseVersion,
+  IQuizDetails,
   ItemType,
+  Priority,
   ProgressRepository,
+  QuestionType,
 } from '#root/shared/index.js';
-import {USERS_TYPES} from '#root/modules/users/types.js';
-import {ProgressService} from '#root/modules/users/services/ProgressService.js';
-import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
+import { USERS_TYPES } from '#root/modules/users/types.js';
+import { ProgressService } from '#root/modules/users/services/ProgressService.js';
+import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 import {
   AttemptRepository,
   QuizRepository,
   UserQuizMetricsRepository,
 } from '#root/modules/quizzes/repositories/index.js';
+import { FeedbackRepository } from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
+import { QuestionBankService } from '#root/modules/quizzes/services/QuestionBankService.js';
+import { QuizService } from '#root/modules/quizzes/services/QuizService.js';
+import { QuestionService } from '#root/modules/quizzes/services/QuestionService.js';
+import { QuestionFactory } from '#root/modules/quizzes/classes/index.js';
+import { QuestionProcessor } from '#root/modules/quizzes/question-processing/QuestionProcessor.js';
 
 @injectable()
 export class ItemService extends BaseService {
@@ -55,8 +69,16 @@ export class ItemService extends BaseService {
     private quizRepository: QuizRepository,
     @inject(QUIZZES_TYPES.AttemptRepo)
     private attemptRepository: AttemptRepository,
+    @inject(QUIZZES_TYPES.FeedbackRepo)
+    private feedbackRepo: FeedbackRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
+    @inject(QUIZZES_TYPES.QuestionBankService)
+    private readonly questionBankService: QuestionBankService,
+    @inject(QUIZZES_TYPES.QuizService)
+    private readonly quizService: QuizService,
+    @inject(QUIZZES_TYPES.QuestionService)
+    private readonly questionService: QuestionService,
   ) {
     super(database);
   }
@@ -78,34 +100,37 @@ export class ItemService extends BaseService {
     )) as CourseVersion;
     if (!version) throw new NotFoundError(`Version ${versionId} not found.`);
 
-    const module = version.modules.find(m => m.moduleId === moduleId);
+    const module = version.modules.find(m => m.moduleId?.toString() === moduleId);
     if (!module)
       throw new NotFoundError(
         `Module ${moduleId} not found in version ${versionId}.`,
       );
 
-    const section = module.sections.find(s => s.sectionId === sectionId);
+    const section = module.sections.find(s => s.sectionId?.toString() === sectionId);
     if (!section)
       throw new NotFoundError(
         `Section ${sectionId} not found in module ${moduleId}.`,
       );
     const itemsGroup = await this.itemRepo.readItemsGroup(
-      section.itemsGroupId.toString(),
+      section?.itemsGroupId?.toString(),
       session,
     );
     if (!itemsGroup) {
-      throw new NotFoundError(
-        `Items group for section ${sectionId} not found.`,
-      );
+      return {
+        version,
+        module,
+        section,
+        itemsGroup: { _id: section.itemsGroupId, items: [] } as ItemsGroup,
+      };
     }
 
-    return {version, module, section, itemsGroup};
+    return { version, module, section, itemsGroup };
   }
 
   private async _updateHierarchyAndVersion(
     version: CourseVersion,
-    module: {updatedAt: Date},
-    section: {updatedAt: Date},
+    module: { updatedAt: Date },
+    section: { updatedAt: Date },
     session?: ClientSession, // Pass session if version update is part of the transaction
   ): Promise<CourseVersion> {
     const now = new Date();
@@ -129,7 +154,7 @@ export class ItemService extends BaseService {
   ) {
     return this._withTransaction(async session => {
       // Step 1: Fetch and validate parent entities
-      const {version, module, section, itemsGroup} =
+      const { version, module, section, itemsGroup } =
         await this._getVersionModuleSectionAndItemsGroup(
           versionId,
           moduleId,
@@ -144,17 +169,17 @@ export class ItemService extends BaseService {
       // Step 3: Run multiple async operations in parallel
       const [
         createdItemDetailsPersistenceResult,
-        totalItemsCountIfNeeded,
+        // totalItemsCountIfNeeded,
         enrollments,
       ] = await Promise.all([
         this.itemRepo.createItem(item.itemDetails, session),
-        version.totalItems
-          ? Promise.resolve(null)
-          : this.itemRepo.CalculateTotalItemsCount(
-              courseId,
-              version._id.toString(),
-              session,
-            ),
+        // version.totalItems
+        //   ? Promise.resolve(null)
+        //   : this.itemRepo.CalculateTotalItemsCount(
+        //     courseId,
+        //     version._id.toString(),
+        //     session,
+        //   ),
         this.enrollmentRepo.getByCourseVersion(courseId, versionId, session),
       ]);
 
@@ -166,11 +191,6 @@ export class ItemService extends BaseService {
       }
       createdItemDetailsPersistenceResult._id =
         createdItemDetailsPersistenceResult._id.toString();
-
-      // Step 3b: Update totalItems
-      version.totalItems = version.totalItems
-        ? version.totalItems + 1
-        : Math.max(totalItemsCountIfNeeded || 0, 1);
 
       // Step 4: Update enrollment progress in bulk
       await this.progressService.updateEnrollmentProgressPercentBulk(
@@ -194,6 +214,15 @@ export class ItemService extends BaseService {
         session,
       );
 
+      // Step 3b: Update totalItems
+      const { totalItems, itemCounts } =
+        await this.itemRepo.calculateItemCountsForVersion(
+          versionId,
+          session
+        );
+      version.totalItems = totalItems;
+      version.itemCounts = itemCounts;
+
       // Step 6: Update hierarchy timestamps
       const updatedVersion = await this._updateHierarchyAndVersion(
         version,
@@ -214,12 +243,122 @@ export class ItemService extends BaseService {
     versionId: string,
     moduleId: string,
     sectionId: string,
+    userId: string,
   ): Promise<ItemRef[]> {
-    const {itemsGroup} = await this._getVersionModuleSectionAndItemsGroup(
+    const { itemsGroup } = await this._getVersionModuleSectionAndItemsGroup(
       versionId,
       moduleId,
       sectionId,
     );
+
+    const course = await this.courseRepo.readVersion(versionId);
+    if (!course) {
+      throw new NotFoundError(`Course for version ${versionId} not found.`);
+    }
+
+    const user = await this.enrollmentRepo.getUserEnrollmentsByCourseVersion(
+      userId,
+      course.courseId.toString(),
+      versionId,
+    );
+
+    // Only filter hidden items for students
+    if (user.role === 'STUDENT') {
+      itemsGroup.items = itemsGroup.items.filter(item => !item.isHidden);
+
+      const progress = await this.progressRepo.getUserProgressByVersionId(
+        userId,
+        versionId,
+      );
+
+      // If no progress yet, nothing is completed
+      if (!progress) {
+        itemsGroup.items = itemsGroup.items.map(item => ({
+          ...item,
+          isCompleted: false,
+        }));
+        return itemsGroup.items;
+      }
+
+      const currentModuleIndex = course.modules.findIndex(
+        mod => mod.moduleId.toString() === progress.currentModule?.toString(),
+      );
+
+      const moduleIndex = course.modules.findIndex(
+        mod => mod.moduleId.toString() === moduleId.toString(),
+      );
+
+      // Guard against invalid module indices
+      if (currentModuleIndex === -1 || moduleIndex === -1) {
+        return itemsGroup.items;
+      }
+
+      // All items completed if module is before current module
+      if (moduleIndex < currentModuleIndex) {
+        itemsGroup.items = itemsGroup.items.map(item => ({
+          ...item,
+          isCompleted: true,
+        }));
+        return itemsGroup.items;
+      }
+
+      const currentSectionIndex = course.modules[
+        currentModuleIndex
+      ]?.sections.findIndex(
+        sec => sec.sectionId.toString() === progress.currentSection?.toString(),
+      );
+
+      const sectionIndex = course.modules[moduleIndex]?.sections.findIndex(
+        sec => sec.sectionId.toString() === sectionId.toString(),
+      );
+
+      // Guard against invalid section indices
+      if (currentSectionIndex === -1 || sectionIndex === -1) {
+        return itemsGroup.items;
+      }
+
+      // All items completed if section is before current section in same module
+      if (
+        moduleIndex === currentModuleIndex &&
+        sectionIndex < currentSectionIndex
+      ) {
+        itemsGroup.items = itemsGroup.items.map(item => ({
+          ...item,
+          isCompleted: true,
+        }));
+        return itemsGroup.items;
+      }
+
+      const currentItemIndex = itemsGroup.items.findIndex(
+        itm => itm._id.toString() === progress.currentItem?.toString(),
+      );
+
+      // If current item belongs to another section, nothing here is completed
+      if (currentItemIndex === -1) {
+        return itemsGroup.items;
+      }
+
+      itemsGroup.items = itemsGroup.items.map((item, index) => {
+        if (
+          moduleIndex === currentModuleIndex &&
+          sectionIndex === currentSectionIndex &&
+          index < currentItemIndex
+        ) {
+          return { ...item, isCompleted: true };
+        }
+
+        if (
+          moduleIndex === currentModuleIndex &&
+          sectionIndex === currentSectionIndex &&
+          index === currentItemIndex
+        ) {
+          return { ...item, isCompleted: progress.completed };
+        }
+
+        return { ...item, isCompleted: false };
+      });
+    }
+
     return itemsGroup.items;
   }
 
@@ -254,7 +393,11 @@ export class ItemService extends BaseService {
       }
 
       //  Update item first
-      const result = await this.itemRepo.updateItem(itemId, body, session);
+      const result = await this.itemRepo.updateItem(
+        itemId,
+        { ...body, isOptional: body.isOptional || item.isOptional },
+        session,
+      );
 
       //  Run metrics update (if QUIZ) and version update in parallel
       version.updatedAt = new Date();
@@ -283,7 +426,7 @@ export class ItemService extends BaseService {
   async bulkUpdateEnrolledUserQuizMetrics(
     quizId: string,
     quiz: any,
-  ): Promise<{updatedCount: number; totalCount: number}> {
+  ): Promise<{ updatedCount: number; totalCount: number }> {
     const BATCH_SIZE = 5000;
     const bulkOperations: any[] = [];
     let batchCount = 0;
@@ -311,7 +454,7 @@ export class ItemService extends BaseService {
           // Step 3: Add to bulk operations
           bulkOperations.push({
             updateOne: {
-              filter: {_id: new ObjectId(metric._id)},
+              filter: { _id: new ObjectId(metric._id) },
               update: {
                 $set: {
                   // latestAttemptId: latestAttempt?._id.toString(),
@@ -333,8 +476,7 @@ export class ItemService extends BaseService {
                 session,
               );
               console.log(
-                `✅ Batch ${++batchCount}: Updated ${
-                  bulkOperations.length
+                `✅ Batch ${++batchCount}: Updated ${bulkOperations.length
                 } user_quiz_metrics`,
               );
               bulkOperations.length = 0;
@@ -360,7 +502,7 @@ export class ItemService extends BaseService {
     }
 
     console.log(`🔹 Done! Updated ${updatedCount} / ${totalCount} records`);
-    return {updatedCount, totalCount};
+    return { updatedCount, totalCount };
   }
 
   public async deleteItem(itemsGroupId: string, itemId: string) {
@@ -381,13 +523,20 @@ export class ItemService extends BaseService {
         const versionId = version._id.toString();
 
         // Step 3: Run in parallel: count total items, delete watch time, get enrollments
-        const [totalItems, _, enrollments] = await Promise.all([
-          this.itemRepo.CalculateTotalItemsCount(courseId, versionId, session),
+        const [_, enrollments] = await Promise.all([
+          // this.itemRepo.CalculateTotalItemsCount(courseId, versionId, session),
           this.progressRepo.deleteWatchTimeByItemId(itemId, session),
           this.enrollmentRepo.getByCourseVersion(courseId, versionId, session),
         ]);
 
+
+        const { totalItems, itemCounts } =
+          await this.itemRepo.calculateItemCountsForVersion(
+            versionId,
+            session
+          );
         version.totalItems = totalItems;
+        version.itemCounts = itemCounts;
 
         // Step 4: Update progress for all users in parallel
         await this.progressService.updateEnrollmentProgressPercentBulk(
@@ -397,6 +546,8 @@ export class ItemService extends BaseService {
           version.totalItems,
           session,
         );
+
+
 
         // Step 5: Update version
         const updatedVersion = await this.courseRepo.updateVersion(
@@ -411,7 +562,7 @@ export class ItemService extends BaseService {
         }
 
         deleted._id = deleted._id.toString();
-        return {deletedItemId: itemId, itemsGroup: deleted};
+        return { deletedItemId: itemId, itemsGroup: deleted };
       } catch (error) {
         throw new InternalServerError(
           `Failed to delete Item after / Error: ${error}`,
@@ -428,14 +579,14 @@ export class ItemService extends BaseService {
     body: MoveItemBody,
   ) {
     return this._withTransaction(async session => {
-      const {afterItemId, beforeItemId} = body;
+      const { afterItemId, beforeItemId } = body;
       if (!afterItemId && !beforeItemId) {
         throw new Error('Either afterItemId or beforeItemId is required');
       }
 
       const version = await this.courseRepo.readVersion(versionId, session);
-      const module = version.modules.find(m => m.moduleId === moduleId)!;
-      const section = module.sections.find(s => s.sectionId === sectionId)!;
+      const module = version.modules.find(m => m.moduleId?.toString() === moduleId)!;
+      const section = module.sections.find(s => s.sectionId?.toString() === sectionId)!;
       const itemsGroup = await this.itemRepo.readItemsGroup(
         section.itemsGroupId.toString(),
         session,
@@ -476,7 +627,7 @@ export class ItemService extends BaseService {
         version,
       );
 
-      return {itemsGroup: updatedItemsGroup, version: updatedVersion};
+      return { itemsGroup: updatedItemsGroup, version: updatedVersion };
     });
   }
 
@@ -507,7 +658,7 @@ export class ItemService extends BaseService {
       if (!itemsGroup) {
         throw new NotFoundError(`ItemsGroup for item ${itemId} not found`);
       }
-      const itemsGroupId = itemsGroup?._id.toString();
+      const itemsGroupId = itemsGroup?._id?.toString();
       // Step 2: Find version using existing function
       const version = await this.courseRepo.findVersionByItemGroupId(
         itemsGroupId,
@@ -523,5 +674,403 @@ export class ItemService extends BaseService {
         versionId: version._id.toString(),
       };
     });
+  }
+
+  public async getFeedbackSubmissions(
+    courseId: string,
+    itemId: string,
+    search: string,
+    page: number,
+    limit: number,
+  ) {
+    return await this._withTransaction(async (session: ClientSession) => {
+      return await this.feedbackRepo.getFeedbackSubmissionById(
+        itemId,
+        courseId,
+        search,
+        page,
+        limit,
+      );
+    });
+  }
+
+  public async toggleItemVisibility(
+    courseVersionId: string,
+    itemId: string,
+    hidden: boolean,
+  ) {
+    return this._withTransaction(async session => {
+      const itemGroup = await this.itemRepo.findItemsGroupByItemId(
+        itemId,
+        session,
+      );
+
+      if (!itemGroup) {
+        throw new NotFoundError(`ItemsGroup for item ${itemId} not found`);
+      }
+
+      itemGroup.items.forEach(item => {
+        if (item._id.toString() === itemId) {
+          item.isHidden = hidden;
+        }
+      });
+
+      await this.itemRepo.updateItemsGroup(
+        itemGroup._id.toString(),
+        itemGroup,
+        session,
+      );
+
+      const item = await this.itemRepo.readItem(
+        courseVersionId,
+        itemId,
+        session,
+      );
+
+      if (!item) throw new NotFoundError(`Item ${itemId} not found.`);
+
+      item.isHidden = hidden;
+
+      const updatedItem = await this.itemRepo.updateItemById(
+        itemId,
+        item,
+        item.type,
+        session,
+      );
+
+      if (!updatedItem) {
+        throw new InternalServerError(`Failed to update item ${itemId}`);
+      }
+
+      const version = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      if (!version)
+        throw new NotFoundError(`Version ${courseVersionId} not found.`);
+
+      const { totalItems, itemCounts } =
+        await this.itemRepo.calculateItemCountsForVersion(
+          courseVersionId,
+          session
+        );
+
+      version.totalItems = totalItems;
+      version.itemCounts = itemCounts;
+      version.updatedAt = new Date();
+
+      const updatedVersion = await this.courseRepo.updateVersion(
+        courseVersionId,
+        version,
+        session,
+      );
+
+      await this.enrollmentRepo.setWatchTimeVisibility(
+        [itemId],
+        hidden,
+        session,
+      );
+
+      if (hidden == true) {
+        // next non hidden item
+        const items = itemGroup.items;
+        const currentIndex = items.findIndex(i => i._id.toString() === itemId);
+        let nextItem = null;
+        for (let i = currentIndex + 1; i < items.length; i++) {
+          if (!items[i].isHidden) {
+            nextItem = items[i];
+            break;
+          }
+        }
+
+        // fallback backward
+        if (!nextItem) {
+          for (let i = currentIndex - 1; i >= 0; i--) {
+            if (!items[i].isHidden) {
+              nextItem = items[i];
+              break;
+            }
+          }
+        }
+
+        // update all progress documents matched by currentItemId to nextNonHiddenItemId
+        if (nextItem) {
+          await this.progressRepo.updateProgressByItemId(
+            itemId,
+            { currentItem: nextItem._id.toString() },
+            session,
+          );
+        }
+      }
+    });
+  }
+
+  // Add to ItemService.ts
+
+  public async updateItemOptionalStatus(
+    versionId: string,
+    itemId: string,
+    isOptional: boolean,
+  ) {
+    return this._withTransaction(async session => {
+      const versionIdObject = new ObjectId(versionId)
+      // Get the item
+      const item = await this.itemRepo.readItem(versionId, itemId, session);
+      if (!item) {
+        throw new NotFoundError(
+          `Item ${itemId} not found in version ${versionId}.`,
+        );
+      }
+
+      // Update only the isOptional field but include the required type
+      const updateData = {
+        ...item,
+        isOptional,
+        type: item.type, // Include the item type which is required by updateItem
+      };
+
+      // Update the item with the required fields
+      const result = await this.itemRepo.updateItem(
+        itemId,
+        updateData as any, // Still need any because of the details type mismatch
+        session,
+      );
+
+      return result;
+    });
+  }
+
+  private _convertTimeToSeconds(timeStr: string): number {
+    if (!timeStr) return 0;
+    const [minutes, seconds] = timeStr.split(':').map(Number);
+    return (minutes * 60) + (seconds || 0);
+  }
+
+  private _formatSecondsToHHMMSS(seconds: number): string {
+    const hh = Math.floor(seconds / 3600);
+    const mm = Math.floor((seconds % 3600) / 60);
+    const ss = Math.floor(seconds % 60);
+    return [
+      hh.toString().padStart(2, '0'),
+      mm.toString().padStart(2, '0'),
+      ss.toString().padStart(2, '0')
+    ].join(':');
+  }
+
+  /**
+   * Process CSV file and create video segments and quizzes
+   */
+  public async processCSVAndCreateItems(
+    youtubeUrl: string,
+    moduleId: string,
+    sectionId: string,
+    versionId: string,
+    courseId: string,
+    userId: string,
+    data: CSVQuizQuestion[]
+  ) {
+
+    if (!data || !Array.isArray(data)) {
+      throw new Error('Invalid data: Expected an array of questions');
+    }
+    try {
+
+      // Group questions by segment
+      const segments = new Map<string, CSVQuizQuestion[]>();
+      const seenSegments = new Set<string>();
+      let currentSegment = '1';
+
+
+      data.forEach((row, index) => {
+        // If Segment is empty, use the last seen segment
+        const rawSegment = row['Segment']?.toString().trim();
+        if (!row.Segment || rawSegment === '') {
+          row.Segment = currentSegment;
+        } else {
+          currentSegment = rawSegment;
+          row.Segment = currentSegment;
+        }
+
+        const segment = currentSegment;
+        if (!segments.has(segment)) {
+          segments.set(segment, []);
+        }
+        segments.get(segment)?.push(row);
+        // Track unique segments for better error reporting
+        if (!seenSegments.has(segment)) {
+          seenSegments.add(segment);
+        }
+      });
+
+      if (segments.size === 0) {
+        const errorMsg = 'No valid segments found in the CSV. ';
+        if (seenSegments.size > 0) {
+          console.error('[processCSVAndCreateItems] Segments found but not processed:', Array.from(seenSegments).join(', '));
+        } else {
+          console.error('[processCSVAndCreateItems] No segments found in the data');
+        }
+        throw new Error(errorMsg + 'Please ensure your CSV has a "Segment" column with valid values.');
+      }
+
+      // Process each segment
+      let previousEndTime = 0;
+      const segmentNumbers = Array.from(segments.keys()).sort((a, b) => parseInt(a) - parseInt(b));
+      const createdItems = [];
+
+      for (const segmentNumber of segmentNumbers) {
+        const result = await this._withTransaction(async (session) => {
+          const questions = segments.get(segmentNumber) || [];
+          const segmentQuestions = questions.filter(q => q.Question && q['Correct Answer']);
+
+
+          // Get the first question's timestamp as the end time for the video segment
+          const firstQuestion = segmentQuestions[0];
+          const timestamp = firstQuestion['Question Timestamp [mm:ss]'];
+          const timeCache = new Map<string, number>();
+
+          const endTime = timestamp
+            ? timeCache.get(timestamp) ?? timeCache.set(timestamp, this._convertTimeToSeconds(timestamp)).get(timestamp)!
+            : previousEndTime + 300;
+
+          // Create video item
+          const videoItem = await this.createItem(
+            versionId,
+            moduleId,
+            sectionId,
+            {
+              type: ItemType.VIDEO,
+              name: `Video ${segmentNumber}`,
+              description: `Video segment ${segmentNumber} from CSV upload`,
+              videoDetails: {
+                URL: youtubeUrl,
+                startTime: this._formatSecondsToHHMMSS(previousEndTime),
+                endTime: this._formatSecondsToHHMMSS(endTime),
+                points: 1
+              }
+            },
+          );
+
+          // Create quiz item
+          const quizItem = await this.createItem(
+            versionId,
+            moduleId,
+            sectionId,
+            {
+              type: ItemType.QUIZ,
+              name: `Quiz - Segment ${segmentNumber}`,
+              description: `Quiz for segment ${segmentNumber} from CSV upload`,
+              quizDetails: {
+                passThreshold: 0.5,
+                maxAttempts: 3,
+                quizType: 'NO_DEADLINE',
+                releaseTime: new Date(),
+                questionVisibility: 1,
+                approximateTimeToComplete: '00:01:00',
+                allowPartialGrading: true,
+                allowHint: true,
+                showCorrectAnswersAfterSubmission: true,
+                showExplanationAfterSubmission: true,
+                showScoreAfterSubmission: true,
+                allowSkip: false,
+                deadline: null
+              }
+            },
+          );
+
+          // Create question bank
+          const questionBank = await this.questionBankService.create({
+            courseId: new ObjectId(courseId),
+            courseVersionId: new ObjectId(versionId),
+            title: `Question Bank - Segment ${segmentNumber}`,
+            description: `Questions for segment ${segmentNumber} from CSV upload`,
+            questions: [],
+            tags: [],
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+
+          // Add question bank to quiz
+          await this.quizService.addQuestionBank(
+            quizItem.createdItem._id.toString(),
+            {
+              bankId: questionBank,
+              count: 3,
+              tags: []
+            }
+          );
+
+          // Process questions
+          for (const question of segmentQuestions) {
+            const options = [
+              { text: question['Option A'] || '', explanation: question['Expln-A'] || '' },
+              { text: question['Option B'] || '', explanation: question['Expln-B'] || '' },
+              { text: question['Option C'] || '', explanation: question['Expln-C'] || '' },
+              { text: question['Option D'] || '', explanation: question['Expln-D'] || '' }
+            ].filter(opt => opt.text);
+
+            const correctAnswer = question['Correct Answer']?.toUpperCase();
+            const correctOptionIndex = correctAnswer ? correctAnswer.charCodeAt(0) - 65 : -1;
+
+            if (correctOptionIndex >= 0 && correctOptionIndex < options.length) {
+
+              const questionBody = {
+                question: {
+                  text: question.Question || '',
+                  type: "SELECT_ONE_IN_LOT" as QuestionType,
+                  isParameterized: false,
+                  parameters: [],
+                  timeLimitSeconds: 60,
+                  points: 1,
+                  priority: "MEDIUM" as Priority,
+                  hint: question.Hint || '',
+                },
+                solution: {
+                  correctLotItem: {
+                    text: options[correctOptionIndex].text,
+                    explaination: options[correctOptionIndex].explanation || 'No explanation provided'
+                  },
+                  incorrectLotItems: options
+                    .filter((_, i) => i !== correctOptionIndex)
+                    .map(opt => ({
+                      text: opt.text,
+                      explaination: opt.explanation || 'No explanation provided'
+                    }))
+                },
+              };
+              const question2 = QuestionFactory.createQuestion(questionBody, userId);
+              const questionProcessor = new QuestionProcessor(question2);
+              questionProcessor.validate();
+              questionProcessor.render();
+
+              const id = await this.questionService.create(question2);
+
+              // add question to question bank
+              const addQuestion = await this.questionBankService.addQuestion(questionBank, id);
+            }
+          }
+
+          return {
+            videoItem: videoItem.createdItem,
+            quizItem: quizItem.createdItem,
+            questionBankId: questionBank,
+            questionCount: segmentQuestions.length,
+            endTime
+          };
+        });
+
+        previousEndTime = result.endTime;
+        createdItems.push(result);
+      }
+
+      return {
+        success: true,
+        message: 'Successfully processed CSV and created items',
+        createdItems
+      };
+    } catch (error) {
+      console.error('Error processing CSV:', error);
+      throw new InternalServerError(`Failed to process CSV: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
   }
 }

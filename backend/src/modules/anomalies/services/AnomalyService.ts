@@ -140,6 +140,8 @@ export class AnomalyService extends BaseService {
     limit: number,
     skip: number,
     sortOptions?: {field: string; order: 'asc' | 'desc'},
+    search?: string,
+    type?: string,
     page: number = 1,
   ): Promise<PaginatedResponse<AnomalyData>> {
     return this._withTransaction(async session => {
@@ -148,6 +150,23 @@ export class AnomalyService extends BaseService {
         throw new NotFoundError('Course version not found');
       }
 
+      // First, get all users that match the search criteria if search is provided
+      let userIdsToSearch: string[] | null = null;
+      if (search?.trim()) {
+        const searchTerm = search.trim();
+        const matchingUsers = await this.userRepo.searchUsers(
+          searchTerm,
+          session,
+        );
+        userIdsToSearch = matchingUsers.map(user => user._id.toString());
+
+        // If no users match the search, return empty results
+        if (userIdsToSearch.length === 0) {
+          return new PaginatedResponse<AnomalyData>([], page, 0, limit);
+        }
+      }
+
+      // Get anomalies with potential search filter applied
       const {data: anomalies, total} =
         await this.anomalyRepository.getAnomaliesByCourse(
           courseId,
@@ -155,6 +174,8 @@ export class AnomalyService extends BaseService {
           limit,
           skip,
           sortOptions,
+          userIdsToSearch || undefined, // Pass user IDs for filtering if search was performed
+          type,
           session,
         );
 
@@ -166,6 +187,7 @@ export class AnomalyService extends BaseService {
       const users = await this.userRepo.getUsersByIds(userIds);
       const userMap = new Map(users.map(user => [user._id.toString(), user]));
 
+      // Format anomalies with user data
       const formattedAnomalies = anomalies.map(a => {
         const user = userMap.get(a.userId.toString());
         return {
@@ -180,10 +202,27 @@ export class AnomalyService extends BaseService {
         } as unknown as AnomalyData;
       });
 
+      // Calculate the total count after filtering by user IDs if search was performed
+      const resultTotal =
+        search?.trim() && userIdsToSearch
+          ? await this.anomalyRepository
+              .getAnomaliesByCourse(
+                courseId,
+                versionId,
+                0, // limit = 0 to only get the count
+                0, // skip = 0 to get all matching records
+                sortOptions,
+                userIdsToSearch,
+                type,
+                session,
+              )
+              .then(({total}) => total)
+          : total;
+
       return new PaginatedResponse<AnomalyData>(
         formattedAnomalies,
         page,
-        total,
+        resultTotal,
         limit,
       );
     });

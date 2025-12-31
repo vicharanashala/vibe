@@ -122,7 +122,7 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
   return (
     <div className={`w-full bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 bg-card ${className}`}>
       {/* Header */}
-      <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700  bg-card rounded-t-2xl backdrop-blur-sm">
+      <div className="flex lg:flex-nowrap flex-wrap justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700  bg-card rounded-t-2xl backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
             <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />

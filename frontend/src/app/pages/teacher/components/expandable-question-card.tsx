@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
 import {
   Plus,
   Edit2,
@@ -25,6 +26,7 @@ import {
   useQuestionById,
   useUpdateQuestion,
 } from '@/hooks/hooks';
+import { render } from 'katex';
 
 type Priority = 'LOW' | 'MEDIUM' | 'HIGH';
 const toPriority = (value: any): Priority =>
@@ -38,7 +40,7 @@ interface QuestionFormData {
     parameters?: Array<{
       name: string;
       possibleValues: string[];
-      type: 'number' | 'string';
+      type: 'number' | 'string' | '';
     }>;
     hint?: string;
     timeLimitSeconds: number;
@@ -95,7 +97,6 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
 
   const { data: question, refetch: refetchQuestion } = useQuestionById(questionId);
   const updateQuestion = useUpdateQuestion();
-  console.log('Question data:', question);
 
   // Initialize edit form when question data is loaded
   useEffect(() => {
@@ -217,11 +218,16 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
 
   const handleSaveEdit = async () => {
     try {
-      const cleanLotItem = (item: any) => {
+      const cleanLotItem = (item: any, isCorrect: boolean) => {
         if (!item) return item;
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { _id, isCorrect, ...rest } = item;
-        return rest;
+        const { _id, isCorrect: _, ...rest } = item;
+        
+        const explanation = rest.explaination?.trim() || (isCorrect 
+          ? "Nil" 
+          : "Nil");
+        
+        return { ...rest, explaination: explanation };
       };
       
       const correctOptions = editableOptions.filter(opt => opt.isCorrect);
@@ -229,11 +235,11 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
       let solutionForBackend: any = {};
 
       if (editForm.question.type === 'SELECT_ONE_IN_LOT') {
-        solutionForBackend.correctLotItem = correctOptions.length > 0 ? cleanLotItem(correctOptions[0]) : undefined;
-        solutionForBackend.incorrectLotItems = incorrectOptions.map(cleanLotItem);
+        solutionForBackend.correctLotItem = correctOptions.length > 0 ? cleanLotItem(correctOptions[0], true) : undefined;
+        solutionForBackend.incorrectLotItems = incorrectOptions.map(item => cleanLotItem(item, false));
       } else if (editForm.question.type === 'SELECT_MANY_IN_LOT') {
-        solutionForBackend.correctLotItems = correctOptions.map(cleanLotItem);
-        solutionForBackend.incorrectLotItems = incorrectOptions.map(cleanLotItem);
+        solutionForBackend.correctLotItems = correctOptions.map(item => cleanLotItem(item, true));
+        solutionForBackend.incorrectLotItems = incorrectOptions.map(item => cleanLotItem(item, false));
       } else {
         solutionForBackend = { ...editForm.solution };
       }
@@ -318,6 +324,156 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
     setEditableOptions([...editableOptions, newOption]);
   };
 
+  const addNewParameter = () => {
+    setEditForm(prev => ({
+      ...prev,
+      question: {
+        ...prev.question,
+        parameters: [
+          ...(prev.question.parameters || []),
+          {
+            name: '',
+            possibleValues: [],
+            type: ''
+          }
+        ]
+      }
+    }))
+  }
+
+  const deleteParameter = (index: number) => {
+    setEditForm(prev => {
+      const newParams = prev.question.parameters ? [...prev.question.parameters] : [];
+      newParams.splice(index, 1);
+      return {
+        ...prev,
+        question: {
+          ...prev.question,
+          parameters: newParams
+        }
+      }
+  });
+}
+
+  const updateParameter = (index: number, updates: QuestionFormData['question']['parameters'][0]) => {
+    setEditForm(prev => {
+      const newParams = prev.question.parameters ? [...prev.question.parameters] : [];
+      newParams[index] = { ...newParams[index], ...updates };
+      return {
+        ...prev,
+        question: {
+          ...prev.question,
+          parameters: newParams
+        }
+      };
+    });
+  }
+
+const insertTagAtCursor = (fieldId: string, tag: string) => {
+    const element = document.getElementById(fieldId) as HTMLInputElement | HTMLTextAreaElement | null;
+    console.log(" Inserting tag:", tag, " into field:", fieldId);
+    if (!element) return;
+
+    const start = element.selectionStart ?? 0;
+    const end = element.selectionEnd ?? 0;
+
+  // If the tag has a closing part like <X></X>, place caret inside it.
+  // Otherwise place caret after the inserted text.
+  const caretOffsetInsideTag = (() => {
+    const closingIdx = tag.indexOf("</");
+    return closingIdx !== -1 ? closingIdx : tag.length;
+  })();
+
+  // 1) options array: id format "option-<optionId>"
+  if (fieldId.startsWith("option-")) {
+    const optionId = fieldId.replace("option-", "");
+    console.log(" Inserting tag in option:", optionId);
+    setEditableOptions((prev: EditableOption[]) => {
+      const updatedOptions = prev.map((opt: EditableOption, index: number) => {
+        if (index.toString() === optionId) {
+          const cur = opt.text ?? "";
+          const newText = cur.slice(0, start) + tag + cur.slice(end);
+          return { ...opt, text: newText };
+        }
+        return opt;
+      });
+      return updatedOptions;
+    });
+
+    requestAnimationFrame(() => {
+      const el = document.getElementById(fieldId) as HTMLInputElement | HTMLTextAreaElement | null;
+      if (el) {
+        const pos = start + caretOffsetInsideTag;
+        el.selectionStart = el.selectionEnd = pos;
+        el.focus();
+      }
+    });
+
+    return;
+  }
+
+  // 2) Handle different field types with proper nested state updates
+  if (fieldId === "questionText") {
+    setEditForm((prev: QuestionFormData) => {
+      const currentValue = prev.question.text ?? "";
+      const newValue = currentValue.slice(0, start) + tag + currentValue.slice(end);
+      return { 
+        ...prev, 
+        question: { 
+          ...prev.question, 
+          text: newValue 
+        } 
+      };
+    });
+  } else if (fieldId === "hint") {
+    setEditForm((prev: QuestionFormData) => {
+      const currentValue = prev.question.hint ?? "";
+      const newValue = currentValue.slice(0, start) + tag + currentValue.slice(end);
+      return { 
+        ...prev, 
+        question: { 
+          ...prev.question, 
+          hint: newValue 
+        } 
+      };
+    });
+  } else {
+    // Fallback for other fields that might be at the root level
+    setEditForm((prev: QuestionFormData) => {
+      const currentValue = (prev as Record<string, any>)[fieldId] ?? "";
+      const newValue = currentValue.slice(0, start) + tag + currentValue.slice(end);
+      return { ...prev, [fieldId]: newValue };
+    });
+  }
+
+  // restore caret inside tag after render
+  requestAnimationFrame(() => {
+    const el = document.getElementById(fieldId) as HTMLInputElement | HTMLTextAreaElement | null;
+    if (el) {
+      const pos = start + caretOffsetInsideTag;
+      el.selectionStart = el.selectionEnd = pos;
+      el.focus();
+    }
+  });
+};
+
+const renderParameterInputs = (title: string) => {
+  if (!editForm.question.isParameterized) return null;
+  return (
+    <div className="flex md:flex-row flex-col gap-2 mb-2 pt-1">
+      <Button variant="outline" size="sm" onClick={() => insertTagAtCursor(title, "<NumExprTex></NumExprTex>")}>
+        Add NumExprTex
+      </Button>
+      <Button variant="outline" size="sm" onClick={() => insertTagAtCursor(title, "<NumExpr></NumExpr>")}>
+        Add Num Expr
+      </Button>
+      <Button variant="outline" size="sm" onClick={() => insertTagAtCursor(title, "<QParam></QParam>")}>
+        Add Question param
+      </Button>
+    </div>
+  )
+}
+
   const renderEditForm = () => (
     <div className="space-y-6 mt-6 p-6 border rounded-lg bg-muted/30">
       <div className="grid grid-cols-1 gap-6">
@@ -334,18 +490,38 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {QUESTION_TYPES.map(type => (
+              {
+              ["SELECT_ONE_IN_LOT", "SELECT_MANY_IN_LOT"].includes(editForm.question.type) ?
+              QUESTION_TYPES.filter(type => type.value === "SELECT_ONE_IN_LOT" || type.value === "SELECT_MANY_IN_LOT").map(type => (
                 <SelectItem key={type.value} value={type.value}>
                   {type.label}
                 </SelectItem>
-              ))}
+              ))
+              :
+              QUESTION_TYPES.find(type => type.value === editForm.question.type) && (
+                <SelectItem key={editForm.question.type} value={editForm.question.type}>
+                  {QUESTION_TYPES.find(type => type.value === editForm.question.type)?.label}
+                </SelectItem>
+              )
+              }
             </SelectContent>
           </Select>
         </div>
 
         {/* Question Text */}
+        <div className="flex items-center gap-3 mb-2">
+            <Label htmlFor="isParameterizedEdit" className="mb-0">Is Parameterized?</Label>
+            <Switch
+                id="isParameterizedEdit"
+                checked={editForm.question.isParameterized}
+                onCheckedChange={(checked) =>
+                    setEditForm(prev => ({ ...prev, question: { ...prev.question, isParameterized: !!checked } }))
+                }
+            />
+        </div>
         <div>
           <Label htmlFor="questionText" className="text-sm font-medium">Question Text</Label>
+          {renderParameterInputs("questionText")}
           <Textarea
             id="questionText"
             placeholder="Enter your question here..."
@@ -362,6 +538,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
         {/* Hint field */}
         <div>
           <Label htmlFor="hint" className="text-sm font-medium">Hint (Optional)</Label>
+          {renderParameterInputs("hint")}
           <Textarea
             id="hint"
             placeholder="Enter a hint for this question..."
@@ -374,6 +551,81 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
             rows={2}
           />
         </div>
+
+        {/* Parameters */}
+        {
+          editForm.question.isParameterized && (
+            <>
+            <div className='py-2'>
+              <Label className='text-sm font-medium'>Parameters</Label>
+            </div>
+            <div className="space-y-4">
+              {
+                editForm.question.parameters?.map((param, index) => (
+                  <div key={index} className="p-4 border rounded-lg bg-background space-y-3">
+                    <div className='flex justify-between items-start'>
+                      <div className='w-full'>
+                      <div className="flex-1 space-y-2 w-full">
+                        <Label className='text-sm text-gray-600'>Name:</Label>
+                        <Input
+                        placeholder='Name'
+                        className="mt-1"
+                        onChange={(e) => updateParameter(index, { name: e.target.value })}
+                        value={param.name}/>
+                      </div>
+                      <div className="flex-1 space-y-2 w-full">
+                        <Label className='text-sm text-gray-600'>Value:</Label>
+                        <Textarea
+                        placeholder='Enter comma separated values...'
+                        className="mt-1"
+                        onChange={(e) => updateParameter(index, { possibleValues: e.target.value })}
+                        value={param.possibleValues}/>
+                      </div>
+                      <div className="flex-1 space-y-2 w-full">
+                        <Label className='text-sm text-gray-600'>Type:</Label>
+                        <Textarea
+                        placeholder='string or number'
+                        className="mt-1"
+                        onChange={(e) => updateParameter(index, { type: e.target.value })}
+                        value={param.type}/>
+                      </div>
+                      </div>
+                      <div>
+                            <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => deleteParameter(index)}
+                            disabled={editableOptions.length <= 1}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              }
+              {
+                editForm.question.parameters?.length === 0 && (
+                  <div className="text-sm text-muted-foreground">
+                    No parameters added yet.
+                  </div>
+                )
+              }
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={addNewParameter}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Parameter
+              </Button>
+            </div>
+            </>
+          )
+        }
 
         {/* Answer Options for Multiple Choice */}
         {(editForm.question.type === 'SELECT_ONE_IN_LOT' || editForm.question.type === 'SELECT_MANY_IN_LOT') && (
@@ -388,6 +640,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
                 >
                   {editableOptions.map((option, index) => (
                     <div key={option._id} className="space-y-2 p-4 border rounded-lg bg-background">
+                      {renderParameterInputs(`option-${index}`)}
                       <div className="flex gap-3 items-start">
                         <span className="text-sm text-muted-foreground font-medium min-w-[20px] mt-2">
                           {index + 1}.
@@ -395,12 +648,13 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
                         <div className="flex-1 space-y-2">
                           <Input
                             placeholder={`Option ${index + 1}`}
+                            id={`option-${index}`}
                             value={option.text}
                             onChange={(e) => updateOption(option._id, { text: e.target.value })}
                             className="flex-1"
                           />
                           <Input
-                            placeholder="explaination (optional)"
+                            placeholder="explanation (optional)"
                             value={option.explaination}
                             onChange={(e) => updateOption(option._id, { explaination: e.target.value })}
                             className="flex-1 text-sm"
@@ -447,7 +701,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
                             className="flex-1"
                           />
                           <Input
-                            placeholder="explaination (optional)"
+                            placeholder="explanation (optional)"
                             value={option.explaination}
                             onChange={(e) => updateOption(option._id, { explaination: e.target.value })}
                             className="flex-1 text-sm"
@@ -793,63 +1047,63 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
   };
 
   return (
-    <Card className="transition-all duration-200 hover:shadow-md border-l-4 border-l-transparent hover:border-l-primary">
+    <Card className="transition-all duration-200 hover:shadow-md border-l-4 border-l-transparent hover:border-l-primary w-full max-w-full overflow-hidden">
       <CardContent className="p-0">
         <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
           <CollapsibleTrigger asChild>
-            <div className="p-6 cursor-pointer hover:bg-muted/30 transition-colors">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="flex items-center gap-2">
+            <div className="p-4 xl:p-6 cursor-pointer hover:bg-muted/30 transition-colors">
+              <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-3 max-w-full">
+                <div className="flex-1 min-w-0 max-w-full">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3">
+                    <div className="flex items-center gap-2 min-w-0">
                       {isExpanded ? (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       ) : (
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       )}
-                      <Badge variant="outline" className="font-medium">
+                      <Badge variant="outline" className="font-medium text-xs sm:text-sm flex-shrink-0">
                         {question?.type?.replace(/_/g, ' ') || 'Unknown'}
                       </Badge>
                     </div>
-                    <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-                      ID: {questionId.slice(-8)}
+                    <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded self-start flex-shrink-0">
+                      ID: {questionId.slice(-6)}
                     </span>
                   </div>
-                  <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                  <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed break-words pr-1 max-w-full overflow-hidden">
                     {(question as any)?.text || 'Question text not available'}
                   </p>
                   
                   {/* Quick info */}
-                  <div className="flex gap-4 mt-3 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap gap-2 sm:gap-3 mt-3 text-xs text-muted-foreground">
                     {(question as any)?.points && (
-                      <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                      <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded whitespace-nowrap">
                         {(question as any).points} pts
                       </span>
                     )}
                     {(question as any)?.timeLimitSeconds && (
-                      <span className="bg-orange-50 text-orange-700 px-2 py-1 rounded">
+                      <span className="bg-orange-50 text-orange-700 px-2 py-1 rounded whitespace-nowrap">
                         {(question as any).timeLimitSeconds}s
                       </span>
                     )}
                     {(question as any)?.lotItems && (
-                      <span className="bg-purple-50 text-purple-700 px-2 py-1 rounded">
+                      <span className="bg-purple-50 text-purple-700 px-2 py-1 rounded whitespace-nowrap">
                         {(question as any).lotItems.length} options
                       </span>
                     )}
                   </div>
                 </div>
-                <div className="flex gap-1 ml-6" onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="sm" onClick={onDuplicate} title="Duplicate" className="h-8 w-8 p-0">
-                    <Copy className="h-4 w-4" />
+                <div className="flex gap-1 xl:ml-4 flex-shrink-0 self-start min-w-0" onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="sm" onClick={onDuplicate} title="Duplicate" className="h-7 w-7 p-0 flex-shrink-0">
+                    <Copy className="h-3.5 w-3.5" />
                   </Button>
                   <Button 
                     variant="ghost" 
                     size="sm" 
                     onClick={onDelete} 
-                    className="text-destructive hover:text-destructive h-8 w-8 p-0"
+                    className="text-destructive hover:text-destructive h-7 w-7 p-0 flex-shrink-0"
                     title="Delete"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>
@@ -860,7 +1114,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
             <div className="border-t bg-muted/20">
               {isEditing ? renderEditForm() : renderQuestionContent()}
               
-              <div className="flex justify-end gap-3 p-6 bg-background border-t">
+              <div className="flex flex-col xl:flex-row justify-end gap-2 xl:gap-3 p-4 xl:p-6 bg-background border-t">
                 {isEditing ? (
                   <>
                     <Button 
@@ -868,6 +1122,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
                       size="sm" 
                       onClick={handleCancelEdit}
                       disabled={updateQuestion.isPending}
+                      className="w-full xl:w-auto"
                     >
                       <X className="h-4 w-4 mr-2" />
                       Cancel
@@ -876,6 +1131,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
                       size="sm" 
                       onClick={handleSaveEdit}
                       disabled={updateQuestion.isPending}
+                      className="w-full xl:w-auto"
                     >
                       {updateQuestion.isPending ? (
                         <>
@@ -891,7 +1147,7 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
                     </Button>
                   </>
                 ) : (
-                  <Button variant="outline" size="sm" onClick={handleStartEdit}>
+                  <Button variant="outline" size="sm" onClick={handleStartEdit} className="w-full sm:w-auto">
                     <Edit2 className="h-4 w-4 mr-2" />
                     Edit Question
                   </Button>

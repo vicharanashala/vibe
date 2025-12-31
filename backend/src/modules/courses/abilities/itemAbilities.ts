@@ -1,17 +1,30 @@
-import { AbilityBuilder, MongoAbility } from "@casl/ability";
-import { AuthenticatedUser, AuthenticatedUserEnrollements } from "#root/shared/interfaces/models.js";
+import { AbilityBuilder, MongoAbility } from '@casl/ability';
+import {
+  AuthenticatedUser,
+  AuthenticatedUserEnrollements,
+} from '#root/shared/interfaces/models.js';
 import { ItemScope, createAbilityBuilder } from './types.js';
-import { getFromContainer, InternalServerError } from "routing-controllers";
-import { ProgressService } from "#root/modules/users/services/ProgressService.js";
-import { CourseSettingService } from "#root/modules/setting/services/CourseSettingService.js";
+import {
+  getFromContainer,
+  InternalServerError,
+  NotFoundError,
+} from 'routing-controllers';
+import { ProgressService } from '#root/modules/users/services/ProgressService.js';
+import { CourseSettingService } from '#root/modules/setting/services/CourseSettingService.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { ObjectId } from 'mongodb';
+import { UserQuizMetricsRepository } from '#root/modules/quizzes/repositories/index.js';
+import { CourseRepository } from '#root/shared/index.js';
+import { QuizService } from '#root/modules/quizzes/services/QuizService.js';
 
 // Actions
 export enum ItemActions {
-    Create = "create",
-    ViewAll = "viewAll",
-    Modify = "modify",
-    View = "view",
-    Delete = "delete"
+  Create = 'create',
+  ViewAll = 'viewAll',
+  Modify = 'modify',
+  View = 'view',
+  Delete = 'delete',
 }
 
 // Subjects
@@ -27,81 +40,168 @@ export type ItemAbility = [ItemActionsType, ItemSubjectType];
  * Setup item abilities for a specific role
  */
 export async function setupItemAbilities(
-    builder: AbilityBuilder<any>,
-    user: AuthenticatedUser
+  builder: AbilityBuilder<any>,
+  user: AuthenticatedUser,
 ) {
-    const { can, cannot } = builder;
-    
-    if (user.globalRole === 'admin') {
-        can('manage', 'Item');
-        return;
-    }
-    const progressService = getFromContainer(ProgressService);
-    const courseSettingService = getFromContainer(CourseSettingService);
-     
-    // Use Promise.all to handle async operations properly
-    await Promise.all(user.enrollments.map(async (enrollment: AuthenticatedUserEnrollements) => {
-        const versionBounded = { versionId: enrollment.versionId };
-        
-        switch (enrollment.role) {
-            case 'STUDENT':
-                can(ItemActions.ViewAll, 'Item', versionBounded);
+  const { can, cannot } = builder;
 
-                // fetch courseVersion (to get linearProgression flag)
-                const courseSettings = await courseSettingService.readCourseSettings(
-                enrollment.courseId,
-                enrollment.versionId
-                );
+  if (user.globalRole === 'admin') {
+    can('manage', 'Item');
+    return;
+  }
 
-                
-                const linearProgressionEnabled = courseSettings?.settings?.linearProgressionEnabled ?? true;
+  const progressService = getFromContainer(ProgressService);
+  const courseSettingService = getFromContainer(CourseSettingService);
 
-                const progress = await progressService.getUserProgress(user.userId, enrollment.courseId, enrollment.versionId);
+  // Use Promise.all to handle async operations properly
+  await Promise.all(
+    user.enrollments.map(async (enrollment: AuthenticatedUserEnrollements) => {
+      const versionBounded = { versionId: enrollment.versionId };
 
-                // return all the itemId having watchtime doc
-                const completedItems = await progressService.getCompletedItems(user.userId, enrollment.courseId, enrollment.versionId);
-                
-                if (!progress) {
-                    throw new InternalServerError('No progress found for user');
-                }
+      switch (enrollment.role) {
+        case 'STUDENT':
+          can(ItemActions.ViewAll, 'Item', versionBounded);
 
-                const allowedItemIds = [...completedItems];
-                allowedItemIds.push(progress.currentItem.toString());
+          // fetch courseVersion (to get linearProgression flag)
+          const courseSettings = await courseSettingService.readCourseSettings(
+            enrollment.courseId,
+            enrollment.versionId,
+          );
 
-                const itemBounded: { courseId: string, versionId: string, itemId?: any } = {
-                    courseId: enrollment.courseId,
-                    versionId: enrollment.versionId,
-                };
-                
-                // Grant permission to view items that are in the allowed list
-                if (linearProgressionEnabled) {
-                    itemBounded.itemId = { $in: allowedItemIds };
-                }
+          const linearProgressionEnabled =
+            courseSettings?.settings?.linearProgressionEnabled ?? true;
 
-                can(ItemActions.View, 'Item', itemBounded);
-                break;
-            case 'INSTRUCTOR':
-                can(ItemActions.Create, 'Item', versionBounded);
-                can(ItemActions.Modify, 'Item', versionBounded);
-                can(ItemActions.Delete, 'Item', versionBounded);
-                can(ItemActions.View, 'Item', versionBounded);
-                can(ItemActions.ViewAll, 'Item', versionBounded);
-                break;
-            case 'MANAGER':
-                can('manage', 'Item', versionBounded);
-                break;
-            case 'TA':
-                can(ItemActions.ViewAll, 'Item', versionBounded);
-                break;
-        }
-    }));
+          let progress;
+          try {
+            progress = await progressService.getUserProgress(
+              user.userId,
+              enrollment.courseId,
+              enrollment.versionId,
+            );
+          } catch (error) {
+            progress = null;
+          }
+
+          const completedItems = await progressService.getCompletedItems(
+            user.userId,
+            enrollment.courseId,
+            enrollment.versionId,
+          );
+
+          if (!progress) {
+            const itemBounded = {
+              courseId: enrollment.courseId,
+              versionId: enrollment.versionId,
+            };
+            can(ItemActions.View, 'Item', itemBounded);
+            break;
+          }
+
+          // Convert all completed items to strings for consistency
+          const completedItemsStr = completedItems.map(id => id.toString());
+
+          const itemBounded: {
+            courseId: string;
+            versionId: string;
+            itemId?: any;
+          } = {
+            courseId: enrollment.courseId,
+            versionId: enrollment.versionId,
+          };
+
+          if (!progress.currentItem) {
+            // User has not started the course yet
+            try {
+              // Try to get the first item, but don't throw if none found
+              const firstItem = await progressService.getFirstItem(
+                enrollment.versionId,
+              );
+
+              // Only add view permission if we found a first item
+              if (firstItem?.itemId) {
+                can(ItemActions.View, 'Item', {
+                  courseId: enrollment.courseId,
+                  versionId: enrollment.versionId,
+                  ItemId: firstItem.itemId,
+                });
+              }
+            } catch (error) {
+              // Log the error but continue execution
+              console.error('Error getting first item:', error);
+            }
+            return;
+          }
+
+          const allowedItemIds = [...completedItemsStr];
+          const currentItemId = progress.currentItem.toString();
+
+          // Always add current item to allowed list
+          if (!allowedItemIds.includes(currentItemId)) {
+            allowedItemIds.push(currentItemId);
+          }
+
+          // check if the user remaining attempts of a quiz is over
+          const quizMetrics = await progressService.getUserMetricsForQuiz(
+            user.userId,
+            currentItemId,
+          );
+
+          if (quizMetrics && quizMetrics.remainingAttempts == 0) {
+            try {
+              const { nextItemId } = await progressService.determineNextAllowedItem(
+                currentItemId,
+                quizMetrics,
+                enrollment,
+              );
+
+              if (nextItemId) {
+                allowedItemIds.push(nextItemId);
+              }
+            } catch (error) {
+              // Log the error but continue execution
+              console.error('Error determining next allowed item:', error);
+            }
+          }
+
+          console.log('Allowed item IDs for user:', {
+            userId: user.userId,
+            currentItemId,
+            allowedItemIds,
+            completedCount: completedItemsStr.length,
+          });
+
+          if (linearProgressionEnabled) {
+            itemBounded.itemId = { $in: allowedItemIds };
+          } else {
+          }
+
+          can(ItemActions.View, 'Item', itemBounded);
+          break;
+        case 'INSTRUCTOR':
+          can(ItemActions.Create, 'Item', versionBounded);
+          can(ItemActions.Modify, 'Item', versionBounded);
+          can(ItemActions.Delete, 'Item', versionBounded);
+          can(ItemActions.View, 'Item', versionBounded);
+          can(ItemActions.ViewAll, 'Item', versionBounded);
+          break;
+        case 'MANAGER':
+          can('manage', 'Item', versionBounded);
+          break;
+        case 'TA':
+          can(ItemActions.ViewAll, 'Item', versionBounded);
+          break;
+      }
+    }),
+  );
 }
 
 /**
  * Get item abilities for a user - can be directly used by controllers
  */
-export async function getItemAbility(user: AuthenticatedUser): Promise<MongoAbility<any>> {
-    const builder = createAbilityBuilder();
-    await setupItemAbilities(builder, user);
-    return builder.build();
+export async function getItemAbility(
+  user: AuthenticatedUser,
+): Promise<MongoAbility<any>> {
+  const builder = createAbilityBuilder();
+  await setupItemAbilities(builder, user);
+  return builder.build();
 }

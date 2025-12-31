@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Trash2, CheckCircle, Circle } from "lucide-react";
 import { useCreateQuestion, useAddQuestionToBank } from '@/hooks/hooks';
@@ -23,6 +24,13 @@ interface LotItem {
     explaination: string;
     id: string; // Add unique ID for better tracking
 }
+interface parameterItem {
+    name: string;
+    possibleValues: string;
+    type: string; 
+    id: string; // Add unique ID for better tracking
+}
+
 
 type PRIORITIES = "LOW" | "MEDIUM" | "HIGH"
 
@@ -50,6 +58,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
         upperLimit: 0,
         lowerLimit: 0,
         value: 0,
+        parameters:[] as parameterItem[],
         expression: "",
         solutionText: ""
     });
@@ -79,6 +88,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
         }));
     };
 
+
     const updateOption = (id: string, field: 'text' | 'explaination', value: string) => {
         setQuestionForm(prev => ({
             ...prev,
@@ -107,6 +117,78 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
             })
         }));
     };
+
+    /*Functions to handle parameters change */
+
+    const renderParameterControls = (fieldId: string) => {
+        if (!questionForm.isParameterized) return null;
+        
+        return (
+            <div className="flex md:flex-row flex-col gap-2 mb-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => insertTagAtCursor(fieldId, "<NumExprTex></NumExprTex>")}
+                >
+                    Add NumExprTex
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => insertTagAtCursor(fieldId, "<NumExpr></NumExpr>")}
+                >
+                    Add Num Expr
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => insertTagAtCursor(fieldId, "<QParam></QParam>")}
+                >
+                    Add Question param
+                </Button>
+            </div>
+        );
+    };
+    
+    const addParameter = () => {
+        setQuestionForm(prev => ({
+            ...prev,
+            parameters: [...prev.parameters, {
+                name: '',
+                possibleValues: '',
+                type: '',
+                id: generateId(),
+            }]
+        }));
+    };
+
+    const removeParamter = (id: string) => {
+        setQuestionForm(prev => ({
+            ...prev,
+            parameters: prev.parameters.filter(option => option.id !== id)
+        }));
+    };
+
+     const updateParameter = (
+  id: string,
+  field: 'name' | 'possibleValues' | 'type',
+  value: string
+) => {
+  setQuestionForm(prev => ({
+    ...prev,
+    parameters: prev.parameters.map(option =>
+      option.id === id
+        ? {
+            ...option,
+            [field]:
+              field === 'possibleValues'
+                ? value.split(',').map(v => v.trim()) // convert "1,2,3" → ["1","2","3"]
+                : value,
+          }
+        : option
+    ),
+  }));
+};
 
     const handleTypeChange = (newType: QuestionType) => {
         setQuestionForm(prev => {
@@ -157,6 +239,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
             options: [],
             priority: 'LOW',
             decimalPrecision: 0,
+            parameters:[],
             upperLimit: 0,
             lowerLimit: 0,
             value: 0,
@@ -164,6 +247,81 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
             solutionText: ""
         });
     };
+
+    /*Function to handle adding tags*/
+
+const insertTagAtCursor = (fieldId: string, tag: string) => {
+    const element = document.getElementById(fieldId) as HTMLInputElement | HTMLTextAreaElement | null;
+    if (!element) return;
+
+    const start = element.selectionStart ?? 0;
+    const end = element.selectionEnd ?? 0;
+
+  // If the tag has a closing part like <X></X>, place caret inside it.
+  // Otherwise place caret after the inserted text.
+  const caretOffsetInsideTag = (() => {
+    const closingIdx = tag.indexOf("</");
+    return closingIdx !== -1 ? closingIdx : tag.length;
+  })();
+
+  // 1) options array: id format "option-<optionId>"
+  if (fieldId.startsWith("option-")) {
+    const optionId = fieldId.replace("option-", "");
+    setQuestionForm((prev: any) => {
+      const updatedOptions = prev.options.map((opt: any) => {
+        if (opt.id !== optionId) return opt;
+        const cur = opt.text ?? "";
+        const newText = cur.slice(0, start) + tag + cur.slice(end);
+        return { ...opt, text: newText };
+      });
+      return { ...prev, options: updatedOptions };
+    });
+
+    requestAnimationFrame(() => {
+      const el = document.getElementById(fieldId) as HTMLInputElement | HTMLTextAreaElement | null;
+      if (el) {
+        const pos = start + caretOffsetInsideTag;
+        el.selectionStart = el.selectionEnd = pos;
+        el.focus();
+      }
+    });
+
+    return;
+  }
+
+  // 2) top-level mapping: map element ids to state keys
+  const idToStateKey: Record<string, string> = {
+    questionText: "text", // <--- important mapping
+    hint: "hint",
+    solutionText: "solutionText",
+    // add more mappings if you use different ids
+  };
+
+  const stateKey = idToStateKey[fieldId] ?? fieldId; // fallback to same name
+
+  setQuestionForm((prev: any) => {
+    const currentValue = (prev as any)[stateKey] ?? "";
+    const newValue = currentValue.slice(0, start) + tag + currentValue.slice(end);
+    return { ...prev, [stateKey]: newValue };
+  });
+
+  // restore caret inside tag after render
+  requestAnimationFrame(() => {
+    const el = document.getElementById(fieldId) as HTMLInputElement | HTMLTextAreaElement | null;
+    if (el) {
+      const pos = start + caretOffsetInsideTag;
+      el.selectionStart = el.selectionEnd = pos;
+      el.focus();
+    }
+  });
+};
+
+
+
+
+
+
+    /*Function to handle create question*/
 
     const handleCreateQuestion = async () => {
 
@@ -189,15 +347,18 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                 text: questionForm.text,
                 type: questionForm.type,
                 isParameterized: questionForm.isParameterized,
-                parameters: questionForm.isParameterized ? [] : [],
+                parameters: questionForm.isParameterized?questionForm.parameters:[],
                 hint: questionForm.hint || undefined,
                 timeLimitSeconds: questionForm.timeLimitSeconds,
                 points: questionForm.points,
                 priority: questionForm.priority,
-                incorrectLotItems: incorrectOptions.map(({ text, explaination }) => ({ text, explaination })),
+                incorrectLotItems: incorrectOptions.map(({ text, explaination }) => ({ 
+                    text, 
+                    explaination: explaination.trim() || "Nil" 
+                })),
                 ...(questionForm.type === 'SELECT_ONE_IN_LOT'
-                    ? { correctLotItem: { text: correctOptions[0].text, explaination: correctOptions[0].explaination } }
-                    : { correctLotItems: correctOptions.map(({ text, explaination }) => ({ text, explaination })) }
+                    ? { correctLotItem: { text: correctOptions[0].text, explaination: correctOptions[0].explaination.trim() || "Nil" } }
+                    : { correctLotItems: correctOptions.map(({ text, explaination }) => ({ text, explaination: explaination.trim() || "Nil" })) }
                 ),
                 decimalPrecision: questionForm.decimalPrecision  || 0,
                 upperLimit: questionForm.upperLimit  || 0,
@@ -247,7 +408,15 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                         text: questionData.text,
                         type: questionData.type,
                         isParameterized: questionData.isParameterized,
-                        parameters: questionData.parameters,
+                        parameters: questionData.isParameterized
+                            ? questionForm.parameters.map(param => ({
+                                name: param.name,
+                                possibleValues: typeof param.possibleValues === "string"
+                                    ? param.possibleValues.split(',').map(v => v.trim())
+                                    : param.possibleValues,
+                                type: param.type as "string" | "number"
+                            }))
+                            : [],
                         hint: questionData.hint,
                         timeLimitSeconds: questionData.timeLimitSeconds,
                         points: questionData.points,
@@ -268,6 +437,10 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
             resetForm();
             setShowCreateQuestionDialog(false);
         } catch (error) {
+            const err: any = error;
+            const serverMessage = err?.response?.data?.message || err?.response?.message ||err?.data?.message || err?.message;
+            const friendlyMessage = serverMessage;
+            toast.error(friendlyMessage);
             console.error('Failed to create question:', error);
         }
     };
@@ -282,20 +455,34 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                             Add Question
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
+                    <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm xl:max-w-5xl lg:max-w-3xl sm:max-w-2xl mx-auto px-4 max-h-[90vh] sm:max-h-[85vh] flex flex-col overflow-hidden">
+                        <DialogHeader className="mb-3 text-left flex-shrink-0">
                             <DialogTitle>Create New Question</DialogTitle>
                         </DialogHeader>
 
-                        <div className="space-y-6 mt-4">
+                        <div className="space-y-6 mt-4 flex-1 overflow-y-auto">
                             {/* Basic Question Info */}
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="text-base md:text-lg">Question Details</CardTitle>
                                 </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div>
+                                <CardContent className="px-4 space-y-4">
+                                    <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <Label htmlFor="isParameterized" className="mb-0">Is Parameterized?</Label>
+                                        <Switch
+                                            id="isParameterized"
+                                            checked={questionForm.isParameterized}
+                                            onCheckedChange={(checked) =>
+                                                setQuestionForm(prev => ({ ...prev, isParameterized: !!checked }))
+                                            }
+                                        />
+                                    </div>
+                                    </div>
+
+                                    {/* <div>
                                         <Label htmlFor="questionText" className='mb-3'>Question Text *</Label>
+                                        {renderParameterControls("questionText")}
                                         <Textarea
                                             id="questionText"
                                             placeholder="Enter your question here..."
@@ -303,15 +490,31 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                             onChange={(e) => setQuestionForm(prev => ({ ...prev, text: e.target.value }))}
                                             className="min-h-[80px]"
                                         />
+                                    </div> */}
+                                  <div>
+                                    <Label htmlFor="questionText" className="mb-3">Question Text *</Label>
+                                    {renderParameterControls("questionText")}
+                                    
+                                    <Textarea
+                                        id="questionText"
+                                        placeholder={`Enter your question here...\\n will show as a new line`}
+                                        value={questionForm.text.replace(/\\n/g, '\n')}
+                                        onChange={(e) => {
+                                        // Convert actual newline to literal '\n' before storing
+                                        const updatedText = e.target.value.replace(/\n/g, '\\n');
+                                        setQuestionForm(prev => ({ ...prev, text: updatedText }));
+                                        }}
+                                        className="min-h-[120px] whitespace-pre-wrap"
+                                    />
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
+                 </div>                       <div>
                                             <Label className='mb-3'>Question Type</Label>
                                             <RadioGroup
                                                 value={questionForm.type}
                                                 onValueChange={(value: QuestionType) => handleTypeChange(value)}
-                                                className="mt-2 grid grid-cols-2 gap-4"
+                                                className="mt-2 grid md:grid-cols-2 grid-cols-1 gap-4"
                                             >
                                                 <div className="flex items-center space-x-2">
                                                     <RadioGroupItem value="SELECT_ONE_IN_LOT" id="single" />
@@ -334,6 +537,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
 
                                         <div>
                                             <Label htmlFor="hint" className='mb-3'>Hint *</Label>
+                                            {renderParameterControls("hint")}
                                             <Input
                                                 id="hint"
                                                 placeholder="Enter a hint for students..."
@@ -341,7 +545,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                                 onChange={(e) => setQuestionForm(prev => ({ ...prev, hint: e.target.value }))}
                                             />
                                         </div>
-                                    </div>
+                                    
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
@@ -365,10 +569,10 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                         onChange={(e) => setQuestionForm(prev => ({ ...prev, points: parseInt(e.target.value) || 1 }))}
                                         />
                                     </div>
-
-                                    <div className="col-span-1 md:col-span-2 overflow-hidden transition-all duration-300 ease-in-out transform flex flex-wrap gap-4 items-end mt-4"
+</div>
+                                    <div className="col-span-1 lg:col-span-2 overflow-hidden transition-all duration-300 ease-in-out transform flex flex-wrap gap-4 items-end mt-4"
                                         >
-                                        <div className="flex-1 min-w-[150px]">
+                                        <div className="flex-1 xl:min-w-[150px] min-w-full">
                                             <Label htmlFor="priority" className="mb-3">Priority</Label>
                                             <Select
                                             value={questionForm.priority}
@@ -447,6 +651,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                         {questionForm.type === "DESCRIPTIVE" && (
                                             <div className="flex-1 min-w-[250px]">
                                             <Label htmlFor="solutionText" className="mb-3">Solution Text *</Label>
+                                            {renderParameterControls("solutionText")}
                                             <Input
                                                 id="solutionText"
                                                 type="text"
@@ -457,9 +662,114 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                             </div>
                                         )}
                                         </div>
-                                    </div>
+                                    
                                 </CardContent>
                             </Card>
+
+                            {questionForm.isParameterized && (
+                                <Card>
+                                    <CardHeader className='px-4'>
+                                        <CardTitle className="text-base md:text-lg">Parameters</CardTitle>
+                                        <p className="text-sm text-muted-foreground">
+                                            {`Enter the values for each parameter used in the question text.`}
+                                        </p>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        {questionForm.parameters?.map((option) => (
+                                            <div key={option.id} className={`border rounded-lg p-4 space-y-3`}>
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="flex items-center gap-3 flex-1">
+                                                       
+                                                        <div className="flex-1 space-y-2">
+                                                            <Label className="text-sm text-gray-600">
+                                                       Name:
+                                                    </Label>
+                                                            <Input
+                                                                placeholder="Name"
+                                                                value={option.name}
+                                                                onChange={(e) => updateParameter(option.id, 'name', e.target.value)}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => removeParamter(option.id)}
+                                                        className="text-red-500 hover:text-red-700"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                                <div>
+                                                    <Label className="text-sm text-gray-600">
+                                                       Value:
+                                                    </Label>
+                                                    <Textarea
+                                                        placeholder={'Enter comma separated values...'
+                                                        }
+                                                        value={option.possibleValues}
+                                                        onChange={(e) => updateParameter(option.id, 'possibleValues', e.target.value)}
+                                                        className="mt-1"
+                                                    />
+                                                    <Label className="text-sm text-gray-600">
+                                                       Type:
+                                                    </Label>
+                                                    <Textarea
+                                                        placeholder={'string or number'
+                                                        }
+                                                        value={option.type}
+                                                        onChange={(e) => updateParameter(option.id, 'type', e.target.value)}
+                                                        className="mt-1"
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
+
+                                        {questionForm.parameters?.length === 0 && (
+                                            <div className="text-center py-8 text-muted-foreground text-sm md:text-base">
+                                               {` No parameters added yet. Click "Add Parameter" to get started.`}
+                                            </div>
+                                        )}
+
+                                        <Button
+                                            variant="outline"
+                                            onClick={addParameter}
+                                            className="w-full"
+                                        >
+                                            <Plus className="h-4 w-4 mr-2" />
+                                            Add Parameter
+                                        </Button>
+
+                                        {/* Validation Messages */}
+                                        {/* {questionForm.options.length > 0 && (
+                                            <div className="text-sm space-y-1">
+                                                {questionForm.options.filter(o => o.isCorrect).length === 0 && (
+                                                    <p className="text-red-600">⚠️ Please select at least one correct answer</p>
+                                                )}
+                                                {(questionForm.type === 'SELECT_MANY_IN_LOT' || questionForm.type === 'SELECT_ONE_IN_LOT') && questionForm.options.filter((opt)=> opt?.explaination== "").length !==0 &&
+                                                    <p className="text-red-600">⚠️ Please provide an explanation for all answer options.</p>
+                                                }
+                                                {questionForm.options.filter(o => !o.isCorrect).length === 0 && (
+                                                    <p className="text-red-600">⚠️ Please add at least one incorrect option</p>
+                                                )}
+                                                {questionForm.type === 'SELECT_MANY_IN_LOT' &&
+                                                    questionForm.options.filter(o => o.isCorrect).length >= 1 &&
+                                                    questionForm.options.filter(o => !o.isCorrect).length >= 1 && (
+                                                        <p className="text-green-600">✓ Question is ready to create</p>
+                                                    )}
+                                                {questionForm.type === 'SELECT_ONE_IN_LOT' &&
+                                                    questionForm.options.filter(o => o.isCorrect).length === 1 &&
+                                                    questionForm.options.filter(o => !o.isCorrect).length >= 1 && (
+                                                        <p className="text-green-600">✓ Question is ready to create</p>
+                                                    )}
+                                                {!questionForm.hint.trim() && (
+                                                    <p className="text-red-600">⚠️ Hint is recommended for better clarity</p>
+                                                )}
+                                            </div>
+                                        )} */}
+                                    </CardContent>
+                                </Card>
+                            )}
 
                             <div
                              className={`transition-all duration-300 ease-in-out transform ${
@@ -478,9 +788,9 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                             }
                                         </p>
                                     </CardHeader>
-                                    <CardContent className="space-y-4">
+                                    <CardContent className="px-4 space-y-4">
                                         {questionForm.options.map((option) => (
-                                            <div key={option.id} className={`border rounded-lg p-4 space-y-3 ${option.isCorrect ? 'bg-green-500/10 border-green-500/20' : 'border-gray-200'
+                                            <div key={option.id}  className={`border rounded-lg p-4 space-y-3 ${option.isCorrect ? 'bg-green-500/10 border-green-500/20' : 'border-gray-200'
                                                 }`}>
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div className="flex items-center gap-3 flex-1">
@@ -502,7 +812,9 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                                             />
                                                         )}
                                                         <div className="flex-1 space-y-2">
+                                                            {renderParameterControls(`option-${option.id}`)}
                                                             <Input
+                                                            id={`option-${option.id}`}
                                                                 placeholder="Enter answer option..."
                                                                 value={option.text}
                                                                 onChange={(e) => updateOption(option.id, 'text', e.target.value)}
@@ -520,12 +832,12 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                                 </div>
                                                 <div>
                                                     <Label className="text-sm text-gray-600">
-                                                        * Explanation {option.isCorrect ? '(Why this is correct)' : '(Why this is incorrect)'}
+                                                        Explanation (Optional) {option.isCorrect ? '(Why this is correct)' : '(Why this is incorrect)'}
                                                     </Label>
                                                     <Textarea
                                                         placeholder={option.isCorrect
-                                                            ? "Explain why this answer is correct..."
-                                                            : "Explain why this answer is incorrect..."
+                                                            ? "Explain why this answer is correct... ('Congratulations! You are correct!')"
+                                                            : "Explain why this answer is incorrect... ('Sorry! You are wrong!')"
                                                         }
                                                         value={option.explaination}
                                                         onChange={(e) => updateOption(option.id, 'explaination', e.target.value)}
@@ -556,9 +868,6 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                                                 {questionForm.options.filter(o => o.isCorrect).length === 0 && (
                                                     <p className="text-red-600">⚠️ Please select at least one correct answer</p>
                                                 )}
-                                                {(questionForm.type === 'SELECT_MANY_IN_LOT' || questionForm.type === 'SELECT_ONE_IN_LOT') && questionForm.options.filter((opt)=> opt?.explaination== "").length !==0 &&
-                                                    <p className="text-red-600">⚠️ Please provide an explanation for all answer options.</p>
-                                                }
                                                 {questionForm.options.filter(o => !o.isCorrect).length === 0 && (
                                                     <p className="text-red-600">⚠️ Please add at least one incorrect option</p>
                                                 )}
@@ -582,7 +891,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                             </div>
                         </div>
 
-                        <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+                        <div className="flex justify-end gap-2 mt-6 pt-4 border-t flex-shrink-0">
                             <Button variant="outline" onClick={() => {
                                 setShowCreateQuestionDialog(false);
                                 resetForm();
@@ -610,8 +919,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
 
                                 (questionForm.type !== "DESCRIPTIVE" && questionForm.type !== "NUMERIC_ANSWER_TYPE" &&
                                 (questionForm.options.filter(o => o.isCorrect).length === 0 ||
-                                questionForm.options.filter(o => !o.isCorrect).length === 0) || 
-                                questionForm.options[questionForm.options?.length-1]?.explaination.trim() == ""
+                                questionForm.options.filter(o => !o.isCorrect).length === 0)
                                 )
                             }
                             >

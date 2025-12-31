@@ -1,7 +1,10 @@
-import {BaseQuestion, FlaggedQuestion} from '#quizzes/classes/transformers/Question.js';
+import {
+  BaseQuestion,
+  FlaggedQuestion,
+} from '#quizzes/classes/transformers/Question.js';
 import {MongoDatabase} from '#shared/index.js';
 import {injectable, inject} from 'inversify';
-import {Collection, ClientSession, ObjectId} from 'mongodb';
+import {Collection, ClientSession, ObjectId, Document} from 'mongodb';
 import {InternalServerError} from 'routing-controllers';
 import {GLOBAL_TYPES} from '#root/types.js';
 
@@ -16,8 +19,9 @@ class QuestionRepository {
   ) {}
 
   private async init() {
-    this.questionCollection =
-      await this.db.getCollection<BaseQuestion>('questions');
+    this.questionCollection = await this.db.getCollection<BaseQuestion>(
+      'questions',
+    );
     this.flaggedQuestionCollection =
       await this.db.getCollection<FlaggedQuestion>('flagged_questions');
   }
@@ -75,11 +79,13 @@ class QuestionRepository {
     session?: ClientSession,
   ): Promise<boolean> {
     await this.init();
-    const result = await this.questionCollection.deleteOne(
+    // Soft delete implementation
+    const result = await this.questionCollection.updateOne(
       {_id: new ObjectId(questionId)},
+      {$set: {isDeleted: true, deletedAt: new Date()}},
       {session},
     );
-    return result.deletedCount === 1;
+    return result.modifiedCount === 1;
   }
   public async duplicate(
     questionId: string,
@@ -106,7 +112,13 @@ class QuestionRepository {
     versionId?: string,
   ): Promise<string> {
     await this.init();
-    const flaggedQuestion = new FlaggedQuestion(questionId, userId, reason, courseId, versionId);
+    const flaggedQuestion = new FlaggedQuestion(
+      questionId,
+      userId,
+      reason,
+      courseId,
+      versionId,
+    );
     const result = await this.flaggedQuestionCollection.insertOne(
       flaggedQuestion,
       {session},
@@ -144,6 +156,78 @@ class QuestionRepository {
       return null;
     }
     return result;
+  }
+
+  public async getLotItemInfo(
+    LotItemIds: string[],
+    session?: ClientSession,
+  ): Promise<Document> {
+    await this.init();
+
+    const objectIds = LotItemIds.map(id => new ObjectId(id));
+
+    const pipeline = [
+      {
+        $match: {
+          $or: [
+            {
+              'incorrectLotItems._id': {
+                $in: objectIds,
+              },
+            },
+            {
+              'correctLotItem._id': {
+                $in: objectIds,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $addFields: {
+          matchedIncorrectItem: {
+            $first: {
+              $filter: {
+                input: '$incorrectLotItems',
+                cond: {
+                  $in: ['$$this._id', objectIds],
+                },
+              },
+            },
+          },
+          matchedCorrectItem: {
+            $cond: [
+              {
+                $in: ['$correctLotItem._id', objectIds],
+              },
+              '$correctLotItem',
+              null,
+            ],
+          },
+        },
+      },
+      {
+        $addFields:
+          /**
+           * newField: The new field name.
+           * expression: The new field expression.
+           */
+          {
+            lotItemId: {
+              $ifNull: [
+                '$matchedCorrectItem._id',
+                '$matchedIncorrectItem._id', // or any way to pick one
+              ],
+            },
+          },
+      },
+    ];
+
+    const results = await this.questionCollection
+      .aggregate(pipeline, {session})
+      .toArray();
+
+    return results;
   }
 }
 

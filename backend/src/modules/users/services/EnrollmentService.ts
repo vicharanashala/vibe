@@ -1,36 +1,37 @@
-import {COURSES_TYPES} from '#courses/types.js';
-import {InviteStatus} from '#root/modules/notifications/index.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
-import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { COURSES_TYPES } from '#courses/types.js';
+import { InviteStatus } from '#root/modules/notifications/index.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
+import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   EnrollmentRole,
   EnrollmentStatus,
   ICourseVersion,
   IEnrollment,
 } from '#root/shared/interfaces/models.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
-import {Enrollment} from '#users/classes/transformers/Enrollment.js';
-import {EnrollmentStats, USERS_TYPES} from '#users/types.js';
-import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId, OptionalId} from 'mongodb';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { EnrollmentRepository } from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import { Enrollment } from '#users/classes/transformers/Enrollment.js';
+import { EnrollmentStats, USERS_TYPES } from '#users/types.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, ObjectId, OptionalId } from 'mongodb';
 import {
   BadRequestError,
   NotFoundError,
   InternalServerError,
 } from 'routing-controllers';
-import {ProgressService} from './ProgressService.js';
-import {ProgressRepository, InviteRepository} from '#root/shared/index.js';
-import {EnrollmentDataResponse} from '../classes/index.js';
+import { ProgressService } from './ProgressService.js';
+import { ProgressRepository, InviteRepository } from '#root/shared/index.js';
+import { EnrollmentDataResponse } from '../classes/index.js';
 import {
   QuizScoresExportResponseDto,
   StudentQuizScoreDto,
 } from '../dtos/QuizScoresExportDto.js';
-import {COURSE_REGISTRATION_TYPES} from '#root/modules/courseRegistration/types.js';
-import {ICourseRegistrationRepository} from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
+import { COURSE_REGISTRATION_TYPES } from '#root/modules/courseRegistration/types.js';
+import { ICourseRegistrationRepository } from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
+import { totalmem } from 'os';
 
 @injectable()
 export class EnrollmentService extends BaseService {
@@ -80,7 +81,7 @@ export class EnrollmentService extends BaseService {
         );
       }
 
-      const existingEnrollment = await this.enrollmentRepo.findEnrollment(
+      const existingEnrollment = await this.enrollmentRepo.findActiveEnrollment(
         userId,
         courseId,
         courseVersionId,
@@ -94,7 +95,7 @@ export class EnrollmentService extends BaseService {
       // }
 
       if (existingEnrollment && throughInvite) {
-        return {status: 'ALREADY_ENROLLED' as InviteStatus};
+        return { status: 'ALREADY_ENROLLED' as InviteStatus };
       }
 
       if (existingEnrollment && !throughInvite) {
@@ -111,6 +112,7 @@ export class EnrollmentService extends BaseService {
         status: 'ACTIVE' as EnrollmentStatus,
         enrollmentDate: new Date(),
         percentCompleted: 0,
+        completedItemsCount: 0,
       };
 
       const createdEnrollment = await this.enrollmentRepo.createEnrollment(
@@ -119,13 +121,35 @@ export class EnrollmentService extends BaseService {
       );
       let initialProgress = null;
       if (createdEnrollment.role == 'STUDENT') {
-        initialProgress = await this.initializeProgress(
+        const progressData = await this.progressService.initializeProgress(
           userId,
           courseId,
           courseVersionId,
           courseVersion,
-          session,
         );
+
+        if (progressData) {
+          initialProgress = await this.progressRepo.createProgress(
+            {
+              userId: new ObjectId(userId),
+              courseId: new ObjectId(courseId),
+              courseVersionId: new ObjectId(courseVersionId),
+              currentModule: new ObjectId(
+                progressData.currentModule.toString(),
+              ),
+              currentSection: new ObjectId(
+                progressData.currentSection.toString(),
+              ),
+              currentItem: new ObjectId(progressData.currentItem.toString()),
+              completed: false,
+            },
+            session,
+          );
+        } else {
+          console.log(
+            '=== ENROLLMENT: No progress data returned - course may have no valid items ===',
+          );
+        }
       }
 
       return {
@@ -172,6 +196,38 @@ export class EnrollmentService extends BaseService {
       return existingEnrollment;
     });
   }
+
+  async findActiveEnrollment(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+  ) {
+    return this._withTransaction(async (session: ClientSession) => {
+      const user = await this.userRepo.findById(userId);
+      if (!user) throw new NotFoundError('User not found');
+
+      const course = await this.courseRepo.read(courseId);
+      if (!course) throw new NotFoundError('Course not found');
+
+      const courseVersion = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
+        throw new NotFoundError(
+          'Course version not found or does not belong to this course',
+        );
+      }
+      const existingEnrollment = await this.enrollmentRepo.findActiveEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+      );
+
+      return existingEnrollment;
+    });
+  }
+
   async unenrollUser(
     userId: string,
     courseId: string,
@@ -194,7 +250,7 @@ export class EnrollmentService extends BaseService {
         userId,
         courseId,
         courseVersionId,
-        session
+        session,
       );
       return {
         enrollment: null,
@@ -221,40 +277,75 @@ export class EnrollmentService extends BaseService {
     role: EnrollmentRole,
     search: string,
   ): Promise<EnrollmentDataResponse[]> {
-    return this._withTransaction(async (session: ClientSession) => {
-      const enrollments = await this.enrollmentRepo.getBasicEnrollments(
+    let enrollments = [];
+    if (role === 'INSTRUCTOR') {
+      enrollments = await this.enrollmentRepo.getBasicInstructorEnrollments(
         userId,
         skip,
         limit,
         role,
         search,
-        session,
       );
-
-      if (!enrollments.length) return [];
-
-      const enrolledVersionIds = new Set(
-        enrollments.map(e => e.courseVersionId.toString()),
+    } else {
+      enrollments = await this.enrollmentRepo.getBasicEnrollments(
+        userId,
+        skip,
+        limit,
+        role,
+        search,
       );
+    }
 
-      if (role === 'STUDENT') {
-        const versionIds = Array.from(enrolledVersionIds).map(
-          id => new ObjectId(id),
-        );
-        const watchedKeys = enrollments.map(e => ({
-          userId: new ObjectId(userId),
-          courseId: new ObjectId(e.courseId),
-          courseVersionId: new ObjectId(e.courseVersionId),
-        }));
+    if (!enrollments.length) return [];
 
-        const [contentCountsMap, watchedItemsMap] = await Promise.all([
-          this.enrollmentRepo.getContentCountsForVersions(versionIds),
-          this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
-        ]);
+    const enrolledVersionIds = new Set(
+      enrollments.map(e => e.courseVersionId.toString()),
+    );
 
-        return enrollments.map(enr => {
-          const versionIdStr = enr.courseVersionId.toString();
-          const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}`;
+    if (role === 'STUDENT') {
+      const watchedKeys = enrollments.map(e => ({
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(e.courseId),
+        courseVersionId: new ObjectId(e.courseVersionId),
+      }));
+
+      const [watchedItemsMap] = await Promise.all([
+        this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
+      ]);
+
+      return enrollments.map(enr => {
+        const versionIdStr = enr.courseVersionId.toString();
+        const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}`;
+
+        // update percentage if contentCountsMap / watchedItemsMap has different value from enrollment.percentCompleted
+        // ratio is calculated as (watchedItems / totalItems) * 100
+
+        const completedCount = watchedItemsMap.get(watchedKey) || 0;
+
+        const ratio = completedCount / (enr.totalItems || 1); // avoid division by zero
+        // const calculatedPercent = Math.floor(ratio * 100);
+        const calculatedPercent = Number((ratio * 100).toFixed(1));
+
+        console.log(enr.totalItems, completedCount, ratio, calculatedPercent);
+
+        // if different, update enrollment percentCompleted
+        if (enr.percentCompleted !== calculatedPercent) {
+          console.log(
+            `Updating percentCompleted for enrollment ${enr._id.toString()} from ${enr.percentCompleted
+            } to ${calculatedPercent}`,
+          );
+          void this.enrollmentRepo.updateProgressPercentById(
+            enr._id.toString(),
+            calculatedPercent,
+          );
+
+          enr.percentCompleted = calculatedPercent;
+        }
+
+        console.log('Enrollment', enr);
+
+        if (enr.percentCompleted >= 0) {
+          const itemCounts = enr.itemCounts || {};
 
           return {
             _id: enr._id.toString(),
@@ -265,28 +356,32 @@ export class EnrollmentService extends BaseService {
             enrollmentDate: new Date(enr.enrollmentDate),
             course: this.filterCourseVersions(enr.course, enrolledVersionIds),
             percentCompleted: enr.percentCompleted || 0,
-            contentCounts: contentCountsMap.get(versionIdStr) || {
-              totalItems: 0,
-              videos: 0,
-              quizzes: 0,
-              articles: 0,
+
+            // ✅ EXACT frontend shape
+            contentCounts: {
+              totalItems: enr.totalItems ?? 0,
+              videos: itemCounts.VIDEO ?? itemCounts.videos ?? 0,
+              quizzes: itemCounts.QUIZ ?? itemCounts.quizzes ?? 0,
+              articles: itemCounts.BLOG ?? itemCounts.articles ?? 0,
+              project: itemCounts.PROJECT ?? itemCounts.project ?? 0,
             },
+
             completedItems: watchedItemsMap.get(watchedKey) || 0,
           };
-        });
-      }
+        }
+      });
+    }
 
-      // Non-student
-      return enrollments.map(enr => ({
-        _id: enr._id.toString(),
-        courseId: enr.courseId.toString(),
-        courseVersionId: enr.courseVersionId.toString(),
-        role: enr.role,
-        status: enr.status,
-        enrollmentDate: new Date(enr.enrollmentDate),
-        course: this.filterCourseVersions(enr.course, enrolledVersionIds),
-      }));
-    });
+    // Non-student
+    return enrollments.map(enr => ({
+      _id: enr._id.toString(),
+      courseId: enr.courseId.toString(),
+      courseVersionId: enr.courseVersionId.toString(),
+      role: enr.role,
+      status: enr.status,
+      enrollmentDate: new Date(enr.enrollmentDate),
+      course: this.filterCourseVersions(enr.course, enrolledVersionIds),
+    }));
   }
 
   async getAllEnrollments(userId: string) {
@@ -320,9 +415,11 @@ export class EnrollmentService extends BaseService {
         session,
       );
       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
-        throw new NotFoundError(
-          'Course version not found or does not belong to this course',
-        );
+        // return empty result instead of throwing error
+        return {
+          enrollments: [],
+          totalCount: 0,
+        };
       }
 
       const enrollmentsData =
@@ -381,10 +478,6 @@ export class EnrollmentService extends BaseService {
         throw new NotFoundError('Course version not found');
       }
 
-      console.log(
-        `Starting quiz scores export for course ${courseId}, version ${versionId}`,
-      );
-
       // Get quiz scores from repository with batching
       return await this.enrollmentRepo.getQuizScoresForCourseVersion(
         courseId,
@@ -440,68 +533,14 @@ export class EnrollmentService extends BaseService {
    * Initialize student progress tracking to the first item in the course.
    * Private helper method for the enrollment process.
    */
-  private async initializeProgress(
-    userId: string,
-    courseId: string,
-    courseVersionId: string,
-    courseVersion: ICourseVersion,
-    session: ClientSession,
-  ) {
-    // Get the first module, section, and item
-    if (!courseVersion.modules || courseVersion.modules.length === 0) {
-      return null; // No modules to track progress for
-    }
-
-    const firstModule = courseVersion.modules.sort((a, b) =>
-      a.order.localeCompare(b.order),
-    )[0];
-
-    if (!firstModule.sections || firstModule.sections.length === 0) {
-      return null; // No sections to track progress for
-    }
-
-    const firstSection = firstModule.sections.sort((a, b) =>
-      a.order.localeCompare(b.order),
-    )[0];
-
-    // Get the first item from the itemsGroup
-    const itemsGroup = await this.itemRepo.readItemsGroup(
-      firstSection.itemsGroupId.toString(),
-      session,
-    );
-
-    if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
-      return null; // No items to track progress for
-    }
-
-    const firstItem = itemsGroup.items.sort((a, b) =>
-      a.order.localeCompare(b.order),
-    )[0];
-
-    // Create progress record
-    return await this.enrollmentRepo.createProgress(
-      {
-        userId: new ObjectId(userId),
-        courseId: new ObjectId(courseId),
-        courseVersionId: new ObjectId(courseVersionId),
-        currentModule: firstModule.moduleId,
-        currentSection: firstSection.sectionId,
-        currentItem: firstItem._id,
-        completed: false,
-      },
-      session,
-    );
-  }
-
   async bulkUpdateAllEnrollments(
-    courseId?: string,
-  ): Promise<{totalCount: number; updatedCount: number}> {
+    courseId?: string, userId?: string
+  ): Promise<{ totalCount: number; updatedCount: number }> {
     const BATCH_SIZE = 5000;
 
     // 1. Get courses (all or specific one)
     let courses = [];
     if (courseId) {
-      console.log(`Processing enrollments for courseId: ${courseId}`);
       const course = await this.courseRepo.read(courseId);
       if (!course) {
         throw new Error(`Course with id ${courseId} not found`);
@@ -530,10 +569,12 @@ export class EnrollmentService extends BaseService {
           courseVersion._id.toString(),
         );
 
-        const enrollments = await this.enrollmentRepo.getByCourseVersion(
-          courseVersion.courseId.toString(),
-          courseVersion._id.toString(),
-        );
+        // const enrollments = await this.enrollmentRepo.getByCourseVersion(
+        //   courseVersion.courseId.toString(),
+        //   courseVersion._id.toString(),
+        // );
+
+        const enrollments = await this.enrollmentRepo.getEnrollmentsByFilters({ courseId: courseVersion.courseId.toString(), courseVersionId: courseVersion._id.toString(), userId })
 
         totalCount += enrollments.length;
 
@@ -552,8 +593,13 @@ export class EnrollmentService extends BaseService {
 
             bulkOperations.push({
               updateOne: {
-                filter: {_id: new ObjectId(enrollment._id)},
-                update: {$set: {percentCompleted}},
+                filter: { _id: new ObjectId(enrollment._id) },
+                update: {
+                  $set: {
+                    percentCompleted,
+                    completedItemsCount: completedItems
+                  }
+                },
               },
             });
 
@@ -565,8 +611,7 @@ export class EnrollmentService extends BaseService {
                 );
                 updatedCount += bulkOperations.length;
                 console.log(
-                  `✅ Batch ${++batchCount}: Updated ${
-                    bulkOperations.length
+                  `✅ Batch ${++batchCount}: Updated ${bulkOperations.length
                   } enrollments`,
                 );
                 bulkOperations.length = 0;
@@ -601,23 +646,20 @@ export class EnrollmentService extends BaseService {
       });
     }
 
-    return {totalCount, updatedCount};
+    return { totalCount, updatedCount };
   }
 
   async getNonStudentEnrollmentsByCourseVersion(
     courseId: string,
     courseVersionId: string,
   ): Promise<IEnrollment[]> {
-    return this._withTransaction(async (session: ClientSession) => {
-      return await this.enrollmentRepo.getNonStudentEnrollmentsByCourseVersion(
-        courseId,
-        courseVersionId,
-        session,
-      );
-    });
+    return await this.enrollmentRepo.getNonStudentEnrollmentsByCourseVersion(
+      courseId,
+      courseVersionId,
+    );
   }
   async bulkEnrollUsers(
-    existingEnrolledUsersWithRoles: {userId: string; role: EnrollmentRole}[],
+    existingEnrolledUsersWithRoles: { userId: string; role: EnrollmentRole }[],
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
@@ -630,7 +672,6 @@ export class EnrollmentService extends BaseService {
         courseVersionId,
         session,
       );
-      console.log('Course version: ', courseVersion, courseId);
       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
         throw new NotFoundError(
           'Course version not found or does not belong to this course',
@@ -640,11 +681,28 @@ export class EnrollmentService extends BaseService {
       const enrollmentsToCreate: OptionalId<IEnrollment>[] = [];
       const results: any[] = [];
 
-      for (const {userId, role} of existingEnrolledUsersWithRoles) {
+      for (const { userId, role } of existingEnrolledUsersWithRoles) {
         const userExists = await this.userRepo.findById(userId, session);
 
         if (!userExists) {
-          results.push({userId, error: 'User not found'});
+          results.push({ userId, error: 'User not found' });
+          continue;
+        }
+        const existingEnrollment =
+          await this.enrollmentRepo.findActiveEnrollment(
+            userId,
+            courseId,
+            courseVersionId,
+            session,
+          );
+
+        if (existingEnrollment) {
+          // User already enrolled, skip
+          results.push({
+            userId,
+            status: 'ALREADY_ENROLLED',
+            enrollmentId: existingEnrollment._id.toString(),
+          });
           continue;
         }
 
@@ -656,6 +714,7 @@ export class EnrollmentService extends BaseService {
           status: 'ACTIVE' as EnrollmentStatus,
           enrollmentDate: new Date(),
           percentCompleted: 0,
+          completedItemsCount: 0,
         });
       }
 
@@ -684,4 +743,76 @@ export class EnrollmentService extends BaseService {
       await this.enrollmentRepo.addEnrollmentIndexes(session);
     });
   }
+
+  async getUserEnrollmentsByCourseVersion(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<IEnrollment> {
+    return this._withTransaction(async (session: ClientSession) => {
+      return this.enrollmentRepo.getUserEnrollmentsByCourseVersion(
+        userId,
+        courseId,
+        courseVersionId,
+        session,
+      );
+    });
+  }
+
+  async bulkUpdateCompletedItemsCountParallelPerCourseVersion(
+    courseId?: string,
+    userId?: string,
+  ): Promise<{ totalCount: number; updatedCount: number }> {
+    const MAX_CONCURRENCY = 4;
+
+    // 1. Load courses
+    const courses = courseId
+      ? [await this.courseRepo.read(courseId)]
+      : await this.courseRepo.getAllCourses();
+
+    if (!courses.length || courses.some(c => !c)) {
+      throw new Error('Course not found');
+    }
+
+    // 2. Extract courseVersionIds
+    const courseVersionIds = courses.flatMap(c =>
+      c.versions.map(v => v.toString()),
+    );
+
+    let index = 0;
+
+    // 🔑 THIS is the Safe Alternative
+    const results: { totalCount: number; updatedCount: number }[] = [];
+
+    // 3. Worker
+    const worker = async () => {
+      while (index < courseVersionIds.length) {
+        const currentIndex = index++;
+        const courseVersionId = courseVersionIds[currentIndex];
+
+        const result =
+          await this.enrollmentRepo.bulkUpdateCompletedItemsCountForCourseVersion(
+            { courseVersionId, courseId, userId },
+          );
+
+        // ✅ push result instead of mutating shared counters
+        results.push(result);
+      }
+    };
+
+    // 4. Start workers
+    const workers = Array.from(
+      { length: MAX_CONCURRENCY },
+      () => worker(),
+    );
+
+    await Promise.all(workers);
+
+    // 5. Final aggregation (SAFE)
+    const totalCount = results.reduce((sum, r) => sum + r.totalCount, 0);
+    const updatedCount = results.reduce((sum, r) => sum + r.updatedCount, 0);
+
+    return { totalCount, updatedCount };
+  }
+
 }

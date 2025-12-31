@@ -12,6 +12,9 @@ import { inject, injectable } from 'inversify';
 import { REPORT_TYPES } from '../types.js';
 import { NotFoundError } from 'routing-controllers';
 import {
+  IssueSortEnum,
+  IssueStatusEnum,
+  // MyFlagFiltersQuery,
   Report,
   ReportDataResponse,
   ReportFiltersQuery,
@@ -77,4 +80,48 @@ export class ReportService extends BaseService {
     const reportInstance = plainToInstance(ReportDataResponse, report);
     return reportInstance;
   }
+
+  // async getMyFlags(userId:string,filters:MyFlagFiltersQuery){
+  //   return this._withTransaction(async session => {
+  //     const result = await this.reportsRepository.getByUserId(userId,filters,session)
+  //     return result
+  //   })
+  // }
+
+  async getMyIssueReports(
+  userId: string,
+  page: number,
+  limit: number,
+  status: IssueStatusEnum,
+  search: string,
+  sort: IssueSortEnum,
+) {
+  return this._withTransaction(async session => {
+    const skip = (page - 1) * limit;
+
+    const { issues, totalDocuments } =
+      await this.reportsRepository.findReportsByUser(
+        userId,
+        { status, search, sort },
+        skip,
+        limit,
+        session,
+      );
+
+    return {
+      issues,
+      totalDocuments,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page,
+    };
+  });
+}
+
+updateStudentInterset(id:string,interest:string){
+  return this._withTransaction(async session => {
+    const result = await this.reportsRepository.updateInterest(id,interest,session)
+    return result
+  })
+}
+
 }

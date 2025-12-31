@@ -1,5 +1,9 @@
+import { EventSourcePolyfill } from 'event-source-polyfill';
+
 // GenAI API utility functions
 // Updated to use job+task system
+
+
 
 // Environment-based API configuration
 export const getApiBaseUrl = (): string => {
@@ -225,7 +229,10 @@ export const connectToLiveStatusUpdates = (
 
   const url = `${API_BASE_URL}/genai/${jobId}/live`;
 
-  const eventSource = new EventSource(url);
+
+  const eventSource = new EventSourcePolyfill(url, {
+    headers: { Authorization: `Bearer ${getAuthToken()}` },
+  });
 
   eventSource.onmessage = (event) => {
     try {
@@ -238,7 +245,8 @@ export const connectToLiveStatusUpdates = (
   };
 
   eventSource.addEventListener('jobStatus', (event) => {
-    let data: JobStatus = JSON.parse(event.data);
+    const messageEvent = event as MessageEvent;
+    let data: JobStatus = JSON.parse(messageEvent.data);
     setAiJobStatus(data);
   });
 

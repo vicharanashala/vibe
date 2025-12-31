@@ -132,11 +132,11 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
   };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm xl:max-w-4xl lg:max-w-3xl sm:max-w-2xl mx-auto px-4 max-h-[90vh] sm:max-h-[85vh] flex flex-col overflow-hidden">
+        <DialogHeader className="mb-3 text-left flex-shrink-0">
           <DialogTitle className='text-2xl'>Edit Quiz Settings</DialogTitle>
         </DialogHeader>
-        <div className="space-y-6 mt-5">
+        <div className="space-y-6 mt-5 flex-1 overflow-y-auto px-4">
           {/* Basic Information */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Basic Information</h3>
@@ -241,7 +241,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                 )}
               </div>
               <div>
-                <Label htmlFor="questionVisibility" className='mb-2'>Questions Visible to Students</Label>
+               {/* <Label htmlFor="questionVisibility" className='mb-2'>Questions Visible to Students</Label>
                 <Input
                   id="questionVisibility"
                   type="number"
@@ -249,7 +249,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
                   value={quizSettingsForm.questionVisibility}
                   onChange={(e) => handleFieldChange('questionVisibility', parseInt(e.target.value))}
                   className={validationErrors.questionVisibility ? 'border-red-500' : ''}
-                />
+                />*/} 
                 {validationErrors.questionVisibility && (
                   <p className="text-xs text-red-500 mt-1">{validationErrors.questionVisibility}</p>
                 )}
@@ -378,7 +378,7 @@ const QuizSettingsDialog: React.FC<QuizSettingsDialogProps> = ({
             </div>
           </div>
         </div>
-        <div className="flex justify-end gap-2 mt-6">
+        <div className="flex justify-end gap-2 mt-6 pt-4 border-t flex-shrink-0 px-2 sm:px-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>

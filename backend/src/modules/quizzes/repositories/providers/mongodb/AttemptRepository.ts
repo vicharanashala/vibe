@@ -1,26 +1,41 @@
-import { IAttempt } from '#quizzes/interfaces/grading.js';
-import { MongoDatabase } from '#shared/database/providers/mongo/MongoDatabase.js';
-import { injectable, inject } from 'inversify';
-import { Collection, ClientSession, ObjectId } from 'mongodb';
-import { InternalServerError } from 'routing-controllers';
-import { GLOBAL_TYPES } from '#root/types.js';
+import {IAttempt, IAttemptExport} from '#quizzes/interfaces/grading.js';
+import {MongoDatabase} from '#shared/database/providers/mongo/MongoDatabase.js';
+import {injectable, inject} from 'inversify';
+import {Collection, ClientSession, ObjectId, Document} from 'mongodb';
+import {InternalServerError} from 'routing-controllers';
+import {GLOBAL_TYPES} from '#root/types.js';
 @injectable()
 class AttemptRepository {
   private attemptCollection: Collection<IAttempt>;
+  private initialized = false;
+
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
-  ) { }
+  ) {}
 
   private async init() {
+    if (this.initialized) return;
+
     this.attemptCollection = await this.db.getCollection<IAttempt>(
       'quiz_attempts',
     );
+
+    // High-priority indexes for read performance
+    await this.attemptCollection.createIndex(
+      {quizId: 1, userId: 1},
+      {name: 'quizId_1_userId_1', background: true},
+    );
+    await this.attemptCollection.createIndex(
+      {'questionDetails.questionId': 1},
+      {name: 'questionDetails_questionId_1', background: true},
+    );
+    this.initialized = true;
   }
 
   async create(attempt: IAttempt, session?: ClientSession) {
     await this.init();
-    const result = await this.attemptCollection.insertOne(attempt, { session });
+    const result = await this.attemptCollection.insertOne(attempt, {session});
     if (result.acknowledged && result.insertedId) {
       return result.insertedId.toString();
     }
@@ -39,9 +54,9 @@ class AttemptRepository {
     const result = await this.attemptCollection.findOne(
       {
         _id: new ObjectId(attemptId),
-        quizId: { $in: [quizIdStr, quizIdObj] },
+        quizId: {$in: [quizIdStr, quizIdObj]},
       },
-      { session },
+      {session},
     );
     if (!result) {
       return null;
@@ -62,13 +77,12 @@ class AttemptRepository {
     const quizIdObj = new ObjectId(quizIdStr);
 
     const result = await this.attemptCollection.countDocuments(
-      { quizId: { $in: [quizIdStr, quizIdObj] } },
-      { session },
+      {quizId: {$in: [quizIdStr, quizIdObj]}},
+      {session},
     );
     if (!result) {
       return null;
     }
-    console.log("total attempts: ",result)
     return result;
   }
 
@@ -87,12 +101,11 @@ class AttemptRepository {
 
     const result = await this.attemptCollection.countDocuments(
       {
-        quizId: { $in: [quizIdStr, quizIdObj] },
-        userId: { $in: [userIdStr, userIdObj] },
+        quizId: {$in: [quizIdStr, quizIdObj]},
+        userId: {$in: [userIdStr, userIdObj]},
       },
-      { session },
+      {session},
     );
-    console.log(result);
     if (!result) {
       return null;
     }
@@ -102,9 +115,9 @@ class AttemptRepository {
   async update(attemptId: string, updateData: Partial<IAttempt>) {
     await this.init();
     const result = await this.attemptCollection.findOneAndUpdate(
-      { _id: new ObjectId(attemptId) },
-      { $set: updateData },
-      { returnDocument: 'after' },
+      {_id: new ObjectId(attemptId)},
+      {$set: updateData},
+      {returnDocument: 'after'},
     );
     return result;
   }
@@ -138,10 +151,140 @@ class AttemptRepository {
     const distinctUsers = await this.attemptCollection.distinct(
       'userId',
       filter,
-      { session },
+      {session},
     );
     return distinctUsers.length;
   }
+
+  async getAttemptsByQuizId(
+    quizId: string,
+    session?: ClientSession,
+  ): Promise<IAttemptExport[]> {
+    await this.init();
+
+    const pipeline = [
+      {
+        $match: {
+          quizId: new ObjectId(quizId),
+        },
+      },
+
+      {
+        $addFields: {
+          answerQuestionIds: {
+            $map: {
+              input: {$ifNull: ['$answers', []]},
+              as: 'a',
+              in: {$toObjectId: '$$a.questionId'},
+            },
+          },
+          detailQuestionIds: {
+            $map: {
+              input: {$ifNull: ['$questionDetails', []]},
+              as: 'q',
+              in: {$toObjectId: '$$q.questionId'},
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          allQuestionIds: {
+            $setUnion: ['$answerQuestionIds', '$detailQuestionIds'],
+          },
+        },
+      },
+
+      {
+        $lookup: {
+          from: 'questions',
+          localField: 'allQuestionIds',
+          foreignField: '_id',
+          as: 'questions',
+        },
+      },
+
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      {
+        $set: {
+          user: {$first: '$user'},
+        },
+      },
+
+      {
+        $addFields: {
+          answers: {
+            $map: {
+              input: {$ifNull: ['$answers', []]},
+              as: 'ans',
+              in: {
+                $mergeObjects: [
+                  '$$ans',
+                  {
+                    question: {
+                      $first: {
+                        $filter: {
+                          input: '$questions',
+                          as: 'q',
+                          cond: {
+                            $eq: ['$$q._id', {$toObjectId: '$$ans.questionId'}],
+                          },
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+
+      {
+        $addFields: {
+          questionDetails: {
+            $map: {
+              input: {$ifNull: ['$questionDetails', []]},
+              as: 'qd',
+              in: {
+                $first: {
+                  $filter: {
+                    input: '$questions',
+                    as: 'q',
+                    cond: {
+                      $eq: ['$$q._id', {$toObjectId: '$$qd.questionId'}],
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      {
+        $unset: [
+          'questions',
+          'answerQuestionIds',
+          'detailQuestionIds',
+          'allQuestionIds',
+        ],
+      },
+    ];
+
+    const attempts = await this.attemptCollection
+      .aggregate(pipeline, {session})
+      .toArray();
+
+    return attempts as IAttemptExport[];
+  }
 }
 
-export { AttemptRepository };
+export {AttemptRepository};

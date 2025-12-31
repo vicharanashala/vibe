@@ -1,6 +1,6 @@
-import {ICourseVersion} from '#root/shared/interfaces/models.js';
-import {IsEmpty, IsNotEmpty, IsString, IsMongoId} from 'class-validator';
-import {JSONSchema} from 'class-validator-jsonschema';
+import { ICourseVersion } from '#root/shared/interfaces/models.js';
+import { IsEmpty, IsNotEmpty, IsString, IsMongoId, IsInt } from 'class-validator';
+import { JSONSchema } from 'class-validator-jsonschema';
 
 class CreateCourseVersionBody implements Partial<ICourseVersion> {
   @JSONSchema({
@@ -75,6 +75,8 @@ class CourseVersionDataResponse {
   })
   id: string;
 
+  @IsString()
+  @IsNotEmpty()
   @JSONSchema({
     description: 'Version name/label',
     example: 'v1.0',
@@ -83,6 +85,8 @@ class CourseVersionDataResponse {
   })
   name: string;
 
+  @IsString()
+  @IsNotEmpty()
   @JSONSchema({
     description: 'Description of the version',
     example: 'First release of the course',
@@ -91,6 +95,8 @@ class CourseVersionDataResponse {
   })
   description: string;
 
+  @IsString()
+  @IsNotEmpty()
   @JSONSchema({
     description: 'ID of the course this version belongs to',
     example: '60d5ec49b3f1c8e4a8f8b8c1',
@@ -125,6 +131,7 @@ class CourseVersionNotFoundErrorResponse {
     type: 'integer',
     readOnly: true,
   })
+  @IsInt()
   statusCode: number;
 
   @JSONSchema({
@@ -133,6 +140,7 @@ class CourseVersionNotFoundErrorResponse {
     type: 'string',
     readOnly: true,
   })
+  @IsString()
   message: string;
 
   @JSONSchema({
@@ -141,23 +149,32 @@ class CourseVersionNotFoundErrorResponse {
     type: 'string',
     readOnly: true,
   })
+  @IsString()
   error: string;
 }
 
 class CreateCourseVersionResponse {
+
+  @IsNotEmpty()
   @JSONSchema({
     description: 'The updated course object',
     type: 'object',
+    example:
+    {
+    "_id": "68ee228f54e2f6908d54de1r",
+    "courseId": "68d0f72fd802390872101b5",
+    "version": "Version title",
+    "description": "Version description",
+    "modules": [],
+    "totalItems": null,
+    "createdAt": "2025-10-14T10:14:39.363Z",
+    "updatedAt": "2025-10-14T10:14:39.363Z"
+}
+    ,
     readOnly: true,
   })
   course: Record<string, any>;
 
-  @JSONSchema({
-    description: 'The created version object',
-    type: 'object',
-    readOnly: true,
-  })
-  version: Record<string, any>;
 }
 
 class UpdateCourseVersionParams {
@@ -203,16 +220,16 @@ class UpdateCourseVersionBody implements Partial<ICourseVersion> {
 }
 class CopyCourseVersionParams {
   @IsString()
-  @JSONSchema({description: 'The ID of the course'})
+  @JSONSchema({ description: 'The ID of the course' })
   courseId!: string;
 
   @IsString()
-  @JSONSchema({description: 'The ID of the version to copy'})
+  @JSONSchema({ description: 'The ID of the version to copy' })
   versionId!: string;
 }
 class CopyCourseVersionResponse {
   @IsString()
-  @JSONSchema({description: 'Success message'})
+  @JSONSchema({ description: 'Success message',example: 'Course version copied successfully' })
   message!: string;
 }
 export {

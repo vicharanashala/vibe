@@ -14,8 +14,9 @@ import {
   ForbiddenError,
   Authorized,
   Patch,
+  BadRequestError, QueryParams
 } from 'routing-controllers';
-import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
+import { OpenAPI, ResponseSchema, } from 'routing-controllers-openapi';
 import { COURSES_TYPES } from '#courses/types.js';
 import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
 import { Course } from '#courses/classes/transformers/Course.js';
@@ -24,14 +25,14 @@ import {
   CourseBody,
   CourseNotFoundErrorResponse,
   CourseIdParams,
-  CourseVersionParams, EditCourseBody
+  CourseVersionQuery,
+  EditCourseBody,
 } from '#courses/classes/validators/CourseValidators.js';
 import { CourseActions, getCourseAbility } from '../abilities/courseAbilities.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { subject } from '@casl/ability';
 import { USERS_TYPES } from '#root/modules/users/types.js';
 import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
-import { E } from 'vitest/dist/chunks/environment.d.cL3nLXbE.js';
 
 @OpenAPI({
   tags: ['Courses'],
@@ -56,6 +57,7 @@ export class CourseController {
   @HttpCode(201)
   @ResponseSchema(CourseDataResponse, {
     description: 'Course created successfully',
+    statusCode: 201,
   })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
@@ -79,7 +81,7 @@ export class CourseController {
       course,
       versionName,
       versionDescription,
-      userId
+      userId,
     );
 
     // //3. Create enrollment for the user
@@ -144,6 +146,7 @@ Accessible to:
   @Patch('/:courseId', { transformResponse: true })
   @ResponseSchema(CourseDataResponse, {
     description: 'Course updated successfully',
+    statusCode: 200,
   })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
@@ -176,11 +179,12 @@ Accessible to:
 
   @OpenAPI({
     summary: 'Delete a course',
-    description: 'Deletes a course by ID.',
+    description: `Deletes a course by ID<br/>
+    It returns an empty body with a 200 status code.`,
   })
   @Authorized()
   @Delete('/:courseId', { transformResponse: true })
-  @OnUndefined(204)
+  @OnUndefined(200)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
@@ -204,6 +208,10 @@ Accessible to:
         'You do not have permission to delete this course',
       );
     }
+    if (courseId == '692f030a945e82ec875e9116') {
+      // MERN CASE Study check
+      throw new BadRequestError("You can't delete this course!");
+    }
 
     await this.courseService.deleteCourse(courseId);
   }
@@ -211,7 +219,7 @@ Accessible to:
   @OpenAPI({
     summary: 'Update Course Version Total Item Count',
     description:
-      'Updates the total item count for a specific course version by ID.',
+      'Updates the total item count for a specific course version by ID.<br/> It returns an empty body with a 200 status code.',
   })
   @Authorized()
   @Patch('/version/total-item-count', { transformResponse: true })
@@ -225,9 +233,12 @@ Accessible to:
   })
   async updateCourseVersionTotalItemCount(
     @Ability(getCourseAbility) { ability },
+    @QueryParams() query: CourseVersionQuery,
   ) {
+    const { courseId, courseVersionId } = query;
     // Update total item count in service
-    await this.courseService.updateCourseVersionTotalItemCount();
+    const updatedVersion = await this.courseService.updateCourseVersionTotalItemCount(courseId, courseVersionId);
+    return updatedVersion;
   }
 }
 

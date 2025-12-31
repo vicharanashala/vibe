@@ -32,6 +32,9 @@ class Module implements IModule {
   order: string;
 
   @Expose()
+  isHidden: boolean = false;
+
+  @Expose()
   @Type(() => Section)
   sections: Section[];
 
@@ -42,6 +45,13 @@ class Module implements IModule {
   @Expose()
   @Type(() => Date)
   updatedAt: Date;
+
+  @Expose()
+  isDeleted?: boolean;
+
+  @Expose()
+  @Type(() => Date)
+  deletedAt?: Date;
 
   constructor(moduleBody: CreateModuleBody, existingModules: IModule[]) {
     if (moduleBody) {
@@ -61,6 +71,9 @@ class Module implements IModule {
     this.sections = [];
     this.createdAt = new Date();
     this.updatedAt = new Date();
+    this.isDeleted = false;
+    this.deletedAt = undefined;
+    this.isHidden = false;
   }
 }
 

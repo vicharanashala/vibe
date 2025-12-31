@@ -1272,8 +1272,8 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
   }, [currentJobData]);
 
   return (
-    <div className=" bg-card pb-3 ">
-        <div className="flex items-center justify-between  px-8 relative animate-fade-in ">
+    <div className=" bg-card pb-3 lg:px-0 px-5">
+        <div className="flex items-center justify-between px-1 sm:px-4 lg:px-8 relative animate-fade-in gap-0.5 sm:gap-2">
         {WORKFLOW_STEPS.map((step, idx) => {
             const status = getStepStatus(currentJobData, step.key);
             const isCurrent = step.key === activeStep;
@@ -1287,10 +1287,10 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
 
             return (
             <React.Fragment key={step.key}>
-                <div className="flex flex-col items-center relative animate-step-appear">
+                <div className="flex flex-col items-center relative animate-step-appear min-w-0 flex-1">
                 {/* Step Circle */}
                 <div className={`
-                    stepper-step rounded-full p-3 mb-3 transition-all duration-500 ease-out transform hover:scale-110
+                    stepper-step rounded-full p-1.5 sm:p-3 mb-1.5 sm:mb-3 transition-all duration-500 ease-out transform hover:scale-110
                     ${isCompleted ? 'bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg shadow-green-500/25 ring-2 ring-green-500/20 animate-stepper-success-glow' :
                     isActive ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25 ring-2 ring-blue-500/20 animate-stepper-glow' :
                     isFailed ? 'bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/25 ring-2 ring-red-500/20 animate-stepper-error-glow' :
@@ -1301,20 +1301,20 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
                     style={{ minWidth: 48, minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
                     {/* Animated Icons */}
-                    <div className="transition-all duration-300 ease-out flex items-center justify-center w-6 h-6">
+                    <div className="transition-all duration-300 ease-out flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6">
                     {isCompleted ? (
-                        <CheckCircle className="w-6 h-6 animate-bounce" />
+                        <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 animate-bounce" />
                     ) : isActive ? (
-                        <Loader2 className="w-6 h-6 animate-spin" />
+                        <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
                     ) : isFailed ? (
-                        <XCircle className="w-6 h-6 animate-pulse" />
+                        <XCircle className="w-5 h-5 sm:w-6 sm:h-6 animate-pulse" />
                     ) : isStopped ? (
-                        <PauseCircle className="w-6 h-6 animate-pulse" />
+                        <PauseCircle className="w-5 h-5 sm:w-6 sm:h-6 animate-pulse" />
                     ) : isWaiting ? (
-                        <Clock className="w-6 h-6 animate-pulse" />
+                        <Clock className="w-5 h-5 sm:w-6 sm:h-6 animate-pulse" />
                     )
                      : (
-                        <div className="transition-all duration-300 hover:scale-110 flex items-center justify-center w-6 h-6">
+                        <div className="transition-all duration-300 hover:scale-110 flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6">
                         {step.icon}
                         </div>
                     )}
@@ -1324,7 +1324,7 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
                 {/* Step Label */}
                 <div className="text-center max-w-24">
                     <span className={`
-                    text-sm font-semibold transition-all duration-300 ease-out
+                    text-[10px] sm:text-xs lg:text-sm font-semibold transition-all duration-300 ease-out leading-tight
                     ${isCompleted ? 'text-green-600 dark:text-green-400' :
                         isActive ? 'text-blue-600 dark:text-blue-400' :
                         isFailed ? 'text-red-600 dark:text-red-400' :
@@ -1340,7 +1340,7 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
                     {isActive && (
                     <div className="mt-1 flex items-center justify-center">
                         <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping" />
-                        <span className="ml-1 text-xs text-blue-600 dark:text-blue-400 font-medium">
+                        <span className="ml-1 text-[10px] lg:text-xs text-blue-600 dark:text-blue-400 font-medium">
                         Processing...
                         </span>
                     </div>
@@ -1348,7 +1348,7 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
                     {isCompleted && (
                     <div className="mt-1 flex items-center justify-center">
                         <div className="w-2 h-2 bg-green-500 rounded-full" />
-                        <span className="ml-1 text-xs text-green-600 dark:text-green-400 font-medium">
+                        <span className="ml-1 text-[10px] lg:text-xs text-green-600 dark:text-green-400 font-medium">
                         Complete
                         </span>
                     </div>
@@ -1356,7 +1356,7 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
                     {isFailed && (
                     <div className="mt-1 flex items-center justify-center">
                         <div className="w-2 h-2 bg-red-500 rounded-full" />
-                        <span className="ml-1 text-xs text-red-600 dark:text-red-400 font-medium">
+                        <span className="ml-1 text-[10px] lg:text-xs text-red-600 dark:text-red-400 font-medium">
                         Failed
                         </span>
                     </div>
@@ -1364,7 +1364,7 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
                     {isStopped && (
                     <div className="mt-1 flex items-center justify-center">
                         <div className="w-2 h-2 bg-orange-500 rounded-full" />
-                        <span className="ml-1 text-xs text-orange-600 dark:text-orange-400 font-medium">
+                        <span className="ml-1 text-[10px] lg:text-xs text-orange-600 dark:text-orange-400 font-medium">
                         Stopped
                         </span>
                     </div>
@@ -1372,7 +1372,7 @@ const Stepper = React.memo(({  currentJobData }: {  currentJobData: any }) => {
                    {isWaiting && (
                     <div className="mt-1 flex items-center justify-center">
                         <div className="w-2 h-2 bg-purple-500 rounded-full" />
-                        <span className="ml-1 text-xs text-purple-600 dark:text-purple-400 font-medium">
+                        <span className="ml-1 text-[10px] lg:text-xs text-purple-600 dark:text-purple-400 font-medium">
                          Wating ...
                         </span>
                     </div>
@@ -2186,25 +2186,25 @@ const isQuestionDecided = (index: number) => {
                 {!isLoading && !error && questions.length > 0 && segmentIds.length > 0 && (
                   <div className="relative">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
                         <Button
-                          variant="outline"
+                          variant="default"
                           size="sm"
                           onClick={handlePreviousSegment}
                           disabled={currentSegmentIndex === 0 || isLocked}
-                          className="h-8 w-8 p-0"
+                          className="h-8 w-8 p-0 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                         >
                           <ChevronLeft className="h-4 w-4" />
                         </Button>
-                        <div className="text-sm font-medium px-2 py-1 bg-muted rounded-md">
+                        <div className="text-sm font-semibold px-4 py-2 bg-primary/10 border border-primary/30 rounded-lg dark:text-primary text-[#000000]">
                           Segment {currentSegmentIndex + 1} of {segmentIds.length}
                         </div>
                         <Button
-                          variant="outline"
+                          variant="default"
                           size="sm"
                           onClick={handleNextSegment}
                           disabled={!hasNextSegment || isLocked}
-                          className="h-8 w-8 p-0"
+                          className="h-8 w-8 p-0 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                         >
                           <ChevronRight className="h-4 w-4" />
                         </Button>
@@ -2619,11 +2619,11 @@ const QuestionEditForm = ({ question, onSave, onCancel }: {
     const handleAddOption = () => setOptions((opts: any[]) => [...opts, { text: '', explaination: '', correct: false }]);
     const handleRemoveOption = (idx: number) => setOptions((opts: any[]) => opts.filter((_, i) => i !== idx));
 
-    const canSave = questionText.trim() && options.length >= 2 && options.every((o: any) => o.text.trim() && o.explaination.trim()) && options.some((o: any) => o.correct);
+    const canSave = questionText.trim() && options.length >= 2 && options.every((o: any) => o.text.trim()) && options.some((o: any) => o.correct);
 
     const buildSolution = () => {
-      const correctOpts = options.filter((o: any) => o.correct).map((o: any) => ({ text: o.text, explaination: o.explaination }));
-      const incorrectOpts = options.filter((o: any) => !o.correct).map((o: any) => ({ text: o.text, explaination: o.explaination }));
+      const correctOpts = options.filter((o: any) => o.correct).map((o: any) => ({ text: o.text, explaination: o.explaination.trim() || "Nil" }));
+      const incorrectOpts = options.filter((o: any) => !o.correct).map((o: any) => ({ text: o.text, explaination: o.explaination.trim() || "Nil" }));
       if (normalized.type === 'SELECT_ONE_IN_LOT') {
         return {
           correctLotItem: correctOpts[0] || { text: '', explaination: '' },
@@ -3289,7 +3289,7 @@ const SegmentationView = ({
   return (
     <div className={`${currentJobStatus!="WAITING" && "py-12"} text-center text-gray-500`}>
         {(currentJobStatus !== "COMPLETED" || isSettingsOpen) && (
-            <div className="px-6 py-4 flex items-center justify-between gap-6 border rounded-lg shadow-sm bg-card mb-5">
+            <div className="px-6 py-4 flex lg:flex-nowrap flex-wrap items-center justify-between gap-6 border rounded-lg shadow-sm bg-card mb-5">
                 <div className="flex-1">
                 <Label className="text-sm font-medium dark:text-gray-100 text-gray-800">
                     Segmentation Frequency
@@ -3317,7 +3317,7 @@ const SegmentationView = ({
                 </Select>
                 </div>
 
-                <div className="mt-7 text-sm dark:text-gray-200 text-gray-900 max-w-xs transition-opacity duration-300">
+                <div className="mt-7 text-sm dark:text-gray-200 text-gray-900 lg:max-w-xs max-w-full transition-opacity duration-300">
                 {customSegmentationParams.lam === 1.2 &&
                     "Segments will be created very frequently, providing high detail and precision."}
                 {customSegmentationParams.lam === 2 &&

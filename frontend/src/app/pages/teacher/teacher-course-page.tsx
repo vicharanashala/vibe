@@ -1,11 +1,15 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
+import * as Papa from 'papaparse';
+import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, userParseCSVtoItems, useUpdateItemOptional } from '@/hooks/hooks';
+import { Download, Upload } from 'lucide-react';
+import { useHideItem } from '@/hooks/hooks';
 
 const MAX_DESCRIPTION_LENGTH = 1000;
 
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
-  SidebarInset, SidebarProvider, SidebarTrigger, SidebarFooter
+  SidebarInset, SidebarProvider, SidebarFooter, useSidebar
 } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -20,9 +24,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { 
+import {
   BookOpen, ChevronRight, FileText, VideoIcon, ListChecks, Plus, Sparkles,
-  X,FolderKanban
+  X, FolderKanban,
+  Menu,
+  MessageSquare,
+  Eye,
+  EyeOff,
+  Loader2
 } from "lucide-react";
 
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -30,7 +39,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Home, GraduationCap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById, useQuizDetails, useQuizAnalytics, useQuizPerformance, useQuizResults, useMoveModule, useMoveSection, useMoveItem, useUpdateCourseItem } from "@/hooks/hooks";
+import { useCourseVersionById, useCreateModule, useUpdateModule, useDeleteModule, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem, useItemsBySectionId, useItemById, useQuizDetails, useQuizAnalytics, useQuizPerformance, useQuizResults, useMoveModule, useMoveSection, useMoveItem, useUpdateCourseItem, useCourseById, useHideModule, useHideSection } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import VideoModal from "./components/Video-modal";
 import EnhancedQuizEditor from "./components/enhanced-quiz-editor";
@@ -41,6 +50,13 @@ import { toast } from "sonner";
 import Loader from "@/components/Loader";
 import { Label } from "@/components/ui/label";
 import ProjectItem from "./components/ProjectItem";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import FeedbackFormEditor from "./FeedbackFormEditor";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/utils/utils";
+import { QuestionUploadDialog } from "@/components/question-upload-dialog";
+
 
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
@@ -48,15 +64,15 @@ const getItemIcon = (type: string) => {
     case "BLOG": return <FileText className="h-3 w-3" />;
     case "VIDEO": return <VideoIcon className="h-3 w-3" />;
     case "QUIZ": return <ListChecks className="h-3 w-3" />;
-      case "PROJECT": 
-      return <FolderKanban className="h-3 w-3" />;
+    case "PROJECT": return <FolderKanban className="h-3 w-3" />;
+    case "FEEDBACK": return <MessageSquare className="h-3 w-3" />
     default: return null;
   }
 };
 
 interface LabelOptions {
   itemId: string;
-  itemType: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT";
+  itemType: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT" | "FEEDBACK";
   sectionItems: Record<string, any[]>;
   sectionId: string;
 }
@@ -65,20 +81,66 @@ interface ModuleData {
   name: string;
   description: string;
 }
-export default function TeacherCoursePage() {
+
+// Interface for CSV row
+type CSVRow = {
+  'yotube url'?: string;
+  'Segment'?: string;
+  'Question Timestamp [mm:ss]'?: string;
+  'S.No.'?: string;
+  'Question'?: string;
+  'Hint'?: string;
+  'Option A'?: string;
+  'Expln-A'?: string;
+  'Option B'?: string;
+  'Expln-B'?: string;
+  'Option C'?: string;
+  'Expln-C'?: string;
+  'Option D'?: string;
+  'Expln-D'?: string;
+  'Correct Answer'?: string;
+  [key: string]: string | undefined;
+};
+
+function TeacherCourseContent() {
+  const createQuestion = useCreateQuestion();
   const user = useAuthStore().user;
   const { currentCourse, setCurrentCourse } = useCourseStore();
   // Use correct keys for course/version IDs
   const courseId = currentCourse?.courseId;
   const versionId = currentCourse?.versionId;
 
+  const { setOpen, setOpenMobile } = useSidebar();
+
+  const checkScreenSize = () => {
+    return window.innerWidth <= 425;
+  };
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width >= 768) {
+        setOpen(true);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, [setOpen]);
+
   // Fetch course version data (modules, sections, items)
   const { data: versionData, refetch: refetchVersion, isLoading } = useCourseVersionById(versionId || "");
+
+  // fetch course data
+  const { data: courseData } = useCourseById(courseId || "")
+
   // Some APIs return modules directly, some wrap in 'version'. Try both.
   // @ts-ignore
   const modules = (versionData as any)?.modules || (versionData as any)?.version?.modules || [];
 
-  const [initialModules, setInitialModules] = useState<typeof modules[]>(modules);  
+  const [initialModules, setInitialModules] = useState<typeof modules[]>(modules);
   // Animated text for empty state
   const aiMessages = [
     "ViBe allows you to add sections in your course module using AI",
@@ -90,13 +152,13 @@ export default function TeacherCoursePage() {
   const [displayedMessage, setDisplayedMessage] = useState(aiMessages[0]);
   const [isVisible, setIsVisible] = useState(true);
   const [selectedItem, setSelectedItem] = useState({ id: "", name: "" });
-  
+
   // State for project modal
   const [showAddProjectModal, setShowAddProjectModal] = useState<{
     moduleId: string;
     sectionId: string;
   } | null>(null);
-  
+
   const [errors, setErrors] = useState({
     title: "",
     description: "",
@@ -105,9 +167,12 @@ export default function TeacherCoursePage() {
   const [isEditingModule, setIsEditingModule] = useState(false);
   const [isEditingSection, setIsEditingSection] = useState(false);
   const [originalModuleData, setOriginalModuleData] = useState<ModuleData | null>(null);
-  const [originalSectionData, setOriginalSectionData] = useState<{name: string; description: string} | null>(null);
+  const [originalSectionData, setOriginalSectionData] = useState<{ name: string; description: string } | null>(null);
 
-
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [hidingModuleId, setHidingModuleId] = useState<string | null>(null);
+  const [hidingSectionId, setHidingSectionId] = useState<string | null>(null);
+  const [hidingItemId, setHidingItemId] = useState<string | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -146,9 +211,11 @@ export default function TeacherCoursePage() {
   // Store items for each section
   const [sectionItems, setSectionItems] = useState<Record<string, any[]>>({});
 
+  const [togglingItemId, setTogglingItemId] = useState<string | null>(null);
+
   // Check if a project already exists in any section
   const hasExistingProject = useMemo(() => {
-    return Object.values(sectionItems).some(items => 
+    return Object.values(sectionItems).some(items =>
       items.some(item => item.type === 'PROJECT')
     );
   }, [sectionItems]);
@@ -161,27 +228,33 @@ export default function TeacherCoursePage() {
   const [activeSectionInfo, setActiveSectionInfo] = useState<{ moduleId: string; sectionId: string } | null>(null);
 
   // Fetch items for the active section
-  const shouldFetchItems = Boolean(activeSectionInfo?.moduleId && activeSectionInfo?.sectionId && versionId);
+  const shouldFetchItems = !!(activeSectionInfo?.moduleId && activeSectionInfo?.sectionId && versionId);
+  const safeVersionId = versionId && versionId.trim() ? versionId : "SKIP";
+  const safeModuleId = activeSectionInfo?.moduleId && activeSectionInfo.moduleId.trim() ? activeSectionInfo.moduleId : "SKIP";
+  const safeSectionId = activeSectionInfo?.sectionId && activeSectionInfo.sectionId.trim() ? activeSectionInfo.sectionId : "SKIP";
+  
   const {
     data: currentSectionItems,
     isLoading: itemsLoading,
     refetch: refetchItems
   } = useItemsBySectionId(
-    shouldFetchItems ? versionId || "" : '',
-    shouldFetchItems ? activeSectionInfo?.moduleId ?? '' : '',
-    shouldFetchItems ? activeSectionInfo?.sectionId ?? '' : ''
+    safeVersionId,
+    safeModuleId,
+    safeSectionId
   );
 
   // Fetch item details for selected item
   const shouldFetchItem = selectedEntity?.type === 'item' && !!courseId && !!versionId && !!selectedEntity?.data?._id;
   const {
-    data: selectedItemData, refetch: refetchItem
+    data: selectedItemData,
+    isLoading: isItemLoading,
+    refetch: refetchItem
   } = useItemById(
     shouldFetchItem ? courseId : '',
     shouldFetchItem ? versionId : '',
     shouldFetchItem ? selectedEntity?.data?._id : ''
   );
-
+  console.log("selectedItemData", selectedItemData)
   // Sync controlled state with selectedItemData for PROJECT edit
   useEffect(() => {
     if (selectedEntity?.type === 'item' && selectedEntity.data.type === 'PROJECT') {
@@ -209,16 +282,18 @@ export default function TeacherCoursePage() {
   // CRUD hooks
 
   // --- MODULES ---
-  const { mutateAsync: createModuleAsync, isSuccess: isCreateModuleSuccess, isError: isCreateModuleError, error: createModuleError } = useCreateModule();
+  const { mutateAsync: createModuleAsync, isSuccess: isCreateModuleSuccess, isError: isCreateModuleError, error: createModuleError,  } = useCreateModule();
   const { mutateAsync: updateModuleAsync, isSuccess: isUpdateModuleSuccess, isError: isUpdateModuleError, error: updateModuleError } = useUpdateModule();
   const { mutateAsync: deleteModuleAsync, isSuccess: isDeleteModuleSuccess, isError: isDeleteModuleError, error: deleteModuleError } = useDeleteModule();
   const { mutateAsync: moveModuleAsync } = useMoveModule();
+  const { mutateAsync: hideModuleAsync } = useHideModule();
 
   // --- SECTIONS ---
   const { mutateAsync: createSectionAsync, isSuccess: isCreateSectionSuccess, isError: isCreateSectionError, error: createSectionError } = useCreateSection();
   const { mutateAsync: updateSectionAsync, isSuccess: isUpdateSectionSuccess, isError: isUpdateSectionError, error: updateSectionError } = useUpdateSection();
   const { mutateAsync: deleteSectionAsync, isSuccess: isDeleteSectionSuccess, isError: isDeleteSectionError, error: deleteSectionError } = useDeleteSection();
   const { mutateAsync: moveSectionAsync } = useMoveSection();
+  const { mutateAsync: hideSectionAsync } = useHideSection();
 
   // --- ITEMS ---
   const { mutateAsync: createItemAsync, isSuccess: isCreateItemSuccess, isError: isCreateItemError, error: createItemError } = useCreateItem();
@@ -227,8 +302,15 @@ export default function TeacherCoursePage() {
   const { mutateAsync: updateVideoAsync } = useUpdateCourseItem();
   const { mutateAsync: deleteItemAsync, isSuccess: isDeleteItemSuccess, isError: isDeleteItemError, error: deleteItemError } = useDeleteItem();
   const { mutateAsync: moveItemAsync, isPending, isError: isMoveItemError, error: moveItemError } = useMoveItem();
+  const { mutateAsync: updateItemVisibilityAsync } = useHideItem();
+
+  const [isProcessingCSV, setIsProcessingCSV] = useState(false);
+  const [showCSVUpload, setShowCSVUpload] = useState(false);
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const userCSVtoItem = userParseCSVtoItems();
 
 
+  const updateItemOptional = useUpdateItemOptional();
 
   // Refetch after any success
   useEffect(() => {
@@ -244,7 +326,9 @@ export default function TeacherCoursePage() {
       isDeleteItemSuccess
     ) {
       refetchVersion();
-      refetchItems();
+      if (shouldFetchItems) {
+        refetchItems();
+      }
 
       if (activeSectionInfo) {
         setActiveSectionInfo({ ...activeSectionInfo }); // triggers refetch
@@ -262,99 +346,98 @@ export default function TeacherCoursePage() {
     isDeleteItemSuccess,
   ]);
 
- useStatusToasts({
-  successFlags: {
-    isCreateModuleSuccess: {
-      flag: isCreateModuleSuccess,
-      message: "Module created successfully!",
+  useStatusToasts({
+    successFlags: {
+      isCreateModuleSuccess: {
+        flag: isCreateModuleSuccess,
+        message: "Module created successfully!",
+      },
+      isUpdateModuleSuccess: {
+        flag: isUpdateModuleSuccess,
+        message: "Module updated successfully!",
+      },
+      isDeleteModuleSuccess: {
+        flag: isDeleteModuleSuccess,
+        message: "Module deleted successfully!",
+      },
+      isCreateSectionSuccess: {
+        flag: isCreateSectionSuccess,
+        message: "Section created successfully!",
+      },
+      isUpdateSectionSuccess: {
+        flag: isUpdateSectionSuccess,
+        message: "Section updated successfully!",
+      },
+      isDeleteSectionSuccess: {
+        flag: isDeleteSectionSuccess,
+        message: "Section deleted successfully!",
+      },
+      isCreateItemSuccess: {
+        flag: isCreateItemSuccess,
+        message: "Item created successfully!",
+      },
+      isUpdateItemSuccess: {
+        flag: isUpdateItemSuccess,
+        message: "Item updated successfully!",
+      },
+      isDeleteItemSuccess: {
+        flag: isDeleteItemSuccess,
+        message: "Item deleted successfully!",
+      },
     },
-    isUpdateModuleSuccess: {
-      flag: isUpdateModuleSuccess,
-      message: "Module updated successfully!",
+    errorFlags: {
+      isCreateModuleError: {
+        flag: isCreateModuleError,
+        message: createModuleError?.message,
+        fallback: "Failed to create module",
+      },
+      isUpdateModuleError: {
+        flag: isUpdateModuleError,
+        message: updateModuleError?.message,
+        fallback: "Failed to update module",
+      },
+      isDeleteModuleError: {
+        flag: isDeleteModuleError,
+        message: deleteModuleError?.message,
+        fallback: "Failed to delete module",
+      },
+      isCreateSectionError: {
+        flag: isCreateSectionError,
+        message: createSectionError?.message,
+        fallback: "Failed to create section",
+      },
+      isUpdateSectionError: {
+        flag: isUpdateSectionError,
+        message: updateSectionError?.message,
+        fallback: "Failed to update section",
+      },
+      isDeleteSectionError: {
+        flag: isDeleteSectionError,
+        message: deleteSectionError?.message,
+        fallback: "Failed to delete section",
+      },
+      isCreateItemError: {
+        flag: isCreateItemError,
+        message: createItemError?.message,
+        fallback: "Failed to create item",
+      },
+      isUpdateItemError: {
+        flag: isUpdateItemError,
+        message: updateItemError?.message,
+        fallback: "Failed to update item",
+      },
+      isDeleteItemError: {
+        flag: isDeleteItemError,
+        message: deleteItemError?.message,
+        fallback: "Failed to delete item",
+      },
+      isMoveItemError: {
+        flag: isMoveItemError,
+        message: moveItemError?.message,
+        fallback: "Failed to move item",
+      },
     },
-    isDeleteModuleSuccess: {
-      flag: isDeleteModuleSuccess,
-      message: "Module deleted successfully!",
-    },
-    isCreateSectionSuccess: {
-      flag: isCreateSectionSuccess,
-      message: "Section created successfully!",
-    },
-    isUpdateSectionSuccess: {
-      flag: isUpdateSectionSuccess,
-      message: "Section updated successfully!",
-    },
-    isDeleteSectionSuccess: {
-      flag: isDeleteSectionSuccess,
-      message: "Section deleted successfully!",
-    },
-    isCreateItemSuccess: {
-      flag: isCreateItemSuccess,
-      message: "Item created successfully!",
-    },
-    isUpdateItemSuccess: {
-      flag: isUpdateItemSuccess,
-      message: "Item updated successfully!",
-    },
-    isDeleteItemSuccess: {
-      flag: isDeleteItemSuccess,
-      message: "Item deleted successfully!",
-    },
-  },
-  errorFlags: {
-    isCreateModuleError: {
-      flag: isCreateModuleError,
-      message: createModuleError?.message,
-      fallback: "Failed to create module",
-    },
-    isUpdateModuleError: {
-      flag: isUpdateModuleError,
-      message: updateModuleError?.message,
-      fallback: "Failed to update module",
-    },
-    isDeleteModuleError: {
-      flag: isDeleteModuleError,
-      message: deleteModuleError?.message,
-      fallback: "Failed to delete module",
-    },
-    isCreateSectionError: {
-      flag: isCreateSectionError,
-      message: createSectionError?.message,
-      fallback: "Failed to create section",
-    },
-    isUpdateSectionError: {
-      flag: isUpdateSectionError,
-      message: updateSectionError?.message,
-      fallback: "Failed to update section",
-    },
-    isDeleteSectionError: {
-      flag: isDeleteSectionError,
-      message: deleteSectionError?.message,
-      fallback: "Failed to delete section",
-    },
-    isCreateItemError: {
-      flag: isCreateItemError,
-      message: createItemError?.message,
-      fallback: "Failed to create item",
-    },
-    isUpdateItemError: {
-      flag: isUpdateItemError,
-      message: updateItemError?.message,
-      fallback: "Failed to update item",
-    },
-    isDeleteItemError: {
-      flag: isDeleteItemError,
-      message: deleteItemError?.message,
-      fallback: "Failed to delete item",
-    },
-    isMoveItemError: {
-      flag: isMoveItemError,
-      message: moveItemError?.message,
-      fallback: "Failed to move item",
-    },
-  },
-});
-
+  });
 
 
   // Reload items when quiz wizard closes
@@ -363,9 +446,11 @@ export default function TeacherCoursePage() {
       // Quiz wizard just closed, reload items for the section
       setActiveSectionInfo({ moduleId: quizModuleId, sectionId: quizSectionId });
       refetchVersion();
-      refetchItems();
+      if (shouldFetchItems) {
+        refetchItems();
+      }
     }
-  }, [quizWizardOpen, quizModuleId, quizSectionId, refetchVersion]);
+  }, [quizWizardOpen, quizModuleId, quizSectionId, refetchVersion, shouldFetchItems]);
 
   // Update sectionItems state when items are fetched
   useEffect(() => {
@@ -398,35 +483,125 @@ export default function TeacherCoursePage() {
         return `Article ${index}`;
       case "PROJECT":
         return `Project ${index}`;
+      case 'FEEDBACK':
+        return `Feedback ${index}`
       default:
         return "Unknown";
     }
   };
 
-  function formatSecondsToHHMMSS(seconds: string | number): string {
-    const sec = Math.floor(Number(seconds));
-    const hrs = Math.floor(sec / 3600);
-    const mins = Math.floor((sec % 3600) / 60);
-    const secs = sec % 60;
-
-    const pad = (val: number) => val.toString().padStart(2, '0');
-
-    return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
-  }
-
-
   // Add Module
-  const handleAddModule = () => {
-    if (!versionId) return;
-    createModuleAsync({
-      params: { path: { versionId } },
-      body: { name: "Untitled Module", description: "Module description" }
-    }).then((res) => {
-      refetchVersion();
-      refetchItems();
-      setIsEditingModule(true);
-      setOriginalModuleData({ name: "Untitled Module", description: "Module description" });
-    });
+  // const handleAddModule = () => {
+  //   if (!versionId) return;
+  //   createModuleAsync({
+  //     params: { path: { versionId } },
+  //     body: { name: "Untitled Module", description: "Module description" }
+  //   }).then((res) => {
+  //     refetchVersion();
+  //     if (shouldFetchItems) {
+  //       refetchItems();
+  //     }
+  //     setIsEditingModule(true);
+  //     setOriginalModuleData({ name: "Untitled Module", description: "Module description" });
+  //   });
+  // };
+
+    const handleAddModule = async () => {
+      if (!versionId) return;
+
+      try {
+        await createModuleAsync({
+          params: { path: { versionId } },
+          body: {
+            name: "Untitled Module",
+            description: "Module description",
+          },
+        });
+
+        refetchVersion();
+        if (shouldFetchItems) {
+          refetchItems();
+        }
+
+        setIsEditingModule(true);
+        setOriginalModuleData({
+          name: "Untitled Module",
+          description: "Module description",
+        });
+
+      } catch (error: any) {
+        const message =
+          error?.response?.data?.message ||
+          error?.message ||
+          "Failed to create module";
+
+        toast.error(message);
+      }
+    };
+
+
+
+  // Process CSV file and create items
+  const processCSV = async (file: File, moduleId: string, sectionId: string, youtubeUrl: string) => {
+    setIsProcessingCSV(true);
+    try {
+      setShowCSVUpload(false);
+      const text = await file.text();
+      const result = Papa.parse<CSVRow>(text, { header: true, skipEmptyLines: true });
+
+      // Validate CSV structure
+      if (!result.data.length) {
+        toast.error('CSV file is empty');
+        return;
+      }
+
+      // Validate YouTube URL format
+      const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/;
+      if (!youtubeRegex.test(youtubeUrl)) {
+        toast.error('Please provide a valid YouTube URL (e.g., https://www.youtube.com/watch?v=... or https://youtu.be/...)');
+        return;
+      }
+
+      // Validate required columns
+      const requiredColumns = ['Segment', 'Question', 'Correct Answer'];
+      const firstRow = result.data[0];
+      const missingColumns = requiredColumns.filter(col => !(col in firstRow));
+
+      if (missingColumns.length > 0) {
+        toast.error(`Missing required columns: ${missingColumns.join(', ')}`);
+        return;
+      }
+
+
+      const response = await userCSVtoItem.mutateAsync({
+        params: { path: { courseId: courseId!, versionId:versionId!, moduleId, sectionId } },
+        body: { youtubeurl: youtubeUrl, data: result.data }
+      }).then((res) => {
+        if(res.success){
+           toast.success('Successfully created items from CSV');
+        }
+        refetchVersion()
+        refetchItems()
+        setIsProcessingCSV(false);
+      });
+    } catch (error) {
+      console.error('Error processing CSV:', error);
+      toast.error(`Failed to process CSV: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsProcessingCSV(false);
+    }
+  };
+
+
+
+  // Handle file input change
+  const handleFileUpload = (e: ChangeEvent<HTMLInputElement>, moduleId: string, sectionId: string) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processCSV(file, moduleId, sectionId, youtubeUrl);
+    }
+    // Reset the input
+    e.target.value = '';
   };
 
   // Add Section
@@ -437,20 +612,71 @@ export default function TeacherCoursePage() {
       body: { name: "New Section", description: "Section description" }
     }).then((res) => {
       refetchVersion();
-      refetchItems();
+      if (shouldFetchItems) {
+        refetchItems();
+      }
     });
   };
+
+  const handleHideModule = async (moduleId: string, hide: boolean) => {
+    if (!versionId) return;
+    setHidingModuleId(moduleId);
+    try {
+      await hideModuleAsync({
+        params: { path: { versionId, moduleId } },
+        body: { hide: hide }
+      });
+      refetchVersion();
+    } finally {
+      setHidingModuleId(null);
+    }
+  }
+
+  const handleHideSection = async (moduleId: string, sectionId: string, hide: boolean) => {
+    if (!versionId) return;
+    setHidingSectionId(sectionId);
+    try {
+      await hideSectionAsync({
+        params: { path: { versionId, moduleId, sectionId } },
+        body: { hide: hide }
+      });
+      refetchVersion();
+    } finally {
+      setHidingSectionId(null);
+    }
+  }
+
+  const handleHideItem = async (itemId: string, hide: boolean) => {
+    if (!versionId) return;
+    setHidingItemId(itemId);
+    try {
+      console.log("🔄 Starting hide item:", itemId, hide);
+      await updateItemVisibilityAsync({
+        params: { path: { versionId, itemId } },
+        body: { hide: hide }
+      });
+
+      refetchVersion();
+      refetchItems();
+      console.log("✅ RefetchVersion completed");
+    } catch (error) {
+      console.error("❌ Error in handleHideItem:", error);
+    } finally {
+      setHidingItemId(null);
+    }
+  }
 
   // Add Item (handles all item types including video, quiz, article, and project)
   const handleAddItem = (moduleId: string, sectionId: string, type: string, videoData?: any) => {
     if (!versionId) return;
-    
-    type ItemType = "VIDEO" | "QUIZ" | "BLOG" | "PROJECT";
+
+    type ItemType = "VIDEO" | "QUIZ" | "BLOG" | "PROJECT" | "FEEDBACK";
     const typeMap: Record<string, ItemType> = {
       video: "VIDEO",
       quiz: "QUIZ",
       article: "BLOG",
-      project: "PROJECT"
+      project: "PROJECT",
+      feedback: "FEEDBACK"
     };
 
     // Handle video items
@@ -470,41 +696,62 @@ export default function TeacherCoursePage() {
         }
       }).then((res) => {
         refetchVersion();
+        if (shouldFetchItems) {
+          refetchItems();
+        }
+        toast.success("Video created successfully");
+      }).catch((error) => {
+        console.error("Error creating video:", error);
+        toast.error(`Failed to create video: ${error.message || 'Unknown error'}`);
       });
 
       return;
     }
     if (type === "QUIZ") {
-    createItemAsync({
-  params: {
-    path: { versionId, moduleId, sectionId },
-  },
-  body: {
-    type: typeMap[type],
-    name: `New ${typeMap[type]}`,
-    description: "Sample content",
-  },
-}).then((res) => {
+      createItemAsync({
+        params: {
+          path: { versionId, moduleId, sectionId },
+        },
+        body: {
+          type: typeMap[type],
+          name: `New ${typeMap[type]}`,
+          description: "Sample content",
+        },
+      }).then((res) => {
         refetchVersion();
+        if (shouldFetchItems) {
+          refetchItems();
+        }
+        toast.success("Quiz created successfully");
+      }).catch((error) => {
+        console.error("Error creating quiz:", error);
+        toast.error(`Failed to create quiz: ${error.message || 'Unknown error'}`);
       });
     }
     if (type === "article") {
-     createItemAsync({
-  params: {
-    path: { versionId, moduleId, sectionId },
-  },
-  body: {
-    type: typeMap[type],
-    name: `New ${typeMap[type]}`,
-    description: "Sample content",
-    blogDetails: {
-      content: "Sample content",
-      points: "2.0",
-      estimatedReadTimeInMinutes: 1,
-    },
-  },
-}).then((res) => {
+      createItemAsync({
+        params: {
+          path: { versionId, moduleId, sectionId },
+        },
+        body: {
+          type: typeMap[type],
+          name: `New ${typeMap[type]}`,
+          description: "Sample content",
+          blogDetails: {
+            content: "Sample content",
+            points: "2.0",
+            estimatedReadTimeInMinutes: 1,
+          },
+        },
+      }).then((res) => {
         refetchVersion();
+        if (shouldFetchItems) {
+          refetchItems();
+        }
+        toast.success("Article created successfully");
+      }).catch((error) => {
+        console.error("Error creating article:", error);
+        toast.error(`Failed to create article: ${error.message || 'Unknown error'}`);
       });
     }
     if (type === "project") {
@@ -515,16 +762,101 @@ export default function TeacherCoursePage() {
           description: "Project description"
         }
       })
-      .then(() => {
-        refetchVersion();
-        refetchItems();
-        toast.success("Project created successfully");
+        .then(() => {
+          refetchVersion();
+          if (shouldFetchItems) {
+            refetchItems();
+          }
+          toast.success("Project created successfully");
+        })
+        .catch((error) => {
+          console.error("Error creating project:", error);
+          toast.error(`Failed to create project: ${error.message || 'Unknown error'}`);
+        });
+    }
+    if (type === "feedback") {
+      createItemAsync({
+        params: {
+          path: {
+            versionId: versionId!,
+            moduleId: module.moduleId,
+            sectionId: section.sectionId,
+          },
+        },
+        body: {
+          type: typeMap[type],
+          name: "Feedback Form",
+          description: "Submit your feedback about the previous video/quiz",
+          feedbackFormDetails: {
+            jsonSchema: {
+              type: 'object',
+              properties: {
+                Name: {
+                  type: 'string',
+                  title: 'Name',
+                  minLength: 1,
+                },
+                Email: {
+                  type: 'string',
+                  format: 'email',
+                  title: 'Email',
+                },
+                Feedback: {
+                  type: 'string',
+                  title: 'Feedback',
+                  minLength: 10
+                },
+              },
+              required: ['Name', 'Email', 'Feedback'],
+            },
+            uiSchema: {
+              Name: {
+                'ui:placeholder': 'Enter your Name',
+              },
+              Email: {
+                'ui:placeholder': 'Enter your Email',
+              },
+              Feedback: {
+                'ui:placeholder': 'Enter your feedback here...',
+              },
+            }
+          },
+        }
       })
-      .catch((error) => {
-        console.error("Error creating project:", error);
-        toast.error(`Failed to create project: ${error.message || 'Unknown error'}`);
-      });
-      return;
+        .then((created) => {
+          const newItem = created?.createdItem || created?.item || created?.data || created;
+          const itemsGroupId = created?.itemsGroup?._id || section.itemsGroupId;
+
+          if (newItem && newItem._id) {
+            // Auto-select the newly created feedback form
+            setSelectedItem({ id: newItem._id, name: "Feedback Form 1" });
+            setSelectedEntity({
+              type: "item",
+              data: newItem,
+              parentIds: {
+                moduleId: module.moduleId,
+                sectionId: section.sectionId,
+                itemsGroupId,
+              },
+            });
+          } else {
+            refetchVersion();
+            if (shouldFetchItems) {
+              refetchItems();
+            }
+          }
+        })
+        .catch((err) => {
+          toast.error("Failed to create feedback form");
+          console.error(err);
+        });
+    }
+    if (type === "csv_upload") {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.csv';
+      input.onchange = (e) => handleFileUpload(e as unknown as ChangeEvent<HTMLInputElement>, moduleId, sectionId);
+      input.click();
     }
   };
 
@@ -538,7 +870,7 @@ export default function TeacherCoursePage() {
 
   // Move module
   const handleMoveModule = (moduleId: string, versionId?: string) => {
-    
+
     const newList = pendingOrder.current;
     const newIndex = newList.findIndex((mod: any) => mod.moduleId === moduleId);
 
@@ -547,22 +879,22 @@ export default function TeacherCoursePage() {
 
 
     if (versionId && moduleId) {
-    moveModuleAsync({
-      params: {
-        path: {
-          versionId,
-          moduleId,
+      moveModuleAsync({
+        params: {
+          path: {
+            versionId,
+            moduleId,
+          },
         },
-      },
-      body: {
-        ...(before
+        body: {
+          ...(before
             ? { beforeModuleId: before?.moduleId || "" }
             : { afterModuleId: after?.moduleId || "" }),
 
 
-      },
+        },
       }).then((res) => {
-      refetchVersion();
+        refetchVersion();
       })
     }
   }
@@ -635,7 +967,11 @@ export default function TeacherCoursePage() {
             ? { afterItemId: after._id }
             : {}),
       },
-    }).then((res) => { refetchItems(); })
+    }).then((res) => { 
+      if (shouldFetchItems) {
+        refetchItems();
+      }
+    })
 
   };
 
@@ -646,507 +982,840 @@ export default function TeacherCoursePage() {
   }, [modules])
 
   return (
-    <SidebarProvider defaultOpen={true}>
+    <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+      {/* Show loading overlay when processing CSV */}
+      {isProcessingCSV && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-background p-6 rounded-lg shadow-xl flex flex-col items-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
+            <p className="text-lg font-medium">Processing CSV file...</p>
+            <p className="text-sm text-muted-foreground">This may take a moment</p>
+          </div>
+        </div>
+      )}
+      {/* CSV Upload Modal */}
+      {/* <Dialog open={showCSVUpload} onOpenChange={setShowCSVUpload}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Upload Questions</DialogTitle>
+          </DialogHeader>
 
-      <div className="flex h-screen w-full">
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="youtube-url">YouTube Video URL</Label>
+              <Input
+                id="youtube-url"
+                placeholder="https://www.youtube.com/watch?v=..."
+                value={youtubeUrl}
+                onChange={(e) => setYoutubeUrl(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                The video that these questions are based on
+              </p>
+            </div>
 
-        {/* <ConfirmationModal
-          isOpen={true}
-          onClose={() => {}}
-          onConfirm={()=>{}}
-          title="Delete Section"
-          description="Are you sure you want to delete this section?"
-          confirmText="Delete Section"
-          isDestructive={true}
-          isLoading={false}
-        /> */}
-        <Sidebar variant="inset" collapsible="icon" className="border-r border-border/40 bg-sidebar/50">
-          <SidebarHeader className="border-b border-border/40">
-            <div className="flex items-center gap-3 px-3 py-2">
-              <BookOpen className="text-primary" />
-              <div>
-                <h1 className="text-base font-bold">Vibe (Teacher)</h1>
-                <p className="text-xs text-muted-foreground">Course Editor</p>
+            <div className="space-y-2">
+              <Label>Questions CSV File</Label>
+              <div
+                className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${isDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                  }`}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    const file = e.dataTransfer.files[0];
+                    if (file.type === "text/csv" || file.name.endsWith('.csv')) {
+                      setSelectedCSVFile(file);
+                    } else {
+                      toast.error("Please upload a valid CSV file");
+                    }
+                  }
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onClick={() => document.getElementById('csv-upload')?.click()}
+              >
+                <div className="space-y-2">
+                  <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">Click to upload</span> or drag and drop
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    CSV file with questions (max 10MB)
+                  </p>
+                  {selectedCSVFile && (
+                    <p className="text-sm font-medium text-foreground mt-2">
+                      Selected: {selectedCSVFile.name}
+                    </p>
+                  )}
+                </div>
+                <input
+                  id="csv-upload"
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      setSelectedCSVFile(e.target.files[0]);
+                    }
+                  }}
+                />
               </div>
             </div>
-            <Separator className="opacity-50" />
-          </SidebarHeader>
 
-          <SidebarContent
-            className="bg-card/50 pl-2"
+            <div className="text-xs text-muted-foreground">
+              <p className="font-medium mb-1">CSV Format:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>First row should be the header with column names</li>
+                <li>Required columns: Segment, Question, Option A, Option B, Option C, Option D, Correct Answer</li>
+                <li>Segment: Numeric value to group questions</li>
+                <li>Correct Answer: Should be A, B, C, or D</li>
+              </ul>
+            </div>
+          </div>
 
-          >
-            <ScrollArea className="flex-1">
-              <Reorder.Group
-                axis="y"
-                onReorder={(newOrder) => {
-                  pendingOrder.current = newOrder;
-                }}
-                values={initialModules}
-              >
-                <SidebarMenu className="space-y-2 text-sm pr-1 pt-2">
-                  {initialModules
-                    .slice()
-                    .sort((a: any, b: any) => a.order.localeCompare(b.order))
-                    .map((module: any) => (
-                      <SidebarMenuItem key={module.moduleId}>
-                        <Reorder.Item
-                          key={module.moduleId}
-                          value={module}
-                          drag
-                          className="focus:outline-none"
-                          whileDrag={{ scale: 1.02 }}
-                          onDragEnd={() => {
-                            setInitialModules(pendingOrder.current);
-                            handleMoveModule(module.moduleId, versionId);
-                          }}
-                        >
-                          <SidebarMenuButton
-                            onClick={() => {
-                              toggleModule(module.moduleId);
-                              setSelectedEntity({ type: "module", data: module });
-                              setIsEditingModule(false);
-                              setOriginalModuleData({
-                                name: module.name,
-                                description: module.description || ""
-                              });
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCSVUpload(false);
+                setYoutubeUrl('');
+                setSelectedCSVFile(null);
+              }}
+              disabled={isProcessingCSV}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!youtubeUrl) {
+                  toast.error("Please enter a YouTube URL");
+                  return;
+                }
+
+                if (!selectedCSVFile) {
+                  toast.error("Please select a CSV file");
+                  return;
+                }
+
+                try {
+                  setIsProcessingCSV(true);
+                  await processCSV(selectedCSVFile, activeSectionInfo.moduleId, activeSectionInfo.sectionId, youtubeUrl);
+                  toast.success("CSV uploaded and processed successfully!");
+                  setShowCSVUpload(false);
+                  setYoutubeUrl('');
+                  setSelectedCSVFile(null);
+                  refetchVersion();
+                  if (shouldFetchItems) {
+                    refetchItems();
+                  }
+                } catch (error) {
+                  console.error("Error processing CSV:", error);
+                  toast.error(error instanceof Error ? error.message : "Failed to process CSV");
+                } finally {
+                  setIsProcessingCSV(false);
+                }
+              }}
+              disabled={!youtubeUrl || !selectedCSVFile || isProcessingCSV}
+            >
+              {isProcessingCSV ? "Uploading..." : "Upload"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog> */}
+      <QuestionUploadDialog
+        open={showCSVUpload}
+        onOpenChange={setShowCSVUpload}
+        onUploadComplete={async (youtubeUrl: string, csvFile: File) => {
+          try {
+            await processCSV(
+              csvFile,
+              activeSectionInfo?.moduleId,
+              activeSectionInfo?.sectionId,
+              youtubeUrl
+            );
+          } catch (error: any) {
+            console.error("CSV Processing Error:", error);
+
+            const message =
+              error?.response?.data?.error ||
+              error?.message ||
+              "Failed to process uploaded data. Please try again.";
+            toast.error(message);
+          }
+        }}
+      />
+      {/* Mobile Sidebar Overlay */}
+      {isMobileSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
+      <ResizablePanel
+        defaultSize={20}
+        minSize={20}
+        maxSize={50}
+        className={`${isMobileSidebarOpen ? 'fixed inset-y-0 left-0 z-50 w-[280px]' : 'hidden md:block'}`}
+      >
+        <div className="h-full overflow-hidden border-r border-border/40 bg-sidebar/50">
+          <Sidebar variant="sidebar" collapsible="none" className="h-screen w-full">
+            <SidebarHeader>
+              <div className="flex items-center gap-3 px-3 py-2">
+                <BookOpen className="text-primary" />
+                <div>
+                  <h1 className="text-base font-bold">Vibe (Teacher)</h1>
+                  <p className="text-xs text-muted-foreground">Course Editor</p>
+                </div>
+              </div>
+              <Separator className="opacity-50" />
+            </SidebarHeader>
+
+            <SidebarContent
+              className="bg-card/50 pl-2"
+
+            >
+              <ScrollArea className="flex-1">
+                <Reorder.Group
+                  axis="y"
+                  onReorder={(newOrder) => {
+                    pendingOrder.current = newOrder;
+                  }}
+                  values={initialModules}
+                >
+                  <SidebarMenu className="space-y-2 text-sm pr-1 pt-2">
+                    {initialModules
+                      .slice()
+                      .sort((a: any, b: any) => a.order.localeCompare(b.order))
+                      .map((module: any) => (
+                        <SidebarMenuItem key={module.moduleId}>
+                          <Reorder.Item
+                            key={module.moduleId}
+                            value={module}
+                            drag
+                            className={module.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
+                            whileDrag={{ scale: 1.02 }}
+                            onDragEnd={() => {
+                              setInitialModules(pendingOrder.current);
+                              handleMoveModule(module.moduleId, versionId);
                             }}
                           >
-                            <ChevronRight
-                              className={`h-3.5 w-3.5 transition-transform ${expandedModules[module.moduleId] ? "rotate-90" : ""
-                                }`}
-                            />
-                            <span className="ml-2 truncate">{module.name}</span>
-                          </SidebarMenuButton>
-                        </Reorder.Item>
+                            <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideModule(module.moduleId, !module.isHidden)} disabled={hidingModuleId === module.moduleId}>
+                              {hidingModuleId === module.moduleId ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : !module.isHidden ? (
+                                <Eye className="h-4 w-4" />
+                              ) : (
+                                <EyeOff className="h-4 w-4" />
+                              )}
+                              <span className="sr-only">Hide Module</span>
+                            </Button>
+                            <SidebarMenuButton
+                              onClick={() => {
+                                toggleModule(module.moduleId);
+                                setSelectedEntity({ type: "module", data: module });
+                                setIsEditingModule(false);
+                                setOriginalModuleData({
+                                  name: module.name,
+                                  description: module.description || ""
+                                });
+                              }}
+                            >
+                              <ChevronRight
+                                className={`h-3.5 w-3.5 transition-transform ${expandedModules[module.moduleId] ? "rotate-90" : ""
+                                  }`}
+                              />
+                              <span className="ml-2 max-w-[35ch] truncate"title={module.name}>{module.name}</span>
+                            </SidebarMenuButton>
+                          </Reorder.Item>
 
-                        {expandedModules[module.moduleId] && (
-                          <Reorder.Group
-                            axis="y"
-                            values={module.sections}
-                            onReorder={(newSectionOrder) => {
-                              pendingOrder.current[module.moduleId] = newSectionOrder;
-                            }}
-                          >
-                            <SidebarMenuSub className="ml-2">
-                              {module.sections?.map((section: any) => (
-                                <Reorder.Item
-                                  key={section.sectionId}
-                                  value={section}
-                                  drag
-                                  className="focus:outline-none"
-                                  whileDrag={{ scale: 1.02 }}
-                                  onDragEnd={() => {
-                                    setInitialModules((prev) =>
-                                      prev.map((mod) =>
-                                        mod.moduleId === module.moduleId
-                                          ? { ...mod, sections: pendingOrder.current[module.moduleId] }
-                                          : mod
-                                      )
-                                    );
-                                    handleMoveSection(module.moduleId, section.sectionId, versionId);
-                                  }}
-                                >
-                                  <SidebarMenuSubItem>
-                                    <SidebarMenuSubButton
-                                      onClick={() => {
-                                        toggleSection(module.moduleId, section.sectionId);
-                                        setSelectedEntity({
-                                          type: "section",
-                                          data: section,
-                                          parentIds: { moduleId: module.moduleId },
-                                        });
-                                        setIsEditingSection(false);
-                                        setOriginalSectionData({
-                                          name: section.name,
-                                          description: section.description || ""
-                                        });
-                                      }}
-                                    >
-                                      <ChevronRight
-                                        className={`h-3 w-3 transition-transform ${expandedSections[section.sectionId] ? "rotate-90" : ""
-                                          }`}
-                                      />
-                                      <span className="ml-2 truncate max-w-[100px] block">{section.name} </span>
-                                    </SidebarMenuSubButton>
-
-                                    {expandedSections[section.sectionId] && (
-                                      <Reorder.Group
-                                        axis="y"
-                                        values={sectionItems[section.sectionId] || []}
-                                        onReorder={(newItemOrder) => {
-                                          pendingOrderItems.current[section.sectionId] = newItemOrder;
+                          {expandedModules[module.moduleId] && (
+                            <Reorder.Group
+                              axis="y"
+                              values={module.sections}
+                              onReorder={(newSectionOrder) => {
+                                pendingOrder.current[module.moduleId] = newSectionOrder;
+                              }}
+                            >
+                              <SidebarMenuSub className="ml-2">
+                                {module.sections?.map((section: any) => (
+                                  <Reorder.Item
+                                    key={section.sectionId}
+                                    value={section}
+                                    drag
+                                    className={section.isHidden || module.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
+                                    whileDrag={{ scale: 1.02 }}
+                                    onDragEnd={() => {
+                                      setInitialModules((prev) =>
+                                        prev.map((mod) =>
+                                          mod.moduleId === module.moduleId
+                                            ? { ...mod, sections: pendingOrder.current[module.moduleId] }
+                                            : mod
+                                        )
+                                      );
+                                      handleMoveSection(module.moduleId, section.sectionId, versionId);
+                                    }}
+                                  >
+                                    <SidebarMenuSubItem>
+                                      <SidebarMenuSubButton
+                                        onClick={() => {
+                                          toggleSection(module.moduleId, section.sectionId);
+                                          setSelectedEntity({
+                                            type: "section",
+                                            data: section,
+                                            parentIds: { moduleId: module.moduleId },
+                                          });
+                                          setIsEditingSection(false);
+                                          setOriginalSectionData({
+                                            name: section.name,
+                                            description: section.description || ""
+                                          });
                                         }}
                                       >
-                                        <SidebarMenuSub className="ml-4 space-y-1 pt-1">
-                                          {(sectionItems[section.sectionId] || [])
-                                            .slice()
-                                            .sort((a: any, b: any) => a.order.localeCompare(b.order))
-                                            .map((item: any) => (
-                                              <Reorder.Item
-                                                key={item._id}
-                                                value={item}
-                                                drag
-                                                className="focus:outline-none"
-                                                whileDrag={{ scale: 1.02 }}
-                                                onDragEnd={() => {
+                                        <ChevronRight
+                                          className={`h-3 w-3 transition-transform ${expandedSections[section.sectionId] ? "rotate-90" : ""
+                                            }`}
+                                        />
+                                        <span className="ml-2 truncate  max-w-[25ch] truncate block" title={section.name}
+                                        >{section.name} </span>
+                                      </SidebarMenuSubButton>
+                                      <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideSection(module.moduleId, section.sectionId, !section.isHidden)} disabled={module.isHidden || hidingSectionId === section.sectionId}>
+                                        {hidingSectionId === section.sectionId ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : !section.isHidden ? (
+                                          <Eye className="h-4 w-4" />
+                                        ) : (
+                                          <EyeOff className="h-4 w-4" />
+                                        )}
+                                        <span className="sr-only">Hide Section</span>
+                                      </Button>
 
-                                                  setSectionItems((prev) => {
-                                                    const items = pendingOrderItems.current[section.sectionId] || prev[section.sectionId];
+                                      {expandedSections[section.sectionId] && (
+                                        <Reorder.Group
+                                          axis="y"
+                                          values={sectionItems[section.sectionId] || []}
+                                          onReorder={(newItemOrder) => {
+                                            pendingOrderItems.current[section.sectionId] = newItemOrder;
+                                          }}
+                                        >
+                                          <SidebarMenuSub className="ml-4 space-y-1 pt-1">
+                                            {itemsLoading && activeSectionInfo?.sectionId === section.sectionId ? (
+                                              <div className="flex items-center justify-center py-4">
+                                                <Loader />
+                                              </div>
+                                            ) : (sectionItems[section.sectionId] || [])
+                                              .slice()
+                                              .sort((a: any, b: any) => a.order.localeCompare(b.order))
+                                              .map((item: any) => (
+                                                <Reorder.Item
+                                                  key={item._id}
+                                                  value={item}
+                                                  drag
+                                                  className={section.isHidden || module.isHidden || item.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
+                                                  whileDrag={{ scale: 1.02 }}
+                                                  onDragEnd={() => {
 
-                                                    // Sort by LexoRank-compatible `order` string
-                                                    const sortedItems = [...items].sort((a, b) => a.order.localeCompare(b.order));
+                                                    setSectionItems((prev) => {
+                                                      const items = pendingOrderItems.current[section.sectionId] || prev[section.sectionId];
 
-                                                    return {
-                                                      ...prev,
-                                                      [section.sectionId]: sortedItems
-                                                    };
-                                                  });
+                                                      // Sort by LexoRank-compatible `order` string
+                                                      const sortedItems = [...items].sort((a, b) => a.order.localeCompare(b.order));
 
-                                                  handleMoveItem(module.moduleId, section.sectionId, item._id, versionId);
-                                                }}
-                                              >
-                                                <SidebarMenuSubItem key={item._id}>
-                                                  <SidebarMenuSubButton
-                                                    className={`justify-start ${selectedItem.name === getItemLabel({
-                                                      itemId: item._id,
-                                                      itemType: item.type,
-                                                      sectionItems,
-                                                      sectionId: section.sectionId
-                                                    }) && selectedItem.id == item._id
-                                                      ? "bg-zinc-600 text-gray-200"
-                                                      : "bg-transparent transition-none"
-                                                      }`}
-                                                    onClick={() => {
-                                                      const label = getItemLabel({
-                                                        itemId: item._id,
-                                                        itemType: item.type,
-                                                        sectionItems,
-                                                        sectionId: section.sectionId
-                                                      });
-
-                                                      setSelectedItem({ id: item._id, name: label });
-
-                                                      // Patch: For PROJECT, ensure name/description are always present at root
-                                                      let patchedItem = item;
-                                                      if (item.type === 'PROJECT') {
-                                                        const details = item.details || {};
-                                                        const name = (details.name && details.name.trim()) ? details.name : (item.name || '');
-                                                        const description = (details.description && details.description.trim()) ? details.description : (item.description || '');
-                                                        patchedItem = {
-                                                          ...item,
-                                                          name,
-                                                          description
-                                                        };
-                                                      }
-                                                      setSelectedEntity({
-                                                        type: "item",
-                                                        data: patchedItem,
-                                                        parentIds: {
-                                                          moduleId: module.moduleId,
-                                                          sectionId: section.sectionId,
-                                                          itemsGroupId: section.itemsGroupId,
-                                                        },
-                                                      });
-                                                    }
-                                                    }
-                                                  >
-                                                    {getItemIcon(item.type)}
-                                                    <span className={`ml-1 text-xs ${selectedItem.name === getItemLabel({
-                                                      itemId: item._id,
-                                                      itemType: item.type,
-                                                      sectionItems,
-                                                      sectionId: section.sectionId
-                                                    }) && selectedItem.id == item._id
-                                                      ? "text-gray-200"
-                                                      : "text-muted-foreground"
-                                                      }`}>
-                                                      {getItemLabel({
-                                                        itemId: item._id,
-                                                        itemType: item.type,
-                                                        sectionItems,
-                                                        sectionId: section.sectionId
-                                                      })}
-                                                    </span>
-                                                  </SidebarMenuSubButton>
-                                                </SidebarMenuSubItem>
-                                              </Reorder.Item>
-                                           ))}
-                                          <div className="ml-6 mt-2">
-
-                                            <select
-
-                                              className="text-xs border rounded px-2 py-1 bg-background text-foreground"
-
-                                              defaultValue=""
-
-                                              onChange={(e) => {
-
-                                                const type = e.target.value;
-
-                                                if (type) {
-
-                                                  if (type === "VIDEO") {
-
-                                                    setShowAddVideoModal({
-
-                                                      moduleId: module.moduleId,
-
-                                                      sectionId: section.sectionId,
-
+                                                      return {
+                                                        ...prev,
+                                                        [section.sectionId]: sortedItems
+                                                      };
                                                     });
 
-                                                  } else if (type === "quiz") {
-
-                                                    setQuizModuleId(module.moduleId);
-
-                                                    setQuizSectionId(section.sectionId);
-
-                                                    // Update course store with current context
-
-                                                    if (currentCourse) {
-
-                                                      setCurrentCourse({
-
-                                                        ...currentCourse,
-
-                                                        moduleId: module.moduleId,
-
+                                                    handleMoveItem(module.moduleId, section.sectionId, item._id, versionId);
+                                                  }}
+                                                >
+                                                  <SidebarMenuSubItem key={item._id}>
+                                                    <SidebarMenuSubButton
+                                                      className={`justify-start ${selectedItem.name === getItemLabel({
+                                                        itemId: item._id,
+                                                        itemType: item.type,
+                                                        sectionItems,
                                                         sectionId: section.sectionId
+                                                      }) && selectedItem.id == item._id
+                                                        ? "bg-zinc-600 text-gray-200"
+                                                        : "bg-transparent transition-none"
+                                                        }`}
+                                                      onClick={() => {
+                                                        const label = getItemLabel({
+                                                          itemId: item._id,
+                                                          itemType: item.type,
+                                                          sectionItems,
+                                                          sectionId: section.sectionId
+                                                        });
 
-                                                      });
+                                                        setSelectedItem({ id: item._id, name: label });
 
-                                                    }
-
-                                                    setQuizWizardOpen(true);
-
-
-                                                  } 
-                                                  else if(type === "project"){
-                                                    createItemAsync({
-                                                      params: {
-                                                        path: {
-                                                          versionId: versionId!,
-                                                          moduleId: module.moduleId,
-                                                          sectionId: section.sectionId,
-                                                        },
-                                                      },
-                                                      body: {
-                                                        type: "PROJECT",
-                                                        name: `Project name`,
-                                                        description: `Project description`
-                                                      },
-                                                    })
-                                                    .then((created) => {
-                                                      const newItem = created?.createdItem || created?.item || created?.data || created;
-                                                      const itemsGroupId = created?.itemsGroup?._id || section.itemsGroupId;
-                                                      if (newItem && newItem._id) {
-                                                        setSelectedItem({ id: newItem._id, name: newItem.name });
+                                                        // Patch: For PROJECT, ensure name/description are always present at root
+                                                        let patchedItem = item;
+                                                        if (item.type === 'PROJECT') {
+                                                          const details = item.details || {};
+                                                          const name = (details.name && details.name.trim()) ? details.name : (item.name || '');
+                                                          const description = (details.description && details.description.trim()) ? details.description : (item.description || '');
+                                                          patchedItem = {
+                                                            ...item,
+                                                            name,
+                                                            description
+                                                          };
+                                                        }
                                                         setSelectedEntity({
                                                           type: "item",
-                                                          data: newItem,
+                                                          data: patchedItem,
                                                           parentIds: {
                                                             moduleId: module.moduleId,
                                                             sectionId: section.sectionId,
-                                                            itemsGroupId,
+                                                            itemsGroupId: section.itemsGroupId,
                                                           },
                                                         });
-                                                      } else {
-                                                        refetchVersion();
-                                                        refetchItems();
+
+                                                        if (checkScreenSize() && (item.type === 'VIDEO' || item.type === 'QUIZ' || item.type === 'BLOG')) {
+                                                          setOpenMobile(false);
+                                                          setOpen(false);
+                                                        }
                                                       }
-                                                    });
+                                                      }
+                                                    >
+                                                      {getItemIcon(item.type)}
+                                                      <span className={`ml-1 text-xs ${selectedItem.name === getItemLabel({
+                                                        itemId: item._id,
+                                                        itemType: item.type,
+                                                        sectionItems,
+                                                        sectionId: section.sectionId
+                                                      }) && selectedItem.id == item._id
+                                                        ? "text-gray-200"
+                                                        : "text-muted-foreground"
+                                                        }`}>
+                                                        {getItemLabel({
+                                                          itemId: item._id,
+                                                          itemType: item.type,
+                                                          sectionItems,
+                                                          sectionId: section.sectionId
+                                                        })}
+                                                      </span>
+                                                    </SidebarMenuSubButton>
+                                                    <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideItem(item._id, !item.isHidden)} disabled={section.isHidden || module.isHidden || hidingItemId === item._id}>
+                                                      {hidingItemId === item._id ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                      ) : !item.isHidden ? (
+                                                        <Eye className="h-4 w-4" />
+                                                      ) : (
+                                                        <EyeOff className="h-4 w-4" />
+                                                      )}
+                                                      <span className="sr-only">Hide Item</span>
+                                                    </Button>
+                                                  </SidebarMenuSubItem>
+                                                </Reorder.Item>
+                                              ))}
+                                            <div className="ml-6 mt-2">
+
+                                              <select
+
+                                                className="text-xs border rounded px-2 py-1 bg-background text-foreground"
+
+                                                defaultValue=""
+
+                                                disabled={module.isHidden || section.isHidden}
+
+                                                onChange={(e) => {
+
+                                                  const type = e.target.value;
+
+                                                  if (type) {
+
+                                                    if (type === "VIDEO") {
+
+                                                      setShowAddVideoModal({
+
+                                                        moduleId: module.moduleId,
+
+                                                        sectionId: section.sectionId,
+
+                                                      });
+
+                                                    } else if (type === "quiz") {
+
+                                                      setQuizModuleId(module.moduleId);
+
+                                                      setQuizSectionId(section.sectionId);
+
+                                                      // Update course store with current context
+
+                                                      if (currentCourse) {
+
+                                                        setCurrentCourse({
+
+                                                          ...currentCourse,
+
+                                                          moduleId: module.moduleId,
+
+                                                          sectionId: section.sectionId
+
+                                                        });
+
+                                                      }
+
+                                                      setQuizWizardOpen(true);
+
+
+                                                    }
+                                                    else if (type === "project") {
+
+                                                      createItemAsync({
+                                                        params: {
+                                                          path: {
+                                                            versionId: versionId!,
+                                                            moduleId: module.moduleId,
+                                                            sectionId: section.sectionId,
+                                                          },
+                                                        },
+                                                        body: {
+                                                          type: "PROJECT",
+                                                          name: `Project name`,
+                                                          description: `Project description`
+                                                        },
+                                                      })
+                                                        .then((created) => {
+                                                          const newItem = created?.createdItem || created?.item || created?.data || created;
+                                                          const itemsGroupId = created?.itemsGroup?._id || section.itemsGroupId;
+
+                                                          if (newItem && newItem._id) {
+                                                            setSelectedItem({ id: newItem._id, name: newItem.name });
+                                                            setSelectedEntity({
+                                                              type: "item",
+                                                              data: newItem,
+                                                              parentIds: {
+                                                                moduleId: module.moduleId,
+                                                                sectionId: section.sectionId,
+                                                                itemsGroupId,
+                                                              },
+                                                            });
+                                                          } else {
+                                                            refetchVersion();
+                                                            if (shouldFetchItems) {
+                                                              refetchItems();
+                                                            }
+                                                          }
+                                                        });
+                                                    }
+                                                    else if (type === "feedback") {
+                                                      createItemAsync({
+                                                        params: {
+                                                          path: {
+                                                            versionId: versionId!,
+                                                            moduleId: module.moduleId,
+                                                            sectionId: section.sectionId,
+                                                          },
+                                                        },
+                                                        body: {
+                                                          type: "FEEDBACK",
+                                                          name: "Feedback Form",
+                                                          description: "Submit your feedback about the previous video/quiz",
+                                                          feedbackFormDetails: {
+                                                            jsonSchema: {
+                                                              type: 'object',
+                                                              properties: {
+                                                                Name: {
+                                                                  type: 'string',
+                                                                  title: 'Name',
+                                                                  minLength: 1,
+                                                                },
+                                                                Email: {
+                                                                  type: 'string',
+                                                                  format: 'email',
+                                                                  title: 'Email',
+                                                                },
+                                                                Feedback: {
+                                                                  type: 'string',
+                                                                  title: 'Feedback',
+                                                                  minLength: 10
+                                                                },
+                                                              },
+                                                              required: ['Name', 'Email', 'Feedback'],
+                                                            },
+                                                            uiSchema: {
+                                                              Name: {
+                                                                'ui:placeholder': 'Enter your Name',
+                                                              },
+                                                              Email: {
+                                                                'ui:placeholder': 'Enter your Email',
+                                                              },
+                                                              Feedback: {
+                                                                'ui:placeholder': 'Enter your feedback here...',
+                                                                'ui:widget': 'textarea',
+                                                              },
+                                                            }
+                                                          },
+                                                        }
+                                                      })
+                                                        .then((created) => {
+                                                          const newItem = created?.createdItem || created?.item || created?.data || created;
+                                                          const itemsGroupId = created?.itemsGroup?._id || section.itemsGroupId;
+
+                                                          if (newItem && newItem._id) {
+                                                            // Auto-select the newly created feedback form
+                                                            setSelectedItem({ id: newItem._id, name: "Feedback Form 1" });
+                                                            setSelectedEntity({
+                                                              type: "item",
+                                                              data: newItem,
+                                                              parentIds: {
+                                                                moduleId: module.moduleId,
+                                                                sectionId: section.sectionId,
+                                                                itemsGroupId,
+                                                              },
+                                                            });
+                                                          } else {
+                                                            refetchVersion();
+                                                            if (shouldFetchItems) {
+                                                              refetchItems();
+                                                            }
+                                                          }
+                                                        })
+                                                        .catch((err) => {
+                                                          toast.error("Failed to create feedback form");
+                                                          console.error(err);
+                                                        });
+                                                    }
+                                                    else if (type === "csv_upload") {
+                                                      setActiveSectionInfo({ moduleId: module.moduleId, sectionId: section.sectionId });
+                                                      setShowCSVUpload(true);
+                                                    }
+                                                    else {
+                                                      setActiveSectionInfo({ moduleId: module.moduleId, sectionId: section.sectionId });
+                                                      handleAddItem(module.moduleId, section.sectionId, type);
+
+                                                    }
+
+                                                    e.target.value = "";
+
                                                   }
-                                                  else {
 
-                                                    handleAddItem(module.moduleId, section.sectionId, type);
+                                                }}
 
-                                                  }
-
-                                                  e.target.value = "";
-
-                                                }
-
-                                              }}
-
-                                            >
-
-                                              <option value="" disabled>Add Item</option>
-
-                                              <option value="article">Article</option>
-
-                                              <option value="VIDEO">Video</option>
-
-                                              <option value="quiz">Quiz</option>
-
-                                              <option 
-                                                value="project" 
-                                                disabled={hasExistingProject}
-                                                className={hasExistingProject ? 'text-gray-400' : ''}
                                               >
-                                                {hasExistingProject ? 'Project (Limit 1 per course)' : 'Project'}
-                                              </option>
 
-                                            </select>
-                                            <TooltipProvider>
-                                              <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                  <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                      <Button
-                                                        type="button"
-                                                        className="inline-flex items-center justify-center px-1.5 py-0 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold text-[10px] gap-0.5 shadow transition-all duration-200 hover:scale-105 hover:shadow-lg hover:from-purple-600 hover:to-indigo-600 focus:outline-none focus:ring-2 focus:ring-purple-400 ml-3"
-                                                        style={{ minWidth: 'unset', height: '1.5rem' }}
-                                                      >
-                                                        <Sparkles className="h-2 w-2" />
-                                                        <span>AI</span>
-                                                      </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="start" className="w-40">
-                                                      <DropdownMenuItem 
-                                                        className="text-xs cursor-pointer"
-                                                        onClick={() => {
-                                                          setCurrentCourse({
-                                                            courseId,
-                                                            versionId,
-                                                            moduleId: module.moduleId,
-                                                            sectionId: section.sectionId,
-                                                            itemId: null,
-                                                            watchItemId: null,
-                                                          });
-                                                          navigate({ to: '/teacher/ai-section' });
-                                                        }}
-                                                      >
-                                                        Custom mode
-                                                      </DropdownMenuItem>
-                                                      <DropdownMenuItem 
-                                                        className="text-xs cursor-pointer"
-                                                        onClick={() => {
-                                                          setCurrentCourse({
-                                                            courseId,
-                                                            versionId,
-                                                            moduleId: module.moduleId,
-                                                            sectionId: section.sectionId,
-                                                            itemId: null,
-                                                            watchItemId: null,
-                                                          });
-                                                          navigate({ to: '/teacher/ai-workflow' });
-                                                        }}
-                                                      >
-                                                        Wizard mode
-                                                      </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                  </DropdownMenu>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="right" align="center">
-                                                  Generate Section with AI
-                                                </TooltipContent>
-                                              </Tooltip>
-                                            </TooltipProvider>
-                                          </div>
+                                                <option value="" disabled>Add Item</option>
 
-                                        </SidebarMenuSub>
-                                      </Reorder.Group>
-                                    )}
-                                  </SidebarMenuSubItem>
-                                </Reorder.Item>
-                              ))}
+                                                <option value="article">Article</option>
 
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="ml-4 mt-2 h-6 text-xs"
-                                onClick={() => handleAddSection(module.moduleId)}
-                              >
-                                <Plus className="h-3 w-3 mr-1" />
-                                Add Section
-                              </Button>
-                            </SidebarMenuSub>
-                          </Reorder.Group>
-                        )}
-                      </SidebarMenuItem>
-                    ))}
+                                                <option value="VIDEO">Video</option>
 
-                  <div className="px-2 pt-3">
-                    <Button size="sm" className="w-full text-xs" onClick={handleAddModule}>
-                      <Plus className="h-3 w-3 mr-1" />
-                      Add Module
-                    </Button>
-                  </div>
-                </SidebarMenu>
-              </Reorder.Group>
+                                                <option value="quiz">Quiz</option>
 
+                                                <option value="feedback">Feedback Form</option>
 
-            </ScrollArea>
-          </SidebarContent>
-          <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
-            <SidebarMenu className="space-y-1 pl-2 py-3">
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
-                >
-                  <Link to="/teacher" className="flex items-center gap-3">
-                    <div className="p-1 rounded-md bg-accent/15">
-                      <Home className="h-4 w-4 text-accent-foreground" />
+                                                <option
+                                                  value="project"
+                                                  disabled={hasExistingProject}
+                                                  className={hasExistingProject ? 'text-gray-400' : ''}
+                                                >
+                                                  {hasExistingProject ? 'Project (Limit 1 per course)' : 'Project'}
+                                                </option>
+                                                <option value="csv_upload">Upload CSV</option>
+
+                                              </select>
+                                              <TooltipProvider>
+                                                <Tooltip>
+                                                  <TooltipTrigger asChild>
+                                                    <DropdownMenu>
+                                                      <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                          type="button"
+                                                          className="inline-flex items-center justify-center px-1.5 py-0 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold text-[10px] gap-0.5 shadow transition-all duration-200 hover:scale-105 hover:shadow-lg hover:from-purple-600 hover:to-indigo-600 focus:outline-none focus:ring-2 focus:ring-purple-400 ml-3"
+                                                          style={{ minWidth: 'unset', height: '1.5rem' }}
+                                                        >
+                                                          <Sparkles className="h-2 w-2" />
+                                                          <span>AI</span>
+                                                        </Button>
+                                                      </DropdownMenuTrigger>
+                                                      <DropdownMenuContent align="start" className="w-40">
+                                                        <DropdownMenuItem
+                                                          className="text-xs cursor-pointer"
+                                                          onClick={() => {
+                                                            setCurrentCourse({
+                                                              courseId,
+                                                              versionId,
+                                                              moduleId: module.moduleId,
+                                                              sectionId: section.sectionId,
+                                                              itemId: null,
+                                                              watchItemId: null,
+                                                            });
+                                                            navigate({ to: '/teacher/ai-section' });
+                                                          }}
+                                                        >
+                                                          Custom mode
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                          className="text-xs cursor-pointer"
+                                                          onClick={() => {
+                                                            setCurrentCourse({
+                                                              courseId,
+                                                              versionId,
+                                                              moduleId: module.moduleId,
+                                                              sectionId: section.sectionId,
+                                                              itemId: null,
+                                                              watchItemId: null,
+                                                            });
+                                                            navigate({ to: '/teacher/ai-workflow' });
+                                                          }}
+                                                        >
+                                                          Wizard mode
+                                                        </DropdownMenuItem>
+                                                      </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                  </TooltipTrigger>
+                                                  <TooltipContent side="right" align="center">
+                                                    Generate Section with AI
+                                                  </TooltipContent>
+                                                </Tooltip>
+                                              </TooltipProvider>
+                                            </div>
+
+                                          </SidebarMenuSub>
+                                        </Reorder.Group>
+                                      )}
+                                    </SidebarMenuSubItem>
+                                  </Reorder.Item>
+                                ))}
+
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="ml-4 mt-2 w-[220px] h-6 text-xs"
+                                  onClick={() => handleAddSection(module.moduleId)}
+                                >
+                                  <Plus className="h-3 w-3 mr-1" />
+                                  Add Section
+                                </Button>
+                              </SidebarMenuSub>
+                            </Reorder.Group>
+                          )}
+                        </SidebarMenuItem>
+                      ))}
+
+                    <div className="px-2 pt-3">
+                      <Button size="sm" className="w-[250px]  text-xs" onClick={handleAddModule}>
+                        <Plus className="h-3 w-3 mr-1" />
+                        Add Module
+                      </Button>
                     </div>
-                    <span className="text-sm font-medium">Dashboard</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+                  </SidebarMenu>
+                </Reorder.Group>
 
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
-                >
-                  <Link to="/teacher" className="flex items-center gap-3">
-                    <div className="p-1 rounded-md bg-accent/15">
-                      <GraduationCap className="h-4 w-4 text-accent-foreground" />
-                    </div>
-                    <span className="text-sm font-medium">Courses</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
 
-              <Separator className="my-2 opacity-50" />
+              </ScrollArea>
+            </SidebarContent>
+            <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
+              <SidebarMenu className="space-y-1 pl-2 py-3">
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                  >
+                    <Link to="/teacher" className="flex items-center gap-3">
+                      <div className="p-1 rounded-md bg-accent/15">
+                        <Home className="h-4 w-4 text-accent-foreground" />
+                      </div>
+                      <span className="text-sm font-medium">Dashboard</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
 
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  className="h-10 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
-                >
-                  <Link to="/teacher/profile" className="flex items-center gap-3">
-                    <Avatar className="h-6 w-6 border border-border/20">
-                      <AvatarImage src={user?.avatar} alt={user?.name} />
-                      <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/5 text-primary font-bold text-xs">
-                        {user?.name?.charAt(0).toUpperCase() || 'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 text-left min-w-0">
-                      <div className="text-sm font-medium truncate" title={user?.name || 'Profile'}>{user?.name || 'Profile'}</div>
-                      <div className="text-xs text-muted-foreground">View Profile</div>
-                    </div>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarFooter>
-        </Sidebar>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                  >
+                    <Link to="/teacher" className="flex items-center gap-3">
+                      <div className="p-1 rounded-md bg-accent/15">
+                        <GraduationCap className="h-4 w-4 text-accent-foreground" />
+                      </div>
+                      <span className="text-sm font-medium">Courses</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
 
+                <Separator className="my-2 opacity-50" />
+
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    className="h-10 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                  >
+                    <Link to="/teacher/profile" className="flex items-center gap-3">
+                      <Avatar className="h-6 w-6 border border-border/20">
+                        <AvatarImage src={user?.avatar} alt={user?.name} />
+                        <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/5 text-primary font-bold text-xs">
+                          {user?.name?.charAt(0).toUpperCase() || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 text-left min-w-0">
+                        <div className="text-sm font-medium truncate" title={user?.name || 'Profile'}>{user?.name || 'Profile'}</div>
+                        <div className="text-xs text-muted-foreground">View Profile</div>
+                      </div>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarFooter>
+          </Sidebar>
+        </div>
+      </ResizablePanel>
+
+
+
+
+      {/* Side bar till herer  */}
+
+
+
+
+
+      <ResizableHandle className="hidden md:flex" />
+      <ResizablePanel defaultSize={80} className="min-w-0">
         {/* Course Editor Area */}
         <SidebarInset className="flex-1 bg-background overflow-y-auto">
-          <div className="w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="md:hidden">
-                  <SidebarTrigger />
+          <div className="w-full p-4 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+                  className="md:hidden shrink-0"
+                >
+                  <Menu className="h-7 w-7" />
+                  <span className="sr-only">Toggle Menu</span>
+                </Button>
+
+                <div className="flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-lg border min-w-0 flex-1 sm:flex-none sm:min-w-[200px]">
+                  <GraduationCap className="h-4 w-4 text-primary flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground whitespace-nowrap">Course</p>
+                    <h2 className="text-sm font-medium leading-tight truncate">
+                      {isLoading ? (
+                        <span className="inline-block h-4 w-32 bg-muted rounded animate-pulse"></span>
+                      ) : (
+                        courseData?.name || 'Untitled Course'
+                      )}
+                    </h2>
+                  </div>
                 </div>
-                <h2 className="text-lg font-semibold">Course Editor</h2>
               </div>
+
               {versionData && (
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary px-4 py-2 text-base font-semibold">
+                <div className="flex items-center">
+                  <Badge
+                    variant="outline"
+                    className="bg-primary/10 border-primary/20 text-primary px-3 py-1.5 text-xs sm:text-sm font-medium whitespace-nowrap"
+                  >
                     Version: {(versionData as any)?.version || (versionData as any)?.name || 'Unknown'}
                   </Badge>
                 </div>
@@ -1162,9 +1831,113 @@ export default function TeacherCoursePage() {
                       <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-slate-900 dark:text-gray-100">
                         {selectedEntity.data?.name}
                       </h2>
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600">
-                        {selectedEntity.type.charAt(0).toUpperCase() + selectedEntity.type.slice(1)}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {selectedEntity.type === "item" && (
+                          // <div className="items-center gap-2 bg-muted/40 px-2 py-1 rounded-md border text-sm">
+                          //   <div className="flex items-center justify-center gap-1.5">
+                          //     <Switch
+                          //       id={`optional-${selectedItemData?.item?._id}`}
+                          //       checked={selectedItemData?.item?.isOptional || false}
+                          //       disabled={updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id}
+                          //       onCheckedChange={async (checked) => {
+                          //         if (versionId && selectedItemData?.item?._id) {
+                          //           setTogglingItemId(selectedItemData.item._id);
+                          //           try {
+                          //             await updateItemOptional.mutateAsync({
+                          //               params: {
+                          //                 path: {
+                          //                   versionId: versionId,
+                          //                   itemId: selectedEntity?.data?._id
+                          //                 }
+                          //               },
+                          //               body: { isOptional: checked }
+                          //             });
+                          //             refetchItem();
+                          //           } catch (error) {
+                          //             toast.error('Failed to update item optional status');
+                          //           } finally {
+                          //             setTogglingItemId(null);
+                          //           }
+                          //         }
+                          //       }}
+                          //       className={cn(
+                          //         "data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
+                          //         "h-4 w-8",
+                          //         "relative",
+                          //         "cursor-pointer",
+                          //         updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id
+                          //           ? "opacity-70"
+                          //           : "opacity-100"
+                          //       )}
+                          //     >
+                          //       {(updateItemOptional.isPending || togglingItemId === selectedItemData?.item?._id) && (
+                          //         <Loader2 className="h-2 w-2 animate-spin absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-primary-foreground" />
+                          //       )}
+                          //     </Switch>
+                          //     <Label
+                          //       htmlFor={`optional-${selectedEntity?.data?._id}`}
+                          //       className="text-lg text-white cursor-pointer"
+                          //       title="Students can skip this item if enabled"
+                          //     >
+                          //       Optional
+                          //     </Label>
+                          //   </div>
+                          //   <div>
+                          //     <p className="text-[10px] text-muted-foreground/80">Students can skip this item if enabled</p>
+                          //   </div>
+                          // </div>
+                          <div className="inline-flex items-center gap-2 px-3 py-2 rounded-md border bg-card">
+                            <Switch
+                              id={`optional-${selectedItemData?.item?._id}`}
+                              checked={selectedItemData?.item?.isOptional || false}
+                              disabled={updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id}
+                              onCheckedChange={async (checked) => {
+                                if (versionId && selectedItemData?.item?._id) {
+                                  setTogglingItemId(selectedItemData.item._id);
+                                  try {
+                                    await updateItemOptional.mutateAsync({
+                                      params: {
+                                        path: {
+                                          versionId: versionId,
+                                          itemId: selectedEntity?.data?._id
+                                        }
+                                      },
+                                      body: { isOptional: checked }
+                                    });
+                                    refetchItem();
+                                  } catch (error) {
+                                    toast.error('Failed to update item optional status');
+                                  } finally {
+                                    setTogglingItemId(null);
+                                  }
+                                }
+                              }}
+                              className={cn(
+                                "data-[state=checked]:bg-primary",
+                                updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id
+                                  ? "opacity-50"
+                                  : ""
+                              )}
+                            >
+                              {(updateItemOptional.isPending || togglingItemId === selectedItemData?.item?._id) && (
+                                <Loader2 className="h-3 w-3 animate-spin absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
+                              )}
+                            </Switch>
+                            <div className="flex flex-col gap-0.5">
+                              <Label
+                                htmlFor={`optional-${selectedEntity?.data?._id}`}
+                                className="text-sm font-medium cursor-pointer leading-none"
+                              >
+                                Optional
+                              </Label>
+                              <p className="text-xs text-muted-foreground">Students can skip this item</p>
+                            </div>
+                          </div>
+                        )}
+                        {/* <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600">
+                          {selectedEntity.type.charAt(0).toUpperCase() + selectedEntity.type.slice(1)}
+                        </Badge> */}
+                      </div>
                     </div>
                     <div className="text-sm text-slate-500 dark:text-gray-400 flex items-center gap-2">
                       <BookOpen className="h-4 w-4" />
@@ -1184,7 +1957,7 @@ export default function TeacherCoursePage() {
                               : selectedEntity.data?.name ?? ""
                           }
                           disabled={
-                            (selectedEntity.type === "module" && !isEditingModule) || 
+                            (selectedEntity.type === "module" && !isEditingModule) ||
                             (selectedEntity.type === "section" && !isEditingSection)
                           }
                           onChange={e => {
@@ -1245,12 +2018,12 @@ export default function TeacherCoursePage() {
                                   : selectedEntity.data?.description ?? ""
                               }
                               disabled={
-                                (selectedEntity.type === "module" && !isEditingModule) || 
+                                (selectedEntity.type === "module" && !isEditingModule) ||
                                 (selectedEntity.type === "section" && !isEditingSection)
                               }
                               onChange={e => {
                                 const value = e.target.value;
-                                
+
                                 // Only update if within limit or deleting characters
                                 if (value.length <= MAX_DESCRIPTION_LENGTH) {
                                   setSelectedEntity({
@@ -1282,18 +2055,16 @@ export default function TeacherCoursePage() {
                               placeholder={`Description (max ${MAX_DESCRIPTION_LENGTH} characters)`}
                               rows={5}
                               maxLength={MAX_DESCRIPTION_LENGTH}
-                              className={`w-full rounded border px-3 py-2 pr-16 text-sm ${
-                                (selectedEntity.type === "module" && !isEditingModule) || 
-                                (selectedEntity.type === "section" && !isEditingSection) 
-                                  ? 'bg-muted/50 border-transparent' 
-                                  : ''
-                              }`}
+                              className={`w-full rounded border px-3 py-2 pr-16 text-sm ${(selectedEntity.type === "module" && !isEditingModule) ||
+                                (selectedEntity.type === "section" && !isEditingSection)
+                                ? 'bg-muted/50 border-transparent'
+                                : ''
+                                }`}
                             />
-                            <div className={`absolute bottom-2 right-2 text-xs ${
-                              (selectedEntity.data?.description?.length || 0) >= (MAX_DESCRIPTION_LENGTH * 0.9) 
-                                ? 'text-destructive' 
-                                : 'text-muted-foreground'
-                            }`}>
+                            <div className={`absolute bottom-2 right-2 text-xs ${(selectedEntity.data?.description?.length || 0) >= (MAX_DESCRIPTION_LENGTH * 0.9)
+                              ? 'text-destructive'
+                              : 'text-muted-foreground'
+                              }`}>
                               {selectedEntity.data?.description?.length || 0}/{MAX_DESCRIPTION_LENGTH}
                             </div>
                           </div>
@@ -1320,21 +2091,21 @@ export default function TeacherCoursePage() {
                                 });
                                 return;
                               }
-                              
+
                               const moduleName = selectedEntity.data.name?.trim();
                               const moduleDescription = selectedEntity.data.description?.trim() ?? "";
                               if (!moduleName || !moduleDescription) {
                                 setErrors({
                                   title: !moduleName ? "Module name is required." : "",
-                                  description: !moduleDescription 
+                                  description: !moduleDescription
                                     ? "Module description is required."
-                                    : moduleDescription.length >= MAX_DESCRIPTION_LENGTH 
-                                      ? `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` 
+                                    : moduleDescription.length >= MAX_DESCRIPTION_LENGTH
+                                      ? `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.`
                                       : ""
                                 });
                                 return;
                               }
-                              
+
                               setErrors({ title: "", description: "" });
                               if (versionId) {
                                 updateModuleAsync({
@@ -1345,13 +2116,15 @@ export default function TeacherCoursePage() {
                                   }
                                 }).then((res) => {
                                   refetchVersion();
-                                  refetchItems();
+                                  if (shouldFetchItems) {
+                                    refetchItems();
+                                  }
                                   setIsEditingModule(false);
                                 });
                               }
                               return;
                             }
-                            
+
                             if (selectedEntity.type === "section") {
                               if (!isEditingSection) {
                                 setIsEditingSection(true);
@@ -1361,16 +2134,16 @@ export default function TeacherCoursePage() {
                                 });
                                 return;
                               }
-                            const sectionName = selectedEntity.data.name?.trim();
-                            const sectionDescription = selectedEntity.data.description?.trim() ?? "";
-                            
+                              const sectionName = selectedEntity.data.name?.trim();
+                              const sectionDescription = selectedEntity.data.description?.trim() ?? "";
+
                               if (!sectionName || !sectionDescription) {
                                 setErrors({
                                   title: !sectionName ? "Section name is required." : "",
-                                  description: !sectionDescription 
-                                    ? "Section description is required." 
-                                    : sectionDescription.length >= MAX_DESCRIPTION_LENGTH 
-                                      ? `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` 
+                                  description: !sectionDescription
+                                    ? "Section description is required."
+                                    : sectionDescription.length >= MAX_DESCRIPTION_LENGTH
+                                      ? `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.`
                                       : ""
                                 });
                                 return;
@@ -1392,7 +2165,9 @@ export default function TeacherCoursePage() {
                                 }
                               }).then((res) => {
                                 refetchVersion();
-                                refetchItems();
+                                if (shouldFetchItems) {
+                                  refetchItems();
+                                }
                                 setIsEditingSection(false);
                               });
                             }
@@ -1418,9 +2193,9 @@ export default function TeacherCoursePage() {
                           }}
                           className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
                         >
-                          {selectedEntity.type === "module" 
-                        ? (isEditingModule ? 'Save Changes' : `Update ${selectedEntity.type}`)
-                        : (isEditingSection ? 'Save Changes' : `Update ${selectedEntity.type}`)}
+                          {selectedEntity.type === "module"
+                            ? (isEditingModule ? 'Save Changes' : `Update ${selectedEntity.type}`)
+                            : (isEditingSection ? 'Save Changes' : `Update ${selectedEntity.type}`)}
                         </Button>
                       )}
 
@@ -1438,7 +2213,7 @@ export default function TeacherCoursePage() {
                                   description: originalModuleData.description
                                 }
                               });
-                            setIsEditingModule(false);
+                              setIsEditingModule(false);
                             } else if (selectedEntity.type === 'section' && originalSectionData) {
                               setSelectedEntity({
                                 ...selectedEntity,
@@ -1455,7 +2230,7 @@ export default function TeacherCoursePage() {
                         >
                           Cancel
                         </Button>
-                      )}                 
+                      )}
                       {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
                         <Button
                           variant="outline"
@@ -1468,7 +2243,9 @@ export default function TeacherCoursePage() {
                                   params: { path: { versionId, moduleId: selectedEntity.data.moduleId } }
                                 }).then((res) => {
                                   refetchVersion();
-                                  refetchItems();
+                                  if (shouldFetchItems) {
+                                    refetchItems();
+                                  }
                                 });
                                 setSelectedEntity(null);
                                 setExpandedModules(prev => ({ ...prev, [selectedEntity.data.moduleId]: false }));
@@ -1481,7 +2258,9 @@ export default function TeacherCoursePage() {
                                   params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: selectedEntity.data.sectionId } }
                                 }).then((res) => {
                                   refetchVersion();
-                                  refetchItems();
+                                  if (shouldFetchItems) {
+                                    refetchItems();
+                                  }
                                 });
                                 setSelectedEntity(null);
                                 setExpandedSections(prev => ({ ...prev, [selectedEntity.data.sectionId]: false }));
@@ -1500,7 +2279,7 @@ export default function TeacherCoursePage() {
                     {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
 
                       <VideoModal
-                        isLoading={isLoading}
+                        isLoading={isItemLoading}
                         selectedItemName={selectedItem.name}
                         action={isEditingItem ? "edit" : "view"}
                         item={selectedItemData?.item}
@@ -1531,7 +2310,10 @@ export default function TeacherCoursePage() {
                               body: formattedVideo,
                             }).then((res) => {
                               refetchVersion();
-                              refetchItems(); refetchItem()
+                              if (shouldFetchItems) {
+                                refetchItems();
+                              }
+                              refetchItem();
                             });
                             toast.success("Video details saved successfully");
                             setIsEditingItem(false);
@@ -1547,7 +2329,10 @@ export default function TeacherCoursePage() {
                                 params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
                               }).then((res) => {
                                 refetchVersion();
-                                refetchItems(); refetchItem()
+                                if (shouldFetchItems) {
+                                  refetchItems();
+                                }
+                                refetchItem();
                               });
                               setSelectedEntity(null);
                               setIsEditingItem(false);
@@ -1597,10 +2382,10 @@ export default function TeacherCoursePage() {
                             try {
                               await updateCourseItemAsync({
                                 params: { path: { versionId, itemId: projectId } },
-                                body: { name, description, type: 'PROJECT' }
+                                body: { name, description, details: { name, description }, type: 'PROJECT' }
                               });
                               refetchVersion();
-                              refetchItems();
+                              refetchItems(); ``
                               refetchItem();
                               toast.success("Project updated successfully");
                             } catch (err) {
@@ -1647,6 +2432,39 @@ export default function TeacherCoursePage() {
                           deleteItemAsync({
                             params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
                           }).then((res) => {
+                            refetchVersion();
+                            refetchItems();
+                          });
+                          setSelectedEntity(null);
+                        }}
+                      />
+                    )}
+
+                    {/* {selectedEntity.type === "item" && selectedEntity.data.type === "FEEDBACK" && (
+                    
+  <FeedbackFormEditor  />
+)} */}
+
+
+                    {selectedEntity.type === "item" && selectedEntity.data.type === "FEEDBACK" && (
+                      <FeedbackFormEditor
+                        isLoading={isLoading}
+                        selectedItemName={selectedItem.name}
+                        feedbackId={selectedEntity.data._id}
+                        moduleId={selectedEntity.parentIds?.moduleId || ""}
+                        sectionId={selectedEntity.parentIds?.sectionId || ""}
+                        courseId={courseId!}
+                        courseVersionId={versionId!}
+                        details={selectedItemData}
+                        onRefetch={() => {
+                          refetchVersion();
+                          refetchItems();
+                          refetchItem();
+                        }}
+                        onDelete={() => {
+                          deleteItemAsync({
+                            params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
+                          }).then(() => {
                             refetchVersion();
                             refetchItems();
                           });
@@ -1726,51 +2544,67 @@ export default function TeacherCoursePage() {
             )}
           </div>
         </SidebarInset>
+      </ResizablePanel>
 
-        {/* Add Video Modal */}
-        {showAddVideoModal && (
-          <div
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              width: "100vw",
-              height: "100vh",
-              background: "rgba(0,0,0,0.25)",
-              zIndex: 1000,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              backdropFilter: "blur(6px)", // <-- add blur effect
-              WebkitBackdropFilter: "blur(6px)", // for Safari support
+      {/* Add Video Modal */}
+      {showAddVideoModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            background: "rgba(0,0,0,0.25)",
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backdropFilter: "blur(6px)", // <-- add blur effect
+            WebkitBackdropFilter: "blur(6px)", // for Safari support
+          }}
+          className="overflow-y-scroll"
+        >
+          <VideoModal
+            isLoading={isLoading}
+            selectedItemName={selectedItem.name}
+            action="add"
+            onClose={() => setShowAddVideoModal(null)}
+            onSave={video => {
+              handleAddItem(
+                showAddVideoModal.moduleId,
+                showAddVideoModal.sectionId,
+                "VIDEO",
+                video
+              );
+              setShowAddVideoModal(null);
             }}
-            className="overflow-y-scroll"
-          >
-            <VideoModal
-              isLoading={isLoading}
-              selectedItemName={selectedItem.name}
-              action="add"
-              onClose={() => setShowAddVideoModal(null)}
-              onSave={video => {
-                handleAddItem(
-                  showAddVideoModal.moduleId,
-                  showAddVideoModal.sectionId,
-                  "VIDEO",
-                  video
-                );
-                setShowAddVideoModal(null);
-              }}
-            />
-          </div>
-        )}
+          />
+        </div>
+      )}
 
 
-        {/* Add Quiz Modal */}
-        <QuizWizardModal
-          quizWizardOpen={quizWizardOpen}
-          setQuizWizardOpen={setQuizWizardOpen}
-        />
-      </div>
+      {/* Add Quiz Modal */}
+      <QuizWizardModal
+        quizWizardOpen={quizWizardOpen}
+        setQuizWizardOpen={setQuizWizardOpen}
+      />
+
+    </ResizablePanelGroup>
+  );
+}
+
+export default function TeacherCoursePage() {
+  const [initialScreenSize, setInitialScreenSize] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const width = window.innerWidth;
+    setInitialScreenSize(width >= 768);
+  }, []);
+
+  return (
+    <SidebarProvider defaultOpen={initialScreenSize ?? true}>
+      <TeacherCourseContent />
     </SidebarProvider>
   );
 }
@@ -1819,3 +2653,5 @@ export function useStatusToasts({
     });
   }, [successFlags, errorFlags]);
 }
+
+// 4. ADD A SIMPLE FEEDBACK EDITOR COMPONENT (Hello World for now)

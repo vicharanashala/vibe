@@ -1,16 +1,26 @@
-import {Course} from '#courses/classes/transformers/Course.js';
-import {USERS_TYPES} from '#root/modules/users/types.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import {IItemRepository} from '#root/shared/index.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {injectable, inject} from 'inversify';
-import {ObjectId} from 'mongodb';
-import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {CourseVersionService} from './CourseVersionService.js';
-import {CreateCourseVersionBody} from '../classes/index.js';
-import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
+import { Course } from '#courses/classes/transformers/Course.js';
+import { USERS_TYPES } from '#root/modules/users/types.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {
+  IItemRepository,
+  ProctoringComponent,
+  SettingRepository,
+} from '#root/shared/index.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { injectable, inject } from 'inversify';
+import { ObjectId } from 'mongodb';
+import { InternalServerError, NotFoundError } from 'routing-controllers';
+import { CourseVersionService } from './CourseVersionService.js';
+import { CreateCourseVersionBody } from '../classes/index.js';
+import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
+import { SETTING_TYPES } from '#root/modules/setting/types.js';
+import {
+  CourseSetting,
+  CourseSettingService,
+  CreateCourseSettingBody,
+} from '#root/modules/setting/index.js';
 @injectable()
 class CourseService extends BaseService {
   constructor(
@@ -18,6 +28,9 @@ class CourseService extends BaseService {
     private readonly courseRepo: ICourseRepository,
     @inject(USERS_TYPES.ItemRepo)
     private readonly itemRepo: IItemRepository,
+
+    @inject(SETTING_TYPES.SettingRepo)
+    private readonly settingsRepo: SettingRepository,
 
     @inject(GLOBAL_TYPES.CourseVersionService)
     private readonly courseVersionService: CourseVersionService,
@@ -40,37 +53,57 @@ class CourseService extends BaseService {
     return this._withTransaction(async session => {
       const createdCourse = await this.courseRepo.create(course, session);
       if (!createdCourse) {
-        throw new InternalServerError(
-          'Failed to create course. Please try again later.',
-        );
+        throw new InternalServerError('Failed to create course. Please try again later.');
       }
-      // Create initial course version.
+
       const courseId = createdCourse._id.toString();
 
+      // Create course version (depends on course)
       const versionPayload: CreateCourseVersionBody = {
         version: versionName,
         description: versionDescription,
       };
-
       const newVersion = await this.courseVersionService.createCourseVersion(
         courseId,
         versionPayload,
         session,
       );
+
       const versionId = newVersion._id.toString();
 
-      await this.enrollmentService.enrollUser(
+      // Prepare independent tasks
+      const enrollPromise = this.enrollmentService.enrollUser(
         userId,
-        createdCourse._id.toString(),
+        courseId,
         versionId,
         'INSTRUCTOR',
         false,
         session,
       );
 
+      const defaultSettingsPayload: CreateCourseSettingBody = {
+        courseId,
+        courseVersionId: versionId,
+        settings: {
+          proctors: {
+            detectors: Object.values(ProctoringComponent).map(detector => ({
+              detectorName: detector,
+              settings: { enabled: false, options: {} },
+            })),
+          },
+          linearProgressionEnabled: false,
+        },
+      };
+      const courseSettings = new CourseSetting(defaultSettingsPayload);
+      const settingsPromise = this.settingsRepo.createCourseSettings(courseSettings, session);
+
+      // Run them in parallel
+      await Promise.all([enrollPromise, settingsPromise]);
+
       return createdCourse;
     });
   }
+
 
   async readCourse(id: string): Promise<Course> {
     return this._withTransaction(async session => {
@@ -110,46 +143,98 @@ class CourseService extends BaseService {
     });
   }
 
-  async updateCourseVersionTotalItemCount(): Promise<void> {
-    return this._withTransaction(async session => {
-      const courses = await this.courseRepo.getAllCourses(session);
-      const courseVersionIds = courses.flatMap(course => course.versions);
+  async updateCourseVersionTotalItemCount(
+    courseId?: string,
+    courseVersionId?: string,
+  ): Promise<{
+    totalVersions: number;
+    updatedVersions: number;
+    failedVersions: number;
+  }> {
+    let versionIds: string[] = [];
 
-      const bulkOperations = [];
+    // 1️⃣ If courseVersionId is provided
+    if (courseVersionId) {
+      if (courseId) {
+        const course = await this.courseRepo.read(courseId);
+        if (!course) {
+          throw new Error(`Course with id ${courseId} not found`);
+        }
 
-      for (const courseVersionId of courseVersionIds) {
-        try {
-          const courseVersion = await this.courseRepo.readVersion(
-            courseVersionId as string,
-            session,
-          );
+        const belongsToCourse = course.versions.some(
+          v => v.toString() === courseVersionId,
+        );
 
-          const totalItems = await this.itemRepo.CalculateTotalItemsCount(
-            courseVersion.courseId.toString(),
-            courseVersion._id.toString(),
-            session,
-          );
-
-          bulkOperations.push({
-            updateOne: {
-              filter: {_id: new ObjectId(courseVersion._id)},
-              update: {$set: {totalItems}},
-            },
-          });
-        } catch (error) {
-          console.error(
-            `Failed to prepare update for course version: ${courseVersionId}`,
-            error,
+        if (!belongsToCourse) {
+          throw new Error(
+            `Version ${courseVersionId} does not belong to course ${courseId}`,
           );
         }
       }
 
-      if (bulkOperations.length > 0) {
-        await this.courseRepo.bulkUpdateVersions(bulkOperations, session);
-        console.log(`Bulk updated ${bulkOperations.length} course versions`);
+      versionIds = [courseVersionId];
+    }
+
+    // 2️⃣ If only courseId is provided
+    else if (courseId) {
+      const course = await this.courseRepo.read(courseId);
+      if (!course) {
+        throw new Error(`Course with id ${courseId} not found`);
       }
-    });
+
+      versionIds = course.versions.map(v => v.toString());
+    }
+
+    // 3️⃣ Otherwise process all versions
+    else {
+      const courses = await this.courseRepo.getAllCourses();
+      versionIds = courses.flatMap(c =>
+        c.versions.map(v => v.toString()),
+      );
+    }
+
+    const bulkOps = [];
+    let updatedVersions = 0;
+    let failedVersions = 0;
+
+    for (const versionId of versionIds) {
+      try {
+        const { totalItems, itemCounts } =
+          await this.itemRepo.calculateItemCountsForVersion(versionId);
+
+        bulkOps.push({
+          updateOne: {
+            filter: { _id: new ObjectId(versionId) },
+            update: {
+              $set: {
+                totalItems,
+                itemCounts,
+              },
+            },
+          },
+        });
+
+        updatedVersions++;
+      } catch (err) {
+        failedVersions++;
+        console.error(`Failed for version ${versionId}`, err);
+      }
+    }
+
+    if (bulkOps.length) {
+      await this.courseRepo.bulkUpdateVersions(bulkOps);
+    }
+
+    return {
+      totalVersions: versionIds.length,
+      updatedVersions,
+      failedVersions,
+    };
   }
+
+
+
+
 }
 
-export {CourseService};
+export { CourseService };

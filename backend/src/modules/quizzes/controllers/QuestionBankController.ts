@@ -26,6 +26,7 @@ import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
 import { QuestionBankActions, getQuestionBankAbility } from '../abilities/questionBankAbilities.js';
 import { subject } from '@casl/ability';
+import { BadRequestErrorResponse } from '#root/shared/index.js';
 
 @OpenAPI({
   tags: ['Question Banks'],
@@ -115,6 +116,10 @@ class QuestionBankController {
   @ResponseSchema(QuestionBankNotFoundErrorResponse, {
     description: 'Question bank or question not found',
     statusCode: 404,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid input data',
+    statusCode: 400,
   })
   async addQuestion(
     @Params() params: QuestionBankAndQuestionParams,

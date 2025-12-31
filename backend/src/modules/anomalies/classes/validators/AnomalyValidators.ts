@@ -83,7 +83,6 @@ export class AnomalyData extends NewAnomalyData implements IAnomalyData {
   @JSONSchema({
     description: 'Email of the student who triggered the anomaly',
     type: 'string',
-    format: 'email',
     readOnly: true,
     example: 'john.doe@example.com',
   })
@@ -223,6 +222,26 @@ export class StatsQueryParams {
   @IsMongoId()
   @IsString()
   userId?: string;
+}
+
+export class CourseAnomaliesQuery extends PaginationWithSortQuery {
+  @JSONSchema({
+    description: 'Search term to filter anomalies by student name or email',
+    type: 'string',
+    example: 'john',
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @JSONSchema({
+    description: 'Filter anomalies by type',
+    enum: Object.values(AnomalyType),
+    example: AnomalyType.VOICE_DETECTION,
+  })
+  @IsOptional()
+  @IsEnum(AnomalyType)
+  type?: AnomalyType;
 }
 
 export {SortOrder, PaginationWithSortQuery};

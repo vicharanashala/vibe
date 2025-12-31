@@ -4,12 +4,12 @@ import {
   ID,
   MongoDatabase,
 } from '#root/shared/index.js';
-import {inject, injectable} from 'inversify';
-import {PROJECTS_TYPES} from '../types.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {SubmissionResponse} from '../classes/validators/ProjectValidators.js';
-import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {IProjectSubmissionRepository} from '../interfaces/index.js';
+import { inject, injectable } from 'inversify';
+import { PROJECTS_TYPES } from '../types.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { SubmissionResponse } from '../classes/validators/ProjectValidators.js';
+import { InternalServerError, NotFoundError } from 'routing-controllers';
+import { IProjectSubmissionRepository } from '../interfaces/index.js';
 
 @injectable()
 export class ProjectService extends BaseService {
@@ -43,29 +43,45 @@ export class ProjectService extends BaseService {
         );
         if (!isVersionExist)
           throw new NotFoundError(`Failed to find course version`);
-        const isAlreadySumbitted =
-          await this._projectSubmissionRepository.getByUser(
-            userId,
-            versionId,
-            courseId,
-            session,
-          );
-        if (isAlreadySumbitted)
-          throw new NotFoundError(`You have already submitted this project`);
-        const insertedId = await this._projectSubmissionRepository.create(
-          projectId,
-          courseId,
-          versionId,
+        const existingSubmission = 
+        await this._projectSubmissionRepository.getByUser(
           userId,
-          submissionURL,
-          comment,
+          versionId,
+          courseId,
           session,
         );
-        if (!insertedId)
-          throw new InternalServerError(
-            `Failed to create submission, try again!`,
+
+        if (existingSubmission) {
+          // Update existing submission
+          const result = await this._projectSubmissionRepository.update(
+            existingSubmission._id.toString(),
+            submissionURL,
+            comment,
+            session,
           );
-        return insertedId;
+
+          if (!result)
+            throw new InternalServerError(
+              `Failed to update submission, try again!`,
+            );
+          return result;
+
+        } else {
+          const insertedId = await this._projectSubmissionRepository.create(
+            projectId,
+            courseId,
+            versionId,
+            userId,
+            submissionURL,
+            comment,
+            session,
+          );
+          if (!insertedId)
+            throw new InternalServerError(
+              `Failed to create submission, try again!`,
+            );
+          return insertedId;
+        }
       });
     } catch (error) {
       throw new InternalServerError(`Failed to submit project /More: ${error}`);

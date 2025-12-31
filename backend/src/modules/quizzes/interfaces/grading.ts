@@ -1,4 +1,5 @@
 import {ParameterMap} from '#quizzes/question-processing/index.js';
+import {ILotItem, IQuestion, IUser} from '#root/shared/index.js';
 import {ObjectId} from 'mongodb';
 
 interface ISOLAnswer {
@@ -49,6 +50,55 @@ interface IAttempt {
   updatedAt: Date;
 }
 
+interface IQuestionInfo {
+  _id?: string | ObjectId;
+  createdBy?: string | ObjectId;
+  text: string;
+  type: string;
+  isParameterized: boolean;
+  parameters?: ParameterMap;
+  hint?: string;
+  timeLimitSeconds: number;
+  points: number;
+  incorrectLotItems?: ILotItem[];
+  correctLotItems?: ILotItem[];
+  correctLotItem?: ILotItem;
+}
+
+interface IResponseAnswer {
+  questionId: string | ObjectId;
+  questionType: string;
+  answer: {
+    lotItemId?: string;
+    lotItemIds?: string[];
+    orders?: {
+      order: number;
+      lotItemId: string;
+    }[];
+    value?: number;
+    answerText?: string;
+  };
+  question: IQuestionInfo;
+}
+
+interface IAttemptExport {
+  _id?: string | ObjectId;
+  quizId: string | ObjectId;
+  userId: string | ObjectId;
+  user: IUser;
+  questionDetails: IQuestionInfo[];
+  answers: IResponseAnswer[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface IQuizSubmissionExport {
+  Name: string;
+  Question: string;
+  Response: string;
+  questionType: string;
+}
+
 interface IQuestionDetails {
   questionId: string | ObjectId;
   parameterMap?: ParameterMap;
@@ -64,12 +114,12 @@ interface IUserInfo {
   _id: string;
   firstName: string;
   lastName: string;
-  email:string;
+  email: string;
 }
 interface ISubmission {
   _id?: string | ObjectId;
   quizId: string | ObjectId;
-  userId: string | ObjectId ;
+  userId: string | ObjectId;
   attemptId: string | ObjectId;
   submittedAt: Date;
   gradingResult?: IGradingResult; // Result of the grading process
@@ -82,7 +132,7 @@ interface PaginatedSubmissions {
   totalCount: number;
   currentPage: number;
   totalPages: number;
-  message?:string;
+  message?: string;
 }
 
 interface IAttemptDetails {
@@ -205,5 +255,9 @@ export {
   IQuestionDetails,
   IQuestionAnswerFeedback,
   ISubmissionWithUser,
-  PaginatedSubmissions
+  PaginatedSubmissions,
+  IAttemptExport,
+  IQuizSubmissionExport,
+  IQuestionInfo,
+  IResponseAnswer,
 };

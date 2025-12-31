@@ -1,14 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { ArrowUp, ArrowDown, Loader2, AlertCircle } from "lucide-react"
+import { ArrowUp, ArrowDown, Loader2, AlertCircle, Search } from "lucide-react"
 import { useAnomaliesByCourseItem, type Anomaly } from "@/hooks/hooks"
 import { useAnomalyStore } from "@/store/anomaly-store"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Pagination } from "@/components/ui/Pagination"
+import { Input } from "@/components/ui/input"
 
 export default function AnomaliesList() {
  
@@ -19,6 +20,42 @@ export default function AnomaliesList() {
   const [limit, setLimit] = useState(10);
   const [sortBy, setSortBy] = useState<'createdAt' | 'type' | 'studentName'>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [anomalyType, setAnomalyType] = useState<string>('ALL');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Anomaly types for filter dropdown
+  const anomalyTypes = [
+    { value: 'ALL', label: 'All Types' },
+    { value: 'MULTIPLE_FACES', label: 'Multiple Faces' },
+    { value: 'NO_FACE', label: 'No Face Detected' },
+    { value: 'VOICE_DETECTION', label: 'Voice Detection' },
+    { value: 'FOCUS', label: 'Focus Issues' },
+    { value: 'FACE_RECOGNITION', label: 'Face Recognition' },
+    { value: 'HAND_GESTURE_DETECTION', label: 'Hand Gesture' },
+    { value: 'BLUR_DETECTION', label: 'Blur Detection' },
+  ];
+
+  // Debounce search input
+  useEffect(() => {
+    setIsSearching(true);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+      setPage(1); // Reset to first page on new search
+      setIsSearching(false);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+// updated code for filter and search feature in anomlaies
+
+  // Handle filter change
+  const handleTypeChange = (value: string) => {
+    setAnomalyType(value);
+    setPage(1); // Reset to first page on filter change
+  };
 
   const {
     data: anomalies = [],
@@ -33,13 +70,14 @@ export default function AnomaliesList() {
     page,
     limit,
     sortBy,
-    sortOrder
+    sortOrder,
+    debouncedSearch,
+    anomalyType === 'ALL' ? undefined : anomalyType
   );
 
   const getTypeBadge = (type: string) => {
     switch (type) {
       case 'MULTIPLE_FACES':
-        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Multiple Faces Detected</Badge>
       default:
         return <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-200">{type}</Badge>
     }
@@ -86,15 +124,46 @@ export default function AnomaliesList() {
           </div>
         </div>
 
+        {/* Search Input */}
+        <div className="relative w-full">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search students..."
+            className="w-full pl-10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                setDebouncedSearch(searchQuery.trim());
+                setPage(1);
+              }
+            }}
+          />
+        </div>
+
         {/* Anomalies Table */}
         <Card className="border-0 shadow-lg overflow-hidden px-6">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <Card className="w-full">
                 <CardContent className="p-6">
-                  <div className="flex justify-between items-center mb-6">
+                  <div className="flex md:flex-row flex-col justify-between items-center mb-6">
                     <h2 className="text-2xl font-semibold">Anomalies</h2>
-                    <div className="flex items-center space-x-4">
+                    <div className="flex md:flex-row flex-col gap-4 w-full sm:w-auto md:mt-0 mt-3">
+                      {/* Type Filter */}
+                      <select
+                        value={anomalyType}
+                        onChange={(e) => handleTypeChange(e.target.value)}
+                        className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        {anomalyTypes.map((type) => (
+                          <option key={type.value} value={type.value}>
+                            {type.label}
+                          </option>
+                        ))}
+                      </select>
+
                       <div className="flex items-center space-x-2">
                         <span className="text-sm text-muted-foreground">Show</span>
                         <select
@@ -132,12 +201,14 @@ export default function AnomaliesList() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {isLoading ? (
+                        {(isLoading || isSearching) ? (
                           <TableRow>
                             <TableCell colSpan={3} className="text-center py-12">
                               <div className="flex items-center justify-center space-x-2">
                                 <Loader2 className="h-6 w-6 animate-spin" />
-                                <span className="text-muted-foreground">Loading anomalies...</span>
+                                <span className="text-muted-foreground">
+                                  {isSearching ? 'Searching...' : 'Loading anomalies...'}
+                                </span>
                               </div>
                             </TableCell>
                           </TableRow>

@@ -43,18 +43,41 @@ const BlurDetection: React.FC<BlurDetectionProps> = ({ videoRef, setIsBlur }) =>
 
     const captureFrame = () => {
       const video = videoRef.current;
-      if (video) {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        if (ctx) {
+
+      if (!video || video.readyState !== 4 || video.videoWidth === 0 || video.videoHeight === 0) {
+        return; // Skip processing if video isn't ready
+      }
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      
+      // Set canvas dimensions to match video
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      if (ctx) {
+        try {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           workerRef.current?.postMessage(imageData);
+        } catch (error) {
+          console.warn("Failed to capture frame:", error);
         }
       }
     };
+
+    //   if (video) {
+    //     const canvas = document.createElement("canvas");
+    //     const ctx = canvas.getContext("2d");
+    //     canvas.width = video.videoWidth;
+    //     canvas.height = video.videoHeight;
+    //     if (ctx) {
+    //       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    //       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    //       workerRef.current?.postMessage(imageData);
+    //     }
+    //   }
+    // };
 
     const interval = setInterval(captureFrame, 500);
     return () => clearInterval(interval);

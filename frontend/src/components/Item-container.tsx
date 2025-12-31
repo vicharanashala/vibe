@@ -4,24 +4,41 @@ import Quiz from './quiz';
 import Article from './article';
 import ProjectItem from '../app/pages/teacher/components/ProjectItem';
 import type { ArticleRef } from "@/types/article.types";
+import type { QuizRef } from "@/types/quiz.types";
 import type { ItemContainerProps, ItemContainerRef } from '@/types/item-container.types';
+import FeedbackForm from '@/app/pages/student/components/FeedbackForm';
+import { useSubmitFeedback } from '@/hooks/hooks';
 
-
-const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, onPrevVideo, isProgressUpdating,readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson,keyboardLockEnabled,setIsQuizSkipped, linearProgressionEnabled}, ref) => {
+export interface ISubmitFeedbackBody {
+  details: Record<string, any>;
+  courseId: string;
+  courseVersionId: string;
+  isSkipped?: boolean;
+}
+const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, onPrevVideo, isProgressUpdating,readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson,keyboardLockEnabled,setIsQuizSkipped, linearProgressionEnabled,courseId,versionId}, ref) => {
   const articleRef = useRef<ArticleRef>(null);
+  const quizRef = useRef<QuizRef>(null);
 
-  // ✅ Expose stop function to parent
+  // ✅ Expose stop function to parent - handles both article and quiz
   useImperativeHandle(ref, () => ({
-    stopCurrentItem: () => {
+    stopCurrentItem: async () => {
       if (articleRef.current) {
-        articleRef.current.stopItem();
+        await articleRef.current.stopItem();
+      } else if (quizRef.current) {
+        await quizRef.current.stopItem();
       }
     }
   }));
+  const submitFeedback = useSubmitFeedback(item._id.toString())
+  
+   const handleFeedbackSubmit = async (formData: any) => {
+
+    
+  };
 
   const renderContent = () => {
     const itemType = item.type.toLowerCase();
-
+    console.log("itemType ",itemType)
     switch (itemType) {
       case 'video':
         return <Video
@@ -42,6 +59,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
 
       case 'quiz':
         return <Quiz
+          ref={quizRef}
           questionBankRefs={item.details?.questionBankRefs || []}
           passThreshold={item.details?.passThreshold || 0}
           maxAttempts={item.details?.maxAttempts || 1}
@@ -96,6 +114,17 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           onNext={onNext}
           isProgressUpdating={isProgressUpdating}
         />;
+      case 'feedback':
+        return <FeedbackForm
+        title={item.name}
+        description={item.description}
+        isOptional={item.isOptional}
+        jsonSchema={item?.details?.jsonSchema}
+        uiSchema={item?.details?.uiSchema}
+        onSubmit={handleFeedbackSubmit}
+        isSubmitting={isProgressUpdating}
+        onNext={onNext}
+        />
 
       default:
         return (

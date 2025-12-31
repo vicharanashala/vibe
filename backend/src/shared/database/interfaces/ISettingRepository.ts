@@ -146,4 +146,9 @@ export interface ISettingRepository {
     detectors: DetectorSettingsDto[],
     session?: ClientSession,
   ): Promise<UpdateResult | null>;
+
+  deleteCourseSettingsbyVersionId(
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<boolean>;
 }

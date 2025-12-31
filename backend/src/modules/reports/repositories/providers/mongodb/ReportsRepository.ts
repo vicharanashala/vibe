@@ -9,6 +9,8 @@ import {
 } from 'routing-controllers';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {
+  IssueSortEnum,
+  IssueStatusEnum,
   Report,
   ReportFiltersQuery,
   ReportResponse,
@@ -118,7 +120,6 @@ class ReportRepository {
 
     const totalDocuments = countResult[0]?.total ?? 0;
     const totalPages = Math.ceil(totalDocuments / limit);
-    console.log('Total pages: ', totalPages, 'Total doc: ', totalDocuments);
     const result = plainToInstance(ReportResponse, {
       totalDocuments,
       totalPages,
@@ -127,7 +128,6 @@ class ReportRepository {
     });
     return result;
   }
-  
 
   async getById(
     reportId: string,
@@ -216,11 +216,11 @@ class ReportRepository {
       {session},
     );
 
-    if (existingReport) {
-      throw new BadRequestError(
-        `You have already submitted a report for this ${report.entityType.toLowerCase()}.`,
-      );
-    }
+    // if (existingReport) {
+    //   throw new BadRequestError(
+    //     `You have already submitted a report for this ${report.entityType.toLowerCase()}.`,
+    //   );
+    // }
     const result = await this.reportCollection.insertOne(report, {session});
     if (result.acknowledged && result.insertedId) {
       return result.insertedId.toString();
@@ -241,6 +241,99 @@ class ReportRepository {
         $set: {updatedAt: new Date()},
       },
       {returnDocument: 'after', session},
+    );
+    return result;
+  }
+
+  // async getByUserId(userId:string,filter:any,session?:ClientSession){
+  //   await this.init()
+  //   const result = await this.reportCollection.find({reportedBy: new ObjectId(userId)},{session})
+  //   return result
+  // }
+
+  async findReportsByUser(
+    userId: string,
+    filter: {status?: IssueStatusEnum; search?: string; sort?: IssueSortEnum},
+    skip: number,
+    limit: number,
+    session?: ClientSession,
+  ): Promise<{issues: IReport[]; totalDocuments: number}> {
+    await this.init();
+
+    const query: any = {reportedBy: new ObjectId(userId)};
+
+    // status filter
+    if (filter.status && filter.status !== 'ALL') {
+      query['status.status'] = filter.status;
+      // since status is an array, this matches if any object in array has given status
+    }
+
+    // search filter (on reason field)
+    if (filter.search) {
+      query.reason = {$regex: filter.search, $options: 'i'};
+    }
+
+    // sort filter (by entityType)
+    const sortQuery: any = {createdAt: -1}; // default newest first
+    if (filter.sort && filter.sort !== 'ALL') {
+      query.entityType = filter.sort;
+    }
+
+    // const results = await this.reportCollection
+    //   .find(query, { session })
+    //   .sort(sortQuery)
+    //   .skip(skip)
+    //   .limit(limit)
+    //   .toArray();
+
+    const results = await this.reportCollection
+      .aggregate([
+        {$match: query},
+        {
+          $lookup: {
+            from: 'newCourse',
+            localField: 'courseId',
+            foreignField: '_id',
+            as: 'courseInfo',
+          },
+        },
+        {$unwind: {path: '$courseInfo', preserveNullAndEmptyArrays: true}},
+        {$sort: sortQuery},
+        {$skip: skip},
+        {$limit: limit},
+      ])
+      .toArray();
+    const issues: IReport[] = results.map(item => ({
+      ...item,
+      _id: item._id?.toString(),
+      courseId: item.courseInfo?.name || '-',
+      versionId: item.versionId?.toString(),
+      entityId: item.entityId?.toString(),
+      reportedBy: item.reportedBy?.toString(),
+    }));
+
+    const totalDocuments = await this.reportCollection.countDocuments(query, {
+      session,
+    });
+
+    return {issues, totalDocuments};
+  }
+
+  async updateInterest(id: string, interest: string, session?: ClientSession) {
+    await this.init();
+    const result = await this.reportCollection.findOneAndUpdate(
+      {_id: new ObjectId(id)},
+      {$set: {satisfied: interest}},
+      {upsert: true, session},
+    );
+    return result;
+  }
+
+  async deleteReportByVersionId(versionId: string, session?: ClientSession) {
+    await this.init();
+    const result = await this.reportCollection.deleteMany(
+      {versionId: new ObjectId(versionId)},
+      {session},
     );
     return result;
   }

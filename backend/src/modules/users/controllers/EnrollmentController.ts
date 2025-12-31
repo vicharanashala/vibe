@@ -17,10 +17,11 @@ import {
   EnrollmentNotFoundErrorResponse,
   CourseVersionEnrollmentResponse,
   EnrollmentStatisticsResponse,
+  UpdateEnrollmentProgressResponse,
 } from '#users/classes/validators/EnrollmentValidators.js';
 import { QuizScoresExportResponseDto } from '../dtos/QuizScoresExportDto.js';
 import { EnrollmentService } from '#users/services/EnrollmentService.js';
-import { AttemptService } from '#root/modules/quizzes/services/AttemptService.js';
+
 import { USERS_TYPES } from '#users/types.js';
 import { injectable, inject } from 'inversify';
 import {
@@ -31,7 +32,7 @@ import {
   Get,
   Param,
   BadRequestError,
-  NotFoundError,
+
   Body,
   ForbiddenError,
   Authorized,
@@ -46,9 +47,9 @@ import {
 } from '../abilities/enrollmentAbilities.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { subject } from '@casl/ability';
-import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
+
+import { BadRequestErrorResponse } from '#root/shared/index.js';
+import { QuizNotFoundErrorResponse } from '#root/modules/quizzes/classes/index.js';
 
 @OpenAPI({
   tags: ['Enrollments'],
@@ -59,19 +60,9 @@ export class EnrollmentController {
   constructor(
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
-    @inject(QUIZZES_TYPES.AttemptService)
-    private readonly attemptService: AttemptService,
-    @inject(GLOBAL_TYPES.CourseRepo)
-    private readonly courseRepo: ICourseRepository,
+
   ) { }
 
-  private async getContentCounts(courseVersionId: string): Promise<{ videos: number; quizzes: number; articles: number }> {
-    return {
-      videos: 24,
-      quizzes: 12,
-      articles: 9,
-    };
-  }
 
   @OpenAPI({
     summary: 'Enroll a user in a course version',
@@ -88,7 +79,7 @@ export class EnrollmentController {
     description: 'User or course version not found',
     statusCode: 404,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid role or User already enrolled',
     statusCode: 400,
   })
@@ -173,7 +164,7 @@ export class EnrollmentController {
       userId,
       courseId,
       versionId,
-      enrollmentData
+      enrollmentData,
     );
 
     return new EnrollUserResponse(
@@ -198,39 +189,33 @@ export class EnrollmentController {
     description: 'No enrollments found for the user',
     statusCode: 404,
   })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid page or limit parameters',
     statusCode: 400,
   })
   async getUserEnrollments(
     @QueryParams() query: EnrollmentFilterQuery,
-    @Ability(getEnrollmentAbility) { user }, @Req() req: any,
+    @Ability(getEnrollmentAbility) { user },
+    @Req() req: any,
   ): Promise<EnrollmentResponse> {
-    const { page, limit, search = "", role } = query;
+    const { page, limit, search = '', role } = query;
     const userId = user._id.toString();
     const skip = (page - 1) * limit;
-    // console.log("session on the dashboard ", req.session)
-    // if (req.session.bulkInviteId) {
-    //   console.log("bulk id in session dashboard ", req.session.bulkInviteId)
-    //   let result = await this.enrollmentService.processBulkInvite(userId, req.session.bulkInviteId)
-    //   console.log("result after enrollment ", result)
-    //   delete req.session.bulkInviteId
-    //   await new Promise<void>((resolve, reject) => {
-    //     req.session.save(err => err ? reject(err) : resolve());
-    //   });
-    // }
-    const enrollments = await this.enrollmentService.getEnrollments(
-      userId,
-      skip,
-      limit,
-      role,
-      search,
-    );
 
-    const totalDocuments = await this.enrollmentService.countEnrollments(
-      userId,
-      role
-    );
+    // 🚀 Run DB queries in parallel
+    const [enrollments, totalDocuments] = await Promise.all([
+      this.enrollmentService.getEnrollments(
+        userId,
+        skip,
+        limit,
+        role,
+        search,
+      ),
+      this.enrollmentService.countEnrollments(
+        userId,
+        role,
+      ),
+    ]);
 
     if (!enrollments || enrollments.length === 0) {
       return {
@@ -249,6 +234,7 @@ export class EnrollmentController {
       enrollments,
     };
   }
+
 
   @OpenAPI({
     summary: 'Get enrollment details for a user in a course version',
@@ -309,11 +295,7 @@ export class EnrollmentController {
   @ResponseSchema(CourseVersionEnrollmentResponse, {
     description: 'Paginated list of enrollments for the course version',
   })
-  @ResponseSchema(EnrollmentNotFoundErrorResponse, {
-    description: 'No enrollments found for the course version',
-    statusCode: 404,
-  })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid page or limit parameters',
     statusCode: 400,
   })
@@ -337,14 +319,16 @@ export class EnrollmentController {
       search = '',
       sortBy = 'enrollmentDate',
       sortOrder = 'desc',
-      filter
+      filter,
     } = query;
 
     if (page < 1 || limit < 1) {
       throw new BadRequestError('Page and limit must be positive integers.');
     }
 
-    const skip = search && search.trim() !== '' ? 0 : (page - 1) * limit;
+    // const skip = search && search.trim() !== '' ? 0 : (page - 1) * limit;
+
+    const skip = (page - 1) * limit;
 
     const enrollmentsData =
       await this.enrollmentService.getCourseVersionEnrollments(
@@ -355,7 +339,7 @@ export class EnrollmentController {
         search,
         sortBy,
         sortOrder,
-        filter
+        filter,
       );
 
     if (
@@ -363,45 +347,70 @@ export class EnrollmentController {
       !enrollmentsData.enrollments ||
       enrollmentsData.enrollments.length === 0
     ) {
-      throw new NotFoundError(
-        'No enrollments found for the given course version.',
-      );
+      return {
+        enrollments: [],
+        totalDocuments: 0,
+        totalPages: 0,
+        currentPage: page,
+      };
     }
 
+    const totalDocuments =
+      'totalDocuments' in enrollmentsData
+        ? enrollmentsData.totalDocuments
+        : enrollmentsData.totalCount;
+
+    const totalPages =
+      'totalPages' in enrollmentsData
+        ? enrollmentsData.totalPages
+        : Math.ceil(enrollmentsData.totalCount / limit);
+
     return {
-      enrollments: enrollmentsData.enrollments.map((enrollment: any) => ({
-        role: enrollment.role,
-        status: enrollment.status,
-        enrollmentDate: enrollment.enrollmentDate,
-        user: { ...enrollment.userInfo, _id: enrollment.userId },
-        progress: enrollment.percentCompleted,
-      })),
-      totalDocuments: enrollmentsData.totalDocuments,
-      totalPages: enrollmentsData.totalPages,
+      enrollments: enrollmentsData.enrollments
+        .map((enrollment: any) => ({
+          role: enrollment.role,
+          status: enrollment.status,
+          isDeleted: enrollment.isDeleted || false,
+          enrollmentDate: enrollment.enrollmentDate,
+          user: { ...enrollment.userInfo, _id: enrollment.userId },
+          progress: enrollment.percentCompleted,
+          completedItemsCount: enrollment.completedItemsCount || 0,
+        }))
+        .sort((a, b) => {
+          // sort by isDeleted deleted should be at the bottom
+          if (a.isDeleted && !b.isDeleted) return 1;
+          if (!a.isDeleted && b.isDeleted) return -1;
+          return 0;
+        }),
+      totalDocuments,
+      totalPages,
       currentPage: page,
     };
   }
   @OpenAPI({
     summary: 'Update Enrollment Progress',
-    description: 'Recomputes and updates progress for all enrollments across all courses or a specific course if courseId is provided.',
+    description:
+      'Recomputes and updates progress for all enrollments across all courses or a specific course if courseId is provided.',
   })
   @Authorized()
   @Patch('/enrollments/progress', { transformResponse: true })
-  @ResponseSchema(BadRequestError, {
+  @ResponseSchema(UpdateEnrollmentProgressResponse, {
+    description: 'Enrollment progress updated successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
   })
-
   async updateAllEnrollmentsProgress(
     @Ability(getEnrollmentAbility) { ability },
     @QueryParams() query: BulkEnrollmentsQuery,
-
   ) {
-    const { courseId } = query;
-    const updatedEnrollment = await this.enrollmentService.bulkUpdateAllEnrollments(courseId);
+    const { courseId, userId } = query;
+    const updatedEnrollment =
+      await this.enrollmentService.bulkUpdateAllEnrollments(courseId, userId);
     return updatedEnrollment;
   }
-
 
   @OpenAPI({
     summary: 'Get enrollment statistics for a course version',
@@ -438,9 +447,11 @@ export class EnrollmentController {
       );
 
     if (!stats || stats.totalEnrollments === 0) {
-      throw new NotFoundError(
-        'No enrollments found for the given course version.',
-      );
+      return {
+        totalEnrollments: 0,
+        completedCount: 0,
+        averageProgressPercent: 0,
+      };
     }
 
     return stats;
@@ -465,20 +476,22 @@ export class EnrollmentController {
   @HttpCode(200)
   @OpenAPI({
     summary: 'Export quiz scores for all students in a course version',
-    description: 'Returns quiz scores for all students in the specified course version',
-    responses: {
-      '200': {
-        description: 'Quiz scores exported successfully',
-      },
-      '403': {
-        description: 'Forbidden - User does not have permission to view quiz scores',
-      },
-      '404': {
-        description: 'Course or version not found',
-      },
-    },
+    description:
+      'Returns quiz scores for all students in the specified course version',
   })
-  @ResponseSchema(QuizScoresExportResponseDto)
+  //TODO:  We should update this Param to Params in both frontend and backend
+  @ResponseSchema(QuizScoresExportResponseDto, {
+    description: 'Quiz scores exported successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(QuizNotFoundErrorResponse, {
+    description: 'Course or version not found',
+    statusCode: 404,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid request parameters',
+    statusCode: 400,
+  })
   async exportQuizScores(
     @Param('courseId') courseId: string,
     @Param('versionId') versionId: string,
@@ -492,6 +505,34 @@ export class EnrollmentController {
       );
     }
 
-    return this.enrollmentService.getQuizScoresForCourseVersion(courseId, versionId);
+    return this.enrollmentService.getQuizScoresForCourseVersion(
+      courseId,
+      versionId,
+    );
+  }
+  @OpenAPI({
+    summary: 'Update completed items count for all enrollments',
+    description: 'Endpoint to update completedItemsCount field for all enrollments',
+  })
+  @Authorized()
+  @Patch('/enrollments/update-completed-items-count')
+  @ResponseSchema(UpdateEnrollmentProgressResponse, {
+    description: 'Completed items count updated successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+
+  async updateAllCompletedItemsCount(@Ability(getEnrollmentAbility) { ability },
+    @QueryParams() query: BulkEnrollmentsQuery,): Promise<{ message: string; totalUpdated: any }> {
+    const { courseId, userId } = query;
+    const totalUpdated = await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion(courseId, userId);
+
+    return {
+      message: 'Completed items count updated successfully',
+      totalUpdated,
+    };
   }
 }

@@ -6,6 +6,7 @@ import {
   ICourseVersion,
   IWatchTime,
   IUser,
+  ID,
 } from '#shared/interfaces/models.js';
 import { injectable, inject } from 'inversify';
 import { ClientSession, Collection, ObjectId, OptionalId } from 'mongodb';
@@ -37,6 +38,7 @@ export class EnrollmentRepository {
   private quizCollection!: Collection<QuizItem>;
   private itemsGroupCollection!: Collection<ItemsGroup>;
   private questionBankCollection!: Collection<IQuestionBank>;
+  private initialized = false;
 
   constructor(
     @inject(QUIZZES_TYPES.AttemptRepo)
@@ -45,6 +47,12 @@ export class EnrollmentRepository {
   ) { }
 
   private async init() {
+    // initialize only once
+    if (this.initialized) {
+      return;
+    }
+    this.initialized = true;
+
     this.enrollmentCollection = await this.db.getCollection<IEnrollment>(
       'enrollment',
     );
@@ -70,6 +78,60 @@ export class EnrollmentRepository {
     this.questionBankCollection = await this.db.getCollection<IQuestionBank>(
       'questionBanks',
     );
+
+    // High-priority indexes for read performance
+    // Using background: true to avoid blocking operations
+    try {
+      await this.enrollmentCollection.createIndex(
+        { userId: 1, courseId: 1, courseVersionId: 1 },
+        {
+          unique: true,
+          name: 'userId_1_courseId_1_courseVersionId_1_unique',
+          background: true,
+        },
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      await this.enrollmentCollection.createIndex(
+        { userId: 1, role: 1 },
+        { name: 'userId_1_role_1', background: true },
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      await this.enrollmentCollection.createIndex(
+        { courseId: 1, courseVersionId: 1, role: 1, status: 1 },
+        {
+          name: 'courseId_1_courseVersionId_1_role_1_status_1',
+          background: true,
+        },
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      await this.progressCollection.createIndex(
+        { userId: 1, courseId: 1, courseVersionId: 1 },
+        { name: 'userId_1_courseId_1_courseVersionId_1', background: true },
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      await this.watchTimeCollection.createIndex(
+        { userId: 1, courseId: 1, courseVersionId: 1 },
+        { name: 'userId_1_courseId_1_courseVersionId_1', background: true },
+      );
+    } catch (e) {
+      // Index already exists
+    }
   }
 
   /**
@@ -108,34 +170,62 @@ export class EnrollmentRepository {
     );
   }
 
-  async getInstructorIdsByVersion(courseId: string, versionId: string,session?:ClientSession) {
-    await this.init()
-  console.log("CourseId and versionId from getInstructors ",courseId,versionId)
-  const enrollments = await this.enrollmentCollection
-    .find(
+  async findActiveEnrollment(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment | null> {
+    await this.init();
+
+    const courseObjectId = new ObjectId(courseId);
+    const courseVersionObjectId = new ObjectId(courseVersionId);
+    const userObjectid = new ObjectId(userId);
+
+    return await this.enrollmentCollection.findOne(
       {
-        courseId:new ObjectId(courseId),
-        courseVersionId: new ObjectId(versionId),
-        role: 'INSTRUCTOR',
-        status: 'ACTIVE'
+        userId: userObjectid,
+        courseId: courseObjectId,
+        courseVersionId: courseVersionObjectId,
+        status: 'ACTIVE',
+        isDeleted: { $ne: true },
       },
-      { projection: { userId: 1, _id: 0 },session } // only return userId
-    )
-    .toArray();
-  console.log("enrollments ",enrollments)
-  return enrollments.map(enrollment => enrollment.userId);
-}
+      { session },
+    );
+  }
+
+  async getInstructorIdsByVersion(
+    courseId: string,
+    versionId: string,
+    session?: ClientSession,
+  ) {
+    await this.init();
+
+    const enrollments = await this.enrollmentCollection
+      .find(
+        {
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(versionId),
+          role: 'INSTRUCTOR',
+          status: 'ACTIVE',
+        },
+        { projection: { userId: 1, _id: 0 }, session }, // only return userId
+      )
+      .toArray();
+    return enrollments.map(enrollment => enrollment.userId);
+  }
 
   async updateProgressPercentById(
     enrollmentId: string,
     percentCompleted: number,
     session?: ClientSession,
+    completedItemsCount?: number,
   ): Promise<void> {
     try {
       await this.init();
       await this.enrollmentCollection.findOneAndUpdate(
         { _id: new ObjectId(enrollmentId) },
-        { $set: { percentCompleted } },
+        { $set: { percentCompleted, completedItemsCount } },
         { session },
       );
     } catch (error) {
@@ -170,7 +260,6 @@ export class EnrollmentRepository {
       if (!newEnrollment) {
         throw new NotFoundError('Newly created enrollment not found');
       }
-      console.log("new enrollment ",newEnrollment)
       return newEnrollment;
     } catch (error) {
       throw new InternalServerError(
@@ -200,15 +289,16 @@ export class EnrollmentRepository {
 
     // const userObjectid = new ObjectId(userId)
 
-    const result = await this.enrollmentCollection.deleteOne(
+    const result = await this.enrollmentCollection.updateOne(
       {
         userId: { $in: userFilter },
         courseId: courseObjectId,
         courseVersionId: courseVersionObjectId,
       },
+      { $set: { isDeleted: true, deletedAt: new Date() } },
       { session },
     );
-    if (result.deletedCount === 0) {
+    if (result.modifiedCount === 0) {
       throw new NotFoundError('Enrollment not found to delete');
     }
   }
@@ -255,12 +345,13 @@ export class EnrollmentRepository {
     session?: any,
   ): Promise<void> {
     await this.init();
-    await this.progressCollection.deleteMany(
+    await this.progressCollection.updateMany(
       {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
+      { $set: { isDeleted: true, deletedAt: new Date() } },
       { session },
     );
   }
@@ -457,15 +548,22 @@ export class EnrollmentRepository {
     limit: number,
     role: EnrollmentRole,
     search: string,
-    session?: ClientSession,
   ) {
     await this.init();
     const userObjectId = new ObjectId(userId);
     const pipeline: any[] = [
-      { $match: { userId: userObjectId, role } },
+      {
+        $match: {
+          userId: userObjectId,
+          role,
+          isDeleted: { $ne: true },
+        },
+      },
+
       { $sort: { enrollmentDate: -1 } },
-      { $skip: skip },
-      { $limit: limit },
+
+
+      /* ---------------- COURSE LOOKUP ---------------- */
       {
         $lookup: {
           from: 'newCourse',
@@ -476,13 +574,6 @@ export class EnrollmentRepository {
             {
               $project: {
                 name: 1,
-                versions: {
-                  $map: {
-                    input: '$versions',
-                    as: 'v',
-                    in: { $toString: '$$v' },
-                  },
-                },
                 description: 1,
                 updatedAt: 1,
               },
@@ -490,10 +581,35 @@ export class EnrollmentRepository {
           ],
         },
       },
-      { $unwind: { path: '$course', preserveNullAndEmptyArrays: true } },
+      { $unwind: '$course' },
+
+      /* ---------------- COURSE VERSION LOOKUP (NEW) ---------------- */
+      {
+        $lookup: {
+          from: 'newCourseVersion',
+          localField: 'courseVersionId',
+          foreignField: '_id',
+          as: 'courseVersion',
+          pipeline: [
+            {
+              $project: {
+                totalItems: 1,
+                itemCounts: 1,
+              },
+            },
+          ],
+        },
+      },
+
+      { $unwind: { path: '$courseVersion', preserveNullAndEmptyArrays: true } },
+      { $skip: skip },
+      { $limit: limit },
+      /* ---------------- SEARCH ---------------- */
       ...(search?.trim()
         ? [{ $match: { 'course.name': { $regex: search, $options: 'i' } } }]
         : []),
+
+      /* ---------------- FINAL SHAPE ---------------- */
       {
         $project: {
           _id: 1,
@@ -503,14 +619,186 @@ export class EnrollmentRepository {
           status: 1,
           enrollmentDate: 1,
           course: 1,
+
+          // 🔥 pulled from courseVersion
+          totalItems: { $ifNull: ['$courseVersion.totalItems', 0] },
+          itemCounts: { $ifNull: ['$courseVersion.itemCounts', {}] },
+
           percentCompleted: { $ifNull: ['$percentCompleted', 0] },
         },
       },
     ];
 
-    return await this.enrollmentCollection
-      .aggregate(pipeline, { session })
+    /*const pipeline: any[] = [
+      {$match: {userId: userObjectId, role}},
+      {$sort: {enrollmentDate: -1}},
+      {$skip: skip},
+      {$limit: limit},
+      {
+        $lookup: {
+          from: 'newCourse',
+          localField: 'courseId',
+          foreignField: '_id',
+          as: 'course',
+          pipeline: [
+            {$match: {versions: {$exists: true, $ne: []}}},
+            {
+              $lookup: {
+                from: 'newCourseVersion',
+                let: {versionIds: '$versions'},
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {$in: ['$_id', '$$versionIds']},
+                      isDeleted: {$ne: true},
+                    },
+                  },
+                ],
+                as: 'versionDetails',
+              },
+            },
+          ],
+        },
+      },
+      {
+        $unwind: {
+          path: '$course',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      // Use versionDetails to populate the versions array
+      {
+        $addFields: {
+          'course.versions': {
+            $map: {
+              input: '$course.versionDetails',
+              as: 'v',
+              in: {$toString: '$$v._id'},
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          userId: 1,
+          courseId: 1,
+          courseVersionId: 1,
+          role: 1,
+          status: 1,
+          enrollmentDate: 1,
+          percentCompleted: 1,
+          course: 1,
+        },
+      },
+    ];*/
+
+    const enrollments = await this.enrollmentCollection
+      .aggregate(pipeline)
       .toArray();
+
+    return enrollments;
+  }
+
+  async getBasicInstructorEnrollments(
+    userId: string,
+    skip: number,
+    limit: number,
+    role: EnrollmentRole,
+    search?: string,
+  ) {
+    await this.init();
+
+    const pipeline: any[] = [
+      /* ---------- EARLY FILTER (INDEXED) ---------- */
+      {
+        $match: {
+          userId: new ObjectId(userId),
+          role,
+          isDeleted: { $ne: true },
+        },
+      },
+
+      { $sort: { enrollmentDate: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+
+      /* ---------- COURSE LOOKUP (OPTIMIZED) ---------- */
+      {
+        $lookup: {
+          from: 'newCourse',
+          let: { courseId: '$courseId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$_id', '$$courseId'] },
+                ...(search?.trim()
+                  ? { name: { $regex: search, $options: 'i' } }
+                  : {}),
+              },
+            },
+
+            /* keep only required fields */
+            {
+              $project: {
+                name: 1,
+                description: 1,
+                updatedAt: 1,
+                versions: 1,
+              },
+            },
+
+            /* filter non-deleted versions */
+            {
+              $lookup: {
+                from: 'newCourseVersion',
+                localField: 'versions',
+                foreignField: '_id',
+                as: 'versions',
+                pipeline: [
+                  { $match: { isDeleted: { $ne: true } } },
+                  { $project: { _id: 1 } },
+                ],
+              },
+            },
+
+            {
+              $project: {
+                name: 1,
+                description: 1,
+                updatedAt: 1,
+                versions: {
+                  $map: {
+                    input: '$versions',
+                    as: 'v',
+                    in: { $toString: '$$v._id' },
+                  },
+                },
+              },
+            },
+          ],
+          as: 'course',
+        },
+      },
+
+      /* ---------- REMOVE NON-MATCHED COURSES ---------- */
+      { $unwind: '$course' },
+
+      /* ---------- FINAL SHAPE ---------- */
+      {
+        $project: {
+          _id: 1,
+          courseId: 1,
+          courseVersionId: 1,
+          role: 1,
+          status: 1,
+          enrollmentDate: 1,
+          course: 1,
+        },
+      },
+    ];
+
+    return this.enrollmentCollection.aggregate(pipeline).toArray();
   }
 
   async getContentCountsForVersions(
@@ -558,16 +846,199 @@ export class EnrollmentRepository {
           },
         },
         { $unwind: '$itemsGroup' },
+        { $match: { 'itemsGroup.isHidden': { $ne: true } } },
+
         { $unwind: '$itemsGroup.items' },
+        {
+          $addFields: {
+            itemObjId: { $toObjectId: '$itemsGroup.items._id' },
+          },
+        },
+        {
+          $lookup: {
+            from: 'videos',
+            let: { itemId: '$itemObjId', itemType: '$itemsGroup.items.type' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ['$_id', '$$itemId'] },
+                      { $eq: ['$$itemType', 'VIDEO'] },
+                    ],
+                  },
+                },
+              },
+              { $project: { isDeleted: 1, isHidden: 1 } },
+            ],
+            as: 'videoDoc',
+          },
+        },
+        {
+          $lookup: {
+            from: 'blogs',
+            let: { itemId: '$itemObjId', itemType: '$itemsGroup.items.type' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ['$_id', '$$itemId'] },
+                      { $eq: ['$$itemType', 'BLOG'] },
+                    ],
+                  },
+                },
+              },
+              { $project: { isDeleted: 1, isHidden: 1 } },
+            ],
+            as: 'blogDoc',
+          },
+        },
+        {
+          $lookup: {
+            from: 'quizzes',
+            let: { itemId: '$itemObjId', itemType: '$itemsGroup.items.type' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ['$_id', '$$itemId'] },
+                      { $eq: ['$$itemType', 'QUIZ'] },
+                    ],
+                  },
+                },
+              },
+              { $project: { isDeleted: 1, isHidden: 1 } },
+            ],
+            as: 'quizDoc',
+          },
+        },
+        {
+          $lookup: {
+            from: 'projects',
+            let: { itemId: '$itemObjId', itemType: '$itemsGroup.items.type' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ['$_id', '$$itemId'] },
+                      { $eq: ['$$itemType', 'PROJECT'] },
+                    ],
+                  },
+                },
+              },
+              { $project: { isDeleted: 1, isHidden: 1 } },
+            ],
+            as: 'projectDoc',
+          },
+        },
+        {
+          $addFields: {
+            isItemDeleted: {
+              $switch: {
+                branches: [
+                  {
+                    case: { $eq: ['$itemsGroup.items.type', 'VIDEO'] },
+                    then: {
+                      $ifNull: [
+                        { $arrayElemAt: ['$videoDoc.isDeleted', 0] },
+                        false,
+                      ],
+                    },
+                  },
+                  {
+                    case: { $eq: ['$itemsGroup.items.type', 'BLOG'] },
+                    then: {
+                      $ifNull: [
+                        { $arrayElemAt: ['$blogDoc.isDeleted', 0] },
+                        false,
+                      ],
+                    },
+                  },
+                  {
+                    case: { $eq: ['$itemsGroup.items.type', 'QUIZ'] },
+                    then: {
+                      $ifNull: [
+                        { $arrayElemAt: ['$quizDoc.isDeleted', 0] },
+                        false,
+                      ],
+                    },
+                  },
+                  {
+                    case: { $eq: ['$itemsGroup.items.type', 'PROJECT'] },
+                    then: {
+                      $ifNull: [
+                        { $arrayElemAt: ['$projectDoc.isDeleted', 0] },
+                        false,
+                      ],
+                    },
+                  },
+                ],
+                default: false,
+              },
+            },
+            isItemHidden: {
+              $switch: {
+                branches: [
+                  {
+                    case: { $eq: ['$itemsGroup.items.type', 'VIDEO'] },
+                    then: {
+                      $ifNull: [
+                        { $arrayElemAt: ['$videoDoc.isHidden', 0] },
+                        false,
+                      ],
+                    },
+                  },
+                  {
+                    case: { $eq: ['$itemsGroup.items.type', 'BLOG'] },
+                    then: {
+                      $ifNull: [
+                        { $arrayElemAt: ['$blogDoc.isHidden', 0] },
+                        false,
+                      ],
+                    },
+                  },
+                  {
+                    case: { $eq: ['$itemsGroup.items.type', 'QUIZ'] },
+                    then: {
+                      $ifNull: [
+                        { $arrayElemAt: ['$quizDoc.isHidden', 0] },
+                        false,
+                      ],
+                    },
+                  },
+                  {
+                    case: { $eq: ['$itemsGroup.items.type', 'PROJECT'] },
+                    then: {
+                      $ifNull: [
+                        { $arrayElemAt: ['$projectDoc.isHidden', 0] },
+                        false,
+                      ],
+                    },
+                  },
+                ],
+                default: false,
+              },
+            },
+          },
+        },
+        { $match: { isItemDeleted: { $ne: true } } },
+        { $match: { isItemHidden: { $ne: true } } },
         {
           $group: {
             _id: '$_id',
             totalItems: { $sum: 1 },
             videos: {
-              $sum: { $cond: [{ $eq: ['$itemsGroup.items.type', 'VIDEO'] }, 1, 0] },
+              $sum: {
+                $cond: [{ $eq: ['$itemsGroup.items.type', 'VIDEO'] }, 1, 0],
+              },
             },
             quizzes: {
-              $sum: { $cond: [{ $eq: ['$itemsGroup.items.type', 'QUIZ'] }, 1, 0] },
+              $sum: {
+                $cond: [{ $eq: ['$itemsGroup.items.type', 'QUIZ'] }, 1, 0],
+              },
             },
             articles: {
               $sum: {
@@ -608,6 +1079,7 @@ export class EnrollmentRepository {
       userId: e.userId,
       courseId: e.courseId,
       courseVersionId: e.courseVersionId,
+      isHidden: { $ne: true },
     }));
 
     const results = await this.watchTimeCollection
@@ -653,7 +1125,7 @@ export class EnrollmentRepository {
     // const userObjectid = new ObjectId(userId)
 
     return await this.enrollmentCollection
-      .find({ userId: { $in: userFilter } }, { session })
+      .find({ userId: { $in: userFilter }, isDeleted: { $ne: true } }, { session })
       .sort({ enrollmentDate: -1 })
       .toArray();
   }
@@ -679,6 +1151,7 @@ export class EnrollmentRepository {
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
       status: { $regex: /^active$/i },
+      isDeleted: { $ne: true }, // Exclude soft-deleted enrollments
     };
     if (filter) {
       if (filter === 'STUDENT') {
@@ -727,21 +1200,33 @@ export class EnrollmentRepository {
           firstName: '$userInfo.firstName',
           lastName: '$userInfo.lastName',
           email: '$userInfo.email',
+          completedItemsCount: { $ifNull: ['$completedItemsCount', 0] },
         },
       },
     ];
 
     // search
     if (search && search.trim() !== '') {
+      const searchTerm = search.trim();
       aggregationPipeline.push({
         $match: {
           $or: [
             { 'userInfo.firstName': { $regex: search, $options: 'i' } },
             { 'userInfo.email': { $regex: search, $options: 'i' } },
+            { firstName: { $regex: searchTerm, $options: 'i' } },
+            { lastName: { $regex: searchTerm, $options: 'i' } },
+            { email: { $regex: searchTerm, $options: 'i' } },
           ],
         },
       });
     }
+
+    // Get the total count with search applied
+    const countPipeline = [...aggregationPipeline, { $count: 'total' }];
+    const countResult = await this.enrollmentCollection
+      .aggregate<{ total: number }>(countPipeline, { session })
+      .next();
+    const totalDocuments = countResult?.total || 0;
 
     // sorting
     aggregationPipeline.push({ $sort: sortField });
@@ -750,22 +1235,20 @@ export class EnrollmentRepository {
     aggregationPipeline.push({ $skip: skip }, { $limit: limit });
 
     // count separately
-    const totalDocuments = await this.enrollmentCollection.countDocuments(
-      matchStage,
-    );
+    // const totalDocuments = await this.enrollmentCollection.countDocuments(
+    //   matchStage,
+    // );
+
     const enrollments = await this.enrollmentCollection
       .aggregate(aggregationPipeline, { session })
       .toArray();
 
-    const totalPages =
-      typeof limit === 'number' && limit > 0
-        ? Math.ceil(totalDocuments / limit)
-        : 1;
+    const totalPages = limit > 0 ? Math.ceil(totalDocuments / limit) : 1;
 
     return {
       totalDocuments,
       totalPages,
-      currentPage: Math.floor(skip / limit) + 1,
+      currentPage: limit > 0 ? Math.floor(skip / limit) + 1 : 1,
       enrollments,
     };
   }
@@ -788,6 +1271,7 @@ export class EnrollmentRepository {
               courseVersionId: new ObjectId(courseVersionId),
               role: 'STUDENT',
               status: { $regex: /^active$/i },
+              isDeleted: { $ne: true }, // Exclude soft-deleted enrollments
             },
           },
           {
@@ -850,6 +1334,7 @@ export class EnrollmentRepository {
     return await this.enrollmentCollection.countDocuments({
       userId: userObjectid,
       role,
+      isDeleted: { $ne: true },
     });
   }
   /*Update enrollments for all records in db */
@@ -868,6 +1353,25 @@ export class EnrollmentRepository {
         'Failed to bulk update enrollments.\n More Details: ' + error,
       );
     }
+  }
+
+  async getEnrollmentsByFilters(filters: {
+    courseId?: string;
+    courseVersionId?: string;
+    userId?: string;
+  }) {
+    await this.init();
+
+    const query: any = {};
+
+    if (filters.courseId) query.courseId = new ObjectId(filters.courseId);
+
+    if (filters.courseVersionId)
+      query.courseVersionId = new ObjectId(filters.courseVersionId);
+
+    if (filters.userId) query.userId = new ObjectId(filters.userId);
+
+    return this.enrollmentCollection.find(query).toArray();
   }
 
   async addEnrollmentIndexes(session?: ClientSession): Promise<void> {
@@ -891,19 +1395,16 @@ export class EnrollmentRepository {
     }
   }
 
-  //new method to get instructors 
-//   async getInstructorIdsByVersion(courseId:string, versionId:strin) {
-//   const enrollments = await this.enrollmentCollection.find({
-//     courseId,
-//     courseVersionId: versionId,
-//     role: 'INSTRUCTOR',
-//     status: 'ACTIVE'
-//   }).select('userId').lean();
-//   return enrollments.map(enrollment => enrollment.userId);
-// }
-
-
-
+  //new method to get instructors
+  //   async getInstructorIdsByVersion(courseId:string, versionId:strin) {
+  //   const enrollments = await this.enrollmentCollection.find({
+  //     courseId,
+  //     courseVersionId: versionId,
+  //     role: 'INSTRUCTOR',
+  //     status: 'ACTIVE'
+  //   }).select('userId').lean();
+  //   return enrollments.map(enrollment => enrollment.userId);
+  // }
 
   async getByCourseVersion(
     courseId: string,
@@ -939,6 +1440,141 @@ export class EnrollmentRepository {
     await this.enrollmentCollection.bulkWrite(operations, { session });
   }
 
+  private async processCompletedItemsBatch(
+    enrollments: any[],
+    session?: ClientSession,
+  ): Promise<number> {
+    if (enrollments.length === 0) return 0;
+
+    const enrollmentMap = new Map<string, any>();
+
+    enrollments.forEach(e => {
+      enrollmentMap.set(
+        `${e.userId}_${e.courseId}_${e.courseVersionId}`,
+        e._id,
+      );
+    });
+
+    // 🔥 Single aggregation for entire batch
+    const completedCounts = await this.watchTimeCollection
+      .aggregate(
+        [
+          {
+            $match: {
+              isDeleted: { $ne: true },
+              $or: enrollments.map(e => ({
+                userId: e.userId,
+                courseId: e.courseId,
+                courseVersionId: e.courseVersionId,
+              })),
+            },
+          },
+          {
+            $group: {
+              _id: {
+                userId: '$userId',
+                courseId: '$courseId',
+                courseVersionId: '$courseVersionId',
+              },
+              completedItemsCount: { $addToSet: '$itemId' },
+            },
+          },
+          {
+            $project: {
+              completedItemsCount: { $size: '$completedItemsCount' },
+            },
+          },
+        ],
+        { session },
+      )
+      .toArray();
+
+    const operations = completedCounts.map(c => {
+      const key = `${c._id.userId}_${c._id.courseId}_${c._id.courseVersionId}`;
+      const enrollmentId = enrollmentMap.get(key);
+
+      return {
+        updateOne: {
+          filter: { _id: enrollmentId },
+          update: {
+            $set: {
+              completedItemsCount: c.completedItemsCount,
+              updatedAt: new Date(),
+            },
+          },
+        },
+      };
+    });
+
+    if (operations.length === 0) return 0;
+
+    const result = await this.enrollmentCollection.bulkWrite(operations, {
+      session,
+    });
+
+    return result.modifiedCount;
+  }
+
+
+
+  /* Update completed items count for all enrollments in batches of 100 */
+  async bulkUpdateCompletedItemsCountForCourseVersion(
+    filters: {
+      courseVersionId: string;
+      courseId?: string;
+      userId?: string;
+    },
+    session?: ClientSession,
+  ): Promise<{ totalCount: number; updatedCount: number }> {
+    await this.init();
+
+    const BATCH_SIZE = 500;
+    let totalCount = 0;
+    let updatedCount = 0;
+
+    const match: any = {
+      isDeleted: { $ne: true },
+      courseVersionId: new ObjectId(filters.courseVersionId),
+    };
+
+    if (filters.courseId) {
+      match.courseId = new ObjectId(filters.courseId);
+    }
+
+    if (filters.userId) {
+      match.userId = new ObjectId(filters.userId);
+    }
+
+    const cursor = this.enrollmentCollection
+      .find(match)
+      .project({ userId: 1, courseId: 1, courseVersionId: 1 })
+      .batchSize(BATCH_SIZE);
+
+    let batch: any[] = [];
+
+    for await (const enrollment of cursor) {
+      batch.push(enrollment);
+      totalCount++;
+
+      if (batch.length === BATCH_SIZE) {
+        updatedCount += await this.processCompletedItemsBatch(batch, session);
+        batch = [];
+      }
+    }
+
+    if (batch.length > 0) {
+      updatedCount += await this.processCompletedItemsBatch(batch, session);
+    }
+
+    console.log(
+      `✅ CourseVersion ${filters.courseVersionId} → scanned=${totalCount}, updated=${updatedCount}`,
+    );
+
+    return { totalCount, updatedCount };
+  }
+
+
+
   /**
    * Retrieves quiz IDs organized by modules and sections for a given course version
 
@@ -971,7 +1607,7 @@ export class EnrollmentRepository {
   }
 
   /**
-   * Get maximum scores and individual question scores for a list of quizzes
+   * Get maximum scores and individual question scores for a list of quizzes (Optimized for large datasets)
    * @param userIds Array of user IDs (can be string or ObjectId)
    * @param quizIds Array of quiz IDs (can be string or ObjectId)
    * @returns Object containing:
@@ -985,7 +1621,7 @@ export class EnrollmentRepository {
     maxScores: Map<string, Map<string, number>>;
     questionScores: Map<string, Map<string, Map<string, number>>>;
   }> {
-    if (!quizIds.length) {
+    if (!quizIds.length || !userIds.length) {
       return {
         maxScores: new Map<string, Map<string, number>>(),
         questionScores: new Map<string, Map<string, Map<string, number>>>(),
@@ -1015,7 +1651,8 @@ export class EnrollmentRepository {
       const stringUserIds = userIds.map(id => id.toString());
       const stringQuizIds = quizIds.map(id => id.toString());
 
-      const results = await this.submissionCollection
+      // Optimized: Use aggregation to get max scores as percentages in a single pass
+      const maxScoreResults = await this.submissionCollection
         .aggregate([
           {
             $match: {
@@ -1092,15 +1729,8 @@ export class EnrollmentRepository {
         ])
         .toArray();
 
-      // Initialize result maps
-      const maxScores = new Map<string, Map<string, number>>();
-      const questionScores = new Map<
-        string,
-        Map<string, Map<string, number>>
-      >();
-
-      // First pass: Process all attempts to get max scores and question details
-      const allAttempts = await this.submissionCollection
+      // Optimized: Get question-level scores in a separate efficient query
+      const questionScoreResults = await this.submissionCollection
         .find({
           $and: [
             {
@@ -1118,17 +1748,36 @@ export class EnrollmentRepository {
             { 'gradingResult.overallFeedback': { $exists: true, $ne: [] } },
           ],
         })
+        .project({
+          userId: 1,
+          quizId: 1,
+          'gradingResult.overallFeedback': 1,
+        })
         .toArray();
 
-      // Process each attempt to build question scores
-      allAttempts.forEach(attempt => {
+      // Build result maps efficiently
+      const maxScores = new Map<string, Map<string, number>>();
+      const questionScores = new Map<string, Map<string, Map<string, number>>>();
+
+      // Process max scores (now as percentages)
+      maxScoreResults.forEach(result => {
+        const { userId, quizId, maxScorePercentage } = result;
+        if (!maxScores.has(userId)) {
+          maxScores.set(userId, new Map<string, number>());
+        }
+        maxScores.get(userId)?.set(quizId, maxScorePercentage);
+      });
+
+      // Process question scores
+      questionScoreResults.forEach(attempt => {
         const userId = attempt.userId?.toString();
         const quizId = attempt.quizId?.toString();
 
-        if (!userId || !quizId || !attempt.gradingResult?.overallFeedback)
+        if (!userId || !quizId || !attempt.gradingResult?.overallFeedback) {
           return;
+        }
 
-        // Initialize user and quiz in the questionScores map
+        // Initialize maps if they don't exist
         if (!questionScores.has(userId)) {
           questionScores.set(userId, new Map<string, Map<string, number>>());
         }
@@ -1136,40 +1785,31 @@ export class EnrollmentRepository {
           questionScores.get(userId)?.set(quizId, new Map<string, number>());
         }
 
-        // Get the user's quiz map for question scores
         const userQuizQuestions = questionScores.get(userId)?.get(quizId);
+        if (userQuizQuestions && attempt.gradingResult?.overallFeedback) {
+          attempt.gradingResult.overallFeedback.forEach((feedback: any) => {
+            if (!feedback.questionId || typeof feedback.score !== 'number') {
+              return;
+            }
 
-        // Process each question in the attempt
-        attempt.gradingResult.overallFeedback.forEach((feedback: any) => {
-          if (!feedback.questionId || typeof feedback.score !== 'number')
-            return;
+            const questionId = feedback.questionId.toString();
+            const currentQuestionScore = userQuizQuestions.get(questionId) || 0;
 
-          const questionId = feedback.questionId.toString();
-          const currentMax = userQuizQuestions?.get(questionId) || 0;
-
-          // Store the maximum score for each question
-          if (feedback.score > currentMax) {
-            userQuizQuestions?.set(questionId, feedback.score);
-          }
-        });
-      });
-
-      // Second pass: Process aggregated results for max scores
-      results.forEach(result => {
-        const userId = result.userId;
-        const quizId = result.quizId;
-
-        if (userId && quizId) {
-          if (!maxScores.has(userId)) {
-            maxScores.set(userId, new Map<string, number>());
-          }
-          maxScores.get(userId)?.set(quizId, result.scorePercentage);
+            // Store the maximum score for each question
+            if (feedback.score > currentQuestionScore) {
+              userQuizQuestions.set(questionId, feedback.score);
+            }
+          });
         }
       });
 
       return { maxScores, questionScores };
     } catch (error) {
       console.error('Error in getMaxScoresForQuizzes:', error);
+      return {
+        maxScores: new Map<string, Map<string, number>>(),
+        questionScores: new Map<string, Map<string, Map<string, number>>>(),
+      };
     }
   }
 
@@ -1236,7 +1876,111 @@ export class EnrollmentRepository {
    * @returns Array of student quiz scores with their max scores and attempts
    */
 
-  private readonly BATCH_SIZE = 100;
+  private readonly BATCH_SIZE = 500; // Increased from 100 to 500 for better performance
+
+  /**
+   * Get all question IDs for multiple quizzes in bulk (optimized for large datasets)
+   * @param quizIds Array of quiz IDs
+   * @returns Map of quizId to array of question IDs
+   */
+  private async getQuizQuestionIdsBulk(
+    quizIds: string[],
+  ): Promise<Map<string, string[]>> {
+    await this.init();
+
+    if (!quizIds.length) {
+      return new Map();
+    }
+
+    try {
+      /** ------------------------------------
+       * 1️⃣ Fetch quizzes
+       * ------------------------------------ */
+      const quizzes = await this.quizCollection
+        .find({
+          _id: { $in: quizIds.map(id => new ObjectId(id)) },
+          'details.questionBankRefs': { $exists: true, $ne: [] },
+        })
+        .project({
+          _id: 1,
+          'details.questionBankRefs.bankId': 1,
+        })
+        .toArray();
+
+      /** ------------------------------------
+       * 2️⃣ Collect unique bank IDs
+       * ------------------------------------ */
+      const bankIds = new Set<string>();
+
+      for (const quiz of quizzes) {
+        for (const ref of quiz.details?.questionBankRefs ?? []) {
+          if (ObjectId.isValid(ref.bankId)) {
+            bankIds.add(ref.bankId.toString());
+          }
+        }
+      }
+
+      if (!bankIds.size) {
+        return new Map(quizIds.map(id => [id, []]));
+      }
+
+      /** ------------------------------------
+       * 3️⃣ Fetch question banks
+       * ------------------------------------ */
+      const questionBanks = await this.questionBankCollection
+        .find({
+          _id: { $in: [...bankIds].map(id => new ObjectId(id)) },
+        })
+        .project({ _id: 1, questions: 1 })
+        .toArray();
+
+      /** ------------------------------------
+       * 4️⃣ Build bank → questions map
+       * ------------------------------------ */
+      const bankQuestionsMap = new Map<string, string[]>();
+
+      for (const bank of questionBanks) {
+        bankQuestionsMap.set(
+          bank._id.toString(),
+          (bank.questions ?? []).map(q => q.toString()),
+        );
+      }
+
+      /** ------------------------------------
+       * 5️⃣ Build quiz → questions map
+       * ------------------------------------ */
+      const quizQuestionsMap = new Map<string, string[]>();
+
+      for (const quiz of quizzes) {
+        const qId = quiz._id.toString();
+        const questionSet = new Set<string>();
+
+        for (const ref of quiz.details?.questionBankRefs ?? []) {
+          const questions = bankQuestionsMap.get(ref.bankId?.toString());
+          if (questions) {
+            for (const q of questions) questionSet.add(q);
+          }
+        }
+
+        quizQuestionsMap.set(qId, [...questionSet]);
+      }
+
+      /** ------------------------------------
+       * 6️⃣ Ensure all quiz IDs exist
+       * ------------------------------------ */
+      for (const quizId of quizIds) {
+        if (!quizQuestionsMap.has(quizId)) {
+          quizQuestionsMap.set(quizId, []);
+        }
+      }
+
+      return quizQuestionsMap;
+    } catch (error) {
+      console.error('Error in getQuizQuestionIdsBulk:', error);
+      return new Map(quizIds.map(id => [id, []]));
+    }
+  }
+
 
   /**
    * Get all question IDs for a quiz by fetching from question banks
@@ -1285,7 +2029,7 @@ export class EnrollmentRepository {
    * @param versionId The ID of the course version
    * @returns Array of modules with their sections and associated quiz IDs
    */
-  private async getQuizIdsByModulesAndSections(versionId: string): Promise<
+  async getQuizIdsByModulesAndSections(versionId: string): Promise<
     Array<{
       moduleId: string;
       moduleName: string;
@@ -1458,15 +2202,12 @@ export class EnrollmentRepository {
     }
 
     if (!ObjectId.isValid(courseId) || !ObjectId.isValid(versionId)) {
-      const errorMsg = `Invalid course or version ID format. CourseID valid: ${ObjectId.isValid(
-        courseId,
-      )}, VersionID valid: ${ObjectId.isValid(versionId)}`;
-      console.error(`[ERROR] ${errorMsg}`);
-      throw new Error(errorMsg);
+      throw new Error('Invalid course or version ID');
     }
 
     const courseIdObj = new ObjectId(courseId);
     const versionIdObj = new ObjectId(versionId);
+
     const studentFilter = {
       courseId: courseIdObj,
       courseVersionId: versionIdObj,
@@ -1474,178 +2215,243 @@ export class EnrollmentRepository {
       status: { $regex: /^active$/i },
     };
 
-    try {
-      const totalStudents = await this.enrollmentCollection.countDocuments(
-        studentFilter,
-      );
-      if (totalStudents === 0) {
-        return {
-          data: [],
-          metadata: {
-            courseId,
-            versionId,
-            totalStudents: 0,
-            durationMs: 0,
-            generatedAt: new Date().toISOString(),
+    /* -------------------------------------------------------
+     * 1️⃣ FETCH ENROLLMENTS (ONCE)
+     * ----------------------------------------------------- */
+    const enrollments = await this.enrollmentCollection
+      .aggregate([
+        { $match: studentFilter },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'userId',
+            foreignField: '_id',
+            as: 'user',
           },
-        };
-      }
-
-      const quizzesByModuleSection = await this.getQuizIdsByModulesAndSections(
-        versionId,
-      );
-      const allQuizIds = [
-        ...new Set(
-          quizzesByModuleSection.flatMap(m =>
-            m.sections.flatMap(s => s.quizIds),
-          ),
-        ),
-      ];
-
-      if (allQuizIds.length === 0) {
-        console.warn(
-          `[WARN] No quiz IDs found for course version ${versionId}`,
-        );
-        return {
-          data: [],
-          metadata: {
-            courseId,
-            versionId,
-            totalStudents: 0,
-            durationMs: 0,
-            generatedAt: new Date().toISOString(),
+        },
+        { $unwind: '$user' },
+        {
+          $project: {
+            userId: 1,
+            'user.firstName': 1,
+            'user.lastName': 1,
+            'user.email': 1,
           },
-        };
-      }
+        },
+      ])
+      .toArray();
 
-      const validQuizIds = allQuizIds.filter((id): id is string => {
-        const valid = typeof id === 'string' && ObjectId.isValid(id);
-        if (!valid) console.error(`[ERROR] Invalid quiz ID format: ${id}`);
-        return valid;
-      });
-
-      const quizIdsObj = validQuizIds.map(id => new ObjectId(id));
-      const quizDetails = await this.getQuizDetails(quizIdsObj);
-
-      // Pre-fetch all questions for each quiz only once
-      const quizQuestionsMap = new Map<string, string[]>();
-      await Promise.all(
-        validQuizIds.map(async quizId => {
-          const questions = await this.getQuizQuestionIds(quizId);
-          quizQuestionsMap.set(quizId, questions);
-        }),
-      );
-
-      const result: StudentQuizScoreDto[] = [];
-      const totalBatches = Math.ceil(totalStudents / this.BATCH_SIZE);
-
-      for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
-        const skip = batchNum * this.BATCH_SIZE;
-
-        const enrollments = await this.enrollmentCollection
-          .aggregate([
-            { $match: studentFilter },
-            { $skip: skip },
-            { $limit: this.BATCH_SIZE },
-            {
-              $lookup: {
-                from: 'users',
-                localField: 'userId',
-                foreignField: '_id',
-                as: 'user',
-              },
-            },
-            { $unwind: '$user' },
-            {
-              $project: {
-                _id: 1,
-                userId: 1,
-                'user.firstName': 1,
-                'user.lastName': 1,
-                'user.email': 1,
-              },
-            },
-          ])
-          .toArray();
-
-        if (enrollments.length === 0) continue;
-
-        const batchUserIds = enrollments.map(e => e.userId);
-        const [scoresData, totalAttempts] = await Promise.all([
-          this.getMaxScoresForQuizzes(batchUserIds, quizIdsObj),
-          this.getUserQuizAttempts(batchUserIds, quizIdsObj),
-        ]);
-
-        const { maxScores, questionScores } = scoresData;
-
-        const batchResults = enrollments.map(enrollment => {
-          const userId = enrollment.userId.toString();
-          const studentQuizScores: StudentQuizScoreDto['quizScores'] = [];
-
-          for (const module of quizzesByModuleSection) {
-            for (const section of module.sections) {
-              for (const quizId of section.quizIds) {
-                if (!validQuizIds.includes(quizId)) continue;
-
-                const quizName =
-                  quizDetails.get(quizId)?.name || 'Untitled Quiz';
-                const allQuestionIds = quizQuestionsMap.get(quizId) || [];
-                const studentQuestionScores =
-                  questionScores.get(userId)?.get(quizId) || new Map();
-
-                const questionScoresArr = allQuestionIds.map(questionId => ({
-                  questionId,
-                  score: studentQuestionScores.get(questionId) || 0,
-                }));
-
-                studentQuizScores.push({
-                  moduleId: module.moduleId,
-                  sectionId: section.sectionId,
-                  quizId,
-                  quizName,
-                  maxScore: maxScores.get(userId)?.get(quizId) || 0,
-                  questionScores: questionScoresArr,
-                  attempts: totalAttempts.get(userId)?.get(quizId) || 0,
-                });
-              }
-            }
-          }
-
-          return {
-            studentId: userId,
-            name:
-              `${enrollment.user.firstName || ''} ${enrollment.user.lastName || ''
-                }`.trim() || 'Unknown',
-            email: enrollment.user.email || '',
-            quizScores: studentQuizScores,
-          };
-        });
-
-        result.push(...batchResults);
-      }
-
-      const duration = Date.now() - startTime;
+    if (!enrollments.length) {
       return {
-        data: result,
+        data: [],
         metadata: {
           courseId,
           versionId,
-          totalStudents: result.length,
-          durationMs: duration,
+          totalStudents: 0,
+          durationMs: Date.now() - startTime,
           generatedAt: new Date().toISOString(),
         },
       };
-    } catch (error) {
-      console.error('Error in getQuizScoresForCourseVersion:', error);
-      throw new Error('Failed to fetch quiz scores');
     }
+
+    const userIds = enrollments.map(e => e.userId);
+
+    /* -------------------------------------------------------
+     * 2️⃣ FETCH QUIZ STRUCTURE
+     * ----------------------------------------------------- */
+    const quizzesByModuleSection =
+      await this.getQuizIdsByModulesAndSections(versionId);
+
+    const validQuizIds = [
+      ...new Set(
+        quizzesByModuleSection.flatMap(m =>
+          m.sections.flatMap(s =>
+            s.quizIds.filter(id => ObjectId.isValid(id)),
+          ),
+        ),
+      ),
+    ];
+
+    if (!validQuizIds.length) {
+      return {
+        data: [],
+        metadata: {
+          courseId,
+          versionId,
+          totalStudents: enrollments.length,
+          durationMs: Date.now() - startTime,
+          generatedAt: new Date().toISOString(),
+        },
+      };
+    }
+
+    const quizIdsObj = validQuizIds.map(id => new ObjectId(id));
+
+    const [quizDetails, quizQuestionsMap] = await Promise.all([
+      this.getQuizDetails(quizIdsObj),
+      this.getQuizQuestionIdsBulk(validQuizIds),
+    ]);
+
+    /* -------------------------------------------------------
+     * 3️⃣ AGGREGATE SUBMISSIONS IN MONGO (🔥 FIX)
+     * ----------------------------------------------------- */
+    const aggregatedSubmissions =
+      await this.submissionCollection
+        .aggregate([
+          {
+            $match: {
+              userId: { $in: userIds },
+              quizId: { $in: quizIdsObj },
+            },
+          },
+          {
+            $unwind: '$gradingResult.overallFeedback',
+          },
+          {
+            $group: {
+              _id: {
+                userId: '$userId',
+                quizId: '$quizId',
+                questionId:
+                  '$gradingResult.overallFeedback.questionId',
+              },
+              questionScore: {
+                $max: '$gradingResult.overallFeedback.score',
+              },
+              maxScore: {
+                $max: '$gradingResult.totalScore',
+              },
+              attempts: { $sum: 1 },
+            },
+          },
+        ])
+        .toArray();
+
+    /* -------------------------------------------------------
+     * 4️⃣ BUILD FAST LOOKUP MAPS
+     * ----------------------------------------------------- */
+    const scoreMap = new Map<
+      string,
+      Map<string, Map<string, number>>
+    >();
+    const maxScoreMap = new Map<string, Map<string, number>>();
+    const attemptsMap = new Map<string, Map<string, number>>();
+
+    for (const row of aggregatedSubmissions) {
+      const userId = row._id.userId.toString();
+      const quizId = row._id.quizId.toString();
+      const questionId = row._id.questionId.toString();
+
+      // attempts
+      attemptsMap
+        .set(userId, attemptsMap.get(userId) ?? new Map())
+        .get(userId)!
+        .set(quizId, row.attempts);
+
+      // max score
+      maxScoreMap
+        .set(userId, maxScoreMap.get(userId) ?? new Map())
+        .get(userId)!
+        .set(quizId, row.maxScore ?? 0);
+
+      // question score
+      scoreMap
+        .set(userId, scoreMap.get(userId) ?? new Map())
+        .get(userId)!
+        .set(quizId, scoreMap.get(userId)?.get(quizId) ?? new Map())
+        .get(quizId)!
+        .set(questionId, row.questionScore ?? 0);
+    }
+
+    /* -------------------------------------------------------
+     * 5️⃣ BUILD FINAL RESPONSE (NO DB CALLS)
+     * ----------------------------------------------------- */
+    const data: StudentQuizScoreDto[] = enrollments.map(enrollment => {
+      const userId = enrollment.userId.toString();
+      const quizScores: StudentQuizScoreDto['quizScores'] = [];
+
+      for (const module of quizzesByModuleSection) {
+        for (const section of module.sections) {
+          for (const quizId of section.quizIds) {
+            if (!quizQuestionsMap.has(quizId)) continue;
+
+            const questionIds = quizQuestionsMap.get(quizId)!;
+            const qScoreMap =
+              scoreMap.get(userId)?.get(quizId) ?? new Map();
+
+            quizScores.push({
+              moduleId: module.moduleId,
+              sectionId: section.sectionId,
+              quizId,
+              quizName:
+                quizDetails.get(quizId)?.name ?? 'Untitled Quiz',
+              maxScore: maxScoreMap.get(userId)?.get(quizId) ?? 0,
+              attempts: attemptsMap.get(userId)?.get(quizId) ?? 0,
+              questionScores: questionIds.map(qid => ({
+                questionId: qid,
+                score: qScoreMap.get(qid) ?? 0,
+              })),
+            });
+          }
+        }
+      }
+
+      return {
+        studentId: userId,
+        name:
+          `${enrollment.user.firstName ?? ''} ${enrollment.user.lastName ?? ''}`.trim() ||
+          'Unknown',
+        email: enrollment.user.email ?? '',
+        quizScores,
+      };
+    });
+
+    return {
+      data,
+      metadata: {
+        courseId,
+        versionId,
+        totalStudents: data.length,
+        durationMs: Date.now() - startTime,
+        generatedAt: new Date().toISOString(),
+      },
+    };
   }
+
+
+
   async getNonStudentEnrollmentsByCourseVersion(
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
   ): Promise<IEnrollment[]> {
     try {
+      await this.init();
+      const courseObjectId = new ObjectId(courseId);
+      const versionObjectId = new ObjectId(courseVersionId);
+
+      const enrollments = await this.enrollmentCollection
+        .find({
+          courseId: courseObjectId,
+          courseVersionId: versionObjectId,
+          role: { $ne: 'STUDENT' },
+        })
+        .toArray();
+
+      return enrollments;
+    } catch (error) {
+      console.error('Failed to get enrollments:', error);
+      throw new Error('Failed to fetch enrollments for the course version');
+    }
+  }
+
+  async getEnrollmentsByCourseVersion(
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment[]> {
+    try {
+      await this.init();
       const courseObjectId = new ObjectId(courseId);
       const versionObjectId = new ObjectId(courseVersionId);
 
@@ -1654,7 +2460,8 @@ export class EnrollmentRepository {
           {
             courseId: courseObjectId,
             courseVersionId: versionObjectId,
-            role: { $ne: 'STUDENT' },
+            role: 'STUDENT',
+            status: { $regex: /^active$/i },
           },
           { session },
         )
@@ -1662,8 +2469,32 @@ export class EnrollmentRepository {
 
       return enrollments;
     } catch (error) {
-      console.error('Failed to get enrollments:', error);
-      throw new Error('Failed to fetch enrollments for the course version');
+      console.error('Failed to get student enrollments:', error);
+      throw new Error(
+        'Failed to fetch student enrollments for the course version',
+      );
+    }
+  }
+
+  async deleteEnrollmentByVersionId(
+    versionId: string,
+    session?: ClientSession,
+  ) {
+    try {
+      const versionObjectId = new ObjectId(versionId);
+
+      const result = await this.enrollmentCollection.updateMany(
+        {
+          courseVersionId: versionObjectId,
+        },
+        { $set: { isDeleted: true, deletedAt: new Date() } },
+        { session },
+      );
+
+      return result.modifiedCount;
+    } catch (error) {
+      console.error('Failed to delete enrollments:', error);
+      throw new Error('Failed to delete enrollments for the course version');
     }
   }
 
@@ -1677,5 +2508,62 @@ export class EnrollmentRepository {
       session,
     });
     return result.insertedIds;
+  }
+  async deleteEnrollmentsByVersionIds(
+    versionIds: ObjectId[],
+    session?: ClientSession,
+  ): Promise<boolean> {
+    if (!versionIds.length) return false;
+
+    const result = await this.enrollmentCollection.deleteMany(
+      {
+        courseVersionId: { $in: versionIds },
+      },
+      { session },
+    );
+    return result.acknowledged && result.deletedCount > 0;
+  }
+
+  async getUserEnrollmentsByCourseVersion(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<IEnrollment> {
+    await this.init();
+    return await this.enrollmentCollection
+      .find(
+        {
+          userId: new ObjectId(userId),
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+        },
+        { session },
+      )
+      .next();
+  }
+
+  async setWatchTimeVisibility(
+    itemIds: string[],
+    isHidden: boolean,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+
+    const itemObjIds = itemIds.map(id => new ObjectId(id));
+
+    const result = await this.watchTimeCollection.updateMany(
+      { itemId: { $in: itemObjIds } },
+      { $set: { isHidden: isHidden } },
+      { session },
+    );
+
+    if (!result.acknowledged) {
+      throw new InternalServerError(
+        'Failed to update watch time visibility for items.',
+      );
+    }
+
+    return result.modifiedCount > 0;
   }
 }
