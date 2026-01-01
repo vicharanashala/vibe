@@ -6,7 +6,6 @@ await import('./instrument.js');
 import * as Sentry from '@sentry/node';
 import express from 'express';
 import cors from 'cors';
-import session from 'express-session';
 // import session from 'express-session'
 import {useExpressServer, RoutingControllersOptions} from 'routing-controllers';
 import {appConfig} from './config/app.js';
@@ -28,7 +27,7 @@ const app = express();
 app.use(loggingHandler);
 console.log('uri ');
 
-app.use(
+/*app.use(
   session({
     secret: process.env.SESSION_SECRET!,
     resave: false,
@@ -37,7 +36,7 @@ app.use(
       httpOnly: true,
     },
   }),
-);
+);*/
 
 // app.use(
 //   session({
