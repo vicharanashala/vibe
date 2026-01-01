@@ -2019,10 +2019,15 @@ export function useFlagQuestion(): {
 }
 
 
+export interface SaveQuizResponse {
+  result: 'CORRECT' | 'INCORRECT' | 'PARTIALLY_CORRECT';
+  explanation?: string;
+}
+
 export function useSaveQuiz(): {
   mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[] } }) => void,
-  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[] } }) => Promise<void>,
-  data: void | undefined,
+  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[] } }) => Promise<SaveQuizResponse>,
+  data: SaveQuizResponse | undefined,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
