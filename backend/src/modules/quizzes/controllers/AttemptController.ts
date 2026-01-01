@@ -9,7 +9,7 @@ import {
   Authorized,
   Res,
   Controller,
-  Req
+  Req,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
@@ -32,14 +32,14 @@ import {
   SubmitFeedbackParams,
   SubmitFeedbackBody,
   ExportQuizAttemptsParams,
-  QuestionAnswersBodydto
+  QuestionAnswersBodydto,
 } from '#quizzes/classes/validators/QuizValidator.js';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
 import {IAttempt} from '#quizzes/interfaces/index.js';
 import {BadRequestErrorResponse} from '#root/shared/index.js';
 import {getCourseAbility} from '#root/modules/courses/abilities/courseAbilities.js';
 import {createObjectCsvStringifier} from 'csv-writer';
-import {Response,Request} from 'express';
+import {Response, Request} from 'express';
 
 @OpenAPI({
   tags: ['Quiz Attempts'],
@@ -112,23 +112,28 @@ class AttemptController {
     @Req() req: Request,
     @Res() res: Response,
     @Params() params: SaveAttemptParams,
-   // @Body() body: QuestionAnswersBody,
+    // @Body() body: QuestionAnswersBody,
     @Ability(getAttemptAbility) {ability, user},
-  ): Promise<void> {
-    const body: QuestionAnswersBodydto = await new Promise((resolve, reject) => {
-      let data = '';
-      req.on('data', chunk => {
-        data += chunk;
-      });
-      req.on('end', () => {
-        try {
-          resolve(JSON.parse(data || '{}') as QuestionAnswersBodydto);
-        } catch (err) {
-          reject(err);
-        }
-      });
-      req.on('error', err => reject(err));
-    });
+  ): Promise<{
+    result: 'CORRECT' | 'INCORRECT' | 'PARTIALLY_CORRECT';
+    explanation?: string;
+  }> {
+    const body: QuestionAnswersBodydto = await new Promise(
+      (resolve, reject) => {
+        let data = '';
+        req.on('data', chunk => {
+          data += chunk;
+        });
+        req.on('end', () => {
+          try {
+            resolve(JSON.parse(data || '{}') as QuestionAnswersBodydto);
+          } catch (err) {
+            reject(err);
+          }
+        });
+        req.on('error', err => reject(err));
+      },
+    );
     const {quizId, attemptId} = params;
     const userId = user._id.toString();
     // Build subject context first
@@ -140,7 +145,14 @@ class AttemptController {
       );
     }
 
-    await this.attemptService.save(userId, quizId, attemptId, body.answers);
+    const result = await this.attemptService.save(
+      userId,
+      quizId,
+      attemptId,
+      body.answers,
+    );
+
+    return result;
   }
 
   @OpenAPI({
@@ -171,20 +183,22 @@ class AttemptController {
     @Ability(getAttemptAbility) {ability, user},
   ): Promise<SubmitAttemptResponse> {
     const {quizId, attemptId} = params;
-    const body: QuestionAnswersBodydto = await new Promise((resolve, reject) => {
-      let data = '';
-      req.on('data', chunk => {
-        data += chunk;
-      });
-      req.on('end', () => {
-        try {
-          resolve(JSON.parse(data || '{}') as QuestionAnswersBodydto);
-        } catch (err) {
-          reject(err);
-        }
-      });
-      req.on('error', err => reject(err));
-    });
+    const body: QuestionAnswersBodydto = await new Promise(
+      (resolve, reject) => {
+        let data = '';
+        req.on('data', chunk => {
+          data += chunk;
+        });
+        req.on('end', () => {
+          try {
+            resolve(JSON.parse(data || '{}') as QuestionAnswersBodydto);
+          } catch (err) {
+            reject(err);
+          }
+        });
+        req.on('error', err => reject(err));
+      },
+    );
     const {isSkipped, answers} = body;
     const userId = user._id.toString();
     // Build subject context first
