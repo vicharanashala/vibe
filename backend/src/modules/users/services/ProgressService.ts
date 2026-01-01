@@ -1605,73 +1605,14 @@ class ProgressService extends BaseService {
     session?: ClientSession,
   ): Promise<void> {
     return this._withTransaction(async session => {
-      // Run verify + courseVersion fetch in parallel
-      const [_, courseVersion] = await Promise.all([
-        this.verifyDetails(userId, courseId, courseVersionId),
-        this.courseRepo.readVersion(courseVersionId, session),
-      ]);
+      await this.verifyDetails(userId, courseId, courseVersionId);
 
-      // Collect itemsGroupIds from courseModules
-      const itemsGroupIds: string[] = [];
-      for (const module of courseVersion.modules || []) {
-        for (const section of module.sections || []) {
-          if (section.itemsGroupId) {
-            itemsGroupIds.push(section.itemsGroupId as string);
-          }
-        }
-      }
-
-      // Fetch itemGroups in parallel
-      const itemsGroups = await Promise.all(
-        itemsGroupIds.map(id => this.itemRepo.readItemsGroup(id, session)),
+      await this.enrollmentRepo.deleteEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        session,
       );
-
-      // Collect quizItemIds and projectItemIds
-      const quizItemIds: string[] = [];
-      const projectItemIds: string[] = [];
-
-      for (const group of itemsGroups) {
-        for (const item of group.items || []) {
-          if (item.type === 'QUIZ') {
-            quizItemIds.push(item._id.toString());
-          } else if (item.type === 'PROJECT') {
-            projectItemIds.push(item._id.toString());
-          }
-        }
-      }
-
-      // Run watchTime deletion, enrollment progress update, and data reset in parallel
-      await Promise.all([
-        this.progressRepository.deleteProgress(
-          userId,
-          courseId,
-          courseVersionId,
-          session,
-        ),
-        this.progressRepository.deleteUserWatchTimeByCourseVersion(
-          userId,
-          courseId,
-          courseVersionId,
-          session,
-        ),
-        this.enrollmentRepo.deleteEnrollment(
-          userId,
-          courseId,
-          courseVersionId,
-          session,
-        ),
-        quizItemIds.length
-          ? this.resetUserQuizData(userId, quizItemIds, session)
-          : Promise.resolve(),
-        projectItemIds.length
-          ? this.resetUserProjectData(
-            userId,
-            projectItemIds,
-            courseVersionId,
-            session,
-          )
-          : Promise.resolve(),
-      ]);
     });
   }
 
@@ -2228,7 +2169,7 @@ class ProgressService extends BaseService {
     return allItemIds;
   }
 
-  async createBulkWatchiTimeDocs(courseId: string, versionId: string,userId?:string | null) {
+  async createBulkWatchiTimeDocs(courseId: string, versionId: string, userId?: string | null) {
     if (!courseId || !versionId) {
       throw new BadRequestError('courseId and versionId are required');
     }
@@ -2238,7 +2179,7 @@ class ProgressService extends BaseService {
     //   versionId,
     // );
 
-    const enrollments = await this.enrollmentRepo.getEnrollmentsByFilters({courseId,courseVersionId:versionId,userId:userId ?? undefined})
+    const enrollments = await this.enrollmentRepo.getEnrollmentsByFilters({ courseId, courseVersionId: versionId, userId: userId ?? undefined })
 
     if (!enrollments.length) {
       throw new NotFoundError('No enrollments found for this course version');

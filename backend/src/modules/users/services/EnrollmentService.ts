@@ -246,12 +246,6 @@ export class EnrollmentService extends BaseService {
         session,
       );
 
-      await this.courseRegistrationRepo.remove(
-        userId,
-        courseId,
-        courseVersionId,
-        session,
-      );
       return {
         enrollment: null,
         progress: null,
