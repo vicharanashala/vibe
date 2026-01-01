@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye, FileQuestion } from "lucide-react";
-import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem, CreateAttemptResponse } from '@/hooks/hooks';
+import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem, CreateAttemptResponse, SaveQuizResponse } from '@/hooks/hooks';
 import { useCourseStore } from "@/store/course-store";
 import MathRenderer from "./math-renderer";
 import { bufferToHex } from '@/utils/helpers';
@@ -70,6 +70,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const [explanationBox, setExplanationBox] = useState<{
     open: boolean;
     text: string;
+    result?: 'CORRECT' | 'INCORRECT' | 'PARTIALLY_CORRECT';
     resolve?: () => void;
   }>({ open: false, text: "" });
   const [showExplanation, setShowExplanation] = useState(false)
@@ -92,12 +93,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   // ===== UTILITY FUNCTIONS =====
 
 
-  function showExplanationBox(text: string) {
+  function showExplanationBox(text: string, result?: 'CORRECT' | 'INCORRECT' | 'PARTIALLY_CORRECT') {
     setShowExplanation(true)
     return new Promise<void>((resolve) => {
       setExplanationBox({
         open: true,
         text,
+        result,
         resolve,
       });
       // AUTO-CLOSE after 3 seconds
@@ -695,38 +697,22 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     }
   }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem]);
 
-  const handleNextQuestion = useCallback(async () => {  //one here
+  const handleNextQuestion = useCallback(async () => {
     setTimeLeft(0);
 
     // Auto-save progress before moving to next question
     if (attemptId && quizQuestions.length > 0) {
       try {
         const answersForSaving = convertAnswersToSaveFormat();
-        await saveQuiz({
+        const response = await saveQuiz({
           params: { path: { quizId: processedQuizId, attemptId: attemptId } },
           body: { answers: answersForSaving }
         });
 
-        let explanationText = "";
-        for (const sub of answersForSaving) {
-          const question = quizQuestions.find(q => q.id === sub.questionId);
-          if (!question) continue;
-
-          const selected = question.lotItems!.find(
-            item => item._id === sub.answer.lotItemId
-          );
-
-          if (selected?.explaination) {
-            explanationText = selected.explaination;
-          }
+        // Use response explanation and result if available
+        if (response && response.explanation && response.explanation.trim() && response.explanation !== 'Nil') {
+          await showExplanationBox(response.explanation, response.result);
         }
-        if (explanationText === 'Nil') {
-          explanationText = ''
-        }
-        if (explanationText.trim()) {
-          await showExplanationBox(explanationText)
-        }
-        // if(result)
       } catch (err: any) {
         const errorMessage =
           err?.message || (typeof err === 'string' ? err : null) ||
@@ -1528,7 +1514,11 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           )}
 
           {explanationBox.open && (
-            <div className="mb-4 p-3 rounded-lg bg-green-100 text-green-900 border border-green-300 animate-in fade-in">
+            <div className={`mb-4 p-3 rounded-lg animate-in fade-in ${
+              explanationBox.result === 'CORRECT' 
+                ? 'bg-green-100 dark:bg-green-950/20 text-green-900 dark:text-green-100 border border-green-300 dark:border-green-800' 
+                : 'bg-red-100 dark:bg-red-950/20 text-red-900 dark:text-red-100 border border-red-300 dark:border-red-800'
+            }`}>
               <p className="text-sm leading-relaxed">{explanationBox.text}</p>
 
               {/* OPTIONAL Next Button */}
