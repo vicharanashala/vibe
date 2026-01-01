@@ -1,6 +1,6 @@
-import {ObjectId} from 'mongodb';
-import {ProctoringComponent} from '../database/index.js';
-import {Type} from 'class-transformer';
+import { ObjectId } from 'mongodb';
+import { ProctoringComponent } from '../database/index.js';
+import { Type } from 'class-transformer';
 import {
   IsOptional,
   IsInt,
@@ -10,7 +10,7 @@ import {
   isString,
   IsEnum,
 } from 'class-validator';
-import {Priority} from './quiz.js';
+import { Priority } from './quiz.js';
 
 export interface IUser {
   _id?: string | ObjectId | null;
@@ -382,7 +382,6 @@ export type EnrollmentRole =
   | 'TA'
   | 'STAFF';
 export type EnrollmentStatus = 'ACTIVE' | 'INACTIVE';
-// New interfaces for user enrollment and progress tracking
 export interface IEnrollment {
   _id?: string | ObjectId | null;
   userId: string | ObjectId;
@@ -393,6 +392,9 @@ export interface IEnrollment {
   enrollmentDate: Date;
   percentCompleted: number;
   completedItemsCount?: number;
+  isDeleted?: boolean;
+  deletedAt?: Date;
+  unenrolledAt?: Date;
 }
 
 export interface IProgress {
@@ -469,14 +471,14 @@ export interface IRegistrationSettings {
   _id?: ID;
   label: string;
   type:
-    | 'TEXT'
-    | 'TEXTAREA'
-    | 'EMAIL'
-    | 'TEL'
-    | 'DATE'
-    | 'NUMBER'
-    | 'URL'
-    | 'SELECT';
+  | 'TEXT'
+  | 'TEXTAREA'
+  | 'EMAIL'
+  | 'TEL'
+  | 'DATE'
+  | 'NUMBER'
+  | 'URL'
+  | 'SELECT';
   isDefault: boolean;
   required: boolean;
   options?: string[];

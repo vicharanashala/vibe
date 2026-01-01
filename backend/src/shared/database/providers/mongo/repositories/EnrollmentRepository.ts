@@ -272,9 +272,7 @@ export class EnrollmentRepository {
       );
     }
   }
-  /**
-   * Delete an enrollment record for a user in a specific course version
-   */
+
   async deleteEnrollment(
     userId: string,
     courseId: string,
@@ -286,13 +284,10 @@ export class EnrollmentRepository {
     const courseObjectId = new ObjectId(courseId);
     const courseVersionObjectId = new ObjectId(courseVersionId);
 
-    // temp: Try both userId as string and ObjectId (if valid)
     const userFilter = [
       userId,
       ObjectId.isValid(userId) ? new ObjectId(userId) : null,
     ].filter(Boolean);
-
-    // const userObjectid = new ObjectId(userId)
 
     const result = await this.enrollmentCollection.updateOne(
       {
@@ -300,7 +295,14 @@ export class EnrollmentRepository {
         courseId: courseObjectId,
         courseVersionId: courseVersionObjectId,
       },
-      { $set: { isDeleted: true, deletedAt: new Date() } },
+      {
+        $set: {
+          isDeleted: true,
+          deletedAt: new Date(),
+          status: 'INACTIVE',
+          unenrolledAt: new Date(),
+        },
+      },
       { session },
     );
     if (result.modifiedCount === 0) {
