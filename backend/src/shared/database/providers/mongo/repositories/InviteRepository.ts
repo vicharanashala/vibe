@@ -40,9 +40,9 @@ export class InviteRepository {
         invite.usedCount = 0;
       }
       const result = await this.inviteCollection.insertOne(invite, { session });
-      const invitee = await this.inviteCollection.findOne({
-        _id: result.insertedId,
-      });
+      // const invitee = await this.inviteCollection.findOne({
+      //   _id: result.insertedId,
+      // });
       return result.insertedId.toString();
     } catch {
       throw new InternalServerError('Failed to create invite');
