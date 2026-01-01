@@ -233,6 +233,25 @@ export class EnrollmentRepository {
       );
     }
   }
+
+  async updateCompletedItemsCount(
+    enrollmentId: string,
+    completedItemsCount: number,
+    session?: ClientSession,
+  ): Promise<void> {
+    try {
+      await this.init();
+      await this.enrollmentCollection.findOneAndUpdate(
+        { _id: new ObjectId(enrollmentId) },
+        { $set: { completedItemsCount, updatedAt: new Date() } },
+        { session },
+      );
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed to update completed items count in enrollment. More/${error}`,
+      );
+    }
+  }
   /**
    * Create a new enrollment record
    */
