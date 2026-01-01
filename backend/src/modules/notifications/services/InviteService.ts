@@ -399,75 +399,130 @@ export class InviteService extends BaseService {
     }
 
     const seenEmails = new Set<string>();
-    const uniqueInviteData = inviteData.filter(invite => {
-      const normalizedEmail = invite.email.toLowerCase().trim();
-      if (seenEmails.has(normalizedEmail)) {
-        return false; // Skip duplicate
-      }
-      seenEmails.add(normalizedEmail);
-      return true;
-    });
+  const uniqueInviteData = inviteData.filter(inv => {
+    const email = inv.email.toLowerCase().trim();
+    if (seenEmails.has(email)) return false;
+    seenEmails.add(email);
+    return true;
+  });
 
-    // Create all invites in a single transaction
-    const invites = await this._withTransaction(async session => {
-      const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-      //  Create all invites in parallel
-      const invitePromises = uniqueInviteData.map(async ({ email, role }) => {
-        const normalizedEmail = email.toLowerCase().trim();
-        const existingPendingInvite = await this.inviteRepo.findPendingInviteByEmailAndCourse(
+  const invites = await this._withTransaction(async session => {
+    const inviteIds: string[] = [];
+
+    for (const { email, role } of uniqueInviteData) {
+      const normalizedEmail = email.toLowerCase().trim();
+
+      const existingInvite =
+        await this.inviteRepo.findPendingInviteByEmailAndCourse(
           normalizedEmail,
           courseId,
           courseVersionId,
           session,
         );
 
-        if (existingPendingInvite) {
-          // Return existing invite ID instead of creating duplicate
-          return existingPendingInvite._id.toString();
-        }
+      if (existingInvite) {
+        inviteIds.push(existingInvite._id.toString());
+        continue;
+      }
+      const user = await this.userRepo.findByEmail(normalizedEmail);
 
-        const user = await this.userRepo.findByEmail(email);
-        const isNewUser = !user;
-
-        const isAlreadyEnrolled = user
-          ? !!(await this.enrollmentRepo.findActiveEnrollment(
+      const isAlreadyEnrolled = user
+        ? !!(await this.enrollmentRepo.findActiveEnrollment(
             user._id.toString(),
             courseId,
             courseVersionId,
           ))
-          : false;
-        const invite = new Invite({
-          email: normalizedEmail,
-          courseId: new ObjectId(courseId),
-          courseVersionId: new ObjectId(courseVersionId),
-          role,
-          isAlreadyEnrolled,
-          isNewUser,
-          expiresAt: oneWeekFromNow,
-          type: InviteType.SINGLE
-        });
+        : false;
 
-        return this.inviteRepo.create(invite, session);
+      const invite = new Invite({
+        email: normalizedEmail,
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        role,
+        isAlreadyEnrolled,
+        isNewUser: !user,
+        expiresAt: oneWeekFromNow,
+        type: InviteType.SINGLE,
       });
 
-      const inviteIds = await Promise.all(invitePromises);
+      const id = await this.inviteRepo.create(invite, session);
+      inviteIds.push(id);
+    }
 
-      // Fetch created invites
-      return await this.inviteRepo.findInvitesByIds(inviteIds, session);
-    });
+    return await this.inviteRepo.findInvitesByIds(inviteIds, session);
+  });
+
+    // const seenEmails = new Set<string>();
+    // const uniqueInviteData = inviteData.filter(invite => {
+    //   const normalizedEmail = invite.email.toLowerCase().trim();
+    //   if (seenEmails.has(normalizedEmail)) {
+    //     return false; // Skip duplicate
+    //   }
+    //   seenEmails.add(normalizedEmail);
+    //   return true;
+    // });
+
+    // Create all invites in a single transaction
+    // const invites = await this._withTransaction(async session => {
+    //   const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    //   //  Create all invites in parallel
+    //   const invitePromises = uniqueInviteData.map(async ({ email, role }) => {
+    //     const normalizedEmail = email.toLowerCase().trim();
+    //     const existingPendingInvite = await this.inviteRepo.findPendingInviteByEmailAndCourse(
+    //       normalizedEmail,
+    //       courseId,
+    //       courseVersionId,
+    //       session,
+    //     );
+
+    //     if (existingPendingInvite) {
+    //       // Return existing invite ID instead of creating duplicate
+    //       return existingPendingInvite._id.toString();
+    //     }
+
+    //     const user = await this.userRepo.findByEmail(email);
+    //     const isNewUser = !user;
+
+    //     const isAlreadyEnrolled = user
+    //       ? !!(await this.enrollmentRepo.findActiveEnrollment(
+    //         user._id.toString(),
+    //         courseId,
+    //         courseVersionId,
+    //       ))
+    //       : false;
+    //     const invite = new Invite({
+    //       email: normalizedEmail,
+    //       courseId: new ObjectId(courseId),
+    //       courseVersionId: new ObjectId(courseVersionId),
+    //       role,
+    //       isAlreadyEnrolled,
+    //       isNewUser,
+    //       expiresAt: oneWeekFromNow,
+    //       type: InviteType.SINGLE
+    //     });
+
+    //     return this.inviteRepo.create(invite, session);
+    //   });
+
+    //   const inviteIds = await Promise.all(invitePromises);
+
+    //   // Fetch created invites
+    //   return await this.inviteRepo.findInvitesByIds(inviteIds, session);
+    // });
 
     // Send emails in batches with delays (outside transaction to avoid timeout)
     const BATCH_SIZE = 10;
     const DELAY_BETWEEN_BATCHES = 90000; // 90 seconds
-
     for (let i = 0; i < invites.length; i += BATCH_SIZE) {
       const batch = invites.slice(i, i + BATCH_SIZE);
 
       // Send emails for current batch in parallel
       await Promise.all(
         batch.map(async invite => {
-          const emailMessage = await this.createInviteEmailMessage(
+          const emailMessage = this.createInviteEmailMessage(
             invite,
             course,
             courseVersion,
