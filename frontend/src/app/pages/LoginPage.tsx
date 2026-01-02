@@ -233,7 +233,7 @@ export default function LoginPage() {
 
   // New function for handling signup
   const handleEmailSignup = async () => {
-    // if (!validateForm()) return;
+    if (!validateForm()) return;
 
     if (!passwordsMatch) {
       setFormErrors({
@@ -255,7 +255,7 @@ export default function LoginPage() {
       setLoading(true);
       setFormErrors({});
 
-      // const result = await createUserWithEmail(email, password, fullName);
+      const result = await createUserWithEmail(email, password, fullName);
 
       // Parse fullName into firstName and lastName
       const nameParts = fullName.trim().split(' ');
@@ -270,7 +270,7 @@ export default function LoginPage() {
           lastName: lastName
         }
       });
-      const result = await loginWithEmail(email, password);
+      
 
       // Set user in store
       setUser({
