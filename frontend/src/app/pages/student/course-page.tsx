@@ -554,79 +554,79 @@ export default function CoursePage() {
   //   }
   // };
   // Handle item selection - now with immediate flag clear and enqueued for safety
-const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemId: string) => {
-  enqueueNavigation(async () => {
-    setIsNavigatingToNext(true);
+  const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemId: string) => {
+    enqueueNavigation(async () => {
+      setIsNavigatingToNext(true);
 
-    try {
-      // Stop current item immediately
-      if (itemContainerRef.current) {
-        await itemContainerRef.current.stopCurrentItem();
-        // Small delay for API/callback cleanup
-        await new Promise(resolve => setTimeout(resolve, 50));
+      try {
+        // Stop current item immediately
+        if (itemContainerRef.current) {
+          await itemContainerRef.current.stopCurrentItem();
+          // Small delay for API/callback cleanup
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+
+        // Store previous valid for fallback (only if not forbidden)
+        if (selectedItemId && selectedSectionId && selectedModuleId && !isItemForbidden) {
+          setPreviousValidItem({
+            moduleId: selectedModuleId!,
+            sectionId: selectedSectionId!,
+            itemId: selectedItemId!,
+          });
+        }
+
+        // Clear errors 
+        setIsItemForbidden(false);
+
+        // Update states to trigger fetch/expansion
+        setSelectedModuleId(moduleId);
+        setSelectedSectionId(sectionId);
+        setSelectedItemId(itemId);
+
+        // Load section items if needed
+        if (!sectionItems[sectionId]) {
+          setActiveSectionInfo({ moduleId, sectionId });
+        }
+
+        // Auto-expand sidebar
+        setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
+        setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
+
+        // Update store
+        updateCourseNavigation(moduleId, sectionId, itemId);
+        setIsNavigatingToNext(false);
+
+      } catch (error) {
+        console.error('Error in handleSelectItem:', error);
+        toast.error('Failed to switch item. Please try again.');
+        setIsNavigatingToNext(false);
       }
-
-      // Store previous valid for fallback (only if not forbidden)
-      if (selectedItemId && selectedSectionId && selectedModuleId && !isItemForbidden) {
-        setPreviousValidItem({
-          moduleId: selectedModuleId!,
-          sectionId: selectedSectionId!,
-          itemId: selectedItemId!,
-        });
-      }
-
-      // Clear errors 
-      setIsItemForbidden(false);
-
-      // Update states to trigger fetch/expansion
-      setSelectedModuleId(moduleId);
-      setSelectedSectionId(sectionId);
-      setSelectedItemId(itemId);
-
-      // Load section items if needed
-      if (!sectionItems[sectionId]) {
-        setActiveSectionInfo({ moduleId, sectionId });
-      }
-
-      // Auto-expand sidebar
-      setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
-      setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
-
-      // Update store
-      updateCourseNavigation(moduleId, sectionId, itemId);
-      setIsNavigatingToNext(false);
-
-    } catch (error) {
-      console.error('Error in handleSelectItem:', error);
-      toast.error('Failed to switch item. Please try again.');
-      setIsNavigatingToNext(false);
-    }
-  });
-}, [
-  selectedModuleId,
-  selectedSectionId,
-  selectedItemId,
-  sectionItems,
-  isItemForbidden,
-  updateCourseNavigation,
-  itemContainerRef,
-]);
+    });
+  }, [
+    selectedModuleId,
+    selectedSectionId,
+    selectedItemId,
+    sectionItems,
+    isItemForbidden,
+    updateCourseNavigation,
+    itemContainerRef,
+  ]);
 
   const handleSkipItem = async () => {
-  if (!currentItem?._id) return;
-  
-  try {
-    setIsSkippingItem(true);
-    await skipItemAsync({ params: { path: { itemId: currentItem._id } } });
-    toast.success('Item skipped successfully');
-    handleNext(); // Move to the next item
-  } catch (error) {
-    console.error('Error skipping item:', error);
-    toast.error('Failed to skip item');
-  } finally {
-    setIsSkippingItem(false);
-  }
-};
+    if (!currentItem?._id) return;
+
+    try {
+      setIsSkippingItem(true);
+      await skipItemAsync({ params: { path: { itemId: currentItem._id } } });
+      toast.success('Item skipped successfully');
+      handleNext(); // Move to the next item
+    } catch (error) {
+      console.error('Error skipping item:', error);
+      toast.error('Failed to skip item');
+    } finally {
+      setIsSkippingItem(false);
+    }
+  };
   // Toggle module expansion
   const toggleModule = (moduleId: string) => {
     setExpandedModules(prev => ({ ...prev, [moduleId]: !prev[moduleId] }));
@@ -885,20 +885,20 @@ const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemI
           } catch (error: any) {
             const errorMessage = error?.response?.data?.message || error?.message || 'Failed to save progress. Please try again.';
             toast.error(errorMessage);
-            
+
             // Navigate to previous video item on stop API failure
             const previousVideoItem = findPreviousVideoItem();
             if (previousVideoItem && previousVideoItem.itemId && previousVideoItem.itemId !== selectedItemId) {
-              
+
               // Update local React state to trigger re-render
               setSelectedModuleId(previousVideoItem.moduleId);
               setSelectedSectionId(previousVideoItem.sectionId);
               setSelectedItemId(previousVideoItem.itemId);
-              
+
               // Expand the module and section
               setExpandedModules(prev => ({ ...prev, [previousVideoItem.moduleId]: true }));
               setExpandedSections(prev => ({ ...prev, [previousVideoItem.sectionId]: true }));
-              
+
               // Ensure section items are loaded
               if (!sectionItems[previousVideoItem.sectionId]) {
                 setActiveSectionInfo({
@@ -906,7 +906,7 @@ const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemI
                   sectionId: previousVideoItem.sectionId
                 });
               }
-              
+
               // Update course store
               updateCourseNavigation(
                 previousVideoItem.moduleId,
@@ -914,7 +914,7 @@ const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemI
                 previousVideoItem.itemId
               );
             }
-            
+
             setIsNavigatingToNext(false);
             return;
           }
@@ -1020,7 +1020,7 @@ const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemI
         updateCourseNavigation(moduleId, sectionId, itemId);
 
         console.log('Successfully navigated to next item:', { moduleId, sectionId, itemId });
-        
+
         // Clear loading state after successful navigation
         setIsNavigatingToNext(false);
       } catch (error) {
@@ -1186,7 +1186,7 @@ const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemI
 
       // Update the course store with the previous video item
       updateCourseNavigation(moduleId, sectionId, itemId);
-      
+
       // Clear loading state after successful navigation
       setTimeout(() => {
         setIsNavigatingToNext(false);
@@ -1268,14 +1268,14 @@ const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemI
   return (
     <>
       <Dialog open={showProctorDialog} onOpenChange={(open) => {
-          if (!open) {
-            setShowProctorDialog(false);
-            router.navigate({ to: '/student' });
-            setTimeout(()=>{
-              window.location.reload()
-            },1000)
-          }
-        }}>
+        if (!open) {
+          setShowProctorDialog(false);
+          router.navigate({ to: '/student' });
+          setTimeout(() => {
+            window.location.reload()
+          }, 1000)
+        }
+      }}>
         <DialogContent className="sm:max-w-lg w-[calc(100%-2rem)] max-w-full">
           <DialogHeader>
             <DialogTitle className="text-lg font-extrabold">Declaration</DialogTitle>
@@ -1660,10 +1660,10 @@ const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemI
                     >
                       {/* Close Button */}
                       <button
-                        onClick={() =>{ 
+                        onClick={() => {
                           setClosing(true)
                           // setQuizPassed(2)
-                          setTimeout(() => setQuizPassed(2),300)
+                          setTimeout(() => setQuizPassed(2), 300)
                         }}
                         className="absolute top-3 right-3 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors duration-200 group"
                         aria-label="Close"

@@ -1327,8 +1327,18 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                       )}
                       {/* Show correct answers if enabled and available */}
                       {showCorrectAnswersAfterSubmission && questionFeedback && (
-                        <div className="mt-3 p-2 bg-green-50 dark:bg-green-950/20 rounded">
-                          <p className="text-sm font-medium text-green-700 dark:text-green-300">
+                        <div className={`mt-3 p-2 rounded ${questionFeedback.status === 'CORRECT'
+                            ? 'bg-green-50 dark:bg-green-950/20'
+                            : questionFeedback.status === 'INCORRECT'
+                              ? 'bg-red-50 dark:bg-red-950/20'
+                              : 'bg-yellow-50 dark:bg-yellow-950/20'
+                          }`}>
+                          <p className={`text-sm font-medium ${questionFeedback.status === 'CORRECT'
+                              ? 'text-green-700 dark:text-green-300'
+                              : questionFeedback.status === 'INCORRECT'
+                                ? 'text-red-700 dark:text-red-300'
+                                : 'text-yellow-700 dark:text-yellow-300'
+                            }`}>
                             Status: {questionFeedback.status}
                           </p>
                         </div>
@@ -1450,14 +1460,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           <Badge variant="outline">
             Question {currentQuestionIndex + 1} of {quizQuestions.length}
           </Badge>
-         {timeLeft > 0 && (
+          {timeLeft > 0 && (
             <Badge
               variant="secondary"
               className={`font-mono text-lg font-semibold px-3 py-2 border
-                ${
-                  timeLeft <= 10
-                    ? 'bg-destructive text-destructive-foreground border-destructive ring-2 ring-destructive/60 animate-pulse'
-                    : 'bg-muted text-foreground border-border'
+                ${timeLeft <= 10
+                  ? 'bg-destructive text-destructive-foreground border-destructive ring-2 ring-destructive/60 animate-pulse'
+                  : 'bg-muted text-foreground border-border'
                 }
               `}
             >
@@ -1521,11 +1530,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           )}
 
           {explanationBox.open && (
-            <div className={`mb-4 p-3 rounded-lg animate-in fade-in ${
-              explanationBox.result === 'CORRECT' 
-                ? 'bg-green-100 dark:bg-green-950/20 text-green-900 dark:text-green-100 border border-green-300 dark:border-green-800' 
+            <div className={`mb-4 p-3 rounded-lg animate-in fade-in ${explanationBox.result === 'CORRECT'
+                ? 'bg-green-100 dark:bg-green-950/20 text-green-900 dark:text-green-100 border border-green-300 dark:border-green-800'
                 : 'bg-red-100 dark:bg-red-950/20 text-red-900 dark:text-red-100 border border-red-300 dark:border-red-800'
-            }`}>
+              }`}>
               <p className="text-sm leading-relaxed">{explanationBox.text}</p>
 
               {/* OPTIONAL Next Button */}

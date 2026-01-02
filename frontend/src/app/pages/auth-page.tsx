@@ -26,7 +26,7 @@ const TabsContext = createContext<{
 const links = {
   GITHUB: 'https://github.com/vicharanashala/vibe.git',
   DEMO_VIDEO: "https://www.youtube.com/watch?v=8ytNdYlK-BU",
-  ABOUT_US:"https://github.com/vicharanashala/vibe/blob/combined-updates/README.md"
+  ABOUT_US: "https://github.com/vicharanashala/vibe/blob/combined-updates/README.md"
 
 }
 
@@ -365,7 +365,7 @@ export default function AuthPage() {
                   <button onClick={() => window.open(links.DEMO_VIDEO, '_blank')} className="text-base px-7 py-3 rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
                     Explore Demo
                   </button>
-                  <button onClick={() => {navigate({ to: "/login" })}} className="text-base px-7 py-3 rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
+                  <button onClick={() => { navigate({ to: "/login" }) }} className="text-base px-7 py-3 rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
                     Get Started
                   </button>
                 </div>
@@ -814,8 +814,8 @@ export default function AuthPage() {
               <div className="flex flex-col space-y-2 text-white text-base font-semibold leading-6">
                 <a href="#">Home</a>
                 <a href={links.ABOUT_US} target="_blank">About Us</a>
-                <a href= {links.GITHUB} target="_blank">Resources</a>
-                <a href= {links.GITHUB} target="_blank">Contact Us</a>
+                <a href={links.GITHUB} target="_blank">Resources</a>
+                <a href={links.GITHUB} target="_blank">Contact Us</a>
               </div>
             </div>
             <div className="bg-[rgb(240,248,250)] p-8 rounded-[8px] w-full max-w-[608px] ml-auto">
