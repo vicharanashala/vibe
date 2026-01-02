@@ -1803,7 +1803,10 @@ class ProgressService extends BaseService {
     session?: ClientSession,
   ): Promise<void> {
     return this._withTransaction(async session => {
-      await this.verifyDetails(userId, courseId, courseVersionId);
+      const [_, courseVersion] = await Promise.all([
+        this.verifyDetails(userId, courseId, courseVersionId),
+        this.courseRepo.readVersion(courseVersionId),
+      ]);
 
       await this.enrollmentRepo.deleteEnrollment(
         userId,
@@ -1815,6 +1818,21 @@ class ProgressService extends BaseService {
       // Collect quizItemIds and projectItemIds
       const quizItemIds: string[] = [];
       const projectItemIds: string[] = [];
+
+      // Collect itemsGroupIds from courseModules
+      const itemsGroupIds: string[] = [];
+      for (const module of courseVersion.modules || []) {
+        for (const section of module.sections || []) {
+          if (section.itemsGroupId) {
+            itemsGroupIds.push(section.itemsGroupId as string);
+          }
+        }
+      }
+
+      // Fetch itemGroups in parallel
+      const itemsGroups = await Promise.all(
+        itemsGroupIds.map(id => this.itemRepo.readItemsGroup(id, session)),
+      );
 
       for (const group of itemsGroups) {
         for (const item of group.items || []) {
