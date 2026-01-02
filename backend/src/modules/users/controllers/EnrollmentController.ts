@@ -374,6 +374,7 @@ export class EnrollmentController {
           enrollmentDate: enrollment.enrollmentDate,
           user: { ...enrollment.userInfo, _id: enrollment.userId },
           progress: enrollment.percentCompleted,
+          completedItemsCount: enrollment.completedItemsCount || 0,
         }))
         .sort((a, b) => {
           // sort by isDeleted deleted should be at the bottom
@@ -405,9 +406,9 @@ export class EnrollmentController {
     @Ability(getEnrollmentAbility) { ability },
     @QueryParams() query: BulkEnrollmentsQuery,
   ) {
-    const { courseId,userId } = query;
+    const { courseId, userId } = query;
     const updatedEnrollment =
-      await this.enrollmentService.bulkUpdateAllEnrollments(courseId,userId);
+      await this.enrollmentService.bulkUpdateAllEnrollments(courseId, userId);
     return updatedEnrollment;
   }
 
@@ -508,5 +509,30 @@ export class EnrollmentController {
       courseId,
       versionId,
     );
+  }
+  @OpenAPI({
+    summary: 'Update completed items count for all enrollments',
+    description: 'Endpoint to update completedItemsCount field for all enrollments',
+  })
+  @Authorized()
+  @Patch('/enrollments/update-completed-items-count')
+  @ResponseSchema(UpdateEnrollmentProgressResponse, {
+    description: 'Completed items count updated successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+
+  async updateAllCompletedItemsCount(@Ability(getEnrollmentAbility) { ability },
+    @QueryParams() query: BulkEnrollmentsQuery,): Promise<{ message: string; totalUpdated: any }> {
+    const { courseId, userId } = query;
+    const totalUpdated = await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion(courseId, userId);
+
+    return {
+      message: 'Completed items count updated successfully',
+      totalUpdated,
+    };
   }
 }

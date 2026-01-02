@@ -477,12 +477,17 @@ class SubmissionRepository {
     session?: ClientSession,
   ): Promise<ISubmission> {
     await this.init();
+    const passed = await this.submissionResultCollection.findOne({
+      quizId: new ObjectId(quizId),
+      userId: new ObjectId(userId),
+      'gradingResult.gradingStatus': 'PASSED',
+    });
+
+    if (passed) return passed;
+
     return await this.submissionResultCollection.findOne(
-      {
-        quizId: new ObjectId(quizId),
-        userId: new ObjectId(userId),
-      },
-      {session},
+      {quizId: new ObjectId(quizId), userId: new ObjectId(userId)},
+      {sort: {submittedAt: 1}},
     );
   }
 }

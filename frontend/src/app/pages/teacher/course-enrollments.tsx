@@ -187,12 +187,12 @@ export default function CourseEnrollments() {
   const [isExporting, setIsExporting] = useState(false);
 
   // Quiz scores hook - using the hook directly with enabled: false to control when to fetch
-const {
-  data: quizScores,
-  isLoading: isLoadingQuizScores,
-  error: quizScoresError,
-  refetch: fetchQuizScores,
-} = useCourseQuizScores(courseId, versionId,isExporting);
+  const {
+    data: quizScores,
+    isLoading: isLoadingQuizScores,
+    error: quizScoresError,
+    refetch: fetchQuizScores,
+  } = useCourseQuizScores(courseId, versionId, isExporting);
 
   interface QuizScore {
     moduleId?: string;
@@ -206,7 +206,7 @@ const {
       score: number;
     }>;
   }
-  
+
   // Define the student data type
   interface StudentData {
     studentId: string;
@@ -216,85 +216,69 @@ const {
   }
 
   // Handle fetch and export quiz scores
-  const handleFetchQuizScores = async () => {
-    if (!courseId || !versionId) {
-      toast.error('Course ID or Version ID is missing');
+ const handleFetchQuizScores = async () => {
+  if (!courseId || !versionId) {
+    toast.error('Course ID or Version ID is missing');
+    return;
+  }
+
+  if (!quizScores?.data?.length || isLoadingQuizScores) {
+    toast.warning('No quiz scores available');
+    return;
+  }
+
+  try {
+    // ⚡ FAST: single-pass formatting, no unused maps
+    const formattedData = quizScores.data.map(
+      (student: any, index: number) => ({
+        studentId: student.studentId ?? `student-${index}`,
+        name: student.name ?? 'Unknown Student',
+        email: student.email ?? '',
+        quizScores: Array.isArray(student.quizScores)
+          ? student.quizScores.map((quiz: any) => ({
+              moduleId: quiz.moduleId ?? 'unknown',
+              sectionId: quiz.sectionId ?? 'unknown',
+              quizId: quiz.quizId ?? 'unknown',
+              quizName: quiz.quizName ?? 'Untitled Quiz',
+              moduleName: quiz.moduleName ?? 'Module',
+              sectionName: quiz.sectionName ?? 'Section',
+              maxScore: Number(quiz.maxScore) || 0,
+              attempts: Number(quiz.attempts) || 0,
+              questionScores: Array.isArray(quiz.questionScores)
+                ? quiz.questionScores.map((q: any) => ({
+                    questionId: String(q.questionId ?? ''),
+                    score: Number(q.score) || 0,
+                  }))
+                : [],
+            }))
+          : [],
+      }),
+    );
+
+    if (!formattedData.length) {
+      toast.warning('No quiz scores found to export');
       return;
     }
-    
-    try {
-      if (quizScores && !isLoadingQuizScores) {
-        
-        // Format the data for Excel export
-        const formattedData = quizScores?.data?.map((student: any, index: number) => {
-          
-          // Get all unique module and section names for this student
-          const moduleSectionMap = new Map<string, {moduleName: string, sectionName: string}>();
-          
-          // First pass: collect all module and section names
-          student.quizScores?.forEach((quiz: any) => {
-            const key = `${quiz.moduleId}_${quiz.sectionId}`;
-            if (!moduleSectionMap.has(key)) {
-              moduleSectionMap.set(key, {
-                moduleName: quiz.moduleName || 'Module',
-                sectionName: quiz.sectionName || 'Section'
-              });
-            }
-          });
-          
-          return {
-            studentId: student.studentId || `student-${index}`,
-            name: student.name || 'Unknown Student',
-            email: student.email || '',
-            quizScores: student.quizScores?.map((quiz: any) => ({
-              moduleId: quiz.moduleId || 'unknown',
-              sectionId: quiz.sectionId || 'unknown',
-              quizId: quiz.quizId || 'unknown',
-              quizName: quiz.quizName || 'Untitled Quiz',
-              maxScore: quiz.maxScore || 0,
-              attempts: quiz.attempts || 0,
-              moduleName: quiz.moduleName || 'Module',
-              sectionName: quiz.sectionName || 'Section',
-              questionScores: Array.isArray(quiz.questionScores) 
-                ? quiz.questionScores.map((q: any) => ({
-                    questionId: q.questionId?.toString() || '',
-                    score: typeof q.score === 'number' ? q.score : 0
-                  }))
-                : []
-            })) || []
-          };
-        }) || [];
-        
-        if (formattedData.length === 0) {
-          toast.warning('No quiz scores found to export');
-          return;
-        }
-        
-        console.log('Formatted data for Excel:', formattedData);
-      
-      // Generate and download the Excel file
-      const formattedTime = new Date().toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit"
-      }).replace(/:/g, '_');
-      
-      const filename = `quiz_scores_${new Date().toISOString().split('T')[0]}_${formattedTime}.xlsx`;
-      
-      try {
-      generateExcel(formattedData, filename);
-      toast.success('Quiz scores exported successfully');
-    
-      } catch (excelError) {
-        console.error('Error generating Excel file:', excelError);
-        toast.error('Failed to generate Excel file. Please try again.');
-      }}
-    } catch (error) {
-      console.error('Error exporting quiz scores:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to export quiz scores');
-    } 
-    
-  };
+
+    // ⏱️ Stable filename (no locale overhead)
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '_');
+    const filename = `quiz_scores_${timestamp}.xlsx`;
+
+    // 🧠 Let UI breathe before heavy Excel generation
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    generateExcel(formattedData, filename);
+    toast.success('Quiz scores exported successfully');
+  } catch (error) {
+    console.error('Error exporting quiz scores:', error);
+    toast.error(
+      error instanceof Error
+        ? error.message
+        : 'Failed to export quiz scores',
+    );
+  }
+};
+
 
   useEffect(() => {
     setIsSearching(true);
@@ -379,12 +363,12 @@ const {
     }
   }, [isViewProgressDialogOpen])
 
- useEffect(() => {
-  if (isExporting&&!isLoadingQuizScores) {
-  
-    handleFetchQuizScores().finally(() => setIsExporting(false));
-  }
-}, [isExporting,isLoadingQuizScores]);
+  useEffect(() => {
+    if (isExporting && !isLoadingQuizScores) {
+
+      handleFetchQuizScores().finally(() => setIsExporting(false));
+    }
+  }, [isExporting, isLoadingQuizScores]);
 
   const handleResetProgress = (user: EnrolledUser) => {
     setSelectedUser(user)
@@ -401,7 +385,7 @@ const {
     setIsRemoveDialogOpen(true)
   }
 
-  const handleRecalculateProgress = (user:EnrolledUser) => {
+  const handleRecalculateProgress = (user: EnrolledUser) => {
     setUsertToRecalculate(user)
     setIsRecalculateProgressOpen(true)
   }
@@ -432,10 +416,10 @@ const {
       const userId = userToRecalculate?.id ?? undefined;
       try {
         await recalculateMutation.mutateAsync({
-          params:{
+          params: {
             query: {
               courseId: courseId,
-              userId:userId,
+              userId: userId,
               courseVersionId: versionId,
             },
           },
@@ -716,7 +700,7 @@ const {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={()=> setIsExporting(true)}
+                onClick={() => setIsExporting(true)}
                 disabled={isLoadingQuizScores}
                 className="flex items-center gap-2"
               >
@@ -761,7 +745,7 @@ const {
                       {[
                         { key: 'name', label: 'Student', className: 'pl-6 w-[300px]' },
                         { key: 'enrollmentDate', label: 'Enrolled', className: 'w-[120px]' },
-                        { key: 'progress', label: 'Progress', className: 'w-[200px]' },
+                        { key: 'progress', label: 'Completion Percentage', className: 'w-[200px]' },
                         // { key: 'status', label: 'Status', className: 'w-[200px]' },
                       ].map(({ key, label, className }) => (
                         <TableHead
@@ -817,9 +801,9 @@ const {
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
                                   <p className="font-semibold text-foreground truncate text-base md:text-lg">
-                                   {enrollment?.user?.firstName || enrollment?.user?.lastName
-  ? `${enrollment?.user?.firstName ?? ""} ${enrollment?.user?.lastName ?? ""}`.trim()
-  : "Unknown User"}
+                                    {enrollment?.user?.firstName || enrollment?.user?.lastName
+                                      ? `${enrollment?.user?.firstName ?? ""} ${enrollment?.user?.lastName ?? ""}`.trim()
+                                      : "Unknown User"}
 
                                   </p>
                                   <span>{getRoleBadge(enrollment?.role)}</span>
@@ -838,7 +822,14 @@ const {
                             </div>
                           </TableCell>
                           <TableCell className="py-6">
-                            <EnrollmentProgress progress={Math.round(enrollment.progress || 0)} />
+                            <div className="space-y-1">
+                              <EnrollmentProgress progress={Math.round(enrollment.progress || 0)} />
+                              {/* {version?.totalItems !== undefined && (
+                                <p className="text-xs text-muted-foreground">
+                                  {enrollment.completedItemsCount || 0} / {version.totalItems} items
+                                </p>
+                              )} */}
+                            </div>
                           </TableCell>
                           <TableCell className="py-6 pr-6">
                             <div className="flex items-center gap-3">
@@ -853,6 +844,7 @@ const {
                                     email: enrollment.userId,
                                     enrolledDate: enrollment.enrollmentDate,
                                     progress: Math.round(enrollment.progress || 0),
+                                    completedItemsCount: enrollment.completedItemsCount || 0,
                                   })
                                 }
                                 disabled={enrollment.role !== "STUDENT" || Math.round(enrollment.progress || 0) == 0 || enrollment?.isDeleted}
@@ -927,7 +919,7 @@ const {
                                 {unenrollMutation.isPending ? (
                                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                                 ) : (
-                                  <RotateCcw  className="h-4 w-4 mr-2" />
+                                  <RotateCcw className="h-4 w-4 mr-2" />
                                 )}
                                 Recalculate
                               </Button>
@@ -988,8 +980,13 @@ const {
                   <p className="text-muted-foreground truncate">{selectedUser.email}</p>
                 </div>
                 <div className="text-right sm:w-auto w-full">
-                  <p className="text-sm text-muted-foreground mb-2">Course Progress</p>
+                  <p className="text-sm text-muted-foreground mb-2">Completion Percentage</p>
                   <EnrollmentProgress progress={(selectedUser.progress || 0)} />
+                  {version?.totalItems !== undefined && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {selectedUser.completedItemsCount || 0} / {version.totalItems} items completed
+                    </p>
+                  )}
                 </div>
               </div>
 
