@@ -395,7 +395,7 @@ export class EnrollmentRepository {
       const userObjectId = new ObjectId(userId);
 
       const aggregationPipeline: any[] = [
-        { $match: { userId: userObjectId, role } },
+        { $match: { userId: userObjectId, role, isDeleted: { $ne: true }, status: 'ACTIVE' } },
         { $sort: { enrollmentDate: -1 } },
         { $skip: skip },
         { $limit: limit },
@@ -583,6 +583,7 @@ export class EnrollmentRepository {
           userId: userObjectId,
           role,
           isDeleted: { $ne: true },
+          status: 'ACTIVE',
         },
       },
 
@@ -742,6 +743,7 @@ export class EnrollmentRepository {
           userId: new ObjectId(userId),
           role,
           isDeleted: { $ne: true },
+          status: 'ACTIVE',
         },
       },
 
@@ -1361,6 +1363,7 @@ export class EnrollmentRepository {
       userId: userObjectid,
       role,
       isDeleted: { $ne: true },
+      status: 'ACTIVE',
     });
   }
   /*Update enrollments for all records in db */
@@ -1388,7 +1391,10 @@ export class EnrollmentRepository {
   }) {
     await this.init();
 
-    const query: any = {};
+    const query: any = {
+      isDeleted: { $ne: true },
+      status: 'ACTIVE',
+    };
 
     if (filters.courseId) query.courseId = new ObjectId(filters.courseId);
 
