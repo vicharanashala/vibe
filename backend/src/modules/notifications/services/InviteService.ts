@@ -33,6 +33,8 @@ import {
 import { ClientSession, ObjectId } from 'mongodb';
 import { COURSES_TYPES } from '#root/modules/courses/types.js';
 import crypto from 'crypto';
+import { chunkArray } from '#root/utils/chunkArray.js';
+import { startInviteEmailProcessing } from '#root/workers/invite-email.pool.js';
 
 @injectable()
 export class InviteService extends BaseService {
@@ -57,7 +59,7 @@ export class InviteService extends BaseService {
     super(database);
   }
 
-  private createInviteEmailMessage(
+  public createInviteEmailMessage(
     invite: Invite,
     course: ICourse,
     courseVersion: ICourseVersion,
@@ -454,6 +456,30 @@ export class InviteService extends BaseService {
     return await this.inviteRepo.findInvitesByIds(inviteIds, session);
   });
 
+    const inviteIds = invites.map(i => i._id.toString());
+
+  // split across workers in parallel batches
+  const BATCH_SIZE = 20;
+  const inviteBatches = chunkArray(inviteIds, BATCH_SIZE);
+
+  // for (const batch of inviteBatches) {
+  //   inviteEmailWorkerPool.enqueue({
+  //     inviteIds: batch,
+  //     courseId,
+  //     courseVersionId,
+  //   });
+  // }
+setImmediate(() => startInviteEmailProcessing(inviteIds, courseId, courseVersionId)) 
+  console.log(
+    `🚀 Queued ${inviteIds.length} invite emails across worker pool`
+  );
+
+  // return response IMMEDIATELY
+  return invites.map(
+    invite =>
+      new InviteResult(invite._id, invite.email, invite.inviteStatus, invite.role),
+  );
+
     // const seenEmails = new Set<string>();
     // const uniqueInviteData = inviteData.filter(invite => {
     //   const normalizedEmail = invite.email.toLowerCase().trim();
@@ -514,45 +540,45 @@ export class InviteService extends BaseService {
     // });
 
     // Send emails in batches with delays (outside transaction to avoid timeout)
-    const BATCH_SIZE = 10;
-    const DELAY_BETWEEN_BATCHES = 90000; // 90 seconds
-    for (let i = 0; i < invites.length; i += BATCH_SIZE) {
-      const batch = invites.slice(i, i + BATCH_SIZE);
+    // const BATCH_SIZE = 10;
+    // const DELAY_BETWEEN_BATCHES = 90000; // 90 seconds
+    // for (let i = 0; i < invites.length; i += BATCH_SIZE) {
+    //   const batch = invites.slice(i, i + BATCH_SIZE);
 
-      // Send emails for current batch in parallel
-      await Promise.all(
-        batch.map(async invite => {
-          const emailMessage = this.createInviteEmailMessage(
-            invite,
-            course,
-            courseVersion,
-          );
-          try {
-            await this.mailService.sendMail(emailMessage);
-            console.log(`Email sent successfully to: ${invite.email}`);
-          } catch (error) {
+    //   // Send emails for current batch in parallel
+    //   await Promise.all(
+    //     batch.map(async invite => {
+    //       const emailMessage = this.createInviteEmailMessage(
+    //         invite,
+    //         course,
+    //         courseVersion,
+    //       );
+    //       try {
+    //         await this.mailService.sendMail(emailMessage);
+    //         console.log(`Email sent successfully to: ${invite.email}`);
+    //       } catch (error) {
 
-            console.error(`⚠️  Email delivery failed for ${invite.email} (Invite still PENDING):`, error);
-            console.error('Email error details:', {
-              message: error?.message,
-              code: error?.code,
-              response: error?.response,
-            });
-          }
-        }),
-      );
+    //         console.error(`⚠️  Email delivery failed for ${invite.email} (Invite still PENDING):`, error);
+    //         console.error('Email error details:', {
+    //           message: error?.message,
+    //           code: error?.code,
+    //           response: error?.response,
+    //         });
+    //       }
+    //     }),
+    //   );
 
-      // Add delay between batches (except for the last batch)
-      if (i + BATCH_SIZE < invites.length) {
-        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
-      }
-    }
+    //   // Add delay between batches (except for the last batch)
+    //   if (i + BATCH_SIZE < invites.length) {
+    //     await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
+    //   }
+    // }
 
-    // Return results
-    return invites.map(
-      invite =>
-        new InviteResult(invite._id, invite.email, invite.inviteStatus, invite.role),
-    );
+    // // Return results
+    // return invites.map(
+    //   invite =>
+    //     new InviteResult(invite._id, invite.email, invite.inviteStatus, invite.role),
+    // );
   }
 
 

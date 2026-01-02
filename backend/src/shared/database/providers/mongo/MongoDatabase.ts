@@ -56,7 +56,7 @@ export class MongoDatabase implements IDatabase<Db> {
    * Connects to the MongoDB database.
    * @returns {Promise<Db>} The connected database instance.
    */
-  private async connect(): Promise<Db> {
+  public async connect(): Promise<Db> {
     await this.client?.connect();
     this.database = this.client?.db(this.dbName) || null;
 
