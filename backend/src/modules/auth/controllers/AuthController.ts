@@ -64,8 +64,7 @@ export class AuthController {
   })
   async signup(@Body() body: SignUpBody, @Req() req: any) {
     const acknowledgedInvites = await this.authService.signup(body);
-    console.log('acknowledgedInvites ', acknowledgedInvites);
-    req.session.userId = acknowledgedInvites;
+    // req.session.userId = acknowledgedInvites;
     if (acknowledgedInvites) {
       return acknowledgedInvites;
     }
