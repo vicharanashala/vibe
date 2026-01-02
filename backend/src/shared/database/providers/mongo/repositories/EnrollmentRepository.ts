@@ -219,17 +219,37 @@ export class EnrollmentRepository {
     enrollmentId: string,
     percentCompleted: number,
     session?: ClientSession,
+    completedItemsCount?: number,
   ): Promise<void> {
     try {
       await this.init();
       await this.enrollmentCollection.findOneAndUpdate(
         { _id: new ObjectId(enrollmentId) },
-        { $set: { percentCompleted } },
+        { $set: { percentCompleted, completedItemsCount } },
         { session },
       );
     } catch (error) {
       throw new InternalServerError(
         `Failed to update progress in enrollment. More/${error}`,
+      );
+    }
+  }
+
+  async updateCompletedItemsCount(
+    enrollmentId: string,
+    completedItemsCount: number,
+    session?: ClientSession,
+  ): Promise<void> {
+    try {
+      await this.init();
+      await this.enrollmentCollection.findOneAndUpdate(
+        { _id: new ObjectId(enrollmentId) },
+        { $set: { completedItemsCount, updatedAt: new Date() } },
+        { session },
+      );
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed to update completed items count in enrollment. More/${error}`,
       );
     }
   }
@@ -547,7 +567,6 @@ export class EnrollmentRepository {
     limit: number,
     role: EnrollmentRole,
     search: string,
-
   ) {
     await this.init();
     const userObjectId = new ObjectId(userId);
@@ -561,12 +580,7 @@ export class EnrollmentRepository {
       },
 
       { $sort: { enrollmentDate: -1 } },
-      { $skip: skip },
-      { $limit: limit },
-      /* ---------------- SEARCH ---------------- */
-      ...(search?.trim()
-        ? [{ $match: { 'course.name': { $regex: search, $options: 'i' } } }]
-        : []),
+
 
       /* ---------------- COURSE LOOKUP ---------------- */
       {
@@ -588,7 +602,6 @@ export class EnrollmentRepository {
       },
       { $unwind: '$course' },
 
-
       /* ---------------- COURSE VERSION LOOKUP (NEW) ---------------- */
       {
         $lookup: {
@@ -608,8 +621,12 @@ export class EnrollmentRepository {
       },
 
       { $unwind: { path: '$courseVersion', preserveNullAndEmptyArrays: true } },
-
-
+      { $skip: skip },
+      { $limit: limit },
+      /* ---------------- SEARCH ---------------- */
+      ...(search?.trim()
+        ? [{ $match: { 'course.name': { $regex: search, $options: 'i' } } }]
+        : []),
 
       /* ---------------- FINAL SHAPE ---------------- */
       {
@@ -630,7 +647,6 @@ export class EnrollmentRepository {
         },
       },
     ];
-
 
     /*const pipeline: any[] = [
       {$match: {userId: userObjectId, role}},
@@ -803,8 +819,6 @@ export class EnrollmentRepository {
 
     return this.enrollmentCollection.aggregate(pipeline).toArray();
   }
-
-
 
   async getContentCountsForVersions(
     versionIds: ObjectId[],
@@ -1205,6 +1219,7 @@ export class EnrollmentRepository {
           firstName: '$userInfo.firstName',
           lastName: '$userInfo.lastName',
           email: '$userInfo.email',
+          completedItemsCount: { $ifNull: ['$completedItemsCount', 0] },
         },
       },
     ];
@@ -1360,26 +1375,23 @@ export class EnrollmentRepository {
   }
 
   async getEnrollmentsByFilters(filters: {
-  courseId?: string;
-  courseVersionId?: string;
-  userId?: string;
-}) {
-  await this.init();
+    courseId?: string;
+    courseVersionId?: string;
+    userId?: string;
+  }) {
+    await this.init();
 
-  const query: any = {};
+    const query: any = {};
 
-  if (filters.courseId)
-    query.courseId = new ObjectId(filters.courseId);
+    if (filters.courseId) query.courseId = new ObjectId(filters.courseId);
 
-  if (filters.courseVersionId)
-    query.courseVersionId = new ObjectId(filters.courseVersionId);
+    if (filters.courseVersionId)
+      query.courseVersionId = new ObjectId(filters.courseVersionId);
 
-  if (filters.userId)
-    query.userId = new ObjectId(filters.userId);
+    if (filters.userId) query.userId = new ObjectId(filters.userId);
 
-  return this.enrollmentCollection.find(query).toArray();
-}
-
+    return this.enrollmentCollection.find(query).toArray();
+  }
 
   async addEnrollmentIndexes(session?: ClientSession): Promise<void> {
     try {
@@ -1447,6 +1459,141 @@ export class EnrollmentRepository {
     await this.enrollmentCollection.bulkWrite(operations, { session });
   }
 
+  private async processCompletedItemsBatch(
+    enrollments: any[],
+    session?: ClientSession,
+  ): Promise<number> {
+    if (enrollments.length === 0) return 0;
+
+    const enrollmentMap = new Map<string, any>();
+
+    enrollments.forEach(e => {
+      enrollmentMap.set(
+        `${e.userId}_${e.courseId}_${e.courseVersionId}`,
+        e._id,
+      );
+    });
+
+    // 🔥 Single aggregation for entire batch
+    const completedCounts = await this.watchTimeCollection
+      .aggregate(
+        [
+          {
+            $match: {
+              isDeleted: { $ne: true },
+              $or: enrollments.map(e => ({
+                userId: e.userId,
+                courseId: e.courseId,
+                courseVersionId: e.courseVersionId,
+              })),
+            },
+          },
+          {
+            $group: {
+              _id: {
+                userId: '$userId',
+                courseId: '$courseId',
+                courseVersionId: '$courseVersionId',
+              },
+              completedItemsCount: { $addToSet: '$itemId' },
+            },
+          },
+          {
+            $project: {
+              completedItemsCount: { $size: '$completedItemsCount' },
+            },
+          },
+        ],
+        { session },
+      )
+      .toArray();
+
+    const operations = completedCounts.map(c => {
+      const key = `${c._id.userId}_${c._id.courseId}_${c._id.courseVersionId}`;
+      const enrollmentId = enrollmentMap.get(key);
+
+      return {
+        updateOne: {
+          filter: { _id: enrollmentId },
+          update: {
+            $set: {
+              completedItemsCount: c.completedItemsCount,
+              updatedAt: new Date(),
+            },
+          },
+        },
+      };
+    });
+
+    if (operations.length === 0) return 0;
+
+    const result = await this.enrollmentCollection.bulkWrite(operations, {
+      session,
+    });
+
+    return result.modifiedCount;
+  }
+
+
+
+  /* Update completed items count for all enrollments in batches of 100 */
+  async bulkUpdateCompletedItemsCountForCourseVersion(
+    filters: {
+      courseVersionId: string;
+      courseId?: string;
+      userId?: string;
+    },
+    session?: ClientSession,
+  ): Promise<{ totalCount: number; updatedCount: number }> {
+    await this.init();
+
+    const BATCH_SIZE = 500;
+    let totalCount = 0;
+    let updatedCount = 0;
+
+    const match: any = {
+      isDeleted: { $ne: true },
+      courseVersionId: new ObjectId(filters.courseVersionId),
+    };
+
+    if (filters.courseId) {
+      match.courseId = new ObjectId(filters.courseId);
+    }
+
+    if (filters.userId) {
+      match.userId = new ObjectId(filters.userId);
+    }
+
+    const cursor = this.enrollmentCollection
+      .find(match)
+      .project({ userId: 1, courseId: 1, courseVersionId: 1 })
+      .batchSize(BATCH_SIZE);
+
+    let batch: any[] = [];
+
+    for await (const enrollment of cursor) {
+      batch.push(enrollment);
+      totalCount++;
+
+      if (batch.length === BATCH_SIZE) {
+        updatedCount += await this.processCompletedItemsBatch(batch, session);
+        batch = [];
+      }
+    }
+
+    if (batch.length > 0) {
+      updatedCount += await this.processCompletedItemsBatch(batch, session);
+    }
+
+    console.log(
+      `✅ CourseVersion ${filters.courseVersionId} → scanned=${totalCount}, updated=${updatedCount}`,
+    );
+
+    return { totalCount, updatedCount };
+  }
+
+
+
   /**
    * Retrieves quiz IDs organized by modules and sections for a given course version
 
@@ -1479,7 +1626,7 @@ export class EnrollmentRepository {
   }
 
   /**
-   * Get maximum scores and individual question scores for a list of quizzes
+   * Get maximum scores and individual question scores for a list of quizzes (Optimized for large datasets)
    * @param userIds Array of user IDs (can be string or ObjectId)
    * @param quizIds Array of quiz IDs (can be string or ObjectId)
    * @returns Object containing:
@@ -1493,7 +1640,7 @@ export class EnrollmentRepository {
     maxScores: Map<string, Map<string, number>>;
     questionScores: Map<string, Map<string, Map<string, number>>>;
   }> {
-    if (!quizIds.length) {
+    if (!quizIds.length || !userIds.length) {
       return {
         maxScores: new Map<string, Map<string, number>>(),
         questionScores: new Map<string, Map<string, Map<string, number>>>(),
@@ -1523,7 +1670,8 @@ export class EnrollmentRepository {
       const stringUserIds = userIds.map(id => id.toString());
       const stringQuizIds = quizIds.map(id => id.toString());
 
-      const results = await this.submissionCollection
+      // Optimized: Use aggregation to get max scores as percentages in a single pass
+      const maxScoreResults = await this.submissionCollection
         .aggregate([
           {
             $match: {
@@ -1600,15 +1748,8 @@ export class EnrollmentRepository {
         ])
         .toArray();
 
-      // Initialize result maps
-      const maxScores = new Map<string, Map<string, number>>();
-      const questionScores = new Map<
-        string,
-        Map<string, Map<string, number>>
-      >();
-
-      // First pass: Process all attempts to get max scores and question details
-      const allAttempts = await this.submissionCollection
+      // Optimized: Get question-level scores in a separate efficient query
+      const questionScoreResults = await this.submissionCollection
         .find({
           $and: [
             {
@@ -1626,17 +1767,36 @@ export class EnrollmentRepository {
             { 'gradingResult.overallFeedback': { $exists: true, $ne: [] } },
           ],
         })
+        .project({
+          userId: 1,
+          quizId: 1,
+          'gradingResult.overallFeedback': 1,
+        })
         .toArray();
 
-      // Process each attempt to build question scores
-      allAttempts.forEach(attempt => {
+      // Build result maps efficiently
+      const maxScores = new Map<string, Map<string, number>>();
+      const questionScores = new Map<string, Map<string, Map<string, number>>>();
+
+      // Process max scores (now as percentages)
+      maxScoreResults.forEach(result => {
+        const { userId, quizId, maxScorePercentage } = result;
+        if (!maxScores.has(userId)) {
+          maxScores.set(userId, new Map<string, number>());
+        }
+        maxScores.get(userId)?.set(quizId, maxScorePercentage);
+      });
+
+      // Process question scores
+      questionScoreResults.forEach(attempt => {
         const userId = attempt.userId?.toString();
         const quizId = attempt.quizId?.toString();
 
-        if (!userId || !quizId || !attempt.gradingResult?.overallFeedback)
+        if (!userId || !quizId || !attempt.gradingResult?.overallFeedback) {
           return;
+        }
 
-        // Initialize user and quiz in the questionScores map
+        // Initialize maps if they don't exist
         if (!questionScores.has(userId)) {
           questionScores.set(userId, new Map<string, Map<string, number>>());
         }
@@ -1644,40 +1804,31 @@ export class EnrollmentRepository {
           questionScores.get(userId)?.set(quizId, new Map<string, number>());
         }
 
-        // Get the user's quiz map for question scores
         const userQuizQuestions = questionScores.get(userId)?.get(quizId);
+        if (userQuizQuestions && attempt.gradingResult?.overallFeedback) {
+          attempt.gradingResult.overallFeedback.forEach((feedback: any) => {
+            if (!feedback.questionId || typeof feedback.score !== 'number') {
+              return;
+            }
 
-        // Process each question in the attempt
-        attempt.gradingResult.overallFeedback.forEach((feedback: any) => {
-          if (!feedback.questionId || typeof feedback.score !== 'number')
-            return;
+            const questionId = feedback.questionId.toString();
+            const currentQuestionScore = userQuizQuestions.get(questionId) || 0;
 
-          const questionId = feedback.questionId.toString();
-          const currentMax = userQuizQuestions?.get(questionId) || 0;
-
-          // Store the maximum score for each question
-          if (feedback.score > currentMax) {
-            userQuizQuestions?.set(questionId, feedback.score);
-          }
-        });
-      });
-
-      // Second pass: Process aggregated results for max scores
-      results.forEach(result => {
-        const userId = result.userId;
-        const quizId = result.quizId;
-
-        if (userId && quizId) {
-          if (!maxScores.has(userId)) {
-            maxScores.set(userId, new Map<string, number>());
-          }
-          maxScores.get(userId)?.set(quizId, result.scorePercentage);
+            // Store the maximum score for each question
+            if (feedback.score > currentQuestionScore) {
+              userQuizQuestions.set(questionId, feedback.score);
+            }
+          });
         }
       });
 
       return { maxScores, questionScores };
     } catch (error) {
       console.error('Error in getMaxScoresForQuizzes:', error);
+      return {
+        maxScores: new Map<string, Map<string, number>>(),
+        questionScores: new Map<string, Map<string, Map<string, number>>>(),
+      };
     }
   }
 
@@ -1744,7 +1895,111 @@ export class EnrollmentRepository {
    * @returns Array of student quiz scores with their max scores and attempts
    */
 
-  private readonly BATCH_SIZE = 100;
+  private readonly BATCH_SIZE = 500; // Increased from 100 to 500 for better performance
+
+  /**
+   * Get all question IDs for multiple quizzes in bulk (optimized for large datasets)
+   * @param quizIds Array of quiz IDs
+   * @returns Map of quizId to array of question IDs
+   */
+  private async getQuizQuestionIdsBulk(
+    quizIds: string[],
+  ): Promise<Map<string, string[]>> {
+    await this.init();
+
+    if (!quizIds.length) {
+      return new Map();
+    }
+
+    try {
+      /** ------------------------------------
+       * 1️⃣ Fetch quizzes
+       * ------------------------------------ */
+      const quizzes = await this.quizCollection
+        .find({
+          _id: { $in: quizIds.map(id => new ObjectId(id)) },
+          'details.questionBankRefs': { $exists: true, $ne: [] },
+        })
+        .project({
+          _id: 1,
+          'details.questionBankRefs.bankId': 1,
+        })
+        .toArray();
+
+      /** ------------------------------------
+       * 2️⃣ Collect unique bank IDs
+       * ------------------------------------ */
+      const bankIds = new Set<string>();
+
+      for (const quiz of quizzes) {
+        for (const ref of quiz.details?.questionBankRefs ?? []) {
+          if (ObjectId.isValid(ref.bankId)) {
+            bankIds.add(ref.bankId.toString());
+          }
+        }
+      }
+
+      if (!bankIds.size) {
+        return new Map(quizIds.map(id => [id, []]));
+      }
+
+      /** ------------------------------------
+       * 3️⃣ Fetch question banks
+       * ------------------------------------ */
+      const questionBanks = await this.questionBankCollection
+        .find({
+          _id: { $in: [...bankIds].map(id => new ObjectId(id)) },
+        })
+        .project({ _id: 1, questions: 1 })
+        .toArray();
+
+      /** ------------------------------------
+       * 4️⃣ Build bank → questions map
+       * ------------------------------------ */
+      const bankQuestionsMap = new Map<string, string[]>();
+
+      for (const bank of questionBanks) {
+        bankQuestionsMap.set(
+          bank._id.toString(),
+          (bank.questions ?? []).map(q => q.toString()),
+        );
+      }
+
+      /** ------------------------------------
+       * 5️⃣ Build quiz → questions map
+       * ------------------------------------ */
+      const quizQuestionsMap = new Map<string, string[]>();
+
+      for (const quiz of quizzes) {
+        const qId = quiz._id.toString();
+        const questionSet = new Set<string>();
+
+        for (const ref of quiz.details?.questionBankRefs ?? []) {
+          const questions = bankQuestionsMap.get(ref.bankId?.toString());
+          if (questions) {
+            for (const q of questions) questionSet.add(q);
+          }
+        }
+
+        quizQuestionsMap.set(qId, [...questionSet]);
+      }
+
+      /** ------------------------------------
+       * 6️⃣ Ensure all quiz IDs exist
+       * ------------------------------------ */
+      for (const quizId of quizIds) {
+        if (!quizQuestionsMap.has(quizId)) {
+          quizQuestionsMap.set(quizId, []);
+        }
+      }
+
+      return quizQuestionsMap;
+    } catch (error) {
+      console.error('Error in getQuizQuestionIdsBulk:', error);
+      return new Map(quizIds.map(id => [id, []]));
+    }
+  }
+
 
   /**
    * Get all question IDs for a quiz by fetching from question banks
@@ -1966,15 +2221,12 @@ export class EnrollmentRepository {
     }
 
     if (!ObjectId.isValid(courseId) || !ObjectId.isValid(versionId)) {
-      const errorMsg = `Invalid course or version ID format. CourseID valid: ${ObjectId.isValid(
-        courseId,
-      )}, VersionID valid: ${ObjectId.isValid(versionId)}`;
-      console.error(`[ERROR] ${errorMsg}`);
-      throw new Error(errorMsg);
+      throw new Error('Invalid course or version ID');
     }
 
     const courseIdObj = new ObjectId(courseId);
     const versionIdObj = new ObjectId(versionId);
+
     const studentFilter = {
       courseId: courseIdObj,
       courseVersionId: versionIdObj,
@@ -1982,190 +2234,227 @@ export class EnrollmentRepository {
       status: { $regex: /^active$/i },
     };
 
-    try {
-      const totalStudents = await this.enrollmentCollection.countDocuments(
-        studentFilter,
-      );
-      if (totalStudents === 0) {
-        return {
-          data: [],
-          metadata: {
-            courseId,
-            versionId,
-            totalStudents: 0,
-            durationMs: 0,
-            generatedAt: new Date().toISOString(),
+    /* -------------------------------------------------------
+     * 1️⃣ FETCH ENROLLMENTS (ONCE)
+     * ----------------------------------------------------- */
+    const enrollments = await this.enrollmentCollection
+      .aggregate([
+        { $match: studentFilter },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'userId',
+            foreignField: '_id',
+            as: 'user',
           },
-        };
-      }
-
-      const quizzesByModuleSection = await this.getQuizIdsByModulesAndSections(
-        versionId,
-      );
-      const allQuizIds = [
-        ...new Set(
-          quizzesByModuleSection.flatMap(m =>
-            m.sections.flatMap(s => s.quizIds),
-          ),
-        ),
-      ];
-
-      if (allQuizIds.length === 0) {
-        console.warn(
-          `[WARN] No quiz IDs found for course version ${versionId}`,
-        );
-        return {
-          data: [],
-          metadata: {
-            courseId,
-            versionId,
-            totalStudents: 0,
-            durationMs: 0,
-            generatedAt: new Date().toISOString(),
+        },
+        { $unwind: '$user' },
+        {
+          $project: {
+            userId: 1,
+            'user.firstName': 1,
+            'user.lastName': 1,
+            'user.email': 1,
           },
-        };
-      }
+        },
+      ])
+      .toArray();
 
-      const validQuizIds = allQuizIds.filter((id): id is string => {
-        const valid = typeof id === 'string' && ObjectId.isValid(id);
-        if (!valid) console.error(`[ERROR] Invalid quiz ID format: ${id}`);
-        return valid;
-      });
-
-      const quizIdsObj = validQuizIds.map(id => new ObjectId(id));
-      const quizDetails = await this.getQuizDetails(quizIdsObj);
-
-      // Pre-fetch all questions for each quiz only once
-      const quizQuestionsMap = new Map<string, string[]>();
-      await Promise.all(
-        validQuizIds.map(async quizId => {
-          const questions = await this.getQuizQuestionIds(quizId);
-          quizQuestionsMap.set(quizId, questions);
-        }),
-      );
-
-      const result: StudentQuizScoreDto[] = [];
-      const totalBatches = Math.ceil(totalStudents / this.BATCH_SIZE);
-
-      for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
-        const skip = batchNum * this.BATCH_SIZE;
-
-        const enrollments = await this.enrollmentCollection
-          .aggregate([
-            { $match: studentFilter },
-            { $skip: skip },
-            { $limit: this.BATCH_SIZE },
-            {
-              $lookup: {
-                from: 'users',
-                localField: 'userId',
-                foreignField: '_id',
-                as: 'user',
-              },
-            },
-            { $unwind: '$user' },
-            {
-              $project: {
-                _id: 1,
-                userId: 1,
-                'user.firstName': 1,
-                'user.lastName': 1,
-                'user.email': 1,
-              },
-            },
-          ])
-          .toArray();
-
-        if (enrollments.length === 0) continue;
-
-        const batchUserIds = enrollments.map(e => e.userId);
-        const [scoresData, totalAttempts] = await Promise.all([
-          this.getMaxScoresForQuizzes(batchUserIds, quizIdsObj),
-          this.getUserQuizAttempts(batchUserIds, quizIdsObj),
-        ]);
-
-        const { maxScores, questionScores } = scoresData;
-
-        const batchResults = enrollments.map(enrollment => {
-          const userId = enrollment.userId.toString();
-          const studentQuizScores: StudentQuizScoreDto['quizScores'] = [];
-
-          for (const module of quizzesByModuleSection) {
-            for (const section of module.sections) {
-              for (const quizId of section.quizIds) {
-                if (!validQuizIds.includes(quizId)) continue;
-
-                const quizName =
-                  quizDetails.get(quizId)?.name || 'Untitled Quiz';
-                const allQuestionIds = quizQuestionsMap.get(quizId) || [];
-                const studentQuestionScores =
-                  questionScores.get(userId)?.get(quizId) || new Map();
-
-                const questionScoresArr = allQuestionIds.map(questionId => ({
-                  questionId,
-                  score: studentQuestionScores.get(questionId) || 0,
-                }));
-
-                studentQuizScores.push({
-                  moduleId: module.moduleId,
-                  sectionId: section.sectionId,
-                  quizId,
-                  quizName,
-                  maxScore: maxScores.get(userId)?.get(quizId) || 0,
-                  questionScores: questionScoresArr,
-                  attempts: totalAttempts.get(userId)?.get(quizId) || 0,
-                });
-              }
-            }
-          }
-
-          return {
-            studentId: userId,
-            name:
-              `${enrollment.user.firstName || ''} ${enrollment.user.lastName || ''
-                }`.trim() || 'Unknown',
-            email: enrollment.user.email || '',
-            quizScores: studentQuizScores,
-          };
-        });
-
-        result.push(...batchResults);
-      }
-
-      const duration = Date.now() - startTime;
+    if (!enrollments.length) {
       return {
-        data: result,
+        data: [],
         metadata: {
           courseId,
           versionId,
-          totalStudents: result.length,
-          durationMs: duration,
+          totalStudents: 0,
+          durationMs: Date.now() - startTime,
           generatedAt: new Date().toISOString(),
         },
       };
-    } catch (error) {
-      console.error('Error in getQuizScoresForCourseVersion:', error);
-      throw new Error('Failed to fetch quiz scores');
     }
+
+    const userIds = enrollments.map(e => e.userId);
+
+    /* -------------------------------------------------------
+     * 2️⃣ FETCH QUIZ STRUCTURE
+     * ----------------------------------------------------- */
+    const quizzesByModuleSection =
+      await this.getQuizIdsByModulesAndSections(versionId);
+
+    const validQuizIds = [
+      ...new Set(
+        quizzesByModuleSection.flatMap(m =>
+          m.sections.flatMap(s =>
+            s.quizIds.filter(id => ObjectId.isValid(id)),
+          ),
+        ),
+      ),
+    ];
+
+    if (!validQuizIds.length) {
+      return {
+        data: [],
+        metadata: {
+          courseId,
+          versionId,
+          totalStudents: enrollments.length,
+          durationMs: Date.now() - startTime,
+          generatedAt: new Date().toISOString(),
+        },
+      };
+    }
+
+    const quizIdsObj = validQuizIds.map(id => new ObjectId(id));
+
+    const [quizDetails, quizQuestionsMap] = await Promise.all([
+      this.getQuizDetails(quizIdsObj),
+      this.getQuizQuestionIdsBulk(validQuizIds),
+    ]);
+
+    /* -------------------------------------------------------
+     * 3️⃣ AGGREGATE SUBMISSIONS IN MONGO (🔥 FIX)
+     * ----------------------------------------------------- */
+    const aggregatedSubmissions =
+      await this.submissionCollection
+        .aggregate([
+          {
+            $match: {
+              userId: { $in: userIds },
+              quizId: { $in: quizIdsObj },
+            },
+          },
+          {
+            $unwind: '$gradingResult.overallFeedback',
+          },
+          {
+            $group: {
+              _id: {
+                userId: '$userId',
+                quizId: '$quizId',
+                questionId:
+                  '$gradingResult.overallFeedback.questionId',
+              },
+              questionScore: {
+                $max: '$gradingResult.overallFeedback.score',
+              },
+              maxScore: {
+                $max: '$gradingResult.totalScore',
+              },
+              attempts: { $sum: 1 },
+            },
+          },
+        ])
+        .toArray();
+
+    /* -------------------------------------------------------
+     * 4️⃣ BUILD FAST LOOKUP MAPS
+     * ----------------------------------------------------- */
+    const scoreMap = new Map<
+      string,
+      Map<string, Map<string, number>>
+    >();
+    const maxScoreMap = new Map<string, Map<string, number>>();
+    const attemptsMap = new Map<string, Map<string, number>>();
+
+    for (const row of aggregatedSubmissions) {
+      const userId = row._id.userId.toString();
+      const quizId = row._id.quizId.toString();
+      const questionId = row._id.questionId.toString();
+
+      // attempts
+      attemptsMap
+        .set(userId, attemptsMap.get(userId) ?? new Map())
+        .get(userId)!
+        .set(quizId, row.attempts);
+
+      // max score
+      maxScoreMap
+        .set(userId, maxScoreMap.get(userId) ?? new Map())
+        .get(userId)!
+        .set(quizId, row.maxScore ?? 0);
+
+      // question score
+      scoreMap
+        .set(userId, scoreMap.get(userId) ?? new Map())
+        .get(userId)!
+        .set(quizId, scoreMap.get(userId)?.get(quizId) ?? new Map())
+        .get(quizId)!
+        .set(questionId, row.questionScore ?? 0);
+    }
+
+    /* -------------------------------------------------------
+     * 5️⃣ BUILD FINAL RESPONSE (NO DB CALLS)
+     * ----------------------------------------------------- */
+    const data: StudentQuizScoreDto[] = enrollments.map(enrollment => {
+      const userId = enrollment.userId.toString();
+      const quizScores: StudentQuizScoreDto['quizScores'] = [];
+
+      for (const module of quizzesByModuleSection) {
+        for (const section of module.sections) {
+          for (const quizId of section.quizIds) {
+            if (!quizQuestionsMap.has(quizId)) continue;
+
+            const questionIds = quizQuestionsMap.get(quizId)!;
+            const qScoreMap =
+              scoreMap.get(userId)?.get(quizId) ?? new Map();
+
+            quizScores.push({
+              moduleId: module.moduleId,
+              sectionId: section.sectionId,
+              quizId,
+              quizName:
+                quizDetails.get(quizId)?.name ?? 'Untitled Quiz',
+              maxScore: maxScoreMap.get(userId)?.get(quizId) ?? 0,
+              attempts: attemptsMap.get(userId)?.get(quizId) ?? 0,
+              questionScores: questionIds.map(qid => ({
+                questionId: qid,
+                score: qScoreMap.get(qid) ?? 0,
+              })),
+            });
+          }
+        }
+      }
+
+      return {
+        studentId: userId,
+        name:
+          `${enrollment.user.firstName ?? ''} ${enrollment.user.lastName ?? ''}`.trim() ||
+          'Unknown',
+        email: enrollment.user.email ?? '',
+        quizScores,
+      };
+    });
+
+    return {
+      data,
+      metadata: {
+        courseId,
+        versionId,
+        totalStudents: data.length,
+        durationMs: Date.now() - startTime,
+        generatedAt: new Date().toISOString(),
+      },
+    };
   }
+
+
+
   async getNonStudentEnrollmentsByCourseVersion(
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
   ): Promise<IEnrollment[]> {
     try {
-      await this.init()
+      await this.init();
       const courseObjectId = new ObjectId(courseId);
       const versionObjectId = new ObjectId(courseVersionId);
 
       const enrollments = await this.enrollmentCollection
-        .find(
-          {
-            courseId: courseObjectId,
-            courseVersionId: versionObjectId,
-            role: { $ne: 'STUDENT' },
-          }
-        )
+        .find({
+          courseId: courseObjectId,
+          courseVersionId: versionObjectId,
+          role: { $ne: 'STUDENT' },
+        })
         .toArray();
 
       return enrollments;
@@ -2181,7 +2470,7 @@ export class EnrollmentRepository {
     session?: ClientSession,
   ): Promise<IEnrollment[]> {
     try {
-      await this.init()
+      await this.init();
       const courseObjectId = new ObjectId(courseId);
       const versionObjectId = new ObjectId(courseVersionId);
 

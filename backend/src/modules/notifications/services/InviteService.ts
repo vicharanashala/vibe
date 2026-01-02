@@ -352,35 +352,27 @@ export class InviteService extends BaseService {
     courseId: string,
     courseVersionId: string,
   ): Promise<InviteResult[]> {
-    // Get Course Details (outside transaction)
-    const course = await this.courseRepo.read(courseId.toString());
-    if (!course) {
-      throw new NotFoundError('Course not found');
-    }
+    /* ---------------------------------
+     * 1. Course validations
+     * --------------------------------- */
+    const course = await this.courseRepo.read(courseId);
+    if (!course) throw new NotFoundError('Course not found');
 
-    // Get Course Version Details (outside transaction)
-    const courseVersion = await this.courseRepo.readVersion(courseVersionId.toString());
-    if (!courseVersion) {
-      throw new NotFoundError('Course version not found');
-    }
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    if (!courseVersion) throw new NotFoundError('Course version not found');
 
-    // Validate course content only if any user is a STUDENT
-    const hasStudent = inviteData.some(invite => invite.role === 'STUDENT');
+    const hasStudent = inviteData.some(i => i.role === 'STUDENT');
     if (hasStudent) {
-      if (!courseVersion.modules || courseVersion.modules.length === 0) {
-        throw new BadRequestError(
-          'Course version has no modules. Please add modules before proceeding.',
-        );
+      if (!courseVersion.modules?.length) {
+        throw new BadRequestError('Course version has no modules.');
       }
 
       const firstModule = [...courseVersion.modules].sort((a, b) =>
         a.order.localeCompare(b.order),
       )[0];
 
-      if (!firstModule.sections || firstModule.sections.length === 0) {
-        throw new BadRequestError(
-          `Module "${firstModule.name}" has no sections. Add sections to continue.`,
-        );
+      if (!firstModule.sections?.length) {
+        throw new BadRequestError(`Module "${firstModule.name}" has no sections.`);
       }
 
       const firstSection = [...firstModule.sections].sort((a, b) =>
@@ -391,114 +383,147 @@ export class InviteService extends BaseService {
         firstSection.itemsGroupId.toString(),
       );
 
-      if (!itemsGroup || !itemsGroup.items || itemsGroup.items.length === 0) {
+      if (!itemsGroup?.items?.length) {
         throw new BadRequestError(
-          `Section "${firstSection.name}" has no items. Add content before sending invites.`,
+          `Section "${firstSection.name}" has no items.`,
         );
       }
     }
 
-    const seenEmails = new Set<string>();
-    const uniqueInviteData = inviteData.filter(invite => {
-      const normalizedEmail = invite.email.toLowerCase().trim();
-      if (seenEmails.has(normalizedEmail)) {
-        return false; // Skip duplicate
-      }
-      seenEmails.add(normalizedEmail);
+    /* ---------------------------------
+     * 2. Deduplicate + safety limit
+     * --------------------------------- */
+    const seen = new Set<string>();
+    const uniqueInviteData = inviteData.filter(({ email }) => {
+      const normalized = email.toLowerCase().trim();
+      if (seen.has(normalized)) return false;
+      seen.add(normalized);
       return true;
     });
 
-    // Create all invites in a single transaction
-    const invites = await this._withTransaction(async session => {
-      const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-
-      //  Create all invites in parallel
-      const invitePromises = uniqueInviteData.map(async ({ email, role }) => {
-        const normalizedEmail = email.toLowerCase().trim();
-        const existingPendingInvite = await this.inviteRepo.findPendingInviteByEmailAndCourse(
-          normalizedEmail,
-          courseId,
-          courseVersionId,
-          session,
-        );
-
-        if (existingPendingInvite) {
-          // Return existing invite ID instead of creating duplicate
-          return existingPendingInvite._id.toString();
-        }
-
-        const user = await this.userRepo.findByEmail(email);
-        const isNewUser = !user;
-
-        const isAlreadyEnrolled = user
-          ? !!(await this.enrollmentRepo.findActiveEnrollment(
-            user._id.toString(),
-            courseId,
-            courseVersionId,
-          ))
-          : false;
-        const invite = new Invite({
-          email: normalizedEmail,
-          courseId: new ObjectId(courseId),
-          courseVersionId: new ObjectId(courseVersionId),
-          role,
-          isAlreadyEnrolled,
-          isNewUser,
-          expiresAt: oneWeekFromNow,
-          type: InviteType.SINGLE
-        });
-
-        return this.inviteRepo.create(invite, session);
-      });
-
-      const inviteIds = await Promise.all(invitePromises);
-
-      // Fetch created invites
-      return await this.inviteRepo.findInvitesByIds(inviteIds, session);
-    });
-
-    // Send emails in batches with delays (outside transaction to avoid timeout)
-    const BATCH_SIZE = 10;
-    const DELAY_BETWEEN_BATCHES = 90000; // 90 seconds
-
-    for (let i = 0; i < invites.length; i += BATCH_SIZE) {
-      const batch = invites.slice(i, i + BATCH_SIZE);
-
-      // Send emails for current batch in parallel
-      await Promise.all(
-        batch.map(async invite => {
-          const emailMessage = await this.createInviteEmailMessage(
-            invite,
-            course,
-            courseVersion,
-          );
-          try {
-            await this.mailService.sendMail(emailMessage);
-            console.log(`Email sent successfully to: ${invite.email}`);
-          } catch (error) {
-
-            console.error(`⚠️  Email delivery failed for ${invite.email} (Invite still PENDING):`, error);
-            console.error('Email error details:', {
-              message: error?.message,
-              code: error?.code,
-              response: error?.response,
-            });
-          }
-        }),
-      );
-
-      // Add delay between batches (except for the last batch)
-      if (i + BATCH_SIZE < invites.length) {
-        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
-      }
+    if (uniqueInviteData.length > 500) {
+      throw new BadRequestError('Max 500 invites allowed at a time.');
     }
 
-    // Return results
+    /* ---------------------------------
+     * 3. Create invites (chunked transaction)
+     * --------------------------------- */
+    const invites = await this._withTransaction(async session => {
+      const inviteIds: string[] = [];
+      const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      const DB_BATCH_SIZE = 25;
+
+      const userCache = new Map<string, any | null>();
+      const enrollmentCache = new Set<string>();
+
+      for (let i = 0; i < uniqueInviteData.length; i += DB_BATCH_SIZE) {
+        const batch = uniqueInviteData.slice(i, i + DB_BATCH_SIZE);
+
+        for (const { email, role } of batch) {
+          const normalizedEmail = email.toLowerCase().trim();
+
+          const existingInvite =
+            await this.inviteRepo.findPendingInviteByEmailAndCourse(
+              normalizedEmail,
+              courseId,
+              courseVersionId,
+              session,
+            );
+
+          if (existingInvite) {
+            inviteIds.push(existingInvite._id.toString());
+            continue;
+          }
+
+          let user = userCache.get(normalizedEmail);
+          if (user === undefined) {
+            user = await this.userRepo.findByEmail(normalizedEmail);
+            userCache.set(normalizedEmail, user ?? null);
+          }
+
+          let isAlreadyEnrolled = false;
+          if (user) {
+            const key = `${user._id}-${courseId}-${courseVersionId}`;
+            if (enrollmentCache.has(key)) {
+              isAlreadyEnrolled = true;
+            } else {
+              isAlreadyEnrolled = !!(await this.enrollmentRepo.findActiveEnrollment(
+                user._id.toString(),
+                courseId,
+                courseVersionId,
+              ));
+              if (isAlreadyEnrolled) enrollmentCache.add(key);
+            }
+          }
+
+          const invite = new Invite({
+            email: normalizedEmail,
+            courseId: new ObjectId(courseId),
+            courseVersionId: new ObjectId(courseVersionId),
+            role,
+            isAlreadyEnrolled,
+            isNewUser: !user,
+            expiresAt: oneWeekFromNow,
+            type: InviteType.SINGLE,
+
+          });
+
+          const id = await this.inviteRepo.create(invite, session);
+          inviteIds.push(id);
+        }
+      }
+
+      return this.inviteRepo.findInvitesByIds(inviteIds, session);
+    });
+
+    /* ---------------------------------
+     * 4. Fire-and-forget email sending
+     * --------------------------------- */
+    setImmediate(async () => {
+      const BATCH_SIZE = 20;
+      const DELAY = 2000;
+
+      for (let i = 0; i < invites.length; i += BATCH_SIZE) {
+        const batch = invites.slice(i, i + BATCH_SIZE);
+
+        await Promise.all(
+          batch.map(async invite => {
+            try {
+              const emailMessage = await this.createInviteEmailMessage(
+                invite,
+                course,
+                courseVersion,
+              );
+
+              await this.mailService.sendMail(emailMessage);
+
+
+            } catch (error) {
+              console.log("Error sending invite to", invite.email, error)
+            }
+          }),
+        );
+
+        if (i + BATCH_SIZE < invites.length) {
+          await new Promise(r => setTimeout(r, DELAY));
+        }
+      }
+    });
+
+    /* ---------------------------------
+     * 5. Return immediately
+     * --------------------------------- */
     return invites.map(
       invite =>
-        new InviteResult(invite._id, invite.email, invite.inviteStatus, invite.role),
+        new InviteResult(
+          invite._id,
+          invite.email,
+          invite.inviteStatus,
+          invite.role,
+        ),
     );
   }
+
 
 
   // New function for Link creation

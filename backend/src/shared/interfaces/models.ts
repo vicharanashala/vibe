@@ -392,6 +392,7 @@ export interface IEnrollment {
   status: EnrollmentStatus;
   enrollmentDate: Date;
   percentCompleted: number;
+  completedItemsCount?: number;
 }
 
 export interface IProgress {
@@ -657,7 +658,6 @@ export interface ICourseRegistration {
   createdAt?: Date;
   updatedAt?: Date;
 }
-
 
 export interface TranscriptResponse {
   segmentNumber: number;

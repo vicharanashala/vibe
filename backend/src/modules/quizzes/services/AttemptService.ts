@@ -8,6 +8,7 @@ import {
   IQuizSubmissionExport,
   IQuestionInfo,
   IResponseAnswer,
+  ISOLAnswer,
 } from '#quizzes/interfaces/grading.js';
 import {
   QuestionAnswerFeedback,
@@ -40,7 +41,12 @@ import {QuizRepository} from '../repositories/providers/mongodb/QuizRepository.j
 import {AttemptRepository} from '../repositories/providers/mongodb/AttemptRepository.js';
 import {SubmissionRepository} from '../repositories/providers/mongodb/SubmissionRepository.js';
 import {UserQuizMetricsRepository} from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
-import {BaseQuestion, NATQuestion} from '../classes/transformers/Question.js';
+import {
+  BaseQuestion,
+  NATQuestion,
+  SMLQuestion,
+  SOLQuestion,
+} from '../classes/transformers/Question.js';
 import {UserQuizMetrics} from '../classes/transformers/UserQuizMetrics.js';
 import {Attempt} from '../classes/transformers/Attempt.js';
 import {
@@ -206,10 +212,7 @@ class AttemptService extends BaseService {
   async attempt(
     userId: string | ObjectId,
     quizId: string,
-  ): Promise<
-    | {attemptId: string; questionRenderViews: IQuestionRenderView[]}
-    | {message: string}
-  > {
+  ): Promise<{attemptId: string; questionRenderViews: IQuestionRenderView[]}> {
     return this._withTransaction(async session => {
       //1. Check if UserQuizMetrics exists for the user and quiz
       let metrics = await this.userQuizMetricsRepository.get(
@@ -219,15 +222,16 @@ class AttemptService extends BaseService {
       );
 
       const quiz = await this.quizRepository.getById(quizId, session);
+
+      if (!quiz) {
+        throw new NotFoundError(`Quiz with ID ${quizId} not found`);
+      }
+
       const userObjecId = new ObjectId(userId);
       const quizObjecId = new ObjectId(quizId);
 
       if (!metrics) {
         //1a If not, create a new UserQuizMetrics
-        if (!quiz) {
-          throw new NotFoundError(`Quiz with ID ${quizId} not found`);
-        }
-
         const newMetrics: UserQuizMetrics = new UserQuizMetrics(
           userObjecId,
           quizObjecId,
@@ -243,6 +247,13 @@ class AttemptService extends BaseService {
         );
       }
 
+      // Ensure metrics exists after creation/fetch
+      if (!metrics || !metrics._id) {
+        throw new BadRequestError(
+          'Unable to get or create quiz metrics for user',
+        );
+      }
+
       //2. Check if the quiz is of type 'DEADLINE' and if the deadline has passed
       if (
         quiz.details.quizType === 'DEADLINE' &&
@@ -253,7 +264,7 @@ class AttemptService extends BaseService {
 
       //3. Check if available attempts > 0
       if (metrics.remainingAttempts <= 0 && quiz.details.maxAttempts !== -1) {
-        return {message: 'No available attempts left for this quiz'};
+        throw new BadRequestError('No available attempts left for this quiz');
       }
 
       //4. Fetch questions for the quiz attempt
@@ -504,7 +515,10 @@ class AttemptService extends BaseService {
     attemptId: string,
     answers: IQuestionAnswer[],
     isSkipped?: boolean,
-  ): Promise<void> {
+  ): Promise<{
+    result: 'CORRECT' | 'INCORRECT' | 'PARTIALLY_CORRECT';
+    explanation?: string;
+  }> {
     return this._withTransaction(async session => {
       //1. Fetch the attempt by ID
       const attempt = await this.attemptRepository.getById(
@@ -542,7 +556,7 @@ class AttemptService extends BaseService {
       attempt.quizId = new ObjectId(attempt.quizId);
 
       if (answers?.length) {
-        const {questionId, answer: ans} = answers[0];
+        const {questionId, answer: ans} = answers[answers.length - 1];
         const question = await this.questionRepository.getById(
           questionId,
           session,
@@ -562,6 +576,80 @@ class AttemptService extends BaseService {
 
       //4. Save the updated attempt
       await this.attemptRepository.update(attemptId, attempt);
+
+      console.log(answers, answers[answers.length - 1]);
+
+      //5. Check answer correctness for single question attempts
+      if (answers[answers.length - 1].questionType == 'SELECT_ONE_IN_LOT') {
+        const answer = answers[answers.length - 1].answer as ISOLAnswer;
+        const question = (await this.questionService.getById(
+          answers[answers.length - 1].questionId,
+          true,
+        )) as SOLQuestion;
+
+        // check if the selected lot item is correct
+        const isCorrect =
+          question.correctLotItem?._id.toString() === answer.lotItemId;
+
+        // union all lotitems
+        const options = [
+          question.correctLotItem,
+          ...question.incorrectLotItems,
+        ];
+
+        return {
+          result: isCorrect ? 'CORRECT' : 'INCORRECT',
+          explanation: options.find(
+            option => option._id.toString() === answer.lotItemId,
+          )?.explaination,
+        };
+      } else if (
+        answers[answers.length - 1].questionType == 'NUMERIC_ANSWER_TYPE'
+      ) {
+        const answer = answers[answers.length - 1].answer as {value: number};
+        const question = (await this.questionService.getById(
+          answers[answers.length - 1].questionId,
+        )) as NATQuestion;
+
+        // check if the numeric answer is correct
+        if (answer.value == question.value) {
+          return {
+            result: 'CORRECT',
+          };
+        }
+      } else if (
+        answers[answers.length - 1].questionType == 'SELECT_MANY_IN_LOT'
+      ) {
+        const answer = answers[answers.length - 1].answer as {
+          lotItemIds: string[];
+        };
+
+        const question = (await this.questionService.getById(
+          answers[answers.length - 1].questionId,
+        )) as SMLQuestion;
+
+        // isCorrect only if all answer lotItemIds are correctLotItems
+        const isCorrect = question.correctLotItems.every(correctItem =>
+          answer.lotItemIds.includes(correctItem._id.toString()),
+        );
+        if (isCorrect) {
+          return {
+            result: 'CORRECT',
+            explanation: question.correctLotItems
+              .map(item => item.explaination)
+              .join(', '),
+          };
+        }
+        return {
+          result: 'INCORRECT',
+          explanation: 'Some of the selected answers are incorrect.',
+        };
+      }
+      return {
+        result: 'INCORRECT',
+        explanation:
+          'Unable to determine correctness for the provided answers.',
+      };
     });
   }
 

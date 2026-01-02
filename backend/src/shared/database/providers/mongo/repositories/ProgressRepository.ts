@@ -651,12 +651,12 @@ class ProgressRepository {
     return progressRecords.map(progress => ({
       ...progress,
       _id: progress._id?.toString() || null,
-      userId: progress.userId.toString(),
-      courseId: progress.courseId.toString(),
-      courseVersionId: progress.courseVersionId.toString(),
-      currentModule: progress.currentModule.toString(),
-      currentSection: progress.currentSection.toString(),
-      currentItem: progress.currentItem.toString(),
+      userId: progress.userId?.toString(),
+      courseId: progress.courseId?.toString(),
+      courseVersionId: progress.courseVersionId?.toString(),
+      currentModule: progress.currentModule?.toString(),
+      currentSection: progress.currentSection?.toString(),
+      currentItem: progress.currentItem?.toString(),
     }));
   }
   async deleteUserProgressByVersionIds(
@@ -789,7 +789,6 @@ class ProgressRepository {
       startTime: now,
 
       endTime: now,
-
       isBulk: true,
     }));
 

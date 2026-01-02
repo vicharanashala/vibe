@@ -112,6 +112,7 @@ export class EnrollmentService extends BaseService {
         status: 'ACTIVE' as EnrollmentStatus,
         enrollmentDate: new Date(),
         percentCompleted: 0,
+        completedItemsCount: 0,
       };
 
       const createdEnrollment = await this.enrollmentRepo.createEnrollment(
@@ -593,7 +594,12 @@ export class EnrollmentService extends BaseService {
             bulkOperations.push({
               updateOne: {
                 filter: { _id: new ObjectId(enrollment._id) },
-                update: { $set: { percentCompleted } },
+                update: {
+                  $set: {
+                    percentCompleted,
+                    completedItemsCount: completedItems
+                  }
+                },
               },
             });
 
@@ -708,6 +714,7 @@ export class EnrollmentService extends BaseService {
           status: 'ACTIVE' as EnrollmentStatus,
           enrollmentDate: new Date(),
           percentCompleted: 0,
+          completedItemsCount: 0,
         });
       }
 
@@ -751,4 +758,61 @@ export class EnrollmentService extends BaseService {
       );
     });
   }
+
+  async bulkUpdateCompletedItemsCountParallelPerCourseVersion(
+    courseId?: string,
+    userId?: string,
+  ): Promise<{ totalCount: number; updatedCount: number }> {
+    const MAX_CONCURRENCY = 4;
+
+    // 1. Load courses
+    const courses = courseId
+      ? [await this.courseRepo.read(courseId)]
+      : await this.courseRepo.getAllCourses();
+
+    if (!courses.length || courses.some(c => !c)) {
+      throw new Error('Course not found');
+    }
+
+    // 2. Extract courseVersionIds
+    const courseVersionIds = courses.flatMap(c =>
+      c.versions.map(v => v.toString()),
+    );
+
+    let index = 0;
+
+    // 🔑 THIS is the Safe Alternative
+    const results: { totalCount: number; updatedCount: number }[] = [];
+
+    // 3. Worker
+    const worker = async () => {
+      while (index < courseVersionIds.length) {
+        const currentIndex = index++;
+        const courseVersionId = courseVersionIds[currentIndex];
+
+        const result =
+          await this.enrollmentRepo.bulkUpdateCompletedItemsCountForCourseVersion(
+            { courseVersionId, courseId, userId },
+          );
+
+        // ✅ push result instead of mutating shared counters
+        results.push(result);
+      }
+    };
+
+    // 4. Start workers
+    const workers = Array.from(
+      { length: MAX_CONCURRENCY },
+      () => worker(),
+    );
+
+    await Promise.all(workers);
+
+    // 5. Final aggregation (SAFE)
+    const totalCount = results.reduce((sum, r) => sum + r.totalCount, 0);
+    const updatedCount = results.reduce((sum, r) => sum + r.updatedCount, 0);
+
+    return { totalCount, updatedCount };
+  }
+
 }
