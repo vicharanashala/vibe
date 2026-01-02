@@ -201,7 +201,7 @@ export class UserRepository implements IUserRepository {
       .toArray();
     return users.map(user => ({
       ...user,
-      _id: user._id.toString(),
+      _id: user._id?.toString(),
     }));
   }
 

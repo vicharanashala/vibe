@@ -361,6 +361,7 @@ class ProgressService extends BaseService {
     if (!enrollment) throw new NotFoundError('User has no enrollments');
 
     let percentCompleted = 0;
+    let totalCompletedItemtsCount = 0;
     if (!isReset) {
       // const totalItems =
       //   totalItemCount ||
@@ -397,6 +398,7 @@ class ProgressService extends BaseService {
       enrollment._id.toString(),
       percentCompleted,
       session,
+      totalCompletedItemtsCount,
     );
   }
 
@@ -412,11 +414,13 @@ class ProgressService extends BaseService {
       enrollments.map(async enrollment => {
         const userId = enrollment.userId?.toString();
 
-        const completedItems = await this.getUserProgressPercentageWithoutTotal(
-          userId,
-          courseId,
-          versionId,
-        );
+        // const completedItems = await this.getUserProgressPercentageWithoutTotal(
+        //   userId,
+        //   courseId,
+        //   versionId,
+        // );
+
+        const completedItems = enrollment.completedItemsCount;
 
         return {
           updateOne: {
@@ -720,6 +724,113 @@ class ProgressService extends BaseService {
         sectionId,
         itemId: nextItem._id.toString(),
         completed: false,
+      };
+    }
+
+    return null;
+  }
+
+  public async getPreviousItemInSequence(
+    courseVersion: ICourseVersion,
+    moduleId: string,
+    sectionId: string,
+    itemId: string,
+  ): Promise<{
+    moduleId: string;
+    sectionId: string;
+    itemId: string;
+  } | null> {
+    let isFirstItem = false;
+    let isFirstSection = false;
+    let isFirstModule = false;
+
+    const sortedModules = courseVersion.modules.sort((a, b) =>
+      a.order.localeCompare(b.order),
+    );
+    const firstModule = sortedModules[0].moduleId;
+    if (firstModule?.toString() === moduleId) {
+      isFirstModule = true;
+    }
+
+    const sortedSections = courseVersion.modules
+      .find(module => module.moduleId?.toString() === moduleId)
+      ?.sections.sort((a, b) => a.order.localeCompare(b.order));
+    const firstSection = sortedSections?.[0].sectionId;
+    if (firstSection?.toString() === sectionId) {
+      isFirstSection = true;
+    }
+
+    const itemsGroupId = courseVersion.modules
+      .find(module => module.moduleId?.toString() === moduleId)
+      ?.sections.find(
+        section => section.sectionId?.toString() === sectionId,
+      )?.itemsGroupId;
+    const itemsGroup = await this.itemRepo.readItemsGroup(
+      itemsGroupId?.toString(),
+    );
+    const sortedItems = itemsGroup.items.sort((a, b) =>
+      a.order.localeCompare(b.order),
+    );
+    const firstItem = sortedItems[0]._id;
+    if (firstItem === itemId) {
+      isFirstItem = true;
+    }
+
+    if (isFirstItem && isFirstSection && isFirstModule) {
+      return null;
+    }
+
+    if (isFirstItem && isFirstSection && !isFirstModule) {
+      const currentModuleIndex = sortedModules.findIndex(
+        module => module.moduleId?.toString() === moduleId,
+      );
+      const prevModule = sortedModules[currentModuleIndex - 1];
+      const lastSection = prevModule?.sections.sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[prevModule.sections.length - 1];
+      const itemsGroup = await this.itemRepo.readItemsGroup(
+        lastSection?.itemsGroupId.toString(),
+      );
+      const lastItem = itemsGroup.items.sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[itemsGroup.items.length - 1];
+
+      return {
+        moduleId: prevModule?.moduleId.toString(),
+        sectionId: lastSection?.sectionId.toString(),
+        itemId: lastItem._id.toString(),
+      };
+    }
+
+    if (isFirstItem && !isFirstSection) {
+      const currentSectionIndex = sortedSections?.findIndex(
+        section => section.sectionId?.toString() === sectionId,
+      );
+      const prevSection = sortedSections?.[currentSectionIndex - 1];
+      const itemsGroup = await this.itemRepo.readItemsGroup(
+        prevSection?.itemsGroupId.toString(),
+      );
+      const lastItem = itemsGroup.items.sort((a, b) =>
+        a.order.localeCompare(b.order),
+      )[itemsGroup.items.length - 1];
+
+      return {
+        moduleId,
+        sectionId: prevSection?.sectionId.toString(),
+        itemId: lastItem._id.toString(),
+      };
+    }
+
+    if (!isFirstItem) {
+      const currentItemIndex = sortedItems.findIndex(
+        item => item._id === itemId,
+      );
+      const prevItem = sortedItems[currentItemIndex - 1];
+
+      return {
+        moduleId,
+        sectionId,
+        itemId: prevItem._id.toString(),
       };
     }
 
@@ -1041,25 +1152,32 @@ class ProgressService extends BaseService {
   ): Promise<number> {
     const run = async (session?: ClientSession): Promise<number> => {
       // 🔥 Parallelize independent work
-      const [, completedItemsArray] = await Promise.all([
-        this.verifyDetails(userId, courseId, courseVersionId),
 
-        this.progressRepository.getCompletedItems(
+      await this.verifyDetails(userId, courseId, courseVersionId);
+
+      const enrollment = await this.enrollmentRepo.findEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        existingSession,
+      );
+      if (!enrollment) {
+        throw new NotFoundError('Enrollment not found');
+      }
+      return enrollment.completedItemsCount;
+    };
+
+    return this._withTransaction(async session => {
+      const completedItemsArray =
+        await this.progressRepository.getCompletedItems(
           userId.toString(),
           courseId,
           courseVersionId,
           session,
-        ),
-      ]);
+        );
 
       return new Set(completedItemsArray).size;
-    };
-
-    if (existingSession) {
-      return run(existingSession);
-    }
-
-    return this._withTransaction(session => run(session));
+    });
   }
 
   async startItem(
@@ -1357,6 +1475,7 @@ class ProgressService extends BaseService {
           enrollment._id.toString(),
           percentCompleted,
           session,
+          completedItemsSet.size,
         ),
         this.progressRepository.updateProgress(
           userId,
@@ -1429,11 +1548,7 @@ class ProgressService extends BaseService {
             'Quiz not submitted or attemptId is invalid',
           );
         }
-        if (submittedQuiz.gradingResult.gradingStatus !== 'PASSED') {
-          throw new BadRequestError(
-            'Quiz not passed, user cannot proceed to the next item',
-          );
-        }
+        // Quiz validation will be done after courseVersion is fetched
       } else if (item.type === 'PROJECT') {
         const projectSubmission = await this.projectSubmissionRepo.getByUser(
           userId,
@@ -2184,13 +2299,13 @@ class ProgressService extends BaseService {
 
     const enrollmentMap = new Map();
     for (const enrollment of enrollments) {
-      enrollmentMap.set(enrollment.userId.toString(), {
+      enrollmentMap.set(enrollment.userId?.toString(), {
         completionPercentage: enrollment.percentCompleted || 0,
       });
     }
 
     // Get user names for all enrolled students
-    const userIds = enrollments.map(e => e.userId.toString());
+    const userIds = enrollments.map(e => e.userId?.toString());
     const users = await this.userRepo.getUsersByIds(userIds);
 
     const userMap = new Map();
@@ -2205,10 +2320,10 @@ class ProgressService extends BaseService {
 
     // Combine progress and enrollment data
     const leaderboardData = progressRecords.map(progress => ({
-      userId: progress.userId.toString(),
-      userName: userMap.get(progress.userId.toString()) || 'Unknown User',
+      userId: progress.userId?.toString(),
+      userName: userMap.get(progress.userId?.toString()) || 'Unknown User',
       completionPercentage:
-        enrollmentMap.get(progress.userId.toString())?.completionPercentage ||
+        enrollmentMap.get(progress.userId?.toString())?.completionPercentage ||
         0,
       completedAt:
         progress.completed && progress.completedAt
@@ -2301,15 +2416,25 @@ class ProgressService extends BaseService {
     return allItemIds;
   }
 
-  async createBulkWatchiTimeDocs(courseId: string, versionId: string) {
+  async createBulkWatchiTimeDocs(
+    courseId: string,
+    versionId: string,
+    userId?: string | null,
+  ) {
     if (!courseId || !versionId) {
       throw new BadRequestError('courseId and versionId are required');
     }
 
-    const enrollments = await this.enrollmentRepo.getByCourseVersion(
+    // const enrollments = await this.enrollmentRepo.getByCourseVersion(
+    //   courseId,
+    //   versionId,
+    // );
+
+    const enrollments = await this.enrollmentRepo.getEnrollmentsByFilters({
       courseId,
-      versionId,
-    );
+      courseVersionId: versionId,
+      userId: userId ?? undefined,
+    });
 
     if (!enrollments.length) {
       throw new NotFoundError('No enrollments found for this course version');
@@ -2365,7 +2490,6 @@ class ProgressService extends BaseService {
     }
 
     for (const userId of enrolledUsersId) {
-
       let isProceed = true;
       if (lastItem.type == 'QUIZ') {
         const quizSubmission =
@@ -2375,8 +2499,8 @@ class ProgressService extends BaseService {
           quizId,
         );
 
-        if (!userQuizMetrics) isProceed = false;
-        if (!quizSubmission) isProceed = false;
+        if (!userQuizMetrics || !quizSubmission) isProceed = false;
+        // if (!quizSubmission) isProceed = false;
         if (
           quizSubmission?.gradingResult?.gradingStatus !== 'PASSED' &&
           userQuizMetrics?.remainingAttempts > 0 &&

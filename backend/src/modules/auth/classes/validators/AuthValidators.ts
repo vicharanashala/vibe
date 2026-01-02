@@ -2,12 +2,11 @@ import {
   IsEmail,
   IsNotEmpty,
   MinLength,
-  IsAlpha,
   IsString,
   Matches,
   IsOptional,
 } from 'class-validator';
-import { JSONSchema } from 'class-validator-jsonschema';
+import {JSONSchema} from 'class-validator-jsonschema';
 
 class SignUpBody {
   @JSONSchema({
@@ -17,7 +16,9 @@ class SignUpBody {
     type: 'string',
     format: 'email',
   })
-  @IsEmail()
+  @IsEmail(undefined, {
+    message: 'Invalid email address',
+  })
   email: string;
 
   @JSONSchema({
@@ -43,7 +44,9 @@ class SignUpBody {
     example: 'John',
     type: 'string',
   })
-  @Matches(/^[A-Za-z ]+$/)
+  @Matches(/^[A-Za-z ]+$/, {
+    message: 'name can only contain alphabetic characters and spaces',
+  })
   firstName: string;
 
   @JSONSchema({
@@ -52,7 +55,9 @@ class SignUpBody {
     example: 'Smith',
     type: 'string',
   })
-  @Matches(/^[A-Za-z ]+$/)
+  @Matches(/^[A-Za-z ]+$/, {
+    message: 'name can only contain alphabetic characters and spaces',
+  })
   @IsOptional()
   lastName?: string;
 }
@@ -65,7 +70,9 @@ class GoogleSignUpBody {
     type: 'string',
     format: 'email',
   })
-  @IsEmail()
+  @IsEmail(undefined, {
+    message: 'Invalid email address',
+  })
   email: string;
 
   @JSONSchema({
@@ -74,7 +81,9 @@ class GoogleSignUpBody {
     example: 'John',
     type: 'string',
   })
-  @Matches(/^[A-Za-z ]+$/)
+  @Matches(/^[A-Za-z ]+$/, {
+    message: 'name can only contain alphabetic characters and spaces',
+  })
   firstName: string;
 
   @JSONSchema({
@@ -83,7 +92,9 @@ class GoogleSignUpBody {
     example: 'Smith',
     type: 'string',
   })
-  @Matches(/^[A-Za-z ]+$/)
+  @Matches(/^[A-Za-z ]+$/, {
+    message: 'name can only contain alphabetic characters and spaces',
+  })
   @IsOptional()
   lastName?: string;
 }
@@ -103,7 +114,9 @@ class ChangePasswordBody {
   @IsString()
   @IsNotEmpty()
   @MinLength(8)
-  @Matches(/^[A-Za-z ]+$/)
+  @Matches(/^[A-Za-z ]+$/, {
+    message: 'Password Invalid',
+  })
   @JSONSchema({
     title: 'New Password',
     description:
@@ -122,7 +135,9 @@ class ChangePasswordBody {
   @IsString()
   @IsNotEmpty()
   @MinLength(8)
-  @Matches(/^[A-Za-z ]+$/)
+  @Matches(/^[A-Za-z ]+$/, {
+    message: 'Password Invalid',
+  })
   @JSONSchema({
     title: 'Confirm New Password',
     description:
@@ -222,12 +237,11 @@ class AuthErrorResponse {
   message: string;
 }
 
-
 class LoginBody {
   @JSONSchema({
     title: 'Email Address',
     description: 'Email address of the user',
-    format: 'email'
+    format: 'email',
   })
   @IsEmail()
   email: string;
@@ -237,24 +251,21 @@ class LoginBody {
     description: 'Password for account authentication',
     example: 'SecureP@ssw0rd',
     minLength: 8,
-    writeOnly: true
+    writeOnly: true,
   })
   @IsNotEmpty()
   @MinLength(8)
   password: string;
 }
 
-
-
 class LoginResponse {
-
   @JSONSchema({
     description: 'Local ID of the user',
     example: 'cKy6H2O04PgTh8O3DpUXjgJYUr53',
     type: 'string',
   })
   @IsString()
-  localId: string
+  localId: string;
 
   @JSONSchema({
     description: 'Email address of the user',
@@ -263,7 +274,7 @@ class LoginResponse {
     format: 'email',
   })
   @IsString()
-  email: string
+  email: string;
 
   @JSONSchema({
     description: 'Display name of the user',
@@ -271,7 +282,7 @@ class LoginResponse {
     type: 'string',
   })
   @IsString()
-  displayName: string
+  displayName: string;
 
   @JSONSchema({
     description: 'ID token of the user',
@@ -279,7 +290,7 @@ class LoginResponse {
     type: 'string',
   })
   @IsString()
-  idToken: string
+  idToken: string;
 
   @JSONSchema({
     description: 'Refresh token of the user',
@@ -287,14 +298,14 @@ class LoginResponse {
     type: 'string',
   })
   @IsString()
-  refreshToken: string
+  refreshToken: string;
 
   @JSONSchema({
     description: 'Expiry time of the ID token',
     example: '3600',
     type: 'number',
   })
-  expiresIn: Number
+  expiresIn: Number;
 }
 
 export const AUTH_VALIDATORS = [
@@ -307,7 +318,7 @@ export const AUTH_VALIDATORS = [
   TokenVerificationResponse,
   AuthErrorResponse,
   LoginBody,
-  LoginResponse
+  LoginResponse,
 ];
 
 export {
@@ -320,5 +331,5 @@ export {
   TokenVerificationResponse,
   AuthErrorResponse,
   LoginBody,
-  LoginResponse
+  LoginResponse,
 };
