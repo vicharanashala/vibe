@@ -143,20 +143,64 @@ class CourseService extends BaseService {
     });
   }
 
-  async updateCourseVersionTotalItemCount(): Promise<void> {
+  async updateCourseVersionTotalItemCount(
+    courseId?: string,
+    courseVersionId?: string,
+  ): Promise<{
+    totalVersions: number;
+    updatedVersions: number;
+    failedVersions: number;
+  }> {
+    let versionIds: string[] = [];
 
-    const courses = await this.courseRepo.getAllCourses();
-    const versionIds = courses.flatMap(c => c.versions);
+    // 1️⃣ If courseVersionId is provided
+    if (courseVersionId) {
+      if (courseId) {
+        const course = await this.courseRepo.read(courseId);
+        if (!course) {
+          throw new Error(`Course with id ${courseId} not found`);
+        }
+
+        const belongsToCourse = course.versions.some(
+          v => v.toString() === courseVersionId,
+        );
+
+        if (!belongsToCourse) {
+          throw new Error(
+            `Version ${courseVersionId} does not belong to course ${courseId}`,
+          );
+        }
+      }
+
+      versionIds = [courseVersionId];
+    }
+
+    // 2️⃣ If only courseId is provided
+    else if (courseId) {
+      const course = await this.courseRepo.read(courseId);
+      if (!course) {
+        throw new Error(`Course with id ${courseId} not found`);
+      }
+
+      versionIds = course.versions.map(v => v.toString());
+    }
+
+    // 3️⃣ Otherwise process all versions
+    else {
+      const courses = await this.courseRepo.getAllCourses();
+      versionIds = courses.flatMap(c =>
+        c.versions.map(v => v.toString()),
+      );
+    }
 
     const bulkOps = [];
+    let updatedVersions = 0;
+    let failedVersions = 0;
 
     for (const versionId of versionIds) {
       try {
         const { totalItems, itemCounts } =
-          await this.itemRepo.calculateItemCountsForVersion(
-            versionId.toString(),
-
-          );
+          await this.itemRepo.calculateItemCountsForVersion(versionId);
 
         bulkOps.push({
           updateOne: {
@@ -169,7 +213,10 @@ class CourseService extends BaseService {
             },
           },
         });
+
+        updatedVersions++;
       } catch (err) {
+        failedVersions++;
         console.error(`Failed for version ${versionId}`, err);
       }
     }
@@ -178,7 +225,14 @@ class CourseService extends BaseService {
       await this.courseRepo.bulkUpdateVersions(bulkOps);
     }
 
+    return {
+      totalVersions: versionIds.length,
+      updatedVersions,
+      failedVersions,
+    };
   }
+
+
 
 
 }

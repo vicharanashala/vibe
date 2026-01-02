@@ -11,7 +11,7 @@ import {
 import { Expose, Transform, Type } from 'class-transformer';
 import { ObjectId } from 'mongodb';
 import { Progress } from './Progress.js';
-import { IsString, ValidateNested } from 'class-validator';
+import { IsOptional, IsString, ValidateNested } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 
 @Expose()
@@ -50,6 +50,11 @@ export class Enrollment implements IEnrollment {
   @Expose()
   percentCompleted: number;
 
+  @IsString()
+  @Expose()
+  @IsOptional()
+  completedItemsCount?: number;
+
   constructor(userId?: string, courseId?: string, courseVersionId?: string) {
     if (userId && courseId && courseVersionId) {
       this.userId = new ObjectId(userId);
@@ -58,6 +63,7 @@ export class Enrollment implements IEnrollment {
       this.status = 'ACTIVE';
       this.enrollmentDate = new Date();
       this.percentCompleted = 0;
+      this.completedItemsCount = 0;
     }
   }
 }
