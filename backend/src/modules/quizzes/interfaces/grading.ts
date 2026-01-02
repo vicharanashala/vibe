@@ -36,6 +36,7 @@ export type Answer =
 
 interface IQuestionAnswer {
   questionId: string;
+  questionType: string;
   answer: Answer;
 }
 
