@@ -566,8 +566,8 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { course
   };
 
   return (
-    <DialogContent className="max-w-6xl">
-      <DialogHeader>
+    <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
+      <DialogHeader className="flex-shrink-0">
         <DialogTitle className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-yellow-600" />
           {courseName || 'Course'} Leaderboard
@@ -577,7 +577,7 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { course
         </p>
       </DialogHeader>
 
-      <ScrollArea className="h-[600px] pr-4">
+      <ScrollArea className="flex-1 min-h-0 pr-4">
         {isLoading && (
           <div className="space-y-3">
             {Array.from({ length: 10 }).map((_, i) => (
@@ -680,7 +680,7 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { course
           </div>
         )}
       </ScrollArea>
-      <div className="p-4 border-t border-border/50 bg-gradient-card flex items-center justify-between">
+      <div className="flex-shrink-0 p-4 border-t border-border/50 bg-gradient-card flex items-center justify-between">
         {/* My Stats */}
         {myStats ? (
           <div className="flex items-center gap-4 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border/50">

@@ -82,6 +82,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
   const [isFullscreen, setIsFullscreen] = useState(false);
   const videoContainerRef = useRef<HTMLDivElement>(null);
 
+  const wasPlayingBeforeTabSwitch = useRef(false);
+
 
   // HANDLE STOP FAILED CASE, SHOW SKIP OPTION IF FAILED
   const [isStopFailed, setIsStopFailed] = useState(false);
@@ -130,6 +132,36 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
   }, []);
+
+  // Pause video when user switches browser tabs
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const player = playerRef.current;
+      if (!player) return;
+
+      if (document.hidden) {
+        if (playing) {
+          wasPlayingBeforeTabSwitch.current = true;
+          player.pauseVideo();
+          console.log('🔇 Video paused: User switched to another tab');
+        } else {
+          wasPlayingBeforeTabSwitch.current = false;
+        }
+      } else {
+        if (wasPlayingBeforeTabSwitch.current && playerReady) {
+          player.playVideo();
+          setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
+          console.log('🔊 Video resumed: User returned to tab');
+          wasPlayingBeforeTabSwitch.current = false;
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [playing, playerReady, playbackRate]);
 
   // Wait 10 seconds after readyToDetect becomes true (to match FloatingVideo's grace period)
   useEffect(() => {
