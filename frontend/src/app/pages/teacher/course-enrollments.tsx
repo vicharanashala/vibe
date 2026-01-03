@@ -901,29 +901,6 @@ export default function CourseEnrollments() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() =>
-                                  handleResetProgress({
-                                    id: enrollment.user?._id,
-                                    name:
-                                      `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
-                                    email: enrollment.userId,
-                                    enrolledDate: enrollment.enrollmentDate,
-                                    progress: 0,
-                                  })
-                                }
-                                className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
-                                disabled={resetProgressMutation.isPending || /*Math.round(enrollment.progress || 0 ) == 0 ||*/ enrollment?.isDeleted}
-                              >
-                                {resetProgressMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                ) : (
-                                  <RotateCcw className="h-4 w-4 mr-2" />
-                                )}
-                                Reset
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
                                   handleRemoveStudent({
                                     id: enrollment.user?._id,
                                     name:
@@ -942,30 +919,6 @@ export default function CourseEnrollments() {
                                   <UserX className="h-4 w-4 mr-2" />
                                 )}
                                 Remove
-                              </Button>
-
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  handleRecalculateProgress({
-                                    id: enrollment.user?._id,
-                                    name:
-                                      `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
-                                    email: enrollment.user?.email,
-                                    enrolledDate: enrollment.enrollmentDate,
-                                    progress: 0,
-                                  })
-                                }
-                                className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
-                                disabled={unenrollMutation.isPending || user?.email == enrollment?.user?.email || enrollment?.isDeleted}
-                              >
-                                {unenrollMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                ) : (
-                                  <RotateCcw className="h-4 w-4 mr-2" />
-                                )}
-                                Recalculate
                               </Button>
                             </div>
                           </TableCell>
@@ -1325,6 +1278,29 @@ export default function CourseEnrollments() {
                   <p>Select an item from the course structure above to view details.</p>
                 </div>
               )}
+
+              {/* Actions Footer */}
+              <div className="pt-6 mt-6 border-t border-border flex justify-end gap-3 sticky bottom-0 bg-card z-10">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsResetDialogOpen(true)}
+                  className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 border-amber-200 dark:border-amber-800 cursor-pointer"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Reset Progress
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setUsertToRecalculate(selectedUser)
+                    setIsRecalculateProgressOpen(true)
+                  }}
+                  className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800 cursor-pointer"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Recalculate
+                </Button>
+              </div>
             </div>
           </div>
         )}
