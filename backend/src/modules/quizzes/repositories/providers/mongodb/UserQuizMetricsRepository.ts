@@ -1,9 +1,9 @@
-import {IUserQuizMetrics} from '#quizzes/interfaces/grading.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {injectable, inject} from 'inversify';
-import {Collection, ClientSession, ObjectId} from 'mongodb';
-import {InternalServerError} from 'routing-controllers';
+import { IUserQuizMetrics } from '#quizzes/interfaces/grading.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { injectable, inject } from 'inversify';
+import { Collection, ClientSession, ObjectId } from 'mongodb';
+import { InternalServerError } from 'routing-controllers';
 
 @injectable()
 class UserQuizMetricsRepository {
@@ -12,7 +12,7 @@ class UserQuizMetricsRepository {
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
-  ) {}
+  ) { }
 
   private async init() {
     this.userQuizMetricsCollection =
@@ -51,8 +51,8 @@ class UserQuizMetricsRepository {
       : null;
 
     const filter: any = {
-      userId: {$in: [userIdStr, ...(userIdObj ? [userIdObj] : [])]},
-      quizId: {$in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])]},
+      userId: { $in: [userIdStr, ...(userIdObj ? [userIdObj] : [])] },
+      quizId: { $in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])] },
     };
 
     const result = await this.userQuizMetricsCollection.findOne(filter, {
@@ -62,6 +62,7 @@ class UserQuizMetricsRepository {
 
     return {
       ...result,
+      _id: result._id?.toString(),
       userId: result.userId?.toString(),
       quizId: result.quizId?.toString(),
       latestAttemptId: result.latestAttemptId?.toString() || null,
@@ -76,13 +77,13 @@ class UserQuizMetricsRepository {
   }
 
   async executeBulkMetricsReset(
-    operations: Array<{updateOne: {filter: any; update: any}}>,
+    operations: Array<{ updateOne: { filter: any; update: any } }>,
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
     if (!operations.length) return;
 
-    await this.userQuizMetricsCollection.bulkWrite(operations, {session});
+    await this.userQuizMetricsCollection.bulkWrite(operations, { session });
   }
 
   async update(
@@ -93,9 +94,9 @@ class UserQuizMetricsRepository {
     await this.init();
 
     const result = await this.userQuizMetricsCollection.findOneAndUpdate(
-      {_id: new ObjectId(metricsId)},
-      {$set: updateData},
-      {returnDocument: 'after', session},
+      { _id: new ObjectId(metricsId) },
+      { $set: updateData },
+      { returnDocument: 'after', session },
     );
 
     return result;
@@ -113,9 +114,9 @@ class UserQuizMetricsRepository {
     const result = await this.userQuizMetricsCollection
       .find(
         {
-          quizId: {$in: [quizIdStr, quizIdObj]},
+          quizId: { $in: [quizIdStr, quizIdObj] },
         },
-        {session},
+        { session },
       )
       .toArray();
 
@@ -149,9 +150,9 @@ class UserQuizMetricsRepository {
     const result = await this.userQuizMetricsCollection
       .find(
         {
-          quizId: {$in: [...stringIds, ...objectIds]},
+          quizId: { $in: [...stringIds, ...objectIds] },
         },
-        {session},
+        { session },
       )
       .toArray();
 
@@ -169,7 +170,7 @@ class UserQuizMetricsRepository {
   async getAll(session?: ClientSession): Promise<IUserQuizMetrics[]> {
     await this.init();
     const result = await this.userQuizMetricsCollection
-      .find({}, {session})
+      .find({}, { session })
       .toArray();
 
     return result.map(doc => ({
@@ -187,29 +188,29 @@ class UserQuizMetricsRepository {
     await this.init();
     try {
       const pipeline = [
-        {$unwind: '$attempts'},
+        { $unwind: '$attempts' },
         {
           $match: {
             $or: [
-              {'attempts.submissionResultId': {$exists: false}},
-              {'attempts.submissionResultId': null},
+              { 'attempts.submissionResultId': { $exists: false } },
+              { 'attempts.submissionResultId': null },
             ],
           },
         },
         {
           $group: {
             _id: '$_id',
-            userId: {$first: '$userId'},
-            quizId: {$first: '$quizId'},
-            attempts: {$push: '$attempts'},
+            userId: { $first: '$userId' },
+            quizId: { $first: '$quizId' },
+            attempts: { $push: '$attempts' },
           },
         },
       ];
-      return this.userQuizMetricsCollection.aggregate(pipeline, {session});
+      return this.userQuizMetricsCollection.aggregate(pipeline, { session });
     } catch (error) {
       throw new InternalServerError(
         'Failed to find user quiz metrics with missing submission IDs.\n More Details: ' +
-          error,
+        error,
       );
     }
   }
@@ -234,4 +235,4 @@ class UserQuizMetricsRepository {
   }
 }
 
-export {UserQuizMetricsRepository};
+export { UserQuizMetricsRepository };

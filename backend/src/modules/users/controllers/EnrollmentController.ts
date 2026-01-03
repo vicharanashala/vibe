@@ -375,6 +375,9 @@ export class EnrollmentController {
           user: { ...enrollment.userInfo, _id: enrollment.userId },
           progress: enrollment.percentCompleted,
           completedItemsCount: enrollment.completedItemsCount || 0,
+          currentModule: enrollment.currentModule,
+          currentSection: enrollment.currentSection,
+          currentItem: enrollment.currentItem,
         }))
         .sort((a, b) => {
           // sort by isDeleted deleted should be at the bottom

@@ -90,6 +90,9 @@ export interface EnrolledUser {
   enrolledDate: string
   progress: number
   completedItemsCount?: number
+  currentModule?: string
+  currentSection?: string
+  currentItem?: string
 }
 
 export interface ResetProgressData {

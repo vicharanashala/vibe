@@ -265,6 +265,33 @@ class ProgressResponse {
   @IsNotEmpty()
   @IsInt()
   percentCompleted: number;
+
+  @JSONSchema({
+    description: 'Current module ID the user is on',
+    example: '507f1f77bcf86cd799439011',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  currentModule?: string;
+
+  @JSONSchema({
+    description: 'Current section ID the user is on',
+    example: '507f1f77bcf86cd799439012',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  currentSection?: string;
+
+  @JSONSchema({
+    description: 'Current item ID the user is on',
+    example: '507f1f77bcf86cd799439013',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  currentItem?: string;
 }
 
 export class UpdateEnrollmentProgressResponse {

@@ -2,7 +2,41 @@
 
 import { useState, useEffect } from "react"
 import { useNavigate } from "@tanstack/react-router"
-import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown } from 'lucide-react'
+import {
+  Search,
+  Filter,
+  CheckCircle,
+  XCircle,
+  Clock,
+  MoreVertical,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpDown,
+  Download,
+  BarChart3,
+  Loader2,
+  Calendar,
+  Mail,
+  User,
+  Users,
+  TrendingUp,
+  RotateCcw,
+  UserX,
+  List,
+  Eye,
+  ChevronDown,
+  ArrowUp,
+  ArrowDown,
+  FileDown,
+  BookOpen,
+  FileText,
+  Play,
+  AlertTriangle,
+  Circle,
+  PlayCircle,
+  HelpCircle,
+  X
+} from 'lucide-react'
 import { Pagination } from "@/components/ui/Pagination"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -169,9 +203,16 @@ export default function CourseEnrollments() {
   // New states for view progress functionality
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
-  const [selectedViewItem, setSelectedViewItem] = useState<string>("")
-  const [selectedViewItemType, setSelectedViewItemType] = useState<string>("")
-  const [selectedViewItemName, setSelectedViewItemName] = useState<string>("")
+  const [selectedViewItem, setSelectedViewItem] = useState<string>('')
+  const [selectedViewItemType, setSelectedViewItemType] = useState<string>('')
+  const [selectedViewItemName, setSelectedViewItemName] = useState<string>('')
+  // Fetch items for the current user's section (for displaying current item name)
+  // Pass 'SKIP' to prevent fetching when no user is selected (hook has built-in SKIP logic)
+  const { data: currentUserSectionItems, isLoading: isLoadingCurrentItems } = useItemsBySectionId(
+    versionId || 'SKIP',
+    selectedUser?.currentModule || 'SKIP',
+    selectedUser?.currentSection || 'SKIP'
+  );
 
   // Sorting state
   const [sortBy, setSortBy] = useState<'name' | 'enrollmentDate' | 'progress'>('name')
@@ -216,26 +257,26 @@ export default function CourseEnrollments() {
   }
 
   // Handle fetch and export quiz scores
- const handleFetchQuizScores = async () => {
-  if (!courseId || !versionId) {
-    toast.error('Course ID or Version ID is missing');
-    return;
-  }
+  const handleFetchQuizScores = async () => {
+    if (!courseId || !versionId) {
+      toast.error('Course ID or Version ID is missing');
+      return;
+    }
 
-  if (!quizScores?.data?.length || isLoadingQuizScores) {
-    toast.warning('No quiz scores available');
-    return;
-  }
+    if (!quizScores?.data?.length || isLoadingQuizScores) {
+      toast.warning('No quiz scores available');
+      return;
+    }
 
-  try {
-    // ⚡ FAST: single-pass formatting, no unused maps
-    const formattedData = quizScores.data.map(
-      (student: any, index: number) => ({
-        studentId: student.studentId ?? `student-${index}`,
-        name: student.name ?? 'Unknown Student',
-        email: student.email ?? '',
-        quizScores: Array.isArray(student.quizScores)
-          ? student.quizScores.map((quiz: any) => ({
+    try {
+      // ⚡ FAST: single-pass formatting, no unused maps
+      const formattedData = quizScores.data.map(
+        (student: any, index: number) => ({
+          studentId: student.studentId ?? `student-${index}`,
+          name: student.name ?? 'Unknown Student',
+          email: student.email ?? '',
+          quizScores: Array.isArray(student.quizScores)
+            ? student.quizScores.map((quiz: any) => ({
               moduleId: quiz.moduleId ?? 'unknown',
               sectionId: quiz.sectionId ?? 'unknown',
               quizId: quiz.quizId ?? 'unknown',
@@ -246,38 +287,38 @@ export default function CourseEnrollments() {
               attempts: Number(quiz.attempts) || 0,
               questionScores: Array.isArray(quiz.questionScores)
                 ? quiz.questionScores.map((q: any) => ({
-                    questionId: String(q.questionId ?? ''),
-                    score: Number(q.score) || 0,
-                  }))
+                  questionId: String(q.questionId ?? ''),
+                  score: Number(q.score) || 0,
+                }))
                 : [],
             }))
-          : [],
-      }),
-    );
+            : [],
+        }),
+      );
 
-    if (!formattedData.length) {
-      toast.warning('No quiz scores found to export');
-      return;
+      if (!formattedData.length) {
+        toast.warning('No quiz scores found to export');
+        return;
+      }
+
+      // ⏱️ Stable filename (no locale overhead)
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '_');
+      const filename = `quiz_scores_${timestamp}.xlsx`;
+
+      // 🧠 Let UI breathe before heavy Excel generation
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      generateExcel(formattedData, filename);
+      toast.success('Quiz scores exported successfully');
+    } catch (error) {
+      console.error('Error exporting quiz scores:', error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to export quiz scores',
+      );
     }
-
-    // ⏱️ Stable filename (no locale overhead)
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '_');
-    const filename = `quiz_scores_${timestamp}.xlsx`;
-
-    // 🧠 Let UI breathe before heavy Excel generation
-    await new Promise(resolve => setTimeout(resolve, 0));
-
-    generateExcel(formattedData, filename);
-    toast.success('Quiz scores exported successfully');
-  } catch (error) {
-    console.error('Error exporting quiz scores:', error);
-    toast.error(
-      error instanceof Error
-        ? error.message
-        : 'Failed to export quiz scores',
-    );
-  }
-};
+  };
 
 
   useEffect(() => {
@@ -845,6 +886,9 @@ export default function CourseEnrollments() {
                                     enrolledDate: enrollment.enrollmentDate,
                                     progress: Math.round(enrollment.progress || 0),
                                     completedItemsCount: enrollment.completedItemsCount || 0,
+                                    currentModule: enrollment.currentModule,
+                                    currentSection: enrollment.currentSection,
+                                    currentItem: enrollment.currentItem,
                                   })
                                 }
                                 disabled={enrollment.role !== "STUDENT" || Math.round(enrollment.progress || 0) == 0 || enrollment?.isDeleted}
@@ -987,6 +1031,207 @@ export default function CourseEnrollments() {
                       {selectedUser.completedItemsCount || 0} / {version.totalItems} items completed
                     </p>
                   )}
+                </div>
+              </div>
+
+              {/* Current Item Status */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <Play className="h-5 w-5 text-primary" />
+                  Current Item Status
+                </h3>
+                <div className="p-4 bg-muted/20 rounded-lg border border-border">
+                  {(() => {
+                    // Use items fetched at component level
+                    const currentSectionItems = currentUserSectionItems;
+
+                    // Helper to get module, section, and item details
+                    // We define it here to use closure variables
+                    const details = (() => {
+                      if (!selectedUser.currentModule || !selectedUser.currentSection || !selectedUser.currentItem) {
+                        return null;
+                      }
+
+                      const modules = (version as any)?.modules || [];
+                      const module = modules.find((m: any) => m.moduleId === selectedUser.currentModule);
+                      if (!module) return null;
+
+                      const section = module.sections?.find((s: any) => s.sectionId === selectedUser.currentSection);
+                      if (!section) return null;
+
+                      // Find item in fetched items - handle both array and object responses
+                      const items = Array.isArray(currentSectionItems)
+                        ? currentSectionItems
+                        : (currentSectionItems as any)?.items || [];
+
+                      const item = items.find((i: any) =>
+                        i._id === selectedUser.currentItem ||
+                        i.itemId === selectedUser.currentItem ||
+                        i.id === selectedUser.currentItem
+                      );
+
+                      // Determine a display name
+                      let displayItemName = item?.name || item?.displayName;
+                      if (!displayItemName && item) {
+                        // Fallback if name is missing but item exists
+                        displayItemName = item.type ?
+                          `${item.type.charAt(0).toUpperCase() + item.type.slice(1).toLowerCase()} Item` :
+                          "Untitled Item";
+                      }
+
+                      return {
+                        moduleName: module.name,
+                        sectionName: section.name,
+                        itemName: displayItemName || null,
+                        itemType: item?.type || null,
+                        hasItem: !!item // Explicit flag indicating the item ID was found
+                      };
+                    })();
+
+                    // Case 1: Course completed
+                    if (selectedUser.progress >= 100) {
+                      return (
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-full">
+                            <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-green-700 dark:text-green-300">Course Completed!</p>
+                            <p className="text-xs text-green-600 dark:text-green-400">All items finished</p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // Case 2: Not started
+                    if (!selectedUser.currentModule) {
+                      return (
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-muted rounded-full">
+                            <Circle className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                          <p className="font-medium text-muted-foreground">Not Started</p>
+                        </div>
+                      );
+                    }
+
+                    // Case 3: In progress with item details
+                    if (details && details.hasItem) {
+                      // Determine icon based on type
+                      let ItemIcon = FileText;
+                      if (details.itemType === 'VIDEO') ItemIcon = PlayCircle;
+                      if (details.itemType === 'QUIZ') ItemIcon = HelpCircle;
+
+                      return (
+                        <div className="space-y-3">
+                          <div className="flex items-start gap-3">
+                            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full flex-shrink-0">
+                              <Play className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-blue-700 dark:text-blue-300 mb-2">Currently On:</p>
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2 text-sm">
+                                  <BookOpen className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                  <span className="text-muted-foreground">Module:</span>
+                                  <span className="font-medium truncate">{details.moduleName}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm">
+                                  <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                  <span className="text-muted-foreground">Section:</span>
+                                  <span className="font-medium truncate">{details.sectionName}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm">
+                                  <ItemIcon className="h-4 w-4 text-primary flex-shrink-0" />
+                                  <span className="text-muted-foreground">Item:</span>
+                                  <span className="font-medium truncate">{details.itemName}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // Case 4: In progress but item not found (truly missing) - show module/section with warning
+                    if (details && !details.hasItem && !isLoadingCurrentItems && currentUserSectionItems) {
+                      return (
+                        <div className="space-y-3">
+                          <div className="flex items-start gap-3">
+                            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full flex-shrink-0">
+                              <Play className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-blue-700 dark:text-blue-300 mb-2">Currently On:</p>
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2 text-sm">
+                                  <BookOpen className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                  <span className="text-muted-foreground">Module:</span>
+                                  <span className="font-medium truncate">{details.moduleName}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm">
+                                  <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                  <span className="text-muted-foreground">Section:</span>
+                                  <span className="font-medium truncate">{details.sectionName}</span>
+                                </div>
+                                <div className="flex items-start gap-2 text-sm p-2 bg-amber-50 dark:bg-amber-900/20 rounded border border-amber-200 dark:border-amber-800">
+                                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-amber-700 dark:text-amber-300 font-medium mb-1">Item Not Found</p>
+                                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                                      The item this student was working on may have been deleted or modified.
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-1 font-mono truncate">
+                                      ID: {selectedUser.currentItem}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // Case 5: In progress but still loading
+                    return (
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3">
+                          <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full flex-shrink-0">
+                            <Play className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-blue-700 dark:text-blue-300 mb-2">Currently On:</p>
+                            <div className="space-y-2">
+                              {details ? (
+                                <>
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <BookOpen className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                    <span className="text-muted-foreground">Module:</span>
+                                    <span className="font-medium truncate">{details.moduleName}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                    <span className="text-muted-foreground">Section:</span>
+                                    <span className="font-medium truncate">{details.sectionName}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <Loader2 className="h-4 w-4 text-muted-foreground flex-shrink-0 animate-spin" />
+                                    <span className="text-muted-foreground">Loading item details...</span>
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Loader2 className="h-4 w-4 text-muted-foreground flex-shrink-0 animate-spin" />
+                                  <span className="text-muted-foreground">Loading...</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 

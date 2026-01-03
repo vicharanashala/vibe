@@ -1438,34 +1438,6 @@ class ProgressService extends BaseService {
         session,
       );
 
-      // Only update completedItemsCount if not skipped
-      if (!isSkipped) {
-        // Update completedItemsCount in enrollment
-        const enrollment = await this.enrollmentRepo.findEnrollment(
-          userId,
-          courseId,
-          courseVersionId,
-          session,
-        );
-        if (enrollment) {
-          // Calculate actual completed items count
-          const completedItemsArray = await this.progressRepository.getCompletedItems(
-            userId,
-            courseId,
-            courseVersionId,
-            session,
-          );
-          const CompletedCount = new Set(completedItemsArray).size;
-
-          await this.enrollmentRepo.updateCompletedItemsCount(
-            enrollment._id.toString(),
-            CompletedCount,
-            session,
-          );
-          // console.log(`Updated completedItemsCount for enrollment ${enrollment._id}: ${CompletedCount}`);
-        }
-      }
-
       const updatedProgress = await this.progressRepository.updateProgress(
         userId,
         courseId,
