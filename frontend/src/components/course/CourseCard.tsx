@@ -1,4 +1,4 @@
-import { Clock, FileText, CheckCircle2, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles } from "lucide-react";
+import { Clock, FileText, CheckCircle2, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +37,11 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  const [isSupportOpen, setIsSupportOpen] = useState(false);
+  const supportEmail =
+    enrollment.courseId === "692f030a945e82ec875e9116"
+      ? "vibe-support@vicharanashala.zohodesk"
+      : "internship-support@vicharanashala.zohodesk";
 
   // const progress = Math.round(enrollment.percentCompleted || 0) as number 
   const progress = Number(((enrollment.percentCompleted || 0)).toFixed(1));
@@ -430,6 +435,84 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 </DialogContent>
               </Dialog>
             )}
+
+          {(
+            enrollment.courseId === "6943b2cafa4e840eb39490b6" ||
+            enrollment.courseId === "692f030a945e82ec875e9116"
+          ) && (
+            <Dialog open={isSupportOpen} onOpenChange={setIsSupportOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto">
+                  Support
+                </Button>
+              </DialogTrigger>
+
+              <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 max-h-full flex flex-col">
+                <DialogHeader className="mb-3 text-left">
+                  <DialogTitle>Support Details</DialogTitle>
+                </DialogHeader>
+
+                <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[800px] overflow-y-auto">
+                  <>
+                    <Separator className="mb-6" />
+
+                    <div className="space-y-4">
+                      {/* Section Header */}
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                          <LifeBuoy className="w-4 h-4 text-primary-foreground" />
+                        </div>
+                        <h3 className="text-lg font-semibold">Internship Support</h3>
+                      </div>
+
+                      {/* Support Card */}
+                      <div className="rounded-xl border bg-primary/5 shadow-sm hover:shadow-md transition-all">
+                        <div className="p-6 space-y-5">
+                          {/* Top */}
+                          <div className="flex items-center gap-3">
+                            <div className="w-14 h-14 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-md">
+                              <Mail className="w-7 h-7" />
+                            </div>
+
+                            <div>
+                              <p className="font-semibold text-base">
+                                Contact Support
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                We usually respond within 24 hours
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Description */}
+                          <p className="text-sm text-muted-foreground leading-relaxed px-4 py-3 rounded-lg border bg-primary/5">
+                            For course-related queries, guidance, or issues, feel free to
+                            reach out to our support team via email.
+                          </p>
+
+                          {/* Email */}
+                          <div className="flex items-center gap-2.5">
+                            <Button asChild className="flex-1">
+                              <a
+                                href={`mailto:${supportEmail}`}
+                                className="flex items-center justify-center gap-2"
+                              >
+                                <Mail className="w-4 h-4" />
+                                {supportEmail}
+                              </a>
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                </ScrollArea>
+              </DialogContent>
+            </Dialog>
+          )}
+
+
+
 
           </div>
         </CardContent>
