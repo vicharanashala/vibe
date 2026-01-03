@@ -1423,19 +1423,19 @@ const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemI
                                               <SidebarMenuSubButton
                                                 onClick={() => handleSelectItem(moduleId, sectionId, itemId)}
                                                 isActive={isCurrentItem}
-                                                className="group relative h-8 px-3 w-full rounded-md transition-all duration-200 hover:bg-accent/10 data-[state=active]:bg-primary/10 data-[state=active]:text-primary justify-start"
+                                                className="group relative h-8 px-3 w-full rounded-md transition-all duration-200 hover:bg-accent/10 dark:data-[state=active]:bg-primary/10 data-[state=active]:bg-primary/10 data-[state=active]:text-primary justify-start"
                                                 // Assign ref only to the selected item for autoscroll
                                                 ref={isCurrentItem ? selectedItemRef : undefined}
                                               >
                                                 <div className="flex items-center gap-2 w-full min-w-0">
                                                   <div className={`p-0.5 rounded transition-colors flex-shrink-0 ${isCurrentItem
-                                                    ? "bg-primary/15 text-primary"
+                                                    ? "dark:bg-primary/15 dark:text-primary bg-primary/50 text-white/80"
                                                     : "bg-accent/15 text-accent-foreground group-hover:bg-accent/25"
                                                     }`}>
                                                     {getItemIcon(item.type)}
                                                   </div>
                                                   <div className="flex-1 text-left min-w-0">
-                                                    <div className="text-xs font-medium truncate w-full" title={currentItem?.name || 'Loading...'}>
+                                                    <div className="text-xs font-medium truncate w-full " title={currentItem?.name || 'Loading...'}>
                                                       {(() => {
                                                         // Find all non-QUIZ items in this section, sorted by order
                                                         const itemsInSection = sortItemsByOrder(sectionItems[sectionId] || []).filter((i: any) => i.type !== 'QUIZ');
@@ -1456,7 +1456,7 @@ const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemI
                                                       })()}
                                                     </div>
                                                     {item.isCompleted && (
-                                                      <div className="text-[10px] text-green-500 font-medium mt-0.5 flex items-center gap-1">
+                                                      <div className="text-[10px] dark:text-green-500 text-green-600 font-medium mt-0.5 flex items-center gap-1">
                                                         <CheckCircle className="h-3 w-3" />
                                                         Completed
                                                       </div>
