@@ -563,7 +563,7 @@
 
 
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -1196,6 +1196,10 @@ export function IssueFilters({
   setIssueSort,
   setCurrentPage,
 }: IssueFiltersProps) {
+  const inputRef=useRef<HTMLInputElement | null>(null);
+  useEffect(()=>{
+    inputRef.current?.focus();
+  })
   return (
     <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
       <div className="flex-1 relative">
@@ -1205,6 +1209,7 @@ export function IssueFilters({
 
         <Input
           placeholder="Search by reason or course…"
+          ref={inputRef}
           value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value);

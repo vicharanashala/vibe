@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { toast } from "sonner"
 import {
   UserPlus,
@@ -87,11 +87,16 @@ export default function InvitePage() {
 
   // Add course version data hook to check structure
   const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(versionId || "")
+  
+  const inputRef=useRef<HTMLInputElement | null>(null);
 
   const inviteUsers = useInviteUsers()
   const resendInvite = useResendInvite()
   const cancelInvite = useCancelInvite()
 
+  useEffect(()=>{
+    inputRef.current?.focus();
+  },[]);
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
@@ -491,7 +496,6 @@ const addInviteRow = () => {
       </div>
     )
   }
-
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
@@ -544,6 +548,7 @@ const addInviteRow = () => {
 
                 <div className="flex-1">
                   <Input
+                  ref={inputRef}
                     id={`email-${index}`}
                     type="email"
                     placeholder="Enter email address (space-separated for multiple)"
