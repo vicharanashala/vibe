@@ -400,16 +400,22 @@ export class InviteService extends BaseService {
       }
     }
 
-    const seenEmails = new Set<string>();
-    const uniqueInviteData = inviteData.filter(inv => {
-      const email = inv.email.toLowerCase().trim();
-      if (seenEmails.has(email)) return false;
-      seenEmails.add(email);
+    /* ---------------------------------
+     * 2. Deduplicate + safety limit
+     * --------------------------------- */
+    const seen = new Set<string>();
+    const uniqueInviteData = inviteData.filter(({ email }) => {
+      const normalized = email.toLowerCase().trim();
+      if (seen.has(normalized)) return false;
+      seen.add(normalized);
       return true;
     });
 
     const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
+    /* ---------------------------------
+     * 3. Create invites (chunked transaction) 
+     * --------------------------------- */
     const invites = await this._withTransaction(async session => {
       const inviteIds: string[] = [];
 
