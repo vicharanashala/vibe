@@ -406,7 +406,7 @@ export class InviteService extends BaseService {
     }
 
     /* ---------------------------------
-     * 3. Create invites (chunked transaction)
+     * 3. Create invites (chunked transaction) 
      * --------------------------------- */
     const invites = await this._withTransaction(async session => {
       const inviteIds: string[] = [];

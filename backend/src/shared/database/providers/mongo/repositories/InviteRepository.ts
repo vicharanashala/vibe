@@ -1,28 +1,28 @@
 import 'reflect-metadata';
-import { injectable, inject } from 'inversify';
-import { ClientSession, Collection, MongoClient, ObjectId } from 'mongodb';
-import { MongoDatabase } from '../MongoDatabase.js';
-import { InternalServerError } from 'routing-controllers';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { Invite } from '#root/modules/notifications/index.js';
-import { InviteType } from '#root/shared/interfaces/models.js';
+import {injectable, inject} from 'inversify';
+import {ClientSession, Collection, MongoClient, ObjectId} from 'mongodb';
+import {MongoDatabase} from '../MongoDatabase.js';
+import {InternalServerError} from 'routing-controllers';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {Invite} from '#root/modules/notifications/index.js';
+import {InviteType} from '#root/shared/interfaces/models.js';
 
 @injectable()
 export class InviteRepository {
   private inviteCollection: Collection<Invite>;
 
-  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
+  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
 
   private async init() {
     this.inviteCollection = await this.db.getCollection<Invite>('invites');
 
-    this.inviteCollection.createIndex({ email: 1, inviteStatus: 1 });
+    this.inviteCollection.createIndex({email: 1, inviteStatus: 1});
     this.inviteCollection.createIndex({
       courseId: 1,
       courseVersionId: 1,
       createdAt: -1,
     });
-    this.inviteCollection.createIndex({ courseVersionId: 1 });
+    this.inviteCollection.createIndex({courseVersionId: 1});
   }
 
   async getDBClient(): Promise<MongoClient> {
@@ -39,7 +39,7 @@ export class InviteRepository {
       if (invite.type === InviteType.BULK) {
         invite.usedCount = 0;
       }
-      const result = await this.inviteCollection.insertOne(invite, { session });
+      const result = await this.inviteCollection.insertOne(invite, {session});
       // const invitee = await this.inviteCollection.findOne({
       //   _id: result.insertedId,
       // });
@@ -68,8 +68,8 @@ export class InviteRepository {
   ): Promise<Invite | null> {
     await this.init(); // Ensure collection is initialized
     const invite = await this.inviteCollection.findOne(
-      { _id: new ObjectId(id) },
-      { session },
+      {_id: new ObjectId(id)},
+      {session},
     );
     if (!invite) return null;
 
@@ -93,7 +93,7 @@ export class InviteRepository {
 
     const objectIds = ids.map(id => new ObjectId(id));
     const invites = await this.inviteCollection
-      .find({ _id: { $in: objectIds } }, { session })
+      .find({_id: {$in: objectIds}}, {session})
       .toArray();
 
     return invites.map(invite => ({
@@ -111,9 +111,9 @@ export class InviteRepository {
     await this.init();
 
     const result = await this.inviteCollection.updateOne(
-      { _id: new ObjectId(inviteId) },
-      { $set: inviteData },
-      { session },
+      {_id: new ObjectId(inviteId)},
+      {$set: inviteData},
+      {session},
     );
 
     if (result.matchedCount === 0) {
@@ -128,7 +128,7 @@ export class InviteRepository {
     await this.init(); // Ensure collection is initialized
 
     const invites = await this.inviteCollection
-      .find({ email }, { session })
+      .find({email}, {session})
       .toArray();
 
     return invites.map(invite => ({
@@ -139,6 +139,19 @@ export class InviteRepository {
     }));
   }
 
+  async updateUserToNotNewUser(
+    email: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+
+    await this.inviteCollection.updateMany(
+      {email: email, isNewUser: true},
+      {$set: {isNewUser: false}},
+      {session},
+    );
+  }
+
   async findPendingInvitesByEmail(
     email: string,
     session?: ClientSession,
@@ -146,7 +159,7 @@ export class InviteRepository {
     await this.init(); // Ensure collection is initialized
 
     const invites = await this.inviteCollection
-      .find({ email, inviteStatus: 'PENDING' }, { session })
+      .find({email, inviteStatus: 'PENDING'}, {session})
       .toArray();
 
     return invites.map(invite => ({
@@ -172,7 +185,7 @@ export class InviteRepository {
         courseVersionId: new ObjectId(courseVersionId),
         inviteStatus: 'PENDING',
       },
-      { session },
+      {session},
     );
 
     if (!invite) return null;
@@ -196,7 +209,7 @@ export class InviteRepository {
     startDate?: string,
     endDate?: string,
     session?: ClientSession,
-  ): Promise<{ invites: Invite[]; totalDocuments: number; totalPages: number }> {
+  ): Promise<{invites: Invite[]; totalDocuments: number; totalPages: number}> {
     await this.init();
 
     const courseIdObj = ObjectId.isValid(courseId)
@@ -207,7 +220,7 @@ export class InviteRepository {
       : null;
 
     const filter: any = {
-      courseId: { $in: [courseId, ...(courseIdObj ? [courseIdObj] : [])] },
+      courseId: {$in: [courseId, ...(courseIdObj ? [courseIdObj] : [])]},
       courseVersionId: {
         $in: [
           courseVersionId,
@@ -222,7 +235,7 @@ export class InviteRepository {
     }
 
     if (search) {
-      filter.email = { $regex: search, $options: 'i' };
+      filter.email = {$regex: search, $options: 'i'};
     }
 
     if (startDate || endDate) {
@@ -242,11 +255,11 @@ export class InviteRepository {
     const sortStage: Record<string, 1 | -1> = (() => {
       switch (sort) {
         case 'accept_date_desc':
-          return { acceptedAt: -1 };
+          return {acceptedAt: -1};
         case 'accept_date_asc':
-          return { acceptedAt: 1 };
+          return {acceptedAt: 1};
         default:
-          return { createdAt: -1 };
+          return {createdAt: -1};
       }
     })();
 
@@ -254,7 +267,7 @@ export class InviteRepository {
 
     const [invites, totalDocuments] = await Promise.all([
       this.inviteCollection
-        .find(filter, { session })
+        .find(filter, {session})
         .sort(sortStage)
         .skip(skip)
         .limit(limit)
@@ -270,14 +283,14 @@ export class InviteRepository {
       courseVersionId: invite.courseVersionId?.toString(),
     }));
 
-    return { invites: normalizedInvites, totalDocuments, totalPages };
+    return {invites: normalizedInvites, totalDocuments, totalPages};
   }
 
   async deleteInviteByVersionId(versionId: string, session?: ClientSession) {
     await this.init();
     await this.inviteCollection.deleteMany(
-      { courseVersionId: new ObjectId(versionId) },
-      { session },
+      {courseVersionId: new ObjectId(versionId)},
+      {session},
     );
   }
 }
