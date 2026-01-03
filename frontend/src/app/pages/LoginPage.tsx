@@ -642,13 +642,9 @@ export default function LoginPage() {
                       </CardContent>
 
                       <CardFooter className="pt-4">
-                        <Button
-                          variant="link"
-                          className="w-full text-sm text-muted-foreground hover:text-foreground"
-                          onClick={toggleSignUpMode}
-                        >
-                          Don't have an account? <span className="ml-1 font-medium">Sign up</span>
-                        </Button>
+                        <span className="w-full text-sm text-muted-foreground text-center">Don't have an account?
+                          <Button variant="link" className="text-muted-foreground hover:text-foreground" onClick={toggleSignUpMode}>Sign in</Button>
+                        </span>
                       </CardFooter>
                     </div>
                   ) : (
@@ -822,13 +818,9 @@ export default function LoginPage() {
                       </CardContent>
 
                       <CardFooter>
-                        <Button
-                          variant="link"
-                          className="w-full text-sm text-muted-foreground hover:text-foreground"
-                          onClick={toggleSignUpMode}
-                        >
-                          Already have an account? <span className="ml-1 font-mediumz">Sign in</span>
-                        </Button>
+                        <span className="w-full text-sm text-muted-foreground text-center">Already have an account?
+                          <Button variant="link" className="text-muted-foreground hover:text-foreground" onClick={toggleSignUpMode}>Sign in</Button>
+                        </span>
                       </CardFooter>
                     </div>
                   )}
