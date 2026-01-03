@@ -1650,7 +1650,7 @@ const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemI
                 {/* Quiz Passed/Failed */}
 
                 {quizPassed !== 2 && !isQuizSkipped && (
-                  <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-top-5 fade-in duration-200">
+                  <div className={`fixed right-6 z-50 animate-in slide-in-from-top-5 fade-in duration-200 ${quizPassed === 1 ? 'top-60' : 'top-6'}`}>
                     <div
                       className={`relative w-[380px] rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300 
         ${quizPassed === 1
@@ -1668,7 +1668,7 @@ const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemI
                         className="absolute top-3 right-3 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors duration-200 group"
                         aria-label="Close"
                       >
-                        <X className="h-5 w-5 text-white group-hover:rotate-90 transition-transform duration-200" />
+                        <X className="h-5 w-5 text-white group-hover:rotate-90 transition-transform duration-200 hover:cursor-pointer" />
                       </button>
 
                       <div className="p-6 space-y-4">
