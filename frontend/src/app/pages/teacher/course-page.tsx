@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, lazy} from "react"
+import { useState, useEffect, lazy, useRef} from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -68,6 +68,7 @@ export default function TeacherCoursesPage() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const queryClient = useQueryClient()
+  const inputRef=useRef<HTMLInputElement | null>(null);
 
   const role = "INSTRUCTOR"
   // Fetch user enrollments with pagination (use reasonable page size)
@@ -96,6 +97,9 @@ export default function TeacherCoursesPage() {
     return acc
   }, [])
 
+    useEffect(()=>{
+      inputRef.current?.focus();
+    },[])
 
   const navigate = useNavigate()
   const createNewCourse = () => {
@@ -256,6 +260,7 @@ export default function TeacherCoursesPage() {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Search courses..."
+                    ref={inputRef}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
@@ -363,6 +368,10 @@ function CourseCard({
 
   // 3. Choose final course value
   const course = localCourse || fetchedCourse;
+    const inputRef=useRef<HTMLInputElement | null>(null);
+  useEffect(()=>{
+    inputRef.current?.focus();
+  },[editingCourse])
 
   const getUpdateMessage = (updatedAt?: string) => {
     if (!updatedAt) return "No updates yet";
@@ -656,6 +665,7 @@ function CourseCard({
                     <div>
                       <label className="text-sm font-light text-foreground mb-2 block">Course Name *</label>
                       <Input
+                      ref={inputRef}
                         value={editingValues.name}
                         onChange={(e) => {
                           const value = e.target.value;
@@ -947,6 +957,11 @@ function VersionCard({
 
 
   const selectedVersionId = version?.id || versionId;
+
+  const inputRef=useRef<HTMLInputElement | null>(null);
+  useEffect(()=>{
+    inputRef.current?.focus();
+  },[editingVersion])
 
   // Edit functions
   const startEditingVersion = () => {
@@ -1294,6 +1309,7 @@ function VersionCard({
                       <div>
                         <label className="text-sm font-light text-foreground mb-2 block">Version Name *</label>
                         <Input
+                        ref={inputRef}
                           value={editingValues.version}
                           onChange={(e) => {
                             const value = e.target.value;

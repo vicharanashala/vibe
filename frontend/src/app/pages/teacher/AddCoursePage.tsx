@@ -1,4 +1,4 @@
-import { JSX, useState } from "react";
+import { JSX, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -298,6 +298,12 @@ export const CourseMetaForm: React.FC<CourseMetaFormProps> = ({
   setCourseDescription,
   setCreateErrors,
 }) => {
+
+  const inputRef=useRef<HTMLInputElement | null>(null);
+  useEffect(()=>{
+    inputRef.current?.focus()
+  },[])
+
   return (
     <div className="relative">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-primary/10 rounded-xl blur-sm"></div>
@@ -335,6 +341,7 @@ export const CourseMetaForm: React.FC<CourseMetaFormProps> = ({
               </Label>
               <Input
                 id="courseTitle"
+                ref={inputRef}
                 className="bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300 h-12 text-base"
                 placeholder="e.g., Foundations of Mathematics, Principles of Economics..."
                 value={courseName}

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Search, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +17,10 @@ export default function StudentCourses() {
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
   const [isSearching, setIsSearching] = useState(false);
+  const inputRef=useRef<HTMLInputElement | null>(null)
+  useEffect(()=>{
+    inputRef.current?.focus();
+  },[])
 
   useEffect(() => {
     if (searchQuery !== debouncedSearch) {
@@ -122,6 +126,7 @@ export default function StudentCourses() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search courses..."
+                  ref={inputRef}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"

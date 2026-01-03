@@ -2,7 +2,7 @@ import { loginWithGoogle, loginWithEmail, createUserWithEmail } from "@/lib/fire
 import { useAuthStore } from "@/store/auth-store";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { useState, createContext, useContext, useEffect } from "react";
+import { useState, createContext, useContext, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -108,6 +108,10 @@ export default function LoginPage() {
     auth?: string;
   }>({});
   const [showAuthForm, setShowAuthForm] = useState(false);
+  const inputRef=useRef<HTMLInputElement|null>(null);
+  useEffect(()=>{
+   inputRef.current?.focus(); 
+  })
 
   // Removed the unused clearUser variable
   const setUser = useAuthStore((state) => state.setUser);
@@ -564,6 +568,7 @@ export default function LoginPage() {
                             type="email"
                             placeholder="Enter your email"
                             value={email}
+                            ref={inputRef}
                             onChange={(e) => setEmail(e.target.value)}
                             className={cn(
                               "transition-all duration-200",
@@ -676,6 +681,7 @@ export default function LoginPage() {
                             id="fullName"
                             placeholder="Enter your full name"
                             value={fullName}
+                            ref={inputRef}
                             onChange={(e) => setFullName(e.target.value)}
                             className={cn(
                               "transition-all duration-200",
@@ -821,7 +827,7 @@ export default function LoginPage() {
                           className="w-full text-sm text-muted-foreground hover:text-foreground"
                           onClick={toggleSignUpMode}
                         >
-                          Already have an account? <span className="ml-1 font-medium">Sign in</span>
+                          Already have an account? <span className="ml-1 font-mediumz">Sign in</span>
                         </Button>
                       </CardFooter>
                     </div>
