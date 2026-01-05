@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Search, Users, UserX, X, Loader2, ArrowUp, ArrowDown, AlertTriangle } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -36,6 +36,11 @@ export default function CourseInstructors() {
       setSortOrder('asc');
     }
   };
+
+  const inputRef=useRef<HTMLInputElement|null>(null);
+  useEffect(()=>{
+    inputRef.current?.focus();
+  })
 
   const handleLimitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setLimit(Number(e.target.value));
@@ -178,6 +183,7 @@ export default function CourseInstructors() {
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
+            ref={inputRef}
               placeholder="Search instructors by user ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

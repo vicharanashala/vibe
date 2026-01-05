@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown } from 'lucide-react'
 import { Pagination } from "@/components/ui/Pagination"
@@ -185,6 +185,10 @@ export default function CourseEnrollments() {
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
   const [isSearching, setIsSearching] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const inputRef=useRef<HTMLInputElement|null>(null);
+  useEffect(()=>{
+    inputRef.current?.focus();
+  },[])
 
   // Quiz scores hook - using the hook directly with enabled: false to control when to fetch
   const {
@@ -677,6 +681,7 @@ export default function CourseEnrollments() {
             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
               placeholder="Search students by user ID..."
+              ref={inputRef}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value?.toLowerCase())}
               className="pl-12 h-12 border-border bg-card text-card-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"

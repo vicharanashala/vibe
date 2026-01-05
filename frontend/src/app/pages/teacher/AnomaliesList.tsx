@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -24,6 +24,7 @@ export default function AnomaliesList() {
   const [anomalyType, setAnomalyType] = useState<string>('ALL');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const inputRef=useRef<HTMLInputElement|null>(null);
 
   // Anomaly types for filter dropdown
   const anomalyTypes = [
@@ -48,6 +49,10 @@ export default function AnomaliesList() {
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  useEffect(()=>{
+    inputRef.current?.focus();
+  })
 
 // updated code for filter and search feature in anomlaies
 
@@ -129,6 +134,7 @@ export default function AnomaliesList() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
+            ref={inputRef}
             placeholder="Search students..."
             className="w-full pl-10"
             value={searchQuery}
