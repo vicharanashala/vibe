@@ -398,7 +398,7 @@ export class InviteService extends BaseService {
       const normalized = email.toLowerCase().trim();
       if (seen.has(normalized)) return false;
       seen.add(normalized);
-      return true;
+      return true; 
     });
 
     if (uniqueInviteData.length > 500) {
