@@ -211,34 +211,28 @@ export class SectionService extends BaseService {
         throw new NotFoundError('Section not found');
       }
 
-      // Update total item count
-      // const version = await this.courseRepo.readVersion(
-      //   versionId,
-      //   session,
-      // );
-      // if (!version) {
-      //   throw new NotFoundError('Updated version not found');
-      // }
-      readCourseVersion.totalItems = await this.itemRepo.CalculateTotalItemsCount(
-        readCourseVersion.courseId.toString(),
-        readCourseVersion._id.toString(),
+      const updatedVersion = await this.courseRepo.readVersion(
+        versionId,
         session,
       );
 
+      if (!updatedVersion) {
+        throw new NotFoundError('Updated version not found');
+      }
+
       const { totalItems, itemCounts } =
         await this.itemRepo.calculateItemCountsForVersion(
-          readCourseVersion._id.toString(),
+          updatedVersion._id.toString(),
           session
         );
 
-      readCourseVersion.totalItems = totalItems;
-      readCourseVersion.itemCounts = itemCounts;
+      updatedVersion.totalItems = totalItems;
+      updatedVersion.itemCounts = itemCounts;
+      updatedVersion.updatedAt = new Date();
 
-      readCourseVersion.updatedAt = new Date();
-
-      const updatedVersion = await this.courseRepo.updateVersion(
-        readCourseVersion._id.toString(),
-        readCourseVersion,
+      await this.courseRepo.updateVersion(
+        updatedVersion._id.toString(),
+        updatedVersion,
         session,
       );
 
@@ -340,7 +334,7 @@ export class SectionService extends BaseService {
         );
 
       version.totalItems = totalItems;
-      version.itemCounts = {...itemCounts};
+      version.itemCounts = { ...itemCounts };
 
       version.updatedAt = new Date();
       // Update Version
