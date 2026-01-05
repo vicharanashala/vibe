@@ -2258,16 +2258,17 @@ function TeacherCourseContent() {
                             }
                             if (type === "section" && versionId && parentIds?.moduleId) {
                               if (window.confirm("Are you sure you want to delete this section and all its items?")) {
+                                const deletedSectionId = selectedEntity.data.sectionId;
+                                if (activeSectionInfo?.sectionId === deletedSectionId) {
+                                  setActiveSectionInfo(null);
+                                }
                                 deleteSectionAsync({
-                                  params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: selectedEntity.data.sectionId } }
+                                  params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: deletedSectionId } }
                                 }).then((res) => {
                                   refetchVersion();
-                                  if (shouldFetchItems) {
-                                    refetchItems();
-                                  }
                                 });
                                 setSelectedEntity(null);
-                                setExpandedSections(prev => ({ ...prev, [selectedEntity.data.sectionId]: false }));
+                                setExpandedSections(prev => ({ ...prev, [deletedSectionId]: false }));
                                 setIsEditingSection(false);
                               }
                             }
