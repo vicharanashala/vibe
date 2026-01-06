@@ -1763,6 +1763,8 @@ class ProgressService extends BaseService {
           courseVersionId,
           session,
           true,
+          undefined,
+          0
         ),
         quizItemIds.length
           ? this.resetUserQuizData(userId, quizItemIds, session)
