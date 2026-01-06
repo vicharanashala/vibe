@@ -824,11 +824,11 @@ export default function CourseEnrollments() {
                           <TableCell className="py-6">
                             <div className="space-y-1">
                               <EnrollmentProgress progress={Math.round(enrollment.progress || 0)} />
-                              {/* {version?.totalItems !== undefined && (
+                              {enrollment.role === "STUDENT" && version?.totalItems !== undefined && (
                                 <p className="text-xs text-muted-foreground">
-                                  {enrollment.completedItemsCount || 0} / {version.totalItems} items
+                                  {enrollment.completedItemsCount ?? 0} / {version.totalItems} items
                                 </p>
-                              )} */}
+                              )}
                             </div>
                           </TableCell>
                           <TableCell className="py-6 pr-6">

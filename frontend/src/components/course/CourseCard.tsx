@@ -649,13 +649,13 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { course
   };
 
   return (
-    <DialogContent className="max-w-6xl">
-      <DialogHeader>
+    <DialogContent className="max-w-6xl h-[85vh] flex flex-col overflow-hidden">
+      <DialogHeader className="flex-shrink-0 pb-4">
         <DialogTitle className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-yellow-600" />
           {courseName || 'Course'} Leaderboard
         </DialogTitle>
-        <p className="text-sm text-muted-foreground mb-4">
+        <p className="text-sm text-muted-foreground">
           Students ranked by completion percentage and completion time
         </p>
       </DialogHeader>
@@ -669,101 +669,102 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { course
           </div>
         )}
 
-        {error && !isLoading && (
-          <p className="text-muted-foreground text-center py-8">{error}</p>
-        )}
+          {error && !isLoading && (
+            <p className="text-muted-foreground text-center py-8">{error}</p>
+          )}
 
-        {!isLoading && !error && (!leaderboard || leaderboard.length === 0) && (
-          <p className="text-muted-foreground text-center py-8">
-            No students enrolled yet
-          </p>
-        )}
+          {!isLoading && !error && (!leaderboard || leaderboard.length === 0) && (
+            <p className="text-muted-foreground text-center py-8">
+              No students enrolled yet
+            </p>
+          )}
 
-        {!isLoading && !error && leaderboard && leaderboard.length > 0 && (
-          <div className="space-y-2">
-            {leaderboard.map((entry) => {
-              const rankStyle = getRankStyle(entry.rank);
-              return (
-                <div
-                  key={entry.userId}
-                  className={cn(
-                    "flex items-center gap-3 p-3 rounded-lg transition-colors",
-                    entry.rank <= 3
-                      ? "bg-muted/50 border-2"
-                      : "bg-muted/20",
-                    entry.rank === 1 && "border-yellow-400",
-                    entry.rank === 2 && "border-gray-400",
-                    entry.rank === 3 && "border-orange-400"
-                  )}
-                >
-                  {/* Rank */}
-                  <div className="flex-shrink-0 w-10 text-center">
-                    {entry.rank <= 3 ? (
-                      <div className={cn("w-8 h-8 rounded-full flex items-center justify-center mx-auto", rankStyle.bgColor)}>
-                        <span className={cn("font-bold text-sm", rankStyle.textColor)}>
-                          {entry.rank}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-base font-semibold text-muted-foreground">
-                        {entry.rank}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Avatar */}
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback
-                      className={cn(
-                        entry.rank === 1 && "bg-yellow-100 text-yellow-800",
-                        entry.rank === 2 && "bg-gray-100 text-gray-700",
-                        entry.rank === 3 && "bg-orange-100 text-orange-700",
-                        entry.rank > 3 && "bg-muted"
-                      )}
-                    >
-                      {getInitials(entry.userName)}
-                    </AvatarFallback>
-                  </Avatar>
-
-                  {/* Name and Stats */}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold truncate">{entry.userName}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {Math.round(entry.completionPercentage) === 100 ? (
-                        <>
-                          <span className="text-green-600 font-medium">
-                            ✓ Completed
-                          </span>
-                          {entry.completedAt && (
-                            <span className="ml-2">
-                              on {new Date(entry.completedAt).toLocaleString()}
-                            </span>
-                          )}
-                        </>
-                      ) : (
-                        `In Progress: ${Math.round(entry.completionPercentage)}%`
-                      )}
-                    </p>
-                  </div>
-
-                  {/* Completion Badge */}
+          {!isLoading && !error && leaderboard && leaderboard.length > 0 && (
+            <div className="space-y-2 pb-4">
+              {leaderboard.map((entry) => {
+                const rankStyle = getRankStyle(entry.rank);
+                return (
                   <div
+                    key={entry.userId}
                     className={cn(
-                      "px-3 py-1 rounded-full font-semibold text-sm",
-                      Math.round(entry.completionPercentage) === 100
-                        ? "bg-green-100 text-green-800"
-                        : "bg-blue-100 text-blue-800"
+                      "flex items-center gap-3 p-3 rounded-lg transition-colors",
+                      entry.rank <= 3
+                        ? "bg-muted/50 border-2"
+                        : "bg-muted/20",
+                      entry.rank === 1 && "border-yellow-400",
+                      entry.rank === 2 && "border-gray-400",
+                      entry.rank === 3 && "border-orange-400"
                     )}
                   >
-                    {Math.round(entry.completionPercentage)}%
+                    {/* Rank */}
+                    <div className="flex-shrink-0 w-10 text-center">
+                      {entry.rank <= 3 ? (
+                        <div className={cn("w-8 h-8 rounded-full flex items-center justify-center mx-auto", rankStyle.bgColor)}>
+                          <span className={cn("font-bold text-sm", rankStyle.textColor)}>
+                            {entry.rank}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-base font-semibold text-muted-foreground">
+                          {entry.rank}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Avatar */}
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback
+                        className={cn(
+                          entry.rank === 1 && "bg-yellow-100 text-yellow-800",
+                          entry.rank === 2 && "bg-gray-100 text-gray-700",
+                          entry.rank === 3 && "bg-orange-100 text-orange-700",
+                          entry.rank > 3 && "bg-muted"
+                        )}
+                      >
+                        {getInitials(entry.userName)}
+                      </AvatarFallback>
+                    </Avatar>
+
+                    {/* Name and Stats */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold truncate">{entry.userName}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {Math.round(entry.completionPercentage) === 100 ? (
+                          <>
+                            <span className="text-green-600 font-medium">
+                              ✓ Completed
+                            </span>
+                            {entry.completedAt && (
+                              <span className="ml-2">
+                                on {new Date(entry.completedAt).toLocaleString()}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          `In Progress: ${Math.round(entry.completionPercentage)}%`
+                        )}
+                      </p>
+                    </div>
+
+                    {/* Completion Badge */}
+                    <div
+                      className={cn(
+                        "px-3 py-1 rounded-full font-semibold text-sm",
+                        Math.round(entry.completionPercentage) === 100
+                          ? "bg-green-100 text-green-800"
+                          : "bg-blue-100 text-blue-800"
+                      )}
+                    >
+                      {Math.round(entry.completionPercentage)}%
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </ScrollArea>
-      <div className="p-4 border-t border-border/50 bg-gradient-card flex items-center justify-between">
+                );
+              })}
+            </div>
+          )}
+        </ScrollArea>
+      </div>
+      <div className="flex-shrink-0 pt-4 border-t border-border/50 bg-background flex items-center justify-between">
         {/* My Stats */}
         {myStats ? (
           <div className="flex items-center gap-4 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border/50">

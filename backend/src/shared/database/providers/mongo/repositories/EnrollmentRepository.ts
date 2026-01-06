@@ -223,9 +223,14 @@ export class EnrollmentRepository {
   ): Promise<void> {
     try {
       await this.init();
+      const update: any = { percentCompleted };
+      if (typeof completedItemsCount === 'number') {
+        update.completedItemsCount = completedItemsCount;
+      }
+
       await this.enrollmentCollection.findOneAndUpdate(
         { _id: new ObjectId(enrollmentId) },
-        { $set: { percentCompleted, completedItemsCount } },
+        { $set: update },
         { session },
       );
     } catch (error) {
@@ -286,9 +291,7 @@ export class EnrollmentRepository {
       );
     }
   }
-  /**
-   * Delete an enrollment record for a user in a specific course version
-   */
+
   async deleteEnrollment(
     userId: string,
     courseId: string,
@@ -300,13 +303,10 @@ export class EnrollmentRepository {
     const courseObjectId = new ObjectId(courseId);
     const courseVersionObjectId = new ObjectId(courseVersionId);
 
-    // temp: Try both userId as string and ObjectId (if valid)
     const userFilter = [
       userId,
       ObjectId.isValid(userId) ? new ObjectId(userId) : null,
     ].filter(Boolean);
-
-    // const userObjectid = new ObjectId(userId)
 
     const result = await this.enrollmentCollection.updateOne(
       {
@@ -314,7 +314,14 @@ export class EnrollmentRepository {
         courseId: courseObjectId,
         courseVersionId: courseVersionObjectId,
       },
-      { $set: { isDeleted: true, deletedAt: new Date() } },
+      {
+        $set: {
+          isDeleted: true,
+          deletedAt: new Date(),
+          status: 'INACTIVE',
+          unenrolledAt: new Date(),
+        },
+      },
       { session },
     );
     if (result.modifiedCount === 0) {
@@ -388,7 +395,7 @@ export class EnrollmentRepository {
       const userObjectId = new ObjectId(userId);
 
       const aggregationPipeline: any[] = [
-        { $match: { userId: userObjectId, role } },
+        { $match: { userId: userObjectId, role, isDeleted: { $ne: true }, status: 'ACTIVE' } },
         { $sort: { enrollmentDate: -1 } },
         { $skip: skip },
         { $limit: limit },
@@ -576,6 +583,7 @@ export class EnrollmentRepository {
           userId: userObjectId,
           role,
           isDeleted: { $ne: true },
+          status: 'ACTIVE',
         },
       },
 
@@ -735,6 +743,7 @@ export class EnrollmentRepository {
           userId: new ObjectId(userId),
           role,
           isDeleted: { $ne: true },
+          status: 'ACTIVE',
         },
       },
 
@@ -1354,6 +1363,7 @@ export class EnrollmentRepository {
       userId: userObjectid,
       role,
       isDeleted: { $ne: true },
+      status: 'ACTIVE',
     });
   }
   /*Update enrollments for all records in db */
@@ -1381,7 +1391,10 @@ export class EnrollmentRepository {
   }) {
     await this.init();
 
-    const query: any = {};
+    const query: any = {
+      isDeleted: { $ne: true },
+      status: 'ACTIVE',
+    };
 
     if (filters.courseId) query.courseId = new ObjectId(filters.courseId);
 

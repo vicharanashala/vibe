@@ -232,7 +232,7 @@ function TeacherCourseContent() {
   const safeVersionId = versionId && versionId.trim() ? versionId : "SKIP";
   const safeModuleId = activeSectionInfo?.moduleId && activeSectionInfo.moduleId.trim() ? activeSectionInfo.moduleId : "SKIP";
   const safeSectionId = activeSectionInfo?.sectionId && activeSectionInfo.sectionId.trim() ? activeSectionInfo.sectionId : "SKIP";
-  
+
   const {
     data: currentSectionItems,
     isLoading: itemsLoading,
@@ -282,7 +282,7 @@ function TeacherCourseContent() {
   // CRUD hooks
 
   // --- MODULES ---
-  const { mutateAsync: createModuleAsync, isSuccess: isCreateModuleSuccess, isError: isCreateModuleError, error: createModuleError,  } = useCreateModule();
+  const { mutateAsync: createModuleAsync, isSuccess: isCreateModuleSuccess, isError: isCreateModuleError, error: createModuleError, } = useCreateModule();
   const { mutateAsync: updateModuleAsync, isSuccess: isUpdateModuleSuccess, isError: isUpdateModuleError, error: updateModuleError } = useUpdateModule();
   const { mutateAsync: deleteModuleAsync, isSuccess: isDeleteModuleSuccess, isError: isDeleteModuleError, error: deleteModuleError } = useDeleteModule();
   const { mutateAsync: moveModuleAsync } = useMoveModule();
@@ -506,38 +506,38 @@ function TeacherCourseContent() {
   //   });
   // };
 
-    const handleAddModule = async () => {
-      if (!versionId) return;
+  const handleAddModule = async () => {
+    if (!versionId) return;
 
-      try {
-        await createModuleAsync({
-          params: { path: { versionId } },
-          body: {
-            name: "Untitled Module",
-            description: "Module description",
-          },
-        });
-
-        refetchVersion();
-        if (shouldFetchItems) {
-          refetchItems();
-        }
-
-        setIsEditingModule(true);
-        setOriginalModuleData({
+    try {
+      await createModuleAsync({
+        params: { path: { versionId } },
+        body: {
           name: "Untitled Module",
           description: "Module description",
-        });
+        },
+      });
 
-      } catch (error: any) {
-        const message =
-          error?.response?.data?.message ||
-          error?.message ||
-          "Failed to create module";
-
-        toast.error(message);
+      refetchVersion();
+      if (shouldFetchItems) {
+        refetchItems();
       }
-    };
+
+      setIsEditingModule(true);
+      setOriginalModuleData({
+        name: "Untitled Module",
+        description: "Module description",
+      });
+
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to create module";
+
+      toast.error(message);
+    }
+  };
 
 
 
@@ -547,7 +547,11 @@ function TeacherCourseContent() {
     try {
       setShowCSVUpload(false);
       const text = await file.text();
-      const result = Papa.parse<CSVRow>(text, { header: true, skipEmptyLines: true });
+      const result = Papa.parse<CSVRow>(text, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (h) => h.trim()
+      });
 
       // Validate CSV structure
       if (!result.data.length) {
@@ -574,11 +578,11 @@ function TeacherCourseContent() {
 
 
       const response = await userCSVtoItem.mutateAsync({
-        params: { path: { courseId: courseId!, versionId:versionId!, moduleId, sectionId } },
+        params: { path: { courseId: courseId!, versionId: versionId!, moduleId, sectionId } },
         body: { youtubeurl: youtubeUrl, data: result.data }
       }).then((res) => {
-        if(res.success){
-           toast.success('Successfully created items from CSV');
+        if (res.success) {
+          toast.success('Successfully created items from CSV');
         }
         refetchVersion()
         refetchItems()
@@ -967,7 +971,7 @@ function TeacherCourseContent() {
             ? { afterItemId: after._id }
             : {}),
       },
-    }).then((res) => { 
+    }).then((res) => {
       if (shouldFetchItems) {
         refetchItems();
       }
@@ -1228,7 +1232,7 @@ function TeacherCourseContent() {
                                 className={`h-3.5 w-3.5 transition-transform ${expandedModules[module.moduleId] ? "rotate-90" : ""
                                   }`}
                               />
-                              <span className="ml-2 max-w-[35ch] truncate"title={module.name}>{module.name}</span>
+                              <span className="ml-2 max-w-[35ch] truncate" title={module.name}>{module.name}</span>
                             </SidebarMenuButton>
                           </Reorder.Item>
 
@@ -2254,16 +2258,17 @@ function TeacherCourseContent() {
                             }
                             if (type === "section" && versionId && parentIds?.moduleId) {
                               if (window.confirm("Are you sure you want to delete this section and all its items?")) {
+                                const deletedSectionId = selectedEntity.data.sectionId;
+                                if (activeSectionInfo?.sectionId === deletedSectionId) {
+                                  setActiveSectionInfo(null);
+                                }
                                 deleteSectionAsync({
-                                  params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: selectedEntity.data.sectionId } }
+                                  params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: deletedSectionId } }
                                 }).then((res) => {
                                   refetchVersion();
-                                  if (shouldFetchItems) {
-                                    refetchItems();
-                                  }
                                 });
                                 setSelectedEntity(null);
-                                setExpandedSections(prev => ({ ...prev, [selectedEntity.data.sectionId]: false }));
+                                setExpandedSections(prev => ({ ...prev, [deletedSectionId]: false }));
                                 setIsEditingSection(false);
                               }
                             }
