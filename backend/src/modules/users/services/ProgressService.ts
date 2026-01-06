@@ -361,7 +361,8 @@ class ProgressService extends BaseService {
     if (!enrollment) throw new NotFoundError('User has no enrollments');
 
     let percentCompleted = 0;
-    let totalCompletedItemtsCount = 0;
+    let totalCompletedItemsCount = 0;
+
     if (!isReset) {
       // const totalItems =
       //   totalItemCount ||
@@ -391,14 +392,14 @@ class ProgressService extends BaseService {
         ),
       ]);
 
-      percentCompleted = this._calculateProgress(totalItems, completedItems);
+      percentCompleted = this._calculateProgress(totalItems, completedItemCount || completedItems);
     }
 
     await this.enrollmentRepo.updateProgressPercentById(
       enrollment._id.toString(),
       percentCompleted,
       session,
-      totalCompletedItemtsCount,
+      completedItemCount,
     );
   }
 
