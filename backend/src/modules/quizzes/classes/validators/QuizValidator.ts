@@ -1596,6 +1596,39 @@ class GetAllQuestionBanksResponse {
   })
   questionBanks: IQuestionBankRef[];
 }
+
+class QuestionModificationParam {
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'ID of the quiz',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c85',
+  })
+  quizId: string;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'ID of the question',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c77',
+  })
+  questionId: string;
+}
+
+class QuestionUpdatedResponse {
+  @JSONSchema({
+    description: 'The success message.',
+    example: 'Question updated successfully in the quiz.',
+    type: 'string',
+    readOnly: true,
+  })
+  @IsString()
+  @IsNotEmpty()
+  message: string;
+}
+
  interface QuestionAnswer {
   questionId: string;
   questionType: QuestionType;
@@ -1642,6 +1675,8 @@ export {
   QuizNotFoundErrorResponse,
   GetAllQuestionBanksResponse,
   ExportQuizAttemptsParams,
+  QuestionModificationParam,
+  QuestionUpdatedResponse
 };
 
 export const QUIZ_VALIDATORS = [
