@@ -660,7 +660,7 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { course
         </p>
       </DialogHeader>
 
-      <ScrollArea className="h-[600px] pr-4">
+      <ScrollArea className="h-[450px] pr-4">
         {isLoading && (
           <div className="space-y-3">
             {Array.from({ length: 10 }).map((_, i) => (
