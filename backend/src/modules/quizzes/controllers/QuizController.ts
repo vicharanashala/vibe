@@ -837,7 +837,6 @@ class QuizController {
     const questionProcessor = new QuestionProcessor(question);
     questionProcessor.validate();
     questionProcessor.render();
-    console.log('Rendered question:', question, '  quizid:    ', quizId, '    questionId:   ', questionId);
     return await this.quizService.updateSpecificQuestionInASpecificQuiz(
       question,
       quizId,

@@ -742,12 +742,10 @@ class QuizService extends BaseService {
       if (!quiz) {
         throw new QuizNotFoundErrorResponse();
       }
-      console.log("quiz", quiz);
   
       const questionBankRefIds: string[] = quiz.details.questionBankRefs.map(
         ref => ref.bankId.toString(),
       );
-      console.log("questionBankRefIds", questionBankRefIds);
         
       for (const bankId of questionBankRefIds) {
         const questionBank = await this.questionBankRepo.getById(bankId, session);
@@ -759,11 +757,10 @@ class QuizService extends BaseService {
         const questionExists = questionBank.questions.some(
           q => q.toString() === questionId.toString(),
         );
-        console.log("questionExists", questionExists);
 
         if (questionExists) {
           // Question found in this question bank, proceed to update
-          const updated = await this.questionService.update(questionId, question);
+          await this.questionService.update(questionId, question);
           const res = new QuestionUpdatedResponse();
             res.message = 'Question updated successfully';
             return res;
