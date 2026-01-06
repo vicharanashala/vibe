@@ -74,6 +74,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     resolve?: () => void;
   }>({ open: false, text: "" });
   const [showExplanation, setShowExplanation] = useState(false)
+  const [failedRedirectCountdown, setFailedRedirectCountdown] = useState<number | null>(null);
 
   // ===== REFS AND CONSTANTS =====
   const itemStartedRef = useRef(false);
@@ -923,26 +924,37 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         return;
       }
 
-      // For regular completion, check grading status
+      // For regular completion, just set pass/fail status
+      // No auto-redirect - let user click the "Next Lesson" button
       if (submissionResults?.gradingStatus !== "FAILED") {
-        console.log('Quiz graded successfully, navigating to next video/item');
+        console.log('Quiz passed - waiting for user to click Next button');
         setQuizPassed?.(1);
-        setTimeout(() => {
-          setQuizCompleted(false);
-          onNext?.();
-        }, quizType === 'NO_DEADLINE' ? 0 : 1500);
+        setFailedRedirectCountdown(null); // Clear any countdown
       } else {
-        console.log('Quiz grading failed, navigating to previous video/item');
+        console.log('Quiz grading failed - starting 10 second countdown');
         setQuizPassed?.(0);
-        // Give time for user to see the failure state, then navigate back
-        setTimeout(() => {
-          setQuizCompleted(false);
-          console.log('Calling onPrevVideo to go back');
-          onPrevVideo?.();
-        }, 2000);
+        setFailedRedirectCountdown(10);
       }
     }
   }, [quizCompleted, quizType, submissionResults?.gradingStatus, setQuizPassed, onNext, onPrevVideo, noAttemptsLeft, isEmptyQuiz]);
+
+  useEffect(() => {
+    if (failedRedirectCountdown === null) return;
+
+    if (failedRedirectCountdown <= 0) {
+      setQuizCompleted(false);
+      setFailedRedirectCountdown(null);
+      console.log('Countdown finished, calling onPrevVideo');
+      onPrevVideo?.();
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setFailedRedirectCountdown(prev => prev !== null ? prev - 1 : null);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [failedRedirectCountdown, onPrevVideo]);
 
 
 
@@ -1252,14 +1264,76 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                   Perfect Score! 🎉
                 </Badge>
               )}
+
+              {/* Action Buttons - side by side */}
+              <div className="pt-4 flex flex-col items-center gap-3">
+                <div className="flex flex-wrap justify-center gap-3">
+                  {/* Rewatch Video Button - always available */}
+                  {onPrevVideo && (
+                    <Button
+                      onClick={() => {
+                        setQuizCompleted(false);
+                        setFailedRedirectCountdown(null);
+                        onPrevVideo();
+                      }}
+                      disabled={isProgressUpdating}
+                      variant="outline"
+                      className="min-w-[180px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
+                      size="lg"
+                    >
+                      {isProgressUpdating ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2" />
+                          Processing
+                        </>
+                      ) : (
+                        <>
+                          <ChevronLeft className="h-4 w-4 mr-2" />
+                          Rewatch Video
+                        </>
+                      )}
+                    </Button>
+                  )}
+
+                  {/* Next Lesson Button - only for passed quizzes */}
+                  {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
+                    <Button
+                      onClick={onNext}
+                      disabled={isProgressUpdating}
+                      className="min-w-[180px] h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
+                      size="lg"
+                    >
+                      {isProgressUpdating ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
+                          Processing
+                        </>
+                      ) : (
+                        <>
+                          Next Lesson
+                          <ChevronRight className="h-4 w-4 ml-2" />
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+
+                {/* Live countdown timer for failed quizzes */}
+                {failedRedirectCountdown !== null && (
+                  <p className="text-sm text-destructive font-medium animate-pulse">
+                    Auto-redirecting in {failedRedirectCountdown} second{failedRedirectCountdown !== 1 ? 's' : ''}...
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
           <Separator />
 
+          {/* Question Details with scrollable container */}
           <div>
             <h3 className="text-xl font-semibold mb-4">Question Details</h3>
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
               {quizQuestions.map((question, index) => {
                 const userAnswer = answers[question.id];
                 const hasAnswer = userAnswer !== undefined && userAnswer !== null && userAnswer !== '';
@@ -1347,50 +1421,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               })}
             </div>
           </div>
-
-          <div className="flex flex-col md:flex-row items-center justify-center gap-4 pt-4">
-            {onPrevVideo && (
-              <Button
-                onClick={onPrevVideo}
-                disabled={isProgressUpdating}
-                variant="outline"
-                size="lg"
-                className="min-w-[220px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
-              >
-                <ChevronLeft className="h-5 w-5 mr-3" />
-                Rewatch Previous Video
-              </Button>
-            )}
-            <Button
-              onClick={resetQuiz}
-              variant="outline"
-              size="lg"
-              className="min-w-[220px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
-            >
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Retake Quiz
-            </Button>
-            {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
-              <Button
-                onClick={onNext}
-                disabled={isProgressUpdating}
-                className="min-w-[220px] h-12 text-lg font-semibold ml-0 md:ml-4 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
-                size="lg"
-              >
-                {isProgressUpdating ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
-                    Processing
-                  </>
-                ) : (
-                  <>
-                    Next Lesson
-                    <ChevronRight className="h-4 w-4 ml-2" />
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
         </CardContent>
       </Card>
     );
@@ -1454,10 +1484,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             <Badge
               variant="secondary"
               className={`font-mono text-lg font-semibold px-3 py-2 border
-                ${
-                  timeLeft <= 10
-                    ? 'bg-destructive text-destructive-foreground border-destructive ring-2 ring-destructive/60 animate-pulse'
-                    : 'bg-muted text-foreground border-border'
+                ${timeLeft <= 10
+                  ? 'bg-destructive text-destructive-foreground border-destructive ring-2 ring-destructive/60 animate-pulse'
+                  : 'bg-muted text-foreground border-border'
                 }
               `}
             >
@@ -1521,11 +1550,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           )}
 
           {explanationBox.open && (
-            <div className={`mb-4 p-3 rounded-lg animate-in fade-in ${
-              explanationBox.result === 'CORRECT' 
-                ? 'bg-green-100 dark:bg-green-950/20 text-green-900 dark:text-green-100 border border-green-300 dark:border-green-800' 
-                : 'bg-red-100 dark:bg-red-950/20 text-red-900 dark:text-red-100 border border-red-300 dark:border-red-800'
-            }`}>
+            <div className={`mb-4 p-3 rounded-lg animate-in fade-in ${explanationBox.result === 'CORRECT'
+              ? 'bg-green-100 dark:bg-green-950/20 text-green-900 dark:text-green-100 border border-green-300 dark:border-green-800'
+              : 'bg-red-100 dark:bg-red-950/20 text-red-900 dark:text-red-100 border border-red-300 dark:border-red-800'
+              }`}>
               <p className="text-sm leading-relaxed">{explanationBox.text}</p>
 
               {/* OPTIONAL Next Button */}
