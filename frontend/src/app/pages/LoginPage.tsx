@@ -607,7 +607,17 @@ export default function LoginPage() {
                             <p className="text-xs text-destructive">{formErrors.password}</p>
                           )}
                         </div>
-
+                      <div className="text-right">
+                          <Button
+                            variant="link"
+                            className="p-0 h-auto text-sm font-medium"
+                        
+                            
+                            onClick={() => navigate({to:"/forgot-password"})}
+                          >
+                            Forgot password?
+                          </Button>
+                        </div>
                         {/* Login Button */}
                         <Button
                           className="w-full h-11 font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
