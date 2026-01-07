@@ -386,11 +386,11 @@ function TeacherCourseContent() {
       },
     },
     errorFlags: {
-      isCreateModuleError: {
-        flag: isCreateModuleError,
-        message: createModuleError?.message,
-        fallback: "Failed to create module",
-      },
+      // isCreateModuleError: {
+      //   flag: isCreateModuleError,
+      //   message: createModuleError?.response?.data?.message || createModuleError?.message,
+      //   fallback: "Failed to create module",
+      // },
       isUpdateModuleError: {
         flag: isUpdateModuleError,
         message: updateModuleError?.message,
@@ -530,10 +530,18 @@ function TeacherCourseContent() {
         });
 
       } catch (error: any) {
-        const message =
-          error?.response?.data?.message ||
-          error?.message ||
-          "Failed to create module";
+        // Enhanced error message extraction for backend validation errors
+        let message = "Failed to create module";
+        
+        if (error?.response?.data?.message) {
+          message = error.response.data.message;
+        } else if (error?.response?.data?.error) {
+          message = error.response.data.error;
+        } else if (error?.message) {
+          message = error.message;
+        } else if (typeof error === 'string') {
+          message = error;
+        }
 
         toast.error(message);
       }
