@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Check, AlertCircle, TimerOff } from "lucide-react";
+import { Check, AlertCircle, TimerOff, Eye, EyeOff } from "lucide-react";
 import { ShineBorder } from "@/components/magicui/shine-border";
 import { AnimatedGridPattern } from "@/components/magicui/animated-grid-pattern";
 import { AuroraText } from "@/components/magicui/aurora-text";
@@ -94,7 +94,9 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  
 
   // New state variables
   const [isSignUp, setIsSignUp] = useState(false);
@@ -138,9 +140,10 @@ export default function LoginPage() {
 
   const validateForm = () => {
     const errors: typeof formErrors = {};
-    if (!fullName) errors.fullName = "Name is required";
-    else if (!/^[A-Za-z ]+$/.test(fullName)) errors.fullName = "Name can only contain letters and spaces";
-
+    const name = fullName.trim();
+    if (!name) errors.fullName = "Name is required";
+    else if (!/^[A-Za-z ]+$/.test(name)) errors.fullName = "Name can only contain letters and spaces";
+    
     if (!email) errors.email = "Email is required";
     else if (!/\S+@\S+\.\S+/.test(email)) errors.email = "Invalid email format";
 
@@ -150,6 +153,7 @@ export default function LoginPage() {
     if (isSignUp && !fullName) errors.fullName = "Full name is required";
 
     setFormErrors(errors);
+    
     return Object.keys(errors).length === 0;
   };
 
@@ -233,7 +237,7 @@ export default function LoginPage() {
 
   // New function for handling signup
   const handleEmailSignup = async () => {
-    // if (!validateForm()) return;
+    if (!validateForm()) return;
 
     if (!passwordsMatch) {
       setFormErrors({
@@ -255,7 +259,7 @@ export default function LoginPage() {
       setLoading(true);
       setFormErrors({});
 
-      // const result = await createUserWithEmail(email, password, fullName);
+      const result = await createUserWithEmail(email, password, fullName);
 
       // Parse fullName into firstName and lastName
       const nameParts = fullName.trim().split(' ');
@@ -270,7 +274,7 @@ export default function LoginPage() {
           lastName: lastName
         }
       });
-      const result = await loginWithEmail(email, password);
+      
 
       // Set user in store
       setUser({
@@ -540,7 +544,7 @@ export default function LoginPage() {
                     <div>
                       <CardHeader className="space-y-3 pb-6">
                         <CardTitle className="text-2xl">Welcome Back</CardTitle>
-                        <CardDescription>Sign in to your account to continue</CardDescription>
+                        <CardDescription className="pb-6">Sign in to your account to continue</CardDescription>
                       </CardHeader>
 
                       <CardContent className="space-y-4">
@@ -580,10 +584,12 @@ export default function LoginPage() {
                           <Label htmlFor="password" className="text-sm font-medium">
                             Password
                           </Label>
+
+                          <div className="relative">
                           <Input
                             id="password"
                             name="new-password"
-                            type="password"
+                            type={showPassword ? "text" : "password"}
                             placeholder="Enter your password"
                             autoComplete="new-password"
                             value={password}
@@ -592,7 +598,11 @@ export default function LoginPage() {
                               "transition-all duration-200",
                               formErrors.password && "border-destructive focus-visible:ring-destructive"
                             )}
-                          />
+                            />
+                           <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
+                            {showPassword? <EyeOff />:<Eye />}
+                            </Button> 
+                            </div>
                           {formErrors.password && (
                             <p className="text-xs text-destructive">{formErrors.password}</p>
                           )}
@@ -637,13 +647,16 @@ export default function LoginPage() {
                       </CardContent>
 
                       <CardFooter className="pt-4">
+                        <div className="w-full flex items-center justify-center mt-4">
+ <span className=" text-sm text-right text-muted-foreground text-nowrap "> Don't have an account?</span>
                         <Button
                           variant="link"
-                          className="w-full text-sm text-muted-foreground hover:text-foreground"
+                          className="-ml-2 text-sm text-muted-foreground hover:text-foreground"
                           onClick={toggleSignUpMode}
                         >
-                          Don't have an account? <span className="ml-1 font-medium">Sign up</span>
+                           <span className="font-medium">Sign up</span>
                         </Button>
+                          </div>
                       </CardFooter>
                     </div>
                   ) : (
@@ -651,7 +664,7 @@ export default function LoginPage() {
                     <div>
                       <CardHeader className="space-y-3 pb-6">
                         <CardTitle className="text-2xl">Create {activeRole === 'student' ? 'Student' : 'Instructor'} Account</CardTitle>
-                        <CardDescription>
+                        <CardDescription className="pb-6">
                           Join our learning community and start your educational journey
                         </CardDescription>
                       </CardHeader>
@@ -715,7 +728,7 @@ export default function LoginPage() {
                           </Label>
                           <Input
                             id="signup-password"
-                            type="password"
+                            type={showPassword ? "text" : "password"}
                             placeholder="Create a strong password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
@@ -724,6 +737,8 @@ export default function LoginPage() {
                               formErrors.password && "border-destructive focus-visible:ring-destructive"
                             )}
                           />
+
+                        
                           {password && (
                             <div className="space-y-2">
                               <div className="flex items-center justify-between">
@@ -789,9 +804,11 @@ export default function LoginPage() {
                           <Label htmlFor="confirmPassword" className="text-sm font-medium">
                             Confirm Password
                           </Label>
+                          <div className="relative">
                           <Input
                             id="confirmPassword"
-                            type="password"
+                            type={showPassword ? "text" : "password"}
+
                             placeholder="Confirm your password"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
@@ -800,6 +817,10 @@ export default function LoginPage() {
                               !passwordsMatch && confirmPassword && "border-destructive focus-visible:ring-destructive"
                             )}
                           />
+                           <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
+                            {showPassword? <EyeOff />:<Eye />}
+                            </Button> 
+                          </div>
                           {!passwordsMatch && confirmPassword && (
                             <p className="text-xs text-destructive">Passwords do not match</p>
                           )}
@@ -816,13 +837,17 @@ export default function LoginPage() {
                       </CardContent>
 
                       <CardFooter>
+                        <div className="w-full flex items-center justify-center mt-4">
+
+                        <span className=" text-sm text-right text-muted-foreground text-nowrap "> Already have an account?</span>
                         <Button
                           variant="link"
-                          className="w-full text-sm text-muted-foreground hover:text-foreground"
+                          className="-ml-2 text-sm text-muted-foreground hover:text-foreground"
                           onClick={toggleSignUpMode}
-                        >
-                          Already have an account? <span className="ml-1 font-medium">Sign in</span>
+                          >
+                           <span className=" font-medium">Sign in</span>
                         </Button>
+                          </div>
                       </CardFooter>
                     </div>
                   )}

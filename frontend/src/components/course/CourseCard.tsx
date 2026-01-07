@@ -191,7 +191,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           <div className="mt-auto flex flex-col sm:flex-row gap-2">
             <Button
               variant={progress === 0 ? "default" : isCompleted ? "secondary" : "default"}
-              className={`${progress === 0 ? "" : isCompleted ? "" : "border-accent hover:bg-accent/10"} w-full sm:w-auto`}
+              className={`${progress === 0 ? "" : isCompleted ? "" : "border-accent hover:bg-accent/90"} w-full sm:w-auto`}
               onClick={handleContinue}
             >
               {progress === 0 ? 'Start' : progress >= 100 ? 'Completed' : 'Continue'}
@@ -776,7 +776,7 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { course
             <div className="w-px h-6 bg-border" />
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground uppercase tracking-wider">Progress</span>
-              <span className="font-semibold text-foreground">{myStats.completionPercentage}%</span>
+              <span className="font-semibold text-foreground">{Math.round(myStats.completionPercentage*1000)/1000}%</span>
             </div>
           </div>
         ) : (
