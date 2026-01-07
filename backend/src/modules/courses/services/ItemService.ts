@@ -872,13 +872,62 @@ export class ItemService extends BaseService {
     if (!data || !Array.isArray(data)) {
       throw new Error('Invalid data: Expected an array of questions');
     }
+
+    if (data.length === 0) {
+      throw new Error('CSV file contains no data rows');
+    }
+
+    const normalizeKey = (key: string): string =>
+      key.replace(/\s+/g, ' ').trim();
+
+    const getRowValue = (
+      row: any,
+      ...possibleKeys: string[]
+    ): string | undefined => {
+      for (const key of possibleKeys) {
+        if (row[key] !== undefined) return row[key];
+        const rowKeys = Object.keys(row);
+        const normalizedTarget = normalizeKey(key);
+        const matchingKey = rowKeys.find(
+          k => normalizeKey(k) === normalizedTarget,
+        );
+        if (matchingKey && row[matchingKey] !== undefined)
+          return row[matchingKey];
+      }
+      return undefined;
+    };
+
+    const normalizedData = data.map(row => {
+      const normalized: any = {};
+      for (const [key, value] of Object.entries(row)) {
+        normalized[normalizeKey(key)] = value;
+      }
+      return normalized as CSVQuizQuestion;
+    });
+
+    const firstRow = normalizedData[0];
+
+    const requiredFields = ['Segment', 'Question', 'Correct Answer'];
+    const missingFields = requiredFields.filter(field => !(field in firstRow));
+    if (missingFields.length > 0) {
+      throw new Error(
+        `Missing required CSV columns: ${missingFields.join(
+          ', ',
+        )}. Available columns: ${Object.keys(firstRow).join(', ')}`,
+      );
+    }
+
     try {
       // Group questions by segment
       const segments = new Map<string, CSVQuizQuestion[]>();
       const seenSegments = new Set<string>();
       let currentSegment = '1';
 
-      data.forEach((row, index) => {
+      normalizedData.forEach((row, index) => {
+        if (!row || typeof row !== 'object') {
+          return;
+        }
+
         // If Segment is empty, use the last seen segment
         const rawSegment = row['Segment']?.toString().trim();
         if (!row.Segment || rawSegment === '') {
@@ -900,20 +949,8 @@ export class ItemService extends BaseService {
       });
 
       if (segments.size === 0) {
-        const errorMsg = 'No valid segments found in the CSV. ';
-        if (seenSegments.size > 0) {
-          console.error(
-            '[processCSVAndCreateItems] Segments found but not processed:',
-            Array.from(seenSegments).join(', '),
-          );
-        } else {
-          console.error(
-            '[processCSVAndCreateItems] No segments found in the data',
-          );
-        }
         throw new Error(
-          errorMsg +
-            'Please ensure your CSV has a "Segment" column with valid values.',
+          'No valid segments found in the CSV. Please ensure your CSV has a "Segment" column with valid values.',
         );
       }
 
@@ -933,7 +970,22 @@ export class ItemService extends BaseService {
 
           // Get the first question's timestamp as the end time for the video segment
           const firstQuestion = segmentQuestions[0];
-          const timestamp = firstQuestion['Question Timestamp [mm:ss]'];
+
+          let timestamp: string | undefined;
+          if (firstQuestion) {
+            timestamp =
+              firstQuestion['Question Timestamp [mm:ss]'] ||
+              firstQuestion['Question Timestamp  [mm:ss]'] ||
+              firstQuestion['Question Timestamp [mm:ss]'] ||
+              (Object.keys(firstQuestion).find(k => k.includes('Timestamp'))
+                ? firstQuestion[
+                    Object.keys(firstQuestion).find(k =>
+                      k.includes('Timestamp'),
+                    )!
+                  ]
+                : undefined);
+          }
+
           const timeCache = new Map<string, number>();
 
           const endTime = timestamp
@@ -1077,11 +1129,7 @@ export class ItemService extends BaseService {
 
               const id = await this.questionService.create(question2);
 
-              // add question to question bank
-              const addQuestion = await this.questionBankService.addQuestion(
-                questionBank,
-                id,
-              );
+              await this.questionBankService.addQuestion(questionBank, id);
             }
           }
 
@@ -1104,7 +1152,6 @@ export class ItemService extends BaseService {
         createdItems,
       };
     } catch (error) {
-      console.error('Error processing CSV:', error);
       throw new InternalServerError(
         `Failed to process CSV: ${
           error instanceof Error ? error.message : 'Unknown error'

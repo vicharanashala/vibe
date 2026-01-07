@@ -246,12 +246,6 @@ export class EnrollmentService extends BaseService {
         session,
       );
 
-      await this.courseRegistrationRepo.remove(
-        userId,
-        courseId,
-        courseVersionId,
-        session,
-      );
       return {
         enrollment: null,
         progress: null,
@@ -328,18 +322,22 @@ export class EnrollmentService extends BaseService {
 
         console.log(enr.totalItems, completedCount, ratio, calculatedPercent);
 
-        // if different, update enrollment percentCompleted
+        // if different, update enrollment percentCompleted and completedItemsCount
         if (enr.percentCompleted !== calculatedPercent) {
           console.log(
             `Updating percentCompleted for enrollment ${enr._id.toString()} from ${enr.percentCompleted
             } to ${calculatedPercent}`,
           );
+
           void this.enrollmentRepo.updateProgressPercentById(
             enr._id.toString(),
             calculatedPercent,
+            undefined,
+            completedCount,
           );
 
           enr.percentCompleted = calculatedPercent;
+          enr.completedItemsCount = completedCount;
         }
 
         console.log('Enrollment', enr);
