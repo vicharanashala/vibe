@@ -83,31 +83,31 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-      {state === "expanded" && (
-        <Link
-          to="/teacher/profile"
-          className="group flex items-center gap-3 px-4 py-3 hover:bg-accent/30 transition rounded-md cursor-pointer w-full"
-        >
-          <Avatar className="h-9 w-9 border border-border/20">
-            <AvatarImage
-              src={data.user.avatar || "/placeholder.svg"}
-              alt={data.user.name}
-            />
-            <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/5 text-primary font-bold text-sm">
-              {data.user.name?.charAt(0).toUpperCase() || "U"}
-            </AvatarFallback>
-          </Avatar>
+        {state === "expanded" && (
+          <Link
+            to="/teacher/profile"
+            className="group flex items-center gap-3 px-4 py-3 hover:bg-accent/30 transition rounded-md cursor-pointer w-full"
+          >
+            <Avatar className="h-9 w-9 border border-border/20">
+              <AvatarImage
+                src={data.user.avatar || "/placeholder.svg"}
+                alt={data.user.name}
+              />
+              <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/5 text-primary font-bold text-sm">
+                {data.user.name?.charAt(0).toUpperCase() || "U"}
+              </AvatarFallback>
+            </Avatar>
 
-          {state === "expanded" && (
-            <div className="flex flex-col text-left min-w-0">
-              <div className="text-sm font-medium truncate" title={data.user.name}>
-                {data.user.name}
+            {state === "expanded" && (
+              <div className="flex flex-col text-left min-w-0">
+                <div className="text-sm font-medium truncate" title={data.user.name}>
+                  {data.user.name}
+                </div>
+                <div className="text-xs text-muted-foreground">View Profile</div>
               </div>
-              <div className="text-xs text-muted-foreground">View Profile</div>
-            </div>
-          )}
-        </Link>
-      )}
+            )}
+          </Link>
+        )}
       </SidebarFooter>
 
       <SidebarRail />
