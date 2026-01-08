@@ -1,5 +1,5 @@
 import { ICourseVersion } from '#root/shared/interfaces/models.js';
-import { IsEmpty, IsNotEmpty, IsString, IsMongoId, IsInt } from 'class-validator';
+import { IsEmpty, IsNotEmpty, IsString, IsMongoId, IsInt, IsOptional, IsUrl } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 
 class CreateCourseVersionBody implements Partial<ICourseVersion> {
@@ -22,6 +22,16 @@ class CreateCourseVersionBody implements Partial<ICourseVersion> {
   @IsNotEmpty()
   @IsString()
   description: string;
+
+  @JSONSchema({
+    title: 'Support Link',
+    description: 'Support link for students (Discord, email, forum, etc.)',
+    example: 'https://discord.gg/abc123',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  supportLink?: string;
 }
 
 class CreateCourseVersionParams {
@@ -105,6 +115,16 @@ class CourseVersionDataResponse {
   })
   courseId: string;
 
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    description: 'Support link for students (Discord, email, forum, etc.)',
+    example: 'https://discord.gg/abc123',
+    type: 'string',
+    readOnly: true,
+  })
+  supportLink?: string;
+
   @JSONSchema({
     description: 'Creation timestamp',
     example: '2023-10-01T12:00:00Z',
@@ -161,15 +181,15 @@ class CreateCourseVersionResponse {
     type: 'object',
     example:
     {
-    "_id": "68ee228f54e2f6908d54de1r",
-    "courseId": "68d0f72fd802390872101b5",
-    "version": "Version title",
-    "description": "Version description",
-    "modules": [],
-    "totalItems": null,
-    "createdAt": "2025-10-14T10:14:39.363Z",
-    "updatedAt": "2025-10-14T10:14:39.363Z"
-}
+      "_id": "68ee228f54e2f6908d54de1r",
+      "courseId": "68d0f72fd802390872101b5",
+      "version": "Version title",
+      "description": "Version description",
+      "modules": [],
+      "totalItems": null,
+      "createdAt": "2025-10-14T10:14:39.363Z",
+      "updatedAt": "2025-10-14T10:14:39.363Z"
+    }
     ,
     readOnly: true,
   })
@@ -217,6 +237,16 @@ class UpdateCourseVersionBody implements Partial<ICourseVersion> {
   @IsNotEmpty()
   @IsString()
   description: string;
+
+  @JSONSchema({
+    title: 'Support Link',
+    description: 'Support link for students (Discord, email, forum, etc.)',
+    example: 'https://discord.gg/abc123',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  supportLink?: string;
 }
 class CopyCourseVersionParams {
   @IsString()
@@ -229,7 +259,7 @@ class CopyCourseVersionParams {
 }
 class CopyCourseVersionResponse {
   @IsString()
-  @JSONSchema({ description: 'Success message',example: 'Course version copied successfully' })
+  @JSONSchema({ description: 'Success message', example: 'Course version copied successfully' })
   message!: string;
 }
 export {

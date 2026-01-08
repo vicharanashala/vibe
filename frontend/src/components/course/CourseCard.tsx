@@ -1,4 +1,4 @@
-import { Clock, FileText, CheckCircle2, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail } from "lucide-react";
+import { Clock, FileText, CheckCircle2, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCourseById, useUserProgressPercentage, useLeaderboard } from "@/hooks/hooks";
+import { useCourseById, useUserProgressPercentage, useLeaderboard, useCourseVersionById } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
@@ -28,6 +28,10 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
   const courseId = bufferToHex(enrollment.courseId as string);
   const versionId = bufferToHex(enrollment.courseVersionId as string) || "";
+
+  // Fetch course version to get supportLink
+  const { data: courseVersionData } = useCourseVersionById(versionId);
+  const supportLink = (courseVersionData as any)?.supportLink;
 
   // const { data: courseDetails, isLoading: isCourseLoading } = useCourseById(courseId);
   const { setCurrentCourse } = useCourseStore();
@@ -298,6 +302,37 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               </DialogContent>
             </Dialog>
 
+            {/* Get Support Button - Always visible on all course cards */}
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto bg-green-500/10 border-green-500/30 hover:bg-green-500/20 text-green-700 dark:text-green-400"
+              asChild
+            >
+              <a
+                href={
+                  supportLink
+                    ? (supportLink.startsWith('mailto:') || supportLink.includes('@'))
+                      ? supportLink.startsWith('mailto:')
+                        ? supportLink
+                        : `mailto:${supportLink}`
+                      : supportLink
+                    : "#"
+                }
+                target={supportLink ? "_blank" : undefined}
+                rel="noopener noreferrer"
+                className="flex items-center gap-2"
+                onClick={(e) => {
+                  if (!supportLink) {
+                    e.preventDefault();
+                    alert("Support link not configured for this course. Please contact your instructor.");
+                  }
+                }}
+              >
+                <Headphones className="h-4 w-4" />
+                Get Support
+              </a>
+            </Button>
+
             {/* JUST ADD THIS FOR MERN CASE STUDY COURSE ONLY */}
             {enrollment.courseId === "692f030a945e82ec875e9116" && (
               <Dialog open={isForumOpen} onOpenChange={setIsForumOpen}>
@@ -436,80 +471,107 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               </Dialog>
             )}
 
-          {(
-            enrollment.courseId === "6943b2cafa4e840eb39490b6" ||
-            enrollment.courseId === "692f030a945e82ec875e9116"
-          ) && (
-            <Dialog open={isSupportOpen} onOpenChange={setIsSupportOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="w-full sm:w-auto">
-                  Support
-                </Button>
-              </DialogTrigger>
+            {/* Dynamic Support Link - shown if configured by instructor */}
+            {(enrollment.courseVersion as any)?.supportLink && (
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto bg-green-500/10 border-green-500/30 hover:bg-green-500/20 text-green-700 dark:text-green-400"
+                asChild
+              >
+                <a
+                  href={
+                    (enrollment.courseVersion as any).supportLink.startsWith('mailto:') || (enrollment.courseVersion as any).supportLink.includes('@')
+                      ? (enrollment.courseVersion as any).supportLink.startsWith('mailto:')
+                        ? (enrollment.courseVersion as any).supportLink
+                        : `mailto:${(enrollment.courseVersion as any).supportLink}`
+                      : (enrollment.courseVersion as any).supportLink
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2"
+                >
+                  <Headphones className="h-4 w-4" />
+                  Get Support
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </Button>
+            )}
 
-              <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 max-h-full flex flex-col">
-                <DialogHeader className="mb-3 text-left">
-                  <DialogTitle>Support Details</DialogTitle>
-                </DialogHeader>
+            {/* Legacy hardcoded support - only show if no dynamic supportLink is configured */}
+            {!(enrollment.courseVersion as any)?.supportLink && (
+              enrollment.courseId === "6943b2cafa4e840eb39490b6" ||
+              enrollment.courseId === "692f030a945e82ec875e9116"
+            ) && (
+                <Dialog open={isSupportOpen} onOpenChange={setIsSupportOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full sm:w-auto">
+                      Support
+                    </Button>
+                  </DialogTrigger>
 
-                <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[800px] overflow-y-auto">
-                  <>
-                    <Separator className="mb-6" />
+                  <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 max-h-full flex flex-col">
+                    <DialogHeader className="mb-3 text-left">
+                      <DialogTitle>Support Details</DialogTitle>
+                    </DialogHeader>
 
-                    <div className="space-y-4">
-                      {/* Section Header */}
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                          <LifeBuoy className="w-4 h-4 text-primary-foreground" />
-                        </div>
-                        <h3 className="text-lg font-semibold">Internship Support</h3>
-                      </div>
+                    <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[800px] overflow-y-auto">
+                      <>
+                        <Separator className="mb-6" />
 
-                      {/* Support Card */}
-                      <div className="rounded-xl border bg-primary/5 shadow-sm hover:shadow-md transition-all">
-                        <div className="p-6 space-y-5">
-                          {/* Top */}
-                          <div className="flex items-center gap-3">
-                            <div className="w-14 h-14 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-md">
-                              <Mail className="w-7 h-7" />
+                        <div className="space-y-4">
+                          {/* Section Header */}
+                          <div className="flex items-center gap-2 mb-4">
+                            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                              <LifeBuoy className="w-4 h-4 text-primary-foreground" />
                             </div>
-
-                            <div>
-                              <p className="font-semibold text-base">
-                                Contact Support
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                We usually respond within 24 hours
-                              </p>
-                            </div>
+                            <h3 className="text-lg font-semibold">Internship Support</h3>
                           </div>
 
-                          {/* Description */}
-                          <p className="text-sm text-muted-foreground leading-relaxed px-4 py-3 rounded-lg border bg-primary/5">
-                            For course-related queries, guidance, or issues, feel free to
-                            reach out to our support team via email.
-                          </p>
+                          {/* Support Card */}
+                          <div className="rounded-xl border bg-primary/5 shadow-sm hover:shadow-md transition-all">
+                            <div className="p-6 space-y-5">
+                              {/* Top */}
+                              <div className="flex items-center gap-3">
+                                <div className="w-14 h-14 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-md">
+                                  <Mail className="w-7 h-7" />
+                                </div>
 
-                          {/* Email */}
-                          <div className="flex items-center gap-2.5">
-                            <Button asChild className="flex-1">
-                              <a
-                                href={`mailto:${supportEmail}`}
-                                className="flex items-center justify-center gap-2"
-                              >
-                                <Mail className="w-4 h-4" />
-                                {supportEmail}
-                              </a>
-                            </Button>
+                                <div>
+                                  <p className="font-semibold text-base">
+                                    Contact Support
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    We usually respond within 24 hours
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Description */}
+                              <p className="text-sm text-muted-foreground leading-relaxed px-4 py-3 rounded-lg border bg-primary/5">
+                                For course-related queries, guidance, or issues, feel free to
+                                reach out to our support team via email.
+                              </p>
+
+                              {/* Email */}
+                              <div className="flex items-center gap-2.5">
+                                <Button asChild className="flex-1">
+                                  <a
+                                    href={`mailto:${supportEmail}`}
+                                    className="flex items-center justify-center gap-2"
+                                  >
+                                    <Mail className="w-4 h-4" />
+                                    {supportEmail}
+                                  </a>
+                                </Button>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  </>
-                </ScrollArea>
-              </DialogContent>
-            </Dialog>
-          )}
+                      </>
+                    </ScrollArea>
+                  </DialogContent>
+                </Dialog>
+              )}
 
 
 
