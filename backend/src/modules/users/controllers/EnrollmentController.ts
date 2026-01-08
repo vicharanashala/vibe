@@ -141,13 +141,11 @@ export class EnrollmentController {
     @Ability(getEnrollmentAbility) { ability },
   ): Promise<EnrollUserResponse> {
     const { userId, courseId, versionId } = params;
-    console.log("User that needs to be removed is: ", userId, courseId, versionId)
     const enrollmentData = await this.enrollmentService.findEnrollment(
       userId,
       courseId,
       versionId,
     );
-    console.log("Enrollment data is: ", enrollmentData)
     // Create an enrollment resource object for permission checking
     const enrollmentResource = subject('Enrollment', {
       courseId,
@@ -168,8 +166,6 @@ export class EnrollmentController {
       versionId,
       enrollmentData,
     );
-
-    console.log("Response data is: ", responseData)
 
     return new EnrollUserResponse(
       responseData.enrollment,

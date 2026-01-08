@@ -1647,13 +1647,11 @@ class ProgressService extends BaseService {
         this.verifyDetails(userId, courseId, courseVersionId),
         this.courseRepo.readVersion(courseVersionId, session),
       ]);
-      console.log("courseVersion", courseVersion);
 
       // Collect itemsGroupIds from courseModules
       const itemsGroupIds: string[] = [];
       for (const module of courseVersion.modules || []) {
         for (const section of module.sections || []) {
-          console.log("Sections: ", section)
           if (section.itemsGroupId) {
             itemsGroupIds.push(section.itemsGroupId as string);
           }
