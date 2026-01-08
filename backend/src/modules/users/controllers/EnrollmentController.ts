@@ -532,4 +532,49 @@ export class EnrollmentController {
       totalUpdated,
     };
   }
+
+  @OpenAPI({
+    summary: 'Bulk updates watchtime, progress and completeCounts ',
+    description:
+      'Endpoint to update watchtime, progress and completeCounts for all enrollments',
+  })
+  @Authorized()
+  @Patch('/enrollments/bulk-update-watchtime-progress-completeCounts')
+  @ResponseSchema(UpdateEnrollmentProgressResponse, {
+    description: 'Completed items count updated successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async bulk_update_watchtime_progress_completeCounts(
+    @Ability(getEnrollmentAbility) {ability},
+    @QueryParams() query: BulkEnrollmentsQuery,
+  ):Promise<{message: string; watchtimeUpdated: number; progressRecalculated: number}>{
+    try {
+      const {courseId, versionId, userId} = query;
+      
+      // Validate at least one parameter is provided
+      if (!courseId && !userId && !versionId) {
+        throw new BadRequestError('At least courseId, versionId, or userId must be provided');
+      }
+      
+      // Call the new service method that combines both operations
+      const result = await this.enrollmentService.bulkUpdateWatchTimeAndRecalculateProgress(
+        courseId,
+        versionId,
+        userId
+      );
+      
+      return {
+        message: result.message,
+        watchtimeUpdated: result.watchtimeUpdated,
+        progressRecalculated: result.progressRecalculated
+      };
+    } catch (error) {
+      console.error('Error in bulk_update_watchtime_progress_completeCounts:', error);
+      throw new BadRequestError(error.message || 'Failed to bulk update watchtime and progress');
+    }
+  }
 }
