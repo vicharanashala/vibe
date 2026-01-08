@@ -15,6 +15,8 @@ import validator  from "@rjsf/validator-ajv8";
 import type { IChangeEvent } from "@rjsf/core";
 import { Skeleton } from '@/components/ui/skeleton';
 import { BookOpen, CalendarDays, ChevronDown, ChevronUp, Clock, GraduationCap, ListChecks, Loader2, NotebookText, Play, UserPlus, Users } from 'lucide-react';
+import { AlignedFieldTemplate } from './components/AlignedFieldTemplate';
+import { CustomSubmitButton } from './components/CustomSubmitButton';
 
 
 interface IModule {
@@ -279,7 +281,7 @@ const CourseRegistration: React.FC = () => {
                   className=" p-6 pb-1 "
                   style={{ height: '80vh' }}
                 >
-                  <DialogHeader className="mb-4">
+                  <DialogHeader className="mb-4 ml-5">
                     <div className="flex items-center justify-between">
                       <DialogTitle className="text-xl sm:text-2xl font-semibold">
                         Course Registration Form
@@ -302,6 +304,9 @@ const CourseRegistration: React.FC = () => {
                           schema={jsonSchema}
                           validator={validator}
                           uiSchema={uiSchema}
+                          templates={{ FieldTemplate: AlignedFieldTemplate, ButtonTemplates: {
+                            SubmitButton: CustomSubmitButton,
+                          }, }}
                           onSubmit={onSubmit}
                           disabled={isSubmitting}
                         />
