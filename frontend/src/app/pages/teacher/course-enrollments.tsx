@@ -420,7 +420,7 @@ export default function CourseEnrollments() {
             query: {
               courseId: courseId,
               userId: userId,
-              courseVersionId: versionId,
+              versionId: versionId,
             },
           },
         })
