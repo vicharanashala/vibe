@@ -729,12 +729,9 @@ const addInviteRow = () => {
                   </Button>
                 </div>
                 <div className="max-h-32 overflow-y-auto text-xs text-muted-foreground space-y-1">
-                  {parsedEmails.slice(0, 10).map((email, idx) => (
+                  {parsedEmails.map((email, idx) => (
                     <div key={idx}>{email}</div>
                   ))}
-                  {parsedEmails.length > 10 && (
-                    <div className="italic">...and {parsedEmails.length - 10} more</div>
-                  )}
                 </div>
               </div>
 
