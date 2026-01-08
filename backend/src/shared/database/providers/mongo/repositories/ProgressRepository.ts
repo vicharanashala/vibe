@@ -25,7 +25,7 @@ class ProgressRepository {
     if (this.initialized) {
       return;
     }
-    this.initialized = true;
+   
 
     this.progressCollection = await this.db.getCollection<IProgress>(
       'progress',
@@ -36,6 +36,8 @@ class ProgressRepository {
     this.attemptCollection = await this.db.getCollection<IAttempt>(
       'quiz_attempts',
     );
+
+     this.initialized = true;
 
     // Create indexes with background: true and error handling
     try {
@@ -214,6 +216,10 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
+    if(!this.watchTimeCollection){
+      console.log('[ProgressRepository] watchTimeCollection not initialized');
+      return;
+    }
     const result = await this.watchTimeCollection.updateMany(
       {
         userId: new ObjectId(userId),

@@ -1647,11 +1647,13 @@ class ProgressService extends BaseService {
         this.verifyDetails(userId, courseId, courseVersionId),
         this.courseRepo.readVersion(courseVersionId, session),
       ]);
+      console.log("courseVersion", courseVersion);
 
       // Collect itemsGroupIds from courseModules
       const itemsGroupIds: string[] = [];
       for (const module of courseVersion.modules || []) {
         for (const section of module.sections || []) {
+          console.log("Sections: ", section)
           if (section.itemsGroupId) {
             itemsGroupIds.push(section.itemsGroupId as string);
           }
@@ -1659,9 +1661,24 @@ class ProgressService extends BaseService {
       }
 
       // Fetch itemGroups in parallel
-      const itemsGroups = await Promise.all(
-        itemsGroupIds.map(id => this.itemRepo.readItemsGroup(id, session)),
-      );
+      // const itemsGroups = await Promise.all(
+      //   itemsGroupIds.map(id => this.itemRepo.readItemsGroup(id, session)),
+      // );
+      let itemsGroups: ItemsGroup[] = [];
+      for (const id of itemsGroupIds) {
+        try {
+          const group = await this.itemRepo.readItemsGroup(id, session);
+          itemsGroups.push(group);
+        } catch (err) {
+          if (err instanceof NotFoundError) {
+            console.warn(
+              `[unenrollUser] Missing ItemsGroup ${id}. Skipping cleanup for this group.`,
+            );
+            continue;
+          }
+          throw err; // unknown error → fail transaction
+        }
+      }
 
       // Collect quizItemIds and projectItemIds
       const quizItemIds: string[] = [];
