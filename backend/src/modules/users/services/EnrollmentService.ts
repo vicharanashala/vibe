@@ -531,6 +531,74 @@ export class EnrollmentService extends BaseService {
    * Initialize student progress tracking to the first item in the course.
    * Private helper method for the enrollment process.
    */
+  /**
+   * Bulk update watchtime and recalculate progress for specific user/course/version
+   * @param courseId Course ID (optional)
+   * @param versionId Course version ID (optional) 
+   * @param userId User ID (optional)
+   * @returns Promise with operation results
+   */
+  async bulkUpdateWatchTimeAndRecalculateProgress(
+    courseId?: string,
+    versionId?: string,
+    userId?: string,
+  ): Promise<{ 
+    watchtimeUpdated: number; 
+    progressRecalculated: number; 
+    message: string 
+  }> {
+    try {
+      console.log(`Starting bulk update for courseId: ${courseId}, versionId: ${versionId}, userId: ${userId}`);
+      
+      // First, update watchtime for missed items
+      let watchtimeUpdatedCount = 0;
+      
+      // Get all enrollments for the specified filters
+      const enrollments = await this.enrollmentRepo.getEnrollmentsByFilters({ 
+        courseId, 
+        courseVersionId: versionId, 
+        userId 
+      });
+      
+      console.log(`Found ${enrollments.length} enrollments to process`);
+      
+      // For each enrollment, update watchtime for missed items
+      for (const enrollment of enrollments) {
+        try {
+          await this.progressService.createBulkWatchiTimeDocs(
+            enrollment.courseId.toString(),
+            enrollment.courseVersionId.toString(),
+            enrollment.userId.toString()
+          );
+          watchtimeUpdatedCount++;
+          console.log(`✅ Successfully updated watchtime for enrollment ${enrollment._id}`);
+        } catch (error) {
+          console.error(`❌ Failed to update watchtime for enrollment ${enrollment._id}:`, error.message);
+          // Continue with other enrollments even if watchtime update fails
+          // This allows progress recalculation to still proceed
+        }
+      }
+      
+      // Then, recalculate progress using existing bulk update method
+      console.log(`🔄 Starting progress recalculation...`);
+      const progressResult = await this.bulkUpdateAllEnrollments(courseId, userId);
+      console.log(`✅ Progress recalculation completed. Total: ${progressResult.totalCount}, Updated: ${progressResult.updatedCount}`);
+      
+      const message = watchtimeUpdatedCount > 0 
+        ? `Successfully updated watchtime for ${watchtimeUpdatedCount} enrollments and recalculated progress for ${progressResult.updatedCount} enrollments`
+        : `Watchtime update failed for all enrollments, but successfully recalculated progress for ${progressResult.updatedCount} enrollments`;
+      
+      return {
+        watchtimeUpdated: watchtimeUpdatedCount,
+        progressRecalculated: progressResult.updatedCount,
+        message
+      };
+    } catch (error) {
+      console.error('Error in bulkUpdateWatchTimeAndRecalculateProgress:', error);
+      throw new Error(`Failed to bulk update watchtime and recalculate progress: ${error.message}`);
+    }
+  }
+
   async bulkUpdateAllEnrollments(
     courseId?: string, userId?: string
   ): Promise<{ totalCount: number; updatedCount: number }> {
