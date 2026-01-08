@@ -100,13 +100,17 @@ export class ItemService extends BaseService {
     )) as CourseVersion;
     if (!version) throw new NotFoundError(`Version ${versionId} not found.`);
 
-    const module = version.modules.find(m => m.moduleId?.toString() === moduleId);
+    const module = version.modules.find(
+      m => m.moduleId?.toString() === moduleId,
+    );
     if (!module)
       throw new NotFoundError(
         `Module ${moduleId} not found in version ${versionId}.`,
       );
 
-    const section = module.sections.find(s => s.sectionId?.toString() === sectionId);
+    const section = module.sections.find(
+      s => s.sectionId?.toString() === sectionId,
+    );
     if (!section)
       throw new NotFoundError(
         `Section ${sectionId} not found in module ${moduleId}.`,
@@ -216,10 +220,7 @@ export class ItemService extends BaseService {
 
       // Step 3b: Update totalItems
       const { totalItems, itemCounts } =
-        await this.itemRepo.calculateItemCountsForVersion(
-          versionId,
-          session
-        );
+        await this.itemRepo.calculateItemCountsForVersion(versionId, session);
       version.totalItems = totalItems;
       version.itemCounts = itemCounts;
 
@@ -529,12 +530,8 @@ export class ItemService extends BaseService {
           this.enrollmentRepo.getByCourseVersion(courseId, versionId, session),
         ]);
 
-
         const { totalItems, itemCounts } =
-          await this.itemRepo.calculateItemCountsForVersion(
-            versionId,
-            session
-          );
+          await this.itemRepo.calculateItemCountsForVersion(versionId, session);
         version.totalItems = totalItems;
         version.itemCounts = itemCounts;
 
@@ -546,8 +543,6 @@ export class ItemService extends BaseService {
           version.totalItems,
           session,
         );
-
-
 
         // Step 5: Update version
         const updatedVersion = await this.courseRepo.updateVersion(
@@ -585,8 +580,12 @@ export class ItemService extends BaseService {
       }
 
       const version = await this.courseRepo.readVersion(versionId, session);
-      const module = version.modules.find(m => m.moduleId?.toString() === moduleId)!;
-      const section = module.sections.find(s => s.sectionId?.toString() === sectionId)!;
+      const module = version.modules.find(
+        m => m.moduleId?.toString() === moduleId,
+      )!;
+      const section = module.sections.find(
+        s => s.sectionId?.toString() === sectionId,
+      )!;
       const itemsGroup = await this.itemRepo.readItemsGroup(
         section.itemsGroupId.toString(),
         session,
@@ -752,7 +751,7 @@ export class ItemService extends BaseService {
       const { totalItems, itemCounts } =
         await this.itemRepo.calculateItemCountsForVersion(
           courseVersionId,
-          session
+          session,
         );
 
       version.totalItems = totalItems;
@@ -813,7 +812,7 @@ export class ItemService extends BaseService {
     isOptional: boolean,
   ) {
     return this._withTransaction(async session => {
-      const versionIdObject = new ObjectId(versionId)
+      const versionIdObject = new ObjectId(versionId);
       // Get the item
       const item = await this.itemRepo.readItem(versionId, itemId, session);
       if (!item) {
@@ -843,7 +842,7 @@ export class ItemService extends BaseService {
   private _convertTimeToSeconds(timeStr: string): number {
     if (!timeStr) return 0;
     const [minutes, seconds] = timeStr.split(':').map(Number);
-    return (minutes * 60) + (seconds || 0);
+    return minutes * 60 + (seconds || 0);
   }
 
   private _formatSecondsToHHMMSS(seconds: number): string {
@@ -853,7 +852,7 @@ export class ItemService extends BaseService {
     return [
       hh.toString().padStart(2, '0'),
       mm.toString().padStart(2, '0'),
-      ss.toString().padStart(2, '0')
+      ss.toString().padStart(2, '0'),
     ].join(':');
   }
 
@@ -867,21 +866,56 @@ export class ItemService extends BaseService {
     versionId: string,
     courseId: string,
     userId: string,
-    data: CSVQuizQuestion[]
+    data: CSVQuizQuestion[],
   ) {
-
     if (!data || !Array.isArray(data)) {
       throw new Error('Invalid data: Expected an array of questions');
     }
-    try {
 
+    if (data.length === 0) {
+      throw new Error('CSV file contains no data rows');
+    }
+
+    const normalizeKey = (key: string): string => key.replace(/\s+/g, ' ').trim();
+
+    const getRowValue = (row: any, ...possibleKeys: string[]): string | undefined => {
+      for (const key of possibleKeys) {
+        if (row[key] !== undefined) return row[key];
+        const rowKeys = Object.keys(row);
+        const normalizedTarget = normalizeKey(key);
+        const matchingKey = rowKeys.find(k => normalizeKey(k) === normalizedTarget);
+        if (matchingKey && row[matchingKey] !== undefined) return row[matchingKey];
+      }
+      return undefined;
+    };
+
+    const normalizedData = data.map(row => {
+      const normalized: any = {};
+      for (const [key, value] of Object.entries(row)) {
+        normalized[normalizeKey(key)] = value;
+      }
+      return normalized as CSVQuizQuestion;
+    });
+
+    const firstRow = normalizedData[0];
+
+    const requiredFields = ['Segment', 'Question', 'Correct Answer'];
+    const missingFields = requiredFields.filter(field => !(field in firstRow));
+    if (missingFields.length > 0) {
+      throw new Error(`Missing required CSV columns: ${missingFields.join(', ')}. Available columns: ${Object.keys(firstRow).join(', ')}`);
+    }
+
+    try {
       // Group questions by segment
       const segments = new Map<string, CSVQuizQuestion[]>();
       const seenSegments = new Set<string>();
       let currentSegment = '1';
 
+      normalizedData.forEach((row, index) => {
+        if (!row || typeof row !== 'object') {
+          return;
+        }
 
-      data.forEach((row, index) => {
         // If Segment is empty, use the last seen segment
         const rawSegment = row['Segment']?.toString().trim();
         if (!row.Segment || rawSegment === '') {
@@ -903,33 +937,45 @@ export class ItemService extends BaseService {
       });
 
       if (segments.size === 0) {
-        const errorMsg = 'No valid segments found in the CSV. ';
-        if (seenSegments.size > 0) {
-          console.error('[processCSVAndCreateItems] Segments found but not processed:', Array.from(seenSegments).join(', '));
-        } else {
-          console.error('[processCSVAndCreateItems] No segments found in the data');
-        }
-        throw new Error(errorMsg + 'Please ensure your CSV has a "Segment" column with valid values.');
+        throw new Error(
+          'No valid segments found in the CSV. Please ensure your CSV has a "Segment" column with valid values.',
+        );
       }
 
       // Process each segment
       let previousEndTime = 0;
-      const segmentNumbers = Array.from(segments.keys()).sort((a, b) => parseInt(a) - parseInt(b));
+      const segmentNumbers = Array.from(segments.keys()).sort(
+        (a, b) => parseInt(a) - parseInt(b),
+      );
       const createdItems = [];
 
       for (const segmentNumber of segmentNumbers) {
-        const result = await this._withTransaction(async (session) => {
+        const result = await this._withTransaction(async session => {
           const questions = segments.get(segmentNumber) || [];
-          const segmentQuestions = questions.filter(q => q.Question && q['Correct Answer']);
-
+          const segmentQuestions = questions.filter(
+            q => q.Question && q['Correct Answer'],
+          );
 
           // Get the first question's timestamp as the end time for the video segment
           const firstQuestion = segmentQuestions[0];
-          const timestamp = firstQuestion['Question Timestamp [mm:ss]'];
+
+          let timestamp: string | undefined;
+          if (firstQuestion) {
+            timestamp = firstQuestion['Question Timestamp [mm:ss]']
+              || firstQuestion['Question Timestamp  [mm:ss]']
+              || firstQuestion['Question Timestamp [mm:ss]']
+              || (Object.keys(firstQuestion).find(k => k.includes('Timestamp'))
+                ? firstQuestion[Object.keys(firstQuestion).find(k => k.includes('Timestamp'))!]
+                : undefined);
+          }
+
           const timeCache = new Map<string, number>();
 
           const endTime = timestamp
-            ? timeCache.get(timestamp) ?? timeCache.set(timestamp, this._convertTimeToSeconds(timestamp)).get(timestamp)!
+            ? timeCache.get(timestamp) ??
+              timeCache
+                .set(timestamp, this._convertTimeToSeconds(timestamp))
+                .get(timestamp)!
             : previousEndTime + 300;
 
           // Create video item
@@ -945,8 +991,8 @@ export class ItemService extends BaseService {
                 URL: youtubeUrl,
                 startTime: this._formatSecondsToHHMMSS(previousEndTime),
                 endTime: this._formatSecondsToHHMMSS(endTime),
-                points: 1
-              }
+                points: 1,
+              },
             },
           );
 
@@ -972,8 +1018,8 @@ export class ItemService extends BaseService {
                 showExplanationAfterSubmission: true,
                 showScoreAfterSubmission: true,
                 allowSkip: false,
-                deadline: null
-              }
+                deadline: null,
+              },
             },
           );
 
@@ -986,7 +1032,7 @@ export class ItemService extends BaseService {
             questions: [],
             tags: [],
             createdAt: new Date(),
-            updatedAt: new Date()
+            updatedAt: new Date(),
           });
 
           // Add question bank to quiz
@@ -995,57 +1041,81 @@ export class ItemService extends BaseService {
             {
               bankId: questionBank,
               count: 3,
-              tags: []
-            }
+              tags: [],
+            },
           );
 
           // Process questions
           for (const question of segmentQuestions) {
             const options = [
-              { text: question['Option A'] || '', explanation: question['Expln-A'] || '' },
-              { text: question['Option B'] || '', explanation: question['Expln-B'] || '' },
-              { text: question['Option C'] || '', explanation: question['Expln-C'] || '' },
-              { text: question['Option D'] || '', explanation: question['Expln-D'] || '' }
+              {
+                text: question['Option A'] || '',
+                explanation: question['Expln-A'] || '',
+              },
+              {
+                text: question['Option B'] || '',
+                explanation: question['Expln-B'] || '',
+              },
+              {
+                text: question['Option C'] || '',
+                explanation: question['Expln-C'] || '',
+              },
+              {
+                text: question['Option D'] || '',
+                explanation: question['Expln-D'] || '',
+              },
             ].filter(opt => opt.text);
 
             const correctAnswer = question['Correct Answer']?.toUpperCase();
-            const correctOptionIndex = correctAnswer ? correctAnswer.charCodeAt(0) - 65 : -1;
+            const correctOptionIndex = correctAnswer
+              ? correctAnswer.charCodeAt(0) - 65
+              : -1;
 
-            if (correctOptionIndex >= 0 && correctOptionIndex < options.length) {
-
+            if (
+              correctOptionIndex >= 0 &&
+              correctOptionIndex < options.length
+            ) {
               const questionBody = {
                 question: {
                   text: question.Question || '',
-                  type: "SELECT_ONE_IN_LOT" as QuestionType,
+                  type: 'SELECT_ONE_IN_LOT' as QuestionType,
                   isParameterized: false,
                   parameters: [],
                   timeLimitSeconds: 60,
                   points: 1,
-                  priority: "MEDIUM" as Priority,
+                  priority: 'MEDIUM' as Priority,
                   hint: question.Hint || '',
                 },
                 solution: {
                   correctLotItem: {
                     text: options[correctOptionIndex].text,
-                    explaination: options[correctOptionIndex].explanation || 'No explanation provided'
+                    explaination:
+                      options[correctOptionIndex].explanation ||
+                      'No explanation provided',
                   },
                   incorrectLotItems: options
                     .filter((_, i) => i !== correctOptionIndex)
                     .map(opt => ({
                       text: opt.text,
-                      explaination: opt.explanation || 'No explanation provided'
-                    }))
+                      explaination:
+                        opt.explanation || 'No explanation provided',
+                    })),
                 },
               };
-              const question2 = QuestionFactory.createQuestion(questionBody, userId);
+              const question2 = QuestionFactory.createQuestion(
+                questionBody,
+                userId,
+              );
               const questionProcessor = new QuestionProcessor(question2);
               questionProcessor.validate();
               questionProcessor.render();
 
               const id = await this.questionService.create(question2);
 
-              // add question to question bank
-              const addQuestion = await this.questionBankService.addQuestion(questionBank, id);
+              await this.questionBankService.addQuestion(
+                questionBank,
+                id,
+              );
             }
           }
 
@@ -1054,7 +1124,7 @@ export class ItemService extends BaseService {
             quizItem: quizItem.createdItem,
             questionBankId: questionBank,
             questionCount: segmentQuestions.length,
-            endTime
+            endTime,
           };
         });
 
@@ -1065,12 +1135,13 @@ export class ItemService extends BaseService {
       return {
         success: true,
         message: 'Successfully processed CSV and created items',
-        createdItems
+        createdItems,
       };
     } catch (error) {
-      console.error('Error processing CSV:', error);
-      throw new InternalServerError(`Failed to process CSV: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new InternalServerError(
+        `Failed to process CSV: ${error instanceof Error ? error.message : 'Unknown error'
+        }`,
+      );
     }
-
   }
 }
