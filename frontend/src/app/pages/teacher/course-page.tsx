@@ -332,6 +332,7 @@ function CourseCard({
   const [newVersionData, setNewVersionData] = useState({ version: "", description: "" })
   const [expandedCourse, setExpandedCourse] = useState(false)
   const [editingCourse, setEditingCourse] = useState(false)
+  const [showDeleteCourseModal,setShowDeleteCourseModal]=useState(false);
   const [editingValues, setEditingValues] = useState<{ name: string; description: string }>({
     name: "",
     description: "",
@@ -489,10 +490,6 @@ function CourseCard({
   }
 
   const deleteCourse = async () => {
-    if (!confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
-      return
-    }
-
     try {
       await deleteCourseMutation.mutateAsync({
         params: { path: { id: courseIdHex } },
@@ -502,6 +499,8 @@ function CourseCard({
       onInvalidate()
     } catch (error) {
       console.error("Failed to delete course:", error)
+    } finally{
+      setShowDeleteCourseModal(false);
     }
   }
 
@@ -622,7 +621,7 @@ function CourseCard({
                   onClick={(e) => {
                     e.stopPropagation()
                     if (!expandedCourse) toggleCourse()
-                    deleteCourse()
+                    setShowDeleteCourseModal(true)
                   }}
                   className="h-9 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-300"
                   disabled={deleteCourseMutation.isPending}
@@ -632,12 +631,27 @@ function CourseCard({
                   ) : (
                     <Trash2 className="h-3 w-3 mr-1" />
                   )}
-                  Delete
+                  Delete Course
                 </Button>
               </div>
             </div>
           </div>
         </CardHeader>
+        <div className="relative group">
+      <ConfirmationModal
+        isOpen={showDeleteCourseModal}
+        onClose={() => setShowDeleteCourseModal(false)}
+        onConfirm={deleteCourse}
+        title="Delete Course"
+        description="This will delete the entire course, including all modules and sections."
+        confirmText="Delete"
+        cancelText="Cancel"
+        isDestructive={true}
+        isLoading={deleteCourseMutation.isPending}
+        loadingText="Cloning..."
+      />
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+      </div>
 
         {/* Expanded Content */}
         {expandedCourse && (
@@ -935,6 +949,7 @@ function VersionCard({
   const updateVersionMutation = useUpdateCourseVersion()
 
   const [showLinkModal, setShowLinkModal] = useState(false);
+  const [showDeleteVersionModel, setShowDeleteVersionModel]=useState(false)
   const [generatedLink, setGeneratedLink] = useState('');
   const generateLinkMutation = useGenerateLink();
   // To copy a entire course version
@@ -996,13 +1011,8 @@ function VersionCard({
 
   const deleteVersion = async () => {
 
-    const confirmMessage = versionCount === 1
-      ? "This is the last version of this course. Deleting it will also delete the entire course. Are you sure you want to continue?"
-      : "Are you sure you want to delete this version? This action cannot be undone.";
 
-    if (!confirm(confirmMessage)) {
-      return;
-    }
+  
 
     try {
       await deleteVersionMutation.mutateAsync({
@@ -1268,7 +1278,7 @@ function VersionCard({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={deleteVersion}
+                     onClick={()=>setShowDeleteVersionModel(true)}
                     className="h-8 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-300 text-xs"
                     disabled={deleteVersionMutation.isPending}
                   >
@@ -1277,9 +1287,27 @@ function VersionCard({
                     ) : (
                       <Trash2 className="h-3 w-3 mr-1" />
                     )}
-                    Delete
+                    Delete Version
                   </Button>
                 </div>
+                          
+               <div className="relative group">
+      <ConfirmationModal
+        isOpen={showDeleteVersionModel}
+        onClose={() => setShowDeleteVersionModel(false)}
+        onConfirm={deleteVersion}
+        title="Delete Version"
+        description={versionCount === 1
+      ? "This is the last version of this course. Deleting it will also delete the entire course. Are you sure you want to continue?"
+      : "Are you sure you want to delete this version? This action cannot be undone."}
+        confirmText="Delete"
+        cancelText="Cancel"
+        isDestructive={true}
+        isLoading={deleteVersionMutation.isPending}
+        loadingText="Deleting..."
+      />
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+      </div>
               </div>
 
               {/* Version Description Section - Show in edit mode or if description exists */}
