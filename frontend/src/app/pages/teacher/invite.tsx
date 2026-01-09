@@ -614,11 +614,12 @@ const addInviteRow = () => {
               <Button
                 variant="outline"
                 onClick={() => setInviteEmails([{ email: "", role: "STUDENT" }])}
-                disabled={inviteUsers.isPending}
+                disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0}
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
                 Reset
               </Button>
+
               <Button
                 onClick={handleSendInvites}
                 disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0 }
