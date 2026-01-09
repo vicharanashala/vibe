@@ -511,7 +511,6 @@ class ProgressService extends BaseService {
       itemId,
     );
 
-    console.log('Is Item Completed:', isItemCompleted, userId);
 
     if (isItemCompleted) {
       return;
@@ -2525,13 +2524,6 @@ class ProgressService extends BaseService {
         if (!feedbackSubmission) isProceed = false;
       }
       if (!isProceed) {
-        console.log(
-          'Skiping item...',
-          'Item type: ',
-          lastItem.type,
-          'userId: ',
-          userId,
-        );
         continue;
       }
 

@@ -115,7 +115,6 @@ const CourseRegistration: React.FC = () => {
     try {
 
       let body: any = data.formData;
-      console.log("Form data: ", body)
 
       const hasFiles = Object.values(data.formData).some(v => v instanceof File);
       if (hasFiles) {

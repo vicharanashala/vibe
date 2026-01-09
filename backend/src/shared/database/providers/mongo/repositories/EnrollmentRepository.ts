@@ -1421,7 +1421,6 @@ export class EnrollmentRepository {
       // await this.enrollmentCollection.createIndex({ courseVersionId: 1 });
       // await this.enrollmentCollection.createIndex({ enrollmentDate: -1 });
 
-      console.log('Indexes created successfully!');
     } catch (err) {
       console.log(err);
     }

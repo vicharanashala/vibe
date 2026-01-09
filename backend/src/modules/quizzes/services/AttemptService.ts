@@ -577,7 +577,6 @@ class AttemptService extends BaseService {
       //4. Save the updated attempt
       await this.attemptRepository.update(attemptId, attempt);
 
-      console.log(answers, answers[answers.length - 1]);
 
       //5. Check answer correctness for single question attempts
       if (answers[answers.length - 1].questionType == 'SELECT_ONE_IN_LOT') {

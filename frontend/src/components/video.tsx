@@ -143,7 +143,6 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
         if (playing) {
           wasPlayingBeforeTabSwitch.current = true;
           player.pauseVideo();
-          console.log('🔇 Video paused: User switched to another tab');
         } else {
           wasPlayingBeforeTabSwitch.current = false;
         }
@@ -151,7 +150,6 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
         if (wasPlayingBeforeTabSwitch.current && playerReady) {
           player.playVideo();
           setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
-          console.log('🔊 Video resumed: User returned to tab');
           wasPlayingBeforeTabSwitch.current = false;
         }
       }
@@ -166,10 +164,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
   // Wait 10 seconds after readyToDetect becomes true (to match FloatingVideo's grace period)
   useEffect(() => {
     if (readyToDetect && !gracePeriodCompleted) {
-      console.log('⏳ Video: Starting 10-second grace period to match FloatingVideo');
       const timer = setTimeout(() => {
         setGracePeriodCompleted(true);
-        console.log('✅ Video: Grace period completed, ready for auto-play');
       }, 10000); // 10 seconds to match FloatingVideo's grace period
 
       return () => clearTimeout(timer);
@@ -263,7 +259,6 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
       // Pause video due to anomaly detection
       if (playing) {
         player.pauseVideo();
-        console.log('Video paused due to anomaly detection');
         wasPlayingBeforeRewind.current = true; // Remember it was playing
       }
     } else {
@@ -272,7 +267,6 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
       if (wasPlayingBeforeRewind.current) {
         player.playVideo();
         setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
-        console.log('Video resumed after anomalies cleared');
         wasPlayingBeforeRewind.current = false; // Reset the flag
       }
     }
@@ -300,7 +294,6 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
       !doGesture &&
       !hasAutoPlayedRef.current) {
 
-      console.log('🎬 Auto-playing video: Grace period completed, all conditions met');
 
       const timer = setTimeout(() => {
         if (playerRef.current &&
@@ -312,7 +305,6 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
           playerRef.current.playVideo();
           setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
           hasAutoPlayedRef.current = true;
-          console.log('✅ Video auto-played successfully after grace period');
         }
       }, 1000); // 1 second final delay
 
@@ -420,7 +412,6 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
     function createPlayer() {
       if (!iframeRef.current || !videoId) return;
 
-      console.log('Creating YouTube player - camera permissions granted');
 
       playerRef.current = new window.YT!.Player(iframeRef.current, {
         videoId,
@@ -529,7 +520,6 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
     // Cleanup when component unmounts or URL changes
     return () => {
 
-      console.log('Cleaning up YouTube player');
 
       // Stop if started but not yet stopped
       if (!progressStoppedRef.current && !stopInFlightRef.current && watchItemIdRef.current && currentCourse) {

@@ -72,9 +72,6 @@ export async function setupItemAbilities(
               enrollment.versionId,
             );
           } catch (error) {
-            console.log(
-              'No progress found for student, course not started yet',
-            );
             progress = null;
           }
 

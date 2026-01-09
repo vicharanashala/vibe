@@ -433,9 +433,6 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<IProgress | null> {
     await this.init();
-    console.log(
-      '<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Hey from updated progress REPO>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>',
-    );
     const normalizedProgress: Partial<CurrentProgress> = {
       ...progress,
 
@@ -520,7 +517,6 @@ class ProgressRepository {
       { $set: { endTime: new Date() } },
       { returnDocument: 'after', session },
     );
-    console.log(result);
     return result;
   }
 
