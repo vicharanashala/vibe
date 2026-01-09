@@ -338,6 +338,23 @@ export class CourseVersionService extends BaseService {
         );
       }
 
+      // 🔹 Create default course settings for the cloned course
+      const defaultSettingsPayload: CreateCourseSettingBody = {
+        courseId: newCourse._id.toString(),
+        courseVersionId: newVersionId,
+        settings: {
+          proctors: {
+            detectors: Object.values(ProctoringComponent).map(detector => ({
+              detectorName: detector,
+              settings: { enabled: false, options: {} },
+            })),
+          },
+          linearProgressionEnabled: false,
+        },
+      };
+      const courseSettings = new CourseSetting(defaultSettingsPayload);
+      const settingsPromise = await this.settingsRepo.createCourseSettings(courseSettings);
+
       return true;
     } catch (err) {
       console.error('Failed to copy course version:', err);
