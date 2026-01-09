@@ -2338,7 +2338,7 @@ function TeacherCourseContent() {
                             selectedEntity.parentIds?.sectionId &&
                             selectedEntity.data?._id
                           ) {
-                            if (window.confirm("Are you sure you want to delete this item?")) {
+                            
                               deleteItemAsync({
                                 params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
                               }).then((res) => {
@@ -2350,7 +2350,7 @@ function TeacherCourseContent() {
                               });
                               setSelectedEntity(null);
                               setIsEditingItem(false);
-                            }
+                            
                           }
                         }}
                         onEdit={() => setIsEditingItem(true)}
@@ -2410,7 +2410,7 @@ function TeacherCourseContent() {
                         onDelete={async () => {
                           const projectId = selectedEntity.data._id;
                           if (selectedEntity.parentIds?.itemsGroupId && projectId) {
-                            if (window.confirm("Are you sure you want to delete this item?")) {
+                            
                               await deleteItemAsync({
                                 params: { path: { itemsGroupId: selectedEntity.parentIds.itemsGroupId, itemId: projectId } },
                               });
@@ -2419,7 +2419,7 @@ function TeacherCourseContent() {
                               refetchItem();
                               setSelectedEntity(null);
                               toast.success("Project deleted successfully");
-                            }
+                            
                           }
                         }}
                         onClose={() => {
