@@ -16,6 +16,9 @@ import {
   Search,
   Download,
   Upload,
+  Check,
+  Pencil,
+  Trash2,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -58,7 +61,55 @@ export default function InvitePage() {
   const [cancelingInviteId, setCancelingInviteId] = useState<string | null>(null);
 
   // CSV parsed emails state
-  const [parsedEmails, setParsedEmails] = useState<string[]>([]);
+  const [parsedEmails, setParsedEmails] = useState<{id:string,email:string}[]>([]);
+
+  // handle CSV upload emails states
+  const [editingId,setEditingId] = useState<string|null>(null);
+  const [draftEmail,setDraftEmail] = useState<string>("");
+  const [error, setError] = useState<string>("")
+
+  // handle edit or remove csv uploaded emails starts
+
+  const startEdit = (item:{id:string,email:string})=>{
+    setEditingId(item.id);
+    setDraftEmail(item.email);
+    setError("")
+  }
+   
+  const cancelEdit = ()=>{
+    setEditingId(null);
+    setDraftEmail("");
+  }
+
+  const saveEdit =(id:string)=>{
+    const trimmed = draftEmail.trim().toLowerCase();
+    const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+    if(!emailRegex.test(trimmed)){
+      setError("Please enter a valid email address")
+      return;
+    }
+    if(parsedEmails.some((item)=>item.email === trimmed && item.id !== id)){
+
+      setError(" This email already exits in the list")
+      return;
+    }
+    setParsedEmails((prev)=>
+    prev.map((item)=>
+    item.id === id?
+  {...item,email:trimmed}
+: item)
+    )
+    setError("");
+    cancelEdit();
+  }
+
+  const removeEmail = (id:string)=>{
+    setParsedEmails((prev)=>
+    prev.filter((item)=>
+    item.id !== id))
+  }
+
+  // edit or remove csv uploaded emails ends 
 
   // filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -393,8 +444,14 @@ const addInviteRow = () => {
         e.target.value = ''
         return
       }
+
+      //adding temp ids to emails
+      const emailsWithIds = uniqueEmails.map((email,indx)=>({
+        id:`email-${Date.now()}-${indx}`,
+        email,
+      }))
       
-      setParsedEmails(uniqueEmails)
+      setParsedEmails(emailsWithIds)
       
       toast.success(`Found ${uniqueEmails.length} email(s) from CSV file`)
     } catch (error) {
@@ -411,8 +468,8 @@ const addInviteRow = () => {
     }
 
     try {
-      const inviteData = parsedEmails.map(email => ({
-        email,
+      const inviteData = parsedEmails.map(item => ({
+        email:item.email,
         role: 'STUDENT' as EnrollmentRole
       }))
 
@@ -729,9 +786,90 @@ const addInviteRow = () => {
                   </Button>
                 </div>
                 <div className="max-h-32 overflow-y-auto text-xs text-muted-foreground space-y-1">
-                  {parsedEmails.map((email, idx) => (
-                    <div key={idx}>{email}</div>
-                  ))}
+                  {parsedEmails.map(({id,email}, _idx) => {
+                    const isEditing = editingId === id;
+                    return (
+                      
+                    <div key={id} className="flex items-start gap-2 justify-between group">
+                      {
+                        isEditing ? (
+
+                          <div className="flex-1">
+                            <input 
+                            value={draftEmail}
+                            onChange={(e)=>{
+                              setDraftEmail(e.target.value);
+                              if(error)setError("");
+                            }}
+                            className={`w-full flex-1 px-1 py-0.5 text-xs border rounded ${error ? "border-red-500":""}`}
+                            autoFocus
+                            onKeyDown={(e)=>{
+                              if(e.key === "Enter") saveEdit(id)
+                                if(e.key === "Escape") cancelEdit()
+                            }}
+                          />
+                          {
+                            error && (
+                              <p className = "mt-0.5 text-[10px] text-red-500">
+                                {error}
+                              </p>
+                            )
+                          }
+                            </div>
+                        ) :(
+                          <span className="truncate">{email}</span>
+                        )
+                      }
+
+                      <div className="flex items-start gap-1 opacity-0 group-hover:opacity-100 transition mr-2">
+                        {
+                          isEditing ? (
+                            <>
+                            <Button
+                             variant="ghost"
+                             size="icon"
+                             className="h-auto w-auto p-1"
+                            onClick={()=>saveEdit(id)}
+                            >
+                              <Check className="w-4 h-4 text-green-500 cursor-pointer"/>
+                            </Button>
+                             <Button
+                             variant="ghost"
+                             size="icon"
+                             className="h-auto w-auto p-1"
+                    onClick={cancelEdit}
+                  >
+                    <X className="w-4 h-4 text-gray-500 cursor-pointer" />
+                  </Button>
+                            </>
+                          )
+                          :
+                          (
+                            <>
+                            <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-auto w-auto p-1"
+                    onClick={() => startEdit({id,email})}
+                  >
+                    <Pencil className="w-4 h-4 text-gray-500 cursor-pointer" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-auto w-auto p-1"
+                    onClick={() => removeEmail(id)}
+                  >
+                    <Trash2 className="w-4 h-4 text-red-500 cursor-pointer" />
+                  </Button>
+                            </>
+                          )
+                        }
+                      </div>
+                      </div>
+                  
+                    )
+                  })}
                 </div>
               </div>
 
