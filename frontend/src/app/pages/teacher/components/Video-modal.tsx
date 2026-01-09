@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Video } from "@/types/video.types";
 import Loader from "@/components/Loader";
+import ConfirmationModal from "./confirmation-modal";
 
 function getYouTubeId(url: string): string | null {
     const match = url.match(/(?:v=|youtu\.be\/?)([\w-]{11})/);
@@ -97,6 +98,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
     const [playerReady, setPlayerReady] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [showOverlay, setShowOverlay] = useState(false);
+    const [showDeleteVideoModal, setShowDeleteVideoModal]=useState(false)
     const [errors, setErrors] = useState({
         startTime: "",
         endTime: ""
@@ -639,20 +641,40 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                     <Button
                                         variant="destructive"
                                         onClick={() => {
-                                            if (typeof onDelete === "function") onDelete();
+                                            if (typeof onDelete === "function") {
+                                                setShowDeleteVideoModal(true)
+                                            }
                                         }}
                                     >
-                                        Delete
+                                        Delete Video
                                     </Button>
                                 )}
                                 <Button
                                     onClick={handleSave}
                                     disabled={!playerReady || !url || hasErrors()}
                                 >
-                                    {action === "add" ? "Add Item " : "Update Item"}
+                                    {action === "add" ? "Add Item " : "Update Video"}
                                 </Button>
+                                
                             </div>
+                            
                         )}
+                         <div className="relative group">
+                            <ConfirmationModal
+                                isOpen={showDeleteVideoModal}
+                                onClose={() => setShowDeleteVideoModal(false)}
+                                onConfirm={onDelete}
+                                title="Delete Video"
+                                description="This will delete this video. Are you sure you want to delete it?"
+                                confirmText="Delete"
+                                cancelText="Cancel"
+                                isDestructive={true}
+                                // isLoading={}
+                                loadingText="Deleting..."
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                        </div>
+                       
                     </div>
                 </div>
             }

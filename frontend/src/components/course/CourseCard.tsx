@@ -1,4 +1,4 @@
-import { Clock, FileText, CheckCircle2, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail } from "lucide-react";
+import { Clock, FileText, CheckCircle2, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, Redo2, Play, LifeBuoy, Mail} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -190,11 +190,29 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           </p>
           <div className="mt-auto flex flex-col sm:flex-row gap-2">
             <Button
-              variant={progress === 0 ? "default" : isCompleted ? "secondary" : "default"}
-              className={`${progress === 0 ? "" : isCompleted ? "" : "border-accent hover:bg-accent/10"} w-full sm:w-auto`}
+              variant={progress === 0 ? "default" : isCompleted ? "default" : "default"}
+              className={`${
+                progress === 0
+                  ? ""
+                  : isCompleted
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
+                    : "border-accent hover:bg-accent/10"
+              } w-full sm:w-auto transition-all duration-200`}
               onClick={handleContinue}
             >
-              {progress === 0 ? 'Start' : progress >= 100 ? 'Completed' : 'Continue'}
+              {progress === 0 ? (
+                <>
+                  <Play className="h-4 w-4 mr-2" />
+                  Start
+                </>
+              ) : progress >= 100 ? (
+                <>
+                  <Redo2 className="h-4 w-4 mr-2" />
+                  Re-watch
+                </>
+              ) : (
+                'Continue'
+              )}
             </Button>
             <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
               <DialogTrigger asChild>
