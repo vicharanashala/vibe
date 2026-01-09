@@ -40,6 +40,10 @@ import type { EmailInvite, EnrollmentRole, InviteStatus, InviteResult } from "@/
 import { useNavigate, redirect } from "@tanstack/react-router"
 import { Pagination } from "@/components/ui/Pagination"
 
+const isValidEmail = (email: string) => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
 export default function InvitePage() {
   const navigate = useNavigate()
 
@@ -483,7 +487,21 @@ const addInviteRow = () => {
       </Badge>
     )
   }
+  // ---------------- EMAIL COUNT LOGIC ----------------
 
+// count only valid emails
+const validEmailCount = inviteEmails.filter(
+  (invite) =>
+    invite.email.trim() !== "" &&
+    isValidEmail(invite.email)
+).length
+
+// check if any invalid email exists
+const hasInvalidEmail = inviteEmails.some(
+  (invite) =>
+    invite.email.trim() !== "" &&
+    !isValidEmail(invite.email)
+)
   if (courseLoading || versionLoading) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -529,7 +547,7 @@ const addInviteRow = () => {
               <span>Send New Invites</span>
             </div>
             <Badge variant="secondary" className="text-xs">
-              {inviteEmails.filter(invite => invite.email.trim() !== "").length} recipient(s)
+              {validEmailCount} recipient(s)
             </Badge>
           </CardTitle>
         </CardHeader>
@@ -542,16 +560,27 @@ const addInviteRow = () => {
                   #{index + 1}
                 </div>
 
-                <div className="flex-1">
-                  <Input
-                    id={`email-${index}`}
-                    type="email"
-                    placeholder="Enter email address (space-separated for multiple)"
-                    value={invite.email}
-                    onChange={(e) => updateInviteEmail(index, e.target.value)}
-                    className="h-9"
-                  />
-                </div>
+                <div className="flex-1 space-y-1">
+  <Input
+    id={`email-${index}`}
+    type="email"
+    placeholder="Enter email (space-separated)"
+    value={invite.email}
+    onChange={(e) => updateInviteEmail(index, e.target.value)}
+    className={`h-9 ${
+      invite.email && !isValidEmail(invite.email)
+        ? "border-destructive focus-visible:ring-destructive/30"
+        : ""
+    }`}
+  />
+
+  {/* Show only when invalid */}
+  {invite.email && !isValidEmail(invite.email) && (
+    <p className="text-xs text-destructive">
+      Enter a valid email address
+    </p>
+  )}
+</div>
 
                 <div className="lg:w-40">
                   <Select
@@ -605,7 +634,7 @@ const addInviteRow = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-3 sm:space-y-0">
             <div className="text-sm text-muted-foreground">
               <span className="font-medium text-foreground">
-                {inviteEmails.filter(invite => invite.email.trim() !== "").length}
+                {hasInvalidEmail ? 0 : validEmailCount}
               </span>
               {" "}valid email(s) ready to send
             </div>
@@ -621,7 +650,11 @@ const addInviteRow = () => {
               </Button>
               <Button
                 onClick={handleSendInvites}
-                disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0 }
+                 disabled={
+    inviteUsers.isPending ||
+    hasInvalidEmail ||
+    validEmailCount === 0
+  }
                 className="min-w-[120px]"
               >
                 {inviteUsers.isPending ? (
