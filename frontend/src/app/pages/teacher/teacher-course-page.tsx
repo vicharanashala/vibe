@@ -1410,13 +1410,17 @@ function TeacherCourseContent() {
                                                         })}
                                                       </span>
                                                     </SidebarMenuSubButton>
-                                                    <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideItem(item._id, !item.isHidden)} disabled={section.isHidden || module.isHidden || hidingItemId === item._id}>
+                                                    <Button className="absolute  top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideItem(item._id, !item.isHidden)} disabled={section.isHidden || module.isHidden || hidingItemId === item._id}>
                                                       {hidingItemId === item._id ? (
                                                         <Loader2 className="h-4 w-4 animate-spin" />
                                                       ) : !item.isHidden ? (
-                                                        <Eye className="h-4 w-4" />
+                                                        <Eye className={`h-4 w-4 ${selectedItem.id == item._id
+                                                        ? "text-gray-200"
+                                                        : "text-muted-foreground"}` } />
                                                       ) : (
-                                                        <EyeOff className="h-4 w-4" />
+                                                        <EyeOff className={`h-4 w-4 ${selectedItem.id == item._id
+                                                        ? "text-gray-200"
+                                                        : "text-muted-foreground"}` } />
                                                       )}
                                                       <span className="sr-only">Hide Item</span>
                                                     </Button>
