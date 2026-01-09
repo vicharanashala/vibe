@@ -20,7 +20,7 @@ const QuizWizardModal: React.FC<QuizWizardProps> = ({ quizWizardOpen, setQuizWiz
         name: '',
         description: '',
         passThreshold: 0.7,
-        maxAttempts: 3,
+        maxAttempts: -1,
         quizType: 'NO_DEADLINE',
         approximateTimeToComplete: '00:30:00',
         allowPartialGrading: true,

@@ -1,4 +1,4 @@
-import { Clock, FileText, CheckCircle2, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, Redo2, Play } from "lucide-react";
+import { Clock, FileText, CheckCircle2, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, Redo2, Play, LifeBuoy, Mail} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +37,11 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  const [isSupportOpen, setIsSupportOpen] = useState(false);
+  const supportEmail =
+    enrollment.courseId === "692f030a945e82ec875e9116"
+      ? "vibe-support@vicharanashala.zohodesk"
+      : "internship-support@vicharanashala.zohodesk";
 
   // const progress = Math.round(enrollment.percentCompleted || 0) as number 
   const progress = Number(((enrollment.percentCompleted || 0)).toFixed(1));
@@ -449,6 +454,84 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               </Dialog>
             )}
 
+          {(
+            enrollment.courseId === "6943b2cafa4e840eb39490b6" ||
+            enrollment.courseId === "692f030a945e82ec875e9116"
+          ) && (
+            <Dialog open={isSupportOpen} onOpenChange={setIsSupportOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto">
+                  Support
+                </Button>
+              </DialogTrigger>
+
+              <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 max-h-full flex flex-col">
+                <DialogHeader className="mb-3 text-left">
+                  <DialogTitle>Support Details</DialogTitle>
+                </DialogHeader>
+
+                <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[800px] overflow-y-auto">
+                  <>
+                    <Separator className="mb-6" />
+
+                    <div className="space-y-4">
+                      {/* Section Header */}
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                          <LifeBuoy className="w-4 h-4 text-primary-foreground" />
+                        </div>
+                        <h3 className="text-lg font-semibold">Internship Support</h3>
+                      </div>
+
+                      {/* Support Card */}
+                      <div className="rounded-xl border bg-primary/5 shadow-sm hover:shadow-md transition-all">
+                        <div className="p-6 space-y-5">
+                          {/* Top */}
+                          <div className="flex items-center gap-3">
+                            <div className="w-14 h-14 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-md">
+                              <Mail className="w-7 h-7" />
+                            </div>
+
+                            <div>
+                              <p className="font-semibold text-base">
+                                Contact Support
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                We usually respond within 24 hours
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Description */}
+                          <p className="text-sm text-muted-foreground leading-relaxed px-4 py-3 rounded-lg border bg-primary/5">
+                            For course-related queries, guidance, or issues, feel free to
+                            reach out to our support team via email.
+                          </p>
+
+                          {/* Email */}
+                          <div className="flex items-center gap-2.5">
+                            <Button asChild className="flex-1">
+                              <a
+                                href={`mailto:${supportEmail}`}
+                                className="flex items-center justify-center gap-2"
+                              >
+                                <Mail className="w-4 h-4" />
+                                {supportEmail}
+                              </a>
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                </ScrollArea>
+              </DialogContent>
+            </Dialog>
+          )}
+
+
+
+
           </div>
         </CardContent>
       </Card>
@@ -584,121 +667,123 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { course
   };
 
   return (
-    <DialogContent className="max-w-6xl">
-      <DialogHeader>
+    <DialogContent className="max-w-6xl h-[85vh] flex flex-col overflow-hidden">
+      <DialogHeader className="flex-shrink-0 pb-4">
         <DialogTitle className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-yellow-600" />
           {courseName || 'Course'} Leaderboard
         </DialogTitle>
-        <p className="text-sm text-muted-foreground mb-4">
+        <p className="text-sm text-muted-foreground">
           Students ranked by completion percentage and completion time
         </p>
       </DialogHeader>
 
-      <ScrollArea className="h-[600px] pr-4">
-        {isLoading && (
-          <div className="space-y-3">
-            {Array.from({ length: 10 }).map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full" />
-            ))}
-          </div>
-        )}
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full pr-4">
+          {isLoading && (
+            <div className="space-y-3">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          )}
 
-        {error && !isLoading && (
-          <p className="text-muted-foreground text-center py-8">{error}</p>
-        )}
+          {error && !isLoading && (
+            <p className="text-muted-foreground text-center py-8">{error}</p>
+          )}
 
-        {!isLoading && !error && (!leaderboard || leaderboard.length === 0) && (
-          <p className="text-muted-foreground text-center py-8">
-            No students enrolled yet
-          </p>
-        )}
+          {!isLoading && !error && (!leaderboard || leaderboard.length === 0) && (
+            <p className="text-muted-foreground text-center py-8">
+              No students enrolled yet
+            </p>
+          )}
 
-        {!isLoading && !error && leaderboard && leaderboard.length > 0 && (
-          <div className="space-y-2">
-            {leaderboard.map((entry) => {
-              const rankStyle = getRankStyle(entry.rank);
-              return (
-                <div
-                  key={entry.userId}
-                  className={cn(
-                    "flex items-center gap-3 p-3 rounded-lg transition-colors",
-                    entry.rank <= 3
-                      ? "bg-muted/50 border-2"
-                      : "bg-muted/20",
-                    entry.rank === 1 && "border-yellow-400",
-                    entry.rank === 2 && "border-gray-400",
-                    entry.rank === 3 && "border-orange-400"
-                  )}
-                >
-                  {/* Rank */}
-                  <div className="flex-shrink-0 w-10 text-center">
-                    {entry.rank <= 3 ? (
-                      <div className={cn("w-8 h-8 rounded-full flex items-center justify-center mx-auto", rankStyle.bgColor)}>
-                        <span className={cn("font-bold text-sm", rankStyle.textColor)}>
-                          {entry.rank}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-base font-semibold text-muted-foreground">
-                        {entry.rank}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Avatar */}
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback
-                      className={cn(
-                        entry.rank === 1 && "bg-yellow-100 text-yellow-800",
-                        entry.rank === 2 && "bg-gray-100 text-gray-700",
-                        entry.rank === 3 && "bg-orange-100 text-orange-700",
-                        entry.rank > 3 && "bg-muted"
-                      )}
-                    >
-                      {getInitials(entry.userName)}
-                    </AvatarFallback>
-                  </Avatar>
-
-                  {/* Name and Stats */}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold truncate">{entry.userName}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {Math.round(entry.completionPercentage) === 100 ? (
-                        <>
-                          <span className="text-green-600 font-medium">
-                            ✓ Completed
-                          </span>
-                          {entry.completedAt && (
-                            <span className="ml-2">
-                              on {new Date(entry.completedAt).toLocaleString()}
-                            </span>
-                          )}
-                        </>
-                      ) : (
-                        `In Progress: ${Math.round(entry.completionPercentage)}%`
-                      )}
-                    </p>
-                  </div>
-
-                  {/* Completion Badge */}
+          {!isLoading && !error && leaderboard && leaderboard.length > 0 && (
+            <div className="space-y-2 pb-4">
+              {leaderboard.map((entry) => {
+                const rankStyle = getRankStyle(entry.rank);
+                return (
                   <div
+                    key={entry.userId}
                     className={cn(
-                      "px-3 py-1 rounded-full font-semibold text-sm",
-                      Math.round(entry.completionPercentage) === 100
-                        ? "bg-green-100 text-green-800"
-                        : "bg-blue-100 text-blue-800"
+                      "flex items-center gap-3 p-3 rounded-lg transition-colors",
+                      entry.rank <= 3
+                        ? "bg-muted/50 border-2"
+                        : "bg-muted/20",
+                      entry.rank === 1 && "border-yellow-400",
+                      entry.rank === 2 && "border-gray-400",
+                      entry.rank === 3 && "border-orange-400"
                     )}
                   >
-                    {Math.round(entry.completionPercentage)}%
+                    {/* Rank */}
+                    <div className="flex-shrink-0 w-10 text-center">
+                      {entry.rank <= 3 ? (
+                        <div className={cn("w-8 h-8 rounded-full flex items-center justify-center mx-auto", rankStyle.bgColor)}>
+                          <span className={cn("font-bold text-sm", rankStyle.textColor)}>
+                            {entry.rank}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-base font-semibold text-muted-foreground">
+                          {entry.rank}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Avatar */}
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback
+                        className={cn(
+                          entry.rank === 1 && "bg-yellow-100 text-yellow-800",
+                          entry.rank === 2 && "bg-gray-100 text-gray-700",
+                          entry.rank === 3 && "bg-orange-100 text-orange-700",
+                          entry.rank > 3 && "bg-muted"
+                        )}
+                      >
+                        {getInitials(entry.userName)}
+                      </AvatarFallback>
+                    </Avatar>
+
+                    {/* Name and Stats */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold truncate">{entry.userName}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {Math.round(entry.completionPercentage) === 100 ? (
+                          <>
+                            <span className="text-green-600 font-medium">
+                              ✓ Completed
+                            </span>
+                            {entry.completedAt && (
+                              <span className="ml-2">
+                                on {new Date(entry.completedAt).toLocaleString()}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          `In Progress: ${Math.round(entry.completionPercentage)}%`
+                        )}
+                      </p>
+                    </div>
+
+                    {/* Completion Badge */}
+                    <div
+                      className={cn(
+                        "px-3 py-1 rounded-full font-semibold text-sm",
+                        Math.round(entry.completionPercentage) === 100
+                          ? "bg-green-100 text-green-800"
+                          : "bg-blue-100 text-blue-800"
+                      )}
+                    >
+                      {Math.round(entry.completionPercentage)}%
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </ScrollArea>
-      <div className="p-4 border-t border-border/50 bg-gradient-card flex items-center justify-between">
+                );
+              })}
+            </div>
+          )}
+        </ScrollArea>
+      </div>
+      <div className="flex-shrink-0 pt-4 border-t border-border/50 bg-background flex items-center justify-between">
         {/* My Stats */}
         {myStats ? (
           <div className="flex items-center gap-4 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border/50">
