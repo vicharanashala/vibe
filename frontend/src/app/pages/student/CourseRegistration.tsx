@@ -278,8 +278,7 @@ const CourseRegistration: React.FC = () => {
                   </Button>
                 </DialogTrigger>
                 <DialogContent
-                  className=" p-6 pb-1 "
-                  style={{ height: '80vh' }}
+                  className=" p-6 pb-1  max-h-[80vh] "
                 >
                   <DialogHeader className="mb-4 ml-5">
                     <div className="flex items-center justify-between">
@@ -288,8 +287,7 @@ const CourseRegistration: React.FC = () => {
                       </DialogTitle>
                     </div>
                   </DialogHeader>
-
-                  <ScrollArea className="h-[calc(80vh-80px)] px-4">
+                  <ScrollArea className="max-h-[calc(80vh-80px)] h-auto px-4 overflow-auto">
                     {isFormFieldsLoading ? (
                       <div className="text-center text-muted-foreground py-8">
                         Loading form fields...
