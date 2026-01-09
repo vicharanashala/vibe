@@ -165,7 +165,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                               <Info className="h-3.5 w-3.5 text-muted-foreground cursor-pointer hover:text-foreground transition-colors" />
                             </TooltipTrigger>
                           <TooltipContent>
-                            <p>These are tenta</p>
+                            <p>These are the tentative numbers, please keep in mind.</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
