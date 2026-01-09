@@ -4,6 +4,7 @@ import { Input } from '../../../../components/ui/input';
 import { Label } from '../../../../components/ui/label';
 import { Textarea } from '../../../../components/ui/textarea';
 import { Save, Trash2, X, Edit } from 'lucide-react';
+import ConfirmationModal from './confirmation-modal';
 
 interface ProjectItemProps {
   open?: boolean; // If true, render as modal (add mode)
@@ -39,6 +40,8 @@ export default function ProjectItem({
     name: controlledName || '', 
     description: controlledDescription || '' 
   });
+
+  const [showDeleteProjectModal, setShowDeleteProjectModal]=useState(false)
   
   // Only use local state for add mode (modal)
   const [localName, setLocalName] = useState(initialValues?.name || '');
@@ -175,7 +178,7 @@ export default function ProjectItem({
             <Button 
               type="button" 
               variant="destructive" 
-              onClick={onDelete} 
+              onClick={() => setShowDeleteProjectModal(true)} 
               disabled={isSaving || isDeleting}
             >
               <Trash2 className="h-4 w-4 mr-2" />
@@ -183,6 +186,21 @@ export default function ProjectItem({
             </Button>
           )}
         </div>
+        <div className="relative group">
+                                    <ConfirmationModal
+                                        isOpen={showDeleteProjectModal}
+                                        onClose={() => setShowDeleteProjectModal(false)}
+                                        onConfirm={onDelete}
+                                        title="Delete Project"
+                                        description="This will delete this project. Are you sure you want to delete it?"
+                                        confirmText="Delete"
+                                        cancelText="Cancel"
+                                        isDestructive={true}
+                                        isLoading={isDeleting}
+                                        loadingText="Deleting..."
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                </div>
       </div>
     );
   }
