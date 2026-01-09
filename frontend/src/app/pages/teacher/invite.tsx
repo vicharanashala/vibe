@@ -173,7 +173,20 @@ const [inviteEmails, setInviteEmails] = useState<EmailInvite[]>([
 
 // Handle adding new invite row
 const addInviteRow = () => {
-  setInviteEmails([...inviteEmails, { email: "", role: defaultRole }]);
+  const lastInvite = inviteEmails[inviteEmails.length - 1];
+
+  if (
+    lastInvite.email.trim() === "" ||
+    !isValidEmail(lastInvite.email)
+  ) {
+    toast.error("Please enter a valid email before adding another.");
+    return;
+  }
+
+  setInviteEmails([
+    ...inviteEmails,
+    { email: "", role: defaultRole },
+  ]);
 };
 
 
