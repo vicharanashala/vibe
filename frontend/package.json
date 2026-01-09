@@ -89,7 +89,6 @@
     "@yoopta/table": "^4.9.4",
     "@yoopta/toolbar": "^4.9.4",
     "@yoopta/video": "^4.9.4",
-    "alert": "link:@/components/ui/alert",
     "antd": "^3.26.20",
     "canvas-confetti": "^1.9.3",
     "class-variance-authority": "^0.7.1",
