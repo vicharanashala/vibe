@@ -138,8 +138,16 @@ export default function LoginPage() {
 
   const validateForm = () => {
     const errors: typeof formErrors = {};
-    if (!fullName) errors.fullName = "Name is required";
-    else if (!/^[A-Za-z ]+$/.test(fullName)) errors.fullName = "Name can only contain letters and spaces";
+
+    // if (!fullName) errors.fullName = "Name is required";
+    // else if (!/^[A-Za-z ]+$/.test(fullName)) errors.fullName = "Name can only contain letters and spaces";
+
+    if (isSignUp) {
+      if (!fullName) errors.fullName = "Name is required";
+      else if (!/^[A-Za-z ]+$/.test(fullName)) {
+        errors.fullName = "Name can only contain letters and spaces";
+      }
+    }
 
     if (!email) errors.email = "Email is required";
     else if (!/\S+@\S+\.\S+/.test(email)) errors.email = "Invalid email format";
@@ -200,6 +208,7 @@ export default function LoginPage() {
 
   const handleEmailLogin = async () => {
     try {
+      if (!validateForm()) return;
       setLoading(true);
       setFormErrors({});
 
@@ -233,15 +242,23 @@ export default function LoginPage() {
 
   // New function for handling signup
   const handleEmailSignup = async () => {
-    // if (!validateForm()) return;
+    if (!validateForm()) return;
 
-    if (!passwordsMatch) {
+    // if (!passwordsMatch) {
+    //   setFormErrors({
+    //     ...formErrors,
+    //     password: "Passwords do not match",
+    //   });
+    //   return;
+    // }
+    if (password !== confirmPassword) {
       setFormErrors({
         ...formErrors,
         password: "Passwords do not match",
       });
       return;
     }
+
 
     if (passwordStrength.value < 50) {
       setFormErrors({

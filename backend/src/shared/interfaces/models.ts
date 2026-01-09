@@ -604,6 +604,10 @@ export class BulkEnrollmentsQuery {
 
   @IsOptional()
   @IsString()
+  versionId?: string;
+
+  @IsOptional()
+  @IsString()
   userId?: string;
 }
 
