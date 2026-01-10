@@ -1355,14 +1355,6 @@ class ProgressService extends BaseService {
     }
     if (!progress) throw new NotFoundError('Progress not found');
 
-    if (
-      progress.currentModule.toString() !== moduleId ||
-      progress.currentSection.toString() !== sectionId ||
-      progress.currentItem.toString() !== itemId
-    ) {
-      throw new BadRequestError('Progress mismatch');
-    }
-
     const item = await this.itemRepo.readItem(courseVersionId, itemId);
     if (!item) throw new NotFoundError('Item not found');
 
@@ -1380,6 +1372,16 @@ class ProgressService extends BaseService {
       if (!submittedQuiz) throw new BadRequestError('Quiz not submitted');
       if (submittedQuiz.gradingResult.gradingStatus !== 'PASSED') {
         isQuizFailed = true;
+      }
+    }
+
+    if (
+      progress.currentModule.toString() !== moduleId ||
+      progress.currentSection.toString() !== sectionId ||
+      progress.currentItem.toString() !== itemId
+    ) {
+      if (item.type !== 'QUIZ') {
+        throw new BadRequestError('Progress mismatch');
       }
     }
 
