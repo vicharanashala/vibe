@@ -67,12 +67,16 @@ export class IAnomalyData {
 }
 
 export class AnomalyDataResponse extends IAnomalyData {
+<<<<<<< HEAD
   @IsString()
   @IsNotEmpty()
   @JSONSchema({
     description: 'URL of the file',
   })
   fileUrl: string;
+=======
+  fileUrl?: string
+>>>>>>> ca8a90da6b5f90465f01bfc8ac57bc4d8c9dee0d
 }
 
 export class AnomalyStats {

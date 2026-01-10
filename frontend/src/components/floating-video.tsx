@@ -10,7 +10,10 @@ import FaceRecognitionOverlay from './ai/FaceRecognitionOverlay';
 // import FaceRecognitionIntegrated from '../ai-components/FaceRecognitionIntegrated';
 import useCameraProcessor from './ai/useCameraProcessor';
 import { AnomalyType } from '@/types/reportanomaly.types';
+<<<<<<< HEAD
 import { useAuthStore } from '@/store/auth-store';
+=======
+>>>>>>> ca8a90da6b5f90465f01bfc8ac57bc4d8c9dee0d
 import { useCourseStore } from '@/store/course-store';
 import type { FloatingVideoProps } from '@/types/video.types';
 import { useReportAnomalyAudio, useReportAnomalyImage } from '@/hooks/hooks';

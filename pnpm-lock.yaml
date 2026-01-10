@@ -189,10 +189,14 @@ importers:
         version: 1.4.10(@types/express@5.0.5)
       '@types/express':
         specifier: ^5.0.0
+<<<<<<< HEAD
         version: 5.0.5
       '@types/express-session':
         specifier: ^1.18.2
         version: 1.18.2
+=======
+        version: 5.0.1
+>>>>>>> ca8a90da6b5f90465f01bfc8ac57bc4d8c9dee0d
       '@types/fluent-ffmpeg':
         specifier: ^2.1.25
         version: 2.1.28
@@ -209,8 +213,13 @@ importers:
         specifier: ^1.4.12
         version: 1.4.13
       '@types/node':
+<<<<<<< HEAD
         specifier: ^22.15.21
         version: 22.19.1
+=======
+        specifier: ^22.7.5
+        version: 22.15.21
+>>>>>>> ca8a90da6b5f90465f01bfc8ac57bc4d8c9dee0d
       '@types/pdf-parse':
         specifier: ^1.1.4
         version: 1.1.5

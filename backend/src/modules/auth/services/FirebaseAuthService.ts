@@ -7,7 +7,7 @@ import {
 import {IAuthService} from '#auth/interfaces/IAuthService.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {injectable, inject} from 'inversify';
-import {InternalServerError} from 'routing-controllers';
+import {InternalServerError, Session} from 'routing-controllers';
 import admin from 'firebase-admin';
 import {IUser} from '#root/shared/interfaces/models.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
@@ -74,19 +74,35 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     this.auth = admin.auth();
   }
   async getCurrentUserFromToken(token: string): Promise<IUser> {
-    // Verify the token and decode it to get the Firebase UID
-    const decodedToken = await this.auth.verifyIdToken(token);
-    const firebaseUID = decodedToken.uid;
+    return this._withTransaction(async (session) => {
+      // Verify the token and decode it to get the Firebase UID
+      const decodedToken = await this.auth.verifyIdToken(token);
+      const firebaseUID = decodedToken.uid;
 
-    // Retrieve the user from our database using the Firebase UID
-    const user = await this.userRepository.findByFirebaseUID(firebaseUID);
-    if (!user) {
-      // get user data from Firebase
-      try {
-        const firebaseUser = await this.auth.getUser(firebaseUID);
-        if (!firebaseUser) {
-          throw new InternalServerError('Firebase user not found');
+      // Retrieve the user from our database using the Firebase UID
+      const user = await this.userRepository.findByFirebaseUID(firebaseUID, session);
+      if (!user) {
+        // get user data from Firebase
+        try {
+          const firebaseUser = await this.auth.getUser(firebaseUID);
+          if (!firebaseUser) {
+            throw new InternalServerError('Firebase user not found');
+          }
+          console.log('Firebase user retrieved:', firebaseUser);
+          // Map Firebase user data to our application user model
+          const userData: GoogleSignUpBody = {
+            email: firebaseUser.email,
+            firstName: firebaseUser.displayName?.split(' ')[0] || '',
+            lastName: firebaseUser.displayName?.split(' ')[1] || '',
+          };
+          const createdUser = await this.googleSignup(userData, token);
+          if (!createdUser) {
+            throw new InternalServerError('Failed to create the user');
+          }
+        } catch (error) {
+          throw new InternalServerError(`Failed to retrieve user from Firebase: ${error.message}`);
         }
+<<<<<<< HEAD
         // Map Firebase user data to our application user model
         const userData: GoogleSignUpBody = {
           email: firebaseUser.email,
@@ -101,10 +117,12 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
         throw new InternalServerError(
           `Failed to retrieve user from Firebase: ${error.message}`,
         );
+=======
+>>>>>>> ca8a90da6b5f90465f01bfc8ac57bc4d8c9dee0d
       }
-    }
-    user._id = user._id.toString();
-    return user;
+      user._id = user._id.toString();
+      return user;
+    });
   }
   async getUserIdFromReq(req: any): Promise<string> {
     // Extract the token from the request headers
