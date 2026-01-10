@@ -1012,7 +1012,7 @@ const lastCalledRef = useRef<number>(0);
   const floatingVideoContent = (
     <div
       ref={containerRef}
-      className={`z-[999999] bg-black rounded-lg shadow-lg border border-gray-600 overflow-hidden select-none transition-all duration-300 ${isPoppedOut
+      className={`z-[999999] bg-black rounded-lg shadow-lg  overflow-hidden select-none transition-all duration-300 ${isPoppedOut
         ? 'fixed'
         : 'relative'
         }`}
@@ -1033,19 +1033,19 @@ const lastCalledRef = useRef<number>(0);
 
       {/* Grace period status display */}
       {isInGracePeriod && (
-        <div className="absolute top-2 left-2 bg-blue-500 text-white px-2 py-1 rounded text-xs z-50">
+         <div className="absolute top-1 left-1 bg-blue-600 text-white px-2 py-1 rounded text-xs z-50">
           ⏳ Calibrating: {Math.ceil(remainingGrace / 1000)}s
         </div>
       )}
 
       {/* Header - Anomaly state */}
       {isAnomaliesDetected && (
-        <div className="bg-green-600 text-white px-3 py-1 flex justify-between items-center text-sm min-h-[34px]">
+        <div className={`bg-red-600 text-white px-3 py-1 flex justify-between items-center text-sm min-h-[34px]`}>
           <div className="flex items-center space-x-2 flex-1 min-w-0">
             <span className="font-medium truncate">
               {isThumbsUpChallenge
                 ? `👍 Show Thumbs Up: ${thumbsUpCountdown}s`
-                : `🚨 ${isCollapsed ? `${penaltyType || 'Anomalies'} (${penaltyPoints})` : 'Detected Anomalies!'}`
+                : `⚠️ ${isCollapsed ? `${penaltyType || 'Anomalies'} (${penaltyPoints})` : 'Detected Anomalies!'}`
               }
             </span>
           </div>
