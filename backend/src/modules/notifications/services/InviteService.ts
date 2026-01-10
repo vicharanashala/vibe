@@ -747,6 +747,26 @@ export class InviteService extends BaseService {
     }
   }
 
+  // Reject Invite
+  
+  async rejectInvite(inviteId: string): Promise<{ message: string }> {
+  const invite = await this.inviteRepo.findInviteById(inviteId);
+  if (!invite) {
+    throw new NotFoundError('Invite not found');
+  }
+
+  if (invite.inviteStatus !== 'PENDING') {
+    throw new BadRequestError('Only pending invites can be rejected');
+  }
+
+  await this.inviteRepo.updateInvite(inviteId, {
+    inviteStatus: 'REJECTED',
+  });
+
+  return { message: 'Invite rejected successfully.' };
+}
+
+
   async findInvitesForCourse(
     courseId: string,
     courseVersionId: string,

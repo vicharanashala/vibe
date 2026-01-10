@@ -511,7 +511,7 @@ export function useCreateCourse(): {
   };
 }
 
-export async function useProcessInvites(inviteId: string): Promise<{
+export async function   useProcessInvites(inviteId: string): Promise<{
   data: null,
   isLoading: boolean,
   error: string | null,
@@ -540,6 +540,40 @@ export async function useProcessInvites(inviteId: string): Promise<{
     refetch: () => { }
   }
 }
+
+// POST /notifications/invite/reject/{inviteId}
+export async function rejectInvite(inviteId: string): Promise<{
+  data: null,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+}> {
+  let isLoading = true;
+  const method = 'POST';
+  const url = `${import.meta.env.VITE_BASE_URL}/notifications/invite/reject/${inviteId}`;
+
+  const res = await fetch(url, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'authorization': `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+    },
+  });
+
+  isLoading = false;
+
+  if (!res.ok) {
+    throw new Error(`Failed to reject invite: ${res.status}`);
+  }
+
+  return {
+    data: null,
+    isLoading,
+    error: null,
+    refetch: () => {},
+  };
+}
+
 
 // GET /courses/{id}
 export function useCourseById(id: string, enabled?: boolean): {

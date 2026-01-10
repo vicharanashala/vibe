@@ -1,4 +1,4 @@
-import { useProcessInvites } from "@/hooks/hooks";
+import { useProcessInvites,rejectInvite } from "@/hooks/hooks";
 import { useState } from "react";
 import { Button } from "./ui/button";
 
@@ -10,6 +10,14 @@ const InviteItem = ({ invite }) => {
         const { data, isLoading, error } = await useProcessInvites(invite.inviteId);
         if (!isLoading && !error) {
             setStatus("ACCEPTED");
+            setIsExpanded(false);
+            window.location.reload();
+        }
+    };
+    const onReject = async (invite) => {
+        const { isLoading, error } = await rejectInvite(invite.inviteId);
+        if (!isLoading && !error) {
+            setStatus("REJECTED");
             setIsExpanded(false);
             window.location.reload();
         }
@@ -53,6 +61,16 @@ const InviteItem = ({ invite }) => {
                     >
                         Accept
                     </Button>
+                     <Button
+            variant="ghost"
+            onClick={(e) => {
+                e.stopPropagation();
+                onReject(invite);
+            }}
+            className="text-sm cursor-pointer font-medium text-red-600 dark:text-red-400"
+        >
+            Reject
+        </Button>
                 </div>
             )}
         </li>

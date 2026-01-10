@@ -322,4 +322,23 @@ export class InviteController {
 
     return this.inviteService.cancelInvite(inviteId);
   }
+
+  // Reject Invite Endpoint
+  @Authorized()
+  @Post('/reject/:inviteId')
+  @HttpCode(200)
+  @OpenAPI({
+    summary: 'Reject Invite',
+    description: 'Reject an invite by the invited user',
+  })
+  @ResponseSchema(MessageResponse, {
+    description: 'Invite rejected successfully',
+    statusCode: 200,
+  })
+  async rejectInvite(
+    @Params() params: InviteIdParams,
+  ): Promise<MessageResponse> {
+    const {inviteId} = params;
+    return this.inviteService.rejectInvite(inviteId);
+  }
 }
