@@ -1546,33 +1546,38 @@ export default function CoursePage() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
-                {/* Support Link - shown if configured by instructor */}
-                {(courseVersionData as any)?.supportLink && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-green-500/20 hover:to-green-500/5 hover:shadow-sm"
-                    >
-                      <a
-                        href={(courseVersionData as any).supportLink.startsWith('mailto:') || (courseVersionData as any).supportLink.includes('@')
-                          ? (courseVersionData as any).supportLink.startsWith('mailto:')
-                            ? (courseVersionData as any).supportLink
-                            : `mailto:${(courseVersionData as any).supportLink}`
-                          : (courseVersionData as any).supportLink
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3"
+                {(courseVersionData as any)?.supportLink && (() => {
+                  const link = (courseVersionData as any).supportLink;
+                  const isEmail = link.startsWith('mailto:') || (!link.startsWith('http://') && !link.startsWith('https://') && !link.startsWith('//') && link.includes('@'));
+                  const href = link.startsWith('mailto:')
+                    ? link
+                    : link.startsWith('http://') || link.startsWith('https://') || link.startsWith('//')
+                      ? link
+                      : link.includes('@')
+                        ? `mailto:${link}`
+                        : link;
+                  return (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
                       >
-                        <div className="p-1 rounded-md bg-green-500/15">
-                          <Headphones className="h-4 w-4 text-green-600" />
-                        </div>
-                        <span className="text-sm font-medium">Get Support</span>
-                        <ExternalLink className="h-3 w-3 text-muted-foreground ml-auto" />
-                      </a>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
+                        <a
+                          href={href}
+                          target={isEmail ? undefined : "_blank"}
+                          rel={isEmail ? undefined : "noopener noreferrer"}
+                          className="flex items-center gap-3"
+                        >
+                          <div className="p-1 rounded-md bg-accent/15">
+                            <Headphones className="h-4 w-4 text-accent-foreground" />
+                          </div>
+                          <span className="text-sm font-medium">Get Support</span>
+                          <ExternalLink className="h-3 w-3 text-muted-foreground ml-auto" />
+                        </a>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })()}
 
                 <Separator className="my-2 opacity-50" />
 
