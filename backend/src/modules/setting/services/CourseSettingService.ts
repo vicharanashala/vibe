@@ -236,6 +236,27 @@ class CourseSettingService extends BaseService {
     });
   }
     */
+
+
+  /**   
+   * Checks if linear progression is enabled for a specific course and version.
+   * @param courseId - The ID of the course
+   * @param courseVersionId - The ID of the course version
+   * @returns False if linear progression field is false, true otherwise
+   */
+  async isLinearProgressionEnabled(
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<boolean> {
+    return this._withTransaction(async session => {
+      const isCourseEnabled = await this.settingsRepo.isLinearProgressionEnabled(
+        courseId,
+        courseVersionId,
+        session,
+      );
+      return isCourseEnabled;
+    });
+  }
 }
 
 export { CourseSettingService };
