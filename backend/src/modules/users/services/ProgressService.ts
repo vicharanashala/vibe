@@ -838,6 +838,47 @@ class ProgressService extends BaseService {
     return null;
   }
 
+  public async getPreviousVideoItem(
+    courseVersion: ICourseVersion,
+    moduleId: string,
+    sectionId: string,
+    itemId: string,
+  ): Promise<{
+    moduleId: string;
+    sectionId: string;
+    itemId: string;
+  } | null> {
+    let currentModuleId = moduleId;
+    let currentSectionId = sectionId;
+    let currentItemId = itemId;
+
+    while (true) {
+      const prevItem = await this.getPreviousItemInSequence(
+        courseVersion,
+        currentModuleId,
+        currentSectionId,
+        currentItemId,
+      );
+
+      if (!prevItem) {
+        return null;
+      }
+
+      const itemDetails = await this.itemRepo.readItem(
+        courseVersion._id.toString(),
+        prevItem.itemId,
+      );
+
+      if (itemDetails?.type === 'VIDEO') {
+        return prevItem;
+      }
+
+      currentModuleId = prevItem.moduleId;
+      currentSectionId = prevItem.sectionId;
+      currentItemId = prevItem.itemId;
+    }
+  }
+
   public async determineNextAllowedItem(
     currentItemId: string,
     quizMetrics: any,
@@ -1330,6 +1371,7 @@ class ProgressService extends BaseService {
        2. ITEM-TYPE VALIDATIONS (NO TRANSACTION)
     ---------------------------------------------------- */
 
+    let isQuizFailed = false;
     if (item.type === 'QUIZ' && !isSkipped) {
       const submittedQuiz = await this.submissionRepository.get(
         itemId,
@@ -1338,7 +1380,7 @@ class ProgressService extends BaseService {
       );
       if (!submittedQuiz) throw new BadRequestError('Quiz not submitted');
       if (submittedQuiz.gradingResult.gradingStatus !== 'PASSED') {
-        throw new BadRequestError('Quiz not passed');
+        isQuizFailed = true;
       }
     }
 
@@ -1381,7 +1423,7 @@ class ProgressService extends BaseService {
         }
       }
 
-      // Completed items
+      // Get completed items (needed for both passed and failed quizzes)
       const completedItemsArray =
         await this.progressRepository.getCompletedItems(
           userId,
@@ -1393,68 +1435,96 @@ class ProgressService extends BaseService {
       completedItemsSet = new Set(
         completedItemsArray.map(id => id.toString()),
       );
-      completedItemsSet.add(itemId);
 
-      // Find next item
-      const nextItem = await this.findNextPlayableItem(
-        courseVersion,
-        moduleId,
-        sectionId,
-        itemId,
-        completedItemsSet,
-      );
+      if (isQuizFailed) {
+        const previousVideoItem = await this.getPreviousVideoItem(
+          courseVersion,
+          moduleId,
+          sectionId,
+          itemId,
+        );
 
-      newProgress = nextItem
-        ? {
-          completed: false,
-          currentModule: nextItem.moduleId,
-          currentSection: nextItem.sectionId,
-          currentItem: nextItem.itemId,
-          skippedBlankQuizIds: nextItem.skippedBlankQuizIds || [],
+        if (!previousVideoItem) {
+          throw new BadRequestError('Quiz failed and no previous video found to review');
         }
-        : {
-          completed: true,
-          completedAt: new Date(),
-          currentModule: moduleId,
-          currentSection: sectionId,
-          currentItem: itemId,
+
+        newProgress = {
+          completed: false,
+          currentModule: previousVideoItem.moduleId,
+          currentSection: previousVideoItem.sectionId,
+          currentItem: previousVideoItem.itemId,
           skippedBlankQuizIds: [],
         };
 
-      // Sequential auto-complete skipped quizzes
-      for (const blankQuizId of newProgress.skippedBlankQuizIds) {
-        await this.progressRepository.startItemTracking(
+        await this.progressRepository.updateProgress(
           userId,
           courseId,
           courseVersionId,
-          blankQuizId,
+          newProgress,
           session,
         );
+      } else {
+        completedItemsSet.add(itemId);
 
-        const wt = await this.progressRepository.getWatchTime(
-          userId,
-          blankQuizId,
-          courseId,
-          courseVersionId,
-          session,
+        // Find next item
+        const nextItem = await this.findNextPlayableItem(
+          courseVersion,
+          moduleId,
+          sectionId,
+          itemId,
+          completedItemsSet,
         );
 
-        if (wt?.length) {
-          await this.progressRepository.stopItemTracking(
-            wt[0]._id.toString(),
+        newProgress = nextItem
+          ? {
+            completed: false,
+            currentModule: nextItem.moduleId,
+            currentSection: nextItem.sectionId,
+            currentItem: nextItem.itemId,
+            skippedBlankQuizIds: nextItem.skippedBlankQuizIds || [],
+          }
+          : {
+            completed: true,
+            completedAt: new Date(),
+            currentModule: moduleId,
+            currentSection: sectionId,
+            currentItem: itemId,
+            skippedBlankQuizIds: [],
+          };
+
+        for (const blankQuizId of newProgress.skippedBlankQuizIds) {
+          await this.progressRepository.startItemTracking(
+            userId,
+            courseId,
+            courseVersionId,
+            blankQuizId,
             session,
           );
-        }
-      }
 
-      // Critical update ONLY
-      await this.progressRepository.updateProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        newProgress,
-        session,
-      );
+          const wt = await this.progressRepository.getWatchTime(
+            userId,
+            blankQuizId,
+            courseId,
+            courseVersionId,
+            session,
+          );
+
+          if (wt?.length) {
+            await this.progressRepository.stopItemTracking(
+              wt[0]._id.toString(),
+              session,
+            );
+          }
+        }
+
+        await this.progressRepository.updateProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          newProgress,
+          session,
+        );
+      }
     });
 
     /* ----------------------------------------------------
