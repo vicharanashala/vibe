@@ -102,10 +102,6 @@ export class EnrollmentController {
     }
 
     const {role} = body;
-    console.log(
-      '<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Enroll User Role>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>: ',
-      role,
-    );
     const responseData = (await this.enrollmentService.enrollUser(
       userId,
       courseId,

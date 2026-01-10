@@ -274,14 +274,12 @@ export default function CoursePage() {
   }, [itemError, selectedItemId, previousValidItem, updateCourseNavigation]);
 
   useEffect(() => {
-    console.log('Current item data:', itemData);
   }, [itemData]);
 
   // Log proctoring settings when loaded (only logs once when data is available)
   useEffect(() => {
     async function fetch() {
       const data = await getSettings(COURSE_ID, VERSION_ID);
-      console.log("Current proctoring data: ", data);
       setProctoringData(data);
     }
     fetch();
@@ -335,7 +333,6 @@ export default function CoursePage() {
       // Clear loading state
       setIsNavigatingToNext(false);
 
-      console.log('Successfully navigated to next section:', waitingForNextSection.sectionId);
     }
   }, [sectionItems, waitingForNextSection, updateCourseNavigation]);
 
@@ -875,7 +872,6 @@ export default function CoursePage() {
 
   const handleNext = useCallback(() => {
     enqueueNavigation(async () => {
-      console.log("🔵 QUEUED: handleNext");
 
       setIsNavigatingToNext(true);
 
@@ -964,7 +960,6 @@ export default function CoursePage() {
         // 3️⃣ If next section requires loading
         if ((nextItem as any).needsLoading) {
           const { moduleId, sectionId } = nextItem;
-          console.log('Next section items need loading. Triggering load for:', { moduleId, sectionId });
 
           // Store current valid item before switching
           if (selectedItemId && selectedSectionId && selectedModuleId) {
@@ -989,7 +984,6 @@ export default function CoursePage() {
         const { moduleId, sectionId, itemId } = nextItem;
 
         if (!moduleId || !sectionId || !itemId) {
-          console.log("❌ Invalid next item data");
           setIsNavigatingToNext(false);
           return;
         }
@@ -1021,8 +1015,7 @@ export default function CoursePage() {
         // Update global course store
         updateCourseNavigation(moduleId, sectionId, itemId);
 
-        console.log('Successfully navigated to next item:', { moduleId, sectionId, itemId });
-
+        
         // Clear loading state after successful navigation
         setIsNavigatingToNext(false);
       } catch (error) {
@@ -1143,7 +1136,6 @@ export default function CoursePage() {
       const prevVideoItem = findPreviousVideoItem();
 
       if (!prevVideoItem) {
-        console.log('No previous video item found');
         setIsNavigatingToNext(false);
         return;
       }
@@ -1152,7 +1144,6 @@ export default function CoursePage() {
 
       // Ensure all values are defined before switching
       if (!moduleId || !sectionId || !itemId) {
-        console.log('Invalid previous video item data');
         setIsNavigatingToNext(false);
         return;
       }

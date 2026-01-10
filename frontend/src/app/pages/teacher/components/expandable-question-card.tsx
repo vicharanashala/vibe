@@ -267,7 +267,6 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
         }
       });
 
-      console.log('Successfully updated question:', questionId);
       setIsEditing(false);
       setEditableOptions([]);
       await refetchQuestion();
@@ -371,7 +370,6 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
 
 const insertTagAtCursor = (fieldId: string, tag: string) => {
     const element = document.getElementById(fieldId) as HTMLInputElement | HTMLTextAreaElement | null;
-    console.log(" Inserting tag:", tag, " into field:", fieldId);
     if (!element) return;
 
     const start = element.selectionStart ?? 0;
@@ -387,7 +385,6 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
   // 1) options array: id format "option-<optionId>"
   if (fieldId.startsWith("option-")) {
     const optionId = fieldId.replace("option-", "");
-    console.log(" Inserting tag in option:", optionId);
     setEditableOptions((prev: EditableOption[]) => {
       const updatedOptions = prev.map((opt: EditableOption, index: number) => {
         if (index.toString() === optionId) {

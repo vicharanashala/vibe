@@ -302,8 +302,6 @@ export default function AuthPage() {
           }
         }
         else message = signupError?.message || "An error occurred during signup";
-        console.log(message)
-        console.log(signupError?.errors?.find((e: any) => e.property === 'firstName'));
 
         setFormErrors({
           ...formErrors,

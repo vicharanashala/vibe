@@ -9,7 +9,6 @@ export const useCourseStore = create<CourseState>()(
     (set) => ({
       currentCourse: null,
       setCurrentCourse: (courseInfo) => {
-        console.log("Setting course in store:", courseInfo);
         set({ currentCourse: courseInfo });
       },
       setWatchItemId: (watchItemId) => {
