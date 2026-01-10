@@ -564,6 +564,24 @@ export function useCourseById(id: string, enabled?: boolean): {
     refetch: result.refetch
   };
 }
+export function useStudentCurrentProgressPath(
+  userId?: string,
+  courseId?: string,
+  versionId?: string,
+  enabled?: boolean
+) {
+  return useQuery({
+    queryKey: ['current-progress-path', userId, courseId, versionId],
+    queryFn: () =>
+      api.users.getCurrentProgressPath({
+        params: {
+          path: { courseId: courseId!, versionId: versionId! },
+          query: { userId: userId! },
+        },
+      }),
+    enabled: Boolean(enabled && userId && courseId && versionId),
+  })
+}
 
 // PATCH /courses/{id}
 export function useUpdateCourse(): {
