@@ -603,7 +603,9 @@ export class InviteService extends BaseService {
     return `${appConfig.url}/api/notifications/invite/${InviteId}`;
   }
 
-  async processInvite(inviteId: string): Promise<{ message: string; isBulk?: boolean }> {
+  async processInvite(inviteId: string, action: 'ACCEPT' | 'REJECTED' = 'ACCEPT',
+
+  ): Promise<{ message: string; isBulk?: boolean }> {
     const invite = await this.inviteRepo.findInviteById(inviteId);
     if (!invite) {
       throw new NotFoundError('Invite not found');
@@ -626,6 +628,12 @@ export class InviteService extends BaseService {
         message: 'You have already accepted this invite.',
       };
     }
+
+    if (invite.inviteStatus === 'REJECTED') {
+    return {
+      message: 'You have already rejected this invite.',
+    };
+  }
     const date = new Date();
     // Validate the invite expiresAt < new Date() throw error
     // if (invite.expiresAt < date) {
@@ -637,6 +645,18 @@ export class InviteService extends BaseService {
         message: 'You are already enrolled in this course.',
       };
     }
+
+    // HANDLE REJECTION
+
+    if (action === 'REJECTED') {
+    invite.inviteStatus = 'REJECTED';
+
+    await this.inviteRepo.updateInvite(inviteId, {
+      inviteStatus: 'REJECTED',
+    });
+
+    return { message: 'Invite rejected successfully.' };
+  }
 
     // Update invite status to ACCEPTED
     invite.inviteStatus = 'ACCEPTED';
@@ -746,25 +766,6 @@ export class InviteService extends BaseService {
       throw new InternalServerError('Failed to resend invite email');
     }
   }
-
-  // Reject Invite
-  
-  async rejectInvite(inviteId: string): Promise<{ message: string }> {
-  const invite = await this.inviteRepo.findInviteById(inviteId);
-  if (!invite) {
-    throw new NotFoundError('Invite not found');
-  }
-
-  if (invite.inviteStatus !== 'PENDING') {
-    throw new BadRequestError('Only pending invites can be rejected');
-  }
-
-  await this.inviteRepo.updateInvite(inviteId, {
-    inviteStatus: 'REJECTED',
-  });
-
-  return { message: 'Invite rejected successfully.' };
-}
 
 
   async findInvitesForCourse(

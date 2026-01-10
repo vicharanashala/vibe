@@ -149,7 +149,7 @@ export class InviteController {
     return {link};
   }
 
-  @Get('/:inviteId')
+  @Post('/:inviteId')
   @HttpCode(200)
   @ContentType('html')
   @OpenAPI({
@@ -169,8 +169,9 @@ export class InviteController {
     @Req() req: any,
   ): Promise<string> {
     const {inviteId} = params;
+     const action = req.query.action === 'REJECTED' ? 'REJECTED' : 'ACCEPT';
     try {
-      const result = await this.inviteService.processInvite(inviteId);
+      const result = await this.inviteService.processInvite(inviteId,action);
       if (result.isBulk) {
       }
       return inviteRedirectTemplate(result.message, appConfig.origins[0]);
@@ -321,24 +322,5 @@ export class InviteController {
     }
 
     return this.inviteService.cancelInvite(inviteId);
-  }
-
-  // Reject Invite Endpoint
-  @Authorized()
-  @Post('/reject/:inviteId')
-  @HttpCode(200)
-  @OpenAPI({
-    summary: 'Reject Invite',
-    description: 'Reject an invite by the invited user',
-  })
-  @ResponseSchema(MessageResponse, {
-    description: 'Invite rejected successfully',
-    statusCode: 200,
-  })
-  async rejectInvite(
-    @Params() params: InviteIdParams,
-  ): Promise<MessageResponse> {
-    const {inviteId} = params;
-    return this.inviteService.rejectInvite(inviteId);
   }
 }
