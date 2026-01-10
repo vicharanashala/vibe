@@ -622,6 +622,9 @@ export class EnrollmentRepository {
               $project: {
                 totalItems: 1,
                 itemCounts: 1,
+                supportLink: 1,
+                version: 1,
+                description: 1,
               },
             },
           ],
@@ -646,6 +649,7 @@ export class EnrollmentRepository {
           status: 1,
           enrollmentDate: 1,
           course: 1,
+          courseVersion: 1,
 
           // 🔥 pulled from courseVersion
           totalItems: { $ifNull: ['$courseVersion.totalItems', 0] },
