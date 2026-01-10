@@ -257,7 +257,6 @@ function TeacherCourseContent() {
     shouldFetchItem ? versionId : '',
     shouldFetchItem ? selectedEntity?.data?._id : ''
   );
-  console.log("selectedItemData", selectedItemData)
   // Sync controlled state with selectedItemData for PROJECT edit
   useEffect(() => {
     if (selectedEntity?.type === 'item' && selectedEntity.data.type === 'PROJECT') {
@@ -662,7 +661,6 @@ function TeacherCourseContent() {
     if (!versionId) return;
     setHidingItemId(itemId);
     try {
-      console.log("🔄 Starting hide item:", itemId, hide);
       await updateItemVisibilityAsync({
         params: { path: { versionId, itemId } },
         body: { hide: hide }
@@ -670,7 +668,6 @@ function TeacherCourseContent() {
 
       refetchVersion();
       refetchItems();
-      console.log("✅ RefetchVersion completed");
     } catch (error) {
       console.error("❌ Error in handleHideItem:", error);
     } finally {

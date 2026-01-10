@@ -51,7 +51,6 @@ export function ProctoringModal({
   const { editSettings, loading, error } = useEditProctoringSettings()
   const { getSettings, settingLoading, settingError } = useGetProcotoringSettings();
 
-  console.log("Course id: ", courseId, "CourseVersionId: ", courseVersionId)
   const allComponents = Object.values(ProctoringComponent)
   const [detectors, setDetectors] = useState(
     allComponents.map((name) => ({ name, enabled: false }))
@@ -87,7 +86,6 @@ export function ProctoringModal({
   const handleSubmit = async () => {
     try{
       const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled)
-      console.log("Proctoring settings updated:", result)
       if(result != undefined) {
         onClose();
       }

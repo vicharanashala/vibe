@@ -65,7 +65,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (firebaseUser) {
                   const newToken = await firebaseUser.getIdToken(true);
                   setToken(newToken);
-                  console.log('Token refresh retry successful');
                 }
               } catch (retryError) {
                 console.error('Token refresh retry failed:', retryError);
@@ -78,10 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error('Error getting initial token:', error);
           // Instead of logging out trying to refresh the token once more
           try {
-            console.log('Initial token failed, attempting refresh...');
             const retryToken = await firebaseUser.getIdToken(true);
             setToken(retryToken);
-            console.log('Token refresh on page load successful');
           } catch (retryError) {
             console.error('Token refresh on page load failed:', retryError);
  
