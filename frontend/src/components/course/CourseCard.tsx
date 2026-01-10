@@ -149,7 +149,16 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   </div>
                 </div> */}
                 <div className="flex lg:flex-nowrap flex-wrap items-center gap-2 mb-1 xl:mb-0">
-                  <Info className="h-4 w-4" />
+                  <TooltipProvider>
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 cursor-pointer text-muted-foreground hover:text-foreground transition-colors" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>This course is actively updated with new content.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   <span>Ongoing training — subject to change</span>
                 </div>
                 <div className="flex items-center gap-2 mb-1 xl:mb-0">
