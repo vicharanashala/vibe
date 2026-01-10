@@ -55,14 +55,11 @@ export async function setupItemAbilities(
         case 'STUDENT':
           can(ItemActions.ViewAll, 'Item', versionBounded);
 
-          // fetch courseVersion (to get linearProgression flag)
-          const courseSettings = await courseSettingService.readCourseSettings(
+          // true if linearProgressionEnabled field is not available
+          const linearProgressionEnabled = courseSettingService.isLinearProgressionEnabled(
             enrollment.courseId,
             enrollment.versionId,
           );
-
-          const linearProgressionEnabled =
-            courseSettings?.settings?.linearProgressionEnabled ?? true;
 
           let progress: any;
           try {

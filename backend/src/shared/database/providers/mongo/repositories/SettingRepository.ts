@@ -457,4 +457,37 @@ export class SettingRepository implements ISettingRepository {
     );
     return result.deletedCount > 0;
   }
+
+  /**
+   * Checks if linear progression is enabled for a specific course and version.
+   * @param courseId - The ID of the course
+   * @param courseVersionId - The ID of the course version
+   * @param session - Optional MongoDB session for transactions
+   * @returns False if linear progression field is false, true otherwise
+   */
+  async isLinearProgressionEnabled(
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+    const courseSettings = await this.courseSettingsCollection.findOne(
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+      },
+      {
+        projection: {
+          'settings.linearProgressionEnabled': 1, _id: 0 
+        },
+        session,
+      },
+    );
+
+    if (courseSettings?.settings?.linearProgressionEnabled == null) {
+      return true;
+    }
+
+    return courseSettings.settings.linearProgressionEnabled;
+  }
 }
