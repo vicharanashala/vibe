@@ -651,14 +651,17 @@ export default function LoginPage() {
                         </Button>
                       </CardContent>
 
-                      <CardFooter className="pt-4">
+                     <CardFooter className="pt-4">
+                        <div className="w-full flex items-center justify-center mt-4">
+ <span className=" text-sm text-right text-muted-foreground text-nowrap "> Don't have an account?</span>
                         <Button
                           variant="link"
-                          className="w-full text-sm text-muted-foreground hover:text-foreground"
+                          className="-ml-2 text-sm text-muted-foreground hover:text-foreground"
                           onClick={toggleSignUpMode}
                         >
-                          Don't have an account? <span className="ml-1 font-medium">Sign up</span>
+                           <span className="font-medium">Sign up</span>
                         </Button>
+                          </div>
                       </CardFooter>
                     </div>
                   ) : (
@@ -830,14 +833,18 @@ export default function LoginPage() {
                         </Button>
                       </CardContent>
 
-                      <CardFooter>
+                     <CardFooter>
+                        <div className="w-full flex items-center justify-center mt-4">
+
+                        <span className=" text-sm text-right text-muted-foreground text-nowrap "> Already have an account?</span>
                         <Button
                           variant="link"
-                          className="w-full text-sm text-muted-foreground hover:text-foreground"
+                          className="-ml-2 text-sm text-muted-foreground hover:text-foreground"
                           onClick={toggleSignUpMode}
-                        >
-                          Already have an account? <span className="ml-1 font-medium">Sign in</span>
+                          >
+                           <span className=" font-medium">Sign in</span>
                         </Button>
+                          </div>
                       </CardFooter>
                     </div>
                   )}
