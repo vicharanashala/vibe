@@ -1259,6 +1259,27 @@ class ProgressService extends BaseService {
     itemId: string,
   ): Promise<string> {
     return this._withTransaction(async session => {
+      // Check if item is already completed before creating watchTime
+      const isItemCompleted = await this.progressRepository.isItemCompleted(
+        userId,
+        courseId,
+        courseVersionId,
+        itemId,
+        session,
+      );
+
+      if (isItemCompleted) {
+        // Item is already completed, skip watchTime creation and return existing watchTime or null
+        const existingWatchTime = await this.progressRepository.getWatchTime(
+          userId,
+          itemId,
+          courseId,
+          courseVersionId,
+          session,
+        );
+        return existingWatchTime?.[0]?._id?.toString() || '';
+      }
+
       // 🔥 Parallelize independent verifications
       await Promise.all([
         this.verifyDetails(userId, courseId, courseVersionId),
@@ -1313,6 +1334,22 @@ class ProgressService extends BaseService {
     if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
       throw new NotFoundError('Invalid course version');
     }
+
+
+    // Check if item is already completed before stopping watchTime
+    const isItemCompleted = await this.progressRepository.isItemCompleted(
+      userId,
+      courseId,
+      courseVersionId,
+      itemId,
+    );
+
+    if (isItemCompleted) {
+      // Item is already completed, skip watchTime stopping and return early
+      // console.log(`[stopItem] Item ${itemId} is already completed, skipping watchTime stopping`);
+      return;
+    }
+
     if (!progress) throw new NotFoundError('Progress not found');
 
     if (
