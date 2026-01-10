@@ -43,7 +43,6 @@ export class WebhookService {
    * @returns Updated job data from AI server
    */
   async approveTaskStart(jobId: string, jobState: JobState): Promise<any> {
-    console.log(jobState);
     const response = await this.httpClient.post(`/jobs/${jobId}/tasks/approve/start`, jobState);
     return response.data;
   }
@@ -65,7 +64,6 @@ export class WebhookService {
    * @returns Updated job data from AI server
    */
   async rerunTask(jobId: string, jobState: JobState): Promise<any> {
-    console.log(jobState);
     const response = await this.httpClient.post(`/jobs/${jobId}/tasks/rerun`, jobState);
     return response.data;
   }

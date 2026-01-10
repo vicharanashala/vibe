@@ -19,20 +19,16 @@ self.onerror = (error) => {
 
 async function initializeModel() {
   try {
-    console.log("🎯 Starting model initialization...");
     
     // Wait for TensorFlow to be ready first
     await tf.ready();
-    console.log("🎯 TensorFlow.js ready");
     
     // Set backend explicitly
     await tf.setBackend('webgl');
-    console.log("🎯 Backend set to webgl");
     
     // Check available backends again
     const backends = tf.engine().registry;
     const availableBackends = Object.keys(backends);
-    console.log("Available TensorFlow.js backends after setup:", availableBackends);
     
     const model = faceDetection.SupportedModels.MediaPipeFaceDetector;
     const detectorConfig: faceDetection.MediaPipeFaceDetectorTfjsModelConfig = { 

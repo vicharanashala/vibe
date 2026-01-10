@@ -472,7 +472,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   // Handle empty quiz without attempting to start it
   const handleEmptyQuiz = useCallback(async () => {
     try {
-      console.log('Handling empty quiz - bypassing quiz attempt completely');
 
       // Set empty quiz states
       setIsEmptyQuiz(true);
@@ -507,7 +506,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   // Handle empty quiz after quiz attempt was already made
   const handleEmptyQuizAfterAttempt = useCallback(async () => {
     try {
-      console.log('Handling empty quiz after attempt - completing quiz and navigating');
 
       // Set empty quiz states
       setIsEmptyQuiz(true);
@@ -621,7 +619,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       console.log('Error message:', errorMessage);
 
       if (errorMessage && (errorMessage.includes('No available attempts left') || errorMessage.includes('no available attempts'))) {
-        console.log('No attempts left - navigating to next item');
         toast.info('You have used all available attempts for this quiz. Moving to next item...');
 
         setQuizCompleted(true);
@@ -935,11 +932,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       // For regular completion, just set pass/fail status
       // No auto-redirect - let user click the "Next Lesson" button
       if (submissionResults?.gradingStatus !== "FAILED") {
-        console.log('Quiz passed - waiting for user to click Next button');
         setQuizPassed?.(1);
         setFailedRedirectCountdown(null); // Clear any countdown
       } else {
-        console.log('Quiz grading failed - starting 10 second countdown');
         setQuizPassed?.(0);
         setFailedRedirectCountdown(10);
       }
@@ -952,7 +947,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     if (failedRedirectCountdown <= 0) {
       setQuizCompleted(false);
       setFailedRedirectCountdown(null);
-      console.log('Countdown finished, calling onPrevVideo');
       onPrevVideo?.();
       return;
     }
@@ -980,7 +974,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   useEffect(() => {
     if (!quizStarted && !quizAttemptedRef.current && !isEmptyQuiz && !noAttemptsLeft && !isPending) {
       if (!questionBankRefs || questionBankRefs.length === 0) {
-        console.log('Empty quiz detected early via questionBankRefs - quiz has no question banks');
         quizAttemptedRef.current = true; // Prevent other start attempts
         handleEmptyQuiz();
       }
