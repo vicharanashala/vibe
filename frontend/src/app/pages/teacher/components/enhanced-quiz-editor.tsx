@@ -369,7 +369,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
     name: '',
     description: '',
     passThreshold: 0,
-    maxAttempts: 3,
+    maxAttempts: -1,
     quizType: 'NO_DEADLINE',
     approximateTimeToComplete: '00:05:00',
     allowPartialGrading: true,
