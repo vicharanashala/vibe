@@ -320,7 +320,6 @@ export class EnrollmentService extends BaseService {
         // const calculatedPercent = Math.floor(ratio * 100);
         const calculatedPercent = Number((ratio * 100).toFixed(1));
 
-        console.log(enr.totalItems, completedCount, ratio, calculatedPercent);
 
         // if different, update enrollment percentCompleted and completedItemsCount
         if (enr.percentCompleted !== calculatedPercent) {
@@ -340,7 +339,6 @@ export class EnrollmentService extends BaseService {
           enr.completedItemsCount = completedCount;
         }
 
-        console.log('Enrollment', enr);
 
         if (enr.percentCompleted >= 0) {
           const itemCounts = enr.itemCounts || {};
@@ -548,7 +546,6 @@ export class EnrollmentService extends BaseService {
     message: string 
   }> {
     try {
-      console.log(`Starting bulk update for courseId: ${courseId}, versionId: ${versionId}, userId: ${userId}`);
       
       // First, update watchtime for missed items
       let watchtimeUpdatedCount = 0;
@@ -571,7 +568,6 @@ export class EnrollmentService extends BaseService {
             enrollment.userId.toString()
           );
           watchtimeUpdatedCount++;
-          console.log(`✅ Successfully updated watchtime for enrollment ${enrollment._id}`);
         } catch (error) {
           console.error(`❌ Failed to update watchtime for enrollment ${enrollment._id}:`, error.message);
           // Continue with other enrollments even if watchtime update fails
@@ -580,7 +576,6 @@ export class EnrollmentService extends BaseService {
       }
       
       // Then, recalculate progress using existing bulk update method
-      console.log(`🔄 Starting progress recalculation...`);
       const progressResult = await this.bulkUpdateAllEnrollments(courseId, userId);
       console.log(`✅ Progress recalculation completed. Total: ${progressResult.totalCount}, Updated: ${progressResult.updatedCount}`);
       

@@ -29,7 +29,6 @@ export const provider = new GoogleAuthProvider();
 // Firebase authentication functions
 export const loginWithGoogle = async () => {
   const result = await signInWithPopup(auth, provider);
-  console.log("New user?:", result._tokenResponse?.isNewUser);
   // Get ID token for backend authentication
   const idToken = await result.user.getIdToken();
   

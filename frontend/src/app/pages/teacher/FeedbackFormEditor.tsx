@@ -39,8 +39,6 @@ export default function FeedbackFormEditor({
   onRefetch,
   onDelete,
 }: FeedbackFormEditorProps) {
-  console.log('details ', details)
-  console.log("json ", details?.item?.details?.jsonSchema)
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -73,7 +71,6 @@ export default function FeedbackFormEditor({
       });
     }
   }, [details]);
-  console.log('details ', details)
   const handleEdit = () => setIsEditMode(true);
 
   const handleCancel = () => {
