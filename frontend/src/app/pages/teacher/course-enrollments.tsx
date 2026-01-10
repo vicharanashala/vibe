@@ -12,8 +12,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { QuizSubmissionDisplay } from "./QuizSubmissionDisplay"
 import { WatchTimeDisplay } from "./WatchTimeDisplay"
+
 
 // Import hooks - including the new quiz hooks
 import {
@@ -216,26 +218,26 @@ export default function CourseEnrollments() {
   }
 
   // Handle fetch and export quiz scores
- const handleFetchQuizScores = async () => {
-  if (!courseId || !versionId) {
-    toast.error('Course ID or Version ID is missing');
-    return;
-  }
+  const handleFetchQuizScores = async () => {
+    if (!courseId || !versionId) {
+      toast.error('Course ID or Version ID is missing');
+      return;
+    }
 
-  if (!quizScores?.data?.length || isLoadingQuizScores) {
-    toast.warning('No quiz scores available');
-    return;
-  }
+    if (!quizScores?.data?.length || isLoadingQuizScores) {
+      toast.warning('No quiz scores available');
+      return;
+    }
 
-  try {
-    // ⚡ FAST: single-pass formatting, no unused maps
-    const formattedData = quizScores.data.map(
-      (student: any, index: number) => ({
-        studentId: student.studentId ?? `student-${index}`,
-        name: student.name ?? 'Unknown Student',
-        email: student.email ?? '',
-        quizScores: Array.isArray(student.quizScores)
-          ? student.quizScores.map((quiz: any) => ({
+    try {
+      // ⚡ FAST: single-pass formatting, no unused maps
+      const formattedData = quizScores.data.map(
+        (student: any, index: number) => ({
+          studentId: student.studentId ?? `student-${index}`,
+          name: student.name ?? 'Unknown Student',
+          email: student.email ?? '',
+          quizScores: Array.isArray(student.quizScores)
+            ? student.quizScores.map((quiz: any) => ({
               moduleId: quiz.moduleId ?? 'unknown',
               sectionId: quiz.sectionId ?? 'unknown',
               quizId: quiz.quizId ?? 'unknown',
@@ -246,38 +248,38 @@ export default function CourseEnrollments() {
               attempts: Number(quiz.attempts) || 0,
               questionScores: Array.isArray(quiz.questionScores)
                 ? quiz.questionScores.map((q: any) => ({
-                    questionId: String(q.questionId ?? ''),
-                    score: Number(q.score) || 0,
-                  }))
+                  questionId: String(q.questionId ?? ''),
+                  score: Number(q.score) || 0,
+                }))
                 : [],
             }))
-          : [],
-      }),
-    );
+            : [],
+        }),
+      );
 
-    if (!formattedData.length) {
-      toast.warning('No quiz scores found to export');
-      return;
+      if (!formattedData.length) {
+        toast.warning('No quiz scores found to export');
+        return;
+      }
+
+      // ⏱️ Stable filename (no locale overhead)
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '_');
+      const filename = `quiz_scores_${timestamp}.xlsx`;
+
+      // 🧠 Let UI breathe before heavy Excel generation
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      generateExcel(formattedData, filename);
+      toast.success('Quiz scores exported successfully');
+    } catch (error) {
+      console.error('Error exporting quiz scores:', error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to export quiz scores',
+      );
     }
-
-    // ⏱️ Stable filename (no locale overhead)
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '_');
-    const filename = `quiz_scores_${timestamp}.xlsx`;
-
-    // 🧠 Let UI breathe before heavy Excel generation
-    await new Promise(resolve => setTimeout(resolve, 0));
-
-    generateExcel(formattedData, filename);
-    toast.success('Quiz scores exported successfully');
-  } catch (error) {
-    console.error('Error exporting quiz scores:', error);
-    toast.error(
-      error instanceof Error
-        ? error.message
-        : 'Failed to export quiz scores',
-    );
-  }
-};
+  };
 
 
   useEffect(() => {
@@ -420,7 +422,7 @@ export default function CourseEnrollments() {
             query: {
               courseId: courseId,
               userId: userId,
-              versionId: versionId,
+              courseVersionId: versionId,
             },
           },
         })
@@ -824,11 +826,11 @@ export default function CourseEnrollments() {
                           <TableCell className="py-6">
                             <div className="space-y-1">
                               <EnrollmentProgress progress={Math.round(enrollment.progress || 0)} />
-                              {enrollment.role === "STUDENT" && version?.totalItems !== undefined && (
+                              {/* {version?.totalItems !== undefined && (
                                 <p className="text-xs text-muted-foreground">
-                                  {enrollment.completedItemsCount ?? 0} / {version.totalItems} items
+                                  {enrollment.completedItemsCount || 0} / {version.totalItems} items
                                 </p>
-                              )}
+                              )} */}
                             </div>
                           </TableCell>
                           <TableCell className="py-6 pr-6">
@@ -841,10 +843,11 @@ export default function CourseEnrollments() {
                                     id: enrollment.user?._id,
                                     name:
                                       `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
-                                    email: enrollment.userId,
+                                    email: enrollment.user?.email,
                                     enrolledDate: enrollment.enrollmentDate,
                                     progress: Math.round(enrollment.progress || 0),
                                     completedItemsCount: enrollment.completedItemsCount || 0,
+                                    isDeleted: enrollment.isDeleted
                                   })
                                 }
                                 disabled={enrollment.role !== "STUDENT" || Math.round(enrollment.progress || 0) == 0 || enrollment?.isDeleted}
@@ -853,29 +856,7 @@ export default function CourseEnrollments() {
                                 <Eye className="h-4 w-4 mr-2" />
                                 View Progress
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  handleResetProgress({
-                                    id: enrollment.user?._id,
-                                    name:
-                                      `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
-                                    email: enrollment.userId,
-                                    enrolledDate: enrollment.enrollmentDate,
-                                    progress: 0,
-                                  })
-                                }
-                                className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
-                                disabled={resetProgressMutation.isPending || /*Math.round(enrollment.progress || 0 ) == 0 ||*/ enrollment?.isDeleted}
-                              >
-                                {resetProgressMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                ) : (
-                                  <RotateCcw className="h-4 w-4 mr-2" />
-                                )}
-                                Reset
-                              </Button>
+                              
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -898,30 +879,6 @@ export default function CourseEnrollments() {
                                   <UserX className="h-4 w-4 mr-2" />
                                 )}
                                 Remove
-                              </Button>
-
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  handleRecalculateProgress({
-                                    id: enrollment.user?._id,
-                                    name:
-                                      `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
-                                    email: enrollment.user?.email,
-                                    enrolledDate: enrollment.enrollmentDate,
-                                    progress: 0,
-                                  })
-                                }
-                                className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
-                                disabled={unenrollMutation.isPending || user?.email == enrollment?.user?.email || enrollment?.isDeleted}
-                              >
-                                {unenrollMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                ) : (
-                                  <RotateCcw className="h-4 w-4 mr-2" />
-                                )}
-                                Recalculate
                               </Button>
                             </div>
                           </TableCell>
@@ -992,6 +949,78 @@ export default function CourseEnrollments() {
 
               {/* Course Structure */}
               <div className="space-y-4">
+                <div className="flex justify-between">
+                  <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      handleResetProgress({
+                        id: selectedUser.id,
+                        name:
+                          `${selectedUser.name || ""}`.trim() || "Unknown User",
+                        email: selectedUser.email,
+                        enrolledDate: selectedUser.enrolledDate,
+                        progress: 0,
+                      })
+                    }
+                    className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
+                    disabled={resetProgressMutation.isPending || /*Math.round(enrollment.progress || 0 ) == 0 ||*/ selectedUser.isDeleted}
+                  >
+                    {resetProgressMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                    )}
+                    Reset
+                  </Button>
+                    </TooltipTrigger>
+
+                    <TooltipContent>
+                      <p>Reset student progress</p>
+                    </TooltipContent>
+                    
+                  </Tooltip>
+                  </TooltipProvider>
+                  
+
+                 <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                       <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      handleRecalculateProgress({
+                        id: selectedUser.id,
+                        name:
+                          `${selectedUser.name || ""}`.trim() || "Unknown User",
+                        email: selectedUser.email,
+                        enrolledDate: selectedUser.enrolledDate,
+                        progress: 0,
+                      })
+                    }
+                    className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+                    disabled={unenrollMutation.isPending || user?.email == selectedUser.email || selectedUser.isDeleted}
+                  >
+                    {unenrollMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                    )}
+                    Recalculate
+                  </Button>
+                    </TooltipTrigger>
+
+                    <TooltipContent>
+                      Recalculate student progress
+                    </TooltipContent>
+                  </Tooltip>
+                 </TooltipProvider>
+                </div>
+
                 <h3 className="text-lg font-semibold text-foreground">Course Structure</h3>
                 <div className="space-y-2 max-h-96 overflow-y-auto border border-border rounded-lg p-4">
                   {getAvailableModules().map((module: any) => (
@@ -1050,6 +1079,7 @@ export default function CourseEnrollments() {
                     </div>
                   ))}
                 </div>
+
               </div>
 
               {/* Item Details Display */}
@@ -1258,7 +1288,7 @@ export default function CourseEnrollments() {
                 . This action cannot be undone.
               </p>
 
-              <div className="space-y-8">
+              <div className="space-y-8 flex justify-around flex-wrap">
                 <div className="space-y-3">
                   <Label htmlFor="reset-scope" className="text-sm font-bold text-foreground">
                     Reset Scope

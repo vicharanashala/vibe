@@ -30,6 +30,7 @@ import ActionMenu, { DefaultActionMenuRender } from '@yoopta/action-menu-list';
 import Toolbar, { DefaultToolbarRender } from '@yoopta/toolbar';
 import { Bold, Italic, CodeMark, Underline, Strike, Highlight } from '@yoopta/marks';
 import { markdown } from '@yoopta/exports';
+import ConfirmationModal from './confirmation-modal';
 
 const MARKS = [Bold, Italic, CodeMark, Underline, Strike, Highlight];
 
@@ -96,6 +97,7 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [showDeleteArticleModal, setShowDeleteArticleModal]=useState(false);
   const [originalForm, setOriginalForm] = useState<BlogFormData | null>(null);
   const [blogForm, setBlogForm] = useState<BlogFormData>({
     name: '',
@@ -1236,7 +1238,7 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
                 </Button>
               )}
               <Button
-                onClick={onDelete}
+                onClick={()=>setShowDeleteArticleModal(true)}
                 variant="outline"
                 className="border-border bg-background ml-2"
                 disabled={isEditMode}
@@ -1245,6 +1247,21 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
                 Delete Article
               </Button>
             </div>
+            <div className="relative group">
+      <ConfirmationModal
+        isOpen={showDeleteArticleModal}
+        onClose={() => setShowDeleteArticleModal(false)}
+        onConfirm={onDelete}
+        title="Delete Article"
+        description="This will delete this article. Are you sure you want to delete it?"
+        confirmText="Delete"
+        cancelText="Cancel"
+        isDestructive={true}
+        // isLoading={}
+        loadingText="Deleting..."
+      />
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+      </div>
           </div>
         </div>
       </div>
