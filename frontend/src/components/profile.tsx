@@ -183,7 +183,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                       variant="ghost"
                       size="sm"
                       onClick={() => setConfirmLogout(true)}
-                      className="relative h-9 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:text-red-600 dark:hover:text-red-400 hover:shadow-lg hover:shadow-red-500/10"
+                       className="relative  h-10 px-4 text-sm font-medium transition-all duration-300  hover:text-red-600 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:shadow-red-500/10 dark:hover:text-red-400  dark:hover:bg-gradient-to-r dark:over:from-red-500/10 dark:hover:to-red-400/5"
                     >
                       <LogOut className="h-4 w-4 mr-2" />
                       Logout
