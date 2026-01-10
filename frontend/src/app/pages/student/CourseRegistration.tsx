@@ -392,7 +392,7 @@ const CourseRegistration: React.FC = () => {
 
         {versionData !== null ? (
           <>
-              <ScrollArea className="h-52 pr-2">
+            <ScrollArea className="h-52 pr-2">
               <Accordion
                 type="single"
                 collapsible
@@ -415,11 +415,15 @@ const CourseRegistration: React.FC = () => {
                             {idx + 1}
                           </span>
 
-                          <div>
+                          <div className='flex gap-3 items-center'>
                             <p className="font-semibold">
                               {(m as any).title ?? (m as any).name}
                             </p>
+                              <Badge variant="outline">
+                                {((m as any).itemsCount ?? 0).toString()} items
+                              </Badge>
                           </div>
+
                         </div>
                       </AccordionTrigger>
 
@@ -430,16 +434,13 @@ const CourseRegistration: React.FC = () => {
                               {(m as any).description}
                             </p>
                           ) : null}
-                          <Badge variant="outline" className='mt-5'>
-                            {((m as any).itemsCount ?? 0).toString()} items
-                          </Badge>
                         </div>
                       </AccordionContent>
                     </AccordionItem>
                   );
                 })}
               </Accordion>
-              </ScrollArea>
+            </ScrollArea>
           </>
         ) : (
           <>
