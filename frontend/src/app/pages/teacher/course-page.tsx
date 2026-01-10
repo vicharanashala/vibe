@@ -1334,7 +1334,7 @@ function VersionCard({
                     variant="outline"
                     size="sm"
                      onClick={()=>setShowDeleteVersionModel(true)}
-                    className="h-8 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive dark:hover:text-destructive-foreground transition-all duration-300 text-xs"
+                    className="h-8 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-300 text-xs"
                     disabled={deleteVersionMutation.isPending}
                   >
                     {deleteVersionMutation.isPending ? (
