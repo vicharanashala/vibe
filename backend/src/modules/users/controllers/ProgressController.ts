@@ -57,6 +57,8 @@ import {InternalServerErrorResponse} from '../../../shared/middleware/errorHandl
 import {COURSES_TYPES} from '#root/modules/courses/types.js';
 import {ItemService} from '#root/modules/courses/services/ItemService.js';
 import {SuccessResponse} from '#root/modules/projects/classes/validators/ProjectValidators.js';
+import { GetCurrentProgressPathResponse } from '../dtos/GetCurrentProgressPathResponse.ts';
+
 
 @OpenAPI({
   tags: ['Progress'],
@@ -116,46 +118,57 @@ class ProgressController {
     return progress;
   }
 
-  @OpenAPI({
-    summary: 'Get %age progress in a course version',
-    description:
-      'Retrieves the progress of a user in a specific course version.',
-  })
-  @Authorized()
-  @Get('/progress/courses/:courseId/versions/:versionId/percentage')
-  @HttpCode(200)
-  @ResponseSchema(CompletedProgressResponse, {
-    description: 'User progress retrieved successfully',
-  })
-  @ResponseSchema(ProgressNotFoundErrorResponse, {
-    description: 'Progress not found',
-    statusCode: 404,
-  })
-  async getUserProgressPercentage(
-    @Params() params: GetUserProgressParams,
-    @Ability(getProgressAbility) {ability, user},
-  ): Promise<CompletedProgressResponse> {
-    const {courseId, versionId} = params;
-    const userId = user._id.toString();
+@Authorized()
+@Get('/progress/courses/:courseId/versions/:versionId/current-path')
+@HttpCode(200)
+async getCurrentProgressPath(
+  @Params() params: GetUserProgressParams,
+  @Ability(getProgressAbility) { user },
+): Promise<GetCurrentProgressPathResponse> {
+  const { courseId, versionId } = params
+  const userId = user._id.toString()
 
-    // Create a progress resource object for permission checking
-    const progressResource = subject('Progress', {userId, courseId, versionId});
+  return await this.progressService.getCurrentProgressPath(
+    userId,
+    courseId,
+    versionId
+  )
+}
 
-    // Check permission using ability.can() with the actual progress resource
-    if (!ability.can(ProgressActions.View, progressResource)) {
-      throw new ForbiddenError(
-        'You do not have permission to view this progress',
-      );
-    }
+ 
+@OpenAPI({
+  summary: 'Get %age progress in a course version',
+})
+@Authorized()
+@Get('/progress/courses/:courseId/versions/:versionId/percentage')
+@HttpCode(200)
+@ResponseSchema(CompletedProgressResponse)
+@ResponseSchema(ProgressNotFoundErrorResponse, { statusCode: 404 })
+async getUserProgressPercentage(
+  @Params() params: GetUserProgressParams,
+  @Ability(getProgressAbility) { ability, user },
+): Promise<CompletedProgressResponse> {
 
-    const progress = await this.progressService.getUserProgressPercentage(
-      userId,
-      courseId,
-      versionId,
-    );
+  const { courseId, versionId } = params;
+  const userId = user._id.toString();
 
-    return progress;
+  const progressResource = subject('Progress', {
+    userId,
+    courseId,
+    versionId,
+  });
+
+  if (!ability.can(ProgressActions.View, progressResource)) {
+    throw new ForbiddenError('You do not have permission');
   }
+
+  return await this.progressService.getUserProgressPercentage(
+    userId,
+    courseId,
+    versionId,
+  );
+}
+
 
   @OpenAPI({
     summary: 'Start an item for user progress',
