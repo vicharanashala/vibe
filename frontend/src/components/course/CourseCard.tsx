@@ -200,7 +200,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   ? ""
                   : isCompleted
                     ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
-                    : "border-accent hover:bg-accent/90"
+                    : ""
               } w-full sm:w-auto transition-all duration-200`}
               onClick={handleContinue}
             >
