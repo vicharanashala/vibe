@@ -143,6 +143,8 @@ ${registrationUrl}`;
     try {
       await updateStatus(registrationId, 'APPROVED');
       toast.success('Registration approved successfully');
+      // remove from selected ids (if present) so it won't remain selected after approval
+      setSelectedIds(prev => prev.filter(id => id !== registrationId));
       registrationsRefetch();
       setIsSingleApproveOpen(false);
     } catch (error: any) {
@@ -155,6 +157,8 @@ ${registrationUrl}`;
     try {
       await updateStatus(registrationId, 'REJECTED');
       toast.success('Registration rejected successfully');
+      // remove from selected ids (if present) so it won't remain selected after rejection
+      setSelectedIds(prev => prev.filter(id => id !== registrationId));
       registrationsRefetch();
       setIsSingleRejectOpen(false);
     } catch (error: any) {
@@ -585,13 +589,15 @@ ${registrationUrl}`;
                       >
 
                         <TableCell className="pl-6 py-4">
-                          <Checkbox
-                            checked={selectedIds.includes(reg._id)}
-                            disabled={reg.status !== "PENDING"}
-                            onCheckedChange={checked =>
-                              handleSelectRow(reg._id, checked as boolean)
-                            }
-                          />
+                          <div className={reg.status === "APPROVED" ? "hidden" : ""} aria-hidden={reg.status === "APPROVED"}>
+                            <Checkbox
+                              checked={selectedIds.includes(reg._id)}
+                              disabled={reg.status !== "PENDING"}
+                              onCheckedChange={checked =>
+                                handleSelectRow(reg._id, checked as boolean)
+                              }
+                            />
+                          </div>
                         </TableCell>
 
                         <TableCell className="py-4">
