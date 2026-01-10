@@ -195,14 +195,12 @@ export const createGenAIJob = async (
 
 // 2. Get Job Status
 export const getJobStatus = async (jobId: string): Promise<JobStatus> => {
-  console.log('Getting job status for:', jobId);
 
   const response = await makeAuthenticatedRequest(`/genai/jobs/${jobId}`, {
     method: 'GET',
   });
 
   const result = await response.json();
-  console.log('Job status:', result);
   return result;
 };
 
@@ -237,7 +235,6 @@ export const connectToLiveStatusUpdates = (
   eventSource.onmessage = (event) => {
     try {
 
-      console.log('Live SSE job status:', event);
       // onMessage(data);
     } catch (err) {
       console.error('Failed to parse SSE message:', err);
@@ -276,7 +273,6 @@ export const pollJobStatus = async (
     }
 
     if (status.status === 'COMPLETED') {
-      console.log('Job completed successfully:', status);
       return status;
     }
 
@@ -376,7 +372,6 @@ export const testApiConnection = async (): Promise<any> => {
       },
     });
 
-    console.log('Health check response:', response.status, response.statusText);
     return { status: response.status, ok: response.ok };
   } catch (error) {
     console.error('Health check failed:', error);

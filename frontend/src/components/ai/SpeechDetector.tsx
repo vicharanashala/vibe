@@ -61,7 +61,6 @@ const SpeechDetector: React.FC<SpeechDetectorProps> = ({ setIsSpeaking }) => {
 
       sourceRef.current.connect(scriptNodeRef.current);
       scriptNodeRef.current.connect(audioCtxRef.current.destination);
-      console.log("[SpeechDetector] 🎙️ Microphone Started!");
     } catch (error) {
       console.error("[SpeechDetector] ❌ Error accessing microphone:", error);
     }
