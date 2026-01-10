@@ -8,7 +8,6 @@ class GestureWorkerHandler {
 
   async initialize() {
     try {
-      console.log("[GestureWorker] 🔄 Loading MediaPipe GestureRecognizer...");
       
       // Import MediaPipe dynamically
       const { GestureRecognizer, FilesetResolver } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm');
@@ -31,7 +30,6 @@ class GestureWorkerHandler {
       });
 
       this.isInitialized = true;
-      console.log("[GestureWorker] ✅ GestureRecognizer Model Loaded!");
       
       this.postMessage({
         type: 'INIT_SUCCESS'

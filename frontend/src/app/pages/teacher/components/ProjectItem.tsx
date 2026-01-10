@@ -57,7 +57,6 @@ export default function ProjectItem({
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (mode === 'add') {
-      console.log('[ProjectItem] handleSubmit (add)', { name: localName, description: localDescription });
       await onSave({ name: localName.trim(), description: localDescription.trim() });
       if (onClose) {
         setLocalName('');
@@ -65,7 +64,6 @@ export default function ProjectItem({
         onClose();
       }
     } else {
-      console.log('[ProjectItem] handleSubmit (edit)', { name: controlledName, description: controlledDescription });
       await onSave({ name: (controlledName || '').trim(), description: (controlledDescription || '').trim() });
     }
   };
@@ -84,7 +82,6 @@ export default function ProjectItem({
                 value={localName}
                 onChange={(e) => {
                   setLocalName(e.target.value);
-                  console.log('[ProjectItem] Name changed:', e.target.value);
                 }}
                 placeholder="Enter project name"
                 required
@@ -98,7 +95,6 @@ export default function ProjectItem({
                 value={localDescription}
                 onChange={(e) => {
                   setLocalDescription(e.target.value);
-                  console.log('[ProjectItem] Description changed:', e.target.value);
                 }}
                 placeholder="Enter project description"
                 required

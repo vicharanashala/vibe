@@ -654,7 +654,6 @@ export default function CourseIssueReports() {
   }), [filterStatus, debouncedSearchTerm, issueSort, currentPage]);
   const { data: issuesData, isLoading, refetch: issuesRefetch } = useGetCourseIssueReports(versionId as string, params);
   const issues = issuesData?.issues || []
-  console.log(issues)
   useEffect(() => {
     issuesRefetch();
   }, [params, issuesRefetch]);
@@ -784,12 +783,9 @@ export default function CourseIssueReports() {
                   ) : (
                     issues?.map((issue: IssueReport, index: number) => {
                       const detail = issue || {};
-                      console.log("Issue ", issue)
-                      console.log("detail", detail)
                       const latestStatus = Array.isArray(issue.status) && issue.status.length > 0
                         ? issue.status[issue.status.length - 1].status
                         : issue.status;
-                      console.log("latest status ", latestStatus)
                       return (
                         <TableRow
                           key={issue._id}

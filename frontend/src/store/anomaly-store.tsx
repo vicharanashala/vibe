@@ -23,7 +23,6 @@ export const useAnomalyStore = create<AnomalyStore>()(
       watchItemId: null,
       
       setCurrentAnomaly: (params) => {
-        console.log("Setting anomaly in store:", params);
         set((state) => ({ ...state, ...params }));
       },
       

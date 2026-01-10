@@ -267,7 +267,6 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   performance,
   onDelete,
 }) => {
-  console.log("ANALYTCS ",analytics)
   const [selectedTab, setSelectedTab] = useState('analytics');
   const [selectedQuestionBank, setSelectedQuestionBank] = useState<string | null>(null);
   const [questionCacheUpdateTrigger, setQuestionCacheUpdateTrigger] = useState(0);
