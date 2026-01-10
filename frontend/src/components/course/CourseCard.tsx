@@ -17,7 +17,7 @@ import { bufferToHex } from "@/utils/helpers";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
 import { Pagination } from "../ui/Pagination";
-
+import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
 
 export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard', className, completion, setCompletion }: CourseCardProps) => {
   // Add null checks to prevent errors when enrollment data is incomplete
@@ -149,7 +149,16 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   </div>
                 </div> */}
                 <div className="flex lg:flex-nowrap flex-wrap items-center gap-2 mb-1 xl:mb-0">
-                  <Info className="h-4 w-4" />
+                  <TooltipProvider>
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 cursor-pointer text-muted-foreground hover:text-foreground transition-colors" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>This course is actively updated with new content.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   <span>Ongoing training — subject to change</span>
                 </div>
                 <div className="flex items-center gap-2 mb-1 xl:mb-0">
@@ -161,7 +170,19 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                         style={{ width: `${progress}%` }}
                       />
                     </div>
-                    <span>{Math.round(progress)}% ({completedLessons}/{totalLessons})</span>
+                    <div className="flex items-center gap-1.5">
+                        <span>{Math.round(progress)}% ({completedLessons}/{totalLessons})</span>
+                        <TooltipProvider>
+                          <Tooltip delayDuration={0}>
+                            <TooltipTrigger asChild>
+                              <Info className="h-3.5 w-3.5 text-muted-foreground cursor-pointer hover:text-foreground transition-colors" />
+                            </TooltipTrigger>
+                          <TooltipContent>
+                            <p>These are the tentative numbers, please keep in mind.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -175,7 +196,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                           month: '2-digit',
                           year: 'numeric',
                         })
-                        : 'Recently'}
+                        : 'Recently'}  
                     </span>
                   </div>
                 </div>
