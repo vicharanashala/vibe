@@ -1,5 +1,6 @@
 import { studentCourseInviteRegistration } from '@/app/routes/router';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +12,7 @@ import { useGetCourseRegistration, useGetDynamicFields, useSubmitCourseRegistrat
 import { useParams } from '@tanstack/react-router';
 import React, { useState } from 'react';
 import { toast } from 'sonner';
-import validator  from "@rjsf/validator-ajv8";
+import validator from "@rjsf/validator-ajv8";
 import type { IChangeEvent } from "@rjsf/core";
 import { Skeleton } from '@/components/ui/skeleton';
 import { BookOpen, CalendarDays, ChevronDown, ChevronUp, Clock, GraduationCap, ListChecks, Loader2, NotebookText, Play, UserPlus, Users } from 'lucide-react';
@@ -94,12 +95,12 @@ const CourseRegistration: React.FC = () => {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [showModules, setShowModules] = useState(false);
+  // const [showModules, setShowModules] = useState(false);
 
   const { data: versionData, isLoading: isLoadingVersionData } = useGetCourseRegistration(versionId);
   const { mutateAsync: submitRegistration, isPending: isSubmitting } = useSubmitCourseRegistration();
   const { data: formFieldData, isLoading: isFormFieldsLoading } = useGetDynamicFields(versionId);
-  
+
   const jsonSchema = formFieldData?.jsonSchema as RJSFSchema | undefined;
   const uiSchema = formFieldData?.uiSchema as Record<string, any> | undefined;
 
@@ -110,7 +111,7 @@ const CourseRegistration: React.FC = () => {
     return d.toLocaleDateString();
   };
 
- 
+
   const onSubmit = async (data: IChangeEvent<any>) => {
     try {
 
@@ -153,31 +154,31 @@ const CourseRegistration: React.FC = () => {
     setErrors({});
   };
 
-  
 
- if (isLoadingVersionData) {
-  return (
-    <div className="min-h-screen flex  justify-center px-6">
-      <div className="w-full max-w-3xl space-y-6">
-       <Skeleton className="h-6 w-1/4 bg-gray-200 dark:bg-gray-600" />
-        <Skeleton className="h-18 w-full bg-gray-200 dark:bg-gray-600" />
 
-        <Skeleton className="h-64 w-full bg-gray-200 dark:bg-gray-600" />
-        <div className="space-y-4">
+  if (isLoadingVersionData) {
+    return (
+      <div className="min-h-screen flex  justify-center px-6">
+        <div className="w-full max-w-3xl space-y-6">
+          <Skeleton className="h-6 w-1/4 bg-gray-200 dark:bg-gray-600" />
           <Skeleton className="h-18 w-full bg-gray-200 dark:bg-gray-600" />
-          <Skeleton className="h-10 w-full bg-gray-200 dark:bg-gray-600" />
-          <Skeleton className="h-10 w-full bg-gray-200 dark:bg-gray-600" />
+
+          <Skeleton className="h-64 w-full bg-gray-200 dark:bg-gray-600" />
+          <div className="space-y-4">
+            <Skeleton className="h-18 w-full bg-gray-200 dark:bg-gray-600" />
+            <Skeleton className="h-10 w-full bg-gray-200 dark:bg-gray-600" />
+            <Skeleton className="h-10 w-full bg-gray-200 dark:bg-gray-600" />
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
 
   return (
     <main className="mx-auto max-w-5xl space-y-8">
       <header className="space-y-1">
-       <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3">
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-lg blur-sm"></div>
             <div className="relative bg-gradient-to-r from-primary to-accent p-2 rounded-lg">
@@ -197,7 +198,7 @@ const CourseRegistration: React.FC = () => {
       <section className="w-full">
         <Card className="w-full border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
           <CardHeader className="space-y-2">
-           <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 rounded-lg blur-sm"></div>
                 <div className="relative bg-gradient-to-r from-primary to-primary/80 p-2 rounded-lg">
@@ -215,37 +216,37 @@ const CourseRegistration: React.FC = () => {
           </CardHeader>
 
           <CardContent className="space-y-8">
-          <section className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary" className="flex items-center gap-1">
-                <ListChecks className="w-4 h-4" />
-                Total Items: {versionData?.totalItems}
-              </Badge>
-            </div>
+            <section className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  <ListChecks className="w-4 h-4" />
+                  Total Items: {versionData?.totalItems}
+                </Badge>
+              </div>
 
-            <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-              <div className="flex items-start gap-2">
-                <CalendarDays className="w-4 h-4 mt-1 text-muted-foreground" />
-                <div className="leading-tight">
-                  <span className="block">Created On</span>
-                  <span className="font-medium text-foreground">
-                    {formatDate(versionData?.createdAt?.toString())}
-                  </span>
+              <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                <div className="flex items-start gap-2">
+                  <CalendarDays className="w-4 h-4 mt-1 text-muted-foreground" />
+                  <div className="leading-tight">
+                    <span className="block">Created On</span>
+                    <span className="font-medium text-foreground">
+                      {formatDate(versionData?.createdAt?.toString())}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <CalendarDays className="w-4 h-4 mt-1 text-muted-foreground" />
+                  <div className="leading-tight">
+                    <span className="block">Last Updated</span>
+                    <span className="font-medium text-foreground">
+                      {formatDate(versionData?.updatedAt?.toString())}
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-start gap-2">
-                <CalendarDays className="w-4 h-4 mt-1 text-muted-foreground" />
-                <div className="leading-tight">
-                  <span className="block">Last Updated</span>
-                  <span className="font-medium text-foreground">
-                    {formatDate(versionData?.updatedAt?.toString())}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-          </section>
+            </section>
 
             <section>
               <h3 className="text-lg font-semibold text-foreground mb-1">
@@ -263,7 +264,7 @@ const CourseRegistration: React.FC = () => {
                 }}
               >
                 <DialogTrigger asChild>
-                 <Button className="w-full flex items-center justify-center gap-2" disabled={isFormFieldsLoading}>
+                  <Button className="w-full flex items-center justify-center gap-2" disabled={isFormFieldsLoading}>
                     {isFormFieldsLoading ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -330,7 +331,7 @@ const CourseRegistration: React.FC = () => {
               Lessons included in this version
             </p>
           </div>
-         <Button 
+          {/* <Button 
           variant="outline" 
           onClick={() => setShowModules(s => !s)}
           className="flex items-center gap-2"
@@ -346,9 +347,9 @@ const CourseRegistration: React.FC = () => {
               View lessons
             </>
           )}
-        </Button>
+        </Button> */}
         </div>
-        {showModules && (
+        {/* {showModules && (
           <>
             {(() => {
               const allModules = versionData?.modules ?? [];
@@ -389,6 +390,64 @@ const CourseRegistration: React.FC = () => {
                 </ScrollArea>
               );
             })()}
+          </>
+        )} */}
+
+        {versionData !== null ? (
+          <>
+            <ScrollArea className="h-52 pr-2">
+              <Accordion
+                type="single"
+                collapsible
+                className="mt-4 space-y-4"
+              >
+                {(versionData?.modules ?? []).map((m, idx) => {
+                  const id = (m as any)._id ?? (m as any).title ?? idx.toString();
+
+                  return (
+                    <AccordionItem
+                      key={id}
+                      value={id}
+                    >
+                      <AccordionTrigger className="px-4 py-3">
+                        <div className="flex gap-3 text-left items-center">
+                          <span
+                            className="inline-flex h-7 w-7 items-center border rounded-full justify-center text-xs font-medium text-muted-foreground"
+                            aria-hidden="true"
+                          >
+                            {idx + 1}
+                          </span>
+
+                          <div className='flex gap-3 items-center'>
+                            <p className="font-semibold">
+                              {(m as any).title ?? (m as any).name}
+                            </p>
+                              <Badge variant="outline">
+                                {((m as any).itemsCount ?? 0).toString()} items
+                              </Badge>
+                          </div>
+
+                        </div>
+                      </AccordionTrigger>
+
+                      <AccordionContent>
+                        <div className="px-4 pb-4">
+                          {(m as any).description ? (
+                            <p className="text-sm text-muted-foreground">
+                              {(m as any).description}
+                            </p>
+                          ) : null}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
+            </ScrollArea>
+          </>
+        ) : (
+          <>
+            <p>No modules found</p>
           </>
         )}
       </section>
