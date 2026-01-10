@@ -302,36 +302,33 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               </DialogContent>
             </Dialog>
 
-            {/* Get Support Button - Always visible on all course cards */}
-            <Button
-              variant="outline"
-              className="w-full sm:w-auto bg-green-500/10 border-green-500/30 hover:bg-green-500/20 text-green-700 dark:text-green-400"
-              asChild
-            >
-              <a
-                href={
-                  supportLink
-                    ? (supportLink.startsWith('mailto:') || supportLink.includes('@'))
-                      ? supportLink.startsWith('mailto:')
-                        ? supportLink
-                        : `mailto:${supportLink}`
-                      : supportLink
-                    : "#"
-                }
-                target={supportLink ? "_blank" : undefined}
-                rel="noopener noreferrer"
-                className="flex items-center gap-2"
-                onClick={(e) => {
-                  if (!supportLink) {
-                    e.preventDefault();
-                    alert("Support link not configured for this course. Please contact your instructor.");
-                  }
-                }}
-              >
-                <Headphones className="h-4 w-4" />
-                Get Support
-              </a>
-            </Button>
+            {supportLink && (() => {
+              const isEmail = supportLink.startsWith('mailto:') || (!supportLink.startsWith('http://') && !supportLink.startsWith('https://') && !supportLink.startsWith('//') && supportLink.includes('@'));
+              const href = supportLink.startsWith('mailto:')
+                ? supportLink
+                : supportLink.startsWith('http://') || supportLink.startsWith('https://') || supportLink.startsWith('//')
+                  ? supportLink
+                  : supportLink.includes('@')
+                    ? `mailto:${supportLink}`
+                    : supportLink;
+              return (
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  asChild
+                >
+                  <a
+                    href={href}
+                    target={isEmail ? undefined : "_blank"}
+                    rel={isEmail ? undefined : "noopener noreferrer"}
+                    className="flex items-center gap-2"
+                  >
+                    <Headphones className="h-4 w-4" />
+                    Get Support
+                  </a>
+                </Button>
+              );
+            })()}
 
             {/* JUST ADD THIS FOR MERN CASE STUDY COURSE ONLY */}
             {enrollment.courseId === "692f030a945e82ec875e9116" && (

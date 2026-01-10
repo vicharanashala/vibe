@@ -971,22 +971,36 @@ function VersionCard({
       setEditingErrors({ version: " Version name is required", description: " Version description is required" })
       return
     }
-    else {
-      setEditingErrors({ version: "", description: "", supportLink: "" })
+
+    const supportLinkValue = editingValues.supportLink.trim();
+    if (supportLinkValue) {
+      const isEmail = supportLinkValue.includes('@');
+      const isUrl = /^https?:\/\/.+/.test(supportLinkValue);
+      if (!isEmail && !isUrl) {
+        setEditingErrors({ supportLink: "Must be a valid URL (https://...) or email address" })
+        return
+      }
     }
+
+    setEditingErrors({ version: "", description: "", supportLink: "" })
+
     try {
       await updateVersionMutation.mutateAsync({
         params: { path: { courseId: courseId, versionId: selectedVersionId } },
         body: {
           version: editingValues.version,
           description: editingValues.description,
-          supportLink: editingValues.supportLink || undefined,
+          supportLink: supportLinkValue || "",
         } as any,
       })
 
-      // Invalidate specific version query
       queryClient.invalidateQueries({
-        queryKey: ["get", "/courses/versions/{id}", { params: { path: { id: selectedVersionId } } }],
+        queryKey: ["get", "/courses/versions/{id}"],
+      })
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey.some((key) => String(key).includes(selectedVersionId))
       })
 
       setEditingVersion(false)
@@ -1255,32 +1269,36 @@ function VersionCard({
                     )}
                     Clone
                   </Button>
-                  {/* Get Support Button - shown if support link is configured */}
-                  {(version as any)?.supportLink && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      asChild
-                      className="h-8 bg-green-500/10 border-green-500/30 hover:bg-green-500/20 text-green-700 dark:text-green-400 transition-all duration-300 text-xs"
-                    >
-                      <a
-                        href={
-                          (version as any).supportLink.startsWith('mailto:') || (version as any).supportLink.includes('@')
-                            ? (version as any).supportLink.startsWith('mailto:')
-                              ? (version as any).supportLink
-                              : `mailto:${(version as any).supportLink}`
-                            : (version as any).supportLink
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1"
+                  {(version as any)?.supportLink && (() => {
+                    const link = (version as any).supportLink;
+                    const isEmail = link.startsWith('mailto:') || (!link.startsWith('http://') && !link.startsWith('https://') && !link.startsWith('//') && link.includes('@'));
+                    const href = link.startsWith('mailto:')
+                      ? link
+                      : link.startsWith('http://') || link.startsWith('https://') || link.startsWith('//')
+                        ? link
+                        : link.includes('@')
+                          ? `mailto:${link}`
+                          : link;
+                    return (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="h-8 border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
                       >
-                        <Headphones className="h-3 w-3" />
-                        Support
-                        <ExternalLink className="h-2.5 w-2.5" />
-                      </a>
-                    </Button>
-                  )}
+                        <a
+                          href={href}
+                          target={isEmail ? undefined : "_blank"}
+                          rel={isEmail ? undefined : "noopener noreferrer"}
+                          className="flex items-center gap-1"
+                        >
+                          <Headphones className="h-3 w-3" />
+                          Support
+                          <ExternalLink className="h-2.5 w-2.5" />
+                        </a>
+                      </Button>
+                    );
+                  })()}
                   <Button
                     variant="outline"
                     size="sm"
