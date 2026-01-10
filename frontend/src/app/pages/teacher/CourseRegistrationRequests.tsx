@@ -61,12 +61,12 @@ export default function CourseRegistrationRequests() {
   const PAGE_LIMIT = 15;
 
   const params = useMemo(() => ({
-    status: filterStatus,
+    // status: filterStatus,
     search: searchTerm,
     sort: sortOrder,
     page: currentPage,
     limit: PAGE_LIMIT,
-  }), [filterStatus, searchTerm, sortOrder, currentPage]);
+  }), [ searchTerm, sortOrder, currentPage]);
 
   const { data: registrationsData, isLoading, refetch: registrationsRefetch } = useGetCourseRegistrationRequests(versionId as string, params);
   const { mutateAsync: updateStatus, isPending: isUpdatingStatus } = useUpdateRegistrationStatus();
@@ -75,6 +75,11 @@ export default function CourseRegistrationRequests() {
 
   const FRONTEND_URL = window.location.origin;
   const registrationUrl = `${FRONTEND_URL}/student/course-registration/${versionId}`;
+
+  const filteredRegistrations = useMemo(() => {
+  if (filterStatus === "ALL") return registrations;
+  return registrations.filter((reg) => reg.status === filterStatus);
+  }, [registrations, filterStatus]);
 
   const registrationMessage = `🎓 Course Registration - ViBe Platform
 
@@ -573,7 +578,7 @@ useEffect(() => {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ) : registrations?.length === 0 ? (
+                  ) : filteredRegistrations?.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-16">
                         <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
@@ -588,7 +593,7 @@ useEffect(() => {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    registrations?.map((reg: Registration, index: number) => (
+                    filteredRegistrations?.map((reg: Registration, index: number) => (
                       <TableRow
                         key={reg._id}
                         className="border-border hover:bg-muted/20 transition-colors duration-200 group"
