@@ -32,7 +32,7 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-export default function Video({ URL, startTime, nextItem, isAlreadyWatched, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true }: VideoProps) {
+export default function Video({ URL, startTime, nextItemId, isAlreadyWatched, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true }: VideoProps) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const [playerReady, setPlayerReady] = useState(false);
@@ -490,7 +490,7 @@ export default function Video({ URL, startTime, nextItem, isAlreadyWatched, endT
                         itemId: currentCourse.itemId ?? '',
                         moduleId: currentCourse.moduleId ?? '',
                         sectionId: currentCourse.sectionId ?? '',
-                        nextItemId: nextItem?._id?.toString()
+                        nextItemId
                       },
                     });
 
@@ -546,7 +546,7 @@ export default function Video({ URL, startTime, nextItem, isAlreadyWatched, endT
             itemId: currentCourse.itemId ?? '',
             moduleId: currentCourse.moduleId ?? '',
             sectionId: currentCourse.sectionId ?? '',
-            nextItemId: nextItem?._id?.toString()
+            nextItemId
 
           },
         });
@@ -649,7 +649,7 @@ export default function Video({ URL, startTime, nextItem, isAlreadyWatched, endT
                     itemId: currentCourse.itemId ?? '',
                     moduleId: currentCourse.moduleId ?? '',
                     sectionId: currentCourse.sectionId ?? '',
-                    nextItemId: nextItem?._id?.toString()
+                    nextItemId
 
                   },
                 });
@@ -694,7 +694,7 @@ export default function Video({ URL, startTime, nextItem, isAlreadyWatched, endT
                     itemId: currentCourse.itemId ?? '',
                     moduleId: currentCourse.moduleId ?? '',
                     sectionId: currentCourse.sectionId ?? '',
-                    nextItemId: nextItem?._id?.toString()
+                    nextItemId
 
                   },
                 });

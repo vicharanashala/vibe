@@ -16,8 +16,8 @@ export interface VideoProps {
   onDurationChange?: (duration: number) => void;
   keyboardLockEnabled?: boolean;
   linearProgressionEnabled: boolean;
-  nextItem: Item;
   isAlreadyWatched:boolean
+  nextItemId: string;
 }
 
 

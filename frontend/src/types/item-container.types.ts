@@ -45,7 +45,7 @@ export interface Item {
 export interface ItemContainerProps {
 
   item: Item;
-  nextItem: Item;
+  nextItem: {itemId:string};
   doGesture: boolean;
   onNext: () => void;
   onPrevVideo?: () => void;

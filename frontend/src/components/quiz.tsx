@@ -52,7 +52,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   rewindVid,
   setIsQuizSkipped,
   linearProgressionEnabled,
-  nextItem
+  nextItemId
 }, ref) => {
   // console.log('Quiz component rendered with props:', {});
   // ===== CORE STATE =====
@@ -430,7 +430,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         sectionId: currentCourse.sectionId ?? '',
         attemptId,
         isSkipped,
-        nextItemId: nextItem?._id?.toString()
+        nextItemId
       }
     });
     itemStartedRef.current = false;
@@ -462,8 +462,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           sectionId: currentCourse.sectionId ?? '',
           attemptId,
           isSkipped,
-          nextItemId: nextItem?._id?.toString()
-
+          nextItemId
         },
       });
 
@@ -1004,7 +1003,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             sectionId: currentCourse.sectionId ?? '',
             attemptId,
             isSkipped: false,
-            nextItemId: nextItem?._id?.toString()
+            nextItemId
           }
         });
         itemStartedRef.current = false;

@@ -74,7 +74,7 @@ export interface QuizProps {
   rewindVid?: boolean;
   setIsQuizSkipped: React.Dispatch<React.SetStateAction<boolean>>;
   linearProgressionEnabled: boolean;
-  nextItem:Item
+  nextItemId?: string;
 }
 
 export interface QuizRef {
