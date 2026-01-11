@@ -689,7 +689,15 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         setScore(totalScore);
       }
 
-      // ✅ Stop will be called by course-page.tsx via ref - don't call it here
+      if (response.gradingStatus === 'FAILED') {
+        console.log('Quiz failed - immediately updating progress to previous video');
+        try {
+          await handleStopItem(false);
+        } catch (stopError) {
+          console.error('Failed to update progress after quiz failure:', stopError);
+        }
+      }
+
       setQuizCompleted(true);
 
     } catch (err) {
