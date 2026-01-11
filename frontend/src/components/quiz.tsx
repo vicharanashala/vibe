@@ -52,7 +52,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   rewindVid,
   setIsQuizSkipped,
   linearProgressionEnabled,
-  nextItemId
+  nextItemId,
+  isAlreadyWatched
 }, ref) => {
   // console.log('Quiz component rendered with props:', {});
   // ===== CORE STATE =====
@@ -379,7 +380,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
   // ===== COURSE ITEM TRACKING FUNCTIONS =====
   const handleSendStartItem = useCallback(async () => {
-    if (!currentCourse?.itemId) return;
+    if (!currentCourse?.itemId || isAlreadyWatched) return;
     try {
       const response = await startItem.mutateAsync({
         params: {
@@ -407,7 +408,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }, [currentCourse, startItem, setWatchItemId]);
 
   const handleStopItem = useCallback(async (isSkipped?: boolean) => {
-    if (!currentCourse?.itemId || !currentCourse.watchItemId) {
+    if (!currentCourse?.itemId || !currentCourse.watchItemId || (isAlreadyWatched && submissionResults?.gradingStatus !== "PASSED")) {
       itemStartedRef.current = false;
       return;
     }
@@ -439,7 +440,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
   const stopItemAsync = useCallback(
     async (isSkipped?: boolean) => {
-      if (!currentCourse?.itemId || !currentCourse.watchItemId) {
+      if (!currentCourse?.itemId || !currentCourse.watchItemId || ( isAlreadyWatched && submissionResults?.gradingStatus !== "PASSED")) {
         itemStartedRef.current = false;
         return;
       }

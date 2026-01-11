@@ -284,6 +284,14 @@ export class StopItemBody {
     example: true,
   })
   isSkipped?: boolean;
+
+  @IsOptional()
+  @JSONSchema({
+    description: 'Next item ID to proceed to after stopping',
+    type: 'string',
+    example: "60d5ec49b3f1c8e4a8f8b8c8",
+  })
+  nextItemId?: string;
 }
 
 export class ItemIdparams {

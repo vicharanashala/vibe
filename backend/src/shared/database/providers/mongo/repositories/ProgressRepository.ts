@@ -517,6 +517,7 @@ class ProgressRepository {
       { $set: { endTime: new Date() } },
       { returnDocument: 'after', session },
     );
+    console.log("From stopItemTracking, result:", result);
     return result;
   }
 

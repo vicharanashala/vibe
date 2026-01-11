@@ -1346,7 +1346,7 @@ class ProgressService extends BaseService {
     });
   }
 
-  async stopItem(
+  async stopIte(
     userId: string,
     courseId: string,
     courseVersionId: string,
@@ -1356,6 +1356,7 @@ class ProgressService extends BaseService {
     watchItemId: string,
     attemptId?: string,
     isSkipped?: boolean,
+    nextItemId?: string,
   ): Promise<void> {
 
     /* ----------------------------------------------------
@@ -1595,55 +1596,47 @@ class ProgressService extends BaseService {
     );
   }
 
-  async stopItemNew(
+  async stopItem(
     userId: string,
     courseId: string,
     courseVersionId: string,
     itemId: string,
-    nextItemId: string,
     sectionId: string,
     moduleId: string,
     watchItemId: string,
     attemptId?: string,
     isSkipped?: boolean,
+    nextItemId?: string,
   ): Promise<void> {
-
-    const [course, courseVersion, progress] = await Promise.all([
-      this.courseRepo.read(courseId),
+    console.log("Next itemId: ", nextItemId);
+    const [courseVersion, progress, isItemCompleted] = await Promise.all([
       this.courseRepo.readVersion(courseVersionId),
       this.progressRepository.findProgress(userId, courseId, courseVersionId),
+      this.progressRepository.isItemCompleted(
+        userId,
+        courseId,
+        courseVersionId,
+        itemId,
+      )
     ]);
-
-    if (!course) throw new NotFoundError('Course not found');
     if (!courseVersion || courseVersion.courseId.toString() !== courseId)
       throw new NotFoundError('Invalid course version');
     if (!progress) throw new NotFoundError('Progress not found');
-
-
-    // Check if item is already completed before stopping watchTime
-    const isItemCompleted = await this.progressRepository.isItemCompleted(
-      userId,
-      courseId,
-      courseVersionId,
-      itemId,
-    );
-
-    if (isItemCompleted) {
-      return;
-    }
+    if (isItemCompleted) return;
 
     const isModuleIdMatch = progress.currentModule.toString() === moduleId;
     const isSectionIdMatch = progress.currentSection.toString() === sectionId;
     const isItemIdMatch = progress.currentItem.toString() === itemId;
     const isNotMatchError = !isModuleIdMatch ? "Module ID is not matching with progress record" : !isSectionIdMatch ? "Section ID is not matching with progress record" : !isItemIdMatch ? "Item ID is not matching with progress record" : null;
 
-    if(isNotMatchError) {
+    if (isNotMatchError) {
       throw new BadRequestError(isNotMatchError);
     }
 
     const item = await this.itemRepo.readItemById(itemId)
     if (!item) throw new NotFoundError('Item not found');
 
+    console.log("Item from stop service: ", item);
     /* ----------------------------------------------------
        2. ITEM-TYPE VALIDATIONS (NO TRANSACTION)
     ---------------------------------------------------- */
@@ -1684,6 +1677,7 @@ class ProgressService extends BaseService {
 
     await this._withTransaction(async session => {
 
+      console.log("Inside transaction of stopItemNew");
       // Stop watch tracking
       const stoppedWatchTime =
         await this.progressRepository.stopItemTracking(watchItemId, session);
