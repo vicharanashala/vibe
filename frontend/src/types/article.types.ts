@@ -5,6 +5,7 @@ export interface ArticleProps {
     tags?: string[];
     onNext?: () => void;
     isProgressUpdating?: boolean;
+    isAlreadyWatched: boolean;
 }
 
 export interface ArticleRef {

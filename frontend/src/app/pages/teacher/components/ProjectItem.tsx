@@ -19,6 +19,7 @@ interface ProjectItemProps {
   onDelete?: () => Promise<void> | void;
   isSaving?: boolean;
   isDeleting?: boolean;
+  isAlreadyWatched: boolean;
 }
 
 export default function ProjectItem({

@@ -32,7 +32,7 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-export default function Video({ URL, startTime, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true }: VideoProps) {
+export default function Video({ URL, startTime, nextItem, isAlreadyWatched, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true }: VideoProps) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const [playerReady, setPlayerReady] = useState(false);
@@ -198,7 +198,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
       player.pauseVideo();
     } else {
       player.playVideo();
-      setTimeout(() => {playerRef.current?.setPlaybackRate?.(playbackRate);}, 50);
+      setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
     }
   }, [playing, readyToDetect]);
 
@@ -368,7 +368,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
 
 
   function handleSendStartItem() {
-    if (!currentCourse?.itemId) return;
+    if (!currentCourse?.itemId || isAlreadyWatched) return;
     startItem.mutate({
       params: {
         path: {
@@ -467,6 +467,12 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
             } else if (window.YT && event.data === window.YT.PlayerState.ENDED) {
               // Video naturally ended (when no endTimeSeconds constraint)
               setPlaying(false);
+
+              if (isAlreadyWatched) {
+                onNext?.();
+                return;
+              }
+
               if (!progressStoppedRef.current && watchItemIdRef.current && currentCourse) {
                 const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
                 if (watchItemId) {
@@ -484,6 +490,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
                         itemId: currentCourse.itemId ?? '',
                         moduleId: currentCourse.moduleId ?? '',
                         sectionId: currentCourse.sectionId ?? '',
+                        nextItemId: nextItem?._id?.toString()
                       },
                     });
 
@@ -520,7 +527,10 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
     // Cleanup when component unmounts or URL changes
     return () => {
 
-
+      if (isAlreadyWatched) {
+        onNext?.();
+        return;
+      }
       // Stop if started but not yet stopped
       if (!progressStoppedRef.current && !stopInFlightRef.current && watchItemIdRef.current && currentCourse) {
         stopInFlightRef.current = true
@@ -536,6 +546,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
             itemId: currentCourse.itemId ?? '',
             moduleId: currentCourse.moduleId ?? '',
             sectionId: currentCourse.sectionId ?? '',
+            nextItemId: nextItem?._id?.toString()
+
           },
         });
       }
@@ -611,8 +623,14 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
             return;
           }
 
+
+
           // Enforce endTime constraint
           if (endTimeSeconds > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= endTimeSeconds - 1 && currentCourse) {
+            if (isAlreadyWatched) {
+              onNext?.();
+              return;
+            }
             const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
             stopInFlightRef.current = true;
             if (watchItemId) {
@@ -631,6 +649,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
                     itemId: currentCourse.itemId ?? '',
                     moduleId: currentCourse.moduleId ?? '',
                     sectionId: currentCourse.sectionId ?? '',
+                    nextItemId: nextItem?._id?.toString()
+
                   },
                 });
 
@@ -650,6 +670,12 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
 
           // Handle videos without endTime constraint that reach near completion
           if (endTimeSeconds === 0 && duration > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= duration - 2 && currentCourse) {
+
+
+            if (isAlreadyWatched) {
+              onNext?.();
+              return;
+            }
             const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
             if (watchItemId) {
               // Pause video immediately when stop is triggered
@@ -668,6 +694,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
                     itemId: currentCourse.itemId ?? '',
                     moduleId: currentCourse.moduleId ?? '',
                     sectionId: currentCourse.sectionId ?? '',
+                    nextItemId: nextItem?._id?.toString()
+
                   },
                 });
                 progressStoppedRef.current = true;
@@ -815,6 +843,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
+
+      {isAlreadyWatched ? "COMPLETED AANOALLLOOO" : "COMPLETED ALLAAAAAAAAAA"}
 
       <ConfirmOverlay
         visible={isStopFailed}

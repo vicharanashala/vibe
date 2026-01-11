@@ -1,3 +1,5 @@
+import { Item } from "./item-container.types";
+
 // Props for the video player component
 export interface VideoProps {
   URL: string;
@@ -14,6 +16,8 @@ export interface VideoProps {
   onDurationChange?: (duration: number) => void;
   keyboardLockEnabled?: boolean;
   linearProgressionEnabled: boolean;
+  nextItem: Item;
+  isAlreadyWatched:boolean
 }
 
 

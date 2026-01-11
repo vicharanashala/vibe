@@ -19,6 +19,7 @@ interface FeedbackFormProps {
   onSubmit: (data: any) => void;
   onSkip?: () => void;
   isSubmitting?: boolean;
+  isAlreadyWatched: boolean;
   onNext: () => void
 }
 

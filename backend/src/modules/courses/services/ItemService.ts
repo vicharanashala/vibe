@@ -1,15 +1,15 @@
-import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId} from 'mongodb';
-import {NotFoundError, InternalServerError} from 'routing-controllers';
-import {COURSES_TYPES} from '#courses/types.js';
-import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, ObjectId } from 'mongodb';
+import { NotFoundError, InternalServerError } from 'routing-controllers';
+import { COURSES_TYPES } from '#courses/types.js';
+import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
 import {
   ItemsGroup,
   ItemBase,
   ItemRef,
   Item,
 } from '#courses/classes/transformers/Item.js';
-import {Section} from '#courses/classes/transformers/Section.js';
+import { Section } from '#courses/classes/transformers/Section.js';
 import {
   CreateItemBody,
   UpdateItemBody,
@@ -18,13 +18,13 @@ import {
   CSVRow,
   CSVQuizQuestion,
 } from '#courses/classes/validators/ItemValidators.js';
-import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {Module} from '#courses/classes/transformers/Module.js';
+import { calculateNewOrder } from '#courses/utils/calculateNewOrder.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { Module } from '#courses/classes/transformers/Module.js';
 import {
   EnrollmentRepository,
   IBaseItem,
@@ -35,20 +35,20 @@ import {
   ProgressRepository,
   QuestionType,
 } from '#root/shared/index.js';
-import {USERS_TYPES} from '#root/modules/users/types.js';
-import {ProgressService} from '#root/modules/users/services/ProgressService.js';
-import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
+import { USERS_TYPES } from '#root/modules/users/types.js';
+import { ProgressService } from '#root/modules/users/services/ProgressService.js';
+import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 import {
   AttemptRepository,
   QuizRepository,
   UserQuizMetricsRepository,
 } from '#root/modules/quizzes/repositories/index.js';
-import {FeedbackRepository} from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
-import {QuestionBankService} from '#root/modules/quizzes/services/QuestionBankService.js';
-import {QuizService} from '#root/modules/quizzes/services/QuizService.js';
-import {QuestionService} from '#root/modules/quizzes/services/QuestionService.js';
-import {QuestionFactory} from '#root/modules/quizzes/classes/index.js';
-import {QuestionProcessor} from '#root/modules/quizzes/question-processing/QuestionProcessor.js';
+import { FeedbackRepository } from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
+import { QuestionBankService } from '#root/modules/quizzes/services/QuestionBankService.js';
+import { QuizService } from '#root/modules/quizzes/services/QuizService.js';
+import { QuestionService } from '#root/modules/quizzes/services/QuestionService.js';
+import { QuestionFactory } from '#root/modules/quizzes/classes/index.js';
+import { QuestionProcessor } from '#root/modules/quizzes/question-processing/QuestionProcessor.js';
 
 @injectable()
 export class ItemService extends BaseService {
@@ -124,17 +124,17 @@ export class ItemService extends BaseService {
         version,
         module,
         section,
-        itemsGroup: {_id: section.itemsGroupId, items: []} as ItemsGroup,
+        itemsGroup: { _id: section.itemsGroupId, items: [] } as ItemsGroup,
       };
     }
 
-    return {version, module, section, itemsGroup};
+    return { version, module, section, itemsGroup };
   }
 
   private async _updateHierarchyAndVersion(
     version: CourseVersion,
-    module: {updatedAt: Date},
-    section: {updatedAt: Date},
+    module: { updatedAt: Date },
+    section: { updatedAt: Date },
     session?: ClientSession, // Pass session if version update is part of the transaction
   ): Promise<CourseVersion> {
     const now = new Date();
@@ -158,7 +158,7 @@ export class ItemService extends BaseService {
   ) {
     return this._withTransaction(async session => {
       // Step 1: Fetch and validate parent entities
-      const {version, module, section, itemsGroup} =
+      const { version, module, section, itemsGroup } =
         await this._getVersionModuleSectionAndItemsGroup(
           versionId,
           moduleId,
@@ -219,7 +219,7 @@ export class ItemService extends BaseService {
       );
 
       // Step 3b: Update totalItems
-      const {totalItems, itemCounts} =
+      const { totalItems, itemCounts } =
         await this.itemRepo.calculateItemCountsForVersion(versionId, session);
       version.totalItems = totalItems;
       version.itemCounts = itemCounts;
@@ -246,7 +246,7 @@ export class ItemService extends BaseService {
     sectionId: string,
     userId: string,
   ): Promise<ItemRef[]> {
-    const {itemsGroup} = await this._getVersionModuleSectionAndItemsGroup(
+    const { itemsGroup } = await this._getVersionModuleSectionAndItemsGroup(
       versionId,
       moduleId,
       sectionId,
@@ -345,7 +345,7 @@ export class ItemService extends BaseService {
           sectionIndex === currentSectionIndex &&
           index < currentItemIndex
         ) {
-          return {...item, isCompleted: true};
+          return { ...item, isCompleted: true };
         }
 
         if (
@@ -353,20 +353,21 @@ export class ItemService extends BaseService {
           sectionIndex === currentSectionIndex &&
           index === currentItemIndex
         ) {
-          return {...item, isCompleted: progress.completed};
+          return { ...item, isCompleted: progress.completed };
         }
 
-        return {...item, isCompleted: false};
+        return { ...item, isCompleted: false };
       });
     }
 
     return itemsGroup.items;
   }
 
-  public async readItem(versionId: string, itemId: string) {
+  public async readItem(userId: string, courseId: string, versionId: string, itemId: string) {
     const item = await this.itemRepo.readItem(versionId, itemId);
     item._id = item._id.toString();
-    return item;
+    const isItemAlreadyCompleted = await this.progressRepo.isItemCompleted(userId, courseId, versionId, itemId);
+    return {...item, isItemAlreadyCompleted };
   }
 
   public async updateItem(
@@ -396,7 +397,7 @@ export class ItemService extends BaseService {
       //  Update item first
       const result = await this.itemRepo.updateItem(
         itemId,
-        {...body, isOptional: body.isOptional || item.isOptional},
+        { ...body, isOptional: body.isOptional || item.isOptional },
         session,
       );
 
@@ -427,7 +428,7 @@ export class ItemService extends BaseService {
   async bulkUpdateEnrolledUserQuizMetrics(
     quizId: string,
     quiz: any,
-  ): Promise<{updatedCount: number; totalCount: number}> {
+  ): Promise<{ updatedCount: number; totalCount: number }> {
     const BATCH_SIZE = 5000;
     const bulkOperations: any[] = [];
     let batchCount = 0;
@@ -455,7 +456,7 @@ export class ItemService extends BaseService {
           // Step 3: Add to bulk operations
           bulkOperations.push({
             updateOne: {
-              filter: {_id: new ObjectId(metric._id)},
+              filter: { _id: new ObjectId(metric._id) },
               update: {
                 $set: {
                   // latestAttemptId: latestAttempt?._id.toString(),
@@ -477,8 +478,7 @@ export class ItemService extends BaseService {
                 session,
               );
               console.log(
-                `✅ Batch ${++batchCount}: Updated ${
-                  bulkOperations.length
+                `✅ Batch ${++batchCount}: Updated ${bulkOperations.length
                 } user_quiz_metrics`,
               );
               bulkOperations.length = 0;
@@ -504,7 +504,7 @@ export class ItemService extends BaseService {
     }
 
     console.log(`🔹 Done! Updated ${updatedCount} / ${totalCount} records`);
-    return {updatedCount, totalCount};
+    return { updatedCount, totalCount };
   }
 
   public async deleteItem(itemsGroupId: string, itemId: string) {
@@ -531,7 +531,7 @@ export class ItemService extends BaseService {
           this.enrollmentRepo.getByCourseVersion(courseId, versionId, session),
         ]);
 
-        const {totalItems, itemCounts} =
+        const { totalItems, itemCounts } =
           await this.itemRepo.calculateItemCountsForVersion(versionId, session);
         version.totalItems = totalItems;
         version.itemCounts = itemCounts;
@@ -558,7 +558,7 @@ export class ItemService extends BaseService {
         }
 
         deleted._id = deleted._id.toString();
-        return {deletedItemId: itemId, itemsGroup: deleted};
+        return { deletedItemId: itemId, itemsGroup: deleted };
       } catch (error) {
         throw new InternalServerError(
           `Failed to delete Item after / Error: ${error}`,
@@ -575,7 +575,7 @@ export class ItemService extends BaseService {
     body: MoveItemBody,
   ) {
     return this._withTransaction(async session => {
-      const {afterItemId, beforeItemId} = body;
+      const { afterItemId, beforeItemId } = body;
       if (!afterItemId && !beforeItemId) {
         throw new Error('Either afterItemId or beforeItemId is required');
       }
@@ -627,7 +627,7 @@ export class ItemService extends BaseService {
         version,
       );
 
-      return {itemsGroup: updatedItemsGroup, version: updatedVersion};
+      return { itemsGroup: updatedItemsGroup, version: updatedVersion };
     });
   }
 
@@ -749,7 +749,7 @@ export class ItemService extends BaseService {
       if (!version)
         throw new NotFoundError(`Version ${courseVersionId} not found.`);
 
-      const {totalItems, itemCounts} =
+      const { totalItems, itemCounts } =
         await this.itemRepo.calculateItemCountsForVersion(
           courseVersionId,
           session,
@@ -797,7 +797,7 @@ export class ItemService extends BaseService {
         if (nextItem) {
           await this.progressRepo.updateProgressByItemId(
             itemId,
-            {currentItem: nextItem._id.toString()},
+            { currentItem: nextItem._id.toString() },
             session,
           );
         }
@@ -979,10 +979,10 @@ export class ItemService extends BaseService {
               firstQuestion['Question Timestamp [mm:ss]'] ||
               (Object.keys(firstQuestion).find(k => k.includes('Timestamp'))
                 ? firstQuestion[
-                    Object.keys(firstQuestion).find(k =>
-                      k.includes('Timestamp'),
-                    )!
-                  ]
+                Object.keys(firstQuestion).find(k =>
+                  k.includes('Timestamp'),
+                )!
+                ]
                 : undefined);
           }
 
@@ -990,9 +990,9 @@ export class ItemService extends BaseService {
 
           const endTime = timestamp
             ? timeCache.get(timestamp) ??
-              timeCache
-                .set(timestamp, this._convertTimeToSeconds(timestamp))
-                .get(timestamp)!
+            timeCache
+              .set(timestamp, this._convertTimeToSeconds(timestamp))
+              .get(timestamp)!
             : previousEndTime + 300;
 
           // Create video item
@@ -1153,8 +1153,7 @@ export class ItemService extends BaseService {
       };
     } catch (error) {
       throw new InternalServerError(
-        `Failed to process CSV: ${
-          error instanceof Error ? error.message : 'Unknown error'
+        `Failed to process CSV: ${error instanceof Error ? error.message : 'Unknown error'
         }`,
       );
     }

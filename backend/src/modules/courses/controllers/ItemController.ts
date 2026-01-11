@@ -146,7 +146,7 @@ export class ItemController {
       const sampleItemResource = subject('Item', { versionId, _id: 'sample' });
       const canManage = ability.can(ItemActions.Modify, sampleItemResource);
 
- 
+
 
       if (canManage) {
         // Instructors/managers/TAs can see all items including blank quizzes
@@ -329,9 +329,10 @@ Access control logic:
   })
   async getItem(
     @Params() params: GetItemParams,
-    @Ability(getItemAbility) { ability },
+    @Ability(getItemAbility) { ability, user },
   ) {
     const { versionId, itemId, courseId } = params;
+    const { _id: userId } = user;
 
     // Create an item resource object for permission checking
     const itemResource = subject('Item', { courseId, versionId, itemId });
@@ -342,7 +343,7 @@ Access control logic:
     }
 
     return {
-      item: await this.itemService.readItem(versionId, itemId),
+      item: await this.itemService.readItem(userId?.toString(), courseId, versionId, itemId),
     };
   }
 
@@ -476,7 +477,7 @@ Accessible to:
   @Authorized()
   @Post("/:courseId/versions/:versionId/module/:moduleId/section/:sectionId/items/csv")
   @HttpCode(200)
-  @ResponseSchema(csvResponse,{
+  @ResponseSchema(csvResponse, {
     description: 'CSV processed successfully',
     statusCode: 200,
   })
@@ -499,11 +500,11 @@ Accessible to:
 
     const result = await this.itemService.processCSVAndCreateItems(
       youtubeurl,
-      moduleId,    
-      sectionId,   
-      versionId,   
-      courseId,    
-      userId,      
+      moduleId,
+      sectionId,
+      versionId,
+      courseId,
+      userId,
       data
     );
     return result;

@@ -15,7 +15,7 @@ export interface ISubmitFeedbackBody {
   courseVersionId: string;
   isSkipped?: boolean;
 }
-const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, onPrevVideo, isProgressUpdating,readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson,keyboardLockEnabled,setIsQuizSkipped, linearProgressionEnabled,courseId,versionId}, ref) => {
+const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, nextItem, doGesture, onNext, onPrevVideo, isProgressUpdating, readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson, keyboardLockEnabled, setIsQuizSkipped, linearProgressionEnabled, courseId, versionId }, ref) => {
   const articleRef = useRef<ArticleRef>(null);
   const quizRef = useRef<QuizRef>(null);
 
@@ -30,11 +30,12 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
     }
   }));
   const submitFeedback = useSubmitFeedback(item._id.toString())
-  
-   const handleFeedbackSubmit = async (formData: any) => {
 
-    
+  const handleFeedbackSubmit = async (formData: any) => {
+
+
   };
+
 
   const renderContent = () => {
     const itemType = item.type.toLowerCase();
@@ -45,6 +46,8 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           startTime={item.details?.startTime ? item.details.startTime : ''}
           endTime={item.details?.endTime ? item.details.endTime : ''}
           points={item.details?.points ? item.details.points : ''}
+          nextItem={nextItem}
+          isAlreadyWatched={item.isItemAlreadyCompleted || false}
           doGesture={doGesture}
           onNext={onNext}
           keyboardLockEnabled={keyboardLockEnabled}
@@ -59,6 +62,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
       case 'quiz':
         return <Quiz
           ref={quizRef}
+          isAlreadyWatched={item.isItemAlreadyCompleted || false}
           questionBankRefs={item.details?.questionBankRefs || []}
           passThreshold={item.details?.passThreshold || 0}
           maxAttempts={item.details?.maxAttempts || 1}
@@ -83,7 +87,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           displayNextLesson={displayNextLesson}
           setQuizPassed={setQuizPassed}
           rewindVid={rewindVid}
-          setIsQuizSkipped = {setIsQuizSkipped}
+          setIsQuizSkipped={setIsQuizSkipped}
           linearProgressionEnabled={linearProgressionEnabled}
         />;
 
@@ -91,6 +95,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
       case 'blog':
         return <Article
           ref={articleRef}
+          isAlreadyWatched={item.isItemAlreadyCompleted || false}
           content={item.details?.content || ''}
           estimatedReadTimeInMinutes={item.details?.estimatedReadTimeInMinutes || ''}
           tags={item.details?.tags || []}
@@ -107,22 +112,24 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
             type: 'PROJECT',
             description: item.details?.description || item.description || ''
           }}
-          onSave={() => {}} // Not used in student view
-          onCancel={() => {}} // Not used in student view
+          isAlreadyWatched={item.isItemAlreadyCompleted || false}
+          onSave={() => { }} // Not used in student view
+          onCancel={() => { }} // Not used in student view
           isInstructor={false}
           onNext={onNext}
           isProgressUpdating={isProgressUpdating}
         />;
       case 'feedback':
         return <FeedbackForm
-        title={item.name}
-        description={item.description}
-        isOptional={item.isOptional}
-        jsonSchema={item?.details?.jsonSchema}
-        uiSchema={item?.details?.uiSchema}
-        onSubmit={handleFeedbackSubmit}
-        isSubmitting={isProgressUpdating}
-        onNext={onNext}
+          title={item.name}
+          isAlreadyWatched={item.isItemAlreadyCompleted || false}
+          description={item.description}
+          isOptional={item.isOptional}
+          jsonSchema={item?.details?.jsonSchema}
+          uiSchema={item?.details?.uiSchema}
+          onSubmit={handleFeedbackSubmit}
+          isSubmitting={isProgressUpdating}
+          onNext={onNext}
         />
 
       default:

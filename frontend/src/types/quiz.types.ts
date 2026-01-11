@@ -58,6 +58,7 @@ export interface QuizProps {
   allowPartialGrading: boolean;
   allowHint: boolean;
   allowSkip:boolean;
+  isAlreadyWatched:boolean;
   showCorrectAnswersAfterSubmission: boolean;
   showExplanationAfterSubmission: boolean;
   showScoreAfterSubmission: boolean;
@@ -73,6 +74,7 @@ export interface QuizProps {
   rewindVid?: boolean;
   setIsQuizSkipped: React.Dispatch<React.SetStateAction<boolean>>;
   linearProgressionEnabled: boolean;
+  nextItem:Item
 }
 
 export interface QuizRef {

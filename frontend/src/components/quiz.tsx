@@ -51,7 +51,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   setQuizPassed,
   rewindVid,
   setIsQuizSkipped,
-  linearProgressionEnabled
+  linearProgressionEnabled,
+  nextItem
 }, ref) => {
   // console.log('Quiz component rendered with props:', {});
   // ===== CORE STATE =====
@@ -428,7 +429,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         moduleId: currentCourse.moduleId ?? '',
         sectionId: currentCourse.sectionId ?? '',
         attemptId,
-        isSkipped
+        isSkipped,
+        nextItemId: nextItem?._id?.toString()
       }
     });
     itemStartedRef.current = false;
@@ -460,6 +462,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           sectionId: currentCourse.sectionId ?? '',
           attemptId,
           isSkipped,
+          nextItemId: nextItem?._id?.toString()
+
         },
       });
 
@@ -991,7 +995,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             moduleId: currentCourse.moduleId ?? '',
             sectionId: currentCourse.sectionId ?? '',
             attemptId,
-            isSkipped: false
+            isSkipped: false,
+            nextItemId: nextItem?._id?.toString()
           }
         });
         itemStartedRef.current = false;
@@ -1473,7 +1478,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           <Badge variant="outline">
             Question {currentQuestionIndex + 1} of {quizQuestions.length}
           </Badge>
-         {timeLeft > 0 && (
+          {timeLeft > 0 && (
             <Badge
               variant="secondary"
               className={`font-mono text-lg font-semibold px-3 py-2 border

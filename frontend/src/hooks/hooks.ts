@@ -1403,7 +1403,7 @@ export function useStopItem() {
           body: { itemId },
         } = variables;
 
-      //  queryClient.invalidateQueries({
+        //  queryClient.invalidateQueries({
         //   queryKey: [
         //     "get",
         //     "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items",
@@ -1419,11 +1419,11 @@ export function useStopItem() {
         //   ],
         // });
         queryClient.invalidateQueries({
-  predicate: (query) =>
-    query.queryKey[0] === "get" &&
-    query.queryKey[1] ===
-      "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items",
-});
+          predicate: (query) =>
+            query.queryKey[0] === "get" &&
+            query.queryKey[1] ===
+            "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items",
+        });
 
       },
     }
@@ -1495,7 +1495,7 @@ export function useResetProgress(): {
   };
 }
 
-export function useRecalculateProgress():{
+export function useRecalculateProgress(): {
   mutate: (variables: { params: { query: { courseId?: string, userId?: string, versionId?: string } } }) => void,
   mutateAsync: (variables: { params: { query: { courseId?: string, userId?: string, versionId?: string } } }) => Promise<unknown>,
   data: unknown | undefined,

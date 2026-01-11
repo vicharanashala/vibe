@@ -171,6 +171,7 @@ export default function CoursePage() {
   const [readyToDetect, setReadyToDetect] = useState(false);
 
 
+
   // State to track when we're waiting for next section items to load
   const [waitingForNextSection, setWaitingForNextSection] = useState<{
     moduleId: string;
@@ -1015,7 +1016,7 @@ export default function CoursePage() {
         // Update global course store
         updateCourseNavigation(moduleId, sectionId, itemId);
 
-        
+
         // Clear loading state after successful navigation
         setIsNavigatingToNext(false);
       } catch (error) {
@@ -1449,7 +1450,7 @@ export default function CoursePage() {
                                                       })()}
                                                     </div>
                                                     {item.isCompleted && (
-                                                      <div className={`text-[10px] dark:text-green-500 text-green-600 font-medium mt-0.5 flex items-center gap-1 ${selectedItemId === itemId ? "text-green-900": ""} `}>
+                                                      <div className={`text-[10px] dark:text-green-500 text-green-600 font-medium mt-0.5 flex items-center gap-1 ${selectedItemId === itemId ? "text-green-900" : ""} `}>
                                                         <CheckCircle className="h-3 w-3" />
                                                         Completed
                                                       </div>
@@ -1793,6 +1794,7 @@ export default function CoursePage() {
                     <ItemContainer
                       ref={itemContainerRef}
                       item={currentItem}
+                      nextItem={findNextItem()}
                       doGesture={doGesture}
                       onNext={handleNext}
                       onPrevVideo={handlePrevVideo}

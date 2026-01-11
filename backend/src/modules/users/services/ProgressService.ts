@@ -1523,7 +1523,215 @@ class ProgressService extends BaseService {
     );
   }
 
+  async stopItemNew(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    itemId: string,
+    nextItemId: string,
+    sectionId: string,
+    moduleId: string,
+    watchItemId: string,
+    attemptId?: string,
+    isSkipped?: boolean,
+  ): Promise<void> {
 
+    const [course, courseVersion, progress] = await Promise.all([
+      this.courseRepo.read(courseId),
+      this.courseRepo.readVersion(courseVersionId),
+      this.progressRepository.findProgress(userId, courseId, courseVersionId),
+    ]);
+
+    if (!course) throw new NotFoundError('Course not found');
+    if (!courseVersion || courseVersion.courseId.toString() !== courseId)
+      throw new NotFoundError('Invalid course version');
+    if (!progress) throw new NotFoundError('Progress not found');
+
+
+    // Check if item is already completed before stopping watchTime
+    const isItemCompleted = await this.progressRepository.isItemCompleted(
+      userId,
+      courseId,
+      courseVersionId,
+      itemId,
+    );
+
+    if (isItemCompleted) {
+      return;
+    }
+
+    const isModuleIdMatch = progress.currentModule.toString() === moduleId;
+    const isSectionIdMatch = progress.currentSection.toString() === sectionId;
+    const isItemIdMatch = progress.currentItem.toString() === itemId;
+    const isNotMatchError = !isModuleIdMatch ? "Module ID is not matching with progress record" : !isSectionIdMatch ? "Section ID is not matching with progress record" : !isItemIdMatch ? "Item ID is not matching with progress record" : null;
+
+    if(isNotMatchError) {
+      throw new BadRequestError(isNotMatchError);
+    }
+
+    const item = await this.itemRepo.readItemById(itemId)
+    if (!item) throw new NotFoundError('Item not found');
+
+    /* ----------------------------------------------------
+       2. ITEM-TYPE VALIDATIONS (NO TRANSACTION)
+    ---------------------------------------------------- */
+
+    if (item.type === 'QUIZ' && !isSkipped) {
+      const submittedQuiz = await this.submissionRepository.get(
+        itemId,
+        userId,
+        attemptId,
+      );
+      if (!submittedQuiz) throw new BadRequestError('Quiz not submitted');
+      if (submittedQuiz.gradingResult.gradingStatus !== 'PASSED') {
+        throw new BadRequestError('Quiz not passed');
+      }
+    }
+
+    if (item.type === 'PROJECT') {
+      const projectSubmission =
+        await this.projectSubmissionRepo.getByUser(
+          userId,
+          courseVersionId,
+          courseId,
+        );
+      if (
+        !projectSubmission ||
+        projectSubmission.projectId.toString() !== itemId
+      ) {
+        throw new BadRequestError('Project not submitted');
+      }
+    }
+
+    /* ----------------------------------------------------
+       3. TRANSACTION (SHORT & CRITICAL ONLY)
+    ---------------------------------------------------- */
+
+    let completedItemsSet!: Set<string>;
+    let newProgress!: any;
+
+    await this._withTransaction(async session => {
+
+      // Stop watch tracking
+      const stoppedWatchTime =
+        await this.progressRepository.stopItemTracking(watchItemId, session);
+
+      if (!stoppedWatchTime) {
+        throw new NotFoundError('Watch item not found');
+      }
+
+      // Validate watch time
+      if (item.type === 'VIDEO' || item.type === 'BLOG') {
+        if (!this.isValidWatchTime(stoppedWatchTime, item)) {
+          throw new BadRequestError('Invalid watch time');
+        }
+      }
+
+      // Completed items
+      const completedItemsArray =
+        await this.progressRepository.getCompletedItems(
+          userId,
+          courseId,
+          courseVersionId,
+          session,
+        );
+
+      completedItemsSet = new Set(
+        completedItemsArray.map(id => id.toString()),
+      );
+      completedItemsSet.add(itemId);
+
+      // Find next item
+      const nextItem = await this.findNextPlayableItem(
+        courseVersion,
+        moduleId,
+        sectionId,
+        itemId,
+        completedItemsSet,
+      );
+
+      newProgress = nextItem
+        ? {
+          completed: false,
+          currentModule: nextItem.moduleId,
+          currentSection: nextItem.sectionId,
+          currentItem: nextItem.itemId,
+          skippedBlankQuizIds: nextItem.skippedBlankQuizIds || [],
+        }
+        : {
+          completed: true,
+          completedAt: new Date(),
+          currentModule: moduleId,
+          currentSection: sectionId,
+          currentItem: itemId,
+          skippedBlankQuizIds: [],
+        };
+
+      // Sequential auto-complete skipped quizzes
+      for (const blankQuizId of newProgress.skippedBlankQuizIds) {
+        await this.progressRepository.startItemTracking(
+          userId,
+          courseId,
+          courseVersionId,
+          blankQuizId,
+          session,
+        );
+
+        const wt = await this.progressRepository.getWatchTime(
+          userId,
+          blankQuizId,
+          courseId,
+          courseVersionId,
+          session,
+        );
+
+        if (wt?.length) {
+          await this.progressRepository.stopItemTracking(
+            wt[0]._id.toString(),
+            session,
+          );
+        }
+      }
+
+      // Critical update ONLY
+      await this.progressRepository.updateProgress(
+        userId,
+        courseId,
+        courseVersionId,
+        newProgress,
+        session,
+      );
+    });
+
+    /* ----------------------------------------------------
+       4. DERIVED DATA UPDATE (NO TRANSACTION)
+    ---------------------------------------------------- */
+
+    const enrollment = await this.enrollmentRepo.findEnrollment(
+      userId,
+      courseId,
+      courseVersionId,
+    );
+    if (!enrollment) return;
+
+    const totalItems =
+      courseVersion.totalItems ??
+      await this.itemRepo.CalculateTotalItemsCount(courseId, courseVersionId);
+
+    const percentCompleted = Math.round(
+      (totalItems > 0
+        ? completedItemsSet.size / totalItems
+        : 0) * 100,
+    );
+
+    // Fire-and-forget safe update
+    await this.enrollmentRepo.updateProgressPercentById(
+      enrollment._id.toString(),
+      percentCompleted,
+      undefined,
+      completedItemsSet.size,
+    );
+  }
 
   async updateProgress(
     userId: string,
