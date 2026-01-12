@@ -3021,37 +3021,39 @@ export interface RegistrationRequestQuery {
 export const useGetCourseRegistrationRequests = (
   versionId: string,
   query: RegistrationRequestQuery = {},
-): {
-  data: { totalDocuments: number, totalPages: number, currentPage: number, registrations: Registration[] };
-  isLoading: boolean;
-  error: string | null;
-  refetch: () => void;
-} => {
+  enabled: boolean = true,
+) => {
   const result = api.useQuery(
-    'get',
-    '/course/registration/requests/version/{versionId}' as any,
+    "get",
+    "/course/registration/requests/version/{versionId}" as any,
     {
       params: {
         path: { versionId },
-        query
-      }
+        query,
+      },
     },
     {
-      enabled: !!versionId,
+      enabled: !!versionId && enabled,
       retry: 1,
-      refetchOnWindowFocus: false
+      refetchOnWindowFocus: false,
     }
   );
 
   return {
-    data: result.data as { totalDocuments: number, totalPages: number, currentPage: number, registrations: Registration[] },
+    data: (result.data as any) ?? {
+      totalDocuments: 0,
+      totalPages: 0,
+      currentPage: 1,
+      registrations: [],
+    },
     isLoading: result.isLoading,
     error: result.error
-      ? result.error.message || 'Failed to fetch course registration requests'
+      ? result.error.message || "Failed to fetch course registration requests"
       : null,
     refetch: result.refetch,
   };
 };
+
 
 
 export const useUpdateRegistrationStatus = (): {
