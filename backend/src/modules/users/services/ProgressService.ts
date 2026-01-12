@@ -1409,18 +1409,18 @@ class ProgressService extends BaseService {
 
     await this._withTransaction(async session => {
 
-      // Stop watch tracking
-      const stoppedWatchTime =
-        await this.progressRepository.stopItemTracking(watchItemId, session);
+      let stoppedWatchTime = null;
+      if (!isQuizFailed) {
+        stoppedWatchTime = await this.progressRepository.stopItemTracking(watchItemId, session);
 
-      if (!stoppedWatchTime) {
-        throw new NotFoundError('Watch item not found');
-      }
+        if (!stoppedWatchTime) {
+          throw new NotFoundError('Watch item not found');
+        }
 
-      // Validate watch time
-      if (item.type === 'VIDEO' || item.type === 'BLOG') {
-        if (!this.isValidWatchTime(stoppedWatchTime, item)) {
-          throw new BadRequestError('Invalid watch time');
+        if (item.type === 'VIDEO' || item.type === 'BLOG') {
+          if (!this.isValidWatchTime(stoppedWatchTime, item)) {
+            throw new BadRequestError('Invalid watch time');
+          }
         }
       }
 
