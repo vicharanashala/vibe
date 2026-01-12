@@ -37,11 +37,11 @@ export default function CreateCourse() {
   const queryClient = useQueryClient();
 
   const handleCreateCourse = async () => {
-    if (!courseName.trim() || !courseDescription.trim() || !versionName.trim() || !versionDescription.trim()) {
+    if (!courseName.trim() || !courseDescription.trim() || !versionName.trim() || !versionDescription.trim() || versionName.trim().length < 3) {
       const errors = {
         courseName: !courseName.trim() ? "Course Name is required" : "",
         courseDescription: !courseDescription.trim() ? "Course description is required" : "",
-        versionName: !versionName.trim() ? "Version Name is required" : "",
+        versionName: !versionName.trim() ? "Version Name is required" : versionName.trim().length < 3 ? "Version Name must be at least 3 characters" : "",
         versionDescription: !versionDescription.trim() ? "Version description is required" : "",
       };
       setCreateErrors(errors);
