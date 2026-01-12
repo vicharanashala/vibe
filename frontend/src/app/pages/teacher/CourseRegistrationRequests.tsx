@@ -57,29 +57,30 @@ export default function CourseRegistrationRequests() {
   const [isRefresh, setIsRefresh] = useState(false);
   const { currentCourse } = useCourseStore()
   const versionId = currentCourse?.versionId
+  const [initialFetchDone, setInitialFetchDone] = useState(false);
+  const [hasAnyRegistrations, setHasAnyRegistrations] = useState(true);
+  const shouldFetch = !initialFetchDone || hasAnyRegistrations;
 
   const PAGE_LIMIT = 15;
 
   const params = useMemo(() => ({
-    // status: filterStatus,
+    status: filterStatus,
     search: searchTerm,
     sort: sortOrder,
     page: currentPage,
     limit: PAGE_LIMIT,
-  }), [ searchTerm, sortOrder, currentPage]);
+  }), [filterStatus, searchTerm, sortOrder, currentPage]);
 
-  const { data: registrationsData, isLoading, refetch: registrationsRefetch } = useGetCourseRegistrationRequests(versionId as string, params);
+ const { data: registrationsData, isLoading, refetch: registrationsRefetch,} = useGetCourseRegistrationRequests(versionId as string, params, shouldFetch);
+
+
+
   const { mutateAsync: updateStatus, isPending: isUpdatingStatus } = useUpdateRegistrationStatus();
   const { mutateAsync: updateBulkStatus, isPending: isUpdatingBulkStatus } = useBulkUpdateRegistrationStatus();
   const registrations = registrationsData?.registrations || []
 
   const FRONTEND_URL = window.location.origin;
   const registrationUrl = `${FRONTEND_URL}/student/course-registration/${versionId}`;
-
-  const filteredRegistrations = useMemo(() => {
-  if (filterStatus === "ALL") return registrations;
-  return registrations.filter((reg) => reg.status === filterStatus);
-  }, [registrations, filterStatus]);
 
   const registrationMessage = `🎓 Course Registration - ViBe Platform
 
@@ -95,12 +96,17 @@ useEffect(() => {
   }, 1000);
 
   return () => clearTimeout(t);
-}, [searchInput]);
+  }, [searchInput]);
 
+useEffect(() => {
+  if (!isLoading && registrationsData && !initialFetchDone) {
+    setInitialFetchDone(true);
 
-  useEffect(() => {
-    registrationsRefetch();
-  }, [params, registrationsRefetch]);
+    const total = registrationsData.totalDocuments ?? 0;
+    setHasAnyRegistrations(total > 0);
+  }
+  }, [isLoading, registrationsData, initialFetchDone]);
+
 
   const handleSelectRow = (id: string, checked: boolean) => {
     setSelectedIds(prev =>
@@ -578,7 +584,7 @@ useEffect(() => {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ) : filteredRegistrations?.length === 0 ? (
+                  ) : registrations?.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-16">
                         <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
@@ -593,7 +599,7 @@ useEffect(() => {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredRegistrations?.map((reg: Registration, index: number) => (
+                    registrations?.map((reg: Registration, index: number) => (
                       <TableRow
                         key={reg._id}
                         className="border-border hover:bg-muted/20 transition-colors duration-200 group"
