@@ -38,7 +38,6 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
 
   const renderContent = () => {
     const itemType = item.type.toLowerCase();
-    console.log("itemType ",itemType)
     switch (itemType) {
       case 'video':
         return <Video

@@ -151,4 +151,17 @@ export interface ISettingRepository {
     courseVersionId: string,
     session?: ClientSession,
   ): Promise<boolean>;
+
+  /**
+   * Checks if linear progression is enabled for a specific course and version.
+   * @param courseId - The ID of the course
+   * @param courseVersionId - The ID of the course version
+   * @param session - Optional MongoDB session for transactions
+   * @returns True if linear progression is enabled, false otherwise
+   */
+  isLinearProgressionEnabled(
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<boolean>;
 }

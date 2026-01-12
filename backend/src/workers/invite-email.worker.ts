@@ -108,7 +108,6 @@ const inviteService = new InviteService(inviteRepo,userRepo,courseRepo,enrollmen
         await mailService.sendMail(email);
 
         processed++;
-        console.log(`📧 Sent → ${invite.email}`);
       } catch (err) {
         console.error(`❌ Failed email invite ${inviteId}`, err);
       }
