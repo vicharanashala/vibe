@@ -99,8 +99,7 @@ export default function TeacherLayout() {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [showInvites]);
-
-  console.log("Breadcrumbs", breadcrumbs);
+  
   return (
     <SidebarProvider>
       <AppSidebar />
