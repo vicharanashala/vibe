@@ -405,7 +405,7 @@ function TeacherCourseContent() {
       },
       isCreateSectionError: {
         flag: isCreateSectionError,
-        message: createSectionError?.message,
+        message: createSectionError?.toString(),
         fallback: "Failed to create section",
       },
       isUpdateSectionError: {
@@ -616,17 +616,20 @@ function TeacherCourseContent() {
   };
 
   // Add Section
-  const handleAddSection = (moduleId: string) => {
+  const handleAddSection = async(moduleId: string) => {
     if (!versionId) return;
-    createSectionAsync({
+   
+      await createSectionAsync({
       params: { path: { versionId, moduleId } },
       body: { name: "New Section", description: "Section description" }
-    }).then((res) => {
-      refetchVersion();
+    });
+    refetchVersion();
       if (shouldFetchItems) {
         refetchItems();
       }
-    });
+    
+    
+    
   };
 
   const handleHideModule = async (moduleId: string, hide: boolean) => {

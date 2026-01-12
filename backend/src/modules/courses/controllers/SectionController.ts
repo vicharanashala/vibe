@@ -90,21 +90,14 @@ Accessible to:
       );
     }
 
-    try {
+    
       const createdVersion = await this.sectionService.createSection(
         versionId,
         moduleId,
         body,
       );
-      if (!createdVersion) {
-        throw new InternalServerError('Failed to create section');
-      }
       return {version: instanceToPlain(createdVersion)} as any;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new HttpError(500, error.message);
-      }
-    }
+    
   }
 
   @OpenAPI({
