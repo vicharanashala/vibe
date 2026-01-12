@@ -112,7 +112,6 @@ export function QuizSubmissionDisplay({ userId, quizId, itemName }: QuizSubmissi
     ? quizMetrics.attempts 
     : (quizMetrics.attempts ? [quizMetrics.attempts] : []);
 
-  console.log("Quiz Metrics:", quizMetrics, "Attempts Array:", attemptsArray, "Length:", attemptsArray.length);
 
   const displayName = itemName && itemName.trim() !== "" ? itemName : "Quiz 1"
 

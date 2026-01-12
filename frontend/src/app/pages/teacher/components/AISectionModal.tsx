@@ -95,7 +95,6 @@ export default function AISectionModal({ open, onOpenChange, onSectionUploaded }
     }
     try {
       // Create a real GenAI job
-      console.log('Creating GenAI job...');
       const { jobId } = await aiSectionAPI.createJob({
         videoUrl: youtubeUrl,
         courseId: currentCourse.courseId,
@@ -105,7 +104,6 @@ export default function AISectionModal({ open, onOpenChange, onSectionUploaded }
         videoItemBaseName: 'video_item',
         quizItemBaseName: 'quiz_item',
       });
-      console.log('Job created with ID:', jobId);
       
       setAiJobId(jobId);
       toast.success("AI job created successfully!");
