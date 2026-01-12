@@ -247,9 +247,13 @@ export class GenAIController {
 
   @OpenAPI({
     summary: 'Abort current task',
+<<<<<<< HEAD
     description: `Aborts the current task in the job.<br/>
     It returns an empty body with a 200 status code.`,
     
+=======
+    description: 'Aborts the current task in the job.',
+>>>>>>> ca8a90da6b5f90465f01bfc8ac57bc4d8c9dee0d
   })
   @Post("/jobs/:id/tasks/abort")
   @Authorized()
@@ -272,6 +276,7 @@ export class GenAIController {
   }
 
   @OpenAPI({
+<<<<<<< HEAD
     summary: 'Stop current task',
     description: `Stops the current task in the job (alias of abort).<br/>
     It returns an empty body with a 200 status code.`,
@@ -298,6 +303,8 @@ export class GenAIController {
   }
 
   @OpenAPI({
+=======
+>>>>>>> ca8a90da6b5f90465f01bfc8ac57bc4d8c9dee0d
     summary: 'Edit segment map',
     description: `Edits the segment map of a job.<br/>
     It returns an empty body with a 200 status code.`,

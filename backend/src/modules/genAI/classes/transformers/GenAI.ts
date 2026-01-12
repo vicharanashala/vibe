@@ -125,7 +125,11 @@ export class GenAI {
 
 export class GenAIBody extends GenAI {
 	_id?: ID;
+<<<<<<< HEAD
 	userId: ID;
+=======
+	userId: string;
+>>>>>>> ca8a90da6b5f90465f01bfc8ac57bc4d8c9dee0d
 	audioProvided?: boolean;
 	transcriptProvided?: boolean;
 	createdAt: Date;
