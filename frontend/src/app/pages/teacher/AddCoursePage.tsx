@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, BookOpen, Plus, AlertCircle, CheckCircle, Rocket, GitBranch, HelpCircle, Lightbulb, Info, GraduationCap } from "lucide-react";
-import { useCreateCourse} from "@/hooks/hooks";
+import { useCreateCourse } from "@/hooks/hooks";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -37,15 +37,15 @@ export default function CreateCourse() {
   const queryClient = useQueryClient();
 
   const handleCreateCourse = async () => {
-    if (!courseName.trim() || !courseDescription.trim() || !versionName.trim() || !versionDescription.trim()) {
+    if (!courseName.trim() || !courseDescription.trim() || !versionName.trim() || !versionDescription.trim() || versionName.trim().length < 3) {
       const errors = {
         courseName: !courseName.trim() ? "Course Name is required" : "",
         courseDescription: !courseDescription.trim() ? "Course description is required" : "",
-        versionName: !versionName.trim() ? "Version Name is required" : "",
+        versionName: !versionName.trim() ? "Version Name is required" : versionName.trim().length < 3 ? "Version Name must be at least 3 characters" : "",
         versionDescription: !versionDescription.trim() ? "Version description is required" : "",
       };
       setCreateErrors(errors);
-      
+
       // Show toast for the first error found
       const firstError = Object.values(errors).find(error => error);
       if (firstError) {
@@ -80,7 +80,7 @@ export default function CreateCourse() {
           exact: false, // let it match all queries with different params
         });
 
-        setTimeout(()=> {
+        setTimeout(() => {
           navigate({ to: "/teacher" });
         }, 1500);
 
@@ -94,16 +94,19 @@ export default function CreateCourse() {
       }
     } catch (err: any) {
       let errorMsg = "Failed to create course";
-      
+
       // Extract error message from the error object
-      if (err?.message) {
+      if (err?.errors?.length > 0) {
+        errorMsg = (Object.values(err.errors[0].constraints || {})[0] as string);
+      }
+      else if (err?.message) {
         errorMsg = err.message;
       } else if (err?.data?.message) {
         errorMsg = err.data.message;
       } else if (typeof err === 'string') {
         errorMsg = err;
       }
-      
+
       setError(errorMsg);
       toast.error(errorMsg, {
         position: 'top-right',
@@ -115,24 +118,24 @@ export default function CreateCourse() {
   return (
     <div>
       <div className="max-w-4xl mx-auto py-4 space-y-8">
-        <CreateCourseHeader/>
+        <CreateCourseHeader />
 
         <div className="space-y-8">
 
           <CourseMetaForm
-            courseDescription={courseDescription} 
-            courseName={courseName} 
-            createErrors={createErrors}  
-            setCourseDescription={setCourseDescription} 
+            courseDescription={courseDescription}
+            courseName={courseName}
+            createErrors={createErrors}
+            setCourseDescription={setCourseDescription}
             setCourseName={setCourseName}
             setCreateErrors={setCreateErrors}
           />
 
           <CourseVersionMetaForm
-            versionDescription={versionDescription} 
-            versionName={versionName} 
-            createErrors={createErrors}  
-            setVersionDescription={setVersionDescription} 
+            versionDescription={versionDescription}
+            versionName={versionName}
+            createErrors={createErrors}
+            setVersionDescription={setVersionDescription}
             setVersionName={setVersionName}
             setCreateErrors={setCreateErrors}
           />
@@ -144,21 +147,21 @@ export default function CreateCourse() {
           />
 
           {success && (
-            <Alert 
-              type="success" 
-              title="Course created successfully!" 
-              message="Navigating to your dashboard..." 
+            <Alert
+              type="success"
+              title="Course created successfully!"
+              message="Navigating to your dashboard..."
             />
           )}
-          
+
           {error && (
-            <Alert 
-              type="error" 
-              title="Error creating course" 
-              message={error} 
+            <Alert
+              type="error"
+              title="Error creating course"
+              message={error}
             />
           )}
-          
+
         </div>
       </div>
     </div>
@@ -197,7 +200,7 @@ const alertConfig: Record<
   },
 };
 
-type AlertType = "success" | "error" ;
+type AlertType = "success" | "error";
 
 type AlertProps = {
   type: AlertType;
@@ -245,40 +248,40 @@ export const ErrorMessage = ({ message }: ErrorMessageProps) => {
 // Course Header
 export const CreateCourseHeader = () => {
   return (
-      <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 rounded-2xl blur-3xl"></div>
-          <div className="relative bg-card/90 backdrop-blur-sm border border-border/50 rounded-2xl p-8">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-lg blur-sm"></div>
-                <div className="relative bg-gradient-to-r from-primary to-accent p-2 rounded-lg">
-                  <BookOpen className="h-6 w-6 text-primary-foreground" />
-                </div>
-              </div>
-              <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground">Create New Course</h1>
+    <div className="relative">
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 rounded-2xl blur-3xl"></div>
+      <div className="relative bg-card/90 backdrop-blur-sm border border-border/50 rounded-2xl p-8">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-lg blur-sm"></div>
+            <div className="relative bg-gradient-to-r from-primary to-accent p-2 rounded-lg">
+              <BookOpen className="h-6 w-6 text-primary-foreground" />
             </div>
-            <p className="text-muted-foreground text-sm md:text-base">Build amazing learning experiences for your students</p>
-            <p className="mt-2 text-xs md:text-sm text-gray-500 flex items-center gap-1.5 italic">
-              <svg
-                className="w-4 h-5 text-indigo-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            Only administrators can create new courses.
-            </p>
+          </div>
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground">Create New Course</h1>
         </div>
+        <p className="text-muted-foreground text-sm md:text-base">Build amazing learning experiences for your students</p>
+        <p className="mt-2 text-xs md:text-sm text-gray-500 flex items-center gap-1.5 italic">
+          <svg
+            className="w-4 h-5 text-indigo-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          Only administrators can create new courses.
+        </p>
+      </div>
     </div>
   )
-}              
+}
 
 // Course Meta Form
 type CourseMetaFormProps = {
@@ -377,15 +380,14 @@ export const CourseMetaForm: React.FC<CourseMetaFormProps> = ({
                     }
                   }}
                 />
-                <div className={`absolute bottom-2 right-2 text-xs ${
-                  courseDescription.length >= MAX_DESCRIPTION_LENGTH * 0.9 
-                    ? 'text-destructive' 
-                    : 'text-muted-foreground'
-                }`}>
+                <div className={`absolute bottom-2 right-2 text-xs ${courseDescription.length >= MAX_DESCRIPTION_LENGTH * 0.9
+                  ? 'text-destructive'
+                  : 'text-muted-foreground'
+                  }`}>
                   {courseDescription.length}/{MAX_DESCRIPTION_LENGTH}
                 </div>
                 {createErrors?.courseDescription && (
-                <ErrorMessage message={createErrors?.courseDescription} />
+                  <ErrorMessage message={createErrors?.courseDescription} />
                 )}
                 {courseDescription.length > MAX_DESCRIPTION_LENGTH && (
                   <p className="text-sm text-destructive mt-1">
@@ -528,15 +530,14 @@ const CourseVersionMetaForm: React.FC<CourseVersionMetaFormProps> = ({
                     }
                   }}
                 />
-                <div className={`absolute bottom-2 right-2 text-xs ${
-                  versionDescription.length >= MAX_DESCRIPTION_LENGTH * 0.9 
-                    ? 'text-destructive' 
-                    : 'text-muted-foreground'
-                }`}>
+                <div className={`absolute bottom-2 right-2 text-xs ${versionDescription.length >= MAX_DESCRIPTION_LENGTH * 0.9
+                  ? 'text-destructive'
+                  : 'text-muted-foreground'
+                  }`}>
                   {versionDescription.length}/{MAX_DESCRIPTION_LENGTH}
                 </div>
                 {createErrors?.versionDescription && (
-                <ErrorMessage message={createErrors?.versionDescription} />
+                  <ErrorMessage message={createErrors?.versionDescription} />
                 )}
                 {versionDescription.length > MAX_DESCRIPTION_LENGTH && (
                   <p className="text-sm text-destructive mt-1">
@@ -558,7 +559,7 @@ type CreateCourseCardProps = {
   isPending: boolean;
 };
 
-const  CreateCourseCard = ({
+const CreateCourseCard = ({
   handleCreateCourse,
   isPending,
 }: CreateCourseCardProps) => {
