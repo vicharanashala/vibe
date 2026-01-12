@@ -94,7 +94,7 @@ export class ReportService extends BaseService {
   limit: number,
   status: IssueStatusEnum,
   search: string,
-  sort: IssueSortEnum,
+  sort: any,
 ) {
   return this._withTransaction(async session => {
     const skip = (page - 1) * limit;
