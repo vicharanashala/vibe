@@ -3,8 +3,14 @@ import CameraProcessor from "./CameraProcessor";
 import * as faceDetection from "@tensorflow-models/face-detection";
 
 import type { MLProcessor } from "@/types/ai.types";
+import { unRegisterStream } from "@/lib/MediaRegistry";
 
 const useCameraProcessor = (frameRate = 3) => {
+  useEffect(() => {
+    return () => {
+      unRegisterStream("CameraProcessor-stream");
+    };
+  }, []);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [imageSrcs, setImageSrcs] = useState<string[]>([]);
