@@ -42,6 +42,7 @@ export default function CourseRegistrationRequests() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedRegistration, setSelectedRegistration] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [filterStatus, setFilterStatus] = useState<RegistrationStatus>('ALL');
   const [sortOrder, setSortOrder] = useState<'older' | 'latest'>('latest');
   const [currentPage, setCurrentPage] = useState(1);
@@ -56,6 +57,9 @@ export default function CourseRegistrationRequests() {
   const [isRefresh, setIsRefresh] = useState(false);
   const { currentCourse } = useCourseStore()
   const versionId = currentCourse?.versionId
+  const [initialFetchDone, setInitialFetchDone] = useState(false);
+  const [hasAnyRegistrations, setHasAnyRegistrations] = useState(true);
+  const shouldFetch = !initialFetchDone || hasAnyRegistrations;
 
   const PAGE_LIMIT = 15;
 
@@ -66,7 +70,11 @@ export default function CourseRegistrationRequests() {
     page: currentPage,
     limit: PAGE_LIMIT,
   }), [filterStatus, searchTerm, sortOrder, currentPage]);
-  const { data: registrationsData, isLoading, refetch: registrationsRefetch } = useGetCourseRegistrationRequests(versionId as string, params);
+
+ const { data: registrationsData, isLoading, refetch: registrationsRefetch,} = useGetCourseRegistrationRequests(versionId as string, params, shouldFetch);
+
+
+
   const { mutateAsync: updateStatus, isPending: isUpdatingStatus } = useUpdateRegistrationStatus();
   const { mutateAsync: updateBulkStatus, isPending: isUpdatingBulkStatus } = useBulkUpdateRegistrationStatus();
   const registrations = registrationsData?.registrations || []
@@ -82,10 +90,23 @@ Register for the course using the link below:
 
 ${registrationUrl}`;
 
+useEffect(() => {
+  const t = setTimeout(() => {
+    setSearchTerm(searchInput);
+  }, 1000);
 
-  useEffect(() => {
-    registrationsRefetch();
-  }, [params, registrationsRefetch]);
+  return () => clearTimeout(t);
+  }, [searchInput]);
+
+useEffect(() => {
+  if (!isLoading && registrationsData && !initialFetchDone) {
+    setInitialFetchDone(true);
+
+    const total = registrationsData.totalDocuments ?? 0;
+    setHasAnyRegistrations(total > 0);
+  }
+  }, [isLoading, registrationsData, initialFetchDone]);
+
 
   const handleSelectRow = (id: string, checked: boolean) => {
     setSelectedIds(prev =>
@@ -491,8 +512,8 @@ ${registrationUrl}`;
           </Select>
         </div> */}
         <RegistrationFilters
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
+          searchTerm={searchInput}
+          setSearchTerm={setSearchInput}
           filterStatus={filterStatus}
           setFilterStatus={setFilterStatus}
           sortOrder={sortOrder}
