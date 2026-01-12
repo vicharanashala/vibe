@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import {injectable, inject} from 'inversify';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {AnomalyRepository} from '../repositories/providers/mongodb/AnomalyRepository.js';
@@ -21,25 +20,11 @@ import {
   IAnomalyData,
   PaginatedResponse,
 } from '../classes/transformers/Anomaly.js';
-=======
-import { injectable, inject } from 'inversify';
-import { BaseService } from '#root/shared/classes/BaseService.js';
-import { AnomalyRepository } from '../repositories/providers/mongodb/AnomalyRepository.js';
-import { CloudStorageService } from './CloudStorageService.js';
-import { AnomalyData, NewAnomalyData } from '../classes/validators/AnomalyValidators.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { ANOMALIES_TYPES } from '../types.js';
-import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
-import { InternalServerError, NotFoundError } from 'routing-controllers';
-import { AnomalyDataResponse, AnomalyStats, AnomalyType, FileType, IAnomalyData } from '../classes/transformers/Anomaly.js';
->>>>>>> ca8a90da6b5f90465f01bfc8ac57bc4d8c9dee0d
 
 @injectable()
 export class AnomalyService extends BaseService {
   constructor(
     @inject(GLOBAL_TYPES.Database) db: MongoDatabase,
-<<<<<<< HEAD
     @inject(ANOMALIES_TYPES.AnomalyRepository)
     private anomalyRepository: AnomalyRepository,
     @inject(ANOMALIES_TYPES.CloudStorageService)
@@ -47,11 +32,6 @@ export class AnomalyService extends BaseService {
     @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
-=======
-    @inject(ANOMALIES_TYPES.AnomalyRepository) private anomalyRepository: AnomalyRepository,
-    @inject(ANOMALIES_TYPES.CloudStorageService) private cloudStorageService: CloudStorageService,
-    @inject(GLOBAL_TYPES.CourseRepo) private readonly courseRepo: ICourseRepository,
->>>>>>> ca8a90da6b5f90465f01bfc8ac57bc4d8c9dee0d
   ) {
     super(db);
   }
@@ -69,7 +49,6 @@ export class AnomalyService extends BaseService {
         versionId.toString(),
         session,
       );
-<<<<<<< HEAD
       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
         throw new NotFoundError(
           'Course version not found or does not belong to this course',
@@ -79,10 +58,6 @@ export class AnomalyService extends BaseService {
       const anomaly = new IAnomalyData(anomalyData, userId);
       // For now the file and fileType are optional
       if (file && fileType) {
-=======
-
-      if(file && fileType){
->>>>>>> ca8a90da6b5f90465f01bfc8ac57bc4d8c9dee0d
         const fileName = await this.cloudStorageService.uploadAnomaly(
           file,
           userId,
@@ -105,16 +80,12 @@ export class AnomalyService extends BaseService {
       }
 
       savedAnomaly._id = savedAnomaly._id.toString();
-<<<<<<< HEAD
       savedAnomaly.versionId = savedAnomaly.versionId.toString();
       savedAnomaly.courseId = savedAnomaly.courseId.toString();
       savedAnomaly.itemId = savedAnomaly.itemId.toString();
       savedAnomaly.userId = savedAnomaly.userId.toString();
 
       if (file && fileType) {
-=======
-      if(file && fileType) {
->>>>>>> ca8a90da6b5f90465f01bfc8ac57bc4d8c9dee0d
         delete savedAnomaly.fileName;
         delete savedAnomaly.fileType;
       }
@@ -395,20 +366,11 @@ export class AnomalyService extends BaseService {
     if (!result) {
       throw new NotFoundError('Anomaly not found');
     }
-    
     //download and decrypt
-<<<<<<< HEAD
     const fileUrl = await this.cloudStorageService.getSignedUrl(
       result.fileName,
     );
     delete result.fileName;
-=======
-    let fileUrl: string | undefined;
-    if (result.fileName) {
-      fileUrl = await this.cloudStorageService.getSignedUrl(result.fileName);
-      delete result.fileName;
-    }
->>>>>>> ca8a90da6b5f90465f01bfc8ac57bc4d8c9dee0d
     result._id = result._id.toString();
     return {...result, fileUrl};
   }

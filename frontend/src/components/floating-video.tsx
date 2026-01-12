@@ -10,6 +10,7 @@ import FaceRecognitionOverlay from './ai/FaceRecognitionOverlay';
 // import FaceRecognitionIntegrated from '../ai-components/FaceRecognitionIntegrated';
 import useCameraProcessor from './ai/useCameraProcessor';
 import { AnomalyType } from '@/types/reportanomaly.types';
+import { useAuthStore } from '@/store/auth-store';
 import { useCourseStore } from '@/store/course-store';
 import type { FloatingVideoProps } from '@/types/video.types';
 import { useReportAnomalyAudio, useReportAnomalyImage } from '@/hooks/hooks';
@@ -303,7 +304,7 @@ const lastCalledRef = useRef<number>(0);
 
 
         try {
-          await reportImage.mutateAsync({
+          const response = await reportImage.mutateAsync({
             body: {
               type: reportAnomalyType as AnomalyType,
               courseId: courseStore.currentCourse?.courseId || "",
@@ -312,6 +313,7 @@ const lastCalledRef = useRef<number>(0);
             },
             file: imageFile,
           });
+          // console.log("Post response", response);
 
         } catch (error) {
           console.log("Error while reporting image anomaly:", error);
@@ -365,15 +367,14 @@ const lastCalledRef = useRef<number>(0);
     const handleStop = () => {
       if (audioChunks.length > 0) {
         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        const audioFile = new File([audioBlob], `anomaly_${Date.now()}.webm`, { type: audioBlob.type || 'audio/webm' });
         reportAudio.mutate({
           body: {
-            type: AnomalyType.VOICE_DETECTION,
+            type: "voiceDetection",
             courseId: courseStore.currentCourse?.courseId || "",
             versionId: courseStore.currentCourse?.versionId || "",
             itemId: courseStore.currentCourse?.itemId || ""
           },
-          file: audioFile
+          file: audioBlob
         });
       }
       setMediaRecorder(null);
