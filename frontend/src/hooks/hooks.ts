@@ -3335,6 +3335,14 @@ export type IssueSort = "ALL" | "VIDEO" | "QUIZ" | "ARTICLE" | "QUESTION";
 
 export type EntityType = "VIDEO" | "QUIZ" | "ARTICLE" | "QUESTION";
 
+export interface IssueQueryParams {
+  page?: number;
+  limit?: number;
+  status?: string;
+  search?: string;
+  sort?: string; // Add this line
+}
+
 export interface IssueStatusHistory {
   status: IssueStatus;
   comment: string;
