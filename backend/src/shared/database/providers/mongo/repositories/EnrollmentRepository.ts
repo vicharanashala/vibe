@@ -2594,6 +2594,69 @@ export class EnrollmentRepository {
     return result.modifiedCount > 0;
   }
 
+  /**
+   * Get quiz submission grades for multiple users and quizzes (batch operation)
+   * Used to enrich enrollment data with quiz scores
+   * Gets the best (max score) submission for each user-quiz combination
+   */
+  async getBatchQuizSubmissionGrades(
+    userIds: string[],
+    quizIds: string[],
+    session?: ClientSession,
+  ): Promise<ISubmission[]> {
+    await this.init();
+
+    if (!userIds.length || !quizIds.length) {
+      return [];
+    }
+
+    const userObjectIds = userIds.map(id => new ObjectId(id));
+    const quizObjectIds = quizIds.map(id => new ObjectId(id));
+
+    // Get the best (max score) submission for each user-quiz combination
+    return await this.submissionCollection
+      .aggregate<ISubmission>(
+        [
+          {
+            $match: {
+              userId: {$in: userObjectIds},
+              quizId: {$in: quizObjectIds},
+              'gradingResult.totalScore': {$exists: true},
+            },
+          },
+          // Sort by score descending to get best score first
+          {
+            $sort: {'gradingResult.totalScore': -1},
+          },
+          // Group by user and quiz, take the first (best) submission
+          {
+            $group: {
+              _id: {
+                userId: '$userId',
+                quizId: '$quizId',
+              },
+              submission: {$first: '$$ROOT'},
+            },
+          },
+          // Replace root to get back the submission document
+          {
+            $replaceRoot: {newRoot: '$submission'},
+          },
+          // Project only needed fields
+          {
+            $project: {
+              userId: 1,
+              quizId: 1,
+              'gradingResult.totalScore': 1,
+              'gradingResult.totalMaxScore': 1,
+            },
+          },
+        ],
+        {session},
+      )
+      .toArray();
+  }
+
   async getQuizSubmissionGrade(
     userId: string,
     quizIds: string[],

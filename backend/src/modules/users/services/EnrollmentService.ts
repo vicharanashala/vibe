@@ -484,6 +484,8 @@ export class EnrollmentService extends BaseService {
         return {
           enrollments: [],
           totalCount: 0,
+          totalPages: 0,
+          currentPage: 0,
         };
       }
 
@@ -500,6 +502,18 @@ export class EnrollmentService extends BaseService {
           session,
         );
 
+      if (enrollmentsData.enrollments.length > 0 && filter === 'STUDENT') {
+        await this.enrichEnrollmentsWithQuizScores(
+          enrollmentsData.enrollments,
+          courseVersionId,
+        );
+        // Log sample enrollment to verify mutation
+        console.log(
+          '🔍 Sample enriched enrollment:',
+          JSON.stringify(enrollmentsData.enrollments[0], null, 2),
+        );
+      }
+
       return enrollmentsData;
     });
   }
@@ -513,6 +527,94 @@ export class EnrollmentService extends BaseService {
         courseId,
         versionId,
         session,
+      );
+    });
+  }
+
+  /**
+   * Enrich enrollments with quiz score information
+   * Handles the calculation in Node since we don't maintain reverse lookups in DB
+   * @private
+   */
+  private async enrichEnrollmentsWithQuizScores(
+    enrollments: any[],
+    courseVersionId: string,
+  ): Promise<void> {
+    if (!enrollments.length) return;
+
+    // 1. Get item groups for this course version
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    if (!courseVersion) return;
+
+    const itemGroupIds: string[] = [];
+    courseVersion.modules.forEach(module => {
+      module.sections.forEach(section => {
+        if (section.itemsGroupId) {
+          itemGroupIds.push(section.itemsGroupId.toString());
+        }
+      });
+    });
+
+    if (!itemGroupIds.length) {
+      // No item groups - set default scores
+      enrollments.forEach(enr => {
+        enr.totalQuizScore = 0;
+        enr.totalQuizMaxScore = 0;
+      });
+      return;
+    }
+
+    // 2. Get quiz info from item groups
+    const quizInfo = await this.itemRepo.getQuizInfo(itemGroupIds);
+    const allQuizIds = quizInfo
+      .filter(quiz => quiz.items?._id)
+      .map(quiz => quiz.items._id.toString());
+
+    if (!allQuizIds.length) {
+      // No quizzes - set default scores
+      enrollments.forEach(enr => {
+        enr.totalQuizScore = 0;
+        enr.totalQuizMaxScore = 0;
+      });
+      return;
+    }
+
+    // 3. Get all user IDs from enrollments
+    const userIds = enrollments.map(e => e.userId);
+    console.log('🔍 User IDs for quiz lookup:', userIds);
+
+    // 4. Batch fetch quiz submissions for all users
+    const quizSubmissions =
+      await this.enrollmentRepo.getBatchQuizSubmissionGrades(
+        userIds,
+        allQuizIds,
+      );
+
+    // 5. Create a map: userId -> quiz grades
+    const userQuizGradesMap = new Map<string, IGradingResult[]>();
+
+    quizSubmissions.forEach(submission => {
+      const userId = submission.userId.toString();
+      const gradingResult = submission.gradingResult;
+
+      if (!userQuizGradesMap.has(userId)) {
+        userQuizGradesMap.set(userId, []);
+      }
+      userQuizGradesMap.get(userId)!.push(gradingResult);
+    });
+
+    // 6. Enrich each enrollment with scores
+    enrollments.forEach(enr => {
+      const userId = enr.userId;
+      const userGrades = userQuizGradesMap.get(userId) || [];
+
+      enr.totalQuizScore = userGrades.reduce(
+        (sum, grade) => sum + (grade.totalScore || 0),
+        0,
+      );
+      enr.totalQuizMaxScore = userGrades.reduce(
+        (sum, grade) => sum + (grade.totalMaxScore || 0),
+        0,
       );
     });
   }
