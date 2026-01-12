@@ -42,6 +42,7 @@ export interface ICourseVersion {
   courseId: ID;
   version: string;
   description: string;
+  supportLink?: string;
   modules: IModule[];
   totalItems?: number;
   itemCounts?: {

@@ -1,22 +1,15 @@
-import {AbilityBuilder, MongoAbility} from '@casl/ability';
+import { AbilityBuilder, MongoAbility } from '@casl/ability';
 import {
   AuthenticatedUser,
   AuthenticatedUserEnrollements,
 } from '#root/shared/interfaces/models.js';
-import {ItemScope, createAbilityBuilder} from './types.js';
+import { ItemScope, createAbilityBuilder } from './types.js';
 import {
   getFromContainer,
-  InternalServerError,
-  NotFoundError,
+
 } from 'routing-controllers';
-import {ProgressService} from '#root/modules/users/services/ProgressService.js';
-import {CourseSettingService} from '#root/modules/setting/services/CourseSettingService.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import {ObjectId} from 'mongodb';
-import {UserQuizMetricsRepository} from '#root/modules/quizzes/repositories/index.js';
-import {CourseRepository} from '#root/shared/index.js';
-import {QuizService} from '#root/modules/quizzes/services/QuizService.js';
+import { ProgressService } from '#root/modules/users/services/ProgressService.js';
+import { CourseSettingService } from '#root/modules/setting/services/CourseSettingService.js';
 
 // Actions
 export enum ItemActions {
@@ -43,7 +36,7 @@ export async function setupItemAbilities(
   builder: AbilityBuilder<any>,
   user: AuthenticatedUser,
 ) {
-  const {can, cannot} = builder;
+  const { can, cannot } = builder;
 
   if (user.globalRole === 'admin') {
     can('manage', 'Item');
@@ -56,22 +49,19 @@ export async function setupItemAbilities(
   // Use Promise.all to handle async operations properly
   await Promise.all(
     user.enrollments.map(async (enrollment: AuthenticatedUserEnrollements) => {
-      const versionBounded = {versionId: enrollment.versionId};
+      const versionBounded = { versionId: enrollment.versionId };
 
       switch (enrollment.role) {
         case 'STUDENT':
           can(ItemActions.ViewAll, 'Item', versionBounded);
 
-          // fetch courseVersion (to get linearProgression flag)
-          const courseSettings = await courseSettingService.readCourseSettings(
+          // true if linearProgressionEnabled field is not available
+          const linearProgressionEnabled = courseSettingService.isLinearProgressionEnabled(
             enrollment.courseId,
             enrollment.versionId,
           );
 
-          const linearProgressionEnabled =
-            courseSettings?.settings?.linearProgressionEnabled ?? true;
-
-          let progress;
+          let progress: any;
           try {
             progress = await progressService.getUserProgress(
               user.userId,
@@ -79,9 +69,6 @@ export async function setupItemAbilities(
               enrollment.versionId,
             );
           } catch (error) {
-            console.log(
-              'No progress found for student, course not started yet',
-            );
             progress = null;
           }
 
@@ -143,7 +130,7 @@ export async function setupItemAbilities(
           );
 
           if (quizMetrics && quizMetrics.remainingAttempts == 0) {
-            const {nextItemId} = await progressService.determineNextAllowedItem(
+            const { nextItemId } = await progressService.determineNextAllowedItem(
               currentItemId,
               quizMetrics,
               enrollment,
@@ -162,7 +149,7 @@ export async function setupItemAbilities(
               '[itemAbilities] Linear progression enabled - restricting items for student',
               allowedItemIds,
             );
-            itemBounded.itemId = {$in: allowedItemIds};
+            itemBounded.itemId = { $in: allowedItemIds };
           } else {
           }
 

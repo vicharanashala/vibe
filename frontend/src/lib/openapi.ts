@@ -58,7 +58,6 @@ fetchClient.use({
         // This could trigger a logout in your auth context
         
         try {
-          console.log('API interceptor: Retrying token refresh with Firebase...');
           const { auth: firebaseAuth } = await import('@/lib/firebase');
           const firebaseUser = firebaseAuth.currentUser;
           

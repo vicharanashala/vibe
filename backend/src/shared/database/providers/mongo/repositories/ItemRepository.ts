@@ -105,7 +105,6 @@ export class ItemRepository implements IItemRepository {
         {projection: {items: 1}, session}, // only return `items`
       )
       .toArray();
-    console.log('Items group ', ItemsGroup);
 
     return itemGroups.reduce(
       (total, group) => total + (group.items ? group.items.length : 0),

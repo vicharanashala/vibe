@@ -56,6 +56,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/utils/utils";
 import { QuestionUploadDialog } from "@/components/question-upload-dialog";
+import ConfirmationModal from "./components/confirmation-modal";
 
 
 // ✅ Icons per item type
@@ -168,6 +169,8 @@ function TeacherCourseContent() {
   const [isEditingSection, setIsEditingSection] = useState(false);
   const [originalModuleData, setOriginalModuleData] = useState<ModuleData | null>(null);
   const [originalSectionData, setOriginalSectionData] = useState<{ name: string; description: string } | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [hidingModuleId, setHidingModuleId] = useState<string | null>(null);
@@ -254,7 +257,6 @@ function TeacherCourseContent() {
     shouldFetchItem ? versionId : '',
     shouldFetchItem ? selectedEntity?.data?._id : ''
   );
-  console.log("selectedItemData", selectedItemData)
   // Sync controlled state with selectedItemData for PROJECT edit
   useEffect(() => {
     if (selectedEntity?.type === 'item' && selectedEntity.data.type === 'PROJECT') {
@@ -659,7 +661,6 @@ function TeacherCourseContent() {
     if (!versionId) return;
     setHidingItemId(itemId);
     try {
-      console.log("🔄 Starting hide item:", itemId, hide);
       await updateItemVisibilityAsync({
         params: { path: { versionId, itemId } },
         body: { hide: hide }
@@ -667,7 +668,6 @@ function TeacherCourseContent() {
 
       refetchVersion();
       refetchItems();
-      console.log("✅ RefetchVersion completed");
     } catch (error) {
       console.error("❌ Error in handleHideItem:", error);
     } finally {
@@ -983,6 +983,61 @@ function TeacherCourseContent() {
     })
 
   };
+
+  const handleConfirmDelete = async () => {
+  if (!selectedEntity || !versionId) return;
+
+  const { type, data, parentIds } = selectedEntity;
+
+  try {
+    if (type === "module") {
+      await deleteModuleAsync({
+        params: {
+          path: {
+            versionId,
+            moduleId: data.moduleId,
+          },
+        },
+      });
+
+      setExpandedModules(prev => ({
+        ...prev,
+        [data.moduleId]: false,
+      }));
+      setIsEditingModule(false);
+    }
+
+    if (type === "section" && parentIds?.moduleId) {
+      if (activeSectionInfo?.sectionId === data.sectionId) {
+        setActiveSectionInfo(null);
+      }
+
+      await deleteSectionAsync({
+        params: {
+          path: {
+            versionId,
+            moduleId: parentIds.moduleId,
+            sectionId: data.sectionId,
+          },
+        },
+      });
+
+      setExpandedSections(prev => ({
+        ...prev,
+        [data.sectionId]: false,
+      }));
+      setIsEditingSection(false);
+    }
+
+    refetchVersion();
+    if (shouldFetchItems) refetchItems();
+  } finally {
+    setIsDeleteModalOpen(false);
+    setSelectedEntity(null);
+    setErrors({ title: "", description: "" });
+  }
+};
+
 
 
   useEffect(() => {
@@ -1410,13 +1465,17 @@ function TeacherCourseContent() {
                                                         })}
                                                       </span>
                                                     </SidebarMenuSubButton>
-                                                    <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideItem(item._id, !item.isHidden)} disabled={section.isHidden || module.isHidden || hidingItemId === item._id}>
+                                                    <Button className="absolute  top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideItem(item._id, !item.isHidden)} disabled={section.isHidden || module.isHidden || hidingItemId === item._id}>
                                                       {hidingItemId === item._id ? (
                                                         <Loader2 className="h-4 w-4 animate-spin" />
                                                       ) : !item.isHidden ? (
-                                                        <Eye className="h-4 w-4" />
+                                                        <Eye className={`h-4 w-4 ${selectedItem.id == item._id
+                                                        ? "text-gray-200"
+                                                        : "text-muted-foreground"}` } />
                                                       ) : (
-                                                        <EyeOff className="h-4 w-4" />
+                                                        <EyeOff className={`h-4 w-4 ${selectedItem.id == item._id
+                                                        ? "text-gray-200"
+                                                        : "text-muted-foreground"}` } />
                                                       )}
                                                       <span className="sr-only">Hide Item</span>
                                                     </Button>
@@ -2240,51 +2299,44 @@ function TeacherCourseContent() {
                           Cancel
                         </Button>
                       )}
-                      {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
-                        <Button
-                          variant="outline"
-                          className="border-border bg-background"
-                          onClick={() => {
-                            const { type, parentIds } = selectedEntity;
-                            if (type === "module" && versionId) {
-                              if (window.confirm("Are you sure you want to delete this module and all its sections/items?")) {
-                                deleteModuleAsync({
-                                  params: { path: { versionId, moduleId: selectedEntity.data.moduleId } }
-                                }).then((res) => {
-                                  refetchVersion();
-                                  if (shouldFetchItems) {
-                                    refetchItems();
-                                  }
-                                });
-                                setSelectedEntity(null);
-                                setExpandedModules(prev => ({ ...prev, [selectedEntity.data.moduleId]: false }));
-                                setIsEditingModule(false);
-                              }
-                            }
-                            if (type === "section" && versionId && parentIds?.moduleId) {
-                              if (window.confirm("Are you sure you want to delete this section and all its items?")) {
-                                const deletedSectionId = selectedEntity.data.sectionId;
-                                if (activeSectionInfo?.sectionId === deletedSectionId) {
-                                  setActiveSectionInfo(null);
-                                }
-                                deleteSectionAsync({
-                                  params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: deletedSectionId } }
-                                }).then((res) => {
-                                  refetchVersion();
-                                });
-                                setSelectedEntity(null);
-                                setExpandedSections(prev => ({ ...prev, [deletedSectionId]: false }));
-                                setIsEditingSection(false);
-                              }
-                            }
-                            setErrors({ title: "", description: "" });
-                          }}
-                        >
-                          <X className="h-3 w-3 mr-1" />
-                          Delete {selectedEntity.type}
-                        </Button>
-                      )}
+                      
+                      {(selectedEntity?.type === "module" || selectedEntity?.type === "section") && (
+                            <Button
+                              variant="outline"
+                              className="border-border bg-background"
+                              onClick={() => setIsDeleteModalOpen(true)}
+                            >
+                              <X className="h-3 w-3 mr-1" />
+                              Delete {selectedEntity.type}
+                            </Button>
+                          )}
                     </div>
+                    <div className="relative group">
+
+                      <ConfirmationModal
+                        isOpen={isDeleteModalOpen}
+                        onClose={() => setIsDeleteModalOpen(false)}
+                        onConfirm={handleConfirmDelete}
+                        title={
+                          selectedEntity?.type === "module"
+                            ? "Delete Module"
+                            : "Delete Section"
+                        }
+                        description={
+                          selectedEntity?.type === "module"
+                            ? "This will delete this module and all its sections/items. Are you sure?"
+                            : "This will delete this section and all its items. Are you sure?"
+                        }
+                        confirmText="Delete"
+                        cancelText="Cancel"
+                        isDestructive
+                        // isLoading={isDeleting}
+                        loadingText="Deleting..."
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                     </div>
+
+                    
 
                     {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
 
@@ -2334,7 +2386,7 @@ function TeacherCourseContent() {
                             selectedEntity.parentIds?.sectionId &&
                             selectedEntity.data?._id
                           ) {
-                            if (window.confirm("Are you sure you want to delete this item?")) {
+                            
                               deleteItemAsync({
                                 params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
                               }).then((res) => {
@@ -2346,7 +2398,7 @@ function TeacherCourseContent() {
                               });
                               setSelectedEntity(null);
                               setIsEditingItem(false);
-                            }
+                            
                           }
                         }}
                         onEdit={() => setIsEditingItem(true)}
@@ -2406,7 +2458,7 @@ function TeacherCourseContent() {
                         onDelete={async () => {
                           const projectId = selectedEntity.data._id;
                           if (selectedEntity.parentIds?.itemsGroupId && projectId) {
-                            if (window.confirm("Are you sure you want to delete this item?")) {
+                            
                               await deleteItemAsync({
                                 params: { path: { itemsGroupId: selectedEntity.parentIds.itemsGroupId, itemId: projectId } },
                               });
@@ -2415,7 +2467,7 @@ function TeacherCourseContent() {
                               refetchItem();
                               setSelectedEntity(null);
                               toast.success("Project deleted successfully");
-                            }
+                            
                           }
                         }}
                         onClose={() => {

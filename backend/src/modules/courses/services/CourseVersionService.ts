@@ -193,6 +193,8 @@ export class CourseVersionService extends BaseService {
 
       if (body.version) existingVersion.version = body.version;
       if (body.description) existingVersion.description = body.description;
+      // Handle supportLink - allow setting, updating, or clearing
+      if (body.supportLink !== undefined) existingVersion.supportLink = body.supportLink;
       existingVersion.updatedAt = new Date();
 
       const updatedVersion = await this.courseRepo.updateVersion(
@@ -293,6 +295,7 @@ export class CourseVersionService extends BaseService {
         courseId: new ObjectId(newCourse._id.toString()),
         version: existingVersion.version,
         description: existingVersion.description,
+        supportLink: existingVersion.supportLink, // Copy support link when cloning
         totalItems: existingVersion.totalItems,
         modules: [],
         createdAt: new Date(),
@@ -337,6 +340,23 @@ export class CourseVersionService extends BaseService {
           newVersionId,
         );
       }
+
+      // 🔹 Create default course settings for the cloned course
+      const defaultSettingsPayload: CreateCourseSettingBody = {
+        courseId: newCourse._id.toString(),
+        courseVersionId: newVersionId,
+        settings: {
+          proctors: {
+            detectors: Object.values(ProctoringComponent).map(detector => ({
+              detectorName: detector,
+              settings: { enabled: false, options: {} },
+            })),
+          },
+          linearProgressionEnabled: false,
+        },
+      };
+      const courseSettings = new CourseSetting(defaultSettingsPayload);
+      const settingsPromise = await this.settingsRepo.createCourseSettings(courseSettings);
 
       return true;
     } catch (err) {
