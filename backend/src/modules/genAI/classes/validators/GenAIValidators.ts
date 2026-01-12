@@ -330,7 +330,11 @@ class Transcript {
   chunks: Array<Chunk>;
 }
 
+<<<<<<< HEAD
 class GenAIResponse {
+=======
+class GenAIResponse{
+>>>>>>> ca8a90da6b5f90465f01bfc8ac57bc4d8c9dee0d
   @JSONSchema({
     description: 'Unique identifier for the genAI job',
     type: 'string',

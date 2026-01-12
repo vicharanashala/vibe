@@ -1,4 +1,4 @@
-import { Clock, Redo2, CheckCircle2, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones,Play } from "lucide-react";
+import { Clock, FileText, Redo2, CheckCircle2, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +17,7 @@ import { bufferToHex } from "@/utils/helpers";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
 import { Pagination } from "../ui/Pagination";
-import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard', className, completion, setCompletion }: CourseCardProps) => {
   // Add null checks to prevent errors when enrollment data is incomplete
@@ -171,12 +171,12 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                       />
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <span>{Math.round(progress)}% ({completedLessons}/{totalLessons})</span>
-                        <TooltipProvider>
-                          <Tooltip delayDuration={0}>
-                            <TooltipTrigger asChild>
-                              <Info className="h-3.5 w-3.5 text-muted-foreground cursor-pointer hover:text-foreground transition-colors" />
-                            </TooltipTrigger>
+                      <span>{Math.round(progress)}% ({completedLessons}/{totalLessons})</span>
+                      <TooltipProvider>
+                        <Tooltip delayDuration={0}>
+                          <TooltipTrigger asChild>
+                            <Info className="h-3.5 w-3.5 text-muted-foreground cursor-pointer hover:text-foreground transition-colors" />
+                          </TooltipTrigger>
                           <TooltipContent>
                             <p>These are the tentative numbers, please keep in mind.</p>
                           </TooltipContent>
@@ -196,7 +196,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                           month: '2-digit',
                           year: 'numeric',
                         })
-                        : 'Recently'}  
+                        : 'Recently'}
                     </span>
                   </div>
                 </div>
@@ -216,13 +216,12 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           <div className="mt-auto flex flex-col sm:flex-row gap-2">
             <Button
               variant={progress === 0 ? "default" : isCompleted ? "default" : "default"}
-              className={`${
-                progress === 0
-                  ? ""
-                  : isCompleted
-                    ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
-                    : ""
-              } w-full sm:w-auto transition-all duration-200`}
+              className={`${progress === 0
+                ? ""
+                : isCompleted
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
+                  : ""
+                } w-full sm:w-auto transition-all duration-200`}
               onClick={handleContinue}
             >
               {progress === 0 ? (

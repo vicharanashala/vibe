@@ -17,8 +17,13 @@ import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { AnomalyService } from '../services/AnomalyService.js';
 import { BadRequestErrorResponse, InternalServerErrorResponse } from '#shared/middleware/errorHandler.js';
 import { ANOMALIES_TYPES } from '../types.js';
+<<<<<<< HEAD
 import { audioUploadOptions, imageUploadOptions } from '../classes/validators/fileUploadOptions.js';
 import { AnomalyData, AnomalyIdParams, CourseAnomaliesQuery, DeleteAnomalyBody, GetAnomalyParams, GetCourseAnomalyParams, GetItemAnomalyParams, GetUserAnomalyParams, NewAnomalyData, StatsQueryParams } from '../classes/validators/AnomalyValidators.js';
+=======
+import { mediaUploadOptions } from '../classes/validators/fileUploadOptions.js';
+import { AnomalyData, AnomalyIdParams, DeleteAnomalyBody, GetAnomalyParams, GetCourseAnomalyParams, GetItemAnomalyParams, GetUserAnomalyParams, NewAnomalyData, StatsQueryParams } from '../classes/validators/AnomalyValidators.js';
+>>>>>>> ca8a90da6b5f90465f01bfc8ac57bc4d8c9dee0d
 import { AnomalyDataResponse, AnomalyStats, FileType } from '../classes/transformers/Anomaly.js';
 import { PaginationQuery } from '#root/shared/index.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
@@ -39,10 +44,10 @@ export class AnomalyController {
   ) {}
 
   @OpenAPI({
-    summary: 'Record anomaly image',
-    description: 'Records an anomaly image stored in cloud storage.',
+    summary: 'Record anomaly',
+    description: 'Records anomaly with optional image/audio.',
   })
-  @Post('/record/image')
+  @Post('/record')
   @HttpCode(201)
   @Authorized()
   @ResponseSchema(AnomalyData, {
@@ -53,54 +58,21 @@ export class AnomalyController {
     statusCode: 400,
   })
   async recordImageAnomaly(
-    // @UploadedFile("image", {required:true, options: imageUploadOptions })
-    @UploadedFile("image", {options: imageUploadOptions })
-      file: Express.Multer.File,
-    @Body() body: NewAnomalyData,
-    // @Ability(getAnomalyAbility) {ability,user} as it not giving permisson to post it
-    @Ability(getAnomalyAbility) {user}
-  ): Promise<AnomalyData> {
-    const { courseId, versionId } = body;
-    const userId = user._id.toString();
-    const anomalyRes = subject('Anomaly', { courseId, versionId });
-
-    // commented below as it is not allowing to post "anomalies/record/image" endpoint
-    // if (!ability.can('create', anomalyRes)) {
-    //   throw new ForbiddenError('You do not have permission to create an anomaly');
-    // }
-    
-    return this.anomalyService.recordAnomaly(userId, body, file, FileType.IMAGE);
-  }
-
-  @OpenAPI({
-    summary: 'Record anomaly with audio',
-    description: 'Records an anomaly udio stored in cloud storage.',
-  })
-  @Post('/record/audio')
-  @HttpCode(201)
-  @Authorized()
-  @ResponseSchema(AnomalyData, {
-    description: 'Anomaly recorded successfully',
-  })
-  @ResponseSchema(BadRequestErrorResponse, {
-    description: 'Bad Request Error',
-    statusCode: 400,
-  })
-  async recordAudioAnomaly(
-    @UploadedFile("audio", { required: true, options: audioUploadOptions })
+    @UploadedFile("file", {options: mediaUploadOptions})
       file: Express.Multer.File,
     @Body() body: NewAnomalyData,
     @Ability(getAnomalyAbility) {ability, user}
   ): Promise<AnomalyData> {
     const { courseId, versionId } = body;
     const userId = user._id.toString();
-
     const anomalyRes = subject('Anomaly', { courseId, versionId });
+
     if (!ability.can('create', anomalyRes)) {
       throw new ForbiddenError('You do not have permission to create an anomaly');
     }
+    const fileType = file?.mimetype.startsWith("image/") ? FileType.IMAGE : FileType.AUDIO;
 
-    return this.anomalyService.recordAnomaly(userId, body, file, FileType.AUDIO);
+    return this.anomalyService.recordAnomaly(userId, body, file, fileType);
   }
 
   @OpenAPI({

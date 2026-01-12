@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
+﻿import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
 import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, userParseCSVtoItems, useUpdateItemOptional } from '@/hooks/hooks';
 import { Download, Upload } from 'lucide-react';
@@ -59,7 +59,7 @@ import { QuestionUploadDialog } from "@/components/question-upload-dialog";
 import ConfirmationModal from "./components/confirmation-modal";
 
 
-// ✅ Icons per item type
+// Γ£à Icons per item type
 const getItemIcon = (type: string) => {
   switch (type) {
     case "BLOG": return <FileText className="h-3 w-3" />;
@@ -672,7 +672,7 @@ function TeacherCourseContent() {
       refetchVersion();
       refetchItems();
     } catch (error) {
-      console.error("❌ Error in handleHideItem:", error);
+      console.error("Γ¥î Error in handleHideItem:", error);
     } finally {
       setHidingItemId(null);
     }
@@ -2012,7 +2012,7 @@ function TeacherCourseContent() {
                     </div>
                     <div className="text-sm text-slate-500 dark:text-gray-400 flex items-center gap-2">
                       <BookOpen className="h-4 w-4" />
-                      <span>Course › Module › {selectedEntity.type}</span>
+                      <span>Course ΓÇ║ Module ΓÇ║ {selectedEntity.type}</span>
                     </div>
                   </div>
 
