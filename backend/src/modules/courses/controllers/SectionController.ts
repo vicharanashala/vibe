@@ -90,14 +90,12 @@ Accessible to:
       );
     }
 
-    
-      const createdVersion = await this.sectionService.createSection(
-        versionId,
-        moduleId,
-        body,
-      );
-      return {version: instanceToPlain(createdVersion)} as any;
-    
+    const createdVersion = await this.sectionService.createSection(
+      versionId,
+      moduleId,
+      body,
+    );
+    return {version: instanceToPlain(createdVersion)} as any;
   }
 
   @OpenAPI({
