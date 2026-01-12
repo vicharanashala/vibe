@@ -96,7 +96,10 @@ export default function CreateCourse() {
       let errorMsg = "Failed to create course";
 
       // Extract error message from the error object
-      if (err?.message) {
+      if (err?.errors?.length > 0) {
+        errorMsg = (Object.values(err.errors[0].constraints || {})[0] as string);
+      }
+      else if (err?.message) {
         errorMsg = err.message;
       } else if (err?.data?.message) {
         errorMsg = err.data.message;
@@ -378,8 +381,8 @@ export const CourseMetaForm: React.FC<CourseMetaFormProps> = ({
                   }}
                 />
                 <div className={`absolute bottom-2 right-2 text-xs ${courseDescription.length >= MAX_DESCRIPTION_LENGTH * 0.9
-                    ? 'text-destructive'
-                    : 'text-muted-foreground'
+                  ? 'text-destructive'
+                  : 'text-muted-foreground'
                   }`}>
                   {courseDescription.length}/{MAX_DESCRIPTION_LENGTH}
                 </div>
@@ -528,8 +531,8 @@ const CourseVersionMetaForm: React.FC<CourseVersionMetaFormProps> = ({
                   }}
                 />
                 <div className={`absolute bottom-2 right-2 text-xs ${versionDescription.length >= MAX_DESCRIPTION_LENGTH * 0.9
-                    ? 'text-destructive'
-                    : 'text-muted-foreground'
+                  ? 'text-destructive'
+                  : 'text-muted-foreground'
                   }`}>
                   {versionDescription.length}/{MAX_DESCRIPTION_LENGTH}
                 </div>
