@@ -148,7 +148,8 @@ export class InviteController {
     );
     return {link};
   }
-
+  
+  @Get('/:inviteId')
   @Post('/:inviteId')
   @HttpCode(200)
   @ContentType('html')

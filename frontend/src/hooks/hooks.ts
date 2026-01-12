@@ -520,14 +520,19 @@ export async function   useProcessInvites(inviteId: string,  action: "ACCEPT" | 
   refetch: () => void
 }> {
   let isLoading = true;
-  const method = 'POST';
-  const url = `${import.meta.env.VITE_BASE_URL}/notifications/invite/${inviteId}?action=${action}`;
+  const baseUrl = `${import.meta.env.VITE_BASE_URL}/notifications/invite/${inviteId}`;
+  const url =
+    action === "REJECTED"
+      ? `${baseUrl}?action=REJECTED`
+      : baseUrl;
 
   const res = await fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json', 'authorization': `Bearer ${localStorage.getItem('firebase-auth-token')}` },
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      authorization: `Bearer ${localStorage.getItem("firebase-auth-token")}`,
+    },
   });
-
   isLoading = false;
 
   if (!res.ok) {
