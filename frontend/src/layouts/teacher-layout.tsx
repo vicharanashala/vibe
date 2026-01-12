@@ -57,7 +57,7 @@ export default function TeacherLayout() {
       for (let i = 1; i < matches.length; i++) {
         const match = matches[i];
         const path = match.pathname;
-        const segments = path.split("/").filter(Boolean);
+        const segments = path.split("/");
         let label = segments[segments.length - 1] || "";
         label = label.replace(/-/g, " ");
         label = label.charAt(0).toUpperCase() + label.slice(1);
@@ -99,7 +99,7 @@ export default function TeacherLayout() {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [showInvites]);
-
+  
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -112,8 +112,10 @@ export default function TeacherLayout() {
 
               <Breadcrumb className="hidden md:flex">
                 <BreadcrumbList>
+               
                   {breadcrumbs.map((item, index) => (
                     <React.Fragment key={index}>
+                    
                       {index > 0 && breadcrumbs.length - 1 && <BreadcrumbSeparator />}
                       <BreadcrumbItem>
                         {item.isCurrentPage ? (
