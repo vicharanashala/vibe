@@ -23,8 +23,6 @@ export function setupAnomalyAbilities(
 ) {
   const { can, cannot } = builder;
 
-  can(AnomalyActions.Create, 'Anomaly');
-  
   if (user.globalRole === 'admin') {
     can('manage', 'Anomaly');
     return;

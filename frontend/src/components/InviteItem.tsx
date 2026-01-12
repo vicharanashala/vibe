@@ -7,9 +7,17 @@ const InviteItem = ({ invite }) => {
     const [status, setStatus] = useState(invite.inviteStatus); // track local status
 
     const onAccept = async (invite) => {
-        const { data, isLoading, error } = await useProcessInvites(invite.inviteId);
+        const { data, isLoading, error } = await useProcessInvites(invite.inviteId, 'ACCEPT');
         if (!isLoading && !error) {
             setStatus("ACCEPTED");
+            setIsExpanded(false);
+            window.location.reload();
+        }
+    };
+    const onReject = async (invite) => {
+        const { isLoading, error } = await useProcessInvites(invite.inviteId, 'REJECTED');
+        if (!isLoading && !error) {
+            setStatus("REJECTED");
             setIsExpanded(false);
             window.location.reload();
         }
@@ -53,6 +61,16 @@ const InviteItem = ({ invite }) => {
                     >
                         Accept
                     </Button>
+                     <Button
+            variant="ghost"
+            onClick={(e) => {
+                e.stopPropagation();
+                onReject(invite);
+            }}
+            className="text-sm cursor-pointer font-medium text-red-600 dark:text-red-400"
+        >
+            Reject
+        </Button>
                 </div>
             )}
         </li>
