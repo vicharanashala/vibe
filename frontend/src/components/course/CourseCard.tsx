@@ -50,10 +50,12 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   // const progress = Math.round(enrollment.percentCompleted || 0) as number 
   const progress = Number(((enrollment.percentCompleted || 0)).toFixed(1));
 
-  const contentCounts = enrollment.contentCounts as { totalItems?: number; videos?: number; quizzes?: number; articles?: number; project?: number } || {};
+  const contentCounts = enrollment.contentCounts as { totalItems?: number; videos?: number; quizzes?: number; articles?: number; project?: number, totalQuizScore?: number, totalQuizMaxScore?: number } || {};
   const totalLessons = contentCounts.totalItems || 0;
   const completedLessons = enrollment.completedItems as number || 0;
   const isCompleted = (typeof enrollment.percentCompleted === 'number' && enrollment.percentCompleted >= 100) || false;
+  const totalQuizScore = contentCounts.totalQuizScore as number || 0;
+  const totalQuizMaxScore = contentCounts.totalQuizMaxScore as number || 0;
 
   const videoCount: number = contentCounts.videos || 0;
   const quizCount: number = contentCounts.quizzes || 0;
@@ -303,6 +305,10 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                         <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
                           <p className="text-sm font-medium text-muted-foreground">Project</p>
                           <p className="text-xl font-semibold">{projectCount}</p>
+                        </div>
+                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                          <p className="text-sm font-medium text-muted-foreground">Quiz Scores</p>
+                          <p className="text-xl font-semibold">{totalQuizScore} / {totalQuizMaxScore}</p>
                         </div>
                       </div>
                     </div>

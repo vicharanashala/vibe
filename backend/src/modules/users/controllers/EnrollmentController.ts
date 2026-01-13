@@ -350,7 +350,7 @@ export class EnrollmentController {
     const totalPages =
       'totalPages' in enrollmentsData
         ? enrollmentsData.totalPages
-        : Math.ceil(enrollmentsData.totalCount / limit);
+        : Math.ceil(totalDocuments / limit);
 
     return {
       enrollments: enrollmentsData.enrollments
@@ -362,6 +362,8 @@ export class EnrollmentController {
           user: {...enrollment.userInfo, _id: enrollment.userId},
           progress: enrollment.percentCompleted,
           completedItemsCount: enrollment.completedItemsCount || 0,
+          totalQuizScore: enrollment.totalQuizScore || 0,
+          totalQuizMaxScore: enrollment.totalQuizMaxScore || 0,
         }))
         .sort((a, b) => {
           // sort by isDeleted deleted should be at the bottom
@@ -547,30 +549,42 @@ export class EnrollmentController {
   async bulk_update_watchtime_progress_completeCounts(
     @Ability(getEnrollmentAbility) {ability},
     @QueryParams() query: BulkEnrollmentsQuery,
-  ):Promise<{message: string; watchtimeUpdated: number; progressRecalculated: number}>{
+  ): Promise<{
+    message: string;
+    watchtimeUpdated: number;
+    progressRecalculated: number;
+  }> {
     try {
       const {courseId, versionId, userId} = query;
-      
+
       // Validate at least one parameter is provided
       if (!courseId && !userId && !versionId) {
-        throw new BadRequestError('At least courseId, versionId, or userId must be provided');
+        throw new BadRequestError(
+          'At least courseId, versionId, or userId must be provided',
+        );
       }
-      
+
       // Call the new service method that combines both operations
-      const result = await this.enrollmentService.bulkUpdateWatchTimeAndRecalculateProgress(
-        courseId,
-        versionId,
-        userId
-      );
-      
+      const result =
+        await this.enrollmentService.bulkUpdateWatchTimeAndRecalculateProgress(
+          courseId,
+          versionId,
+          userId,
+        );
+
       return {
         message: result.message,
         watchtimeUpdated: result.watchtimeUpdated,
-        progressRecalculated: result.progressRecalculated
+        progressRecalculated: result.progressRecalculated,
       };
     } catch (error) {
-      console.error('Error in bulk_update_watchtime_progress_completeCounts:', error);
-      throw new BadRequestError(error.message || 'Failed to bulk update watchtime and progress');
+      console.error(
+        'Error in bulk_update_watchtime_progress_completeCounts:',
+        error,
+      );
+      throw new BadRequestError(
+        error.message || 'Failed to bulk update watchtime and progress',
+      );
     }
   }
 }
