@@ -1384,11 +1384,6 @@ class ProgressService extends BaseService {
       itemId,
     );
 
-    if (isItemCompleted) {
-      // Item is already completed, skip watchTime stopping and return early
-      // console.log(`[stopItem] Item ${itemId} is already completed, skipping watchTime stopping`);
-      return;
-    }
 
     if (!progress) throw new NotFoundError('Progress not found');
 
@@ -1451,10 +1446,12 @@ class ProgressService extends BaseService {
         stoppedWatchTime = await this.progressRepository.stopItemTracking(watchItemId, session);
 
         if (!stoppedWatchTime) {
-          throw new NotFoundError('Watch item not found');
+          if (!isItemCompleted) {
+            throw new NotFoundError('Watch item not found');
+          }
         }
 
-        if (item.type === 'VIDEO' || item.type === 'BLOG') {
+        if (stoppedWatchTime && (item.type === 'VIDEO' || item.type === 'BLOG')) {
           if (!this.isValidWatchTime(stoppedWatchTime, item)) {
             throw new BadRequestError('Invalid watch time');
           }
