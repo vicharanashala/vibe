@@ -52,6 +52,11 @@ export interface ICourseRepository {
     session?: ClientSession,
   ): Promise<ICourseVersion | null>;
 
+  getActiveVersions(
+    versionIds: string[],
+    session?: ClientSession,
+  ): Promise<ICourseVersion[]>;
+
   updateVersion(
     versionId: string,
     courseVersion: ICourseVersion,

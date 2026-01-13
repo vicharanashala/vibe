@@ -16,6 +16,8 @@ export interface CourseCardProps {
       videos?: number;
       quizzes?: number;
       articles?: number;
+      totalQuizScore?: number;
+      totalQuizMaxScore?: number;
     };
     completedItems?: number;
     course?: {
