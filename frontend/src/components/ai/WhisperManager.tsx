@@ -7,6 +7,7 @@ import { webmFixDuration, formatAudioTimestamp } from "@/utils/AudioUtils";
 import { ArrowRight, Loader2, RefreshCw, PlayCircle, Upload } from "lucide-react";
 import { Button } from "../ui/button";
 import { toast } from "sonner";
+import { registerStream, unRegisterStream} from "@/lib/MediaRegistry";  
 
 
 interface Props extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -121,6 +122,11 @@ function getMimeType() {
 function AudioRecorder(props: {
     onRecordingComplete: (blob: Blob) => void;
 }) {
+      useEffect(() => {
+        return () => {
+            unRegisterStream("AudioRecorder-audio-stream");
+        };
+      }, []);
     const [recording, setRecording] = useState(false);
     const [duration, setDuration] = useState(0);
     const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
@@ -143,6 +149,8 @@ function AudioRecorder(props: {
                 streamRef.current = await navigator.mediaDevices.getUserMedia({
                     audio: true,
                 });
+                unRegisterStream("AudioRecorder-audio-stream");
+                registerStream("AudioRecorder-audio-stream", streamRef.current);
             }
 
             const mimeType = getMimeType();
