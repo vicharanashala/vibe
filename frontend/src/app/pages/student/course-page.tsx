@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";ExternalLink
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -51,6 +51,7 @@ import { EntityType } from "@/types/flag.types";
 import { toast } from "sonner";
 import ItemContainer from "@/components/Item-container";
 import logo from "../../../../public/img/vibe_logo_img.ico"
+import {registerStream, unRegisterStream} from "@/lib/MediaRegistry";
 
 // Helper function to get icon for item type
 const getItemIcon = (type: string) => {
@@ -79,7 +80,12 @@ const sortItemsByOrder = (items: any[]) => {
   });
 };
 export default function CoursePage() {
-
+  useEffect(() => {
+    return () => {
+      unRegisterStream("course-page-stream");
+      unRegisterStream("course-page-retrystream");
+    };
+  }, []);
   const [attemptId, setAttemptId] = useState<string | null>(null);
   // Dialog state for proctoring declaration
   const [showProctorDialog, setShowProctorDialog] = useState(true);
@@ -104,11 +110,15 @@ export default function CoursePage() {
       try {
         // Try to get both camera and microphone access
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        unRegisterStream("course-page-stream");
+        registerStream("course-page-stream", stream);
         streamRef.current = stream;
       } catch (err) {
         alert("Please allow camera and microphone access to continue. You will be redirected to the dashboard if access is denied.");
         try {
           const retryStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          unRegisterStream("course-page-retrystream");
+          registerStream("course-page-retrystream", retryStream);
           streamRef.current = retryStream;
         } catch (err) {
           router.navigate({ to: '/student' });
@@ -123,9 +133,6 @@ export default function CoursePage() {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500)
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1264,9 +1271,6 @@ export default function CoursePage() {
         if (!open) {
           setShowProctorDialog(false);
           router.navigate({ to: '/student' });
-          setTimeout(() => {
-            window.location.reload()
-          }, 1000)
         }
       }}>
         <DialogContent className="sm:max-w-lg w-[calc(100%-2rem)] max-w-full">
@@ -1385,7 +1389,7 @@ export default function CoursePage() {
                                       className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 ${isSectionExpanded ? 'rotate-90' : ''
                                         }`}
                                     />
-                                    <div className="font-medium truncate flex-1 min-w-0 ml-2">
+                                    <div className="font-medium truncate flex-1 min-w-0 ml-2 ">
                                       <Tooltip>
                                         <TooltipTrigger asChild>
                                           <div className="font-medium text-xs truncate">
@@ -1416,19 +1420,19 @@ export default function CoursePage() {
                                               <SidebarMenuSubButton
                                                 onClick={() => handleSelectItem(moduleId, sectionId, itemId)}
                                                 isActive={isCurrentItem}
-                                                className="group relative h-8 px-3 w-full rounded-md transition-all duration-200 hover:bg-accent/10 data-[state=active]:bg-primary/10 data-[state=active]:text-primary justify-start"
+                                                className="group relative h-12 px-3 w-full  rounded-md transition-all duration-200 hover:bg-accent/10 data-[state=active]:bg-primary/10 data-[state=active]:text-primary justify-start"
                                                 // Assign ref only to the selected item for autoscroll
                                                 ref={isCurrentItem ? selectedItemRef : undefined}
                                               >
                                                 <div className="flex items-center gap-2 w-full min-w-0">
                                                   <div className={`p-0.5 rounded transition-colors flex-shrink-0 ${isCurrentItem
-                                                    ? "bg-primary/15 text-primary"
+                                                    ? "bg-primary/90 text-white/80 dark:bg-primary/15 dark:text-primary"
                                                     : "bg-accent/15 text-accent-foreground group-hover:bg-accent/25"
                                                     }`}>
                                                     {getItemIcon(item.type)}
                                                   </div>
                                                   <div className="flex-1 text-left min-w-0">
-                                                    <div className="text-xs font-medium truncate w-full" title={currentItem?.name || 'Loading...'}>
+                                                    <div className="text-xs font-medium truncate w-full " title={currentItem?.name || 'Loading...'}>
                                                       {(() => {
                                                         // Find all non-QUIZ items in this section, sorted by order
                                                         const itemsInSection = sortItemsByOrder(sectionItems[sectionId] || []).filter((i: any) => i.type !== 'QUIZ');
@@ -1449,7 +1453,7 @@ export default function CoursePage() {
                                                       })()}
                                                     </div>
                                                     {item.isCompleted && (
-                                                      <div className="text-[10px] text-green-500 font-medium mt-0.5 flex items-center gap-1">
+                                                      <div className={`text-[10px] dark:text-green-500 text-green-600 font-medium mt-0.5 flex items-center gap-1 ${selectedItemId === itemId ? "text-green-900": ""} `}>
                                                         <CheckCircle className="h-3 w-3" />
                                                         Completed
                                                       </div>

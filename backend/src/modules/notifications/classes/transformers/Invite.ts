@@ -68,7 +68,7 @@ class Invite {
   courseVersionId: ID; 
 
 
-  inviteStatus: 'ACCEPTED' | 'PENDING' | 'EXPIRED' |'CANCELLED' | 'EMAIL_FAILED' | 'ALREADY_ENROLLED' = 'PENDING';
+  inviteStatus: 'ACCEPTED' | 'PENDING' | 'EXPIRED' |'CANCELLED' |'REJECTED'| 'EMAIL_FAILED' | 'ALREADY_ENROLLED' = 'PENDING';
   
 
 
