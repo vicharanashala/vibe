@@ -1,6 +1,7 @@
 import { parentPort, workerData } from "worker_threads";
 import "reflect-metadata";
 import { Container } from "inversify";
+import "dotenv/config";
 
 import {
   InviteRepository,
@@ -36,12 +37,16 @@ interface WorkerData {
 }
 
 const data = workerData as WorkerData;
+console.log("data", data);
 
 const inviteIds = Array.isArray(data?.inviteIds) ? data.inviteIds : [];
 const courseId = data.courseId;
+console.log("courseId", courseId);
 const courseVersionId = data.courseVersionId;
+console.log("courseVersionId", courseVersionId);
 const mongoUri = data.mongoUri;
-const dbName = data.dbName;
+// const dbName = data.dbName;
+const dbName = "vibe";
 if (!parentPort) {
   console.error("❌ parentPort missing — worker must run in thread");
   process.exit(1);
@@ -90,7 +95,9 @@ const inviteService = new InviteService(inviteRepo,userRepo,courseRepo,enrollmen
 
   try {
     const course = await courseRepo.read(courseId.toString());
+    console.log("course", course);
     const version = await courseRepo.readVersion(courseVersionId.toString());
+    console.log("version", version);
 
     let processed = 0;
 
@@ -105,8 +112,10 @@ const inviteService = new InviteService(inviteRepo,userRepo,courseRepo,enrollmen
           version
         );
 
-        await mailService.sendMail(email);
+        console.log("Email is: ", email);
 
+        const info = await mailService.sendMail(email);
+        console.log("information: ", info);
         processed++;
       } catch (err) {
         console.error(`❌ Failed email invite ${inviteId}`, err);

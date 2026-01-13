@@ -308,6 +308,7 @@ export default function InvitePage() {
 
   // Handle sending invites
   const handleSendInvites = async () => {
+    console.log("Sending mail to the user");
     if (!courseId || !versionId) {
       toast.error("Course ID and version ID are required")
       return
@@ -319,6 +320,9 @@ export default function InvitePage() {
       toast.error("Please enter at least one email address")
       return
     }
+
+    console.log("courseId", courseId);
+    console.log("courseVersionId", versionId);
 
     try {
       await inviteUsers.mutateAsync({
