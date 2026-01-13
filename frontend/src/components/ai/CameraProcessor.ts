@@ -1,4 +1,5 @@
 import { MLProcessor } from "@/types/ai.types";
+import {registerStream, unRegisterStream} from "@/lib/MediaRegistry";
 
 class CameraProcessor {
   private videoElement: HTMLVideoElement | null = null;
@@ -17,6 +18,8 @@ class CameraProcessor {
 
     this.videoElement = videoElement;
     const stream = await navigator.mediaDevices.getUserMedia({ video: { frameRate: { max: 30 } } });
+    unRegisterStream("CameraProcessor-stream");
+    registerStream("CameraProcessor-stream", stream);
     this.videoElement.srcObject = stream;
 
     await new Promise((resolve) => (this.videoElement!.onloadedmetadata = () => resolve(null)));

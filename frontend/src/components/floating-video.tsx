@@ -14,6 +14,7 @@ import { useAuthStore } from '@/store/auth-store';
 import { useCourseStore } from '@/store/course-store';
 import type { FloatingVideoProps } from '@/types/video.types';
 import { useReportAnomalyAudio, useReportAnomalyImage } from '@/hooks/hooks';
+import {registerStream, unRegisterStream} from "@/lib/MediaRegistry";
 
 // let flag = 0;
 function FloatingVideo({
@@ -29,6 +30,12 @@ function FloatingVideo({
   setReadyToDetect,
   anomalies = []
 }: FloatingVideoProps): JSX.Element | null {
+  useEffect(() => {
+    return () => {
+       unRegisterStream("floating-video-restart-stream")
+       unRegisterStream("floating-video-audio-stream")
+    };
+  }, []);
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -331,6 +338,8 @@ const lastCalledRef = useRef<number>(0);
     if (isSpeaking === "Yes" && isVoiceDetectionEnabled && !mediaRecorder) {
       // Start recording
       navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        unRegisterStream("floating-video-audio-stream")
+        registerStream("floating-video-audio-stream", stream);
         const recorder = new window.MediaRecorder(stream);
         setAudioChunks([]);
         setAudioStream(stream);
@@ -417,6 +426,8 @@ const lastCalledRef = useRef<number>(0);
           height: { ideal: 480 }
         }
       });
+      unRegisterStream("floating-video-restart-stream")
+      registerStream("floating-video-restart-stream", stream);
 
       video.srcObject = stream;
       setCurrentStream(stream);
