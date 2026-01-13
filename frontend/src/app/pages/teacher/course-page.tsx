@@ -533,6 +533,16 @@ function CourseCard({
       setShowDeleteCourseModal(false);
     }
   }
+  //version validation
+  const versionErrors = {
+    name: !newVersionData.version.trim()? "Version name is required"
+    : newVersionData.version.trim().length < 3 ? "Version name must be at least 3 characters"
+    : newVersionData.version.trim().length > 255 ? "Version name must be at most 255 characters"
+    : "",
+    description: !newVersionData.description.trim()? "Description is required" 
+    : newVersionData.description.trim().length > 1000 ? "Description must be less than 1000 characters"
+    : "",
+  }
 
   const showVersionForm = () => {
     setShowNewVersionForm(true)
@@ -546,8 +556,8 @@ function CourseCard({
   }
 
   const saveNewVersion = async () => {
-    if (!newVersionData.version.trim() || !newVersionData.description.trim()) {
-      setCreatingErrors({ name: "Version name is required", description: "Description is required" })
+    if (!newVersionData.version.trim() || !newVersionData.description.trim() || newVersionData.version.trim().length < 3 || newVersionData.version.trim().length > 255) {
+      setCreatingErrors(versionErrors)
       return
     }
     else {
@@ -1011,10 +1021,20 @@ function VersionCard({
     setEditingValues({ version: "", description: "", supportLink: "" })
     setEditingErrors({ version: "", description: "", supportLink: "" })
   }
-
+  //version validation
+  const versionErrors = {
+    version: !editingValues.version.trim()? "Version name is required"
+    : editingValues.version.trim().length < 3 ? "Version name must be at least 3 characters"
+    : editingValues.version.trim().length > 255 ? "Version name must be at most 255 characters"
+    : "",
+    description: !editingValues.description.trim()? "Description is required" 
+    : editingValues.description.trim().length > 1000 ? "Description must be less than 1000 characters"
+    : "",
+     
+  }
   const saveEditingVersion = async () => {
-    if (!editingValues.version.trim() || !editingValues.description.trim()) {
-      setEditingErrors({ version: " Version name is required", description: " Version description is required" })
+    if (!editingValues.version.trim() || !editingValues.description.trim() || editingValues.version.trim().length <3 || editingValues.version.trim().length >255 || editingValues.description.trim().length >1000 ) {
+      setEditingErrors(versionErrors)
       return
     }
 
@@ -1023,6 +1043,7 @@ function VersionCard({
       const isEmail = supportLinkValue.includes('@');
       const isUrl = /^https?:\/\/.+/.test(supportLinkValue);
       if (!isEmail && !isUrl) {
+        
         setEditingErrors({ supportLink: "Must be a valid URL (https://...) or email address" })
         return
       }
@@ -1414,7 +1435,11 @@ function VersionCard({
                             }))
                             if (!value.trim()) {
                               setEditingErrors(errors => ({ ...errors, version: "Version name is required." }));
-                            } else {
+                            } else if(value.trim().length < 3){
+                              setEditingErrors(errors => ({ ...errors, version: "Version name must be atleast 3 characters."}))
+                            }else if (value.trim().length > 255){
+                                setEditingErrors(errors => ({ ...errors, version: "Version name must be less than 255 characters."}))
+                            } else{
                               setEditingErrors(errors => ({ ...errors, version: '' }));
                             }
                           }}
@@ -1438,7 +1463,10 @@ function VersionCard({
                             // Validation
                             if (!value.trim()) {
                               setEditingErrors(errors => ({ ...errors, description: "Version description is required." }));
-                            } else {
+                            } else if (value.trim().length > 1000) {
+                              setEditingErrors(errors => ({ ...errors, description: "Description must be less than 1000 characters." }));
+                            } 
+                            else {
                               setEditingErrors(errors => ({ ...errors, description: '' }));
                             }
                           }}
@@ -1459,10 +1487,15 @@ function VersionCard({
                               ...prev,
                               supportLink: value,
                             }))
+                            setEditingErrors(errors => ({ ...errors, supportLink: '' }));
+                            
                           }}
                           className="border-primary/30 focus:border-primary bg-background"
                           placeholder="Discord, email, or forum link (e.g., https://discord.gg/abc123)"
                         />
+                         {editingErrors.supportLink && (
+                          <div className="text-xs text-red-500 mt-2">{editingErrors.supportLink}</div>
+                        )}
                         <p className="text-xs text-muted-foreground mt-1">
                           Students can use this link to get help or support
                         </p>
