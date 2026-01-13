@@ -134,9 +134,9 @@ export default function TeacherCoursesPage() {
     setSearchQuery(event.target.value)
     if (event.target.value && enrollments.length === 0) {
       setLastEmptyState(searchQuery)
-    } else if(event.target.value === "") {
+    } else if (event.target.value === "") {
       setLastEmptyState(null)
-    }else{
+    } else {
       return;
     }
   }
@@ -535,13 +535,13 @@ function CourseCard({
   }
   //version validation
   const versionErrors = {
-    name: !newVersionData.version.trim()? "Version name is required"
-    : newVersionData.version.trim().length < 3 ? "Version name must be at least 3 characters"
-    : newVersionData.version.trim().length > 255 ? "Version name must be at most 255 characters"
-    : "",
-    description: !newVersionData.description.trim()? "Description is required" 
-    : newVersionData.description.trim().length > 1000 ? "Description must be less than 1000 characters"
-    : "",
+    name: !newVersionData.version.trim() ? "Version name is required"
+      : newVersionData.version.trim().length < 3 ? "Version name must be at least 3 characters"
+        : newVersionData.version.trim().length > 255 ? "Version name must be at most 255 characters"
+          : "",
+    description: !newVersionData.description.trim() ? "Description is required"
+      : newVersionData.description.trim().length > 1000 ? "Description must be less than 1000 characters"
+        : "",
   }
 
   const showVersionForm = () => {
@@ -581,13 +581,13 @@ function CourseCard({
       setShowNewVersionForm(false)
       setNewVersionData({ version: "", description: "" })
       onInvalidate() // Also invalidate parent queries
-    } catch (err:any) {
+    } catch (err: any) {
       let errorMsg = "Failed to create version";
 
       // Extract error message from the error object
       if (err?.errors?.length > 0) {
         errorMsg = (Object.values(err.errors[0].constraints || {})[0] as string);
-      }else if(err.message) {
+      } else if (err.message) {
         errorMsg = err.message;
       }
 
@@ -710,254 +710,254 @@ function CourseCard({
           <CardContent className="">
             <div className="rounded-xl pt-0 space-y-6">
 
-            <Separator className="bg-border/50" />
+              <Separator className="bg-border/50" />
 
-            {/* Course Description Section */}
-            {(editingCourse || course?.description) && (
-              <div className="space-y-4">
-                <h3 className="text-base md:text-lg font-semibold text-foreground flex items-center gap-2">
-                  <div className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full"></div>
-                  Course Description
-                </h3>
-                {editingCourse ? (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-light text-foreground mb-2 block">Course Name *</label>
-                      <Input
-                        value={editingValues.name}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          setEditingValues((prev: { name: string; description: string }) => ({
-                            ...prev,
-                            name: value,
-                          }));
-                          if (!value.trim()) {
-                            setEditingErrors(errors => ({ ...errors, name: "Course name is required." }));
-                          } else {
-                            setEditingErrors(errors => ({ ...errors, name: '' }));
-                          }
-                        }}
-                        className="border-primary/30 focus:border-primary bg-background"
-                        placeholder="Course name"
-                      />
-                      {editingErrors.name && (
-                        <div className="text-xs text-red-500 mt-2">{editingErrors.name}</div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="text-sm font-light text-foreground mb-2 block">Description *</label>
-                      <Textarea
-                        value={editingValues.description}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value.length <= MAX_DESCRIPTION_LENGTH) {
+              {/* Course Description Section */}
+              {(editingCourse || course?.description) && (
+                <div className="space-y-4">
+                  <h3 className="text-base md:text-lg font-semibold text-foreground flex items-center gap-2">
+                    <div className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+                    Course Description
+                  </h3>
+                  {editingCourse ? (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-sm font-light text-foreground mb-2 block">Course Name *</label>
+                        <Input
+                          value={editingValues.name}
+                          onChange={(e) => {
+                            const value = e.target.value;
                             setEditingValues((prev: { name: string; description: string }) => ({
                               ...prev,
-                              description: value,
+                              name: value,
                             }));
-                          }
-                          // Validation
-                          if (!value.trim()) {
-                            setEditingErrors(errors => ({ ...errors, description: "Course description is required." }));
-                          } else if (value.length >= MAX_DESCRIPTION_LENGTH) {
-                            setEditingErrors(errors => ({ ...errors, description: `Description must be less than ${MAX_DESCRIPTION_LENGTH} characters` }));
-                          } else {
-                            setEditingErrors(errors => ({ ...errors, description: '' }));
-                          }
-                        }}
-                        className="min-h-[120px] border-primary/30 focus:border-primary bg-background resize-none"
-                        placeholder="Course description"
-                      />
-                      <div className="flex justify-between items-center mt-1">
-                        <div className="text-xs text-muted-foreground">
-                          {editingValues.description.length >= MAX_DESCRIPTION_LENGTH * 0.9 && (
-                            <span className="text-destructive">
-                              Description must be less than {MAX_DESCRIPTION_LENGTH} characters
-                            </span>
-                          )}
-                          {editingErrors.description && (
-                            <span className="text-destructive">{editingErrors.description}</span>
-                          )}
-                        </div>
-                        <div className={`text-xs ${editingValues.description.length >= MAX_DESCRIPTION_LENGTH * 0.9
-                          ? 'text-destructive'
-                          : 'text-muted-foreground'
-                          }`}>
-                          {editingValues.description.length}/{MAX_DESCRIPTION_LENGTH}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        onClick={saveEditing}
-                        size="sm"
-                        disabled={updateCourseMutation.isPending}
-                        className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
-                      >
-                        {updateCourseMutation.isPending ? (
-                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                        ) : (
-                          <Save className="h-3 w-3 mr-1" />
+                            if (!value.trim()) {
+                              setEditingErrors(errors => ({ ...errors, name: "Course name is required." }));
+                            } else {
+                              setEditingErrors(errors => ({ ...errors, name: '' }));
+                            }
+                          }}
+                          className="border-primary/30 focus:border-primary bg-background"
+                          placeholder="Course name"
+                        />
+                        {editingErrors.name && (
+                          <div className="text-xs text-red-500 mt-2">{editingErrors.name}</div>
                         )}
-                        Save Changes
-                      </Button>
-                      <Button onClick={cancelEditing} variant="outline" size="sm" className="border-border bg-background">
-                        <X className="h-3 w-3 mr-1" />
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <div className="absolute inset-0  rounded-lg "></div>
-                        <div className="relative bg-accent/1 rounded-lg p-4 border border-accent/10">
-                          <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{course.description}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* All Versions Section */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                  <div className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full"></div>
-                  All Versions ({course.versions?.length || 0})
-                </h3>
-                <div className="flex items-center gap-2">
-                  <Button
-                    onClick={showVersionForm}
-                    size="sm"
-                    variant="outline"
-                    disabled={createVersionMutation.isPending}
-                    className="bg-linear-to-r from-primary/10 to-accent/10 border-primary/30 duration-300"
-                  >
-                    {createVersionMutation.isPending ? (
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    ) : (
-                      <Plus className="h-3 w-3 mr-1" />
-                    )}
-                    Add Version
-                  </Button>
-                </div>
-              </div>
-
-              {/* New Version Form */}
-              {showNewVersionForm && (
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/20 rounded-xl blur-sm"></div>
-                  <Card className="relative bg-card/95 backdrop-blur-sm border-2 border-primary/30 py-0">
-                    <CardContent className="p-4 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-semibold text-foreground">Create New Version</h4>
                       </div>
-
-                      <div className="space-y-3">
-                        <div>
-                          <label className="text-sm font-light text-foreground mb-1 block">Version Name</label>
-                          <Input
-                            value={newVersionData.version}
-                            onChange={(e) => setNewVersionData((prev) => ({ ...prev, version: e.target.value }))}
-                            placeholder="e.g., v2.0, Version 2, etc."
-                            className="border-primary/30 focus:border-primary bg-background"
-                          />
-                          {creatingErrors.name && (
-                            <div className="text-xs text-red-500 mt-2">{creatingErrors.name}</div>
-                          )}
-                        </div>
-
-                        <div>
-                          <label className="text-sm font-light text-foreground mb-1 block">Version Description</label>
-                          <Textarea
-                            value={newVersionData.description}
-                            onChange={(e) => setNewVersionData((prev) => ({ ...prev, description: e.target.value }))}
-                            placeholder="Describe what's new in this version..."
-                            className="min-h-[80px] border-primary/30 focus:border-primary bg-background resize-none"
-                          />
-                          {creatingErrors.description && (
-                            <div className="text-xs text-red-500 mt-2">{creatingErrors.description}</div>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-2 pt-2">
-                          <Button
-                            onClick={saveNewVersion}
-                            size="sm"
-                            disabled={createVersionMutation.isPending}
-                            className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
-                          >
-                            {createVersionMutation.isPending ? (
-                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                            ) : (
-                              <Save className="h-3 w-3 mr-1" />
+                      <div>
+                        <label className="text-sm font-light text-foreground mb-2 block">Description *</label>
+                        <Textarea
+                          value={editingValues.description}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value.length <= MAX_DESCRIPTION_LENGTH) {
+                              setEditingValues((prev: { name: string; description: string }) => ({
+                                ...prev,
+                                description: value,
+                              }));
+                            }
+                            // Validation
+                            if (!value.trim()) {
+                              setEditingErrors(errors => ({ ...errors, description: "Course description is required." }));
+                            } else if (value.length >= MAX_DESCRIPTION_LENGTH) {
+                              setEditingErrors(errors => ({ ...errors, description: `Description must be less than ${MAX_DESCRIPTION_LENGTH} characters` }));
+                            } else {
+                              setEditingErrors(errors => ({ ...errors, description: '' }));
+                            }
+                          }}
+                          className="min-h-[120px] border-primary/30 focus:border-primary bg-background resize-none"
+                          placeholder="Course description"
+                        />
+                        <div className="flex justify-between items-center mt-1">
+                          <div className="text-xs text-muted-foreground">
+                            {editingValues.description.length >= MAX_DESCRIPTION_LENGTH * 0.9 && (
+                              <span className="text-destructive">
+                                Description must be less than {MAX_DESCRIPTION_LENGTH} characters
+                              </span>
                             )}
-                            Save Version
-                          </Button>
-                          <Button onClick={cancelNewVersion} variant="outline" size="sm" className="border-border bg-background">
-                            <X className="h-3 w-3 mr-1" />
-                            Cancel
-                          </Button>
+                            {editingErrors.description && (
+                              <span className="text-destructive">{editingErrors.description}</span>
+                            )}
+                          </div>
+                          <div className={`text-xs ${editingValues.description.length >= MAX_DESCRIPTION_LENGTH * 0.9
+                            ? 'text-destructive'
+                            : 'text-muted-foreground'
+                            }`}>
+                            {editingValues.description.length}/{MAX_DESCRIPTION_LENGTH}
+                          </div>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          onClick={saveEditing}
+                          size="sm"
+                          disabled={updateCourseMutation.isPending}
+                          className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
+                        >
+                          {updateCourseMutation.isPending ? (
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          ) : (
+                            <Save className="h-3 w-3 mr-1" />
+                          )}
+                          Save Changes
+                        </Button>
+                        <Button onClick={cancelEditing} variant="outline" size="sm" className="border-border bg-background">
+                          <X className="h-3 w-3 mr-1" />
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <div className="absolute inset-0  rounded-lg "></div>
+                      <div className="relative bg-accent/1 rounded-lg p-4 border border-accent/10">
+                        <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{course.description}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Display All Versions */}
-              <div className="space-y-3">
-                {localCourseVersionDetails && localCourseVersionDetails.length > 0 ? (
-                  localCourseVersionDetails.map((versionData, index: number) => (
-                    <div
-                      key={versionData.id}
-                      className="animate-in slide-in-from-left-4 duration-500"
-                      style={{ animationDelay: `${index * 100}ms` }}
+              {/* All Versions Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                    <div className="w-1 h-5 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+                    All Versions ({course.versions?.length || 0})
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={showVersionForm}
+                      size="sm"
+                      variant="outline"
+                      disabled={createVersionMutation.isPending}
+                      className="bg-linear-to-r from-primary/10 to-accent/10 border-primary/30 duration-300"
                     >
-                      <VersionCard
-                        versionData={versionData}
-                        courseId={courseIdHex}
-                        onInvalidate={onInvalidate}
-                        deleteVersionMutation={deleteVersionMutation}
-                        versionCount={course?.versions?.length}
-                      />
-                    </div>
-                  ))
-                ) : course.versions && course.versions.length > 0 ? (
-                  course.versions.map((versionId: string, index: number) => (
-                    <div
-                      key={versionId}
-                      className="animate-in slide-in-from-left-4 duration-500"
-                      style={{ animationDelay: `${index * 100}ms` }}
-                    >
-                      <VersionCard
-                        versionId={versionId}
-                        courseId={courseIdHex}
-                        onInvalidate={onInvalidate}
-                        deleteVersionMutation={deleteVersionMutation}
-                        versionCount={course?.versions?.length}
-                      />
-                    </div>
-                  ))
-                ) : (
+                      {createVersionMutation.isPending ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <Plus className="h-3 w-3 mr-1" />
+                      )}
+                      Add Version
+                    </Button>
+                  </div>
+                </div>
+
+                {/* New Version Form */}
+                {showNewVersionForm && (
                   <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-muted/20 to-muted/10 rounded-xl blur-sm"></div>
-                    <Card className="relative bg-card/95 backdrop-blur-sm border-dashed border-2 border-muted-foreground/30">
-                      <CardContent className="p-6 text-center">
-                        <div className="relative inline-block mb-3">
-                          <div className="absolute inset-0 bg-gradient-to-r from-muted/20 to-muted/10 rounded-full blur-sm"></div>
-                          <div className="relative bg-muted/20 border border-muted-foreground/20 rounded-full p-3">
-                            <FileText className="h-8 w-8 text-muted-foreground" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/20 rounded-xl blur-sm"></div>
+                    <Card className="relative bg-card/95 backdrop-blur-sm border-2 border-primary/30 py-0">
+                      <CardContent className="p-4 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold text-foreground">Create New Version</h4>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div>
+                            <label className="text-sm font-light text-foreground mb-1 block">Version Name</label>
+                            <Input
+                              value={newVersionData.version}
+                              onChange={(e) => setNewVersionData((prev) => ({ ...prev, version: e.target.value }))}
+                              placeholder="e.g., v2.0, Version 2, etc."
+                              className="border-primary/30 focus:border-primary bg-background"
+                            />
+                            {creatingErrors.name && (
+                              <div className="text-xs text-red-500 mt-2">{creatingErrors.name}</div>
+                            )}
+                          </div>
+
+                          <div>
+                            <label className="text-sm font-light text-foreground mb-1 block">Version Description</label>
+                            <Textarea
+                              value={newVersionData.description}
+                              onChange={(e) => setNewVersionData((prev) => ({ ...prev, description: e.target.value }))}
+                              placeholder="Describe what's new in this version..."
+                              className="min-h-[80px] border-primary/30 focus:border-primary bg-background resize-none"
+                            />
+                            {creatingErrors.description && (
+                              <div className="text-xs text-red-500 mt-2">{creatingErrors.description}</div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 pt-2">
+                            <Button
+                              onClick={saveNewVersion}
+                              size="sm"
+                              disabled={createVersionMutation.isPending}
+                              className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
+                            >
+                              {createVersionMutation.isPending ? (
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              ) : (
+                                <Save className="h-3 w-3 mr-1" />
+                              )}
+                              Save Version
+                            </Button>
+                            <Button onClick={cancelNewVersion} variant="outline" size="sm" className="border-border bg-background">
+                              <X className="h-3 w-3 mr-1" />
+                              Cancel
+                            </Button>
                           </div>
                         </div>
-                        <p className="text-muted-foreground font-medium">No versions available</p>
-                        <p className="text-sm text-muted-foreground mt-1">Create your first version to get started</p>
                       </CardContent>
                     </Card>
                   </div>
                 )}
+
+                {/* Display All Versions */}
+                <div className="space-y-3">
+                  {localCourseVersionDetails && localCourseVersionDetails.length > 0 ? (
+                    localCourseVersionDetails.map((versionData, index: number) => (
+                      <div
+                        key={versionData.id}
+                        className="animate-in slide-in-from-left-4 duration-500"
+                        style={{ animationDelay: `${index * 100}ms` }}
+                      >
+                        <VersionCard
+                          versionData={versionData}
+                          courseId={courseIdHex}
+                          onInvalidate={onInvalidate}
+                          deleteVersionMutation={deleteVersionMutation}
+                          versionCount={course?.versions?.length}
+                        />
+                      </div>
+                    ))
+                  ) : course.versions && course.versions.length > 0 ? (
+                    course.versions.map((versionId: string, index: number) => (
+                      <div
+                        key={versionId}
+                        className="animate-in slide-in-from-left-4 duration-500"
+                        style={{ animationDelay: `${index * 100}ms` }}
+                      >
+                        <VersionCard
+                          versionId={versionId}
+                          courseId={courseIdHex}
+                          onInvalidate={onInvalidate}
+                          deleteVersionMutation={deleteVersionMutation}
+                          versionCount={course?.versions?.length}
+                        />
+                      </div>
+                    ))
+                  ) : (
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-gradient-to-r from-muted/20 to-muted/10 rounded-xl blur-sm"></div>
+                      <Card className="relative bg-card/95 backdrop-blur-sm border-dashed border-2 border-muted-foreground/30">
+                        <CardContent className="p-6 text-center">
+                          <div className="relative inline-block mb-3">
+                            <div className="absolute inset-0 bg-gradient-to-r from-muted/20 to-muted/10 rounded-full blur-sm"></div>
+                            <div className="relative bg-muted/20 border border-muted-foreground/20 rounded-full p-3">
+                              <FileText className="h-8 w-8 text-muted-foreground" />
+                            </div>
+                          </div>
+                          <p className="text-muted-foreground font-medium">No versions available</p>
+                          <p className="text-sm text-muted-foreground mt-1">Create your first version to get started</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
 
             </div>
           </CardContent>
@@ -1035,17 +1035,17 @@ function VersionCard({
   }
   //version validation
   const versionErrors = {
-    version: !editingValues.version.trim()? "Version name is required"
-    : editingValues.version.trim().length < 3 ? "Version name must be at least 3 characters"
-    : editingValues.version.trim().length > 255 ? "Version name must be at most 255 characters"
-    : "",
-    description: !editingValues.description.trim()? "Description is required" 
-    : editingValues.description.trim().length > 1000 ? "Description must be less than 1000 characters"
-    : "",
-     
+    version: !editingValues.version.trim() ? "Version name is required"
+      : editingValues.version.trim().length < 3 ? "Version name must be at least 3 characters"
+        : editingValues.version.trim().length > 255 ? "Version name must be at most 255 characters"
+          : "",
+    description: !editingValues.description.trim() ? "Description is required"
+      : editingValues.description.trim().length > 1000 ? "Description must be less than 1000 characters"
+        : "",
+
   }
   const saveEditingVersion = async () => {
-    if (!editingValues.version.trim() || !editingValues.description.trim() || editingValues.version.trim().length <3 || editingValues.version.trim().length >255 || editingValues.description.trim().length >1000 ) {
+    if (!editingValues.version.trim() || !editingValues.description.trim() || editingValues.version.trim().length < 3 || editingValues.version.trim().length > 255 || editingValues.description.trim().length > 1000) {
       setEditingErrors(versionErrors)
       return
     }
@@ -1055,7 +1055,7 @@ function VersionCard({
       const isEmail = supportLinkValue.includes('@');
       const isUrl = /^https?:\/\/.+/.test(supportLinkValue);
       if (!isEmail && !isUrl) {
-        
+
         setEditingErrors({ supportLink: "Must be a valid URL (https://...) or email address" })
         return
       }
@@ -1086,13 +1086,13 @@ function VersionCard({
       setEditingValues({ version: "", description: "", supportLink: "" })
       setEditingErrors({ version: "", description: "", supportLink: "" })
       onInvalidate()
-    } catch (err:any) {
+    } catch (err: any) {
       let errorMsg = "Failed to update version";
 
       // Extract error message from the error object
       if (err?.errors?.length > 0) {
         errorMsg = (Object.values(err.errors[0].constraints || {})[0] as string);
-      }else if(err.message) {
+      } else if (err.message) {
         errorMsg = err.message;
       }
 
@@ -1459,11 +1459,11 @@ function VersionCard({
                             }))
                             if (!value.trim()) {
                               setEditingErrors(errors => ({ ...errors, version: "Version name is required." }));
-                            } else if(value.trim().length < 3){
-                              setEditingErrors(errors => ({ ...errors, version: "Version name must be atleast 3 characters."}))
-                            }else if (value.trim().length > 255){
-                                setEditingErrors(errors => ({ ...errors, version: "Version name must be less than 255 characters."}))
-                            } else{
+                            } else if (value.trim().length < 3) {
+                              setEditingErrors(errors => ({ ...errors, version: "Version name must be atleast 3 characters." }))
+                            } else if (value.trim().length > 255) {
+                              setEditingErrors(errors => ({ ...errors, version: "Version name must be less than 255 characters." }))
+                            } else {
                               setEditingErrors(errors => ({ ...errors, version: '' }));
                             }
                           }}
@@ -1489,7 +1489,7 @@ function VersionCard({
                               setEditingErrors(errors => ({ ...errors, description: "Version description is required." }));
                             } else if (value.trim().length > 1000) {
                               setEditingErrors(errors => ({ ...errors, description: "Description must be less than 1000 characters." }));
-                            } 
+                            }
                             else {
                               setEditingErrors(errors => ({ ...errors, description: '' }));
                             }
@@ -1512,12 +1512,12 @@ function VersionCard({
                               supportLink: value,
                             }))
                             setEditingErrors(errors => ({ ...errors, supportLink: '' }));
-                            
+
                           }}
                           className="border-primary/30 focus:border-primary bg-background"
                           placeholder="Discord, email, or forum link (e.g., https://discord.gg/abc123)"
                         />
-                         {editingErrors.supportLink && (
+                        {editingErrors.supportLink && (
                           <div className="text-xs text-red-500 mt-2">{editingErrors.supportLink}</div>
                         )}
                         <p className="text-xs text-muted-foreground mt-1">
