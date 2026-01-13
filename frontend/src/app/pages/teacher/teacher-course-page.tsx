@@ -9,7 +9,8 @@ const MAX_DESCRIPTION_LENGTH = 1000;
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
-  SidebarInset, SidebarProvider, SidebarFooter, useSidebar
+  SidebarInset, SidebarProvider, SidebarFooter, useSidebar,
+  SidebarTrigger
 } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -34,7 +35,7 @@ import {
   Loader2
 } from "lucide-react";
 
-import { Link, useNavigate } from "@tanstack/react-router";
+import {  useNavigate } from "@tanstack/react-router";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Home, GraduationCap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -57,7 +58,17 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/utils/utils";
 import { QuestionUploadDialog } from "@/components/question-upload-dialog";
 import ConfirmationModal from "./components/confirmation-modal";
-
+import { useMatches, Link } from "@tanstack/react-router";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import type { BreadcrumbItemment } from "@/types/layout.types";
+  
 
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
@@ -104,13 +115,46 @@ type CSVRow = {
 };
 
 function TeacherCourseContent() {
+  
+  const matches = useMatches();
+  const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]);
   const createQuestion = useCreateQuestion();
   const user = useAuthStore().user;
   const { currentCourse, setCurrentCourse } = useCourseStore();
   // Use correct keys for course/version IDs
   const courseId = currentCourse?.courseId;
   const versionId = currentCourse?.versionId;
+  useEffect(() => {
+    const items: BreadcrumbItem[] = [];
+    items.push({
+      label: "Dashboard",
+      path: "/teacher",
+      isCurrentPage: matches.length === 1,
+    });
+    items.push({
+      label: "Teacher",
+      path: "/teacher",
+      isCurrentPage: matches.length === 1,
+    });
+    if (matches.length > 1) {
+      for (let i = 1; i < matches.length; i++) {
+        const match = matches[i];
+        const path = match.pathname;
+        const segments = path.split("/").filter(Boolean);
+        let label = segments[segments.length - 1] || "";
+        label = label.replace(/-/g, " ");
+        label = label.charAt(0).toUpperCase() + label.slice(1);
 
+        items.push({
+          label,
+          path,
+          isCurrentPage: i === matches.length - 1,
+        });
+      }
+    }
+
+    setBreadcrumbs(items);
+  }, [matches]);
   const { setOpen, setOpenMobile } = useSidebar();
 
   const checkScreenSize = () => {
@@ -405,7 +449,7 @@ function TeacherCourseContent() {
       },
       isCreateSectionError: {
         flag: isCreateSectionError,
-        message: createSectionError?.toString(),
+        message: createSectionError?.message,
         fallback: "Failed to create section",
       },
       isUpdateSectionError: {
@@ -520,30 +564,30 @@ function TeacherCourseContent() {
         },
       });
 
-    } catch (error: any) {
-      // Enhanced error message extraction for backend validation errors
-      let message = "Failed to create module";
+      } catch (error: any) {
+        // Enhanced error message extraction for backend validation errors
+        let message = "Failed to create module";
+        
+        if (error?.response?.data?.message) {
+          message = error.response.data.message;
+        } else if (error?.response?.data?.error) {
+          message = error.response.data.error;
+        } else if (error?.message) {
+          message = error.message;
+        } else if (typeof error === 'string') {
+          message = error;
+        }
 
-      if (error?.response?.data?.message) {
-        message = error.response.data.message;
-      } else if (error?.response?.data?.error) {
-        message = error.response.data.error;
-      } else if (error?.message) {
-        message = error.message;
-      } else if (typeof error === 'string') {
-        message = error;
+        toast.error(message);
       }
 
-      toast.error(message);
-    }
+      setIsEditingModule(true);
+      setOriginalModuleData({
+        name: "Untitled Module",
+        description: "Module description",
+      });
 
-    setIsEditingModule(true);
-    setOriginalModuleData({
-      name: "Untitled Module",
-      description: "Module description",
-    });
-
-
+    
   };
 
 
@@ -616,20 +660,17 @@ function TeacherCourseContent() {
   };
 
   // Add Section
-  const handleAddSection = async (moduleId: string) => {
+  const handleAddSection = (moduleId: string) => {
     if (!versionId) return;
-
-    await createSectionAsync({
+    createSectionAsync({
       params: { path: { versionId, moduleId } },
       body: { name: "New Section", description: "Section description" }
+    }).then((res) => {
+      refetchVersion();
+      if (shouldFetchItems) {
+        refetchItems();
+      }
     });
-    refetchVersion();
-    if (shouldFetchItems) {
-      refetchItems();
-    }
-
-
-
   };
 
   const handleHideModule = async (moduleId: string, hide: boolean) => {
@@ -988,58 +1029,58 @@ function TeacherCourseContent() {
   };
 
   const handleConfirmDelete = async () => {
-    if (!selectedEntity || !versionId) return;
+  if (!selectedEntity || !versionId) return;
 
-    const { type, data, parentIds } = selectedEntity;
+  const { type, data, parentIds } = selectedEntity;
 
-    try {
-      if (type === "module") {
-        await deleteModuleAsync({
-          params: {
-            path: {
-              versionId,
-              moduleId: data.moduleId,
-            },
+  try {
+    if (type === "module") {
+      await deleteModuleAsync({
+        params: {
+          path: {
+            versionId,
+            moduleId: data.moduleId,
           },
-        });
+        },
+      });
 
-        setExpandedModules(prev => ({
-          ...prev,
-          [data.moduleId]: false,
-        }));
-        setIsEditingModule(false);
-      }
-
-      if (type === "section" && parentIds?.moduleId) {
-        if (activeSectionInfo?.sectionId === data.sectionId) {
-          setActiveSectionInfo(null);
-        }
-
-        await deleteSectionAsync({
-          params: {
-            path: {
-              versionId,
-              moduleId: parentIds.moduleId,
-              sectionId: data.sectionId,
-            },
-          },
-        });
-
-        setExpandedSections(prev => ({
-          ...prev,
-          [data.sectionId]: false,
-        }));
-        setIsEditingSection(false);
-      }
-
-      refetchVersion();
-      if (shouldFetchItems) refetchItems();
-    } finally {
-      setIsDeleteModalOpen(false);
-      setSelectedEntity(null);
-      setErrors({ title: "", description: "" });
+      setExpandedModules(prev => ({
+        ...prev,
+        [data.moduleId]: false,
+      }));
+      setIsEditingModule(false);
     }
-  };
+
+    if (type === "section" && parentIds?.moduleId) {
+      if (activeSectionInfo?.sectionId === data.sectionId) {
+        setActiveSectionInfo(null);
+      }
+
+      await deleteSectionAsync({
+        params: {
+          path: {
+            versionId,
+            moduleId: parentIds.moduleId,
+            sectionId: data.sectionId,
+          },
+        },
+      });
+
+      setExpandedSections(prev => ({
+        ...prev,
+        [data.sectionId]: false,
+      }));
+      setIsEditingSection(false);
+    }
+
+    refetchVersion();
+    if (shouldFetchItems) refetchItems();
+  } finally {
+    setIsDeleteModalOpen(false);
+    setSelectedEntity(null);
+    setErrors({ title: "", description: "" });
+  }
+};
 
 
 
@@ -1049,7 +1090,7 @@ function TeacherCourseContent() {
   }, [modules])
 
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+    <ResizablePanelGroup direction="horizontal" className="h-full w-full">  
       {/* Show loading overlay when processing CSV */}
       {isProcessingCSV && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
@@ -1473,12 +1514,12 @@ function TeacherCourseContent() {
                                                         <Loader2 className="h-4 w-4 animate-spin" />
                                                       ) : !item.isHidden ? (
                                                         <Eye className={`h-4 w-4 ${selectedItem.id == item._id
-                                                          ? "text-gray-200"
-                                                          : "text-muted-foreground"}`} />
+                                                        ? "text-gray-200"
+                                                        : "text-muted-foreground"}` } />
                                                       ) : (
                                                         <EyeOff className={`h-4 w-4 ${selectedItem.id == item._id
-                                                          ? "text-gray-200"
-                                                          : "text-muted-foreground"}`} />
+                                                        ? "text-gray-200"
+                                                        : "text-muted-foreground"}` } />
                                                       )}
                                                       <span className="sr-only">Hide Item</span>
                                                     </Button>
@@ -1850,9 +1891,55 @@ function TeacherCourseContent() {
 
 
       <ResizableHandle className="hidden md:flex" />
+      
       <ResizablePanel defaultSize={80} className="min-w-0">
         {/* Course Editor Area */}
-        <SidebarInset className="flex-1 bg-background overflow-y-auto">
+        <SidebarInset className="max-w-full overflow-hidden h-screen flex flex-col">
+                <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear sticky top-0 z-50 bg-background">
+                  <div className="flex w-full items-center justify-between px-4">
+                    <div className="flex items-center gap-2">
+                       <SidebarTrigger className="-ml-1" />
+                      <Separator orientation="vertical" className="mx-2 h-4" />
+                      <Breadcrumb className="hidden md:flex">
+                        <BreadcrumbList>
+                          {breadcrumbs.map((item, index) => (
+                            <React.Fragment key={index}>
+                              {index > 0 && breadcrumbs.length - 1 && <BreadcrumbSeparator />}
+                              <BreadcrumbItem>
+                                {item.isCurrentPage ? (
+                                  <BreadcrumbPage className="lg:flex md:hidden">{item.label}</BreadcrumbPage>
+                                ) : (
+                                  <BreadcrumbLink href={item.path} asChild>
+                                    <Link to={item.path}>{item.label}</Link>
+                                  </BreadcrumbLink>
+                                )}
+                              </BreadcrumbItem>
+                            </React.Fragment>
+                          ))}
+                        </BreadcrumbList>
+                      </Breadcrumb>
+                    </div>
+                  </div>
+                  </header>
+        {/* <SidebarInset className="flex-1 bg-background overflow-y-auto">
+          <Breadcrumb className="hidden md:flex">
+                <BreadcrumbList>
+                  {breadcrumbs.map((item, index) => (
+                    <React.Fragment key={index}>
+                      {index > 0 && breadcrumbs.length - 1 && <BreadcrumbSeparator />}
+                      <BreadcrumbItem>
+                        {item.isCurrentPage ? (
+                          <BreadcrumbPage className="lg:flex md:hidden">{item.label}</BreadcrumbPage>
+                        ) : (
+                          <BreadcrumbLink href={item.path} asChild>
+                            <Link to={item.path}>{item.label}</Link>
+                          </BreadcrumbLink>
+                        )}
+                      </BreadcrumbItem>
+                    </React.Fragment>
+                  ))}
+                </BreadcrumbList>
+              </Breadcrumb> */}
           <div className="w-full p-4 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -2302,17 +2389,17 @@ function TeacherCourseContent() {
                           Cancel
                         </Button>
                       )}
-
+                      
                       {(selectedEntity?.type === "module" || selectedEntity?.type === "section") && (
-                        <Button
-                          variant="outline"
-                          className="border-border bg-background"
-                          onClick={() => setIsDeleteModalOpen(true)}
-                        >
-                          <X className="h-3 w-3 mr-1" />
-                          Delete {selectedEntity.type}
-                        </Button>
-                      )}
+                            <Button
+                              variant="outline"
+                              className="border-border bg-background"
+                              onClick={() => setIsDeleteModalOpen(true)}
+                            >
+                              <X className="h-3 w-3 mr-1" />
+                              Delete {selectedEntity.type}
+                            </Button>
+                          )}
                     </div>
                     <div className="relative group">
 
@@ -2337,9 +2424,9 @@ function TeacherCourseContent() {
                         loadingText="Deleting..."
                       />
                       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                    </div>
+                     </div>
 
-
+                    
 
                     {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
 
@@ -2389,19 +2476,19 @@ function TeacherCourseContent() {
                             selectedEntity.parentIds?.sectionId &&
                             selectedEntity.data?._id
                           ) {
-
-                            deleteItemAsync({
-                              params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
-                            }).then((res) => {
-                              refetchVersion();
-                              if (shouldFetchItems) {
-                                refetchItems();
-                              }
-                              refetchItem();
-                            });
-                            setSelectedEntity(null);
-                            setIsEditingItem(false);
-
+                            
+                              deleteItemAsync({
+                                params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
+                              }).then((res) => {
+                                refetchVersion();
+                                if (shouldFetchItems) {
+                                  refetchItems();
+                                }
+                                refetchItem();
+                              });
+                              setSelectedEntity(null);
+                              setIsEditingItem(false);
+                            
                           }
                         }}
                         onEdit={() => setIsEditingItem(true)}
@@ -2461,16 +2548,16 @@ function TeacherCourseContent() {
                         onDelete={async () => {
                           const projectId = selectedEntity.data._id;
                           if (selectedEntity.parentIds?.itemsGroupId && projectId) {
-
-                            await deleteItemAsync({
-                              params: { path: { itemsGroupId: selectedEntity.parentIds.itemsGroupId, itemId: projectId } },
-                            });
-                            refetchVersion();
-                            refetchItems();
-                            refetchItem();
-                            setSelectedEntity(null);
-                            toast.success("Project deleted successfully");
-
+                            
+                              await deleteItemAsync({
+                                params: { path: { itemsGroupId: selectedEntity.parentIds.itemsGroupId, itemId: projectId } },
+                              });
+                              refetchVersion();
+                              refetchItems();
+                              refetchItem();
+                              setSelectedEntity(null);
+                              toast.success("Project deleted successfully");
+                            
                           }
                         }}
                         onClose={() => {
@@ -2541,7 +2628,7 @@ function TeacherCourseContent() {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-[80vh] text-center relative">
+              <div className="flex flex-col items-center justify-center h-[80vh]  text-center relative">
                 {/* Animated Glow */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0">
                   <div className="w-60 h-60 rounded-full bg-gradient-to-br from-primary/20 via-accent/10 to-primary/20 blur-3xl opacity-70 animate-pulse"></div>
