@@ -581,8 +581,20 @@ function CourseCard({
       setShowNewVersionForm(false)
       setNewVersionData({ version: "", description: "" })
       onInvalidate() // Also invalidate parent queries
-    } catch (error) {
-      console.error("Failed to create version:", error)
+    } catch (err:any) {
+      let errorMsg = "Failed to create version";
+
+      // Extract error message from the error object
+      if (err?.errors?.length > 0) {
+        errorMsg = (Object.values(err.errors[0].constraints || {})[0] as string);
+      }else if(err.message) {
+        errorMsg = err.message;
+      }
+
+      toast.error(errorMsg, {
+        position: 'top-right',
+        duration: 5000,
+      });
     }
   }
 
@@ -1074,8 +1086,20 @@ function VersionCard({
       setEditingValues({ version: "", description: "", supportLink: "" })
       setEditingErrors({ version: "", description: "", supportLink: "" })
       onInvalidate()
-    } catch (error) {
-      console.error("Failed to update version:", error)
+    } catch (err:any) {
+      let errorMsg = "Failed to update version";
+
+      // Extract error message from the error object
+      if (err?.errors?.length > 0) {
+        errorMsg = (Object.values(err.errors[0].constraints || {})[0] as string);
+      }else if(err.message) {
+        errorMsg = err.message;
+      }
+
+      toast.error(errorMsg, {
+        position: 'top-right',
+        duration: 5000,
+      });
     }
   }
 
