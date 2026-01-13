@@ -511,21 +511,28 @@ export function useCreateCourse(): {
   };
 }
 
-export async function useProcessInvites(inviteId: string): Promise<{
+export async function   useProcessInvites(inviteId: string,  action: "ACCEPT" | "REJECTED" = "ACCEPT",
+
+): Promise<{
   data: null,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 }> {
   let isLoading = true;
-  const method = 'GET';
-  const url = `${import.meta.env.VITE_BASE_URL}/notifications/invite/${inviteId}`;
+  const baseUrl = `${import.meta.env.VITE_BASE_URL}/notifications/invite/${inviteId}`;
+  const url =
+    action === "REJECTED"
+      ? `${baseUrl}?action=REJECTED`
+      : baseUrl;
 
   const res = await fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json', 'authorization': `Bearer ${localStorage.getItem('firebase-auth-token')}` },
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      authorization: `Bearer ${localStorage.getItem("firebase-auth-token")}`,
+    },
   });
-
   isLoading = false;
 
   if (!res.ok) {
@@ -3021,37 +3028,39 @@ export interface RegistrationRequestQuery {
 export const useGetCourseRegistrationRequests = (
   versionId: string,
   query: RegistrationRequestQuery = {},
-): {
-  data: { totalDocuments: number, totalPages: number, currentPage: number, registrations: Registration[] };
-  isLoading: boolean;
-  error: string | null;
-  refetch: () => void;
-} => {
+  enabled: boolean = true,
+) => {
   const result = api.useQuery(
-    'get',
-    '/course/registration/requests/version/{versionId}' as any,
+    "get",
+    "/course/registration/requests/version/{versionId}" as any,
     {
       params: {
         path: { versionId },
-        query
-      }
+        query,
+      },
     },
     {
-      enabled: !!versionId,
+      enabled: !!versionId && enabled,
       retry: 1,
-      refetchOnWindowFocus: false
+      refetchOnWindowFocus: false,
     }
   );
 
   return {
-    data: result.data as { totalDocuments: number, totalPages: number, currentPage: number, registrations: Registration[] },
+    data: (result.data as any) ?? {
+      totalDocuments: 0,
+      totalPages: 0,
+      currentPage: 1,
+      registrations: [],
+    },
     isLoading: result.isLoading,
     error: result.error
-      ? result.error.message || 'Failed to fetch course registration requests'
+      ? result.error.message || "Failed to fetch course registration requests"
       : null,
     refetch: result.refetch,
   };
 };
+
 
 
 export const useUpdateRegistrationStatus = (): {
@@ -3332,6 +3341,14 @@ export type IssueStatus =
 export type IssueSort = "ALL" | "VIDEO" | "QUIZ" | "ARTICLE" | "QUESTION";
 
 export type EntityType = "VIDEO" | "QUIZ" | "ARTICLE" | "QUESTION";
+
+export interface IssueQueryParams {
+  page?: number;
+  limit?: number;
+  status?: string;
+  search?: string;
+  sort?: string; // Add this line
+}
 
 export interface IssueStatusHistory {
   status: IssueStatus;

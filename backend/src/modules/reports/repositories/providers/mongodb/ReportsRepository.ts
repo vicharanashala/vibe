@@ -274,9 +274,14 @@ class ReportRepository {
     }
 
     // sort filter (by entityType)
-    const sortQuery: any = {createdAt: -1}; // default newest first
-    if (filter.sort && filter.sort !== 'ALL') {
-      query.entityType = filter.sort;
+    let sortQuery: any = { createdAt: -1 }; // default
+
+    if (filter.sort) {
+      const [field, order] = filter.sort.split(':');
+
+      sortQuery = {
+        [field]: order === 'asc' ? 1 : -1,
+      };
     }
 
     // const results = await this.reportCollection

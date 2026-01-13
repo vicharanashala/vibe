@@ -1,7 +1,7 @@
 
 // Invite types (since they're not in the schema yet)
 export type EnrollmentRole = 'INSTRUCTOR' | 'STUDENT' | 'MANAGER' | 'TA' | 'STAFF';
-export type InviteStatus = 'ACCEPTED' | 'PENDING' | 'CANCELLED' | 'EMAIL_FAILED' | 'ALREADY_ENROLLED';
+export type InviteStatus = 'ACCEPTED' | 'PENDING' | 'CANCELLED' |'REJECTED' | 'EMAIL_FAILED' | 'ALREADY_ENROLLED';
 
 export interface EmailInvite {
   email: string;
