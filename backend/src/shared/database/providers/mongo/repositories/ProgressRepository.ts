@@ -523,7 +523,7 @@ class ProgressRepository {
 
   async getWatchTime(
     userId: string | ObjectId,
-    itemId: string,
+    itemId: string | string[],
     courseId?: string,
     courseVersionId?: string,
     session?: ClientSession,
@@ -533,7 +533,11 @@ class ProgressRepository {
     // Build query dynamically and add logging
     const query: any = {
       userId: new ObjectId(userId),
-      itemId: new ObjectId(itemId),
+      itemId: {
+        $in: Array.isArray(itemId)
+          ? itemId.map(id => new ObjectId(id))
+          : [new ObjectId(itemId)],
+      },
     };
 
     // Add optional courseId and courseVersionId if provided

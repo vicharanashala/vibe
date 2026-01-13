@@ -333,18 +333,12 @@ export class IssueFilterQuery {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @JSONSchema({
-    description:'number of pages to be shown'
-  })
   page: number = 1;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @JSONSchema({
-    description:'limit of entries displayed in single page'
-  })
   limit: number = 10;
 
   @IsOptional()
@@ -356,9 +350,10 @@ export class IssueFilterQuery {
   search: string = '';
 
   @IsOptional()
-  @IsEnum(IssueSortEnum)
-  sort: IssueSortEnum = IssueSortEnum.ALL;
+  @IsString()
+  sort?: string;
 }
+
 
 class IssueReportResponse{
   @JSONSchema({

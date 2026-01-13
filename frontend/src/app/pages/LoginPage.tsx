@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Check, AlertCircle, TimerOff } from "lucide-react";
+import { Check, AlertCircle, TimerOff , Eye, EyeOff} from "lucide-react";
 import { ShineBorder } from "@/components/magicui/shine-border";
 import { AnimatedGridPattern } from "@/components/magicui/animated-grid-pattern";
 import { AuroraText } from "@/components/magicui/aurora-text";
@@ -95,6 +95,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
   // New state variables
   const [isSignUp, setIsSignUp] = useState(false);
@@ -595,10 +596,11 @@ export default function LoginPage() {
                           <Label htmlFor="password" className="text-sm font-medium">
                             Password
                           </Label>
+                          <div className="relative">
                           <Input
                             id="password"
                             name="new-password"
-                            type="password"
+                            type={showPassword ? "text" : "password"}
                             placeholder="Enter your password"
                             autoComplete="new-password"
                             value={password}
@@ -607,7 +609,11 @@ export default function LoginPage() {
                               "transition-all duration-200",
                               formErrors.password && "border-destructive focus-visible:ring-destructive"
                             )}
-                          />
+                            />
+                           <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
+                            {showPassword? <EyeOff />:<Eye />}
+                            </Button> 
+                            </div>
                           {formErrors.password && (
                             <p className="text-xs text-destructive">{formErrors.password}</p>
                           )}
@@ -733,7 +739,7 @@ export default function LoginPage() {
                           </Label>
                           <Input
                             id="signup-password"
-                            type="password"
+                             type={showPassword ? "text" : "password"}
                             placeholder="Create a strong password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
@@ -807,9 +813,11 @@ export default function LoginPage() {
                           <Label htmlFor="confirmPassword" className="text-sm font-medium">
                             Confirm Password
                           </Label>
+                          <div className="relative">
                           <Input
                             id="confirmPassword"
-                            type="password"
+                            type={showPassword ? "text" : "password"}
+
                             placeholder="Confirm your password"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
@@ -818,6 +826,10 @@ export default function LoginPage() {
                               !passwordsMatch && confirmPassword && "border-destructive focus-visible:ring-destructive"
                             )}
                           />
+                           <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
+                            {showPassword? <EyeOff />:<Eye />}
+                            </Button> 
+                          </div>
                           {!passwordsMatch && confirmPassword && (
                             <p className="text-xs text-destructive">Passwords do not match</p>
                           )}

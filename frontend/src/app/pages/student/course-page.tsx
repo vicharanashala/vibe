@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";ExternalLink
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -51,6 +51,7 @@ import { EntityType } from "@/types/flag.types";
 import { toast } from "sonner";
 import ItemContainer from "@/components/Item-container";
 import logo from "../../../../public/img/vibe_logo_img.ico"
+import {registerStream, unRegisterStream} from "@/lib/MediaRegistry";
 
 // Helper function to get icon for item type
 const getItemIcon = (type: string) => {
@@ -79,7 +80,12 @@ const sortItemsByOrder = (items: any[]) => {
   });
 };
 export default function CoursePage() {
-
+  useEffect(() => {
+    return () => {
+      unRegisterStream("course-page-stream");
+      unRegisterStream("course-page-retrystream");
+    };
+  }, []);
   const [attemptId, setAttemptId] = useState<string | null>(null);
   // Dialog state for proctoring declaration
   const [showProctorDialog, setShowProctorDialog] = useState(true);
@@ -104,11 +110,15 @@ export default function CoursePage() {
       try {
         // Try to get both camera and microphone access
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        unRegisterStream("course-page-stream");
+        registerStream("course-page-stream", stream);
         streamRef.current = stream;
       } catch (err) {
         alert("Please allow camera and microphone access to continue. You will be redirected to the dashboard if access is denied.");
         try {
           const retryStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          unRegisterStream("course-page-retrystream");
+          registerStream("course-page-retrystream", retryStream);
           streamRef.current = retryStream;
         } catch (err) {
           router.navigate({ to: '/student' });
@@ -123,9 +133,6 @@ export default function CoursePage() {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500)
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1265,9 +1272,6 @@ export default function CoursePage() {
         if (!open) {
           setShowProctorDialog(false);
           router.navigate({ to: '/student' });
-          setTimeout(() => {
-            window.location.reload()
-          }, 1000)
         }
       }}>
         <DialogContent className="sm:max-w-lg w-[calc(100%-2rem)] max-w-full">

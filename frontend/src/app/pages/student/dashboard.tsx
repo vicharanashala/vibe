@@ -10,8 +10,12 @@ import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getGreeting } from "@/utils/helpers";
 import type { CoursePctCompletion } from '@/types/course.types';
+import { stopAllStreams} from "@/lib/MediaRegistry";
 
 export default function Page() {
+  useEffect(() => {
+    setTimeout(stopAllStreams, 1000);
+  }, []);
   const { isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
 
