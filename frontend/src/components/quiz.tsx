@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye, FileQuestion } from "lucide-react";
+import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye, FileQuestion, ChevronDown } from "lucide-react";
 import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem, CreateAttemptResponse, SaveQuizResponse } from '@/hooks/hooks';
 import { useCourseStore } from "@/store/course-store";
 import MathRenderer from "./math-renderer";
@@ -75,6 +75,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }>({ open: false, text: "" });
   const [showExplanation, setShowExplanation] = useState(false)
   const [failedRedirectCountdown, setFailedRedirectCountdown] = useState<number | null>(null);
+  const [openQuestionId, setOpenQuestionId] = useState<string | null>(null);
 
   // ===== REFS AND CONSTANTS =====
   const itemStartedRef = useRef(false);
@@ -685,7 +686,15 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         setScore(totalScore);
       }
 
-      // ✅ Stop will be called by course-page.tsx via ref - don't call it here
+      if (response.gradingStatus === 'FAILED') {
+        console.log('Quiz failed - immediately updating progress to previous video');
+        try {
+          await handleStopItem(false);
+        } catch (stopError) {
+          console.error('Failed to update progress after quiz failure:', stopError);
+        }
+      }
+
       setQuizCompleted(true);
 
     } catch (err) {
@@ -1241,19 +1250,19 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               {submissionResults?.gradingStatus && (
                 <Badge
                   variant={
-                    submissionResults.gradingStatus === 'PASSED' ? 'default' :
+                    submissionResults.gradingStatus === 'PASSED' ? 'success' :
                       submissionResults.gradingStatus === 'FAILED' ? 'destructive' :
                         'secondary'
                   }
-                  className="text-lg px-4 py-2"
+                  className="text-lg px-4 py-2 mx-2"
                 >
                   {submissionResults.gradingStatus === 'PASSED' && '🎉 Passed!'}
-                  {submissionResults.gradingStatus === 'FAILED' && 'Failed - Try Again'}
+                  {submissionResults.gradingStatus === 'FAILED' && 'Attempt Unsuccessful'}
                   {submissionResults.gradingStatus === 'PENDING' && '⏳ Pending Review'}
                 </Badge>
               )}
               {(submissionResults?.totalScore === submissionResults?.totalMaxScore) && (
-                <Badge variant="default" className="text-lg px-4 py-2 bg-gradient-to-r from-primary to-chart-2 text-primary-foreground">
+                <Badge variant="success" className="text-lg px-4 py-2 from-primary to-chart-2 mx-2">
                   Perfect Score! 🎉
                 </Badge>
               )}
@@ -1349,7 +1358,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                           : 'border-gray-200'
                     }
                   >
-                    <CardContent className="p-4">
+                    <CardContent className="px-4 py-2">
+                      <div
+                        className="flex items-center justify-between cursor-pointer select-none"
+                        onClick={() =>
+                          setOpenQuestionId(openQuestionId === question.id ? null : question.id)
+                        }
+                      >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                           <Badge variant="outline">
@@ -1367,6 +1382,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                             </Badge>
                           )}
                         </div>
+                      </div>
+                      <div className='flex justify-center items-center'>
                         <Badge variant={
                           questionFeedback
                             ? questionFeedback.status === 'CORRECT' ? 'default' : 'destructive'
@@ -1377,8 +1394,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                             : hasAnswer ? `+${question.points}` : '0'
                           }
                         </Badge>
+                          <ChevronDown className={`w-5 h-5 ml-5 transition-transform ${
+                              openQuestionId === question.id ? 'rotate-180' : ''}`}/>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-2">
+                    </div>
+                    {openQuestionId === question.id && (<>
+                      <p className="text-sm text-muted-foreground my-3 ml-2">
                         <MathRenderer>
                           {preprocessMathContent(question.question)}
                         </MathRenderer>
@@ -1393,13 +1414,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                         </div>
                       )}
                       {/* Show correct answers if enabled and available */}
-                      {showCorrectAnswersAfterSubmission && questionFeedback && (
+                      {/* {showCorrectAnswersAfterSubmission && questionFeedback && (
                         <div className="mt-3 p-2 bg-green-50 dark:bg-green-950/20 rounded">
                           <p className="text-sm font-medium text-green-700 dark:text-green-300">
                             Status: {questionFeedback.status}
                           </p>
                         </div>
-                      )}
+                      )} */}
                       {/* Show explanation if enabled and available */}
                       {showExplanationAfterSubmission && questionFeedback?.answerFeedback && (
                         <div className="mt-3 p-2 bg-amber-50 dark:bg-amber-950/20 rounded">
@@ -1408,6 +1429,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                           </p>
                         </div>
                       )}
+                    </>)}
                     </CardContent>
                   </Card>
                 );
