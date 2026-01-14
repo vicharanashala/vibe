@@ -42,7 +42,7 @@ const inviteIds = Array.isArray(data?.inviteIds) ? data.inviteIds : [];
 const courseId = data.courseId;
 const courseVersionId = data.courseVersionId;
 const mongoUri = data.mongoUri;
-const dbName = data.dbName;
+const dbName = data.dbName || "vibe";
 if (!parentPort) {
   console.error("❌ parentPort missing — worker must run in thread");
   process.exit(1);
