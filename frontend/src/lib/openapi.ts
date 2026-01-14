@@ -18,6 +18,7 @@ export const setTokenRefreshFunction = (refreshFn: () => Promise<void>) => {
 const fetchClient = createFetchClient<paths>({
   baseUrl: `${import.meta.env.VITE_BASE_URL}`,
   fetch: (url, options) => {
+    console.log("with options:", options);
     return fetch(url, {
       ...options,
       credentials: "include",  

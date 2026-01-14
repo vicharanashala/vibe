@@ -67,6 +67,8 @@ export default function InvitePage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftEmail, setDraftEmail] = useState<string>("");
   const [error, setError] = useState<string>("")
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [isMessageBulk, setIsMessageBulk] = useState(false);
 
   // handle edit or remove csv parsed emails starts
   const startEdit = (item: { id: string, email: string }) => {
@@ -340,6 +342,7 @@ export default function InvitePage() {
 
       // Refetch invites to show updated list
       refetchInvites()
+      setShowConfirmationModal(false);
     } catch {
       toast.error(inviteUsers.error || "Failed to send invites")
     }
@@ -500,9 +503,21 @@ export default function InvitePage() {
       if (input) input.value = ''
 
       refetchInvites()
+      setShowConfirmationModal(false);
+      setIsMessageBulk(false);
     } catch (error) {
       toast.error(inviteUsers.error || "Failed to send invites")
     }
+  }
+
+  const handleBulkClick = () => {
+    setShowConfirmationModal(true);
+    setIsMessageBulk(true);
+  }
+
+  const removeBulkClick = ()=>{
+    setShowConfirmationModal(false);
+    setIsMessageBulk(false);
   }
 
   // Status badge variants
@@ -676,7 +691,7 @@ export default function InvitePage() {
                 Reset
               </Button>
 
-              <Button
+              {/* <Button
                 onClick={handleSendInvites}
                 disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0}
                 className="min-w-[120px]"
@@ -692,7 +707,9 @@ export default function InvitePage() {
                     Send Invites
                   </>
                 )}
-              </Button>
+              </Button> */}
+
+              <Button className="min-w-[120px]" onClick={() => setShowConfirmationModal(true)} disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0}>Send Invites</Button>
             </div>
           </div>
         </CardContent>
@@ -729,8 +746,8 @@ export default function InvitePage() {
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
             />
             <div className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${!canSendInvites
-                ? 'border-muted-foreground/10 bg-muted/20 opacity-50 cursor-not-allowed'
-                : 'border-muted-foreground/25 hover:border-muted-foreground/50 cursor-pointer'
+              ? 'border-muted-foreground/10 bg-muted/20 opacity-50 cursor-not-allowed'
+              : 'border-muted-foreground/25 hover:border-muted-foreground/50 cursor-pointer'
               }`}>
               <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
               <p className="text-base font-medium mb-1">Click to upload or drag and drop</p>
@@ -873,11 +890,11 @@ export default function InvitePage() {
               </div>
 
               <Button
-                onClick={handleSendBulkInvites}
+                onClick={handleBulkClick}
                 disabled={inviteUsers.isPending}
                 className="w-full"
               >
-                {inviteUsers.isPending ? (
+                {/* {inviteUsers.isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Sending...
@@ -887,7 +904,8 @@ export default function InvitePage() {
                     <Send className="w-4 h-4 mr-2" />
                     Send {parsedEmails.length} Invite(s)
                   </>
-                )}
+                )} */}
+                Send Invites
               </Button>
             </>
           )}
@@ -1130,6 +1148,72 @@ export default function InvitePage() {
           )}
         </CardContent>
       </Card>
+
+
+      {showConfirmationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+            onClick={removeBulkClick}
+          />
+          <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Sure to Send Invites</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={removeBulkClick}
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="space-y-8">
+              <p className="text-lg text-card-foreground">Recipents can get your mail at delay. This can take few minutes to hours!!</p>
+            </div>
+            <div className="flex justify-between pt-4">
+              <Button onClick={removeBulkClick}>No Cancel</Button>
+              {isMessageBulk ? (<Button
+                onClick={handleSendBulkInvites}
+                disabled={inviteUsers.isPending}
+                className=""
+              >
+                {inviteUsers.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Send {parsedEmails.length} Invite(s)
+                  </>
+                )}
+              </Button>) : (
+                <Button
+                  onClick={handleSendInvites}
+                  disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0}
+                  className="min-w-[120px]"
+                >
+                  {inviteUsers.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-4 h-4 mr-2" />
+                      Send Invites
+                    </>
+                  )}
+                </Button>)}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+
+
