@@ -1604,7 +1604,6 @@ export function useInviteUsers(): {
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
   const result = api.useMutation("post", "/notifications/invite/courses/{courseId}/versions/{courseVersionId}");
-  console.log("Result of send invites", result);
   return {
     ...result,
     error: result.error ? (result.error.message || 'Failed to invite users') : null

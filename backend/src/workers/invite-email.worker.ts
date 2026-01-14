@@ -37,16 +37,12 @@ interface WorkerData {
 }
 
 const data = workerData as WorkerData;
-console.log("data", data);
 
 const inviteIds = Array.isArray(data?.inviteIds) ? data.inviteIds : [];
 const courseId = data.courseId;
-console.log("courseId", courseId);
 const courseVersionId = data.courseVersionId;
-console.log("courseVersionId", courseVersionId);
 const mongoUri = data.mongoUri;
-// const dbName = data.dbName;
-const dbName = "vibe";
+const dbName = data.dbName;
 if (!parentPort) {
   console.error("❌ parentPort missing — worker must run in thread");
   process.exit(1);
@@ -68,24 +64,24 @@ await database.connect();
 const inviteRepo = new InviteRepository(database)
 const progressRepo = new ProgressRepository(database)
 const attemptRepo = new AttemptRepository(database)
-const enrollmentRepo = new EnrollmentRepository(attemptRepo,database)
+const enrollmentRepo = new EnrollmentRepository(attemptRepo, database)
 const anomalyRepo = new AnomalyRepository(database)
 const settingsRepo = new SettingRepository(database)
 const courseRegistrationRepo = new CourseRegistrationRepository(database)
 const projectSubmissionRepo = new ProjectSubmissionRepository(database)
 const questionBankRepo = new QuestionBankRepository(database)
-const reportsRepo= new ReportRepository(database)
-const courseRepo = new CourseRepository(database,progressRepo,enrollmentRepo,anomalyRepo,settingsRepo,courseRegistrationRepo,projectSubmissionRepo,questionBankRepo,reportsRepo,inviteRepo)
+const reportsRepo = new ReportRepository(database)
+const courseRepo = new CourseRepository(database, progressRepo, enrollmentRepo, anomalyRepo, settingsRepo, courseRegistrationRepo, projectSubmissionRepo, questionBankRepo, reportsRepo, inviteRepo)
 const mailService = new MailService()
 const userRepo = new UserRepository(database)
-const itemRepo = new ItemRepository(database,courseRepo)
+const itemRepo = new ItemRepository(database, courseRepo)
 const submissionRepo = new SubmissionRepository(database)
 const userQuizMetricsRepo = new UserQuizMetricsRepository(database)
 const quizRepo = new QuizRepository(database)
 const feedbackRepo = new FeedbackRepository(database)
-const progressService = new ProgressService(progressRepo,submissionRepo,courseRepo,userRepo,itemRepo,enrollmentRepo,userQuizMetricsRepo,quizRepo,projectSubmissionRepo,feedbackRepo,database)
-const enrollmentService = new EnrollmentService(enrollmentRepo,courseRepo,userRepo,itemRepo,courseRegistrationRepo,progressService,inviteRepo,progressRepo,database)
-const inviteService = new InviteService(inviteRepo,userRepo,courseRepo,enrollmentRepo,mailService,itemRepo,enrollmentService,database);
+const progressService = new ProgressService(progressRepo, submissionRepo, courseRepo, userRepo, itemRepo, enrollmentRepo, userQuizMetricsRepo, quizRepo, projectSubmissionRepo, feedbackRepo, database)
+const enrollmentService = new EnrollmentService(enrollmentRepo, courseRepo, userRepo, itemRepo, courseRegistrationRepo, progressService, inviteRepo, progressRepo, database)
+const inviteService = new InviteService(inviteRepo, userRepo, courseRepo, enrollmentRepo, mailService, itemRepo, enrollmentService, database);
 
 (async () => {
   if (!inviteIds.length) {
@@ -95,9 +91,8 @@ const inviteService = new InviteService(inviteRepo,userRepo,courseRepo,enrollmen
 
   try {
     const course = await courseRepo.read(courseId.toString());
-    console.log("course", course);
     const version = await courseRepo.readVersion(courseVersionId.toString());
-    console.log("version", version);
+
 
     let processed = 0;
 
@@ -112,17 +107,17 @@ const inviteService = new InviteService(inviteRepo,userRepo,courseRepo,enrollmen
           version
         );
 
-        console.log("Email is: ", email);
 
-        const info = await mailService.sendMail(email);
-        console.log("information: ", info);
+
+        await mailService.sendMail(email);
+
         processed++;
       } catch (err) {
         console.error(`❌ Failed email invite ${inviteId}`, err);
       }
     }
 
-    console.log(`🏁 Invite worker finished → ${processed}/${inviteIds.length}`); 
+    console.log(`🏁 Invite worker finished → ${processed}/${inviteIds.length}`);
     await database.disconnect();
     parentPort?.postMessage({ success: true, processed });
 
