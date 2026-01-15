@@ -68,7 +68,11 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import type { BreadcrumbItemment } from "@/types/layout.types";
-  
+import AiWorkflow from "./AiWorkflow";
+import AISectionPage from "./AISectionPage";
+type Mode = "default" | "wizard" | "custom";
+
+
 
 // ✅ Icons per item type
 const getItemIcon = (type: string) => {
@@ -115,7 +119,7 @@ type CSVRow = {
 };
 
 function TeacherCourseContent() {
-  
+  const [mode, setMode] = useState<Mode>("default");
   const matches = useMatches();
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]);
   const createQuestion = useCreateQuestion();
@@ -449,7 +453,7 @@ function TeacherCourseContent() {
       },
       isCreateSectionError: {
         flag: isCreateSectionError,
-        message: createSectionError?.message,
+        message: createSectionError?.toString(),
         fallback: "Failed to create section",
       },
       isUpdateSectionError: {
@@ -1759,7 +1763,8 @@ function TeacherCourseContent() {
                                                               itemId: null,
                                                               watchItemId: null,
                                                             });
-                                                            navigate({ to: '/teacher/ai-section' });
+                                                            setMode('custom')
+                                                            // navigate({ to: '/teacher/ai-section' });
                                                           }}
                                                         >
                                                           Custom mode
@@ -1775,7 +1780,8 @@ function TeacherCourseContent() {
                                                               itemId: null,
                                                               watchItemId: null,
                                                             });
-                                                            navigate({ to: '/teacher/ai-workflow' });
+                                                            setMode('wizard')
+                                                            // navigate({ to: '/teacher/ai-workflow' });
                                                           }}
                                                         >
                                                           Wizard mode
@@ -1894,7 +1900,7 @@ function TeacherCourseContent() {
       
       <ResizablePanel defaultSize={80} className="min-w-0">
         {/* Course Editor Area */}
-        <SidebarInset className="max-w-full overflow-hidden h-screen flex flex-col">
+        <SidebarInset className="max-w-full overflow-hidden flex flex-col">
                 <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear sticky top-0 z-50 bg-background">
                   <div className="flex w-full items-center justify-between px-4">
                     <div className="flex items-center gap-2">
@@ -1979,8 +1985,12 @@ function TeacherCourseContent() {
                 </div>
               )}
             </div>
-
-            {selectedEntity ? (
+            {mode === "wizard" ? (
+              <AiWorkflow/>
+            ) : mode === "custom" ? (
+              <AISectionPage/>
+            ) : (
+                selectedEntity ? (
               <div className="bg-white dark:bg-background rounded-2xl shadow-lg border border-slate-200 dark:border-gray-700 overflow-hidden">
                 <div className="p-4 md:p-6 lg:p-8">
                   {/* Header with breadcrumb */}
@@ -2628,7 +2638,8 @@ function TeacherCourseContent() {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-[80vh]  text-center relative">
+              // Render the content according to the wizard mode or custome mode
+          <div className="flex flex-col items-center justify-center h-[80vh]  text-center relative">
                 {/* Animated Glow */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0">
                   <div className="w-60 h-60 rounded-full bg-gradient-to-br from-primary/20 via-accent/10 to-primary/20 blur-3xl opacity-70 animate-pulse"></div>
@@ -2693,7 +2704,9 @@ function TeacherCourseContent() {
                   </div>
                 </div>
               </div>
-            )}
+           ))}
+                            
+      
           </div>
         </SidebarInset>
       </ResizablePanel>
