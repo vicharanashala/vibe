@@ -103,6 +103,16 @@ export class EditUserBody{
   @IsString()
   @IsNotEmpty()
   lastName: string;
+
+  //Editing for avatar implementation
+  @JSONSchema({
+    description:"User's avatar URL",
+    example: "https://image2url.com/r2/default/images/1768576483316-8ab9de3c-63d2-40ad-9aab-ee592b2fd809.png",
+    type: 'string'
+  })
+  @IsString()
+  @IsOptional()
+  avatar?: string;
 }
 
 /**

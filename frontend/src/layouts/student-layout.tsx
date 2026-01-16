@@ -44,7 +44,7 @@ export default function StudentLayout() {
 
     const getUserInvites = async () => {
       getInvites().then(result => {
-        if (result.invites.length > 0) {
+        if (result?.invites.length > 0) {
           console.log(result);
           setPendingInvites(result.invites)
 
