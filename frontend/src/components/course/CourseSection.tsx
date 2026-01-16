@@ -34,7 +34,7 @@ export const CourseSection = ({
     }
 
     if (error) {
-      if (error === "Authorization is required for request on GET /api/users/enrollments?page=1&limit=5") {
+      if (error === "We're having trouble reaching the server. Please check your internet connection and try again.") {
         onRetry?.()
       }
       return (
