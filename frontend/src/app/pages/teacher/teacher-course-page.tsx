@@ -1384,6 +1384,7 @@ function TeacherCourseContent() {
                                     <SidebarMenuSubItem>
                                       <SidebarMenuSubButton
                                         onClick={() => {
+                                          setMode("default");
                                           toggleSection(module.moduleId, section.sectionId);
                                           setSelectedEntity({
                                             type: "section",
@@ -1467,6 +1468,7 @@ function TeacherCourseContent() {
                                                         : "bg-transparent transition-none"
                                                         }`}
                                                       onClick={() => {
+                                                        setMode("default");
                                                         const label = getItemLabel({
                                                           itemId: item._id,
                                                           itemType: item.type,
@@ -1914,7 +1916,6 @@ function TeacherCourseContent() {
               <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear sticky top-0 z-50 bg-background">
                             <div className="flex w-full items-center justify-between px-4">
                               <div className="flex items-center gap-2">
-                                <SidebarTrigger className="-ml-1" />
                                 <Separator orientation="vertical" className="mx-2 h-4" />
                   
                                 <Breadcrumb className="hidden md:flex">
