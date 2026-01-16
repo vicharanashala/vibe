@@ -1991,7 +1991,7 @@ function TeacherCourseContent() {
                             </div>
                           </header>
           <div className="w-full p-4 sm:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            {mode === "default" &&  <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 <Button
                   variant="ghost"
@@ -2028,7 +2028,8 @@ function TeacherCourseContent() {
                   </Badge>
                 </div>
               )}
-            </div>
+            </div>}
+           
             {mode === "wizard" ? (
               <AiWorkflow/>
             ) : mode === "custom" ? (
