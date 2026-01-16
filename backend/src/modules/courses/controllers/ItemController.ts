@@ -331,15 +331,23 @@ Access control logic:
     @Params() params: GetItemParams,
     @Ability(getItemAbility) { ability, user },
   ) {
-    const { versionId, itemId, courseId } = params;
+    const { versionId, itemId, courseId, isAlreadyCompleted } = params;
     const { _id: userId } = user;
 
-    // Create an item resource object for permission checking
-    const itemResource = subject('Item', { courseId, versionId, itemId });
+    // Normalize boolean 
+    const alreadyCompleted = isAlreadyCompleted === 'true';
 
-    // Check permission using ability.can() with the actual item resource
-    if (!ability.can(ItemActions.View, itemResource)) {
-      throw new ForbiddenError('You do not have permission to view this item');
+    // Only check ability if item is NOT already completed
+    if (!alreadyCompleted) {
+      const itemResource = subject('Item', {
+        courseId,
+        versionId,
+        itemId,
+      });
+
+      if (!ability.can(ItemActions.View, itemResource)) {
+        throw new ForbiddenError('You do not have permission to view this item');
+      }
     }
 
     return {
