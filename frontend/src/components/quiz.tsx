@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye, FileQuestion } from "lucide-react";
+import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye, FileQuestion, ChevronDown } from "lucide-react";
 import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem, CreateAttemptResponse, SaveQuizResponse } from '@/hooks/hooks';
 import { useCourseStore } from "@/store/course-store";
 import MathRenderer from "./math-renderer";
@@ -77,6 +77,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }>({ open: false, text: "" });
   const [showExplanation, setShowExplanation] = useState(false)
   const [failedRedirectCountdown, setFailedRedirectCountdown] = useState<number | null>(null);
+  const [openQuestionId, setOpenQuestionId] = useState<string | null>(null);
+  const [emptyQuizRedirectCountdown, setEmptyQuizRedirectCountdown] = useState<number | null>(null);
+  const emptyQuizNextTimerRef = useRef<ReturnType<typeof window.setTimeout> | undefined>(undefined);
 
   // ===== REFS AND CONSTANTS =====
   const itemStartedRef = useRef(false);
@@ -478,34 +481,43 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     try {
 
       // Set empty quiz states
+      setEmptyQuizRedirectCountdown(10);
       setIsEmptyQuiz(true);
       setQuizStarted(true);
       setQuizCompleted(true);
-      setQuizPassed?.(1);
-
+      
       // Start progress tracking
       await handleSendStartItem();
 
-      setTimeout(() => {
-        handleStopItem(true);
-
-        // Displaying  a Toast Message
-        toast.info('No questions available in this quiz. Moving to next item...');
-
-        setTimeout(() => {
-          if (onNext) {
-            onNext();
-          } else {
-            console.warn('No onNext handler available for empty quiz navigation');
-          }
-        }, 1500);
-      }, 500);
+      if (emptyQuizNextTimerRef.current) {
+        clearTimeout(emptyQuizNextTimerRef.current);
+      }
+      handleStopItem(true);
+      emptyQuizNextTimerRef.current = setTimeout(() => {
+        if (onNext) {
+          onNext();
+        } else {
+          console.warn('No onNext handler available for empty quiz navigation');
+        }
+      }, 10000);
 
     } catch (error) {
       console.error('Error handling empty quiz:', error);
       toast.error('Error processing empty quiz. Please try refreshing.');
     }
   }, [handleSendStartItem, handleStopItem, setQuizPassed, onNext]);
+
+  useEffect(() => {
+    if (emptyQuizRedirectCountdown === null) return;
+    if (emptyQuizRedirectCountdown <= 0) {
+      setEmptyQuizRedirectCountdown(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setEmptyQuizRedirectCountdown(prev => prev !== null ? prev - 1 : null);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [emptyQuizRedirectCountdown]);
 
   // Handle empty quiz after quiz attempt was already made
   const handleEmptyQuizAfterAttempt = useCallback(async () => {
@@ -1180,7 +1192,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     }
 
   }
-
   // Quiz completed
   if (quizCompleted) {
     // Special handling for empty quiz
@@ -1191,15 +1202,68 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center mx-auto">
               <FileQuestion className="w-8 h-8 text-blue-600 dark:text-blue-400" />
             </div>
-            <div className="space-y-3">
-              <h3 className="text-2xl font-semibold text-foreground">Quiz Skipped</h3>
-              <p className="text-muted-foreground text-lg">
-                No questions available in this quiz. Moving to next item...
-              </p>
-            </div>
-            <div className="flex justify-center">
-              <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
-            </div>
+              <h3 className="text-2xl font-semibold text-foreground">
+                No questions available in this quiz.
+              </h3>
+              {/* Live countdown timer for empty quizzes */}
+              {emptyQuizRedirectCountdown !== null && (
+                <p className="mt-2 text-md text-primary font-medium animate-pulse">
+                  Moving to next item in {emptyQuizRedirectCountdown} second{emptyQuizRedirectCountdown !== 1 ? 's' : ''}...
+                </p>
+              )}
+              {/* Action Buttons - side by side */}
+              <div className="pt-4 flex flex-col items-center gap-3">
+                <div className="flex flex-wrap justify-center gap-3">
+                  {/* Rewatch Video Button - always available */}
+                  {onPrevVideo && (
+                    <Button
+                      onClick={() => {
+                        // setQuizCompleted(false);
+                        clearTimeout(emptyQuizNextTimerRef.current);
+                        setEmptyQuizRedirectCountdown(null);
+                        onPrevVideo();
+                      }}
+                      disabled={isProgressUpdating}
+                      variant="outline"
+                      className="min-w-[180px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
+                      size="lg"
+                    >
+                      {isProgressUpdating ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2" />
+                          Processing
+                        </>
+                      ) : (
+                        <>
+                        <ChevronLeft className="h-4 w-4 mr-2" />
+                          Rewatch Video
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  {/* Next Lesson Button-If user doesn't want to wait*/}
+                  {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
+                    <Button
+                      onClick={onNext}
+                      disabled={isProgressUpdating}
+                      className="min-w-[180px] h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
+                      size="lg"
+                    >
+                      {isProgressUpdating ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
+                          Processing
+                        </>
+                      ) : (
+                        <>
+                          Next Lesson
+                          <ChevronRight className="h-4 w-4 ml-2" />
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
           </CardContent>
         </Card>
       );
@@ -1254,19 +1318,19 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               {submissionResults?.gradingStatus && (
                 <Badge
                   variant={
-                    submissionResults.gradingStatus === 'PASSED' ? 'default' :
+                    submissionResults.gradingStatus === 'PASSED' ? 'success' :
                       submissionResults.gradingStatus === 'FAILED' ? 'destructive' :
                         'secondary'
                   }
-                  className="text-lg px-4 py-2"
+                  className="text-lg px-4 py-2 mx-2"
                 >
                   {submissionResults.gradingStatus === 'PASSED' && '🎉 Passed!'}
-                  {submissionResults.gradingStatus === 'FAILED' && 'Failed - Try Again'}
+                  {submissionResults.gradingStatus === 'FAILED' && 'Attempt Unsuccessful'}
                   {submissionResults.gradingStatus === 'PENDING' && '⏳ Pending Review'}
                 </Badge>
               )}
               {(submissionResults?.totalScore === submissionResults?.totalMaxScore) && (
-                <Badge variant="default" className="text-lg px-4 py-2 bg-gradient-to-r from-primary to-chart-2 text-primary-foreground">
+                <Badge variant="success" className="text-lg px-4 py-2 from-primary to-chart-2 mx-2">
                   Perfect Score! 🎉
                 </Badge>
               )}
@@ -1362,7 +1426,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                           : 'border-gray-200'
                     }
                   >
-                    <CardContent className="p-4">
+                    <CardContent className="px-4 py-2">
+                      <div
+                        className="flex items-center justify-between cursor-pointer select-none"
+                        onClick={() =>
+                          setOpenQuestionId(openQuestionId === question.id ? null : question.id)
+                        }
+                      >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                           <Badge variant="outline">
@@ -1380,6 +1450,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                             </Badge>
                           )}
                         </div>
+                      </div>
+                      <div className='flex justify-center items-center'>
                         <Badge variant={
                           questionFeedback
                             ? questionFeedback.status === 'CORRECT' ? 'default' : 'destructive'
@@ -1390,8 +1462,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                             : hasAnswer ? `+${question.points}` : '0'
                           }
                         </Badge>
+                          <ChevronDown className={`w-5 h-5 ml-5 transition-transform ${
+                              openQuestionId === question.id ? 'rotate-180' : ''}`}/>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-2">
+                    </div>
+                    {openQuestionId === question.id && (<>
+                      <p className="text-sm text-muted-foreground my-3 ml-2">
                         <MathRenderer>
                           {preprocessMathContent(question.question)}
                         </MathRenderer>
@@ -1406,13 +1482,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                         </div>
                       )}
                       {/* Show correct answers if enabled and available */}
-                      {showCorrectAnswersAfterSubmission && questionFeedback && (
+                      {/* {showCorrectAnswersAfterSubmission && questionFeedback && (
                         <div className="mt-3 p-2 bg-green-50 dark:bg-green-950/20 rounded">
                           <p className="text-sm font-medium text-green-700 dark:text-green-300">
                             Status: {questionFeedback.status}
                           </p>
                         </div>
-                      )}
+                      )} */}
                       {/* Show explanation if enabled and available */}
                       {showExplanationAfterSubmission && questionFeedback?.answerFeedback && (
                         <div className="mt-3 p-2 bg-amber-50 dark:bg-amber-950/20 rounded">
@@ -1421,6 +1497,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                           </p>
                         </div>
                       )}
+                    </>)}
                     </CardContent>
                   </Card>
                 );

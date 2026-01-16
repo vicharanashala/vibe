@@ -1,6 +1,7 @@
 import { parentPort, workerData } from "worker_threads";
 import "reflect-metadata";
 import { Container } from "inversify";
+import "dotenv/config";
 
 import {
   InviteRepository,
@@ -41,7 +42,7 @@ const inviteIds = Array.isArray(data?.inviteIds) ? data.inviteIds : [];
 const courseId = data.courseId;
 const courseVersionId = data.courseVersionId;
 const mongoUri = data.mongoUri;
-const dbName = data.dbName;
+const dbName = data.dbName || "vibe";
 if (!parentPort) {
   console.error("❌ parentPort missing — worker must run in thread");
   process.exit(1);
@@ -63,24 +64,24 @@ await database.connect();
 const inviteRepo = new InviteRepository(database)
 const progressRepo = new ProgressRepository(database)
 const attemptRepo = new AttemptRepository(database)
-const enrollmentRepo = new EnrollmentRepository(attemptRepo,database)
+const enrollmentRepo = new EnrollmentRepository(attemptRepo, database)
 const anomalyRepo = new AnomalyRepository(database)
 const settingsRepo = new SettingRepository(database)
 const courseRegistrationRepo = new CourseRegistrationRepository(database)
 const projectSubmissionRepo = new ProjectSubmissionRepository(database)
 const questionBankRepo = new QuestionBankRepository(database)
-const reportsRepo= new ReportRepository(database)
-const courseRepo = new CourseRepository(database,progressRepo,enrollmentRepo,anomalyRepo,settingsRepo,courseRegistrationRepo,projectSubmissionRepo,questionBankRepo,reportsRepo,inviteRepo)
+const reportsRepo = new ReportRepository(database)
+const courseRepo = new CourseRepository(database, progressRepo, enrollmentRepo, anomalyRepo, settingsRepo, courseRegistrationRepo, projectSubmissionRepo, questionBankRepo, reportsRepo, inviteRepo)
 const mailService = new MailService()
 const userRepo = new UserRepository(database)
-const itemRepo = new ItemRepository(database,courseRepo)
+const itemRepo = new ItemRepository(database, courseRepo)
 const submissionRepo = new SubmissionRepository(database)
 const userQuizMetricsRepo = new UserQuizMetricsRepository(database)
 const quizRepo = new QuizRepository(database)
 const feedbackRepo = new FeedbackRepository(database)
-const progressService = new ProgressService(progressRepo,submissionRepo,courseRepo,userRepo,itemRepo,enrollmentRepo,userQuizMetricsRepo,quizRepo,projectSubmissionRepo,feedbackRepo,database)
-const enrollmentService = new EnrollmentService(enrollmentRepo,courseRepo,userRepo,itemRepo,courseRegistrationRepo,progressService,inviteRepo,progressRepo,database)
-const inviteService = new InviteService(inviteRepo,userRepo,courseRepo,enrollmentRepo,mailService,itemRepo,enrollmentService,database);
+const progressService = new ProgressService(progressRepo, submissionRepo, courseRepo, userRepo, itemRepo, enrollmentRepo, userQuizMetricsRepo, quizRepo, projectSubmissionRepo, feedbackRepo, database)
+const enrollmentService = new EnrollmentService(enrollmentRepo, courseRepo, userRepo, itemRepo, courseRegistrationRepo, progressService, inviteRepo, progressRepo, database)
+const inviteService = new InviteService(inviteRepo, userRepo, courseRepo, enrollmentRepo, mailService, itemRepo, enrollmentService, database);
 
 (async () => {
   if (!inviteIds.length) {
@@ -91,6 +92,7 @@ const inviteService = new InviteService(inviteRepo,userRepo,courseRepo,enrollmen
   try {
     const course = await courseRepo.read(courseId.toString());
     const version = await courseRepo.readVersion(courseVersionId.toString());
+
 
     let processed = 0;
 
@@ -105,6 +107,8 @@ const inviteService = new InviteService(inviteRepo,userRepo,courseRepo,enrollmen
           version
         );
 
+
+
         await mailService.sendMail(email);
 
         processed++;
@@ -113,7 +117,7 @@ const inviteService = new InviteService(inviteRepo,userRepo,courseRepo,enrollmen
       }
     }
 
-    console.log(`🏁 Invite worker finished → ${processed}/${inviteIds.length}`); 
+    console.log(`🏁 Invite worker finished → ${processed}/${inviteIds.length}`);
     await database.disconnect();
     parentPort?.postMessage({ success: true, processed });
 
