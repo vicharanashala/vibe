@@ -1414,24 +1414,31 @@ class ProgressService extends BaseService {
     stoppedWatchTime?: IWatchTime,
   ): Promise<void> {
 
+    // 1 Check if current item in the progress is completed
+    const isCurrentItemCompleted = await this.progressRepository.isItemCompleted(userId, courseId, courseVersionId, itemId);
+
+    if (!isCurrentItemCompleted) {
+      throw new BadRequestError('Current item is not yet completed, Kindly complete the item before stopping/sending request for the next item.');
+    }
+
     const WATCH_TIME_REQUIRED_ITEMS = new Set<string>([
       'VIDEO',
       'BLOG',
     ]);
 
-    // 1 Watch-time based items
+    // 2 Watch-time based items
     if (WATCH_TIME_REQUIRED_ITEMS.has(item.type)) {
       this.validateWatchTime(item, stoppedWatchTime);
       return;
     }
 
-    // 2 Quiz validation
+    // 3 Quiz validation
     if (item.type === 'QUIZ') {
       await this.validateQuizStop(itemId, userId, attemptId, isSkipped);
       return;
     }
 
-    // 3 Project validation
+    // 4 Project validation
     if (item.type === 'PROJECT') {
       await this.validateProjectStop(itemId, userId, courseId, courseVersionId);
       return;
@@ -1726,7 +1733,7 @@ class ProgressService extends BaseService {
         throw new NotFoundError('Watch time not found or already stopped');
       }
 
-      // Validate eligibility based on item type (QUIZ, PROJECT, VIDEO, BLOG)
+      // Validate eligibility based on item type (QUIZ, PROJECT, VIDEO, BLOG) and currentItem
       await this.validateItemStopEligibility(
         item,
         itemId,
