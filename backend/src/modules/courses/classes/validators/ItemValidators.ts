@@ -671,16 +671,6 @@ class GetItemParams {
   @IsMongoId()
   @IsString()
   itemId: string;
-
-  @JSONSchema({
-    title: 'Is Already Completed',
-    description:
-      'Indicates whether the item has already been completed by the user',
-    example: "false",
-    type: 'boolean',
-  })
-  @IsOptional()
-  isAlreadyCompleted?: string;
 }
 
 class ItemNotFoundErrorResponse {

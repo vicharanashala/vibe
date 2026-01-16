@@ -1,6 +1,6 @@
 import { injectable, inject } from 'inversify';
 import { ClientSession, ObjectId } from 'mongodb';
-import { NotFoundError, InternalServerError } from 'routing-controllers';
+import { NotFoundError, InternalServerError, UnauthorizedError } from 'routing-controllers';
 import { COURSES_TYPES } from '#courses/types.js';
 import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
 import {
@@ -49,6 +49,7 @@ import { QuizService } from '#root/modules/quizzes/services/QuizService.js';
 import { QuestionService } from '#root/modules/quizzes/services/QuestionService.js';
 import { QuestionFactory } from '#root/modules/quizzes/classes/index.js';
 import { QuestionProcessor } from '#root/modules/quizzes/question-processing/QuestionProcessor.js';
+import { CourseSettingService, SETTING_TYPES } from '#root/modules/setting/index.js';
 
 @injectable()
 export class ItemService extends BaseService {
@@ -61,6 +62,8 @@ export class ItemService extends BaseService {
     private readonly progressRepo: ProgressRepository,
     @inject(USERS_TYPES.ProgressService)
     private readonly progressService: ProgressService,
+    @inject(SETTING_TYPES.CourseSettingService)
+    private readonly courseSettingService: CourseSettingService,
     @inject(USERS_TYPES.EnrollmentRepo)
     private readonly enrollmentRepo: EnrollmentRepository,
     @inject(QUIZZES_TYPES.UserQuizMetricsRepo)
@@ -364,10 +367,34 @@ export class ItemService extends BaseService {
   }
 
   public async readItem(userId: string, courseId: string, versionId: string, itemId: string) {
-    const item = await this.itemRepo.readItem(versionId, itemId);
-    item._id = item._id.toString();
-    const isItemAlreadyCompleted = await this.progressRepo.isItemCompleted(userId, courseId, versionId, itemId);
-    return {...item, isItemAlreadyCompleted };
+    const [
+      isItemAlreadyCompleted,
+      currentUserProgress,
+      item,
+      linearProgressionEnabled,
+    ] = await Promise.all([
+      this.progressRepo.isItemCompleted(userId, courseId, versionId, itemId),
+      this.progressRepo.findProgress(userId, courseId, versionId),
+      this.itemRepo.readItem(versionId, itemId),
+      this.courseSettingService.isLinearProgressionEnabled(courseId, versionId),
+    ]);
+
+    // Enforce linear progression only if item is NOT already completed
+    if (
+      linearProgressionEnabled &&
+      !isItemAlreadyCompleted &&
+      currentUserProgress?.currentItem !== itemId
+    ) {
+      throw new UnauthorizedError(
+        `You don't have permission to watch this item`,
+      );
+    }
+
+    return {
+      ...item,
+      _id: item._id.toString(),
+      isItemAlreadyCompleted,
+    };
   }
 
   public async updateItem(
