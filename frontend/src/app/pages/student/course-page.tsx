@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";ExternalLink
+import { useState, useEffect, useCallback, useRef } from "react"; ExternalLink
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -51,7 +51,7 @@ import { EntityType } from "@/types/flag.types";
 import { toast } from "sonner";
 import ItemContainer from "@/components/Item-container";
 import logo from "../../../../public/img/vibe_logo_img.ico"
-import {registerStream, unRegisterStream} from "@/lib/MediaRegistry";
+import { registerStream, unRegisterStream } from "@/lib/MediaRegistry";
 
 // Helper function to get icon for item type
 const getItemIcon = (type: string) => {
@@ -238,6 +238,22 @@ export default function CoursePage() {
     sectionId: string;
     itemId: string;
   } | null>(null);
+
+
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === "Tab") {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   // Separate effect for handling item errors - prevents circular dependencies
   useEffect(() => {
