@@ -198,7 +198,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
       player.pauseVideo();
     } else {
       player.playVideo();
-      setTimeout(() => {playerRef.current?.setPlaybackRate?.(playbackRate);}, 50);
+      setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
     }
   }, [playing, readyToDetect]);
 
@@ -552,6 +552,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
       }
     };
   }, [videoId, startTimeSeconds, readyToDetect]);
+
 
   // // Handle keyboard events including space for play/pause
   // useEffect(() => {
