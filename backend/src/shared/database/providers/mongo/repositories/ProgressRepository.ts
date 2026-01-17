@@ -591,6 +591,7 @@ class ProgressRepository {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
+        isDeleted: { $ne: true },
       },
       { $set: progress },
       {
