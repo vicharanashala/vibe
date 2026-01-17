@@ -1804,6 +1804,103 @@ class ProgressService extends BaseService {
     );
   }
 
+  async handleQuizeProgressAfterSubmission(
+    userId: string | ObjectId,
+    quizeId: string,
+    courseId: string,
+    courseVersionId: string,
+    isPassed: boolean,
+  ) {
+    const progress = await this.progressRepository.findProgress(userId, courseId, courseVersionId);
+    console.log("Progress: ", progress);
+    if (!progress) {
+      console.log("Progress not found")
+      return;
+    }
+
+    // if (progress.currentItem !== quizeId) {
+    //   console.log("Inside if is trigreed", progress.currentItem)
+    //   return;
+    // }
+
+    // if (isPassed === false) {
+    //   return;
+    // }
+
+    // const quizeItem = await this.itemRepo.readItemById(quizeId);
+    // const itemsGroup = await this.itemRepo.readItemsGroup(quizeItem.details.itemsGroupId);
+    // const items = itemsGroup.items;
+    // const index = items.indexOf(quizeId);
+    // if(index === -1){
+    //   return;
+    // }
+    // if(isPassed){
+    //   const nextItem = items[index + 1];
+    //   if(nextItem){
+    //     progress.currentItem = nextItem._id;
+    //   }
+    // }else{
+    //   const prevItem = items[index -1];
+    //   if(prevItem){
+    //     progress.currentItem = prevItem._id;
+    //   }
+    // }
+
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    console.log("courseVersion: ", courseVersion);
+
+
+    if (isPassed) {
+      const nextItemDetails = await this.getNextItemInSequence(
+        courseVersion,
+        progress.currentModule.toString(),
+        progress.currentSection.toString(),
+        quizeId,
+      );
+
+      console.log("NextItemDetails Object", nextItemDetails);
+
+      const newProgress = {
+        currentModule: nextItemDetails.moduleId,
+        currentSection: nextItemDetails.sectionId,
+        currentItem: nextItemDetails.itemId,
+      };
+
+      console.log("newProgress Object: ", newProgress);
+
+      await this.progressRepository.updateProgress(
+        userId,
+        courseId,
+        courseVersionId,
+        newProgress,
+      );
+    } else {
+      const previousDetails = await this.getPreviousItemInSequence(
+        courseVersion,
+        progress.currentModule.toString(),
+        progress.currentSection.toString(),
+        quizeId,
+      );
+
+      console.log("PreviousDetails Object: ", previousDetails)
+
+      const previousProgress = {
+        currentModule: previousDetails.moduleId,
+        currentSection: previousDetails.sectionId,
+        currentItem: previousDetails.itemId,
+      }
+
+      console.log("PreviousProgress Object: ", previousProgress)
+      await this.progressRepository.updateProgress(
+        userId,
+        courseId,
+        courseVersionId,
+        previousProgress,
+      );
+    }
+
+  }
+
   // Admin Level Endpoint
   async resetCourseProgress(
     userId: string,

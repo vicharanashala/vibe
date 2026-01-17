@@ -666,7 +666,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       const answersForSubmission = convertAnswersToSaveFormat();
       const response = await submitQuiz({
         params: { path: { quizId: processedQuizId, attemptId: attemptId } },
-        body: { answers: answersForSubmission, isSkipped }
+        body: { answers: answersForSubmission, isSkipped, courseId: currentCourse?.courseId,
+            courseVersionId: currentCourse?.versionId  }
       });
 
       // No reponse for skipped quiz!
