@@ -170,6 +170,7 @@ function TeacherCourseContent() {
     setBreadcrumbs(items);
   }, [matches]);
   const { setOpen, setOpenMobile } = useSidebar();
+  const [isDesktopSidebarVisible, setIsDesktopSidebarVisible] = useState(true);
 
   const checkScreenSize = () => {
     return window.innerWidth <= 425;
@@ -1277,14 +1278,16 @@ function TeacherCourseContent() {
           onClick={() => setIsMobileSidebarOpen(false)}
         />
       )}
+      {isDesktopSidebarVisible && (
       <ResizablePanel
         defaultSize={20}
         minSize={20}
         maxSize={50}
         className={`${isMobileSidebarOpen ? 'fixed inset-y-0 left-0 z-50 w-[280px]' : 'hidden md:block'}`}
       >
-        <div className="h-full overflow-hidden border-r border-border/40 bg-sidebar/50">
-          <Sidebar variant="sidebar" collapsible="none" className="h-screen w-full">
+        {/* sidebar content */}
+  <div className="h-full overflow-hidden border-r border-border/40 bg-sidebar/50">
+          <Sidebar  variant="sidebar" collapsible="none" className="h-screen w-full">
             <SidebarHeader>
               <div className="flex items-center gap-3 px-3 py-2">
                 <BookOpen className="text-primary" />
@@ -1898,6 +1901,16 @@ function TeacherCourseContent() {
           </Sidebar>
         </div>
       </ResizablePanel>
+    )}
+
+      {/* <ResizablePanel
+        defaultSize={20}
+        minSize={20}
+        maxSize={50}
+        className={`${isMobileSidebarOpen ? 'fixed inset-y-0 left-0 z-50 w-[280px]' : 'hidden md:block'}`}
+      >
+      
+      </ResizablePanel> */}
 
 
 
@@ -1908,16 +1921,27 @@ function TeacherCourseContent() {
 
 
 
-      <ResizableHandle className="hidden md:flex" />
+      {/* <ResizableHandle className="hidden md:flex" /> */}
+      {isDesktopSidebarVisible && <ResizableHandle className="hidden md:flex" />}
+
       
       <ResizablePanel defaultSize={80} className="min-w-0">
         {/* Course Editor Area */}
         <SidebarInset className="max-w-full overflow-hidden flex flex-col">
-              <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear sticky top-0 z-50 bg-background">
+              <header className="hidden md:flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear sticky top-0 z-50 bg-background">
                             <div className="flex w-full items-center justify-between px-4">
                               <div className="flex items-center gap-2">
+                                {/* Add Toggle Button */}
+                                <Button
+  variant="ghost"
+  size="icon"
+  onClick={() => setIsDesktopSidebarVisible((p) => !p)}
+  className="hidden md:inline-flex"
+>
+  <Menu className="h-5 w-5" />
+</Button>
+
                                 <Separator orientation="vertical" className="mx-2 h-4" />
-                  
                                 <Breadcrumb className="hidden md:flex">
                                   <BreadcrumbList>
                                  
@@ -1940,7 +1964,7 @@ function TeacherCourseContent() {
                                 </Breadcrumb>
                               </div>
                   
-                              <div className="flex items-center gap-3">
+                              <div className="hidden md:flex items-center gap-3">
                   
                                 <div className="relative"  ref={invitesRef}>
                                   <Button
