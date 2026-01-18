@@ -1,5 +1,5 @@
-import {ID, IProgress, ItemType} from '#root/shared/interfaces/models.js';
-import {Expose, Type} from 'class-transformer';
+import { ID, IProgress, ItemType } from '#root/shared/interfaces/models.js';
+import { Expose, Type } from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -15,9 +15,9 @@ import {
   Max,
   IsArray,
 } from 'class-validator';
-import {JSONSchema} from 'class-validator-jsonschema';
-import {WatchTime} from '../transformers/WatchTime.js';
-import {UserQuizMetrics} from '#root/modules/quizzes/classes/index.js';
+import { JSONSchema } from 'class-validator-jsonschema';
+import { WatchTime } from '../transformers/WatchTime.js';
+import { UserQuizMetrics } from '#root/modules/quizzes/classes/index.js';
 
 export class GetUserProgressParams {
   @JSONSchema({
@@ -95,7 +95,7 @@ export class LeaderboardNoAuthResponse {
 
   @JSONSchema({
     description: 'Completion timestamp (null if not completed)',
-    oneOf: [{type: 'string', format: 'date-time'}, {type: 'null'}],
+    oneOf: [{ type: 'string', format: 'date-time' }, { type: 'null' }],
   })
   @IsOptional()
   completedAt!: Date | string | null;
@@ -128,10 +128,10 @@ export class GetLeaderboardResponse {
   @JSONSchema({
     description: 'Leaderboard data',
     type: 'array',
-    items: {$ref: '#/components/schemas/LeaderboardNoAuthResponse'},
+    items: { $ref: '#/components/schemas/LeaderboardNoAuthResponse' },
   })
   @IsArray()
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @Type(() => LeaderboardNoAuthResponse)
   data!: LeaderboardNoAuthResponse[];
 }
@@ -194,11 +194,12 @@ export class StartItemResponse {
     description: 'Watch item ID for tracking progress',
     example: '60d5ec49b3f1c8e4a8f8b8c7',
     type: 'string',
+    nullable: true,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @IsMongoId()
-  watchItemId: string;
+  watchItemId: string | null;
 
   constructor(data: Partial<StartItemResponse>) {
     Object.assign(this, data);
@@ -449,7 +450,7 @@ export class ResetCourseProgressBody {
   @IsMongoId()
   @ValidateIf(
     o => o.moduleId === null && (o.sectionId !== null || o.itemId !== null),
-    {message: 'moduleId is required if sectionId or itemId is provided'},
+    { message: 'moduleId is required if sectionId or itemId is provided' },
   )
   invalidFieldsCheck?: any; // dummy field to trigger validation error
 

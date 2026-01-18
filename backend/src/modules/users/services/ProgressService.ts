@@ -1349,7 +1349,7 @@ class ProgressService extends BaseService {
     moduleId: string,
     sectionId: string,
     itemId: string,
-  ): Promise<string> {
+  ): Promise<string | null> {
     // Validate course access and linear progression before starting transaction
 
     await Promise.all([
@@ -1375,6 +1375,7 @@ class ProgressService extends BaseService {
           courseVersionId,
           session,
         );
+        return null;
         return existingWatchTime?.[0]?._id?.toString() || '';
       }
 

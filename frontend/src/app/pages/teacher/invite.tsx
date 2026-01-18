@@ -515,7 +515,7 @@ export default function InvitePage() {
     setIsMessageBulk(true);
   }
 
-  const removeBulkClick = ()=>{
+  const removeBulkClick = () => {
     setShowConfirmationModal(false);
     setIsMessageBulk(false);
   }
@@ -1151,55 +1151,68 @@ export default function InvitePage() {
 
 
       {showConfirmationModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
             onClick={removeBulkClick}
           />
-          <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+
+          <div className="relative bg-card border border-border rounded-2xl shadow-xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-8 p-5 space-y-6 animate-in fade-in-0 zoom-in-95 duration-300">
 
             <div className="flex items-center justify-between">
-              <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Sure to Send Invites</h2>
+              <h2 className="text-lg md:text-xl font-semibold text-card-foreground">
+                Confirm Invitation
+              </h2>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={removeBulkClick}
-                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full"
               >
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <div className="space-y-8">
-              <p className="text-lg text-card-foreground">Recipents can get your mail at delay. This can take few minutes to hours!!</p>
-            </div>
-            <div className="flex justify-between pt-4">
-              <Button onClick={removeBulkClick}>No Cancel</Button>
-              {isMessageBulk ? (<Button
-                onClick={handleSendBulkInvites}
-                disabled={inviteUsers.isPending}
-                className=""
-              >
-                {inviteUsers.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4 mr-2" />
-                    Send {parsedEmails.length} Invite(s)
-                  </>
-                )}
-              </Button>) : (
+
+            <p className="text-sm md:text-base text-muted-foreground">
+              Upon confirmation, the student will immediately receive the invitation on the ViBe dashboard.
+              Email delivery may take some time. However, the invitation can be accepted directly from the platform without delay.
+            </p>
+
+            <div className="flex justify-between pt-2">
+              <Button onClick={removeBulkClick}>
+                Cancel
+              </Button>
+
+              {isMessageBulk ? (
+                <Button
+                  onClick={handleSendBulkInvites}
+                  disabled={inviteUsers.isPending}
+                >
+                  {inviteUsers.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Sending…
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      Send {parsedEmails.length} Invite(s)
+                    </>
+                  )}
+                </Button>
+              ) : (
                 <Button
                   onClick={handleSendInvites}
-                  disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0}
+                  disabled={
+                    inviteUsers.isPending ||
+                    inviteEmails.filter(invite => invite.email.trim() !== "").length === 0
+                  }
                   className="min-w-[120px]"
                 >
                   {inviteUsers.isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Sending...
+                      Sending…
                     </>
                   ) : (
                     <>
@@ -1207,10 +1220,12 @@ export default function InvitePage() {
                       Send Invites
                     </>
                   )}
-                </Button>)}
+                </Button>
+              )}
             </div>
           </div>
         </div>
+
       )}
     </div>
   )
