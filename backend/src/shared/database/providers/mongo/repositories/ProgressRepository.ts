@@ -544,6 +544,8 @@ class ProgressRepository {
     return result;
   }
 
+
+
   async getWatchTime(
     userId: string | ObjectId,
     itemId: string | string[],
@@ -572,8 +574,10 @@ class ProgressRepository {
     }
     query.isDeleted = { $ne: true };
     const result = await this.watchTimeCollection
-      .find(query, { session })
+      .find(query, { session }) 
+      .sort({ startTime: 1 })
       .toArray();
+
     return result.map(item => ({
       ...item,
       _id: item._id.toString(),

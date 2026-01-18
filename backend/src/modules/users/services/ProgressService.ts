@@ -1375,7 +1375,6 @@ class ProgressService extends BaseService {
           courseVersionId,
           session,
         );
-        return null;
         return existingWatchTime?.[0]?._id?.toString() || '';
       }
 
@@ -1456,7 +1455,7 @@ class ProgressService extends BaseService {
     }
   }
 
-  private async _handleProgressUpdateAfterQuizSubmission(
+  async handleProgressUpdateAfterQuizSubmission(
     userId: string,
     quizId: string,
     courseId: string,
@@ -1537,8 +1536,6 @@ class ProgressService extends BaseService {
     }
 
     if (submittedQuiz.gradingResult?.gradingStatus == 'FAILED') {
-      const gradingStatus = submittedQuiz.gradingResult?.gradingStatus;
-      await this._handleProgressUpdateAfterQuizSubmission(userId, itemId, courseId, courseVersionId, gradingStatus);
       throw new BadRequestError('Quiz not passed, cannot stop the item');
     }
   }
@@ -1576,32 +1573,27 @@ class ProgressService extends BaseService {
     stoppedWatchTime?: IWatchTime,
   ): Promise<void> {
 
-    // 1 Check if current item in the progress is completed
-    const isCurrentItemCompleted = await this.progressRepository.isItemCompleted(userId, courseId, courseVersionId, itemId);
 
-    if (!isCurrentItemCompleted) {
-      throw new BadRequestError('Current item is not yet completed, Kindly complete the item before stopping/sending request for the next item.');
-    }
 
     const WATCH_TIME_REQUIRED_ITEMS = new Set<string>([
       'VIDEO',
       'BLOG',
     ]);
 
-    // 2 Watch-time based items
+    // 1 Watch-time based items
     if (WATCH_TIME_REQUIRED_ITEMS.has(item.type)) {
       this.validateWatchTime(item, stoppedWatchTime);
       return;
     }
 
-    // 3 Quiz validation
+    // 2 Quiz validation
     if (item.type === 'QUIZ') {
       await this.validateQuizStop(itemId, userId, courseId,
         courseVersionId, attemptId, isSkipped);
       return;
     }
 
-    // 4 Project validation
+    // 3 Project validation
     if (item.type === 'PROJECT') {
       await this.validateProjectStop(itemId, userId, courseId, courseVersionId);
       return;

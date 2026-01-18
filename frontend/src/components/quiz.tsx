@@ -670,7 +670,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       const answersForSubmission = convertAnswersToSaveFormat();
       const response = await submitQuiz({
         params: { path: { quizId: processedQuizId, attemptId: attemptId } },
-        body: { answers: answersForSubmission, isSkipped }
+        body: { answers: answersForSubmission, isSkipped, courseId: currentCourse?.courseId,
+            courseVersionId: currentCourse?.versionId }
       });
 
       // No reponse for skipped quiz!
@@ -701,14 +702,14 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         setScore(totalScore);
       }
 
-      if (response.gradingStatus === 'FAILED') {
-        console.log('Quiz failed - immediately updating progress to previous video');
-        try {
-          await handleStopItem(false);
-        } catch (stopError) {
-          console.error('Failed to update progress after quiz failure:', stopError);
-        }
-      }
+      // if (response.gradingStatus === 'FAILED') {
+      //   console.log('Quiz failed - immediately updating progress to previous video');
+      //   try {
+      //     await handleStopItem(false);
+      //   } catch (stopError) {
+      //     console.error('Failed to update progress after quiz failure:', stopError);
+      //   }
+      // }
 
       setQuizCompleted(true);
 
@@ -974,17 +975,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     return () => clearTimeout(timer);
   }, [failedRedirectCountdown, onPrevVideo]);
 
-
-
-  // Cleanup effect
-  useEffect(() => {
-    return () => {
-      // Remove this cleanup call so stop is only called after submission
-      // if (itemStartedRef.current) {
-      //   handleStopItem();
-      // }
-    };
-  }, [handleStopItem]);
 
   // Early detection for empty quizzes (all types)
   useEffect(() => {

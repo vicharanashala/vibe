@@ -481,6 +481,15 @@ class AttemptService extends BaseService {
     );
 
 
+    // Handle progress after quiz submission
+
+    await this.progressService.handleProgressUpdateAfterQuizSubmission(
+      userId.toString(),
+      quizId,
+      courseId,
+      courseVersionId,
+      gradingResult.gradingStatus,
+    );
 
     /* -------------------- RETURN BASED ON QUIZ SETTINGS -------------------- */
 

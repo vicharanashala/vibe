@@ -927,6 +927,7 @@ export class CourseRepository implements ICourseRepository {
     versionId: string,
     session?: ClientSession,
   ): Promise<boolean> {
+    await this.init();
     try {
       const result = await this.courseCollection.findOneAndUpdate(
         {_id: new ObjectId(courseId)},
