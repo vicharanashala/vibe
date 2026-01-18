@@ -38,6 +38,8 @@ import { EnrollmentRepository } from '#root/shared/index.js';
 import { PROJECTS_TYPES } from '#root/modules/projects/types.js';
 import { IProjectSubmissionRepository } from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
 import { FeedbackRepository } from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
+import { SETTING_TYPES } from '#root/modules/setting/types.js';
+import { CourseSettingService } from '#root/modules/setting/index.js';
 
 @injectable()
 class ProgressService extends BaseService {
@@ -65,6 +67,10 @@ class ProgressService extends BaseService {
 
     @inject(QUIZZES_TYPES.QuizRepo)
     private quizRepo: QuizRepository,
+
+    @inject(SETTING_TYPES.CourseSettingService)
+    private courseSettingService: CourseSettingService,
+
 
     @inject(PROJECTS_TYPES.projectSubmissionRepository)
     private projectSubmissionRepo: IProjectSubmissionRepository,
@@ -493,15 +499,17 @@ class ProgressService extends BaseService {
     sectionId: string,
     itemId: string,
   ): Promise<void> {
-    const progress = await this.progressRepository.findProgress(
-      userId,
-      courseId,
-      courseVersionId,
-    );
+    const [linearProgressionEnabled, progress] = await Promise.all([
+      this.courseSettingService.isLinearProgressionEnabled(courseId, courseVersionId),
+      this.progressRepository.findProgress(userId, courseId, courseVersionId),
+    ]);
 
-    if (!progress) {
+    if (!linearProgressionEnabled)
+      return;
+
+    if (!progress)
       throw new NotFoundError('Progress not found');
-    }
+
 
     // Check if item is completed directly in db.
     const isItemCompleted = await this.progressRepository.isItemCompleted(
@@ -512,19 +520,19 @@ class ProgressService extends BaseService {
     );
 
 
-    if (isItemCompleted) {
+    if (isItemCompleted)
       return;
-    }
+
 
     if (
       progress.currentModule.toString() !== moduleId ||
       progress.currentSection.toString() !== sectionId ||
       progress.currentItem.toString() !== itemId
-    ) {
+    )
       throw new BadRequestError(
         'ModuleId, sectionId and itemId do not match current progress',
       );
-    }
+
   }
 
   /**
@@ -1320,7 +1328,7 @@ class ProgressService extends BaseService {
         return existingWatchTime?.[0]?._id?.toString() || '';
       }
 
-      // 🔥 Parallelize independent verifications
+      //  Parallelize independent verifications
       await Promise.all([
         this.verifyDetails(userId, courseId, courseVersionId),
         this.verifyProgress(
@@ -1332,6 +1340,55 @@ class ProgressService extends BaseService {
           itemId,
         ),
       ]);
+
+      const courseVersion = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
+        throw new NotFoundError('Invalid course version');
+      }
+
+      // // Fetch completed items
+      // let completedItemsSet: Set<string>;
+
+      // const completedItemsArray =
+      //   await this.progressRepository.getCompletedItems(
+      //     userId,
+      //     courseId,
+      //     courseVersionId,
+      //     session,
+      //   );
+
+      // completedItemsSet = new Set(
+      //   completedItemsArray.map(id => id.toString()),
+      // );
+
+      const enrollment = await this.enrollmentRepo.findEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+      );
+      if (!enrollment) throw new NotFoundError('Enrollment not found');
+
+      const totalItems =
+        courseVersion.totalItems ??
+        await this.itemRepo.CalculateTotalItemsCount(courseId, courseVersionId);
+      const totalCompletedItemsCount = enrollment.completedItemsCount || 0;
+
+      const percentCompleted = Math.round(
+        (totalItems > 0
+          ? totalCompletedItemsCount / totalItems
+          : 0) * 100,
+      );
+
+      await this.enrollmentRepo.updateProgressPercentById(
+        enrollment._id.toString(),
+        percentCompleted,
+        undefined,
+        totalCompletedItemsCount,
+      );
+
 
       // 🔒 Write happens AFTER validations
       const result = await this.progressRepository.startItemTracking(
