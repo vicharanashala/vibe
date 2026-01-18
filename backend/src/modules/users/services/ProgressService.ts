@@ -1306,8 +1306,21 @@ class ProgressService extends BaseService {
     sectionId: string,
     itemId: string,
   ): Promise<string> {
+    // Validate course access and linear progression before starting transaction
+
+    await Promise.all([
+      this.verifyDetails(userId, courseId, courseVersionId),
+      this.verifyProgress(
+        userId,
+        courseId,
+        courseVersionId,
+        moduleId,
+        sectionId,
+        itemId,
+      ),
+    ]);
     return this._withTransaction(async session => {
-      // Check if item is already completed before creating watchTime
+      // Fast exit if item is already completed
       const isItemCompleted = await this.progressRepository.isItemCompleted(
         userId,
         courseId,
@@ -1317,7 +1330,7 @@ class ProgressService extends BaseService {
       );
 
       if (isItemCompleted) {
-        // Item is already completed, skip watchTime creation and return existing watchTime or null
+        // Return existing watchTime instead of creating a new one
         const existingWatchTime = await this.progressRepository.getWatchTime(
           userId,
           itemId,
@@ -1328,26 +1341,18 @@ class ProgressService extends BaseService {
         return existingWatchTime?.[0]?._id?.toString() || '';
       }
 
-      //  Parallelize independent verifications
-      await Promise.all([
-        this.verifyDetails(userId, courseId, courseVersionId),
-        this.verifyProgress(
-          userId,
-          courseId,
-          courseVersionId,
-          moduleId,
-          sectionId,
-          itemId,
-        ),
+      // Fetch course version and enrollment in parallel
+      const [courseVersion, enrollment] = await Promise.all([
+        this.courseRepo.readVersion(courseVersionId, session),
+        this.enrollmentRepo.findEnrollment(userId, courseId, courseVersionId),
       ]);
+      // Ensure course version belongs to the course
 
-      const courseVersion = await this.courseRepo.readVersion(
-        courseVersionId,
-        session,
-      );
       if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
         throw new NotFoundError('Invalid course version');
       }
+
+      if (!enrollment) throw new NotFoundError('Enrollment not found');
 
       // // Fetch completed items
       // let completedItemsSet: Set<string>;
@@ -1364,33 +1369,30 @@ class ProgressService extends BaseService {
       //   completedItemsArray.map(id => id.toString()),
       // );
 
-      const enrollment = await this.enrollmentRepo.findEnrollment(
-        userId,
-        courseId,
-        courseVersionId,
-      );
-      if (!enrollment) throw new NotFoundError('Enrollment not found');
-
+      // Resolve total item count (prefer denormalized value)
       const totalItems =
         courseVersion.totalItems ??
         await this.itemRepo.CalculateTotalItemsCount(courseId, courseVersionId);
+      // Use denormalized completed item count
       const totalCompletedItemsCount = enrollment.completedItemsCount || 0;
 
-      const percentCompleted = Math.round(
-        (totalItems > 0
-          ? totalCompletedItemsCount / totalItems
-          : 0) * 100,
-      );
-
-      await this.enrollmentRepo.updateProgressPercentById(
-        enrollment._id.toString(),
-        percentCompleted,
-        undefined,
-        totalCompletedItemsCount,
-      );
-
-
-      // 🔒 Write happens AFTER validations
+      if (totalCompletedItemsCount > 0) {
+        const percentCompleted = Math.round(
+          (totalItems > 0
+            ? totalCompletedItemsCount / totalItems
+            : 0) * 100,
+        );
+        // Update enrollment only if progress has changed
+        if (percentCompleted !== enrollment.percentCompleted) {
+          await this.enrollmentRepo.updateProgressPercentById(
+            enrollment._id.toString(),
+            percentCompleted,
+            undefined,
+            totalCompletedItemsCount,
+          );
+        }
+      }
+      // Create watchTime entry after all validations pass
       const result = await this.progressRepository.startItemTracking(
         userId,
         courseId,
