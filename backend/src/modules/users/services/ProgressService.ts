@@ -1418,9 +1418,71 @@ class ProgressService extends BaseService {
     }
   }
 
+  private async _handleProgressUpdateAfterQuizSubmission(
+    userId: string,
+    quizId: string,
+    courseId: string,
+    courseVersionId: string,
+    gradingStatus: 'PASSED' | 'FAILED',
+  ): Promise<void> {
+
+    // No progress rollback needed if quiz is already completed
+    const isQuizAlreadyCompleted = await this.progressRepository.isItemCompleted(
+      userId,
+      courseId,
+      courseVersionId,
+      quizId,
+    )
+    if (isQuizAlreadyCompleted)
+      return;
+
+    // Only FAILED quizzes require progress rollback
+    if (gradingStatus !== 'FAILED')
+      return;
+
+    // Fetch progress and course version in parallel
+    const [progress, courseVersion] = await Promise.all([
+      this.progressRepository.findProgress(userId, courseId, courseVersionId),
+      this.courseRepo.readVersion(courseVersionId),
+    ]);
+
+    if (!progress || !courseVersion) {
+      throw new NotFoundError('Progress or Course Version not found');
+    }
+
+    // Resolve previous item in linear sequence
+    const previousDetails =
+      await this.getPreviousItemInSequence(
+        courseVersion,
+        progress.currentModule.toString(),
+        progress.currentSection.toString(),
+        quizId,
+      );
+
+    if (!previousDetails)
+      return;
+
+    const newProgress: Partial<IProgress> = {
+      completed: false,
+      currentModule: previousDetails.moduleId,
+      currentSection: previousDetails.sectionId,
+      currentItem: previousDetails.itemId,
+    }
+
+    // Roll back progress to previous item
+    await this.progressRepository.updateProgress(
+      userId,
+      courseId,
+      courseVersionId,
+      newProgress
+    );
+  }
+
   private async validateQuizStop(
     itemId: string,
     userId: string,
+    courseId: string,
+    courseVersionId: string,
     attemptId?: string,
     isSkipped?: boolean,
   ): Promise<void> {
@@ -1436,10 +1498,13 @@ class ProgressService extends BaseService {
       throw new BadRequestError('Quiz not submitted');
     }
 
-    if (submittedQuiz.gradingResult?.gradingStatus !== 'PASSED') {
+    if (submittedQuiz.gradingResult?.gradingStatus == 'FAILED') {
+      const gradingStatus = submittedQuiz.gradingResult?.gradingStatus;
+      await this._handleProgressUpdateAfterQuizSubmission(userId, itemId, courseId, courseVersionId, gradingStatus);
       throw new BadRequestError('Quiz not passed, cannot stop the item');
     }
   }
+
   private async validateProjectStop(
     itemId: string,
     userId: string,
@@ -1493,7 +1558,8 @@ class ProgressService extends BaseService {
 
     // 3 Quiz validation
     if (item.type === 'QUIZ') {
-      await this.validateQuizStop(itemId, userId, attemptId, isSkipped);
+      await this.validateQuizStop(itemId, userId, courseId,
+        courseVersionId, attemptId, isSkipped);
       return;
     }
 

@@ -29,6 +29,7 @@ import {
   QuestionType,
   MongoDatabase,
   ILotItem,
+  IProgress,
 } from '#shared/index.js';
 import { injectable, inject } from 'inversify';
 import { ClientSession, ObjectId } from 'mongodb';
@@ -59,6 +60,7 @@ import { COURSES_TYPES } from '#root/modules/courses/types.js';
 import { USERS_TYPES } from '#root/modules/users/types.js';
 import { ProgressRepository } from '#root/shared/database/providers/mongo/repositories/ProgressRepository.js';
 import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { ProgressService } from '#root/modules/users/services/ProgressService.js';
 @injectable()
 class AttemptService extends BaseService {
   constructor(
@@ -91,6 +93,9 @@ class AttemptService extends BaseService {
 
     @inject(USERS_TYPES.ProgressRepo)
     private readonly progressRepository: ProgressRepository,
+
+    @inject(USERS_TYPES.ProgressService)
+    private readonly progressService: ProgressService,
 
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
@@ -222,25 +227,25 @@ class AttemptService extends BaseService {
    * Check if the quiz has already been completed by checking if a watchTime entry
    * with endTime exists for this user and quiz.
    */
-  private async _isQuizAlreadyCompleted(
-    userId: string,
-    quizId: string,
-    session?: ClientSession,
-  ): Promise<boolean> {
-    const watchTimes = await this.progressRepository.getWatchTime(
-      userId,
-      quizId,
-      undefined,
-      undefined,
-      session,
-    );
+  // private async _isQuizAlreadyCompleted(
+  //   userId: string,
+  //   quizId: string,
+  //   session?: ClientSession,
+  // ): Promise<boolean> {
+  //   const watchTimes = await this.progressRepository.getWatchTime(
+  //     userId,
+  //     quizId,
+  //     undefined,
+  //     undefined,
+  //     session,
+  //   );
 
-    if (!watchTimes || watchTimes.length === 0) {
-      return false;
-    }
+  //   if (!watchTimes || watchTimes.length === 0) {
+  //     return false;
+  //   }
 
-    return watchTimes.some(wt => wt.endTime !== null && wt.endTime !== undefined);
-  }
+  //   return watchTimes.some(wt => wt.endTime !== null && wt.endTime !== undefined);
+  // }
 
   /**
    * Update user progress after quiz submission based on the grading result.
@@ -248,18 +253,18 @@ class AttemptService extends BaseService {
    * - If PASSED: currentItem advances to next item
    * - If FAILED: currentItem goes back to previous video
    */
-  private async _updateProgressAfterQuizSubmit(
-    userId: string,
-    quizId: string,
-    gradingStatus: 'PASSED' | 'FAILED',
-    session?: ClientSession,
-  ): Promise<void> {
-    const alreadyCompleted = await this._isQuizAlreadyCompleted(userId, quizId, session);
+  // private async _updateProgressAfterQuizSubmit(
+  //   userId: string,
+  //   quizId: string,
+  //   gradingStatus: 'PASSED' | 'FAILED',
+  //   session?: ClientSession,
+  // ): Promise<void> {
+  //   const alreadyCompleted = await this._isQuizAlreadyCompleted(userId, quizId, session);
 
-    if (alreadyCompleted) {
-      return;
-    }
-  }
+  //   if (alreadyCompleted) {
+  //     return;
+  //   }
+  // }
 
   async attempt(
     userId: string | ObjectId,
@@ -356,12 +361,19 @@ class AttemptService extends BaseService {
     });
   }
 
+
+
+
+
+
   async submit(
     userId: string | ObjectId,
     quizId: string,
     attemptId: string,
     answers: IQuestionAnswer[],
     isSkipped?: boolean,
+    courseId?: string,
+    courseVersionId?: string
   ): Promise<Partial<IGradingResult> | null> {
 
     /* -------------------- READS OUTSIDE TRANSACTION -------------------- */
@@ -467,6 +479,8 @@ class AttemptService extends BaseService {
       submissionId,
       { gradingResult },
     );
+
+
 
     /* -------------------- RETURN BASED ON QUIZ SETTINGS -------------------- */
 
