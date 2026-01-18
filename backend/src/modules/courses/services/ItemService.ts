@@ -366,27 +366,63 @@ export class ItemService extends BaseService {
     return itemsGroup.items;
   }
 
-  public async readItem(userId: string, courseId: string, versionId: string, itemId: string) {
+  public async readItem(
+    userId: string,
+    courseId: string,
+    versionId: string,
+    itemId: string,
+  ) {
+    // Fetch enrollment early
+    const enrollment = await this.enrollmentRepo.findEnrollment(
+      userId,
+      courseId,
+      versionId,
+    );
+
+    if (!enrollment) {
+      throw new UnauthorizedError(
+        'You are not enrolled in this course version',
+      );
+    }
+
+    if (enrollment.status === 'INACTIVE') {
+      throw new UnauthorizedError(
+        'Your enrollment is inactive for this course version',
+      );
+    }
+
+    // Fetch item immediately (needed in all valid cases)
+    const item = await this.itemRepo.readItem(versionId, itemId);
+
+    // Non-students do not require progress checks
+    if (enrollment.role !== 'STUDENT') {
+      return {
+        ...item,
+        _id: item._id.toString(),
+      };
+    }
+
+    // Student-specific checks (parallelized)
     const [
       isItemAlreadyCompleted,
+      isItemAlreadyAttempted,
       currentUserProgress,
-      item,
       linearProgressionEnabled,
     ] = await Promise.all([
       this.progressRepo.isItemCompleted(userId, courseId, versionId, itemId),
+      this.progressRepo.isItemAttempted(userId, courseId, versionId, itemId),
       this.progressRepo.findProgress(userId, courseId, versionId),
-      this.itemRepo.readItem(versionId, itemId),
       this.courseSettingService.isLinearProgressionEnabled(courseId, versionId),
     ]);
 
-    // Enforce linear progression only if item is NOT already completed
+    // Enforce linear progression only when required
     if (
       linearProgressionEnabled &&
-      !isItemAlreadyCompleted &&
+      !isItemAlreadyAttempted &&
       currentUserProgress?.currentItem !== itemId
     ) {
       throw new UnauthorizedError(
-        `You don't have permission to watch this item`,
+        "You don't have permission to watch this item",
       );
     }
 
