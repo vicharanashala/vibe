@@ -5,70 +5,29 @@ await import('./instrument.js');
 
 import * as Sentry from '@sentry/node';
 import express from 'express';
-import cors from 'cors';
 // import session from 'express-session'
-import {useExpressServer, RoutingControllersOptions} from 'routing-controllers';
-import {appConfig} from './config/app.js';
-import {loggingHandler} from './shared/middleware/loggingHandler.js';
-import {HttpErrorHandler} from './shared/index.js';
-import {generateOpenAPISpec} from './shared/functions/generateOpenApiSpec.js';
-import {apiReference} from '@scalar/express-api-reference';
-import {loadAppModules} from './bootstrap/loadModules.js';
-import {printStartupSummary} from './utils/logDetails.js';
-import type {CorsOptions} from 'cors';
-import {authorizationChecker} from './shared/functions/authorizationChecker.js';
-import {currentUserChecker} from './shared/functions/currentUserChecker.js';
-import {startCron} from './utils/startCron.js';
+import { useExpressServer, RoutingControllersOptions } from 'routing-controllers';
+import { appConfig } from './config/app.js';
+import { loggingHandler } from './shared/middleware/loggingHandler.js';
+import { createRateLimiter, HttpErrorHandler } from './shared/index.js';
+import { generateOpenAPISpec } from './shared/functions/generateOpenApiSpec.js';
+import { apiReference } from '@scalar/express-api-reference';
+import { loadAppModules } from './bootstrap/loadModules.js';
+import { printStartupSummary } from './utils/logDetails.js';
+import type { CorsOptions } from 'cors';
+import { authorizationChecker } from './shared/functions/authorizationChecker.js';
+import { currentUserChecker } from './shared/functions/currentUserChecker.js';
+import { startCron } from './utils/startCron.js';
 
 const app = express();
-//app.use(express.json());
-//app.use(express.urlencoded({ extended: true }));
+const globalRateLimiter = createRateLimiter();
 
+app.use(globalRateLimiter);
 app.use(loggingHandler);
-console.log('uri ');
-
-/*app.use(
-  session({
-    secret: process.env.SESSION_SECRET!,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-    },
-  }),
-);*/
-
-// app.use(
-//   session({
-//     secret: process.env.SESSION_SECRET,
-//     resave: false,
-//     saveUninitialized: true,
-//     cookie: {
-//       secure: NODE_ENV === 'production',
-//       httpOnly:true,
-//       maxAge: 7 * 24 * 60 * 60 * 1000,
-//       sameSite: NODE_ENV === 'development' ? 'lax' : 'none',
-//     },
-//   }),
-// );
 
 app.set('trust proxy', 1);
 
-// app.use(
-//   session({
-//     secret: process.env.SESSION_SECRET!,
-//     resave: false,
-//     saveUninitialized: false,
-//     cookie: {
-//       httpOnly: true,
-//       secure: NODE_ENV !== 'development', // true in staging + production
-//       sameSite: NODE_ENV === 'development' ? 'lax' : 'none',
-//       maxAge: 7 * 24 * 60 * 60 * 1000,
-//     },
-//   })
-// );
-
-const {controllers, validators} = await loadAppModules(
+const { controllers, validators } = await loadAppModules(
   appConfig.module.toLowerCase(),
 );
 
