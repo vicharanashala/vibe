@@ -9,7 +9,7 @@ import express from 'express';
 import { useExpressServer, RoutingControllersOptions } from 'routing-controllers';
 import { appConfig } from './config/app.js';
 import { loggingHandler } from './shared/middleware/loggingHandler.js';
-import { createRateLimiter, HttpErrorHandler } from './shared/index.js';
+import {  HttpErrorHandler } from './shared/index.js';
 import { generateOpenAPISpec } from './shared/functions/generateOpenApiSpec.js';
 import { apiReference } from '@scalar/express-api-reference';
 import { loadAppModules } from './bootstrap/loadModules.js';
@@ -20,9 +20,9 @@ import { currentUserChecker } from './shared/functions/currentUserChecker.js';
 import { startCron } from './utils/startCron.js';
 
 const app = express();
-const globalRateLimiter = createRateLimiter();
+// const globalRateLimiter = createRateLimiter();
 
-app.use(globalRateLimiter);
+// app.use(globalRateLimiter);
 app.use(loggingHandler);
 
 app.set('trust proxy', 1);

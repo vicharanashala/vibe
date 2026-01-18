@@ -68,10 +68,6 @@ class ProgressService extends BaseService {
     @inject(QUIZZES_TYPES.QuizRepo)
     private quizRepo: QuizRepository,
 
-    @inject(SETTING_TYPES.CourseSettingService)
-    private courseSettingService: CourseSettingService,
-
-
     @inject(PROJECTS_TYPES.projectSubmissionRepository)
     private projectSubmissionRepo: IProjectSubmissionRepository,
 
@@ -80,6 +76,7 @@ class ProgressService extends BaseService {
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase, // inject the database provider
+
   ) {
     super(database);
   }
@@ -499,17 +496,10 @@ class ProgressService extends BaseService {
     sectionId: string,
     itemId: string,
   ): Promise<void> {
-    const [linearProgressionEnabled, progress] = await Promise.all([
-      this.courseSettingService.isLinearProgressionEnabled(courseId, courseVersionId),
-      this.progressRepository.findProgress(userId, courseId, courseVersionId),
-    ]);
-
-    if (!linearProgressionEnabled)
-      return;
+    const progress = await this.progressRepository.findProgress(userId, courseId, courseVersionId)
 
     if (!progress)
       throw new NotFoundError('Progress not found');
-
 
     // Check if item is completed directly in db.
     const isItemCompleted = await this.progressRepository.isItemCompleted(
@@ -1297,6 +1287,60 @@ class ProgressService extends BaseService {
       return new Set(completedItemsArray).size;
     });
   }
+
+  private async _verifyStartEligibilityChecks(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    moduleId: string,
+    sectionId: string,
+    itemId: string,
+  ): Promise<void> {
+    const progress = await this.progressRepository.findProgress(
+      userId,
+      courseId,
+      courseVersionId,
+    );
+
+    if (!progress) throw new NotFoundError('Progress not found');
+
+    // Condition 1: Current progress matches the item
+    if (
+      progress.currentModule.toString() === moduleId &&
+      progress.currentSection.toString() === sectionId &&
+      progress.currentItem.toString() === itemId
+    ) {
+      return; // Eligible
+    }
+
+    // Condition 2: Previous item completed
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    const previousItem = await this.getPreviousItemInSequence(
+      courseVersion,
+      moduleId,
+      sectionId,
+      itemId,
+    );
+
+    if (previousItem) {
+      const isPreviousItemCompleted = await this.progressRepository.isItemCompleted(
+        userId,
+        courseId,
+        courseVersionId,
+        previousItem.itemId,
+      );
+
+      if (isPreviousItemCompleted) {
+        return; // Eligible
+      }
+    }
+
+    // If none of the conditions pass, throw error
+    throw new BadRequestError(
+      "You cannot start this item yet due to linear progression rules.",
+    );
+  }
+
 
   async startItem(
     userId: string,
