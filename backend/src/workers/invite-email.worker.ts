@@ -27,6 +27,7 @@ import { ItemRepository } from "#root/shared/database/providers/mongo/repositori
 import { EnrollmentService } from "#root/modules/users/services/EnrollmentService.js";
 import { ProgressService } from "#root/modules/users/services/ProgressService.js";
 import { FeedbackRepository } from "#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js";
+import { CourseSettingService } from "#root/modules/setting/index.js";
 
 interface WorkerData {
   inviteIds: string[];
@@ -76,10 +77,11 @@ const mailService = new MailService()
 const userRepo = new UserRepository(database)
 const itemRepo = new ItemRepository(database, courseRepo)
 const submissionRepo = new SubmissionRepository(database)
+const courseSettingService = new CourseSettingService(settingsRepo, courseRepo, database)
 const userQuizMetricsRepo = new UserQuizMetricsRepository(database)
 const quizRepo = new QuizRepository(database)
 const feedbackRepo = new FeedbackRepository(database)
-const progressService = new ProgressService(progressRepo, submissionRepo, courseRepo, userRepo, itemRepo, enrollmentRepo, userQuizMetricsRepo, quizRepo, projectSubmissionRepo, feedbackRepo, database)
+const progressService = new ProgressService(progressRepo, submissionRepo, courseRepo, userRepo, itemRepo, enrollmentRepo, userQuizMetricsRepo, quizRepo, courseSettingService, projectSubmissionRepo, feedbackRepo, database)
 const enrollmentService = new EnrollmentService(enrollmentRepo, courseRepo, userRepo, itemRepo, courseRegistrationRepo, progressService, inviteRepo, progressRepo, database)
 const inviteService = new InviteService(inviteRepo, userRepo, courseRepo, enrollmentRepo, mailService, itemRepo, enrollmentService, database);
 
