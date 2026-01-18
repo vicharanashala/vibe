@@ -1354,14 +1354,7 @@ class ProgressService extends BaseService {
 
     await Promise.all([
       this.verifyDetails(userId, courseId, courseVersionId),
-      this.verifyProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        moduleId,
-        sectionId,
-        itemId,
-      ),
+      this._verifyStartEligibilityChecks(userId, courseId, courseVersionId, moduleId, sectionId, itemId),
     ]);
     return this._withTransaction(async session => {
       // Fast exit if item is already completed
