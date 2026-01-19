@@ -45,7 +45,7 @@ export class MongoDatabase implements IDatabase<Db> {
       tlsAllowInvalidCertificates: false,
       tlsAllowInvalidHostnames: false,
       retryWrites: true,
-      maxPoolSize: 10,        // ✅ LIMIT connections per instance
+      maxPoolSize: 8,        // ✅ LIMIT connections per instance
       minPoolSize: 2,
       connectTimeoutMS: 30000,
       socketTimeoutMS: 30000
