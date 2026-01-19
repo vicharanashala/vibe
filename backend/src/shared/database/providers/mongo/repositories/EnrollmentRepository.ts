@@ -1118,8 +1118,7 @@ export class EnrollmentRepository {
       userId: e.userId,
       courseId: e.courseId,
       courseVersionId: e.courseVersionId,
-      isDeleted: { $ne: true },
-      endTime: { $exists: true, $ne: null },
+      isHidden: {$ne: true},
     }));
 
     const results = await this.watchTimeCollection
