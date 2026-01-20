@@ -311,8 +311,6 @@ export class EnrollmentRepository {
       ObjectId.isValid(userId) ? new ObjectId(userId) : null,
     ].filter(Boolean);
 
-    console.log("userId", userFilter)
-
     const result = await this.enrollmentCollection.updateOne(
       {
         _id: enrollmentObjectId,

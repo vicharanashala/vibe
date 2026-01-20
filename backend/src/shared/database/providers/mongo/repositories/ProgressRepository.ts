@@ -736,7 +736,6 @@ class ProgressRepository {
         userId: new ObjectId(userId),
         courseVersionId: new ObjectId(courseVersionId),
         isDeleted: { $ne: true },
-        invalidatedAt: { $exists: false },
       },
       { session },
     );
