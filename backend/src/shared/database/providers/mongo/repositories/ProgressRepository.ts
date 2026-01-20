@@ -25,7 +25,8 @@ class ProgressRepository {
     if (this.initialized) {
       return;
     }
-    this.initialized = true;
+   
+     
 
     this.progressCollection = await this.db.getCollection<IProgress>(
       'progress',
@@ -36,6 +37,9 @@ class ProgressRepository {
     this.attemptCollection = await this.db.getCollection<IAttempt>(
       'quiz_attempts',
     );
+
+      this.initialized = true;
+  
 
     // Create indexes with background: true and error handling
     try {
@@ -95,6 +99,7 @@ class ProgressRepository {
         courseVersionId: new ObjectId(courseVersionId),
         endTime: { $exists: true, $ne: null },
         isDeleted: { $ne: true },
+        
       },
       { session },
     );
@@ -410,6 +415,8 @@ class ProgressRepository {
         session,
       },
     );
+
+
   }
 
   async findById(
@@ -729,6 +736,7 @@ class ProgressRepository {
         userId: new ObjectId(userId),
         courseVersionId: new ObjectId(courseVersionId),
         isDeleted: { $ne: true },
+        invalidatedAt: { $exists: false },
       },
       { session },
     );
