@@ -102,11 +102,6 @@ function DashboardContent() {
             value={enrollmentsLoading ? "—" : `${totalEnrollments}`}
             label="Enrolled Courses"
           />
-          <StatCard
-            icon="⏱️"
-            value={!watchtimeData ? "—" : `${(watchtimeData / 3600).toFixed(2)}h`}
-            label="Study Time"
-          />
           <StatCard icon="🎓" value={`${totalProgress}%`} label="Completion Percentage" />
         </div>
       </div>
