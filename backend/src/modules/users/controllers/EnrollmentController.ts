@@ -138,7 +138,7 @@ export class EnrollmentController {
     @Ability(getEnrollmentAbility) {ability},
   ): Promise<EnrollUserResponse> {
     const {userId, courseId, versionId} = params;
-    const enrollmentData = await this.enrollmentService.findEnrollment(
+    const enrollmentData = await this.enrollmentService.findActiveEnrollment(
       userId,
       courseId,
       versionId,

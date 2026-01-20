@@ -748,7 +748,7 @@ export default function CourseEnrollments() {
                         { key: 'name', label: 'Student', className: 'pl-6 w-[300px]' },
                         { key: 'enrollmentDate', label: 'Enrolled', className: 'w-[120px]' },
                         { key: 'progress', label: 'Completion Percentage', className: 'w-[200px]' },
-                        {key: 'scoreObtained', label: 'Score obtained', className: 'w-[200px]'},
+                        {key: 'itemsCompleted', label: 'Items Completed', className: 'w-[200px]'},
                         // { key: 'status', label: 'Status', className: 'w-[200px]' },
                       ].map(({ key, label, className }) => (
                         <TableHead
@@ -836,7 +836,8 @@ export default function CourseEnrollments() {
                           </TableCell>
                           <TableCell className="py-6">
                             <div className="text-muted-foreground font-medium">
-                              {enrollment.totalQuizScore !== undefined ? `${enrollment.totalQuizScore} / ${enrollment.totalQuizMaxScore || 0}` : 'N/A'}
+                              {/* {enrollment.totalQuizScore !== undefined ? `${enrollment.totalQuizScore} / ${enrollment.totalQuizMaxScore || 0}` : 'N/A'} */}
+                              {enrollment.completedItemsCount || 0} / {version.totalItems} items
                             </div>
                           </TableCell>
                           <TableCell className="py-6 pr-6">
