@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { QuizSubmissionDisplay } from "./QuizSubmissionDisplay"
 import { WatchTimeDisplay } from "./WatchTimeDisplay"
-
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 // Import hooks - including the new quiz hooks
 import {
@@ -296,6 +296,11 @@ export default function CourseEnrollments() {
     };
   }, [searchQuery]);
 
+  // Active / Inactive tab
+  const [enrollmentTab, setEnrollmentTab] = useState<"ACTIVE" | "INACTIVE">("ACTIVE")
+  const statusTab: "ACTIVE" | "INACTIVE" = enrollmentTab
+
+
   // Fetch enrollments data
   const {
     data: enrollmentsData,
@@ -311,10 +316,19 @@ export default function CourseEnrollments() {
     sortBy,
     sortOrder,
     !!(courseId && versionId),
-    'STUDENT'
+    'STUDENT',
+    statusTab,
   );
 
-  const studentEnrollments = enrollmentsData?.enrollments || [];
+  // Active / Inactive tab
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [enrollmentTab])
+
+  
+  // const studentEnrollments = enrollmentsData?.enrollments || [];
+  const studentEnrollments = enrollmentsData?.enrollments || []
+
 
   // API Hooks
   const resetProgressMutation = useResetProgress()
@@ -695,214 +709,427 @@ export default function CourseEnrollments() {
 
 
         {/* Students Table */}
-        <Card className="border-0 shadow-lg overflow-hidden">
-          <CardHeader className="pb-4 bg-gradient-to-r from-card to-muted/20 flex items-center justify-between lg:flex-nowrap flex-wrap">
-            <CardTitle className="text-xl font-medium text-card-foreground">Enrolled Students</CardTitle>
-            <div className="flex items-center space-x-4 lg:flex-nowrap flex-wrap gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsExporting(true)}
-                disabled={isLoadingQuizScores}
-                className="flex items-center gap-2"
-              >
-                {isLoadingQuizScores ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <FileDown className="h-4 w-4" />
-                )}
-                <span>{isLoadingQuizScores ? 'Exporting...' : 'Export Quiz Scores'}</span>
-              </Button>
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-muted-foreground">Show</span>
-                <select
-                  value={limit}
-                  onChange={handleLimitChange}
-                  className="h-8 rounded-md border border-input bg-background px-3 py-1 text-sm"
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                </select>
-                <span className="text-sm text-muted-foreground">per page</span>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            {enrollmentsData?.enrollments?.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
-                  <Users className="h-10 w-10 text-muted-foreground" />
-                </div>
-                <p className="text-foreground text-xl font-semibold mb-2">No students found</p>
-                <p className="text-muted-foreground">
-                  {searchQuery ? "Try adjusting your search terms" : "No students are enrolled in this course version"}
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border bg-muted/30">
-                      {[
-                        { key: 'name', label: 'Student', className: 'pl-6 w-[300px]' },
-                        { key: 'enrollmentDate', label: 'Enrolled', className: 'w-[120px]' },
-                        { key: 'progress', label: 'Completion Percentage', className: 'w-[200px]' },
-                        {key: 'scoreObtained', label: 'Score obtained', className: 'w-[200px]'},
-                        // { key: 'status', label: 'Status', className: 'w-[200px]' },
-                      ].map(({ key, label, className }) => (
-                        <TableHead
-                          key={key}
-                          className={`font-bold text-foreground cursor-pointer select-none ${className}`}
-                          onClick={() => handleSort(key as 'name' | 'enrollmentDate' | 'progress')}
-                        >
-                          <span className="flex items-center gap-1" >
-                            {label}
-                            {sortBy === key && (
-                              sortOrder === 'asc'
-                                ? <ArrowUp size={16} className="text-foreground" />
-                                : <ArrowDown size={16} className="text-foreground" />
-                            )}
-                          </span>
-                        </TableHead>
-                      ))}
-                      <TableHead className="font-bold text-foreground pr-6 w-[200px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(enrollmentsLoading || isSearching) ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-16">
-                          <div className="flex items-center justify-center">
-                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                            <span className="ml-2 text-muted-foreground">
-                              Loading enrollments...
-                            </span>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : studentEnrollments?.length > 0 ? (
-                      studentEnrollments?.map((enrollment: any) => (
-                        <TableRow
-                          key={enrollment._id}
-                          className={`border-border hover:bg-muted/20 transition-colors duration-200 group ${enrollment.isDeleted ? "opacity-50" : ""}`}
-                        >
-                          <TableCell className="pl-6 py-6">
-                            <div className="flex items-center gap-4">
-                              <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
-                                <AvatarImage src="/placeholder.svg" alt={enrollment.email || enrollment.user?.email || ""} />
-                                <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
-                                  {[enrollment?.user?.firstName?.[0], enrollment?.user?.lastName?.[0]]
-                                    .filter(Boolean)
-                                    .map((ch) => ch.toUpperCase())
-                                    .join("") ||
-                                    enrollment?.user?.firstName?.[0]?.toUpperCase() ||
-                                    enrollment?.user?.lastName?.[0]?.toUpperCase() ||
-                                    "?"}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2">
-                                  <p className="font-semibold text-foreground truncate text-base md:text-lg">
-                                    {enrollment?.user?.firstName || enrollment?.user?.lastName
-                                      ? `${enrollment?.user?.firstName ?? ""} ${enrollment?.user?.lastName ?? ""}`.trim()
-                                      : "Unknown User"}
+    {/* Students Table + Tabs */}
+<Tabs
+  value={enrollmentTab}
+  onValueChange={(v) => setEnrollmentTab(v as "ACTIVE" | "INACTIVE")}
+  className="w-full"
+>
+  {/* Tabs Header */}
+  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <TabsList className="grid w-full sm:w-[420px] grid-cols-2 h-11 bg-muted/30 p-1 rounded-xl">
+      <TabsTrigger
+        value="ACTIVE"
+        className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
+      >
+        Active Students
+      </TabsTrigger>
 
-                                  </p>
-                                  <span>{getRoleBadge(enrollment?.role)}</span>
-                                </div>
-                                <p className="text-xs md:text-sm text-muted-foreground truncate">{enrollment?.user?.email || ""}</p>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-6">
-                            <div className="text-muted-foreground font-medium">
-                              {new Date(enrollment.enrollmentDate).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                              })}
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-6">
-                            <div className="space-y-1">
-                              <EnrollmentProgress progress={Math.round(enrollment.progress || 0)} />
-                              {/* {version?.totalItems !== undefined && (
-                                <p className="text-xs text-muted-foreground">
-                                  {enrollment.completedItemsCount || 0} / {version.totalItems} items
-                                </p>
-                              )} */}
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-6">
-                            <div className="text-muted-foreground font-medium">
-                              {enrollment.totalQuizScore !== undefined ? `${enrollment.totalQuizScore} / ${enrollment.totalQuizMaxScore || 0}` : 'N/A'}
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-6 pr-6">
-                            <div className="flex items-center gap-3">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  handleViewProgress({
-                                    id: enrollment.user?._id,
-                                    name:
-                                      `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
-                                    email: enrollment.user?.email,
-                                    enrolledDate: enrollment.enrollmentDate,
-                                    progress: Math.round(enrollment.progress || 0),
-                                    completedItemsCount: enrollment.completedItemsCount || 0,
-                                    isDeleted: enrollment.isDeleted
-                                  })
-                                }
-                                disabled={enrollment.role !== "STUDENT" || Math.round(enrollment.progress || 0) == 0 || enrollment?.isDeleted}
-                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
-                              >
-                                <Eye className="h-4 w-4 mr-2" />
-                                View Progress
-                              </Button>
-                              
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  handleRemoveStudent({
-                                    id: enrollment.user?._id,
-                                    name:
-                                      `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
-                                    email: enrollment.user?.email,
-                                    enrolledDate: enrollment.enrollmentDate,
-                                    progress: 0,
-                                  })
-                                }
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
-                                disabled={unenrollMutation.isPending || user?.email == enrollment?.user?.email || enrollment?.isDeleted}
-                              >
-                                {unenrollMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                ) : (
-                                  <UserX className="h-4 w-4 mr-2" />
-                                )}
-                                Remove
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-4">
-                          No enrollments found.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+      <TabsTrigger
+        value="INACTIVE"
+        className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
+      >
+        Inactive Students 
+      </TabsTrigger>
+    </TabsList>
+
+    <div className="text-sm text-muted-foreground">
+      Showing{" "}
+      <span className="font-semibold text-foreground">
+        {enrollmentTab === "ACTIVE" ? "Active" : "Inactive"}
+      </span>{" "}
+      enrollments
+    </div>
+  </div>
+
+  {/* Active Tab */}
+  <TabsContent value="ACTIVE" className="mt-4">
+    <Card className="border-0 shadow-lg overflow-hidden">
+      <CardHeader className="pb-4 bg-gradient-to-r from-card to-muted/20 flex items-center justify-between lg:flex-nowrap flex-wrap">
+        <CardTitle className="text-xl font-medium text-card-foreground">
+          Enrolled Students
+        </CardTitle>
+
+        <div className="flex items-center space-x-4 lg:flex-nowrap flex-wrap gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsExporting(true)}
+            disabled={isLoadingQuizScores}
+            className="flex items-center gap-2"
+          >
+            {isLoadingQuizScores ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileDown className="h-4 w-4" />
             )}
-          </CardContent>
-        </Card>
+            <span>
+              {isLoadingQuizScores ? "Exporting..." : "Export Quiz Scores"}
+            </span>
+          </Button>
+
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-muted-foreground">Show</span>
+            <select
+              value={limit}
+              onChange={handleLimitChange}
+              className="h-8 rounded-md border border-input bg-background px-3 py-1 text-sm"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+            </select>
+            <span className="text-sm text-muted-foreground">per page</span>
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="p-0">
+        {studentEnrollments.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
+              <Users className="h-10 w-10 text-muted-foreground" />
+            </div>
+            <p className="text-foreground text-xl font-semibold mb-2">
+              No active students found
+            </p>
+            <p className="text-muted-foreground">
+              {searchQuery
+                ? "Try adjusting your search terms"
+                : "No active students are enrolled in this course version"}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border bg-muted/30">
+                  {[
+                    { key: "name", label: "Student", className: "pl-6 w-[300px]" },
+                    { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
+                    { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                    { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
+                  ].map(({ key, label, className }) => (
+                    <TableHead
+                      key={key}
+                      className={`font-bold text-foreground cursor-pointer select-none ${className}`}
+                      onClick={() =>
+                        handleSort(key as "name" | "enrollmentDate" | "progress")
+                      }
+                    >
+                      <span className="flex items-center gap-1">
+                        {label}
+                        {sortBy === key &&
+                          (sortOrder === "asc" ? (
+                            <ArrowUp size={16} className="text-foreground" />
+                          ) : (
+                            <ArrowDown size={16} className="text-foreground" />
+                          ))}
+                      </span>
+                    </TableHead>
+                  ))}
+                  <TableHead className="font-bold text-foreground pr-6 w-[200px]">
+                    Actions
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {(enrollmentsLoading || isSearching) ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-16">
+                      <div className="flex items-center justify-center">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        <span className="ml-2 text-muted-foreground">
+                          Loading enrollments...
+                        </span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  studentEnrollments.map((enrollment: any) => (
+                    <TableRow
+                      key={enrollment._id}
+                      className="border-border hover:bg-muted/20 transition-colors duration-200 group"
+                    >
+                      {/* Student */}
+                      <TableCell className="pl-6 py-6">
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
+                            <AvatarImage
+                              src="/placeholder.svg"
+                              alt={enrollment?.user?.email || ""}
+                            />
+                            <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
+                              {[enrollment?.user?.firstName?.[0], enrollment?.user?.lastName?.[0]]
+                                .filter(Boolean)
+                                .map((ch: string) => ch.toUpperCase())
+                                .join("") || "?"}
+                            </AvatarFallback>
+                          </Avatar>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold text-foreground truncate text-base md:text-lg">
+                                {enrollment?.user?.firstName || enrollment?.user?.lastName
+                                  ? `${enrollment?.user?.firstName ?? ""} ${enrollment?.user?.lastName ?? ""}`.trim()
+                                  : "Unknown User"}
+                              </p>
+                              <span>{getRoleBadge(enrollment?.role)}</span>
+                            </div>
+
+                            <p className="text-xs md:text-sm text-muted-foreground truncate">
+                              {enrollment?.user?.email || ""}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+
+                      {/* Enrolled Date */}
+                      <TableCell className="py-6">
+                        <div className="text-muted-foreground font-medium">
+                          {new Date(enrollment.enrollmentDate).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </div>
+                      </TableCell>
+
+                      {/* Progress */}
+                      <TableCell className="py-6">
+                        <div className="space-y-1">
+                          <EnrollmentProgress progress={Math.round(enrollment.progress || 0)} />
+                        </div>
+                      </TableCell>
+
+                      {/* Score obtained */}
+                      <TableCell className="py-6">
+                        <div className="text-muted-foreground font-medium">
+                          {enrollment.totalQuizScore !== undefined
+                            ? `${enrollment.totalQuizScore} / ${enrollment.totalQuizMaxScore || 0}`
+                            : "N/A"}
+                        </div>
+                      </TableCell>
+
+                      {/* Actions */}
+                      <TableCell className="py-6 pr-6">
+                        <div className="flex items-center gap-3">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              handleViewProgress({
+                                id: enrollment.user?._id,
+                                name:
+                                  `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() ||
+                                  "Unknown User",
+                                email: enrollment.user?.email,
+                                enrolledDate: enrollment.enrollmentDate,
+                                progress: Math.round(enrollment.progress || 0),
+                                completedItemsCount: enrollment.completedItemsCount || 0,
+                                isDeleted: enrollment.isDeleted,
+                              })
+                            }
+                            disabled={
+                              enrollment.role !== "STUDENT" ||
+                              Math.round(enrollment.progress || 0) === 0 ||
+                              enrollment?.isDeleted
+                            }
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Progress
+                          </Button>
+
+                          {/* Remove only in ACTIVE tab */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              handleRemoveStudent({
+                                id: enrollment.user?._id,
+                                name:
+                                  `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() ||
+                                  "Unknown User",
+                                email: enrollment.user?.email,
+                                enrolledDate: enrollment.enrollmentDate,
+                                progress: 0,
+                              })
+                            }
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
+                            disabled={
+                              unenrollMutation.isPending ||
+                              user?.email === enrollment?.user?.email ||
+                              enrollment?.isDeleted
+                            }
+                          >
+                            {unenrollMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <UserX className="h-4 w-4 mr-2" />
+                            )}
+                            Remove
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  </TabsContent>
+
+  {/* Inactive Tab */}
+  <TabsContent value="INACTIVE" className="mt-4">
+    <Card className="border-0 shadow-lg overflow-hidden">
+      <CardHeader className="pb-4 bg-gradient-to-r from-card to-muted/20 flex items-center justify-between lg:flex-nowrap flex-wrap">
+        <CardTitle className="text-xl font-medium text-card-foreground">
+          Inactive Students
+        </CardTitle>
+      </CardHeader>
+
+      <CardContent className="p-0">
+        {studentEnrollments.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
+              <Users className="h-10 w-10 text-muted-foreground" />
+            </div>
+            <p className="text-foreground text-xl font-semibold mb-2">
+              No inactive students found
+            </p>
+            <p className="text-muted-foreground">
+              {searchQuery ? "Try adjusting your search terms" : "No inactive enrollments found"}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border bg-muted/30">
+                  <TableHead className="font-bold text-foreground pl-6 w-[300px]">Student</TableHead>
+                  <TableHead className="font-bold text-foreground w-[120px]">Enrolled</TableHead>
+                  <TableHead className="font-bold text-foreground w-[200px]">Completion Percentage</TableHead>
+                  <TableHead className="font-bold text-foreground w-[200px]">Score obtained</TableHead>
+                  <TableHead className="font-bold text-foreground pr-6 w-[200px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {(enrollmentsLoading || isSearching) ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-16">
+                      <div className="flex items-center justify-center">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        <span className="ml-2 text-muted-foreground">
+                          Loading enrollments...
+                        </span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  studentEnrollments.map((enrollment: any) => (
+                    <TableRow
+                      key={enrollment._id}
+                      className="border-border hover:bg-muted/20 transition-colors duration-200 group opacity-80"
+                    >
+                      <TableCell className="pl-6 py-6">
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md">
+                            <AvatarImage src="/placeholder.svg" alt={enrollment?.user?.email || ""} />
+                            <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
+                              {[enrollment?.user?.firstName?.[0], enrollment?.user?.lastName?.[0]]
+                                .filter(Boolean)
+                                .map((ch: string) => ch.toUpperCase())
+                                .join("") || "?"}
+                            </AvatarFallback>
+                          </Avatar>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold text-foreground truncate text-base md:text-lg">
+                                {enrollment?.user?.firstName || enrollment?.user?.lastName
+                                  ? `${enrollment?.user?.firstName ?? ""} ${enrollment?.user?.lastName ?? ""}`.trim()
+                                  : "Unknown User"}
+                              </p>
+                              <span>{getRoleBadge(enrollment?.role)}</span>
+
+                              {/* Inactive badge */}
+                              <Badge variant="outline" className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                                INACTIVE
+                              </Badge>
+                            </div>
+
+                            <p className="text-xs md:text-sm text-muted-foreground truncate">
+                              {enrollment?.user?.email || ""}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="py-6">
+                        <div className="text-muted-foreground font-medium">
+                          {new Date(enrollment.enrollmentDate).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="py-6">
+                        <EnrollmentProgress progress={Math.round(enrollment.progress || 0)} />
+                      </TableCell>
+
+                      <TableCell className="py-6">
+                        <div className="text-muted-foreground font-medium">
+                          {enrollment.totalQuizScore !== undefined
+                            ? `${enrollment.totalQuizScore} / ${enrollment.totalQuizMaxScore || 0}`
+                            : "N/A"}
+                        </div>
+                      </TableCell>
+
+                      {/* Actions: View Progress only */}
+                      <TableCell className="py-6 pr-6">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            handleViewProgress({
+                              id: enrollment.user?._id,
+                              name:
+                                `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() ||
+                                "Unknown User",
+                              email: enrollment.user?.email,
+                              enrolledDate: enrollment.enrollmentDate,
+                              progress: Math.round(enrollment.progress || 0),
+                              completedItemsCount: enrollment.completedItemsCount || 0,
+                              isDeleted: enrollment.isDeleted,
+                            })
+                          }
+                          disabled={Math.round(enrollment.progress || 0) === 0}
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Progress
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  </TabsContent>
+</Tabs>
+
 
         {/* Enhanced View Progress Modal */}
         {isViewProgressDialogOpen && selectedUser && (
@@ -954,139 +1181,83 @@ export default function CourseEnrollments() {
               </div>
 
               {/* Course Structure */}
-              <div className="space-y-4">
-                <div className="flex justify-between">
-                  <TooltipProvider delayDuration={300}>
+            <div className="space-y-4">
+            {enrollmentTab === "ACTIVE" && (
+              <div className="flex justify-between">
+                <TooltipProvider delayDuration={300}>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      handleResetProgress({
-                        id: selectedUser.id,
-                        name:
-                          `${selectedUser.name || ""}`.trim() || "Unknown User",
-                        email: selectedUser.email,
-                        enrolledDate: selectedUser.enrolledDate,
-                        progress: 0,
-                      })
-                    }
-                    className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
-                    disabled={resetProgressMutation.isPending || /*Math.round(enrollment.progress || 0 ) == 0 ||*/ selectedUser.isDeleted}
-                  >
-                    {resetProgressMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <RotateCcw className="h-4 w-4 mr-2" />
-                    )}
-                    Reset
-                  </Button>
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          handleResetProgress({
+                            id: selectedUser.id,
+                            name: `${selectedUser.name || ""}`.trim() || "Unknown User",
+                            email: selectedUser.email,
+                            enrolledDate: selectedUser.enrolledDate,
+                            progress: 0,
+                          })
+                        }
+                        className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
+                        disabled={resetProgressMutation.isPending || selectedUser.isDeleted}
+                      >
+                        {resetProgressMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                        )}
+                        Reset
+                      </Button>
                     </TooltipTrigger>
 
                     <TooltipContent>
                       <p>Reset student progress</p>
                     </TooltipContent>
-                    
                   </Tooltip>
-                  </TooltipProvider>
-                  
+                </TooltipProvider>
 
-                 <TooltipProvider>
+                <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                       <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      handleRecalculateProgress({
-                        id: selectedUser.id,
-                        name:
-                          `${selectedUser.name || ""}`.trim() || "Unknown User",
-                        email: selectedUser.email,
-                        enrolledDate: selectedUser.enrolledDate,
-                        progress: 0,
-                      })
-                    }
-                    className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
-                    disabled={unenrollMutation.isPending || user?.email == selectedUser.email || selectedUser.isDeleted}
-                  >
-                    {unenrollMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <RotateCcw className="h-4 w-4 mr-2" />
-                    )}
-                    Recalculate
-                  </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          handleRecalculateProgress({
+                            id: selectedUser.id,
+                            name: `${selectedUser.name || ""}`.trim() || "Unknown User",
+                            email: selectedUser.email,
+                            enrolledDate: selectedUser.enrolledDate,
+                            progress: 0,
+                          })
+                        }
+                        className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+                        disabled={
+                          unenrollMutation.isPending ||
+                          user?.email == selectedUser.email ||
+                          selectedUser.isDeleted
+                        }
+                      >
+                        {unenrollMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                        )}
+                        Recalculate
+                      </Button>
                     </TooltipTrigger>
 
-                    <TooltipContent>
-                      Recalculate student progress
-                    </TooltipContent>
+                    <TooltipContent>Recalculate student progress</TooltipContent>
                   </Tooltip>
-                 </TooltipProvider>
-                </div>
-
-                <h3 className="text-lg font-semibold text-foreground">Course Structure</h3>
-                <div className="space-y-2 max-h-96 overflow-y-auto border border-border rounded-lg p-4">
-                  {getAvailableModules().map((module: any) => (
-                    <div key={module.moduleId} className="space-y-2">
-                      {/* Module */}
-                      <div
-                        className="flex items-center gap-2 p-3 bg-muted/20 rounded-lg cursor-pointer hover:bg-muted/30 transition-colors"
-                        onClick={() => toggleModule(module.moduleId)}
-                      >
-                        {expandedModules.has(module.moduleId) ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
-                        <BookOpen className="h-5 w-5 text-blue-600" />
-                        <span className="font-semibold text-foreground">{module.name}</span>
-                      </div>
-
-                      {/* Sections */}
-                      {expandedModules.has(module.moduleId) && (
-                        <div className="ml-6 space-y-2">
-                          {module.sections?.map((section: any) => (
-                            <div key={section.sectionId} className="space-y-2">
-                              <div
-                                className="flex items-center gap-2 p-2 bg-muted/10 rounded-lg cursor-pointer hover:bg-muted/20 transition-colors"
-                                onClick={() => toggleSection(section.sectionId)}
-                              >
-                                {expandedSections.has(section.sectionId) ? (
-                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                ) : (
-                                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                )}
-                                <FileText className="h-4 w-4 text-emerald-600" />
-                                <span className="font-medium text-foreground">{section.name}</span>
-                              </div>
-
-                              {/* Items */}
-                              {expandedSections.has(section.sectionId) && (
-                                <SectionItems
-                                  versionId={versionId!}
-                                  moduleId={module.moduleId}
-                                  sectionId={section.sectionId}
-                                  selectedViewItem={selectedViewItem}
-                                  onItemSelect={(itemId, itemType, itemName) => {
-                                    setSelectedViewItem(itemId)
-                                    setSelectedViewItemType(itemType)
-                                    setSelectedViewItemName(itemName)
-                                  }}
-                                  getItemIcon={getItemIcon}
-                                />
-                              )}
-                            </div>
-                          )) || <p className="text-sm text-muted-foreground ml-6">No sections in this module</p>}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
+                </TooltipProvider>
               </div>
+            )}
+
+  <h3 className="text-lg font-semibold text-foreground">Course Structure</h3>
+  ...
+</div>
+
 
               {/* Item Details Display */}
               {selectedViewItem && (

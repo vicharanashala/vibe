@@ -1182,15 +1182,36 @@ export class EnrollmentRepository {
     sortBy: 'name' | 'enrollmentDate' | 'progress',
     sortOrder: 'asc' | 'desc',
     filter: string,
+    statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
     session?: ClientSession,
   ) {
     await this.init();
     const matchStage: any = {
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
-      status: {$regex: /^active$/i},
-      isDeleted: {$ne: true}, // Exclude soft-deleted enrollments
     };
+
+    // ✅ ACTIVE tab
+    if (statusTab === 'ACTIVE') {
+      matchStage.status = {$regex: /^active$/i};
+      matchStage.isDeleted = {$ne: true};
+    }
+
+    // ✅ INACTIVE tab
+    if (statusTab === 'INACTIVE') {
+      matchStage.$or = [
+        {status: {$regex: /^inactive$/i}},
+        {isDeleted: true},
+      ];
+    }
+
+    // const matchStage: any = {
+    //   courseId: new ObjectId(courseId),
+    //   courseVersionId: new ObjectId(courseVersionId),
+    //   // status: {$regex: /^active$/i},
+    //   isDeleted: {$ne: true}, // Exclude soft-deleted enrollments
+    // };
+    
     if (filter) {
       if (filter === 'STUDENT') {
         matchStage.role = 'STUDENT';

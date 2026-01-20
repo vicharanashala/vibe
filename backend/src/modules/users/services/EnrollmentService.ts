@@ -471,6 +471,7 @@ export class EnrollmentService extends BaseService {
     sortBy: 'name' | 'enrollmentDate' | 'progress',
     sortOrder: 'asc' | 'desc',
     filter: string,
+    statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       const courseVersion = await this.courseRepo.readVersion(
@@ -497,6 +498,7 @@ export class EnrollmentService extends BaseService {
           sortBy,
           sortOrder,
           filter,
+          statusTab,
           session,
         );
 

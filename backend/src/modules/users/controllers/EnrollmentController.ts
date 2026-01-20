@@ -307,6 +307,7 @@ export class EnrollmentController {
       sortBy = 'enrollmentDate',
       sortOrder = 'desc',
       filter,
+      statusTab = 'ACTIVE',
     } = query;
 
     if (page < 1 || limit < 1) {
@@ -327,6 +328,7 @@ export class EnrollmentController {
         sortBy,
         sortOrder,
         filter,
+        statusTab,
       );
 
     if (
