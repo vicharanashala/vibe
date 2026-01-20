@@ -246,6 +246,7 @@ export class EnrollmentService extends BaseService {
         userId,
         courseId,
         courseVersionId,
+        enrollment?._id.toString(),
         session,
       );
 
