@@ -34,13 +34,13 @@ export const CourseSection = ({
     }
 
     if (error) {
-      if (error === "We're having trouble reaching the server. Please check your internet connection and try again.") {
+      if (error === "Authorization is required for request on GET /api/users/enrollments?page=1&limit=5&role=STUDENT") {
         onRetry?.()
       }
       return (
         <EmptyState
           title="Error loading courses"
-          description={typeof error === 'string' ? error : "Failed to load courses. Please try again."}
+          description={typeof error === 'string' ? "We're having trouble reaching the server. Please try again." : "Failed to load courses. Please try again."}
           actionText="Try Again"
           onAction={onRetry}
           variant="error"
