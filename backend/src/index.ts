@@ -5,25 +5,28 @@ await import('./instrument.js');
 
 import * as Sentry from '@sentry/node';
 import express from 'express';
-import cors from 'cors';
 // import session from 'express-session'
 import { useExpressServer, RoutingControllersOptions } from 'routing-controllers';
 import { appConfig } from './config/app.js';
 import { loggingHandler } from './shared/middleware/loggingHandler.js';
-import { HttpErrorHandler, MongoDatabase } from './shared/index.js';
 import { generateOpenAPISpec } from './shared/functions/generateOpenApiSpec.js';
-import { apiReference } from '@scalar/express-api-reference';
 import { getContainer, loadAppModules } from './bootstrap/loadModules.js';
+import { createRateLimiter, HttpErrorHandler, MongoDatabase } from './shared/index.js';
+import { apiReference } from '@scalar/express-api-reference';
 import { printStartupSummary } from './utils/logDetails.js';
 import type { CorsOptions } from 'cors';
 import { authorizationChecker } from './shared/functions/authorizationChecker.js';
 import { currentUserChecker } from './shared/functions/currentUserChecker.js';
 import { startCron } from './utils/startCron.js';
-import { Container } from 'inversify';
 import { GLOBAL_TYPES } from './types.js';
-import { dbConfig } from './config/db.js';
+
+
+
 
 const app = express();
+const globalRateLimiter = createRateLimiter();
+
+app.use(globalRateLimiter);
 app.use(loggingHandler);
 
 app.set('trust proxy', 1);
