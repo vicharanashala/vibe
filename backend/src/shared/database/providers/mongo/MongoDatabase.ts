@@ -17,6 +17,7 @@ import { Db, MongoClient, Document, Collection } from 'mongodb';
 export class MongoDatabase implements IDatabase<Db> {
   private client: MongoClient | null;
   public database: Db | null;
+  private connectingPromise: Promise<Db> | null = null;
 
   /**
    * Creates an instance of MongoDatabase.
@@ -45,8 +46,8 @@ export class MongoDatabase implements IDatabase<Db> {
       tlsAllowInvalidCertificates: false,
       tlsAllowInvalidHostnames: false,
       retryWrites: true,
-      maxPoolSize: 8,        // ✅ LIMIT connections per instance
-      minPoolSize: 2,
+      maxPoolSize: 20,    
+      minPoolSize: 5,
       connectTimeoutMS: 30000,
       socketTimeoutMS: 30000
     });
@@ -56,11 +57,25 @@ export class MongoDatabase implements IDatabase<Db> {
    * Connects to the MongoDB database.
    * @returns {Promise<Db>} The connected database instance.
    */
-  public async connect(): Promise<Db> {
-    await this.client?.connect();
-    this.database = this.client?.db(this.dbName) || null;
+  // public async connect(): Promise<Db> {
+  //   await this.client?.connect();
+  //   this.database = this.client?.db(this.dbName) || null;
 
-    return this.database;
+  //   return this.database;
+  // }
+
+  public async connect(): Promise<Db> {
+    if (this.database) {
+      return this.database;
+    }
+    if (!this.connectingPromise) {
+      this.connectingPromise = (async () => {
+        await this.client?.connect();
+        this.database = this.client?.db(this.dbName)
+        return this.database;
+      })();
+    }
+    return this.connectingPromise;
   }
 
   /**
@@ -101,9 +116,9 @@ export class MongoDatabase implements IDatabase<Db> {
   public async getCollection<T extends Document>(
     name: string,
   ): Promise<Collection<T>> {
-    if (!this.database) {
-      await this.connect();
-    }
+    // if (!this.database) {
+    //   await this.connect();
+    // }
     if (!this.database) {
       throw new Error('Database is not connected');
     }
