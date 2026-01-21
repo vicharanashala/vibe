@@ -206,18 +206,31 @@ export default function CoursePage() {
   // Fetch proctoring settings for the course (fetched once when component loads)
   const [proctoringData, setProctoringData] = useState<StudentProctoringSettings | null>(null);
 
-  const shouldFetchItems = Boolean(activeSectionInfo?.moduleId && activeSectionInfo?.sectionId);
+  
   const sectionModuleId = activeSectionInfo?.moduleId ?? '';
   const sectionId = activeSectionInfo?.sectionId ?? '';
 
-  const {
-    data: currentSectionItems,
-    isLoading: itemsLoading
-  } = useItemsBySectionId(
-    shouldFetchItems ? VERSION_ID : '',
-    shouldFetchItems ? sectionModuleId : '',
-    shouldFetchItems ? sectionId : ''
-  )
+// ---------------------------------------------
+// SECTION ITEM FETCH (ONCE PER SECTION)
+// ---------------------------------------------
+const hasSectionItems =
+  !!activeSectionInfo?.sectionId &&
+  !!sectionItems[activeSectionInfo.sectionId];
+
+const shouldFetchItems =
+  !!activeSectionInfo?.moduleId &&
+  !!activeSectionInfo?.sectionId &&
+  !hasSectionItems;
+
+const {
+  data: currentSectionItems,
+  isLoading: itemsLoading
+} = useItemsBySectionId(
+  shouldFetchItems ? VERSION_ID : '',
+  shouldFetchItems ? activeSectionInfo!.moduleId : '',
+  shouldFetchItems ? activeSectionInfo!.sectionId : ''
+);
+
 
   // Fetch individual item details when an item is selected
   // Don't fetch during navigation to prevent race condition with stopItem
@@ -239,6 +252,24 @@ export default function CoursePage() {
     itemId: string;
   } | null>(null);
 
+  // ---------------------------------------------
+// SAFE SECTION ACTIVATION (PREVENT RE-FETCH)
+// ---------------------------------------------
+const safeSetActiveSection = useCallback(
+  (moduleId: string, sectionId: string) => {
+    setActiveSectionInfo(prev => {
+      if (
+        prev?.moduleId === moduleId &&
+        prev?.sectionId === sectionId
+      ) {
+        return prev; // 🚫 no state change → no refetch
+      }
+      return { moduleId, sectionId };
+    });
+  },
+  []
+);
+
 
 
   useEffect(() => {
@@ -254,6 +285,30 @@ export default function CoursePage() {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
+
+  useEffect(() => {
+  if (
+    shouldFetchItems &&
+    activeSectionInfo?.sectionId &&
+    currentSectionItems &&
+    !itemsLoading
+  ) {
+    const itemsArray =
+      (currentSectionItems as any)?.items ??
+      (Array.isArray(currentSectionItems) ? currentSectionItems : []);
+
+    setSectionItems(prev => ({
+      ...prev,
+      [activeSectionInfo.sectionId]: sortItemsByOrder(itemsArray),
+    }));
+  }
+}, [
+  currentSectionItems,
+  itemsLoading,
+  shouldFetchItems,
+  activeSectionInfo
+]);
+
 
   // Separate effect for handling item errors - prevents circular dependencies
   useEffect(() => {
@@ -608,7 +663,7 @@ export default function CoursePage() {
 
         // Load section items if needed
         if (!sectionItems[sectionId]) {
-          setActiveSectionInfo({ moduleId, sectionId });
+          safeSetActiveSection(moduleId, sectionId);
         }
 
         // Auto-expand sidebar
@@ -827,7 +882,7 @@ export default function CoursePage() {
   //       setWaitingForNextSection({ moduleId, sectionId });
 
   //       // Trigger loading of next section items
-  //       setActiveSectionInfo({ moduleId, sectionId });
+  //       safeSetActiveSection(moduleId, sectionId);
 
   //       // Keep loading state active (will be cleared when navigation completes)
   //       return;
@@ -998,7 +1053,7 @@ export default function CoursePage() {
           setWaitingForNextSection({ moduleId, sectionId });
 
           // Trigger loading of next section items
-          setActiveSectionInfo({ moduleId, sectionId });
+          safeSetActiveSection(moduleId, sectionId);
 
           // Keep loading state active (will be cleared when navigation completes)
           return;
@@ -1033,7 +1088,7 @@ export default function CoursePage() {
 
         // Fetch section if needed
         if (!sectionItems[sectionId]) {
-          setActiveSectionInfo({ moduleId, sectionId });
+          safeSetActiveSection(moduleId, sectionId);
         }
 
         // Update global course store
