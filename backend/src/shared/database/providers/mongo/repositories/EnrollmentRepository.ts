@@ -105,6 +105,7 @@ export class EnrollmentRepository {
         userId: userObjectid,
         courseId: courseObjectId,
         courseVersionId: courseVersionObjectId,
+        isDeleted: { $ne: true },
       },
       { session },
     );
