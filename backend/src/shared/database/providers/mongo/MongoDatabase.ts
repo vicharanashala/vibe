@@ -45,13 +45,22 @@ export class MongoDatabase implements IDatabase<Db> {
       tls: true,
       tlsAllowInvalidCertificates: false,
       tlsAllowInvalidHostnames: false,
+
       retryWrites: true,
-      maxPoolSize: 6,       
+
+      // 🔹 CONNECTION POOL
+      maxPoolSize: 6,
       minPoolSize: 0,
       maxIdleTimeMS: 60000,
+
+      // 🔹 TIMEOUTS
       connectTimeoutMS: 20000,
-      socketTimeoutMS: 20000
+      socketTimeoutMS: 20000,
+
+      // 🔥 IMPORTANT: enable secondary reads
+      readPreference: 'secondaryPreferred',
     });
+
   }
 
   /**
