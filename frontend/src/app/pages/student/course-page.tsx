@@ -1031,6 +1031,8 @@ export default function CoursePage() {
             requestAnimationFrame(frame);
           };
           frame();
+
+          setTimeout(() => router.navigate({ to: "/student" }), 3500);
           // Recalcualate and update the progress % and completed items count properly
           await recalculateStudentProgressAsync({
             body: {
@@ -1038,8 +1040,6 @@ export default function CoursePage() {
               courseVersionId: VERSION_ID,
             },
           });
-
-          setTimeout(() => router.navigate({ to: "/student" }), 3500);
           return;
         }
 

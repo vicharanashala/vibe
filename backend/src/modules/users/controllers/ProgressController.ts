@@ -526,9 +526,9 @@ It returns an empty body with a 200 status code.
     const { courseId, courseVersionId } = body;
     const userId = user._id?.toString();
     return this.progressService.recalculateStudentProgress(
+      userId,
       courseId,
       courseVersionId,
-      userId,
     );
   }
 
