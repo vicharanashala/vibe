@@ -154,6 +154,8 @@ export default function CourseEnrollments() {
     versionId,
     !!(courseId && versionId)
   )
+  const [exportTab, setExportTab] = useState<"ACTIVE" | "INACTIVE">("ACTIVE")
+
 
   const [selectedUser, setSelectedUser] = useState<EnrolledUser | null>(null)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
@@ -228,10 +230,22 @@ export default function CourseEnrollments() {
       toast.warning('No quiz scores available');
       return;
     }
+    const studentIdsInCurrentTab = new Set(
+      (studentEnrollments || [])
+        .map((e: any) => e?.user?._id)
+        .filter(Boolean)
+    );
 
     try {
       // ⚡ FAST: single-pass formatting, no unused maps
-      const formattedData = quizScores.data.map(
+        const filteredQuizScores = Array.isArray(quizScores?.data)
+          ? quizScores.data.filter((student: any) => {
+              const id = student.studentId || student.userId || student._id
+              return studentIdsInCurrentTab.has(id)
+            })
+          : [];
+
+        const formattedData = filteredQuizScores.map(
         (student: any, index: number) => ({
           studentId: student.studentId ?? `student-${index}`,
           name: student.name ?? 'Unknown Student',
@@ -715,6 +729,7 @@ export default function CourseEnrollments() {
   onValueChange={(v) => setEnrollmentTab(v as "ACTIVE" | "INACTIVE")}
   className="w-full"
 >
+  
   {/* Tabs Header */}
   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <TabsList className="grid w-full sm:w-[420px] grid-cols-2 h-11 bg-muted/30 p-1 rounded-xl">
@@ -736,6 +751,9 @@ export default function CourseEnrollments() {
 {/* Active Tab */}
 <TabsContent value="ACTIVE" className="mt-4">
   <EnrollmentsTable
+    setIsExporting={setIsExporting}
+    setExportTab={setExportTab}
+    statusTab={statusTab}
     totalDocuments={totalDocuments}
     studentEnrollments={studentEnrollments}
     enrollmentsLoading={enrollmentsLoading}
@@ -748,7 +766,6 @@ export default function CourseEnrollments() {
     sortBy={sortBy}
     sortOrder={sortOrder}
     isLoadingQuizScores={isLoadingQuizScores}
-    setIsExporting={setIsExporting}
     unenrollMutation={unenrollMutation}
     user={user}
     handleViewProgress={handleViewProgress}
@@ -760,6 +777,7 @@ export default function CourseEnrollments() {
 {/* Inactive Tab */}
 <TabsContent value="INACTIVE" className="mt-4">
   <EnrollmentsTable
+    setExportTab={setExportTab}
     totalDocuments={totalDocuments}
     studentEnrollments={studentEnrollments}
     enrollmentsLoading={enrollmentsLoading}
@@ -1514,6 +1532,7 @@ function EnrollmentsTable({
   handleViewProgress,
   handleRemoveStudent,
   getRoleBadge,
+  setExportTab,
 }: any) {
   const isInactiveTab = enrollmentTab === "INACTIVE"
 
@@ -1531,7 +1550,12 @@ function EnrollmentsTable({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setIsExporting(true)}
+            // onClick={() => setIsExporting(true)}
+            onClick={() => {
+              setExportTab(enrollmentTab);
+              setIsExporting(true);
+            }}
+
             disabled={isLoadingQuizScores}
             className="flex items-center gap-2"
           >
