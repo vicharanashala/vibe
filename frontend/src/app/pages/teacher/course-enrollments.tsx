@@ -736,6 +736,7 @@ export default function CourseEnrollments() {
 {/* Active Tab */}
 <TabsContent value="ACTIVE" className="mt-4">
   <EnrollmentsTable
+    totalDocuments={totalDocuments}
     studentEnrollments={studentEnrollments}
     enrollmentsLoading={enrollmentsLoading}
     isSearching={isSearching}
@@ -759,6 +760,7 @@ export default function CourseEnrollments() {
 {/* Inactive Tab */}
 <TabsContent value="INACTIVE" className="mt-4">
   <EnrollmentsTable
+    totalDocuments={totalDocuments}
     studentEnrollments={studentEnrollments}
     enrollmentsLoading={enrollmentsLoading}
     isSearching={isSearching}
@@ -1495,6 +1497,7 @@ function SectionItems({
 
 function EnrollmentsTable({
   studentEnrollments,
+  totalDocuments,
   enrollmentsLoading,
   isSearching,
   enrollmentTab,
@@ -1518,7 +1521,9 @@ function EnrollmentsTable({
     <Card className="border-0 shadow-lg overflow-hidden">
       <CardHeader className="pb-4 bg-gradient-to-r from-card to-muted/20 flex items-center justify-between lg:flex-nowrap flex-wrap">
         <CardTitle className="text-xl font-medium text-card-foreground">
-          {isInactiveTab ? "Inactive Students" : "Enrolled Students"}
+          {isInactiveTab
+            ? `Inactive Students (${totalDocuments})`
+            : `Active Students (${totalDocuments})`}
         </CardTitle>
 
         {/* SAME header functionality for both tabs */}
