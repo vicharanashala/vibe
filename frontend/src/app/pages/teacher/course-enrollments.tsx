@@ -1555,7 +1555,52 @@ function EnrollmentsTable({
       </CardHeader>
 
       <CardContent className="p-0">
-        {studentEnrollments.length === 0 ? (
+        {(enrollmentsLoading || isSearching) ? (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border bg-muted/30">
+                  {[
+                    { key: "name", label: "Student", className: "pl-6 w-[300px]" },
+                    { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
+                    { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                    { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
+                  ].map(({ key, label, className }) => (
+                    <TableHead
+                      key={key}
+                      className={`font-bold text-foreground cursor-pointer select-none ${className}`}
+                      onClick={() => handleSort(key as "name" | "enrollmentDate" | "progress")}
+                    >
+                      <span className="flex items-center gap-1">
+                        {label}
+                        {sortBy === key &&
+                          (sortOrder === "asc" ? (
+                            <ArrowUp size={16} className="text-foreground" />
+                          ) : (
+                            <ArrowDown size={16} className="text-foreground" />
+                          ))}
+                      </span>
+                    </TableHead>
+                  ))}
+                  <TableHead className="font-bold text-foreground pr-6 w-[200px]">
+                    Actions
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-16">
+                    <div className="flex items-center justify-center">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      <span className="ml-2 text-muted-foreground">Loading enrollments...</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        ) : studentEnrollments.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
               <Users className="h-10 w-10 text-muted-foreground" />
@@ -1571,6 +1616,7 @@ function EnrollmentsTable({
           </div>
         ) : (
           <div className="overflow-x-auto">
+
             <Table>
               <TableHeader>
                 <TableRow className="border-border bg-muted/30">
