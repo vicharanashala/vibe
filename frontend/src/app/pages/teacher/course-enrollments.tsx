@@ -1640,17 +1640,6 @@ function EnrollmentsTable({
                                   ? `${enrollment?.user?.firstName ?? ""} ${enrollment?.user?.lastName ?? ""}`.trim()
                                   : "Unknown User"}
                               </p>
-
-                              <span>{getRoleBadge(enrollment?.role)}</span>
-
-                              {isInactiveTab && (
-                                <Badge
-                                  variant="outline"
-                                  className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
-                                >
-                                  INACTIVE
-                                </Badge>
-                              )}
                             </div>
 
                             <p className="text-xs md:text-sm text-muted-foreground truncate">
