@@ -2600,6 +2600,8 @@ class ProgressService extends BaseService {
       throw new BadRequestError('userId, courseId and versionId are required');
     }
 
+    console.log(`Recalculating progress for user: ${userId}, course: ${courseId}, version: ${versionId}`);
+
     // 1. Fetch progress 
     const progress = await this.progressRepository.findProgress(
       userId,
@@ -2647,6 +2649,7 @@ class ProgressService extends BaseService {
       itemId => !completedItemSet.has(itemId),
     );
 
+    console.log("Missed Item Ids:", missedItemIds, "Count:", missedItemIds.length);
     if (!missedItemIds.length) {
       return; // Nothing to fix
     }
@@ -2671,6 +2674,8 @@ class ProgressService extends BaseService {
       totalItemsCount > 0
         ? Math.round((totalCompletedItemsCount / totalItemsCount) * 100)
         : 0;
+
+    console.log(`Total Items: ${totalItemsCount}, Completed Items: ${totalCompletedItemsCount}, Percent Completed: ${percentCompleted}%`);
 
     // 5. Update enrollment progress
     await this.enrollmentRepo.updateProgressPercentById(
