@@ -1908,6 +1908,7 @@ class ProgressService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
+    enrollmentId: string,
     session?: ClientSession,
   ): Promise<void> {
     return this._withTransaction(async session => {
@@ -1920,6 +1921,7 @@ class ProgressService extends BaseService {
         userId,
         courseId,
         courseVersionId,
+        enrollmentId,
         session,
       );
 
@@ -1970,6 +1972,7 @@ class ProgressService extends BaseService {
           userId,
           courseId,
           courseVersionId,
+          enrollmentId,
           session,
         ),
         quizItemIds.length
