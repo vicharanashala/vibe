@@ -25,25 +25,25 @@ import { markdown } from '@yoopta/exports';
 const MARKS = [Bold, Italic, CodeMark, Underline, Strike, Highlight];
 
 const TOOLS = {
-  Toolbar: {
-    tool: Toolbar,
-    render: DefaultToolbarRender,
-  },
-  ActionMenu: {
-    tool: ActionMenu,
-    render: DefaultActionMenuRender,
-  },
-  LinkTool: {
-    tool: LinkTool,
-    render: DefaultLinkToolRender,
-  },
+    Toolbar: {
+        tool: Toolbar,
+        render: DefaultToolbarRender,
+    },
+    ActionMenu: {
+        tool: ActionMenu,
+        render: DefaultActionMenuRender,
+    },
+    LinkTool: {
+        tool: LinkTool,
+        render: DefaultLinkToolRender,
+    },
 };
 
 // Import ShadCN UI Components
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Clock, Star, ChevronRight } from "lucide-react";
-import { useStartItem, useStopItem} from "@/hooks/hooks";
+import { useStartItem, useStopItem } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 
 
@@ -68,11 +68,11 @@ import { NavigatingOverlay } from "./video";
 import { toast } from "sonner";
 
 
-const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTimeInMinutes, points, tags, onNext, isProgressUpdating }, ref) => {
+const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTimeInMinutes, points, tags, onNext, isProgressUpdating, isAlreadyWatched }, ref) => {
     // ✅ Initialize Yoopta Editor
     const editor = useMemo(() => createYooptaEditor(), []);
     const [value, setValue] = useState<YooptaContentValue>();
-    
+
     // ✅ Get user and course data from stores
     const { currentCourse, setWatchItemId } = useCourseStore();
     const startItem = useStartItem();
@@ -84,29 +84,30 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
     const startRequestSentRef = useRef(false);
 
     function handleSendStartItem() {
-        if (!currentCourse?.itemId || startRequestSentRef.current) return;
-        
-        // Mark that we've sent the start request to prevent multiple calls
-        startRequestSentRef.current = true;
-        
-        startItem.mutate({
-            params: {
-                path: {
-                    courseId: currentCourse.courseId,
-                    courseVersionId: currentCourse.versionId ?? '',
+            if (!currentCourse?.itemId || startRequestSentRef.current || isAlreadyWatched) return;
+
+            // Mark that we've sent the start request to prevent multiple calls
+            startRequestSentRef.current = true;
+
+            startItem.mutate({
+                params: {
+                    path: {
+                        courseId: currentCourse.courseId,
+                        courseVersionId: currentCourse.versionId ?? '',
+                    },
                 },
-            },
-            body: {
-                itemId: currentCourse.itemId,
-                moduleId: currentCourse.moduleId ?? '',
-                sectionId: currentCourse.sectionId ?? '',
-            }
-        });
+                body: {
+                    itemId: currentCourse.itemId,
+                    moduleId: currentCourse.moduleId ?? '',
+                    sectionId: currentCourse.sectionId ?? '',
+                }
+            });
+
     }
 
-   async function handleStopItem() {
+    async function handleStopItem() {
         if (!currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
-        
+
         try {
             await stopItem.mutateAsync({
                 params: {
@@ -143,7 +144,7 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
     const handleNextClick = async () => {
         try {
             if (itemStartedRef.current) {
-            await handleStopItem(); //  wait until stop finishes
+                await handleStopItem(); //  wait until stop finishes
             }
 
             onNext?.(); //  only after stop succeeds
@@ -171,13 +172,13 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
         if (content) {
             // Preprocess content to handle math expressions better
             let processedContent = content;
-            
+
             // Ensure math expressions are properly formatted
             // Convert \( \) to $ $ for inline math
             processedContent = processedContent.replace(/\\\((.*?)\\\)/gs, '$$$1$$');
             // Convert \[ \] to $$ $$ for display math
             processedContent = processedContent.replace(/\\\[(.*?)\\\]/gs, '$$$$1$$$$');
-            
+
             // Fix common LaTeX formatting issues
             // Ensure proper escaping for backslashes in math contexts
             processedContent = processedContent.replace(/\$\$(.*?)\$\$/gs, (_, mathContent) => {
@@ -185,7 +186,7 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
                 const cleanMath = mathContent.replace(/\\n/g, ' ').replace(/\s+/g, ' ').trim();
                 return `$$${cleanMath}$$`;
             });
-            
+
             const deserializedValue = markdown.deserialize(editor, processedContent);
             setValue(deserializedValue);
             editor.setEditorValue(deserializedValue);
@@ -263,7 +264,7 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
                         </div>
                     </div>
                 )}
-                
+
                 {/* Article Content */}
                 <div className="flex-1 w-full p-4 overflow-y-auto">
                     <YooptaEditor

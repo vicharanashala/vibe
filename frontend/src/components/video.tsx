@@ -368,20 +368,21 @@ export default function Video({ URL, startTime, nextItemId, isAlreadyWatched, en
 
 
   function handleSendStartItem() {
-    if (!currentCourse?.itemId || isAlreadyWatched) return;
-    startItem.mutate({
-      params: {
-        path: {
-          courseId: currentCourse.courseId,
-          courseVersionId: currentCourse.versionId ?? '',
+      if (!currentCourse?.itemId || isAlreadyWatched) return;
+      startItem.mutate({
+        params: {
+          path: {
+            courseId: currentCourse.courseId,
+            courseVersionId: currentCourse.versionId ?? '',
+          },
         },
-      },
-      body: {
-        itemId: currentCourse.itemId,
-        moduleId: currentCourse.moduleId ?? '',
-        sectionId: currentCourse.sectionId ?? '',
-      }
-    });
+        body: {
+          itemId: currentCourse.itemId,
+          moduleId: currentCourse.moduleId ?? '',
+          sectionId: currentCourse.sectionId ?? '',
+        }
+      });
+
   }
 
   // Update watchItemId when startItem succeeds
@@ -534,22 +535,24 @@ export default function Video({ URL, startTime, nextItemId, isAlreadyWatched, en
       // Stop if started but not yet stopped
       if (!progressStoppedRef.current && !stopInFlightRef.current && watchItemIdRef.current && currentCourse) {
         stopInFlightRef.current = true
-        stopItem.mutate({
-          params: {
-            path: {
-              courseId: currentCourse.courseId,
-              courseVersionId: currentCourse.versionId ?? '',
-            },
-          },
-          body: {
-            watchItemId: watchItemIdRef.current,
-            itemId: currentCourse.itemId ?? '',
-            moduleId: currentCourse.moduleId ?? '',
-            sectionId: currentCourse.sectionId ?? '',
-            nextItemId
+        // Stop the calling of stop api when you do not watch the video completely. Now stop API will only be called when video ends
 
-          },
-        });
+        // stopItem.mutate({
+        //   params: {
+        //     path: {
+        //       courseId: currentCourse.courseId,
+        //       courseVersionId: currentCourse.versionId ?? '',
+        //     },
+        //   },
+        //   body: {
+        //     watchItemId: watchItemIdRef.current,
+        //     itemId: currentCourse.itemId ?? '',
+        //     moduleId: currentCourse.moduleId ?? '',
+        //     sectionId: currentCourse.sectionId ?? '',
+        //     nextItemId
+
+        //   },
+        // });
       }
       // Reset references
       progressStartedRef.current = false;
@@ -627,7 +630,7 @@ export default function Video({ URL, startTime, nextItemId, isAlreadyWatched, en
 
 
           // Enforce endTime constraint
-          if (endTimeSeconds > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= endTimeSeconds - 1 && currentCourse) {
+          if (endTimeSeconds > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= endTimeSeconds && currentCourse) {
             if (isAlreadyWatched) {
               onNext?.();
               return;

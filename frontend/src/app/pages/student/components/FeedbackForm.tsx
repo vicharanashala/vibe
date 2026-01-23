@@ -36,6 +36,7 @@ const FeedbackForm = ({
   onSubmit,
   onSkip,
   isSubmitting = false,
+  isAlreadyWatched,
   onNext,
 }: FeedbackFormProps) => {
   const watchItemIdRef = useRef<string | null>(null);
@@ -69,7 +70,8 @@ const FeedbackForm = ({
   }, [startItem.data?.watchItemId, setWatchItemId]);
 
   function handleSendStartItem() {
-    if (!currentCourse?.itemId) return;
+    console.log("Is already watched is ", isAlreadyWatched, "for the item, " ,currentCourse?.itemId);
+    if (!currentCourse?.itemId || isAlreadyWatched) return;
     startItem.mutate({
       params: {
         path: {

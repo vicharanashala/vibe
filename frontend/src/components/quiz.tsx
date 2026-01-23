@@ -419,7 +419,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     if (!itemStartedRef.current) {
       return;
     }
-
     await stopItem.mutateAsync({
       params: {
         path: {
@@ -440,7 +439,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     itemStartedRef.current = false;
   }, [currentCourse, stopItem, attemptId]);
 
-
   const stopItemAsync = useCallback(
     async (isSkipped?: boolean) => {
       if (!currentCourse?.itemId || !currentCourse.watchItemId || ( isAlreadyWatched && submissionResults?.gradingStatus !== "PASSED")) {
@@ -451,7 +449,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       if (!itemStartedRef.current) {
         return;
       }
-
       await stopItem.mutateAsync({
         params: {
           path: {

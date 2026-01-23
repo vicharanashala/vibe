@@ -35,6 +35,7 @@ export default function ProjectItem({
   onDelete,
   isSaving = false,
   isDeleting = false,
+  isAlreadyWatched
 }: ProjectItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [cachedValues, setCachedValues] = useState({ 

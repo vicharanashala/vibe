@@ -40,6 +40,7 @@ export interface Item {
     title?: string;
     description?: string;
   };
+  isItemAlreadyCompleted?: boolean;
 }
 
 export interface ItemContainerProps {
@@ -73,4 +74,5 @@ export type ItemMeta = {
   itemId: string,
   courseId: string,
   courseVersionId: string,
+  
 }

@@ -893,13 +893,13 @@ const lastCalledRef = useRef<number>(0);
       
       // Debug log
       if (!isActive) {
-        console.log('[FloatingVideo] Video not active:', {
-          hasStream,
-          isPlaying,
-          paused: video.paused,
-          ended: video.ended,
-          readyState: video.readyState
-        });
+        // console.log('[FloatingVideo] Video not active:', {
+        //   hasStream,
+        //   isPlaying,
+        //   paused: video.paused,
+        //   ended: video.ended,
+        //   readyState: video.readyState
+        // });
       }
     };
 

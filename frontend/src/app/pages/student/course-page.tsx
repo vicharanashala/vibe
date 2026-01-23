@@ -507,17 +507,36 @@ const safeSetActiveSection = useCallback(
   }, [progressData, updateCourseNavigation, initialLoadComplete]);
 
   // Effect to set current item when item data is fetched
+  // useEffect(() => {
+  //   console.log("Item Data: ", itemData);
+  //   if (itemData && !itemLoading) {
+  //     // Handle the different possible response structures
+  //     const item = (itemData as any)?.item || itemData;
+  //     if (item && typeof item === 'object' && item._id) {
+  //       setCurrentItem(item);
+  //       // Clear loading state when new item is successfully loaded
+  //       setIsNavigatingToNext(false);
+  //       console.log("item ",item);
+  //     }
+  //   }
+  // }, [itemData, itemLoading]);
+
   useEffect(() => {
+  const timer = setTimeout(() => {
     if (itemData && !itemLoading) {
-      // Handle the different possible response structures
       const item = (itemData as any)?.item || itemData;
+ 
       if (item && typeof item === 'object' && item._id) {
         setCurrentItem(item);
-        // Clear loading state when new item is successfully loaded
         setIsNavigatingToNext(false);
       }
     }
-  }, [itemData, itemLoading]);
+  }, 1000);
+ 
+  return () => {
+    clearTimeout(timer);
+  };
+}, [itemData, itemLoading]);
 
 
   // Flag handling function
@@ -633,15 +652,17 @@ const safeSetActiveSection = useCallback(
   // };
   // Handle item selection - now with immediate flag clear and enqueued for safety
   const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemId: string) => {
+    console.log("Triggering the funtion handleSelect......")
     enqueueNavigation(async () => {
       setIsNavigatingToNext(true);
 
       try {
         // Stop current item immediately
         if (itemContainerRef.current) {
-          await itemContainerRef.current.stopCurrentItem();
+          console.log("Stopping current item ......................0");
+          // await itemContainerRef.current.stopCurrentItem();
           // Small delay for API/callback cleanup
-          await new Promise(resolve => setTimeout(resolve, 50));
+          // await new Promise(resolve => setTimeout(resolve, 50));
         }
 
         // Store previous valid for fallback (only if not forbidden)
@@ -1205,7 +1226,7 @@ const safeSetActiveSection = useCallback(
     try {
       // Stop current item before moving to previous video with proper cleanup
       if (itemContainerRef.current) {
-        itemContainerRef.current.stopCurrentItem();
+        // itemContainerRef.current.stopCurrentItem();
 
         // Allow a small delay for cleanup
         await new Promise(resolve => setTimeout(resolve, 50));
