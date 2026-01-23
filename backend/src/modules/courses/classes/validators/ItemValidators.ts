@@ -904,7 +904,7 @@ class CSVQuizQuestion {
   'Expln-A'?: string;
   'Option B'?: string;
   'Expln-B'?: string;
-  'Option C'?: string;
+  'Option C'?: string; 
   'Expln-C'?: string;
   'Option D'?: string;
   'Expln-D'?: string;
