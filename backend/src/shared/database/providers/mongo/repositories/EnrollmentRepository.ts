@@ -38,7 +38,6 @@ export class EnrollmentRepository {
   private quizCollection!: Collection<QuizItem>;
   private itemsGroupCollection!: Collection<ItemsGroup>;
   private questionBankCollection!: Collection<IQuestionBank>;
-  private initialized = false;
 
   constructor(
     @inject(QUIZZES_TYPES.AttemptRepo)
@@ -47,11 +46,6 @@ export class EnrollmentRepository {
   ) { }
 
   private async init() {
-    // initialize only once
-    if (this.initialized) {
-      return;
-    }
-    this.initialized = true;
 
     this.enrollmentCollection = await this.db.getCollection<IEnrollment>(
       'enrollment',
@@ -78,60 +72,6 @@ export class EnrollmentRepository {
     this.questionBankCollection = await this.db.getCollection<IQuestionBank>(
       'questionBanks',
     );
-
-    // High-priority indexes for read performance
-    // Using background: true to avoid blocking operations
-    try {
-      await this.enrollmentCollection.createIndex(
-        { userId: 1, courseId: 1, courseVersionId: 1 },
-        {
-          unique: true,
-          name: 'userId_1_courseId_1_courseVersionId_1_unique',
-          background: true,
-        },
-      );
-    } catch (e) {
-      // Index already exists
-    }
-
-    try {
-      await this.enrollmentCollection.createIndex(
-        { userId: 1, role: 1 },
-        { name: 'userId_1_role_1', background: true },
-      );
-    } catch (e) {
-      // Index already exists
-    }
-
-    try {
-      await this.enrollmentCollection.createIndex(
-        { courseId: 1, courseVersionId: 1, role: 1, status: 1 },
-        {
-          name: 'courseId_1_courseVersionId_1_role_1_status_1',
-          background: true,
-        },
-      );
-    } catch (e) {
-      // Index already exists
-    }
-
-    try {
-      await this.progressCollection.createIndex(
-        { userId: 1, courseId: 1, courseVersionId: 1 },
-        { name: 'userId_1_courseId_1_courseVersionId_1', background: true },
-      );
-    } catch (e) {
-      // Index already exists
-    }
-
-    try {
-      await this.watchTimeCollection.createIndex(
-        { userId: 1, courseId: 1, courseVersionId: 1 },
-        { name: 'userId_1_courseId_1_courseVersionId_1', background: true },
-      );
-    } catch (e) {
-      // Index already exists
-    }
   }
 
   /**
@@ -297,12 +237,14 @@ export class EnrollmentRepository {
     userId: string,
     courseId: string,
     courseVersionId: string,
+    enrollmentId: string,
     session?: any,
   ): Promise<void> {
     await this.init();
 
     const courseObjectId = new ObjectId(courseId);
     const courseVersionObjectId = new ObjectId(courseVersionId);
+    const enrollmentObjectId = new ObjectId(enrollmentId);
 
     const userFilter = [
       userId,
@@ -311,6 +253,7 @@ export class EnrollmentRepository {
 
     const result = await this.enrollmentCollection.updateOne(
       {
+        _id: enrollmentObjectId,
         userId: { $in: userFilter },
         courseId: courseObjectId,
         courseVersionId: courseVersionObjectId,
@@ -328,6 +271,8 @@ export class EnrollmentRepository {
     if (result.modifiedCount === 0) {
       throw new NotFoundError('Enrollment not found to delete');
     }
+
+
   }
 
   /**
@@ -1118,7 +1063,8 @@ export class EnrollmentRepository {
       userId: e.userId,
       courseId: e.courseId,
       courseVersionId: e.courseVersionId,
-      isHidden: {$ne: true},
+      isHidden: { $ne: true },
+      isDeleted: { $ne: true },
     }));
 
     const results = await this.watchTimeCollection
