@@ -15,7 +15,7 @@ export interface ISubmitFeedbackBody {
   courseVersionId: string;
   isSkipped?: boolean;
 }
-const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, nextItem, doGesture, onNext, onPrevVideo, isProgressUpdating, readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson, keyboardLockEnabled, setIsQuizSkipped, linearProgressionEnabled, courseId, versionId }, ref) => {
+const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, nextItem, doGesture, onNext, onPrevVideo, isProgressUpdating, isNavigatingToPrev, readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson, keyboardLockEnabled, setIsQuizSkipped, linearProgressionEnabled, courseId, versionId }, ref) => {
   const articleRef = useRef<ArticleRef>(null);
   const quizRef = useRef<QuizRef>(null);
 
@@ -36,7 +36,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
 
   };
 
-  console.log("From item container, item:", item, "nextItem:", nextItem);
+  // console.log("From item container, item:", item, "nextItem:", nextItem);
 
   const renderContent = () => {
     const itemType = item.type.toLowerCase();
@@ -48,7 +48,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           endTime={item.details?.endTime ? item.details.endTime : ''}
           points={item.details?.points ? item.details.points : ''}
           nextItemId={nextItem?.itemId.toString()}
-          isAlreadyWatched={item.isItemAlreadyCompleted || false}
+          isAlreadyWatched={item.isItemAlreadyCompleted || false} 
           doGesture={doGesture}
           onNext={onNext}
           keyboardLockEnabled={keyboardLockEnabled}
@@ -84,6 +84,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           onNext={onNext}
           onPrevVideo={onPrevVideo}
           isProgressUpdating={isProgressUpdating}
+          isNavigatingToPrev={isNavigatingToPrev}
           attemptId={attemptId}
           setAttemptId={setAttemptId}
           displayNextLesson={displayNextLesson}

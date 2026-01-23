@@ -67,6 +67,7 @@ export interface QuizProps {
   onNext?: () => void;
   onPrevVideo?: () => void;
   isProgressUpdating?: boolean;
+  isNavigatingToPrev?:boolean;
   attemptId?: string;
   setAttemptId?: (attemptId: string) => void;
   displayNextLesson?: boolean;

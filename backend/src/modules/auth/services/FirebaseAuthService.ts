@@ -77,7 +77,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     // Verify the token and decode it to get the Firebase UID
     const decodedToken = await this.auth.verifyIdToken(token);
     const firebaseUID = decodedToken.uid;
-    console.log("Decoded Firebase UID:", firebaseUID, "userRepository:", this.userRepository);
+    // console.log("Decoded Firebase UID:", firebaseUID, "userRepository:", this.userRepository);
     // Retrieve the user from our database using the Firebase UID
     const user = await this.userRepository.findByFirebaseUID(firebaseUID);
     if (!user) {

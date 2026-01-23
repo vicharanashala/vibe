@@ -140,49 +140,49 @@ export class ItemController {
       sectionId,
       user._id,
     );
+    return items;
+    // Filter out blank quizzes for students   
+    // try {
+    //   const sampleItemResource = subject('Item', { versionId, _id: 'sample' });
+    //   const canManage = ability.can(ItemActions.Modify, sampleItemResource);
 
-    // Filter out blank quizzes for students
-    try {
-      const sampleItemResource = subject('Item', { versionId, _id: 'sample' });
-      const canManage = ability.can(ItemActions.Modify, sampleItemResource);
 
 
+    //   if (canManage) {
+    //     // Instructors/managers/TAs can see all items including blank quizzes
+    //     return items;
+    //   }
 
-      if (canManage) {
-        // Instructors/managers/TAs can see all items including blank quizzes
-        return items;
-      }
+    //   // For students: filter out blank quizzes with conservative approach
+    //   const filteredItems = [];
 
-      // For students: filter out blank quizzes with conservative approach
-      const filteredItems = [];
+    //   for (const itemRef of items) {
+    //     if (itemRef.type !== ItemType.QUIZ) {
+    //       filteredItems.push(itemRef);
+    //       continue;
+    //     }
 
-      for (const itemRef of items) {
-        if (itemRef.type !== ItemType.QUIZ) {
-          filteredItems.push(itemRef);
-          continue;
-        }
+    //     try {
+    //       const quizDetails = await this.quizService.getQuizDetails(
+    //         itemRef?._id?.toString(),
+    //       );
+    //       const questionBankRefs = quizDetails?.details?.questionBankRefs;
 
-        try {
-          const quizDetails = await this.quizService.getQuizDetails(
-            itemRef?._id?.toString(),
-          );
-          const questionBankRefs = quizDetails?.details?.questionBankRefs;
+    //       if (
+    //         !(Array.isArray(questionBankRefs) && questionBankRefs.length === 0)
+    //       ) {
+    //         filteredItems.push(itemRef);
+    //       }
+    //     } catch (error) {
+    //       filteredItems.push(itemRef);
+    //     }
+    //   }
 
-          if (
-            !(Array.isArray(questionBankRefs) && questionBankRefs.length === 0)
-          ) {
-            filteredItems.push(itemRef);
-          }
-        } catch (error) {
-          filteredItems.push(itemRef);
-        }
-      }
-
-      return filteredItems;
-    } catch (error) {
-      console.error('Error filtering blank quizzes in readAll:', error);
-      return items;
-    }
+    //   return filteredItems;
+    // } catch (error) {
+    //   console.error('Error filtering blank quizzes in readAll:', error);
+    //   return items;
+    // }
   }
 
   @OpenAPI({

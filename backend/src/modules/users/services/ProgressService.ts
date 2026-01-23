@@ -1522,9 +1522,10 @@ class ProgressService extends BaseService {
     courseVersionId: string,
     attemptId?: string,
     isSkipped?: boolean,
+    isQuizEmpty?:boolean,
   ): Promise<void> {
     if (isSkipped) return;
-
+    if(isQuizEmpty) return;
     const submittedQuiz = await this.submissionRepository.get(
       itemId,
       userId,
@@ -1588,8 +1589,9 @@ class ProgressService extends BaseService {
 
     // 2 Quiz validation
     if (item.type === 'QUIZ') {
+      const  isQuizEmpty = item.details.questionBankRefs.length === 0
       await this.validateQuizStop(itemId, userId, courseId,
-        courseVersionId, attemptId, isSkipped);
+        courseVersionId, attemptId, isSkipped, isQuizEmpty);
       return;
     }
 

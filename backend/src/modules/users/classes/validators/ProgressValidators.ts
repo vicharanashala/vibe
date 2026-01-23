@@ -293,6 +293,14 @@ export class StopItemBody {
     example: "60d5ec49b3f1c8e4a8f8b8c8",
   })
   nextItemId?: string;
+
+  @IsOptional()
+  @JSONSchema({
+    description: 'If the item is quiz then is it empty',
+    type: 'boolean',
+    example: "true",
+  })
+  isEmptyQuiz?:boolean;
 }
 
 export class ItemIdparams {

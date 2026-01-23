@@ -2064,8 +2064,8 @@ export function useSaveQuiz(): {
 }
 
 export function useSubmitQuiz(): {
-  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined } }) => void,
-  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined } }) => Promise<SubmitAttemptResponse>,
+  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined, watchItemId: string| null | undefined; } }) => void,
+  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined, watchItemId: string| null | undefined; } }) => Promise<SubmitAttemptResponse>,
   data: SubmitAttemptResponse | undefined,
   error: string | null,
   isPending: boolean,

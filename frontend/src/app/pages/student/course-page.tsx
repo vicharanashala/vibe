@@ -176,6 +176,7 @@ export default function CoursePage() {
   const [anomalies, setAnomalies] = useState<string[]>([]);
   const [isQuizSkipped, setIsQuizSkipped] = useState(false);
   const [readyToDetect, setReadyToDetect] = useState(false);
+  const [isNavigatingToPrev, setIsNavigatingToPrev] = useState<boolean>(false);
 
 
 
@@ -240,7 +241,7 @@ const {
     isLoading: itemLoading,
     error: itemError,
     errorName: itemErrorName
-  } = useItemById(
+  } = useItemById( 
     shouldFetchItem ? COURSE_ID : '',
     shouldFetchItem ? VERSION_ID : '',
     shouldFetchItem ? selectedItemId! : ''
@@ -651,18 +652,18 @@ const safeSetActiveSection = useCallback(
   //   }
   // };
   // Handle item selection - now with immediate flag clear and enqueued for safety
-  const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemId: string) => {
-    console.log("Triggering the funtion handleSelect......")
+  const handleSelectItem = useCallback((moduleId: string, sectionId: string, itemId: string) => { 
+
     enqueueNavigation(async () => {
       setIsNavigatingToNext(true);
 
       try {
         // Stop current item immediately
         if (itemContainerRef.current) {
-          console.log("Stopping current item ......................0");
+
           // await itemContainerRef.current.stopCurrentItem();
           // Small delay for API/callback cleanup
-          // await new Promise(resolve => setTimeout(resolve, 50));
+          await new Promise(resolve => setTimeout(resolve, 50));
         }
 
         // Store previous valid for fallback (only if not forbidden)
@@ -1219,9 +1220,10 @@ const safeSetActiveSection = useCallback(
   }, [courseVersionData, selectedModuleId, selectedSectionId, selectedItemId, sectionItems]);
 
   // Handle navigation to previous video (used by quiz component)
-  const handlePrevVideo = useCallback(async () => {
+  const handlePrevVideo = useCallback(async () => { 
     // Set loading state
     setIsNavigatingToNext(true);
+    setIsNavigatingToPrev(true);
 
     try {
       // Stop current item before moving to previous video with proper cleanup
@@ -1237,6 +1239,7 @@ const safeSetActiveSection = useCallback(
 
       if (!prevVideoItem) {
         setIsNavigatingToNext(false);
+        setIsNavigatingToPrev(false);
         return;
       }
 
@@ -1245,6 +1248,7 @@ const safeSetActiveSection = useCallback(
       // Ensure all values are defined before switching
       if (!moduleId || !sectionId || !itemId) {
         setIsNavigatingToNext(false);
+        setIsNavigatingToPrev(false);
         return;
       }
 
@@ -1283,11 +1287,13 @@ const safeSetActiveSection = useCallback(
       // Clear loading state after successful navigation
       setTimeout(() => {
         setIsNavigatingToNext(false);
+        setIsNavigatingToPrev(false);
       }, 500);
     } catch (error) {
       console.error('Error navigating to previous video:', error);
       // Clear loading state on error
       setIsNavigatingToNext(false);
+      setIsNavigatingToPrev(false);
     }
   }, [
     findPreviousVideoItem,
@@ -1895,6 +1901,7 @@ const safeSetActiveSection = useCallback(
                       onNext={handleNext}
                       onPrevVideo={handlePrevVideo}
                       isProgressUpdating={isNavigatingToNext}
+                      isNavigatingToPrev= {isNavigatingToPrev}
                       attemptId={attemptId || undefined}
                       setAttemptId={setAttemptId}
                       rewindVid={rewindVid}

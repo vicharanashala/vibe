@@ -44,6 +44,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   doGesture = false,
   onNext,
   isProgressUpdating,
+  isNavigatingToPrev,
   attemptId,
   setAttemptId,
   displayNextLesson,
@@ -489,9 +490,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       if (emptyQuizNextTimerRef.current) {
         clearTimeout(emptyQuizNextTimerRef.current);
       }
-      handleStopItem(true);
+
       emptyQuizNextTimerRef.current = setTimeout(() => {
         if (onNext) {
+          setEmptyQuizRedirectCountdown(null);
           onNext();
         } else {
           console.warn('No onNext handler available for empty quiz navigation');
@@ -668,7 +670,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       const response = await submitQuiz({
         params: { path: { quizId: processedQuizId, attemptId: attemptId } },
         body: { answers: answersForSubmission, isSkipped, courseId: currentCourse?.courseId,
-            courseVersionId: currentCourse?.versionId }
+            courseVersionId: currentCourse?.versionId,  watchItemId: currentCourse?.watchItemId}// submit watchitem also , if passed then update endtime also
       });
 
       // No reponse for skipped quiz!
@@ -973,15 +975,16 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }, [failedRedirectCountdown, onPrevVideo]);
 
 
-  // Early detection for empty quizzes (all types)
-  useEffect(() => {
-    if (!quizStarted && !quizAttemptedRef.current && !isEmptyQuiz && !noAttemptsLeft && !isPending) {
-      if (!questionBankRefs || questionBankRefs.length === 0) {
-        quizAttemptedRef.current = true; // Prevent other start attempts
-        handleEmptyQuiz();
-      }
-    }
-  }, [questionBankRefs, quizStarted, isEmptyQuiz, noAttemptsLeft, isPending, handleEmptyQuiz]);
+  // // Early detection for empty quizzes (all types)
+  // useEffect(() => {
+  //   if (!quizStarted && !quizAttemptedRef.current && !isEmptyQuiz && !noAttemptsLeft && !isPending) {
+  //     if (!questionBankRefs || questionBankRefs.length === 0) {
+  //       quizAttemptedRef.current = true; // Prevent other start attempts
+  //       handleEmptyQuiz();
+  //       console.log("here handleEmptyQuiz -------------------------2")
+  //     }
+  //   }
+  // }, [questionBankRefs, quizStarted, isEmptyQuiz, noAttemptsLeft, isPending, handleEmptyQuiz]);
 
   // ===== IMPERATIVE HANDLE =====
   useImperativeHandle(ref, () => ({
@@ -1205,7 +1208,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                   {onPrevVideo && (
                     <Button
                       onClick={() => {
-                        // setQuizCompleted(false);
                         clearTimeout(emptyQuizNextTimerRef.current);
                         setEmptyQuizRedirectCountdown(null);
                         onPrevVideo();
@@ -1215,7 +1217,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                       className="min-w-[180px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
                       size="lg"
                     >
-                      {isProgressUpdating ? (
+                      {isNavigatingToPrev ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2" />
                           Processing
@@ -1231,7 +1233,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                   {/* Next Lesson Button-If user doesn't want to wait*/}
                   {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
                     <Button
-                      onClick={onNext}
+                      onClick={()=>{
+                        setEmptyQuizRedirectCountdown(null);
+                        clearTimeout(emptyQuizNextTimerRef.current);
+                        onNext()}}
                       disabled={isProgressUpdating}
                       className="min-w-[180px] h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
                       size="lg"
@@ -1338,7 +1343,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                       className="min-w-[180px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
                       size="lg"
                     >
-                      {isProgressUpdating ? (
+                      {isNavigatingToPrev ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2" />
                           Processing

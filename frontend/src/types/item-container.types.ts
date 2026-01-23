@@ -51,6 +51,7 @@ export interface ItemContainerProps {
   onNext: () => void;
   onPrevVideo?: () => void;
   isProgressUpdating: boolean;
+  isNavigatingToPrev: boolean;
   attemptId?: string;
   setAttemptId?: (attemptId: string) => void;
   rewindVid?: boolean;

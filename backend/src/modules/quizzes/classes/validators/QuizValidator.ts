@@ -1607,6 +1607,7 @@ export interface QuestionAnswersBodydto {
   isSkipped?: boolean;
   courseId?: string;
   courseVersionId?: string;
+  watchItemId?: string;
 }
 
 

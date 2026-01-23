@@ -1065,6 +1065,7 @@ export class EnrollmentRepository {
       courseVersionId: e.courseVersionId,
       isHidden: { $ne: true },
       isDeleted: { $ne: true },
+      endTime: { $exists: true },
     }));
 
     const results = await this.watchTimeCollection

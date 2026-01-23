@@ -419,7 +419,7 @@ export class ItemService extends BaseService {
     if (
       linearProgressionEnabled &&
       !isItemAlreadyAttempted &&
-      currentUserProgress?.currentItem !== itemId
+      currentUserProgress?.currentItem.toString() !== itemId
     ) {
       throw new UnauthorizedError(
         "You don't have permission to watch this item",

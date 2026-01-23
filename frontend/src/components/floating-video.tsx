@@ -873,7 +873,7 @@ const lastCalledRef = useRef<number>(0);
 
     // Log actual face data if available
     if (faces.length > 0) {
-      console.log('👤 TensorFlow Face Details:', faces);
+      // console.log('👤 TensorFlow Face Details:', faces);
     }
     if (recognizedFaces.length > 0) {
       console.log('🎭 Face-api Recognition Details:', recognizedFaces);
