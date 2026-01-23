@@ -283,19 +283,6 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
           color: #ffffff !important;
         }
         
-        /* Action menu dark mode styles */
-        .dark [data-yoopta-editor] .yoopta-action-menu,
-        .dark [data-yoopta-editor] .yoopta-action-menu *,
-        .dark .yoopta-action-menu,
-        .dark .yoopta-action-menu *,
-        .dark [data-yoopta-editor] [class*="action-menu"],
-        .dark [class*="action-menu"],
-        .dark [data-yoopta-editor] [class*="ActionMenu"],
-        .dark [class*="ActionMenu"] {
-          background-color: #1f2937 !important;
-          color: #ffffff !important;
-          border-color: #374151 !important;
-        }
         
         .dark [data-yoopta-editor] .yoopta-action-menu-item,
         .dark .yoopta-action-menu-item,
@@ -321,19 +308,6 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
           color: #ffffff !important;
         }
         
-        /* Force override any white backgrounds in action menus */
-        .dark [data-yoopta-editor] *[style*="background-color: white"],
-        .dark [data-yoopta-editor] *[style*="background-color: #fff"],
-        .dark [data-yoopta-editor] *[style*="background-color: #ffffff"],
-        .dark [class*="action-menu"] *[style*="background-color: white"],
-        .dark [class*="action-menu"] *[style*="background-color: #fff"],
-        .dark [class*="action-menu"] *[style*="background-color: #ffffff"],
-        .dark [class*="ActionMenu"] *[style*="background-color: white"],
-        .dark [class*="ActionMenu"] *[style*="background-color: #fff"],
-        .dark [class*="ActionMenu"] *[style*="background-color: #ffffff"] {
-          background-color: #1f2937 !important;
-          color: #ffffff !important;
-        }
         
         /* Specific targeting for dropdown menus */
         .dark [data-yoopta-editor] [role="menu"],
@@ -579,6 +553,85 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
          .dark [data-yoopta-editor] h6 {
            color: #000000 !important;
          }
+
+         /* ================================
+   Yoopta Block Options Menu (6-dot)
+   ================================ */
+
+.dark .yoopta-block-options-menu-content {
+  background-color: #0D0B0A !important;
+  border: 1px solid #1e293b !important;
+  border-radius: 10px !important;
+  padding: 4px !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6) !important;
+}
+
+.dark .yoopta-block-options-item {
+  margin: 2px 0 !important;
+}
+
+.dark .yoopta-block-options-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: #e5e7eb !important;
+}
+
+.dark .yoopta-block-options-button:hover {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+}
+
+.dark .yoopta-block-options-button svg {
+  color: #9ca3af !important;
+}
+
+.dark .yoopta-block-options-button:hover svg {
+  color: #ffffff !important;
+}
+[data-radix-popper-content] {
+  background-color: #0D0B0A !important;
+  color: #ffffff !important;
+  border: 1px solid #262626 !important;
+}
+
+/* =====================================
+   Yoopta Action Menu — Dark Mode Only
+   ===================================== */
+
+html.dark .yoopta-action-menu-list-content {
+  background-color: #0D0B0A !important;
+  border: 1px solid #262626 !important;
+  color: #ffffff !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Menu items */
+html.dark .yoopta-action-menu-list-content > div {
+  background-color: transparent !important;
+  color: #e5e7eb !important;
+}
+
+/* Hover */
+html.dark .yoopta-action-menu-list-content > div:hover {
+  background-color: #1a1716 !important;
+  color: #ffffff !important;
+}
+
+/* Icons */
+html.dark .yoopta-action-menu-list-content svg {
+  color: #af9ca4ff !important;
+}
+
+/* Hover icons */
+html.dark .yoopta-action-menu-list-content > div:hover svg {
+  color: #ffffff !important;
+}
+
       `;
 
       const existingStyle = document.getElementById('yoopta-dark-mode-styles');
