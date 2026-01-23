@@ -2602,7 +2602,7 @@ class ProgressService extends BaseService {
 
     console.log(`Recalculating progress for user: ${userId}, course: ${courseId}, version: ${versionId}`);
 
-    // 1. Fetch progress 
+    // 1. Fetch progress  
     const progress = await this.progressRepository.findProgress(
       userId,
       courseId,
@@ -2644,12 +2644,10 @@ class ProgressService extends BaseService {
     }
 
     const completedItemSet = new Set(completedItemIds);
-
     const missedItemIds = allItemIdsUntilCurrentItem.filter(
       itemId => !completedItemSet.has(itemId),
     );
 
-    console.log("Missed Item Ids:", missedItemIds, "Count:", missedItemIds.length);
     if (!missedItemIds.length) {
       return; // Nothing to fix
     }
@@ -2662,27 +2660,33 @@ class ProgressService extends BaseService {
       missedItemIds,
     );
 
-    const totalCompletedItemsCount =
-      completedItemSet.size + missedItemIds.length;
-
     // 4. Avoid recomputing totalItems if already stored
     const totalItemsCount =
       courseVersion.totalItems ??
       (await this.itemRepo.CalculateTotalItemsCount(courseId, versionId));
 
+    const totalCompletedItemsCount =
+      completedItemSet.size + missedItemIds.length;
+
+    const normalizedTotalItemsCount = Math.max(
+      totalItemsCount,
+      totalCompletedItemsCount
+    );
+
     const percentCompleted =
       totalItemsCount > 0
-        ? Math.round((totalCompletedItemsCount / totalItemsCount) * 100)
+        ? Math.min(
+          Math.round((normalizedTotalItemsCount / totalItemsCount) * 100),
+          100
+        )
         : 0;
-
-    console.log(`Total Items: ${totalItemsCount}, Completed Items: ${totalCompletedItemsCount}, Percent Completed: ${percentCompleted}%`);
 
     // 5. Update enrollment progress
     await this.enrollmentRepo.updateProgressPercentById(
       enrollment._id!.toString(),
       percentCompleted,
       undefined,
-      totalCompletedItemsCount,
+      normalizedTotalItemsCount,
     );
 
 
