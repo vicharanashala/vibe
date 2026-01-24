@@ -1215,7 +1215,7 @@ export function useCourseVersionEnrollments(
   page: number = 1,
   limit: number = 10,
   search: string = "",
-  sortBy: 'name' | 'enrollmentDate' | 'progress' = 'enrollmentDate',
+  sortBy: 'name' | 'enrollmentDate' | 'progress' | 'unenrolledAt' = 'enrollmentDate',
   sortOrder: 'asc' | 'desc' = 'desc',
   enabled: boolean = true,
   filter: 'STUDENT' | 'OTHER',

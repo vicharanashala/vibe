@@ -361,6 +361,7 @@ export class EnrollmentController {
           status: enrollment.status,
           isDeleted: enrollment.isDeleted || false,
           enrollmentDate: enrollment.enrollmentDate,
+          unenrolledAt: enrollment.unenrolledAt,
           user: { ...enrollment.userInfo, _id: enrollment.userId },
           progress: enrollment.percentCompleted,
           completedItemsCount: enrollment.completedItemsCount || 0,
