@@ -511,7 +511,7 @@ export function useCreateCourse(): {
   };
 }
 
-export async function   useProcessInvites(inviteId: string,  action: "ACCEPT" | "REJECTED" = "ACCEPT",
+export async function useProcessInvites(inviteId: string, action: "ACCEPT" | "REJECTED" = "ACCEPT",
 
 ): Promise<{
   data: null,
@@ -1223,7 +1223,8 @@ export function useCourseVersionEnrollments(
   sortBy: 'name' | 'enrollmentDate' | 'progress' = 'enrollmentDate',
   sortOrder: 'asc' | 'desc' = 'desc',
   enabled: boolean = true,
-  filter: 'STUDENT' | 'OTHER'
+  filter: 'STUDENT' | 'OTHER',
+  statusTab: 'ACTIVE' | "INACTIVE",
 ): {
   data: components['schemas']['CourseVersionEnrollmentResponse'] | undefined,
   isLoading: boolean,
@@ -1236,7 +1237,7 @@ export function useCourseVersionEnrollments(
     {
       params: {
         path: { courseId, courseVersionId },
-        query: { page, limit, search, sortBy, sortOrder, filter },
+        query: { page, limit, search, sortBy, sortOrder, filter, statusTab },
       },
       enabled: enabled && !!courseId && !!courseVersionId,
     }
@@ -3845,5 +3846,51 @@ export const useGenerateAIQuestions = (): {
   return {
     ...result,
     error: result.error ? (result.error.message || 'Failed to generate AI questions') : null,
+  };
+}
+
+
+
+
+export function useRecalculateStudentProgress(): {
+  mutate: (variables: {
+    body: {
+      courseId: string;
+      courseVersionId: string;
+    };
+  }) => void;
+  mutateAsync: (variables: {
+    body: {
+      courseId: string;
+      courseVersionId: string;
+    };
+  }) => Promise<string>;
+  data: string | undefined;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} {
+  const result = api.useMutation(
+    'post',
+    '/users/progress/recalculate',
+  );
+
+  return {
+    mutate: result.mutate,
+    mutateAsync: result.mutateAsync,
+    data: result.data,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+    error: result.error
+      ? result.error.message || 'Failed to recalculate progress'
+      : null,
   };
 }
