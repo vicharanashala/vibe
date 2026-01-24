@@ -1343,8 +1343,10 @@ export class EnrollmentRepository {
       userId: userObjectid,
       role,
       isDeleted: { $ne: true },
-      status: 'ACTIVE',
+      status: { $regex: /^active$/i },
     });
+
+
   }
   /*Update enrollments for all records in db */
   async bulkUpdateEnrollments(
@@ -1371,9 +1373,12 @@ export class EnrollmentRepository {
   }) {
     await this.init();
 
+
     const query: any = {
       isDeleted: { $ne: true },
-      status: 'ACTIVE',
+      status: { $regex: /^active$/i },
+      role: 'STUDENT',
+      percentCompleted: { $exists: true, $gte: 99, $lt: 100 }
     };
 
     if (filters.courseId) query.courseId = new ObjectId(filters.courseId);
