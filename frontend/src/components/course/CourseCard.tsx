@@ -1,4 +1,5 @@
-import { Clock, Redo2, CheckCircle2, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones,Play } from "lucide-react";
+import { Clock, FileText, CheckCircle2, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play } from "lucide-react";
+import {  } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -227,19 +228,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               } w-full sm:w-auto transition-all duration-200`}
               onClick={handleContinue}
             >
-              {progress === 0 ? (
-                <>
-                  <Play className="h-4 w-4 mr-2" />
-                  Start
-                </>
-              ) : progress >= 100 ? (
-                <>
-                  <Redo2 className="h-4 w-4 mr-2" />
-                  Re-watch
-                </>
-              ) : (
-                'Continue'
-              )}
+              {progress === 0 ? 'Start' : progress >= 100 ? 'Completed' : 'Continue'}
             </Button>
             <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
               <DialogTrigger asChild>

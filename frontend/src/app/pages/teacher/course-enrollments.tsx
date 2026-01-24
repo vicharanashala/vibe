@@ -341,8 +341,8 @@ export default function CourseEnrollments() {
 
 
   // Sorting handler
-  const handleSort = (column: 'name' | 'enrollmentDate' | 'progress') => {
-    // if(column== "progress" ) return;
+  const handleSort = (column: 'name' | 'enrollmentDate' | 'progress'|"scoreObtained") => {
+    if(column === "scoreObtained" ) return;
     if (sortBy === column) {
       setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
     } else {

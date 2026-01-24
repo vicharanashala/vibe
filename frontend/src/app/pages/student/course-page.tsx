@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";ExternalLink
+import { useState, useEffect, useCallback, useRef } from "react"; ExternalLink
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation, useSkipOptionalItem } from "@/hooks/hooks";
+import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation, useSkipOptionalItem, useRecalculateStudentProgress } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
@@ -51,7 +51,7 @@ import { EntityType } from "@/types/flag.types";
 import { toast } from "sonner";
 import ItemContainer from "@/components/Item-container";
 import logo from "../../../../public/img/vibe_logo_img.ico"
-import {registerStream, unRegisterStream} from "@/lib/MediaRegistry";
+import { registerStream, unRegisterStream } from "@/lib/MediaRegistry";
 
 // Helper function to get icon for item type
 const getItemIcon = (type: string) => {
@@ -100,6 +100,7 @@ export default function CoursePage() {
   const [isSkippingItem, setIsSkippingItem] = useState(false);
   const { mutateAsync: submitFlagAsyncMutate, isPending } = useSubmitFlag();
   const { mutateAsync: skipItemAsync, isPending: isSkipping } = useSkipOptionalItem();
+  const { mutateAsync: recalculateStudentProgressAsync } = useRecalculateStudentProgress();
   const [closing, setClosing] = useState(false);
 
   const streamRef = useRef<MediaStream | null>(null);
@@ -205,18 +206,31 @@ export default function CoursePage() {
   // Fetch proctoring settings for the course (fetched once when component loads)
   const [proctoringData, setProctoringData] = useState<StudentProctoringSettings | null>(null);
 
-  const shouldFetchItems = Boolean(activeSectionInfo?.moduleId && activeSectionInfo?.sectionId);
+
   const sectionModuleId = activeSectionInfo?.moduleId ?? '';
   const sectionId = activeSectionInfo?.sectionId ?? '';
+
+  // ---------------------------------------------
+  // SECTION ITEM FETCH (ONCE PER SECTION)
+  // ---------------------------------------------
+  const hasSectionItems =
+    !!activeSectionInfo?.sectionId &&
+    !!sectionItems[activeSectionInfo.sectionId];
+
+  const shouldFetchItems =
+    !!activeSectionInfo?.moduleId &&
+    !!activeSectionInfo?.sectionId &&
+    !hasSectionItems;
 
   const {
     data: currentSectionItems,
     isLoading: itemsLoading
   } = useItemsBySectionId(
     shouldFetchItems ? VERSION_ID : '',
-    shouldFetchItems ? sectionModuleId : '',
-    shouldFetchItems ? sectionId : ''
-  )
+    shouldFetchItems ? activeSectionInfo!.moduleId : '',
+    shouldFetchItems ? activeSectionInfo!.sectionId : ''
+  );
+
 
   // Fetch individual item details when an item is selected
   // Don't fetch during navigation to prevent race condition with stopItem
@@ -237,6 +251,64 @@ export default function CoursePage() {
     sectionId: string;
     itemId: string;
   } | null>(null);
+
+  // ---------------------------------------------
+  // SAFE SECTION ACTIVATION (PREVENT RE-FETCH)
+  // ---------------------------------------------
+  const safeSetActiveSection = useCallback(
+    (moduleId: string, sectionId: string) => {
+      setActiveSectionInfo(prev => {
+        if (
+          prev?.moduleId === moduleId &&
+          prev?.sectionId === sectionId
+        ) {
+          return prev; // 🚫 no state change → no refetch
+        }
+        return { moduleId, sectionId };
+      });
+    },
+    []
+  );
+
+
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === "Tab") {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (
+      shouldFetchItems &&
+      activeSectionInfo?.sectionId &&
+      currentSectionItems &&
+      !itemsLoading
+    ) {
+      const itemsArray =
+        (currentSectionItems as any)?.items ??
+        (Array.isArray(currentSectionItems) ? currentSectionItems : []);
+
+      setSectionItems(prev => ({
+        ...prev,
+        [activeSectionInfo.sectionId]: sortItemsByOrder(itemsArray),
+      }));
+    }
+  }, [
+    currentSectionItems,
+    itemsLoading,
+    shouldFetchItems,
+    activeSectionInfo
+  ]);
+
 
   // Separate effect for handling item errors - prevents circular dependencies
   useEffect(() => {
@@ -591,7 +663,7 @@ export default function CoursePage() {
 
         // Load section items if needed
         if (!sectionItems[sectionId]) {
-          setActiveSectionInfo({ moduleId, sectionId });
+          safeSetActiveSection(moduleId, sectionId);
         }
 
         // Auto-expand sidebar
@@ -810,7 +882,7 @@ export default function CoursePage() {
   //       setWaitingForNextSection({ moduleId, sectionId });
 
   //       // Trigger loading of next section items
-  //       setActiveSectionInfo({ moduleId, sectionId });
+  //       safeSetActiveSection(moduleId, sectionId);
 
   //       // Keep loading state active (will be cleared when navigation completes)
   //       return;
@@ -961,6 +1033,13 @@ export default function CoursePage() {
           frame();
 
           setTimeout(() => router.navigate({ to: "/student" }), 3500);
+          // Recalcualate and update the progress % and completed items count properly
+          await recalculateStudentProgressAsync({
+            body: {
+              courseId: COURSE_ID,
+              courseVersionId: VERSION_ID,
+            },
+          });
           return;
         }
 
@@ -981,7 +1060,7 @@ export default function CoursePage() {
           setWaitingForNextSection({ moduleId, sectionId });
 
           // Trigger loading of next section items
-          setActiveSectionInfo({ moduleId, sectionId });
+          safeSetActiveSection(moduleId, sectionId);
 
           // Keep loading state active (will be cleared when navigation completes)
           return;
@@ -1016,13 +1095,13 @@ export default function CoursePage() {
 
         // Fetch section if needed
         if (!sectionItems[sectionId]) {
-          setActiveSectionInfo({ moduleId, sectionId });
+          safeSetActiveSection(moduleId, sectionId);
         }
 
         // Update global course store
         updateCourseNavigation(moduleId, sectionId, itemId);
 
-        
+
         // Clear loading state after successful navigation
         setIsNavigatingToNext(false);
       } catch (error) {
@@ -1453,7 +1532,7 @@ export default function CoursePage() {
                                                       })()}
                                                     </div>
                                                     {item.isCompleted && (
-                                                      <div className={`text-[10px] dark:text-green-500 text-green-600 font-medium mt-0.5 flex items-center gap-1 ${selectedItemId === itemId ? "text-green-900": ""} `}>
+                                                      <div className={`text-[10px] dark:text-green-500 text-green-600 font-medium mt-0.5 flex items-center gap-1 ${selectedItemId === itemId ? "text-green-900" : ""} `}>
                                                         <CheckCircle className="h-3 w-3" />
                                                         Completed
                                                       </div>
