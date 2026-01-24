@@ -1,7 +1,7 @@
 import 'reflect-metadata';
-import {Collection, ObjectId, UpdateResult, ClientSession} from 'mongodb';
-import {injectable, inject} from 'inversify';
-import {MongoDatabase} from '../MongoDatabase.js';
+import { Collection, ObjectId, UpdateResult, ClientSession } from 'mongodb';
+import { injectable, inject } from 'inversify';
+import { MongoDatabase } from '../MongoDatabase.js';
 import {
   ICourseSetting,
   IRegistrationSettings,
@@ -13,14 +13,15 @@ import {
   ProctoringComponent,
 } from '#shared/database/index.js';
 import {
+  AuditingDto,
   CourseSetting,
   DetectorOptionsDto,
   DetectorSettingsDto,
   ProctoringSettingsDto,
   UserSetting,
 } from '#root/modules/setting/classes/index.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {NotFoundError} from 'routing-controllers';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { NotFoundError } from 'routing-controllers';
 
 /**
  * Implementation of the Settings Repository for MongoDB.
@@ -33,7 +34,7 @@ export class SettingRepository implements ISettingRepository {
   private courseSettingsCollection: Collection<CourseSetting>;
   private userSettingsCollection: Collection<UserSetting>;
 
-  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
+  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
   private initialized = false;
 
   private async init() {
@@ -70,8 +71,8 @@ export class SettingRepository implements ISettingRepository {
 
     if (result.acknowledged) {
       const createdSettings = await this.userSettingsCollection.findOne(
-        {_id: result.insertedId},
-        {session},
+        { _id: result.insertedId },
+        { session },
       );
 
       return Object.assign(new UserSetting(), createdSettings) as UserSetting;
@@ -93,7 +94,7 @@ export class SettingRepository implements ISettingRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      {session},
+      { session },
     );
 
     if (!userSettings) {
@@ -208,14 +209,14 @@ export class SettingRepository implements ISettingRepository {
     await this.init();
     const result = await this.courseSettingsCollection.insertOne(
       courseSettings,
-      {session},
+      { session },
     );
     if (result.acknowledged) {
       const createdSettings = await this.courseSettingsCollection.findOne(
         {
           _id: result.insertedId,
         },
-        {session},
+        { session },
       );
 
       return Object.assign(
@@ -239,7 +240,7 @@ export class SettingRepository implements ISettingRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      {session},
+      { session },
     );
 
     if (!courseSettings) {
@@ -265,6 +266,7 @@ export class SettingRepository implements ISettingRepository {
     courseVersionId: string,
     detectors: DetectorSettingsDto[],
     linearProgressionEnabled: boolean,
+    audit: AuditingDto,
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
     await this.init();
@@ -318,6 +320,9 @@ export class SettingRepository implements ISettingRepository {
         $set: {
           'settings.proctors.detectors': detectors,
           'settings.linearProgressionEnabled': linearProgressionEnabled,
+        },
+        $push: {
+          'settings.audit': audit,
         },
       },
       {
@@ -375,7 +380,7 @@ export class SettingRepository implements ISettingRepository {
           'settings.registration_settings': settings,
         },
       },
-      {session},
+      { session },
     );
     return result;
   }
@@ -383,7 +388,7 @@ export class SettingRepository implements ISettingRepository {
   async updateRegistrationSettings(
     courseId: string,
     versionId: string,
-    schemas: {jsonSchema: any; uiSchema: any},
+    schemas: { jsonSchema: any; uiSchema: any },
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
     await this.init();
@@ -399,7 +404,7 @@ export class SettingRepository implements ISettingRepository {
           'settings.registration.uiSchema': schemas.uiSchema,
         },
       },
-      {session},
+      { session },
     );
     return result;
   }
@@ -407,7 +412,7 @@ export class SettingRepository implements ISettingRepository {
   async updateRegistrationSchemas(
     courseId: string,
     versionId: string,
-    schemas: {jsonSchema?: any; uiSchema?: any}, // Partial update for schemas only
+    schemas: { jsonSchema?: any; uiSchema?: any }, // Partial update for schemas only
     session?: ClientSession,
   ): Promise<UpdateResult> {
     await this.init();
@@ -423,7 +428,7 @@ export class SettingRepository implements ISettingRepository {
           'settings.registration.uiSchema': schemas.uiSchema,
         },
       },
-      {session},
+      { session },
     );
 
     if (result.matchedCount === 0) {
@@ -438,12 +443,12 @@ export class SettingRepository implements ISettingRepository {
   async readSettingsSchema(versionId: string, session?: ClientSession) {
     await this.init();
     const result = await this.courseSettingsCollection.findOne(
-      {courseVersionId: new ObjectId(versionId)},
-      {session},
+      { courseVersionId: new ObjectId(versionId) },
+      { session },
     );
     const jsonSchema = result.settings.registration.jsonSchema;
     const uiSchema = result.settings.registration.uiSchema;
-    return {jsonSchema, uiSchema};
+    return { jsonSchema, uiSchema };
   }
 
   async deleteCourseSettingsbyVersionId(
@@ -452,8 +457,8 @@ export class SettingRepository implements ISettingRepository {
   ) {
     await this.init();
     const result = await this.courseSettingsCollection.deleteOne(
-      {courseVersionId: new ObjectId(versionId)},
-      {session},
+      { courseVersionId: new ObjectId(versionId) },
+      { session },
     );
     return result.deletedCount > 0;
   }
@@ -478,7 +483,7 @@ export class SettingRepository implements ISettingRepository {
       },
       {
         projection: {
-          'settings.linearProgressionEnabled': 1, _id: 0 
+          'settings.linearProgressionEnabled': 1, _id: 0
         },
         session,
       },
