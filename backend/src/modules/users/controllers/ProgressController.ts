@@ -57,6 +57,7 @@ import { InternalServerErrorResponse } from '../../../shared/middleware/errorHan
 import { COURSES_TYPES } from '#root/modules/courses/types.js';
 import { ItemService } from '#root/modules/courses/services/ItemService.js';
 import { SuccessResponse } from '#root/modules/projects/classes/validators/ProjectValidators.js';
+import { CourseVersionQuery } from '#root/modules/courses/classes/index.js';
 
 @OpenAPI({
   tags: ['Progress'],
@@ -235,7 +236,7 @@ class ProgressController {
     @Ability(getProgressAbility) { ability, user },
   ): Promise<void> {
     const { courseId, versionId } = params;
-    const { itemId, sectionId, moduleId, watchItemId, attemptId, isSkipped, nextItemId } =
+    const { itemId, sectionId, moduleId, watchItemId, attemptId, isSkipped } =
       body;
 
     const userId = String(user._id);
@@ -509,6 +510,29 @@ It returns an empty body with a 200 status code.
       limit,
     );
   }
+
+  @Post('/progress/recalculate')
+  @HttpCode(200)
+  @OpenAPI({
+    summary: 'Recalculate student progress',
+    description:
+      'Recalculates and updates the progress of a student for a given course and course version.',
+  })
+  @Authorized()
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Failed to recalculate student progress',
+    statusCode: 500,
+  })
+  async recalculateStudentProgress(@Body() body: CourseVersionQuery, @CurrentUser() user: IUser): Promise<string> {
+    const { courseId, courseVersionId } = body;
+    const userId = user._id?.toString();
+    return this.progressService.recalculateStudentProgress(
+      userId,
+      courseId,
+      courseVersionId,
+    );
+  }
+
 
   ///////////////////////////////////////////////////// TO CORRECT THE WATCHTIME DOC COUNT OF STUDENTS ////////////////////////////////////////////
   @Post('/progress/watch-time/bulk')

@@ -805,13 +805,9 @@ class ProgressRepository {
 
   async addBulkWatchTime(
     userId: string,
-
     courseId: string,
-
     versionId: string,
-
     itemIds: string[],
-
     session?: ClientSession,
   ) {
     await this.init();
@@ -822,15 +818,10 @@ class ProgressRepository {
 
     const docs: IWatchTime[] = itemIds.map(itemId => ({
       userId: new ObjectId(userId),
-
       courseId: new ObjectId(courseId),
-
       courseVersionId: new ObjectId(versionId),
-
       itemId: new ObjectId(itemId),
-
       startTime: now,
-
       endTime: now,
       isBulk: true,
     }));

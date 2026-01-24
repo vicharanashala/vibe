@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation, useSkipOptionalItem } from "@/hooks/hooks";
+import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation, useSkipOptionalItem, useRecalculateStudentProgress } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
@@ -100,6 +100,7 @@ export default function CoursePage() {
   const [isSkippingItem, setIsSkippingItem] = useState(false);
   const { mutateAsync: submitFlagAsyncMutate, isPending } = useSubmitFlag();
   const { mutateAsync: skipItemAsync, isPending: isSkipping } = useSkipOptionalItem();
+  const { mutateAsync: recalculateStudentProgressAsync } = useRecalculateStudentProgress();
   const [closing, setClosing] = useState(false);
 
   const streamRef = useRef<MediaStream | null>(null);
@@ -207,30 +208,30 @@ export default function CoursePage() {
   // Fetch proctoring settings for the course (fetched once when component loads)
   const [proctoringData, setProctoringData] = useState<StudentProctoringSettings | null>(null);
 
-  
+
   const sectionModuleId = activeSectionInfo?.moduleId ?? '';
   const sectionId = activeSectionInfo?.sectionId ?? '';
 
-// ---------------------------------------------
-// SECTION ITEM FETCH (ONCE PER SECTION)
-// ---------------------------------------------
-const hasSectionItems =
-  !!activeSectionInfo?.sectionId &&
-  !!sectionItems[activeSectionInfo.sectionId];
+  // ---------------------------------------------
+  // SECTION ITEM FETCH (ONCE PER SECTION)
+  // ---------------------------------------------
+  const hasSectionItems =
+    !!activeSectionInfo?.sectionId &&
+    !!sectionItems[activeSectionInfo.sectionId];
 
-const shouldFetchItems =
-  !!activeSectionInfo?.moduleId &&
-  !!activeSectionInfo?.sectionId &&
-  !hasSectionItems;
+  const shouldFetchItems =
+    !!activeSectionInfo?.moduleId &&
+    !!activeSectionInfo?.sectionId &&
+    !hasSectionItems;
 
-const {
-  data: currentSectionItems,
-  isLoading: itemsLoading
-} = useItemsBySectionId(
-  shouldFetchItems ? VERSION_ID : '',
-  shouldFetchItems ? activeSectionInfo!.moduleId : '',
-  shouldFetchItems ? activeSectionInfo!.sectionId : ''
-);
+  const {
+    data: currentSectionItems,
+    isLoading: itemsLoading
+  } = useItemsBySectionId(
+    shouldFetchItems ? VERSION_ID : '',
+    shouldFetchItems ? activeSectionInfo!.moduleId : '',
+    shouldFetchItems ? activeSectionInfo!.sectionId : ''
+  );
 
 
   // Fetch individual item details when an item is selected
@@ -254,22 +255,22 @@ const {
   } | null>(null);
 
   // ---------------------------------------------
-// SAFE SECTION ACTIVATION (PREVENT RE-FETCH)
-// ---------------------------------------------
-const safeSetActiveSection = useCallback(
-  (moduleId: string, sectionId: string) => {
-    setActiveSectionInfo(prev => {
-      if (
-        prev?.moduleId === moduleId &&
-        prev?.sectionId === sectionId
-      ) {
-        return prev; // 🚫 no state change → no refetch
-      }
-      return { moduleId, sectionId };
-    });
-  },
-  []
-);
+  // SAFE SECTION ACTIVATION (PREVENT RE-FETCH)
+  // ---------------------------------------------
+  const safeSetActiveSection = useCallback(
+    (moduleId: string, sectionId: string) => {
+      setActiveSectionInfo(prev => {
+        if (
+          prev?.moduleId === moduleId &&
+          prev?.sectionId === sectionId
+        ) {
+          return prev; // 🚫 no state change → no refetch
+        }
+        return { moduleId, sectionId };
+      });
+    },
+    []
+  );
 
 
 
@@ -288,27 +289,27 @@ const safeSetActiveSection = useCallback(
   }, []);
 
   useEffect(() => {
-  if (
-    shouldFetchItems &&
-    activeSectionInfo?.sectionId &&
-    currentSectionItems &&
-    !itemsLoading
-  ) {
-    const itemsArray =
-      (currentSectionItems as any)?.items ??
-      (Array.isArray(currentSectionItems) ? currentSectionItems : []);
+    if (
+      shouldFetchItems &&
+      activeSectionInfo?.sectionId &&
+      currentSectionItems &&
+      !itemsLoading
+    ) {
+      const itemsArray =
+        (currentSectionItems as any)?.items ??
+        (Array.isArray(currentSectionItems) ? currentSectionItems : []);
 
-    setSectionItems(prev => ({
-      ...prev,
-      [activeSectionInfo.sectionId]: sortItemsByOrder(itemsArray),
-    }));
-  }
-}, [
-  currentSectionItems,
-  itemsLoading,
-  shouldFetchItems,
-  activeSectionInfo
-]);
+      setSectionItems(prev => ({
+        ...prev,
+        [activeSectionInfo.sectionId]: sortItemsByOrder(itemsArray),
+      }));
+    }
+  }, [
+    currentSectionItems,
+    itemsLoading,
+    shouldFetchItems,
+    activeSectionInfo
+  ]);
 
 
   // Separate effect for handling item errors - prevents circular dependencies
@@ -1055,6 +1056,13 @@ const safeSetActiveSection = useCallback(
           frame();
 
           setTimeout(() => router.navigate({ to: "/student" }), 3500);
+          // Recalcualate and update the progress % and completed items count properly
+          await recalculateStudentProgressAsync({
+            body: {
+              courseId: COURSE_ID,
+              courseVersionId: VERSION_ID,
+            },
+          });
           return;
         }
 
