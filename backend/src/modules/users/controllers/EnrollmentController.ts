@@ -558,9 +558,11 @@ export class EnrollmentController {
   }> {
     try {
       const { courseId, versionId, userId } = query;
+      const hasAtleastOneParam = courseId || userId || versionId;
+
 
       // Validate at least one parameter is provided
-      if (!courseId || !userId || !versionId) {
+      if (!hasAtleastOneParam) {
         throw new BadRequestError(
           'At least courseId, versionId, or userId must be provided',
         );
@@ -576,8 +578,8 @@ export class EnrollmentController {
 
       return {
         message: result.message,
-        watchtimeUpdated: result.watchtimeUpdated,
-        progressRecalculated: result.progressRecalculated,
+        watchtimeUpdated: result.summary.watchtimeUpdated,
+        progressRecalculated: result.summary.progressRecalculated,
       };
     } catch (error) {
       console.error(
