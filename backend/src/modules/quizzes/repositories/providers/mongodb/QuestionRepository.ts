@@ -19,9 +19,8 @@ class QuestionRepository {
   ) {}
 
   private async init() {
-    this.questionCollection = await this.db.getCollection<BaseQuestion>(
-      'questions',
-    );
+    this.questionCollection =
+      await this.db.getCollection<BaseQuestion>('questions');
     this.flaggedQuestionCollection =
       await this.db.getCollection<FlaggedQuestion>('flagged_questions');
   }
@@ -47,6 +46,29 @@ class QuestionRepository {
     );
     return result;
   }
+
+  public async getByIdWithoutExplanation(
+    questionId: string,
+    session?: ClientSession,
+  ): Promise<BaseQuestion | null> {
+    await this.init();
+
+    const result = await this.questionCollection.findOne(
+      {_id: new ObjectId(questionId)},
+      {
+        projection: {
+          'correctLotItem.explaination': 0,
+          'incorrectLotItems.explaination': 0,
+          'correctLotItems.explaination': 0,
+          'ordering.lotItem.explaination': 0,
+        },
+        session,
+      },
+    );
+
+    return result;
+  }
+
   public async getByIds(
     questionIds: string[],
     session?: ClientSession,
