@@ -176,7 +176,7 @@ export default function CourseEnrollments() {
   const [selectedViewItemName, setSelectedViewItemName] = useState<string>("")
 
   // Sorting state
-  const [sortBy, setSortBy] = useState<'name' | 'enrollmentDate' | 'progress'>('name')
+  const [sortBy, setSortBy] = useState<'name' | 'enrollmentDate' | 'progress' | 'unenrolledAt'>('name')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
 
@@ -332,7 +332,7 @@ export default function CourseEnrollments() {
     setCurrentPage(1)
   }, [enrollmentTab])
 
-  
+
   // const studentEnrollments = enrollmentsData?.enrollments || [];
   const studentEnrollments = enrollmentsData?.enrollments || []
 
@@ -348,8 +348,8 @@ export default function CourseEnrollments() {
 
 
   // Sorting handler
-  const handleSort = (column: 'name' | 'enrollmentDate' | 'progress'|"scoreObtained") => {
-    if(column === "scoreObtained" ) return;
+  const handleSort = (column: 'name' | 'enrollmentDate' | 'progress' | "scoreObtained" | "unenrolledAt") => {
+    if (column === "scoreObtained") return;
     if (sortBy === column) {
       setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
     } else {
@@ -716,80 +716,80 @@ export default function CourseEnrollments() {
 
 
         {/* Students Table */}
-    {/* Students Table + Tabs */}
-<Tabs
-  value={enrollmentTab}
-  onValueChange={(v) => setEnrollmentTab(v as "ACTIVE" | "INACTIVE")}
-  className="w-full"
->
-  {/* Tabs Header */}
-  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-    <TabsList className="grid w-full sm:w-[420px] grid-cols-2 h-11 bg-muted/30 p-1 rounded-xl">
-      <TabsTrigger
-        value="ACTIVE"
-        className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
-      >
-        Active Students
-      </TabsTrigger>
+        {/* Students Table + Tabs */}
+        <Tabs
+          value={enrollmentTab}
+          onValueChange={(v) => setEnrollmentTab(v as "ACTIVE" | "INACTIVE")}
+          className="w-full"
+        >
+          {/* Tabs Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <TabsList className="grid w-full sm:w-[420px] grid-cols-2 h-11 bg-muted/30 p-1 rounded-xl">
+              <TabsTrigger
+                value="ACTIVE"
+                className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
+              >
+                Active Students
+              </TabsTrigger>
 
-      <TabsTrigger
-        value="INACTIVE"
-        className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
-      >
-        Inactive Students 
-      </TabsTrigger>
-    </TabsList>
-  </div>
-{/* Active Tab */}
-<TabsContent value="ACTIVE" className="mt-4">
-  <EnrollmentsTable
-    totalDocuments={totalDocuments}
-    studentEnrollments={studentEnrollments}
-    enrollmentsLoading={enrollmentsLoading}
-    isSearching={isSearching}
-    enrollmentTab={enrollmentTab}
-    searchQuery={searchQuery}
-    limit={limit}
-    handleLimitChange={handleLimitChange}
-    handleSort={handleSort}
-    sortBy={sortBy}
-    sortOrder={sortOrder}
-    isLoadingQuizScores={isLoadingQuizScores}
-    setIsExporting={setIsExporting}
-    unenrollMutation={unenrollMutation}
-    user={user}
-    handleViewProgress={handleViewProgress}
-    handleRemoveStudent={handleRemoveStudent}
-    getRoleBadge={getRoleBadge}
-  />
-</TabsContent>
+              <TabsTrigger
+                value="INACTIVE"
+                className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
+              >
+                Inactive Students
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          {/* Active Tab */}
+          <TabsContent value="ACTIVE" className="mt-4">
+            <EnrollmentsTable
+              totalDocuments={totalDocuments}
+              studentEnrollments={studentEnrollments}
+              enrollmentsLoading={enrollmentsLoading}
+              isSearching={isSearching}
+              enrollmentTab={enrollmentTab}
+              searchQuery={searchQuery}
+              limit={limit}
+              handleLimitChange={handleLimitChange}
+              handleSort={handleSort}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              isLoadingQuizScores={isLoadingQuizScores}
+              setIsExporting={setIsExporting}
+              unenrollMutation={unenrollMutation}
+              user={user}
+              handleViewProgress={handleViewProgress}
+              handleRemoveStudent={handleRemoveStudent}
+              getRoleBadge={getRoleBadge}
+            />
+          </TabsContent>
 
-{/* Inactive Tab */}
-<TabsContent value="INACTIVE" className="mt-4">
-  <EnrollmentsTable
-    totalDocuments={totalDocuments}
-    studentEnrollments={studentEnrollments}
-    enrollmentsLoading={enrollmentsLoading}
-    isSearching={isSearching}
-    enrollmentTab={enrollmentTab}
-    searchQuery={searchQuery}
-    limit={limit}
-    handleLimitChange={handleLimitChange}
-    handleSort={handleSort}
-    sortBy={sortBy}
-    sortOrder={sortOrder}
-    isLoadingQuizScores={isLoadingQuizScores}
-    setIsExporting={setIsExporting}
-    unenrollMutation={unenrollMutation}
-    user={user}
-    handleViewProgress={handleViewProgress}
-    handleRemoveStudent={handleRemoveStudent}
-    getRoleBadge={getRoleBadge}
-  />
-</TabsContent>
+          {/* Inactive Tab */}
+          <TabsContent value="INACTIVE" className="mt-4">
+            <EnrollmentsTable
+              totalDocuments={totalDocuments}
+              studentEnrollments={studentEnrollments}
+              enrollmentsLoading={enrollmentsLoading}
+              isSearching={isSearching}
+              enrollmentTab={enrollmentTab}
+              searchQuery={searchQuery}
+              limit={limit}
+              handleLimitChange={handleLimitChange}
+              handleSort={handleSort}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              isLoadingQuizScores={isLoadingQuizScores}
+              setIsExporting={setIsExporting}
+              unenrollMutation={unenrollMutation}
+              user={user}
+              handleViewProgress={handleViewProgress}
+              handleRemoveStudent={handleRemoveStudent}
+              getRoleBadge={getRoleBadge}
+            />
+          </TabsContent>
 
- 
-</Tabs>
+
+        </Tabs>
 
 
         {/* Enhanced View Progress Modal */}
@@ -842,142 +842,142 @@ export default function CourseEnrollments() {
               </div>
 
               {/* Course Structure */}
-            <div className="space-y-4">
-            {enrollmentTab === "ACTIVE" && (
-              <div className="flex justify-between">
-                <TooltipProvider delayDuration={300}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          handleResetProgress({
-                            id: selectedUser.id,
-                            name: `${selectedUser.name || ""}`.trim() || "Unknown User",
-                            email: selectedUser.email,
-                            enrolledDate: selectedUser.enrolledDate,
-                            progress: 0,
-                          })
-                        }
-                        className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
-                        disabled={resetProgressMutation.isPending || selectedUser.isDeleted}
-                      >
-                        {resetProgressMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <RotateCcw className="h-4 w-4 mr-2" />
-                        )}
-                        Reset
-                      </Button>
-                    </TooltipTrigger>
-
-                    <TooltipContent>
-                      <p>Reset student progress</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          handleRecalculateProgress({
-                            id: selectedUser.id,
-                            name: `${selectedUser.name || ""}`.trim() || "Unknown User",
-                            email: selectedUser.email,
-                            enrolledDate: selectedUser.enrolledDate,
-                            progress: 0,
-                          })
-                        }
-                        className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
-                        disabled={
-                          unenrollMutation.isPending ||
-                          user?.email == selectedUser.email ||
-                          selectedUser.isDeleted
-                        }
-                      >
-                        {unenrollMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <RotateCcw className="h-4 w-4 mr-2" />
-                        )}
-                        Recalculate
-                      </Button>
-                    </TooltipTrigger>
-
-                    <TooltipContent>Recalculate student progress</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            )}
-
-            <h3 className="text-lg font-semibold text-foreground">Course Structure</h3>
-            <div className="space-y-2 max-h-96 overflow-y-auto border border-border rounded-lg p-4">
-              {getAvailableModules().map((module: any) => (
-                <div key={module.moduleId} className="space-y-2">
-                  {/* Module */}
-                  <div
-                    className="flex items-center gap-2 p-3 bg-muted/20 rounded-lg cursor-pointer hover:bg-muted/30 transition-colors"
-                    onClick={() => toggleModule(module.moduleId)}
-                  >
-                    {expandedModules.has(module.moduleId) ? (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    <BookOpen className="h-5 w-5 text-blue-600" />
-                    <span className="font-semibold text-foreground">{module.name}</span>
-                  </div>
-
-                  {/* Sections */}
-                  {expandedModules.has(module.moduleId) && (
-                    <div className="ml-6 space-y-2">
-                      {module.sections?.map((section: any) => (
-                        <div key={section.sectionId} className="space-y-2">
-                          <div
-                            className="flex items-center gap-2 p-2 bg-muted/10 rounded-lg cursor-pointer hover:bg-muted/20 transition-colors"
-                            onClick={() => toggleSection(section.sectionId)}
+              <div className="space-y-4">
+                {enrollmentTab === "ACTIVE" && (
+                  <div className="flex justify-between">
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleResetProgress({
+                                id: selectedUser.id,
+                                name: `${selectedUser.name || ""}`.trim() || "Unknown User",
+                                email: selectedUser.email,
+                                enrolledDate: selectedUser.enrolledDate,
+                                progress: 0,
+                              })
+                            }
+                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
+                            disabled={resetProgressMutation.isPending || selectedUser.isDeleted}
                           >
-                            {expandedSections.has(section.sectionId) ? (
-                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            {resetProgressMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                             ) : (
-                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              <RotateCcw className="h-4 w-4 mr-2" />
                             )}
-                            <FileText className="h-4 w-4 text-emerald-600" />
-                            <span className="font-medium text-foreground">{section.name}</span>
-                          </div>
+                            Reset
+                          </Button>
+                        </TooltipTrigger>
 
-                          {/* Items */}
-                          {expandedSections.has(section.sectionId) && (
-                            <SectionItems
-                              versionId={versionId!}
-                              moduleId={module.moduleId}
-                              sectionId={section.sectionId}
-                              selectedViewItem={selectedViewItem}
-                              onItemSelect={(itemId, itemType, itemName) => {
-                                setSelectedViewItem(itemId)
-                                setSelectedViewItemType(itemType)
-                                setSelectedViewItemName(itemName)
-                              }}
-                              getItemIcon={getItemIcon}
-                            />
-                          )}
+                        <TooltipContent>
+                          <p>Reset student progress</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleRecalculateProgress({
+                                id: selectedUser.id,
+                                name: `${selectedUser.name || ""}`.trim() || "Unknown User",
+                                email: selectedUser.email,
+                                enrolledDate: selectedUser.enrolledDate,
+                                progress: 0,
+                              })
+                            }
+                            className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+                            disabled={
+                              unenrollMutation.isPending ||
+                              user?.email == selectedUser.email ||
+                              selectedUser.isDeleted
+                            }
+                          >
+                            {unenrollMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <RotateCcw className="h-4 w-4 mr-2" />
+                            )}
+                            Recalculate
+                          </Button>
+                        </TooltipTrigger>
+
+                        <TooltipContent>Recalculate student progress</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                )}
+
+                <h3 className="text-lg font-semibold text-foreground">Course Structure</h3>
+                <div className="space-y-2 max-h-96 overflow-y-auto border border-border rounded-lg p-4">
+                  {getAvailableModules().map((module: any) => (
+                    <div key={module.moduleId} className="space-y-2">
+                      {/* Module */}
+                      <div
+                        className="flex items-center gap-2 p-3 bg-muted/20 rounded-lg cursor-pointer hover:bg-muted/30 transition-colors"
+                        onClick={() => toggleModule(module.moduleId)}
+                      >
+                        {expandedModules.has(module.moduleId) ? (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <BookOpen className="h-5 w-5 text-blue-600" />
+                        <span className="font-semibold text-foreground">{module.name}</span>
+                      </div>
+
+                      {/* Sections */}
+                      {expandedModules.has(module.moduleId) && (
+                        <div className="ml-6 space-y-2">
+                          {module.sections?.map((section: any) => (
+                            <div key={section.sectionId} className="space-y-2">
+                              <div
+                                className="flex items-center gap-2 p-2 bg-muted/10 rounded-lg cursor-pointer hover:bg-muted/20 transition-colors"
+                                onClick={() => toggleSection(section.sectionId)}
+                              >
+                                {expandedSections.has(section.sectionId) ? (
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                )}
+                                <FileText className="h-4 w-4 text-emerald-600" />
+                                <span className="font-medium text-foreground">{section.name}</span>
+                              </div>
+
+                              {/* Items */}
+                              {expandedSections.has(section.sectionId) && (
+                                <SectionItems
+                                  versionId={versionId!}
+                                  moduleId={module.moduleId}
+                                  sectionId={section.sectionId}
+                                  selectedViewItem={selectedViewItem}
+                                  onItemSelect={(itemId, itemType, itemName) => {
+                                    setSelectedViewItem(itemId)
+                                    setSelectedViewItemType(itemType)
+                                    setSelectedViewItemName(itemName)
+                                  }}
+                                  getItemIcon={getItemIcon}
+                                />
+                              )}
+                            </div>
+                          )) || (
+                              <p className="text-sm text-muted-foreground ml-6">
+                                No sections in this module
+                              </p>
+                            )}
                         </div>
-                      )) || (
-                        <p className="text-sm text-muted-foreground ml-6">
-                          No sections in this module
-                        </p>
                       )}
                     </div>
-                  )}
+                  ))}
                 </div>
-              ))}
-            </div>
-            </div>
+              </div>
 
 
               {/* Item Details Display */}
@@ -1572,28 +1572,39 @@ function EnrollmentsTable({
             <Table>
               <TableHeader>
                 <TableRow className="border-border bg-muted/30">
-                  {[
-                    { key: "name", label: "Student", className: "pl-6 w-[300px]" },
-                    { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
-                    { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
-                    { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
-                  ].map(({ key, label, className }) => (
-                    <TableHead
-                      key={key}
-                      className={`font-bold text-foreground cursor-pointer select-none ${className}`}
-                      onClick={() => handleSort(key as "name" | "enrollmentDate" | "progress")}
-                    >
-                      <span className="flex items-center gap-1">
-                        {label}
-                        {sortBy === key &&
-                          (sortOrder === "asc" ? (
-                            <ArrowUp size={16} className="text-foreground" />
-                          ) : (
-                            <ArrowDown size={16} className="text-foreground" />
-                          ))}
-                      </span>
-                    </TableHead>
-                  ))}
+                  {(() => {
+                    const columns = isInactiveTab
+                      ? [
+                        { key: "name", label: "Student", className: "pl-6 w-[300px]" },
+                        { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
+                        { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
+                        { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
+                      ]
+                      : [
+                        { key: "name", label: "Student", className: "pl-6 w-[300px]" },
+                        { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
+                        { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
+                      ];
+                    return columns.map(({ key, label, className }) => (
+                      <TableHead
+                        key={key}
+                        className={`font-bold text-foreground cursor-pointer select-none ${className}`}
+                        onClick={() => handleSort(key as "name" | "enrollmentDate" | "progress" | "unenrolledAt")}
+                      >
+                        <span className="flex items-center gap-1">
+                          {label}
+                          {sortBy === key &&
+                            (sortOrder === "asc" ? (
+                              <ArrowUp size={16} className="text-foreground" />
+                            ) : (
+                              <ArrowDown size={16} className="text-foreground" />
+                            ))}
+                        </span>
+                      </TableHead>
+                    ));
+                  })()}
                   <TableHead className="font-bold text-foreground pr-6 w-[200px]">
                     Actions
                   </TableHead>
@@ -1632,28 +1643,39 @@ function EnrollmentsTable({
             <Table>
               <TableHeader>
                 <TableRow className="border-border bg-muted/30">
-                  {[
-                    { key: "name", label: "Student", className: "pl-6 w-[300px]" },
-                    { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
-                    { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
-                    { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
-                  ].map(({ key, label, className }) => (
-                    <TableHead
-                      key={key}
-                      className={`font-bold text-foreground cursor-pointer select-none ${className}`}
-                      onClick={() => handleSort(key as "name" | "enrollmentDate" | "progress")}
-                    >
-                      <span className="flex items-center gap-1">
-                        {label}
-                        {sortBy === key &&
-                          (sortOrder === "asc" ? (
-                            <ArrowUp size={16} className="text-foreground" />
-                          ) : (
-                            <ArrowDown size={16} className="text-foreground" />
-                          ))}
-                      </span>
-                    </TableHead>
-                  ))}
+                  {(() => {
+                    const columns = isInactiveTab
+                      ? [
+                        { key: "name", label: "Student", className: "pl-6 w-[300px]" },
+                        { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
+                        { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
+                        { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
+                      ]
+                      : [
+                        { key: "name", label: "Student", className: "pl-6 w-[300px]" },
+                        { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
+                        { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
+                      ];
+                    return columns.map(({ key, label, className }) => (
+                      <TableHead
+                        key={key}
+                        className={`font-bold text-foreground cursor-pointer select-none ${className}`}
+                        onClick={() => handleSort(key as "name" | "enrollmentDate" | "progress" | "unenrolledAt")}
+                      >
+                        <span className="flex items-center gap-1">
+                          {label}
+                          {sortBy === key &&
+                            (sortOrder === "asc" ? (
+                              <ArrowUp size={16} className="text-foreground" />
+                            ) : (
+                              <ArrowDown size={16} className="text-foreground" />
+                            ))}
+                        </span>
+                      </TableHead>
+                    ));
+                  })()}
                   <TableHead className="font-bold text-foreground pr-6 w-[200px]">
                     Actions
                   </TableHead>
@@ -1674,9 +1696,8 @@ function EnrollmentsTable({
                   studentEnrollments.map((enrollment: any) => (
                     <TableRow
                       key={enrollment._id}
-                      className={`border-border hover:bg-muted/20 transition-colors duration-200 group ${
-                        isInactiveTab ? "opacity-80" : ""
-                      }`}
+                      className={`border-border hover:bg-muted/20 transition-colors duration-200 group ${isInactiveTab ? "opacity-80" : ""
+                        }`}
                     >
                       {/* Student */}
                       <TableCell className="pl-6 py-6">
@@ -1717,6 +1738,23 @@ function EnrollmentsTable({
                           })}
                         </div>
                       </TableCell>
+
+                      {/* Unenrolled Date - Only for Inactive */}
+                      {isInactiveTab && (
+                        <TableCell className="py-6">
+                          <div className="text-muted-foreground font-medium">
+                            {enrollment.unenrolledAt ? (
+                              new Date(enrollment.unenrolledAt).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })
+                            ) : (
+                              "N/A"
+                            )}
+                          </div>
+                        </TableCell>
+                      )}
 
                       {/* Progress */}
                       <TableCell className="py-6">
@@ -1762,34 +1800,34 @@ function EnrollmentsTable({
                             View Progress
                           </Button>
 
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                handleRemoveStudent({
-                                  id: enrollment.user?._id,
-                                  name:
-                                    `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() ||
-                                    "Unknown User",
-                                  email: enrollment.user?.email,
-                                  enrolledDate: enrollment.enrollmentDate,
-                                  progress: 0,
-                                })
-                              }
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
-                              disabled={
-                                unenrollMutation.isPending ||
-                                user?.email === enrollment?.user?.email ||
-                                enrollment?.isDeleted
-                              }
-                            >
-                              {unenrollMutation.isPending ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              ) : (
-                                <UserX className="h-4 w-4 mr-2" />
-                              )}
-                              Remove
-                            </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              handleRemoveStudent({
+                                id: enrollment.user?._id,
+                                name:
+                                  `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() ||
+                                  "Unknown User",
+                                email: enrollment.user?.email,
+                                enrolledDate: enrollment.enrollmentDate,
+                                progress: 0,
+                              })
+                            }
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
+                            disabled={
+                              unenrollMutation.isPending ||
+                              user?.email === enrollment?.user?.email ||
+                              enrollment?.isDeleted
+                            }
+                          >
+                            {unenrollMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <UserX className="h-4 w-4 mr-2" />
+                            )}
+                            Remove
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>

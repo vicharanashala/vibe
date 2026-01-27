@@ -467,7 +467,7 @@ export class EnrollmentService extends BaseService {
     skip: number,
     limit: number,
     search: string,
-    sortBy: 'name' | 'enrollmentDate' | 'progress',
+    sortBy: 'name' | 'enrollmentDate' | 'progress' | 'unenrolledAt',
     sortOrder: 'asc' | 'desc',
     filter: string,
     statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',

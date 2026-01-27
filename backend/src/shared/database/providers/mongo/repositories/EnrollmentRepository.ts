@@ -1116,7 +1116,7 @@ export class EnrollmentRepository {
     skip: number,
     limit: number,
     search: string,
-    sortBy: 'name' | 'enrollmentDate' | 'progress',
+    sortBy: 'name' | 'enrollmentDate' | 'progress' | 'unenrolledAt',
     sortOrder: 'asc' | 'desc',
     filter: string,
     statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
@@ -1192,7 +1192,9 @@ export class EnrollmentRepository {
     } else if (sortBy === 'enrollmentDate') {
       sortField = {enrollmentDate: sortOrder === 'asc' ? 1 : -1};
     } else if (sortBy === 'progress') {
-      sortField = {percentCompleted: sortOrder === 'asc' ? 1 : -1};
+      sortField = { percentCompleted: sortOrder === 'asc' ? 1 : -1 };
+    } else if (sortBy === 'unenrolledAt') {
+      sortField = { unenrolledAt: sortOrder === 'asc' ? 1 : -1 };
     }
 
     const aggregationPipeline: any[] = [
