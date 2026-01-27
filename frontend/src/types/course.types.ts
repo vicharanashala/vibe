@@ -90,6 +90,7 @@ export interface EnrolledUser {
   email: string
   avatar?: string
   enrolledDate: string
+  unenrolledAt?: string
   progress: number
   completedItemsCount?: number
   isDeleted?: boolean

@@ -20,8 +20,8 @@ import {
   ICourse,
   ID,
 } from '#root/shared/interfaces/models.js';
-import {CourseDataResponse} from '#root/modules/courses/classes/index.js';
-import {ContentCountsValidator} from './ContentCountsValidators.js';
+import { CourseDataResponse } from '#root/modules/courses/classes/index.js';
+import { ContentCountsValidator } from './ContentCountsValidators.js';
 
 export class EnrollmentParams {
   @JSONSchema({
@@ -170,7 +170,7 @@ export class EnrollUserResponseData {
   @JSONSchema({
     description: 'Enrollment data for the user',
     type: 'object',
-    items: {$ref: '#/components/schemas/EnrollmentDataResponse'},
+    items: { $ref: '#/components/schemas/EnrollmentDataResponse' },
   })
   @ValidateNested()
   @Type(() => EnrollmentDataResponse)
@@ -180,7 +180,7 @@ export class EnrollUserResponseData {
   @JSONSchema({
     description: 'Progress data for the user',
     type: 'object',
-    items: {$ref: '#/components/schemas/ProgressDataResponse'},
+    items: { $ref: '#/components/schemas/ProgressDataResponse' },
   })
   @IsNotEmpty()
   @ValidateNested()
@@ -338,9 +338,20 @@ class AllEnrollmentsResponse {
   enrollmentDate: Date;
 
   @JSONSchema({
+    description: 'Date when the user was unenrolled',
+    example: '2023-10-01T12:00:00Z',
+    type: 'string',
+    format: 'date-time',
+  })
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  unenrolledAt?: Date;
+
+  @JSONSchema({
     description: 'User data associated with the enrollment',
     type: 'object',
-    items: {$ref: '#/components/schemas/EnrolledUserResponseData'},
+    items: { $ref: '#/components/schemas/EnrolledUserResponseData' },
   })
   @IsNotEmpty()
   @ValidateNested()
