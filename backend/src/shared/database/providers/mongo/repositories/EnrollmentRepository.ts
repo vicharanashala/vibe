@@ -1126,7 +1126,7 @@ export class EnrollmentRepository {
     skip: number,
     limit: number,
     search: string,
-    sortBy: 'name' | 'enrollmentDate' | 'progress',
+    sortBy: 'name' | 'enrollmentDate' | 'progress' | 'unenrolledAt',
     sortOrder: 'asc' | 'desc',
     filter: string,
     statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
@@ -1136,21 +1136,19 @@ export class EnrollmentRepository {
     const matchStage: any = {
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
-      status: { $regex: /^active$/i },
-      isDeleted: { $ne: true }, // Exclude soft-deleted enrollments
     };
 
     // ✅ ACTIVE tab
     if (statusTab === 'ACTIVE') {
-      matchStage.status = {$regex: /^active$/i};
-      matchStage.isDeleted = {$ne: true};
+      matchStage.status = { $regex: /^active$/i };
+      matchStage.isDeleted = { $ne: true };
     }
 
     // ✅ INACTIVE tab
     if (statusTab === 'INACTIVE') {
       matchStage.$or = [
-        {status: {$regex: /^inactive$/i}},
-        {isDeleted: true},
+        { status: { $regex: /^inactive$/i } },
+        { isDeleted: true },
       ];
     }
 
@@ -1160,7 +1158,7 @@ export class EnrollmentRepository {
     //   // status: {$regex: /^active$/i},
     //   isDeleted: {$ne: true}, // Exclude soft-deleted enrollments
     // };
-    
+
     if (filter) {
       if (filter === 'STUDENT') {
         matchStage.role = 'STUDENT';
@@ -1181,6 +1179,8 @@ export class EnrollmentRepository {
       sortField = { enrollmentDate: sortOrder === 'asc' ? 1 : -1 };
     } else if (sortBy === 'progress') {
       sortField = { percentCompleted: sortOrder === 'asc' ? 1 : -1 };
+    } else if (sortBy === 'unenrolledAt') {
+      sortField = { unenrolledAt: sortOrder === 'asc' ? 1 : -1 };
     }
 
     const aggregationPipeline: any[] = [
