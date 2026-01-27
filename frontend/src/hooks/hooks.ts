@@ -1178,7 +1178,8 @@ export function useCourseEnrollmentsStats(
 export function useCourseQuizScores(
   courseId: string | undefined,
   versionId: string | undefined,
-  enabled: boolean = true
+  enabled: boolean = true,
+  statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE' 
 ): {
   data: any | undefined,
   isLoading: boolean,
@@ -1190,7 +1191,8 @@ export function useCourseQuizScores(
     '/users/enrollments/courses/{courseId}/versions/{versionId}/export/quiz-scores',
     {
       params: {
-        path: { courseId, versionId }
+        path: { courseId, versionId },
+        query: { statusTab }
       }
     },
     {
