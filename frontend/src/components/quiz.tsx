@@ -519,6 +519,15 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     return () => clearTimeout(timer);
   }, [emptyQuizRedirectCountdown]);
 
+  useEffect(() => {
+    return () => {
+      setEmptyQuizRedirectCountdown(null);
+      if (emptyQuizNextTimerRef.current) {
+        clearTimeout(emptyQuizNextTimerRef.current);
+      }
+    };
+  }, []);
+
   // Handle empty quiz after quiz attempt was already made
   const handleEmptyQuizAfterAttempt = useCallback(async () => {
     try {
@@ -685,6 +694,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         ...response,
         gradedAt: response.gradedAt ? new Date(response.gradedAt).toISOString() : undefined,
       };
+
       setSubmissionResults(formattedResponse);
 
       // Update score from server response if available
@@ -1209,8 +1219,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                   {onPrevVideo && (
                     <Button
                       onClick={() => {
-                        clearTimeout(emptyQuizNextTimerRef.current);
-                        setEmptyQuizRedirectCountdown(null);
                         onPrevVideo();
                       }}
                       disabled={isProgressUpdating}
@@ -1235,8 +1243,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                   {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
                     <Button
                       onClick={()=>{
-                        setEmptyQuizRedirectCountdown(null);
-                        clearTimeout(emptyQuizNextTimerRef.current);
                         onNext()}}
                       disabled={isProgressUpdating}
                       className="min-w-[180px] h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
@@ -1300,12 +1306,26 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                   : `${score}/${getTotalPoints()}`
                 }
               </div>
-              <p className="text-xl text-foreground">
+              {/* <p className="text-xl text-foreground">
                 You scored {submissionResults?.totalScore !== undefined && submissionResults?.totalMaxScore !== undefined
                   ? Math.round((submissionResults.totalScore / submissionResults.totalMaxScore) * 100)
                   : Math.round((score / getTotalPoints()) * 100)
                 }%
-              </p>
+              </p> */}
+              <p className="text-xl text-foreground">
+              {submissionResults?.totalScore === 0 && submissionResults?.totalMaxScore === 0
+                ? ""
+                : `You scored ${
+                    submissionResults?.totalScore !== undefined &&
+                    submissionResults?.totalMaxScore !== undefined
+                      ? Math.round(
+                          (submissionResults.totalScore /
+                            submissionResults.totalMaxScore) *
+                            100
+                        )
+                      : Math.round((score / getTotalPoints()) * 100)
+                  }%`}
+            </p>
 
               {/* Grading Status Badge */}
               {submissionResults?.gradingStatus && (
@@ -1322,7 +1342,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                   {submissionResults.gradingStatus === 'PENDING' && '⏳ Pending Review'}
                 </Badge>
               )}
-              {(submissionResults?.totalScore === submissionResults?.totalMaxScore) && (
+              {(submissionResults?.gradingStatus === 'PASSED' && submissionResults?.totalScore === submissionResults?.totalMaxScore) && (
                 <Badge variant="success" className="text-lg px-4 py-2 from-primary to-chart-2 mx-2">
                   Perfect Score! 🎉
                 </Badge>
