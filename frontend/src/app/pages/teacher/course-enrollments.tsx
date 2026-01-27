@@ -189,12 +189,12 @@ export default function CourseEnrollments() {
   const [isExporting, setIsExporting] = useState(false);
 
   // Quiz scores hook - using the hook directly with enabled: false to control when to fetch
-  const {
-    data: quizScores,
-    isLoading: isLoadingQuizScores,
-    error: quizScoresError,
-    refetch: fetchQuizScores,
-  } = useCourseQuizScores(courseId, versionId, isExporting);
+  // const {
+  //   data: quizScores,
+  //   isLoading: isLoadingQuizScores,
+  //   error: quizScoresError,
+  //   refetch: fetchQuizScores,
+  // } = useCourseQuizScores(courseId, versionId, isExporting,enrollmentTab);
 
   interface QuizScore {
     moduleId?: string;
@@ -264,13 +264,14 @@ export default function CourseEnrollments() {
 
       // ⏱️ Stable filename (no locale overhead)
       const timestamp = new Date().toISOString().replace(/[:.]/g, '_');
-      const filename = `quiz_scores_${timestamp}.xlsx`;
+      const statusLabel = enrollmentTab === 'ACTIVE' ? 'active' : 'inactive';
+       const filename = `quiz_scores_${statusLabel}_${timestamp}.xlsx`;
 
       // 🧠 Let UI breathe before heavy Excel generation
       await new Promise(resolve => setTimeout(resolve, 0));
 
       generateExcel(formattedData, filename);
-      toast.success('Quiz scores exported successfully');
+      toast.success(`${enrollmentTab.toLowerCase()} quiz scores exported successfully`);
     } catch (error) {
       console.error('Error exporting quiz scores:', error);
       toast.error(
@@ -299,6 +300,12 @@ export default function CourseEnrollments() {
   // Active / Inactive tab
   const [enrollmentTab, setEnrollmentTab] = useState<"ACTIVE" | "INACTIVE">("ACTIVE")
   const statusTab: "ACTIVE" | "INACTIVE" = enrollmentTab
+   const {
+    data: quizScores,
+    isLoading: isLoadingQuizScores,
+    error: quizScoresError,
+    refetch: fetchQuizScores,
+  } = useCourseQuizScores(courseId, versionId, isExporting,enrollmentTab);
 
 
   // Fetch enrollments data

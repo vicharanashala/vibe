@@ -2215,6 +2215,7 @@ export class EnrollmentRepository {
   async getQuizScoresForCourseVersion(
     courseId: string,
     versionId: string,
+    statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
   ): Promise<QuizScoresExportResponseDto> {
     const startTime = Date.now();
     await this.init();
@@ -2230,12 +2231,21 @@ export class EnrollmentRepository {
     const courseIdObj = new ObjectId(courseId);
     const versionIdObj = new ObjectId(versionId);
 
-    const studentFilter = {
+    const studentFilter: any = {
       courseId: courseIdObj,
       courseVersionId: versionIdObj,
       role: 'STUDENT' as EnrollmentRole,
-      status: {$regex: /^active$/i},
     };
+
+    // Add status-specific filters
+    if (statusTab === 'ACTIVE') {
+      studentFilter.status = {$regex: /^active$/i};
+    } else if (statusTab === 'INACTIVE') {
+      studentFilter.$or = [
+        {status: {$regex: /^inactive$/i}},
+        {isDeleted: true},
+      ];
+    }
 
     /* -------------------------------------------------------
      * 1️⃣ FETCH ENROLLMENTS (ONCE)
@@ -2270,6 +2280,7 @@ export class EnrollmentRepository {
           courseId,
           versionId,
           totalStudents: 0,
+          statusTab,
           durationMs: Date.now() - startTime,
           generatedAt: new Date().toISOString(),
         },
@@ -2299,6 +2310,7 @@ export class EnrollmentRepository {
           courseId,
           versionId,
           totalStudents: enrollments.length,
+          statusTab,
           durationMs: Date.now() - startTime,
           generatedAt: new Date().toISOString(),
         },

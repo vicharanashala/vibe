@@ -1,36 +1,36 @@
-import { COURSES_TYPES } from '#courses/types.js';
-import { InviteStatus } from '#root/modules/notifications/index.js';
-import { BaseService } from '#root/shared/classes/BaseService.js';
-import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
-import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
-import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {COURSES_TYPES} from '#courses/types.js';
+import {InviteStatus} from '#root/modules/notifications/index.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
+import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   EnrollmentRole,
   EnrollmentStatus,
   ICourseVersion,
   IEnrollment,
 } from '#root/shared/interfaces/models.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { EnrollmentRepository } from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
-import { Enrollment } from '#users/classes/transformers/Enrollment.js';
-import { EnrollmentStats, USERS_TYPES } from '#users/types.js';
-import { injectable, inject } from 'inversify';
-import { ClientSession, ObjectId, OptionalId } from 'mongodb';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import {Enrollment} from '#users/classes/transformers/Enrollment.js';
+import {EnrollmentStats, USERS_TYPES} from '#users/types.js';
+import {injectable, inject} from 'inversify';
+import {ClientSession, ObjectId, OptionalId} from 'mongodb';
 import {
   BadRequestError,
   NotFoundError,
   InternalServerError,
 } from 'routing-controllers';
-import { ProgressService } from './ProgressService.js';
-import { ProgressRepository, InviteRepository } from '#root/shared/index.js';
-import { EnrollmentDataResponse } from '../classes/index.js';
+import {ProgressService} from './ProgressService.js';
+import {ProgressRepository, InviteRepository} from '#root/shared/index.js';
+import {EnrollmentDataResponse} from '../classes/index.js';
 import {
   QuizScoresExportResponseDto,
   StudentQuizScoreDto,
 } from '../dtos/QuizScoresExportDto.js';
-import { COURSE_REGISTRATION_TYPES } from '#root/modules/courseRegistration/types.js';
-import { ICourseRegistrationRepository } from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
+import {COURSE_REGISTRATION_TYPES} from '#root/modules/courseRegistration/types.js';
+import {ICourseRegistrationRepository} from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
 import {
   IGradingResult,
   ISubmission,
@@ -98,7 +98,7 @@ export class EnrollmentService extends BaseService {
       // }
 
       if (existingEnrollment && throughInvite) {
-        return { status: 'ALREADY_ENROLLED' as InviteStatus };
+        return {status: 'ALREADY_ENROLLED' as InviteStatus};
       }
 
       if (existingEnrollment && !throughInvite) {
@@ -379,7 +379,6 @@ export class EnrollmentService extends BaseService {
         // const calculatedPercent = Math.floor(ratio * 100);
         const calculatedPercent = Number((ratio * 100).toFixed(1));
 
-
         // if different, update enrollment percentCompleted and completedItemsCount
         if (enr.percentCompleted !== calculatedPercent) {
           /*console.log(
@@ -398,7 +397,6 @@ export class EnrollmentService extends BaseService {
           enr.percentCompleted = calculatedPercent;
           enr.completedItemsCount = completedCount;
         }
-
 
         if (enr.percentCompleted >= 0) {
           const itemCounts = enr.itemCounts || {};
@@ -631,6 +629,7 @@ export class EnrollmentService extends BaseService {
   async getQuizScoresForCourseVersion(
     courseId: string,
     versionId: string,
+    statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
   ): Promise<QuizScoresExportResponseDto> {
     try {
       // Verify course and version exist in a single transaction
@@ -650,6 +649,7 @@ export class EnrollmentService extends BaseService {
       return await this.enrollmentRepo.getQuizScoresForCourseVersion(
         courseId,
         versionId,
+        statusTab,
       );
     } catch (error) {
       console.error(
@@ -722,12 +722,11 @@ export class EnrollmentService extends BaseService {
     message: string;
   }> {
     try {
-      const enrollments =
-        await this.enrollmentRepo.getEnrollmentsByFilters({
-          courseId,
-          courseVersionId: versionId,
-          userId,
-        });
+      const enrollments = await this.enrollmentRepo.getEnrollmentsByFilters({
+        courseId,
+        courseVersionId: versionId,
+        userId,
+      });
 
       console.log(`🔍 Found ${enrollments.length} enrollments to process`);
 
@@ -790,11 +789,10 @@ export class EnrollmentService extends BaseService {
     }
   }
 
-
   async bulkUpdateAllEnrollments(
     courseId?: string,
     userId?: string,
-  ): Promise<{ totalCount: number; updatedCount: number }> {
+  ): Promise<{totalCount: number; updatedCount: number}> {
     const BATCH_SIZE = 5000;
 
     // 1. Get courses (all or specific one)
@@ -856,7 +854,7 @@ export class EnrollmentService extends BaseService {
 
             bulkOperations.push({
               updateOne: {
-                filter: { _id: new ObjectId(enrollment._id) },
+                filter: {_id: new ObjectId(enrollment._id)},
                 update: {
                   $set: {
                     percentCompleted,
@@ -874,7 +872,8 @@ export class EnrollmentService extends BaseService {
                 );
                 updatedCount += bulkOperations.length;
                 console.log(
-                  `✅ Batch ${++batchCount}: Updated ${bulkOperations.length
+                  `✅ Batch ${++batchCount}: Updated ${
+                    bulkOperations.length
                   } enrollments`,
                 );
                 bulkOperations.length = 0;
@@ -909,7 +908,7 @@ export class EnrollmentService extends BaseService {
       });
     }
 
-    return { totalCount, updatedCount };
+    return {totalCount, updatedCount};
   }
 
   async getNonStudentEnrollmentsByCourseVersion(
@@ -922,7 +921,7 @@ export class EnrollmentService extends BaseService {
     );
   }
   async bulkEnrollUsers(
-    existingEnrolledUsersWithRoles: { userId: string; role: EnrollmentRole }[],
+    existingEnrolledUsersWithRoles: {userId: string; role: EnrollmentRole}[],
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
@@ -944,11 +943,11 @@ export class EnrollmentService extends BaseService {
       const enrollmentsToCreate: OptionalId<IEnrollment>[] = [];
       const results: any[] = [];
 
-      for (const { userId, role } of existingEnrolledUsersWithRoles) {
+      for (const {userId, role} of existingEnrolledUsersWithRoles) {
         const userExists = await this.userRepo.findById(userId, session);
 
         if (!userExists) {
-          results.push({ userId, error: 'User not found' });
+          results.push({userId, error: 'User not found'});
           continue;
         }
         const existingEnrollment =
@@ -1025,7 +1024,7 @@ export class EnrollmentService extends BaseService {
   async bulkUpdateCompletedItemsCountParallelPerCourseVersion(
     courseId?: string,
     userId?: string,
-  ): Promise<{ totalCount: number; updatedCount: number }> {
+  ): Promise<{totalCount: number; updatedCount: number}> {
     const MAX_CONCURRENCY = 4;
 
     // 1. Load courses
@@ -1045,7 +1044,7 @@ export class EnrollmentService extends BaseService {
     let index = 0;
 
     // 🔑 THIS is the Safe Alternative
-    const results: { totalCount: number; updatedCount: number }[] = [];
+    const results: {totalCount: number; updatedCount: number}[] = [];
 
     // 3. Worker
     const worker = async () => {
@@ -1055,7 +1054,7 @@ export class EnrollmentService extends BaseService {
 
         const result =
           await this.enrollmentRepo.bulkUpdateCompletedItemsCountForCourseVersion(
-            { courseVersionId, courseId, userId },
+            {courseVersionId, courseId, userId},
           );
 
         // ✅ push result instead of mutating shared counters
@@ -1064,7 +1063,7 @@ export class EnrollmentService extends BaseService {
     };
 
     // 4. Start workers
-    const workers = Array.from({ length: MAX_CONCURRENCY }, () => worker());
+    const workers = Array.from({length: MAX_CONCURRENCY}, () => worker());
 
     await Promise.all(workers);
 
@@ -1072,6 +1071,6 @@ export class EnrollmentService extends BaseService {
     const totalCount = results.reduce((sum, r) => sum + r.totalCount, 0);
     const updatedCount = results.reduce((sum, r) => sum + r.updatedCount, 0);
 
-    return { totalCount, updatedCount };
+    return {totalCount, updatedCount};
   }
 }
