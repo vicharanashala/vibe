@@ -2240,6 +2240,7 @@ export class EnrollmentRepository {
     // Add status-specific filters
     if (statusTab === 'ACTIVE') {
       studentFilter.status = {$regex: /^active$/i};
+      studentFilter.isDeleted = {$ne: true};
     } else if (statusTab === 'INACTIVE') {
       studentFilter.$or = [
         {status: {$regex: /^inactive$/i}},
