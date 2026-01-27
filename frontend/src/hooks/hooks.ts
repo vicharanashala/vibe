@@ -1223,7 +1223,8 @@ export function useCourseVersionEnrollments(
   sortBy: 'name' | 'enrollmentDate' | 'progress' = 'enrollmentDate',
   sortOrder: 'asc' | 'desc' = 'desc',
   enabled: boolean = true,
-  filter: 'STUDENT' | 'OTHER'
+  filter: 'STUDENT' | 'OTHER',
+  statusTab: 'ACTIVE' | "INACTIVE",
 ): {
   data: components['schemas']['CourseVersionEnrollmentResponse'] | undefined,
   isLoading: boolean,
@@ -1236,7 +1237,7 @@ export function useCourseVersionEnrollments(
     {
       params: {
         path: { courseId, courseVersionId },
-        query: { page, limit, search, sortBy, sortOrder, filter },
+        query: { page, limit, search, sortBy, sortOrder, filter, statusTab },
       },
       enabled: enabled && !!courseId && !!courseVersionId,
     }

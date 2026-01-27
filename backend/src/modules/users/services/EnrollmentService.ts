@@ -1,36 +1,36 @@
-import {COURSES_TYPES} from '#courses/types.js';
-import {InviteStatus} from '#root/modules/notifications/index.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
-import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { COURSES_TYPES } from '#courses/types.js';
+import { InviteStatus } from '#root/modules/notifications/index.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
+import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   EnrollmentRole,
   EnrollmentStatus,
   ICourseVersion,
   IEnrollment,
 } from '#root/shared/interfaces/models.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
-import {Enrollment} from '#users/classes/transformers/Enrollment.js';
-import {EnrollmentStats, USERS_TYPES} from '#users/types.js';
-import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId, OptionalId} from 'mongodb';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { EnrollmentRepository } from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import { Enrollment } from '#users/classes/transformers/Enrollment.js';
+import { EnrollmentStats, USERS_TYPES } from '#users/types.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, ObjectId, OptionalId } from 'mongodb';
 import {
   BadRequestError,
   NotFoundError,
   InternalServerError,
 } from 'routing-controllers';
-import {ProgressService} from './ProgressService.js';
-import {ProgressRepository, InviteRepository} from '#root/shared/index.js';
-import {EnrollmentDataResponse} from '../classes/index.js';
+import { ProgressService } from './ProgressService.js';
+import { ProgressRepository, InviteRepository } from '#root/shared/index.js';
+import { EnrollmentDataResponse } from '../classes/index.js';
 import {
   QuizScoresExportResponseDto,
   StudentQuizScoreDto,
 } from '../dtos/QuizScoresExportDto.js';
-import {COURSE_REGISTRATION_TYPES} from '#root/modules/courseRegistration/types.js';
-import {ICourseRegistrationRepository} from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
+import { COURSE_REGISTRATION_TYPES } from '#root/modules/courseRegistration/types.js';
+import { ICourseRegistrationRepository } from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
 import {
   IGradingResult,
   ISubmission,
@@ -98,7 +98,7 @@ export class EnrollmentService extends BaseService {
       // }
 
       if (existingEnrollment && throughInvite) {
-        return {status: 'ALREADY_ENROLLED' as InviteStatus};
+        return { status: 'ALREADY_ENROLLED' as InviteStatus };
       }
 
       if (existingEnrollment && !throughInvite) {
@@ -472,6 +472,7 @@ export class EnrollmentService extends BaseService {
     sortBy: 'name' | 'enrollmentDate' | 'progress',
     sortOrder: 'asc' | 'desc',
     filter: string,
+    statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       const courseVersion = await this.courseRepo.readVersion(
@@ -498,6 +499,7 @@ export class EnrollmentService extends BaseService {
           sortBy,
           sortOrder,
           filter,
+          statusTab,
           session,
         );
 
@@ -711,71 +713,88 @@ export class EnrollmentService extends BaseService {
     versionId?: string,
     userId?: string,
   ): Promise<{
-    watchtimeUpdated: number;
-    progressRecalculated: number;
+    success: boolean;
+    summary: {
+      enrollmentsFound: number;
+      watchtimeUpdated: number;
+      progressRecalculated: number;
+    };
     message: string;
   }> {
     try {
-      
-      // First, update watchtime for missed items
-      let watchtimeUpdatedCount = 0;
+      const enrollments =
+        await this.enrollmentRepo.getEnrollmentsByFilters({
+          courseId,
+          courseVersionId: versionId,
+          userId,
+        });
 
-      // Get all enrollments for the specified filters
-      const enrollments = await this.enrollmentRepo.getEnrollmentsByFilters({
+      console.log(`🔍 Found ${enrollments.length} enrollments to process`);
+
+      let watchtimeUpdated = 0;
+
+      // 🔥 Parallel watchtime updates (safe + faster)
+      await Promise.allSettled(
+        enrollments.map(async enrollment => {
+          try {
+            await this.progressService.createBulkWatchiTimeDocs(
+              enrollment.courseId.toString(),
+              enrollment.courseVersionId.toString(),
+              enrollment.userId.toString(),
+            );
+            watchtimeUpdated++;
+          } catch (err) {
+            console.error(
+              `❌ Watchtime update failed for enrollment ${enrollment._id}`,
+              err?.message || err,
+            );
+          }
+        }),
+      );
+
+      // ♻️ Recalculate progress
+      const progressResult = await this.bulkUpdateAllEnrollments(
         courseId,
-        courseVersionId: versionId,
         userId,
-      });
+      );
 
-      console.log(`Found ${enrollments.length} enrollments to process`);
+      const message =
+        watchtimeUpdated > 0
+          ? `Successfully updated watchtime for ${watchtimeUpdated} enrollments and recalculated progress for ${progressResult.updatedCount} enrollments`
+          : `Watchtime update failed for all enrollments, but progress was recalculated for ${progressResult.updatedCount} enrollments`;
 
-      // For each enrollment, update watchtime for missed items
-      for (const enrollment of enrollments) {
-        try {
-          await this.progressService.createBulkWatchiTimeDocs(
-            enrollment.courseId.toString(),
-            enrollment.courseVersionId.toString(),
-            enrollment.userId.toString(),
-          );
-          watchtimeUpdatedCount++;
-        } catch (error) {
-          console.error(
-            `❌ Failed to update watchtime for enrollment ${enrollment._id}:`,
-            error.message,
-          );
-          // Continue with other enrollments even if watchtime update fails
-          // This allows progress recalculation to still proceed
-        }
-      }
-
-      // Then, recalculate progress using existing bulk update method
-      const progressResult = await this.bulkUpdateAllEnrollments(courseId, userId);
-      console.log(`✅ Progress recalculation completed. Total: ${progressResult.totalCount}, Updated: ${progressResult.updatedCount}`);
-      
-      const message = watchtimeUpdatedCount > 0 
-        ? `Successfully updated watchtime for ${watchtimeUpdatedCount} enrollments and recalculated progress for ${progressResult.updatedCount} enrollments`
-        : `Watchtime update failed for all enrollments, but successfully recalculated progress for ${progressResult.updatedCount} enrollments`;
-      
       return {
-        watchtimeUpdated: watchtimeUpdatedCount,
-        progressRecalculated: progressResult.updatedCount,
+        success: true,
+        summary: {
+          enrollmentsFound: enrollments.length,
+          watchtimeUpdated,
+          progressRecalculated: progressResult.updatedCount,
+        },
         message,
       };
     } catch (error) {
       console.error(
-        'Error in bulkUpdateWatchTimeAndRecalculateProgress:',
+        '❌ Error in bulkUpdateWatchTimeAndRecalculateProgress',
         error,
       );
-      throw new Error(
-        `Failed to bulk update watchtime and recalculate progress: ${error.message}`,
-      );
+
+      return {
+        success: false,
+        summary: {
+          enrollmentsFound: 0,
+          watchtimeUpdated: 0,
+          progressRecalculated: 0,
+        },
+        message: `Failed to bulk update watchtime and recalculate progress: ${error.message}`,
+      };
     }
   }
+
 
   async bulkUpdateAllEnrollments(
     courseId?: string,
     userId?: string,
-  ): Promise<{totalCount: number; updatedCount: number}> {
+  ): Promise<{ totalCount: number; updatedCount: number }> {
     const BATCH_SIZE = 5000;
 
     // 1. Get courses (all or specific one)
@@ -837,7 +856,7 @@ export class EnrollmentService extends BaseService {
 
             bulkOperations.push({
               updateOne: {
-                filter: {_id: new ObjectId(enrollment._id)},
+                filter: { _id: new ObjectId(enrollment._id) },
                 update: {
                   $set: {
                     percentCompleted,
@@ -855,8 +874,7 @@ export class EnrollmentService extends BaseService {
                 );
                 updatedCount += bulkOperations.length;
                 console.log(
-                  `✅ Batch ${++batchCount}: Updated ${
-                    bulkOperations.length
+                  `✅ Batch ${++batchCount}: Updated ${bulkOperations.length
                   } enrollments`,
                 );
                 bulkOperations.length = 0;
@@ -891,7 +909,7 @@ export class EnrollmentService extends BaseService {
       });
     }
 
-    return {totalCount, updatedCount};
+    return { totalCount, updatedCount };
   }
 
   async getNonStudentEnrollmentsByCourseVersion(
@@ -904,7 +922,7 @@ export class EnrollmentService extends BaseService {
     );
   }
   async bulkEnrollUsers(
-    existingEnrolledUsersWithRoles: {userId: string; role: EnrollmentRole}[],
+    existingEnrolledUsersWithRoles: { userId: string; role: EnrollmentRole }[],
     courseId: string,
     courseVersionId: string,
     session?: ClientSession,
@@ -926,11 +944,11 @@ export class EnrollmentService extends BaseService {
       const enrollmentsToCreate: OptionalId<IEnrollment>[] = [];
       const results: any[] = [];
 
-      for (const {userId, role} of existingEnrolledUsersWithRoles) {
+      for (const { userId, role } of existingEnrolledUsersWithRoles) {
         const userExists = await this.userRepo.findById(userId, session);
 
         if (!userExists) {
-          results.push({userId, error: 'User not found'});
+          results.push({ userId, error: 'User not found' });
           continue;
         }
         const existingEnrollment =
@@ -1007,7 +1025,7 @@ export class EnrollmentService extends BaseService {
   async bulkUpdateCompletedItemsCountParallelPerCourseVersion(
     courseId?: string,
     userId?: string,
-  ): Promise<{totalCount: number; updatedCount: number}> {
+  ): Promise<{ totalCount: number; updatedCount: number }> {
     const MAX_CONCURRENCY = 4;
 
     // 1. Load courses
@@ -1027,7 +1045,7 @@ export class EnrollmentService extends BaseService {
     let index = 0;
 
     // 🔑 THIS is the Safe Alternative
-    const results: {totalCount: number; updatedCount: number}[] = [];
+    const results: { totalCount: number; updatedCount: number }[] = [];
 
     // 3. Worker
     const worker = async () => {
@@ -1037,7 +1055,7 @@ export class EnrollmentService extends BaseService {
 
         const result =
           await this.enrollmentRepo.bulkUpdateCompletedItemsCountForCourseVersion(
-            {courseVersionId, courseId, userId},
+            { courseVersionId, courseId, userId },
           );
 
         // ✅ push result instead of mutating shared counters
@@ -1046,7 +1064,7 @@ export class EnrollmentService extends BaseService {
     };
 
     // 4. Start workers
-    const workers = Array.from({length: MAX_CONCURRENCY}, () => worker());
+    const workers = Array.from({ length: MAX_CONCURRENCY }, () => worker());
 
     await Promise.all(workers);
 
@@ -1054,6 +1072,6 @@ export class EnrollmentService extends BaseService {
     const totalCount = results.reduce((sum, r) => sum + r.totalCount, 0);
     const updatedCount = results.reduce((sum, r) => sum + r.updatedCount, 0);
 
-    return {totalCount, updatedCount};
+    return { totalCount, updatedCount };
   }
 }

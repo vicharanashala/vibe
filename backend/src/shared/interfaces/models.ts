@@ -596,6 +596,11 @@ export class EnrollmentsQuery {
   @IsOptional()
   @IsIn(['STUDENT', 'OTHER'])
   filter?: 'STUDENT' | 'OTHER';
+  
+  @IsOptional()
+  @IsIn(['ACTIVE', 'INACTIVE'])
+  statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE';
+
 }
 
 export class BulkEnrollmentsQuery {
