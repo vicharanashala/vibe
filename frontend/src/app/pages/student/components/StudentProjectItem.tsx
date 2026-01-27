@@ -17,6 +17,7 @@ export type StudentProjectItemProps = {
     name: string;
     description: string;
     type: 'PROJECT';
+    isItemAlreadyCompleted?: boolean;
   };
   onNext?: () => void;
   isProgressUpdating?: boolean;
@@ -32,6 +33,7 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating }:
   const stopItem = useStopItem();
   const { currentCourse } = useCourseStore();
   const [watchItemId, setWatchItemId] = useState<string>('');
+
 
 
   // Track if item has been started and if start request has been sent
@@ -50,10 +52,10 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating }:
   // ===== COURSE ITEM TRACKING FUNCTIONS =====
   const handleStartItem = useCallback(async (): Promise<string> => {
     if (!currentCourse?.itemId) {
-      console.error('Missing course item ID');
-      return '';
+      console.error('Missing course item ID or already completed');
+      return"";
     }
-    
+
     try {
       const response = await startItem.mutateAsync({
         params: {
@@ -73,10 +75,9 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating }:
         console.error('No watchItemId returned from startItem');
         return '';
       }
-      
+
       itemStartedRef.current = true;
       setWatchItemId(response.watchItemId);
-
       return response.watchItemId;
     } catch (error) {
       console.error('Failed to start item:', error);
@@ -96,6 +97,7 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating }:
     }
 
     try {
+      console.log("Item id: ", currentCourse.itemId, " Watch item id: ", stopWatchItemId, " Section id: ", currentCourse.sectionId, " Module id: ", currentCourse.moduleId);
       // Stop the watch item
       await stopItem.mutateAsync({
         params: {
@@ -140,9 +142,28 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating }:
         return;
       }
 
+      if(item.isItemAlreadyCompleted === true){
+        const submitData: SubmitProjectBody = {
+        projectId: item._id,
+        courseId: currentCourse.courseId,
+        versionId: currentCourse.versionId || '',
+        moduleId: currentCourse.moduleId || '',
+        sectionId: currentCourse.sectionId || '',
+        submissionURL: link.trim(),
+        comment: comment.trim() || undefined,
+      };
+
+      console.log("Submit data: ", submitData);
+
+      // Submit the form with watchItemId
+      await submitProject({ body: submitData });
+      toast.success("Submitted successfully!");
+      if(onNext) onNext();
+      return;
+      }
+      
       // Start watching the item and get the watchItemId
       const newWatchItemId = await handleStartItem();
-
       // Use the returned watchItemId directly instead of state
       if (!newWatchItemId) {
         throw new Error('Failed to start watching the item');
@@ -159,17 +180,23 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating }:
         comment: comment.trim() || undefined,
       };
 
+      console.log("Submit data: ", submitData);
+
       // Submit the form with watchItemId
       await submitProject({ body: submitData });
-      
+
       // Stop watching the item using the same watchItemId
-      const stopSuccess = await handleStopItem(newWatchItemId);
-      if (stopSuccess) {
-        toast.success('Form submitted successfully!');
-      setIsSubmitted(true);
-      } else {
-        toast.warning('Project submitted but failed to stop tracking');
+      if (item.isItemAlreadyCompleted === false) {
+        const stopSuccess = await handleStopItem(newWatchItemId);
+        console.log("Stop success:", stopSuccess);
+        if (stopSuccess) {
+          toast.success('Form submitted successfully!');
+          setIsSubmitted(true);
+        } else {
+          toast.warning('Project submitted but failed to stop tracking');
+        }
       }
+
 
       // Call onNext if provided
       if (onNext) {

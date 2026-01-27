@@ -105,16 +105,19 @@ export class ProjectController {
     //   watchItemId,
     // );
 
-    await this._progressService.updateProgress(
-      userId,
-      courseId,
-      versionId,
-      moduleId,
-      sectionId,
-      projectId,
-      watchItemId,
-    );
-
+    // console.log("itemAlreadyCompleted: ", itemAlreadyCompleted);
+    // if(itemAlreadyCompleted){
+    //   console.log("itemAlreadyCompleted: ", itemAlreadyCompleted);
+    //   await this._progressService.updateProgress(
+    //   userId,
+    //   courseId,
+    //   versionId,
+    //   moduleId,
+    //   sectionId,
+    //   projectId,
+    //   watchItemId,
+    // );
+    // }
     return {
       message: 'Project submitted successfully',
     };

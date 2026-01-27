@@ -1522,10 +1522,10 @@ class ProgressService extends BaseService {
     courseVersionId: string,
     attemptId?: string,
     isSkipped?: boolean,
-    isQuizEmpty?:boolean,
+    isQuizEmpty?: boolean,
   ): Promise<void> {
     if (isSkipped) return;
-    if(isQuizEmpty) return;
+    if (isQuizEmpty) return;
     const submittedQuiz = await this.submissionRepository.get(
       itemId,
       userId,
@@ -1589,7 +1589,7 @@ class ProgressService extends BaseService {
 
     // 2 Quiz validation
     if (item.type === 'QUIZ') {
-      const  isQuizEmpty = item.details.questionBankRefs.length === 0
+      const isQuizEmpty = item.details.questionBankRefs.length === 0
       await this.validateQuizStop(itemId, userId, courseId,
         courseVersionId, attemptId, isSkipped, isQuizEmpty);
       return;
@@ -1879,6 +1879,7 @@ class ProgressService extends BaseService {
     if (!item) throw new NotFoundError('Item not found');
 
     // Ensure current progress matches the module, section, and item
+    // console.log("Logging what is the type of data we are sending from frontend: ", moduleId, sectionId, itemId, "and type of itemId", typeof(itemId));
     this.validateProgressPosition(progress, moduleId, sectionId, itemId);
 
     await this._withTransaction(async session => {
@@ -1976,6 +1977,7 @@ class ProgressService extends BaseService {
     }
 
     if (progress.currentItem?.toString() !== itemId) {
+    console.log("Both items are", progress.currentItem?.toString(), "and" , itemId)
       throw new BadRequestError(
         'Item ID does not match current progress position',
       );

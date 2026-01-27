@@ -384,6 +384,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
   // ===== COURSE ITEM TRACKING FUNCTIONS =====
   const handleSendStartItem = useCallback(async () => {
+    console.log("Item for itemId: ", currentCourse?.itemId, "isAlreadyWatched:", isAlreadyWatched);
     if (!currentCourse?.itemId || isAlreadyWatched) return;
     try {
       const response = await startItem.mutateAsync({
@@ -409,7 +410,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     } catch (error) {
       console.error('Failed to start item:', error);
     }
-  }, [currentCourse, startItem, setWatchItemId]);
+  }, [currentCourse, startItem, setWatchItemId, isAlreadyWatched]);
 
   const handleStopItem = useCallback(async (isSkipped?: boolean) => {
     if (!currentCourse?.itemId || !currentCourse.watchItemId || (isAlreadyWatched && submissionResults?.gradingStatus !== "PASSED")) {
@@ -438,7 +439,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       }
     });
     itemStartedRef.current = false;
-  }, [currentCourse, stopItem, attemptId]);
+  }, [currentCourse, stopItem, attemptId, isAlreadyWatched, submissionResults, nextItemId]);
 
   const stopItemAsync = useCallback(
     async (isSkipped?: boolean) => {

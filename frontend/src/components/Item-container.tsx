@@ -8,6 +8,7 @@ import type { QuizRef } from "@/types/quiz.types";
 import type { ItemContainerProps, ItemContainerRef } from '@/types/item-container.types';
 import FeedbackForm from '@/app/pages/student/components/FeedbackForm';
 import { useSubmitFeedback } from '@/hooks/hooks';
+// import StudentProjectItem from '@/app/pages/student/components/StudentProjectItem';
 
 export interface ISubmitFeedbackBody {
   details: Record<string, any>;
@@ -48,7 +49,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           endTime={item.details?.endTime ? item.details.endTime : ''}
           points={item.details?.points ? item.details.points : ''}
           nextItemId={nextItem?.itemId.toString()}
-          isAlreadyWatched={item.isItemAlreadyCompleted || false} 
+          isAlreadyWatched={item.isItemAlreadyCompleted}
           doGesture={doGesture}
           onNext={onNext}
           keyboardLockEnabled={keyboardLockEnabled}
@@ -63,7 +64,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
       case 'quiz':
         return <Quiz
           ref={quizRef}
-          isAlreadyWatched={item.isItemAlreadyCompleted || false}
+          isAlreadyWatched={item.isItemAlreadyCompleted}
           nextItemId={nextItem?.itemId.toString()}
           questionBankRefs={item.details?.questionBankRefs || []}
           passThreshold={item.details?.passThreshold || 0}
@@ -122,6 +123,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           onNext={onNext}
           isProgressUpdating={isProgressUpdating}
         />;
+
       case 'feedback':
         return <FeedbackForm
           title={item.name}

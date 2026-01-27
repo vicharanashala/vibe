@@ -1,4 +1,4 @@
-import {ID, IUser} from '#root/shared/index.js';
+import { ID, IUser } from '#root/shared/index.js';
 import {
   IsString,
   IsUrl,
@@ -6,44 +6,46 @@ import {
   IsDate,
   IsNotEmpty,
   IsArray,
+  IsBoolean,
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 
 export class SubmitProjectBody {
   @JSONSchema({
-    description:'Submitted URL from student'
+    description: 'Submitted URL from student'
   })
-  @IsNotEmpty({message: 'Submission URL is required'})
-  @IsUrl({}, {message: 'Submission URL must be a valid URL'})
+  @IsNotEmpty({ message: 'Submission URL is required' })
+  @IsUrl({}, { message: 'Submission URL must be a valid URL' })
   submissionURL!: string;
 
   @IsOptional()
   @JSONSchema({
-    description:'Comment submitted by student from project'
+    description: 'Comment submitted by student from project'
   })
   comment?: string;
 
-  @IsNotEmpty({message: 'sectionId is required'})
+  @IsNotEmpty({ message: 'sectionId is required' })
   @IsString()
   sectionId!: string;
 
-  @IsNotEmpty({message: 'moduleId is required'})
+  @IsNotEmpty({ message: 'moduleId is required' })
   @IsString()
   moduleId!: string;
 
-  @IsNotEmpty({message: 'watchItemId is required'})
+  @IsOptional()
+  @IsNotEmpty({ message: 'watchItemId is required' })
   @IsString()
   watchItemId!: string;
 
-  @IsNotEmpty({message: 'courseId is required'})
+  @IsNotEmpty({ message: 'courseId is required' })
   @IsString()
   courseId!: string;
 
-  @IsNotEmpty({message: 'versionId is required'})
+  @IsNotEmpty({ message: 'versionId is required' })
   @IsString()
   versionId!: string;
 
-  @IsNotEmpty({message: 'projectId is required'})
+  @IsNotEmpty({ message: 'projectId is required' })
   @IsString()
   projectId!: string;
 }
@@ -60,10 +62,10 @@ export class CourseVersionParams {
 }
 export class SubmissionResponse {
   @IsString()
-  course!: {name: string};
+  course!: { name: string };
 
   @IsString()
-  courseVersion!: {name: string};
+  courseVersion!: { name: string };
 
   @IsArray()
   userInfo!: Array<{

@@ -426,6 +426,8 @@ export class ItemService extends BaseService {
       );
     }
 
+    console.log("From readItem of ItemService, isItemAlreadyCompleted:", isItemAlreadyCompleted, "for itemid: ", itemId);
+
     return {
       ...item,
       _id: item._id.toString(),

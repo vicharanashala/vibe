@@ -2855,7 +2855,7 @@ export interface SubmitProjectBody {
   versionId: string;
   moduleId: string;
   sectionId: string;
-  watchItemId: string;
+  watchItemId?: string;
   submissionURL: string;
   comment?: string;
 }

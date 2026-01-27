@@ -368,6 +368,7 @@ export default function Video({ URL, startTime, nextItemId, isAlreadyWatched, en
 
 
   function handleSendStartItem() {
+     console.log("Item for itemId: ", currentCourse?.itemId, "isAlreadyWatched:", isAlreadyWatched);
       if (!currentCourse?.itemId || isAlreadyWatched) return;
       startItem.mutate({
         params: {

@@ -509,36 +509,36 @@ export default function CoursePage() {
   }, [progressData, updateCourseNavigation, initialLoadComplete]);
 
   // Effect to set current item when item data is fetched
-  // useEffect(() => {
-  //   console.log("Item Data: ", itemData);
-  //   if (itemData && !itemLoading) {
-  //     // Handle the different possible response structures
-  //     const item = (itemData as any)?.item || itemData;
-  //     if (item && typeof item === 'object' && item._id) {
-  //       setCurrentItem(item);
-  //       // Clear loading state when new item is successfully loaded
-  //       setIsNavigatingToNext(false);
-  //       console.log("item ",item);
-  //     }
-  //   }
-  // }, [itemData, itemLoading]);
-
   useEffect(() => {
-  const timer = setTimeout(() => {
+    console.log("Item Data: ", itemData);
     if (itemData && !itemLoading) {
+      // Handle the different possible response structures
       const item = (itemData as any)?.item || itemData;
- 
       if (item && typeof item === 'object' && item._id) {
         setCurrentItem(item);
+        // Clear loading state when new item is successfully loaded
         setIsNavigatingToNext(false);
+        console.log("item ",item);
       }
     }
-  }, 1000);
+  }, [itemData, itemLoading]);
+
+//   useEffect(() => {
+//   const timer = setTimeout(() => {
+//     if (itemData && !itemLoading) {
+//       const item = (itemData as any)?.item || itemData;
  
-  return () => {
-    clearTimeout(timer);
-  };
-}, [itemData, itemLoading]);
+//       if (item && typeof item === 'object' && item._id) {
+//         setCurrentItem(item);
+//         setIsNavigatingToNext(false);
+//       }
+//     }
+//   }, 1000);
+ 
+//   return () => {
+//     clearTimeout(timer);
+//   };
+// }, [itemData, itemLoading]);
 
 
   // Flag handling function
@@ -1236,7 +1236,7 @@ export default function CoursePage() {
     try {
       // Stop current item before moving to previous video with proper cleanup
       if (itemContainerRef.current) {
-        // itemContainerRef.current.stopCurrentItem();
+        itemContainerRef.current.stopCurrentItem();
 
         // Allow a small delay for cleanup
         await new Promise(resolve => setTimeout(resolve, 50));

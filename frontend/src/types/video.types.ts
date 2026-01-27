@@ -1,4 +1,4 @@
-import { Item } from "./item-container.types";
+
 
 // Props for the video player component
 export interface VideoProps {

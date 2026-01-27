@@ -1,3 +1,6 @@
+
+
+
 export interface QuizSubmissionResponse {
   _id?: string;
   quizId: string;
@@ -58,7 +61,7 @@ export interface QuizProps {
   allowPartialGrading: boolean;
   allowHint: boolean;
   allowSkip:boolean;
-  isAlreadyWatched:boolean;
+  isAlreadyWatched?:boolean;
   showCorrectAnswersAfterSubmission: boolean;
   showExplanationAfterSubmission: boolean;
   showScoreAfterSubmission: boolean;

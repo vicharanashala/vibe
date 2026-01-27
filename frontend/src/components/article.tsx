@@ -84,6 +84,7 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
     const startRequestSentRef = useRef(false);
 
     function handleSendStartItem() {
+         console.log("Item for itemId: ", currentCourse?.itemId, "isAlreadyWatched:", isAlreadyWatched);
             if (!currentCourse?.itemId || startRequestSentRef.current || isAlreadyWatched) return;
 
             // Mark that we've sent the start request to prevent multiple calls
