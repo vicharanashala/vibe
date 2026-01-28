@@ -1098,6 +1098,107 @@ export class EnrollmentRepository {
     return map;
   }
 
+  async getWatchedItemCountsByTypeBatch(
+    entries: {
+      userId: ObjectId;
+      courseId: ObjectId;
+      courseVersionId: ObjectId;
+    }[],
+  ): Promise<Map<string, { videos: number; quizzes: number; articles: number; projects: number }>> {
+    if (entries.length === 0) {
+      return new Map();
+    }
+
+    const matchConditions = entries.map(e => ({
+      userId: e.userId,
+      courseId: e.courseId,
+      courseVersionId: e.courseVersionId,
+      isHidden: { $ne: true },
+      isDeleted: { $ne: true },
+      endTime: { $exists: true, $ne: null },
+    }));
+
+    const watchedItems = await this.watchTimeCollection
+      .aggregate([
+        { $match: { $or: matchConditions } },
+        {
+          $group: {
+            _id: {
+              userId: '$userId',
+              courseId: '$courseId',
+              courseVersionId: '$courseVersionId',
+              itemId: '$itemId',
+            },
+          },
+        },
+      ])
+      .toArray();
+
+    if (watchedItems.length === 0) {
+      return new Map();
+    }
+
+    const allItemIds = [...new Set(watchedItems.map(w => w._id.itemId))];
+
+    const itemsGroupCollection = await this.db.getCollection('itemsGroup');
+    const itemTypeResults = await itemsGroupCollection
+      .aggregate([
+        { $unwind: '$items' },
+        {
+          $match: {
+            $or: [
+              { 'items._id': { $in: allItemIds } },
+              {
+                'items._id': {
+                  $in: allItemIds.map(id => {
+                    try { return new ObjectId(id as string); } catch { return null; }
+                  }).filter(Boolean)
+                }
+              }
+            ]
+          }
+        },
+        { $project: { itemId: { $toString: '$items._id' }, type: '$items.type' } }
+      ])
+      .toArray();
+
+    const itemTypeMap = new Map<string, string>();
+    for (const item of itemTypeResults) {
+      itemTypeMap.set(item.itemId, item.type);
+    }
+
+    const map = new Map<string, { videos: number; quizzes: number; articles: number; projects: number }>();
+
+    for (const watched of watchedItems) {
+      const key = `${watched._id.userId.toString()}-${watched._id.courseId.toString()}-${watched._id.courseVersionId.toString()}`;
+
+      if (!map.has(key)) {
+        map.set(key, { videos: 0, quizzes: 0, articles: 0, projects: 0 });
+      }
+
+      const counts = map.get(key)!;
+      const itemIdStr = watched._id.itemId?.toString() || '';
+      const itemType = itemTypeMap.get(itemIdStr) || 'UNKNOWN';
+
+      switch (itemType) {
+        case 'VIDEO':
+          counts.videos++;
+          break;
+        case 'QUIZ':
+          counts.quizzes++;
+          break;
+        case 'BLOG':
+          counts.articles++;
+          break;
+        case 'PROJECT':
+          counts.projects++;
+          break;
+      }
+    }
+
+    return map;
+  }
+
   async getAllEnrollments(userId: string, session?: ClientSession) {
     await this.init();
 
@@ -1142,15 +1243,15 @@ export class EnrollmentRepository {
 
     // ✅ ACTIVE tab
     if (statusTab === 'ACTIVE') {
-      matchStage.status = {$regex: /^active$/i};
-      matchStage.isDeleted = {$ne: true};
+      matchStage.status = { $regex: /^active$/i };
+      matchStage.isDeleted = { $ne: true };
     }
 
     // ✅ INACTIVE tab
     if (statusTab === 'INACTIVE') {
       matchStage.$or = [
-        {status: {$regex: /^inactive$/i}},
-        {isDeleted: true},
+        { status: { $regex: /^inactive$/i } },
+        { isDeleted: true },
       ];
     }
 
@@ -1160,7 +1261,7 @@ export class EnrollmentRepository {
     //   // status: {$regex: /^active$/i},
     //   isDeleted: {$ne: true}, // Exclude soft-deleted enrollments
     // };
-    
+
     if (filter) {
       if (filter === 'STUDENT') {
         matchStage.role = 'STUDENT';
