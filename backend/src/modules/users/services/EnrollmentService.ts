@@ -337,11 +337,13 @@ export class EnrollmentService extends BaseService {
       }));
 
       // Batch all async operations together
-      const [watchedItemsMap, quizSubmissionGrades]: [
+      const [watchedItemsMap, watchedItemsByTypeMap, quizSubmissionGrades]: [
         Map<string, number>,
+        Map<string, { videos: number; quizzes: number; articles: number; projects: number }>,
         ISubmission[],
       ] = await Promise.all([
         this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
+        this.enrollmentRepo.getWatchedItemCountsByTypeBatch(watchedKeys),
         allQuizIds.length > 0
           ? this.enrollmentRepo.getQuizSubmissionGrade(userId, allQuizIds)
           : Promise.resolve([]),
@@ -402,6 +404,7 @@ export class EnrollmentService extends BaseService {
 
         if (enr.percentCompleted >= 0) {
           const itemCounts = enr.itemCounts || {};
+          const completedByType = watchedItemsByTypeMap.get(watchedKey) || { videos: 0, quizzes: 0, articles: 0, projects: 0 };
 
           return {
             _id: enr._id.toString(),
@@ -413,7 +416,6 @@ export class EnrollmentService extends BaseService {
             course: this.filterCourseVersions(enr.course, enrolledVersionIds),
             percentCompleted: enr.percentCompleted || 0,
 
-            // ✅ EXACT frontend shape
             contentCounts: {
               totalItems: enr.totalItems ?? 0,
               videos: itemCounts.VIDEO ?? itemCounts.videos ?? 0,
@@ -428,6 +430,11 @@ export class EnrollmentService extends BaseService {
                 (sum, grade) => sum + (grade.totalMaxScore || 0),
                 0,
               ),
+              // Completed counts by type
+              completedVideos: completedByType.videos,
+              completedQuizzes: completedByType.quizzes,
+              completedArticles: completedByType.articles,
+              completedProjects: completedByType.projects,
             },
 
             completedItems: watchedItemsMap.get(watchedKey) || 0,
