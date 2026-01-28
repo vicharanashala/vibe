@@ -1129,6 +1129,7 @@ export class EnrollmentRepository {
     sortBy: 'name' | 'enrollmentDate' | 'progress',
     sortOrder: 'asc' | 'desc',
     filter: string,
+    statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
     session?: ClientSession,
   ) {
     await this.init();
@@ -1138,6 +1139,28 @@ export class EnrollmentRepository {
       status: { $regex: /^active$/i },
       isDeleted: { $ne: true }, // Exclude soft-deleted enrollments
     };
+
+    // ✅ ACTIVE tab
+    if (statusTab === 'ACTIVE') {
+      matchStage.status = {$regex: /^active$/i};
+      matchStage.isDeleted = {$ne: true};
+    }
+
+    // ✅ INACTIVE tab
+    if (statusTab === 'INACTIVE') {
+      matchStage.$or = [
+        {status: {$regex: /^inactive$/i}},
+        {isDeleted: true},
+      ];
+    }
+
+    // const matchStage: any = {
+    //   courseId: new ObjectId(courseId),
+    //   courseVersionId: new ObjectId(courseVersionId),
+    //   // status: {$regex: /^active$/i},
+    //   isDeleted: {$ne: true}, // Exclude soft-deleted enrollments
+    // };
+    
     if (filter) {
       if (filter === 'STUDENT') {
         matchStage.role = 'STUDENT';
@@ -1320,8 +1343,10 @@ export class EnrollmentRepository {
       userId: userObjectid,
       role,
       isDeleted: { $ne: true },
-      status: 'ACTIVE',
+      status: { $regex: /^active$/i },
     });
+
+
   }
   /*Update enrollments for all records in db */
   async bulkUpdateEnrollments(
@@ -1348,9 +1373,12 @@ export class EnrollmentRepository {
   }) {
     await this.init();
 
+
     const query: any = {
       isDeleted: { $ne: true },
-      status: 'ACTIVE',
+      status: { $regex: /^active$/i },
+      role: 'STUDENT',
+      percentCompleted: { $exists: true, $gte: 99, $lt: 100 }
     };
 
     if (filters.courseId) query.courseId = new ObjectId(filters.courseId);
