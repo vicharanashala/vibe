@@ -154,6 +154,8 @@ export default function CourseEnrollments() {
     versionId,
     !!(courseId && versionId)
   )
+  console.log(enrollmentStats,"enrollmentstats");
+  
 
   const [selectedUser, setSelectedUser] = useState<EnrolledUser | null>(null)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
@@ -793,6 +795,7 @@ export default function CourseEnrollments() {
 
 
         {/* Enhanced View Progress Modal */}
+        
         {isViewProgressDialogOpen && selectedUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
             {/* Enhanced Backdrop */}
@@ -877,7 +880,7 @@ export default function CourseEnrollments() {
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-
+                            {/* Add the content summary here */}
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -1694,6 +1697,8 @@ function EnrollmentsTable({
                   </TableRow>
                 ) : (
                   studentEnrollments.map((enrollment: any) => (
+                    console.log(enrollment,"enroll"),
+                    
                     <TableRow
                       key={enrollment._id}
                       className={`border-border hover:bg-muted/20 transition-colors duration-200 group ${isInactiveTab ? "opacity-80" : ""
@@ -1778,17 +1783,19 @@ function EnrollmentsTable({
                             variant="ghost"
                             size="sm"
                             onClick={() =>
-                              handleViewProgress({
-                                id: enrollment.user?._id,
-                                name:
-                                  `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() ||
-                                  "Unknown User",
-                                email: enrollment.user?.email,
-                                enrolledDate: enrollment.enrollmentDate,
-                                progress: Math.round(enrollment.progress || 0),
-                                completedItemsCount: enrollment.completedItemsCount || 0,
-                                isDeleted: enrollment.isDeleted,
-                              })
+                          handleViewProgress({
+                              id: enrollment.user?._id,
+                              name:
+                                `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() ||
+                                "Unknown User",
+                              email: enrollment.user?.email,
+                              enrolledDate: enrollment.enrollmentDate,
+                              progress: Math.round(enrollment.progress || 0),
+                              completedItemsCount: enrollment.completedItemsCount || 0,
+                              contentCounts: enrollment.contentCounts || {},   // ✅ ADD
+                              isDeleted: enrollment.isDeleted,
+                            })
+
                             }
                             disabled={
                               Math.round(enrollment.progress || 0) === 0 ||
