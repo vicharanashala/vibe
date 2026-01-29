@@ -2769,7 +2769,8 @@ export function useSubmitFlag(): {
   };
 }
 
-export function useGetReports(courseId: string, versionId: string, limit = 10, currentPage = 1, status?: string, entityType?: string,): {
+export function useGetReports(courseId: string, versionId: string, limit = 10, currentPage = 1, status?: string, entityType?: string, sortBy?: string,
+  sortOrder?: 'asc' | 'desc'): {
   data: IReport[],
   isLoading: boolean,
   error: string | null,
@@ -2790,6 +2791,8 @@ export function useGetReports(courseId: string, versionId: string, limit = 10, c
           ...(status && status !== "ALL" ? { status } : {}),
           limit,
           currentPage,
+          sortBy,
+          sortOrder
         }
       },
     },
