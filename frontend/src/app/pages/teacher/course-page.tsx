@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, lazy} from "react"
+import { useState, useEffect, lazy } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -30,6 +30,8 @@ import {
   FlagTriangleRight,
   Copy,
   UserCheck,
+  Headphones,
+  ExternalLink,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -63,9 +65,43 @@ import { ProjectSubmissionsDownloadButton } from "./components/ProjectSubmission
 import { toast } from "sonner"
 import ConfirmationModal from "./components/confirmation-modal"
 
+// Utility function to format relative time
+const getUpdateMessage = (updatedAt?: string) => {
+  if (!updatedAt) return "No updates yet";
+
+  const updatedDate = new Date(updatedAt);
+  const now = new Date();
+  const diffMs = +now - +updatedDate;
+
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffWeeks = Math.floor(diffDays / 7);
+  const diffMonths = Math.floor(diffDays / 30);
+  const diffYears = Math.floor(diffDays / 365);
+
+  if (diffMinutes < 1) return "Just now";
+  if (diffMinutes < 5) return "A few minutes ago";
+  if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
+  if (diffHours === 1) return "An hour ago";
+  if (diffHours < 6) return `${diffHours} hours ago`;
+  if (diffHours < 24) return "Earlier today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffWeeks === 1) return "Last week";
+  if (diffWeeks < 5) return `${diffWeeks} weeks ago`;
+  if (diffMonths === 1) return "Last month";
+  if (diffMonths < 12) return `${diffMonths} months ago`;
+  if (diffYears === 1) return "Last year";
+
+  return `${diffYears} years ago`;
+};
+
 export default function TeacherCoursesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
+  const [initialDocumentCount, setInitialDocumentCount] = useState(0);
+  const [lastEmptyState, setLastEmptyState] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1)
   const queryClient = useQueryClient()
 
@@ -78,8 +114,6 @@ export default function TeacherCoursesPage() {
     error: enrollmentsError,
     refetch,
   } = useUserEnrollments(currentPage, 10, !!token, debouncedSearchQuery, role) // Use pagination with 10 items per page
-
-
   const enrollments = enrollmentsResponse?.enrollments || []
 
   const totalPages = enrollmentsResponse?.totalPages || 1
@@ -96,6 +130,17 @@ export default function TeacherCoursesPage() {
     return acc
   }, [])
 
+  const handleSearchQueryChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(event.target.value)
+    if (event.target.value && enrollments.length === 0) {
+      setLastEmptyState(searchQuery)
+    } else if(event.target.value === "") {
+      setLastEmptyState(null)
+    }else{
+      return;
+    }
+  }
+
 
   const navigate = useNavigate()
   const createNewCourse = () => {
@@ -108,18 +153,34 @@ export default function TeacherCoursesPage() {
     }
   }
 
+  useEffect(() => {
+    if (enrollmentsResponse !== undefined && initialDocumentCount === 0) {
+      setInitialDocumentCount(totalDocuments)
+    }
+  }, [totalDocuments, initialDocumentCount, enrollmentsResponse])
+
+
   // Reset page to 1 when search query changes
   useEffect(() => {
     setCurrentPage(1)
   }, [searchQuery])
 
   useEffect(() => {
+    if (initialDocumentCount === 0) {
+      return;
+    }
+    if (!searchQuery.trim()) {
+      return;
+    }
+    if (lastEmptyState && searchQuery.startsWith(lastEmptyState) && searchQuery.length >= lastEmptyState.length) {
+      return;
+    }
     const timerId = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery)
     }, 400)
 
     return () => clearTimeout(timerId)
-  }, [searchQuery])
+  }, [searchQuery, initialDocumentCount, lastEmptyState])
 
   // Filter courses based on search query
   const filteredCourses = uniqueCourses
@@ -210,7 +271,7 @@ export default function TeacherCoursesPage() {
               <div className="space-y-2">
                 <div className="flex items-center gap-4">
                   <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-lg blur-sm"></div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-lg "></div>
                     <div className="relative bg-gradient-to-r from-primary to-accent p-2 rounded-lg">
                       <GraduationCap className="h-6 w-6 text-primary-foreground" />
                     </div>
@@ -251,13 +312,14 @@ export default function TeacherCoursesPage() {
           <div className="relative bg-card/60 backdrop-blur-sm border border-border/50 rounded-xl p-4">
             <div className="md:flex flex-row items-center justify-between gap-4">
               <div className="relative flex-1 max-w-md">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg blur-sm"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg "></div>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
+                    disabled={initialDocumentCount === 0}
                     placeholder="Search courses..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={() => handleSearchQueryChange(event)}
                     className="pl-10 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
                   />
                 </div>
@@ -332,6 +394,7 @@ function CourseCard({
   const [newVersionData, setNewVersionData] = useState({ version: "", description: "" })
   const [expandedCourse, setExpandedCourse] = useState(false)
   const [editingCourse, setEditingCourse] = useState(false)
+  const [showDeleteCourseModal, setShowDeleteCourseModal] = useState(false);
   const [editingValues, setEditingValues] = useState<{ name: string; description: string }>({
     name: "",
     description: "",
@@ -363,38 +426,6 @@ function CourseCard({
 
   // 3. Choose final course value
   const course = localCourse || fetchedCourse;
-
-  const getUpdateMessage = (updatedAt?: string) => {
-    if (!updatedAt) return "No updates yet";
-
-    const updatedDate = new Date(updatedAt);
-    const now = new Date();
-    const diffMs = +now - +updatedDate;
-
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const diffWeeks = Math.floor(diffDays / 7);
-    const diffMonths = Math.floor(diffDays / 30);
-    const diffYears = Math.floor(diffDays / 365);
-
-    if (diffMinutes < 1) return "Just now";
-    if (diffMinutes < 5) return "A few minutes ago";
-    if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
-    if (diffHours === 1) return "An hour ago";
-    if (diffHours < 6) return `${diffHours} hours ago`;
-    if (diffHours < 24) return "Earlier today";
-    if (diffDays === 1) return "Yesterday";
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffWeeks === 1) return "Last week";
-    if (diffWeeks < 5) return `${diffWeeks} weeks ago`;
-    if (diffMonths === 1) return "Last month";
-    if (diffMonths < 12) return `${diffMonths} months ago`;
-    if (diffYears === 1) return "Last year";
-
-    return `${diffYears} years ago`;
-  };
-
 
   if (courseLoading) {
     return (
@@ -489,10 +520,6 @@ function CourseCard({
   }
 
   const deleteCourse = async () => {
-    if (!confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
-      return
-    }
-
     try {
       await deleteCourseMutation.mutateAsync({
         params: { path: { id: courseIdHex } },
@@ -502,6 +529,8 @@ function CourseCard({
       onInvalidate()
     } catch (error) {
       console.error("Failed to delete course:", error)
+    } finally {
+      setShowDeleteCourseModal(false);
     }
   }
 
@@ -552,14 +581,14 @@ function CourseCard({
 
   return (
     <div className="relative group">
-      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+      {/* <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div> */}
       <Card
-        className={`relative bg-card/95 backdrop-blur-sm border border-border/50 overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10 min-w-0 ${expandedCourse ? "ring-2 ring-primary/30 shadow-xl shadow-primary/10" : ""
+        className={`relative bg-card/95 backdrop-blur-sm border border-border/50 overflow-hidden transition-all duration-500  min-w-0 hover:bg-accent/5 ${expandedCourse ? "" : ""
           }`}
       >
         {/* Course Header - Always Visible */}
-        <CardHeader className="relative hover:bg-accent/20 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+        <CardHeader className="relative  overflow-hidden">
+          <div className="absolute inset-0  opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
           <div>
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div
@@ -582,7 +611,7 @@ function CourseCard({
                     </CardTitle>
                     <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary w-fit">
                       <FileText className="h-3 w-3 mr-1" />
-                    {`${course.versions?.length || 0 } version${course.versions?.length>1?'s':''}`}
+                      {`${course.versions?.length || 0} version${course.versions?.length > 1 ? 's' : ''}`}
                     </Badge>
                   </div>
 
@@ -622,9 +651,9 @@ function CourseCard({
                   onClick={(e) => {
                     e.stopPropagation()
                     if (!expandedCourse) toggleCourse()
-                    deleteCourse()
+                    setShowDeleteCourseModal(true)
                   }}
-                  className="h-9 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-300"
+                  className="h-9 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive dark:hover:text-destructive-foreground transition-all duration-300"
                   disabled={deleteCourseMutation.isPending}
                 >
                   {deleteCourseMutation.isPending ? (
@@ -632,16 +661,33 @@ function CourseCard({
                   ) : (
                     <Trash2 className="h-3 w-3 mr-1" />
                   )}
-                  Delete
+                  Delete Course
                 </Button>
               </div>
             </div>
           </div>
         </CardHeader>
+        <div className="relative group">
+          <ConfirmationModal
+            isOpen={showDeleteCourseModal}
+            onClose={() => setShowDeleteCourseModal(false)}
+            onConfirm={deleteCourse}
+            title="Delete Course"
+            description="This will delete the entire course, including all modules and sections."
+            confirmText="Delete"
+            cancelText="Cancel"
+            isDestructive={true}
+            isLoading={deleteCourseMutation.isPending}
+            loadingText="Cloning..."
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+        </div>
 
         {/* Expanded Content */}
         {expandedCourse && (
-          <CardContent className="pt-0 space-y-6">
+          <CardContent className="">
+            <div className="rounded-xl pt-0 space-y-6">
+
             <Separator className="bg-border/50" />
 
             {/* Course Description Section */}
@@ -711,8 +757,7 @@ function CourseCard({
                             <span className="text-destructive">{editingErrors.description}</span>
                           )}
                         </div>
-                        <div className={`text-xs ${
-                          editingValues.description.length >= MAX_DESCRIPTION_LENGTH * 0.9 
+                        <div className={`text-xs ${editingValues.description.length >= MAX_DESCRIPTION_LENGTH * 0.9
                           ? 'text-destructive'
                           : 'text-muted-foreground'
                           }`}>
@@ -742,9 +787,9 @@ function CourseCard({
                   </div>
                 ) : (
                   <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-accent/20 to-primary/20 rounded-lg blur-sm"></div>
-                    <div className="relative bg-accent/10 rounded-lg p-4 border border-accent/30">
-                      <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{course.description}</p>
+                    <div className="absolute inset-0  rounded-lg "></div>
+                        <div className="relative bg-accent/1 rounded-lg p-4 border border-accent/10">
+                          <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{course.description}</p>
                     </div>
                   </div>
                 )}
@@ -764,7 +809,7 @@ function CourseCard({
                     size="sm"
                     variant="outline"
                     disabled={createVersionMutation.isPending}
-                    className="bg-gradient-to-r from-primary/10 to-accent/10 border-primary/30 hover:from-primary/20 hover:to-accent/20 transition-all duration-300"
+                    className="bg-linear-to-r from-primary/10 to-accent/10 border-primary/30 duration-300"
                   >
                     {createVersionMutation.isPending ? (
                       <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -890,6 +935,7 @@ function CourseCard({
                   </div>
                 )}
               </div>
+            </div>
 
             </div>
           </CardContent>
@@ -925,20 +971,22 @@ function VersionCard({
 
   // Edit state variables 
   const [editingVersion, setEditingVersion] = useState(false)
-  const [editingValues, setEditingValues] = useState<{ version: string; description: string }>({
+  const [editingValues, setEditingValues] = useState<{ version: string; description: string; supportLink: string }>({
     version: "",
     description: "",
+    supportLink: "",
   })
-  const [editingErrors, setEditingErrors] = useState<{ version?: string; description?: string }>({})
+  const [editingErrors, setEditingErrors] = useState<{ version?: string; description?: string; supportLink?: string }>({})
 
   // Add update version hook
   const updateVersionMutation = useUpdateCourseVersion()
 
   const [showLinkModal, setShowLinkModal] = useState(false);
+  const [showDeleteVersionModel, setShowDeleteVersionModel] = useState(false)
   const [generatedLink, setGeneratedLink] = useState('');
   const generateLinkMutation = useGenerateLink();
   // To copy a entire course version
-  const {mutateAsync: copyEntireCourseVersion, isPending: copyVersionIsPending } = useCopyCourseVersion()
+  const { mutateAsync: copyEntireCourseVersion, isPending: copyVersionIsPending } = useCopyCourseVersion()
 
   // Fetch individual version data
   const { data: fetchedVersion, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId, !versionData ? true : false)
@@ -954,13 +1002,14 @@ function VersionCard({
     setEditingValues({
       version: version?.version || "",
       description: version?.description || "",
+      supportLink: (version as any)?.supportLink || "",
     })
   }
 
   const cancelEditingVersion = () => {
     setEditingVersion(false)
-    setEditingValues({ version: "", description: "" })
-    setEditingErrors({ version: "", description: "" })
+    setEditingValues({ version: "", description: "", supportLink: "" })
+    setEditingErrors({ version: "", description: "", supportLink: "" })
   }
 
   const saveEditingVersion = async () => {
@@ -968,26 +1017,41 @@ function VersionCard({
       setEditingErrors({ version: " Version name is required", description: " Version description is required" })
       return
     }
-    else {
-      setEditingErrors({ version: "", description: "" })
+
+    const supportLinkValue = editingValues.supportLink.trim();
+    if (supportLinkValue) {
+      const isEmail = supportLinkValue.includes('@');
+      const isUrl = /^https?:\/\/.+/.test(supportLinkValue);
+      if (!isEmail && !isUrl) {
+        setEditingErrors({ supportLink: "Must be a valid URL (https://...) or email address" })
+        return
+      }
     }
+
+    setEditingErrors({ version: "", description: "", supportLink: "" })
+
     try {
       await updateVersionMutation.mutateAsync({
         params: { path: { courseId: courseId, versionId: selectedVersionId } },
         body: {
           version: editingValues.version,
           description: editingValues.description,
-        },
+          supportLink: supportLinkValue || "",
+        } as any,
       })
 
-      // Invalidate specific version query
       queryClient.invalidateQueries({
-        queryKey: ["get", "/courses/versions/{id}", { params: { path: { id: selectedVersionId } } }],
+        queryKey: ["get", "/courses/versions/{id}"],
+      })
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey.some((key) => String(key).includes(selectedVersionId))
       })
 
       setEditingVersion(false)
-      setEditingValues({ version: "", description: "" })
-      setEditingErrors({ version: "", description: "" })
+      setEditingValues({ version: "", description: "", supportLink: "" })
+      setEditingErrors({ version: "", description: "", supportLink: "" })
       onInvalidate()
     } catch (error) {
       console.error("Failed to update version:", error)
@@ -996,13 +1060,8 @@ function VersionCard({
 
   const deleteVersion = async () => {
 
-    const confirmMessage = versionCount === 1
-      ? "This is the last version of this course. Deleting it will also delete the entire course. Are you sure you want to continue?"
-      : "Are you sure you want to delete this version? This action cannot be undone.";
 
-    if (!confirm(confirmMessage)) {
-      return;
-    }
+
 
     try {
       await deleteVersionMutation.mutateAsync({
@@ -1207,7 +1266,7 @@ function VersionCard({
         loadingText="Cloning..."
       />
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-      <Card className="relative bg-card/95 backdrop-blur-sm border-l-4 border-l-primary/40 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 min-w-0">
+      <Card className="relative bg-card/95 backdrop-blur-sm border-l-4 border-l-primary/40   transition-all duration-300 min-w-0">
         <CardContent className="p-4">
           <div className="flex flex-col gap-4">
             {/* Version Header - Always Visible */}
@@ -1232,6 +1291,10 @@ function VersionCard({
                           {(version as any).modules?.reduce((acc: number, module: { sections?: any[] }) => acc + (module.sections?.length || 0), 0) || 0} Sections
                         </span>
                       </div>
+                      <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded-md">
+                        <Clock className="h-3 w-3" />
+                        <span>Last updated {getUpdateMessage(version.updatedAt)}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1251,6 +1314,36 @@ function VersionCard({
                     )}
                     Clone
                   </Button>
+                  {(version as any)?.supportLink && (() => {
+                    const link = (version as any).supportLink;
+                    const isEmail = link.startsWith('mailto:') || (!link.startsWith('http://') && !link.startsWith('https://') && !link.startsWith('//') && link.includes('@'));
+                    const href = link.startsWith('mailto:')
+                      ? link
+                      : link.startsWith('http://') || link.startsWith('https://') || link.startsWith('//')
+                        ? link
+                        : link.includes('@')
+                          ? `mailto:${link}`
+                          : link;
+                    return (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="h-8 border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                      >
+                        <a
+                          href={href}
+                          target={isEmail ? undefined : "_blank"}
+                          rel={isEmail ? undefined : "noopener noreferrer"}
+                          className="flex items-center gap-1"
+                        >
+                          <Headphones className="h-3 w-3" />
+                          Support
+                          <ExternalLink className="h-2.5 w-2.5" />
+                        </a>
+                      </Button>
+                    );
+                  })()}
                   <Button
                     variant="outline"
                     size="sm"
@@ -1268,7 +1361,7 @@ function VersionCard({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={deleteVersion}
+                    onClick={() => setShowDeleteVersionModel(true)}
                     className="h-8 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-300 text-xs"
                     disabled={deleteVersionMutation.isPending}
                   >
@@ -1277,8 +1370,26 @@ function VersionCard({
                     ) : (
                       <Trash2 className="h-3 w-3 mr-1" />
                     )}
-                    Delete
+                    Delete Version
                   </Button>
+                </div>
+
+                <div className="relative group">
+                  <ConfirmationModal
+                    isOpen={showDeleteVersionModel}
+                    onClose={() => setShowDeleteVersionModel(false)}
+                    onConfirm={deleteVersion}
+                    title="Delete Version"
+                    description={versionCount === 1
+                      ? "This is the last version of this course. Deleting it will also delete the entire course. Are you sure you want to continue?"
+                      : "Are you sure you want to delete this version? This action cannot be undone."}
+                    confirmText="Delete"
+                    cancelText="Cancel"
+                    isDestructive={true}
+                    isLoading={deleteVersionMutation.isPending}
+                    loadingText="Deleting..."
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 </div>
               </div>
 
@@ -1297,7 +1408,7 @@ function VersionCard({
                           value={editingValues.version}
                           onChange={(e) => {
                             const value = e.target.value;
-                            setEditingValues((prev: { version: string; description: string }) => ({
+                            setEditingValues((prev) => ({
                               ...prev,
                               version: value,
                             }))
@@ -1320,7 +1431,7 @@ function VersionCard({
                           value={editingValues.description}
                           onChange={(e) => {
                             const value = e.target.value;
-                            setEditingValues((prev: { version: string; description: string }) => ({
+                            setEditingValues((prev) => ({
                               ...prev,
                               description: value,
                             }))
@@ -1337,6 +1448,24 @@ function VersionCard({
                         {editingErrors.description && (
                           <div className="text-xs text-red-500 mt-2">{editingErrors.description}</div>
                         )}
+                      </div>
+                      <div>
+                        <label className="text-sm font-light text-foreground mb-2 block">Support Link (Optional)</label>
+                        <Input
+                          value={editingValues.supportLink}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setEditingValues((prev) => ({
+                              ...prev,
+                              supportLink: value,
+                            }))
+                          }}
+                          className="border-primary/30 focus:border-primary bg-background"
+                          placeholder="Discord, email, or forum link (e.g., https://discord.gg/abc123)"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Students can use this link to get help or support
+                        </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
@@ -1361,8 +1490,8 @@ function VersionCard({
                   ) : (
                     version?.description && (
                       <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-r from-accent/20 to-primary/20 rounded-lg blur-sm"></div>
-                        <div className="relative bg-accent/10 rounded-lg p-4 border border-accent/30">
+                        <div className="absolute inset-0  rounded-lg "></div>
+                        <div className="relative bg-accent/1 rounded-lg p-4 border border-accent/10">
                           <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{version.description}</p>
                         </div>
                       </div>

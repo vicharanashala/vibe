@@ -897,18 +897,19 @@ class CSVRow {
 class CSVQuizQuestion {
   Segment: string;
   'Question Timestamp [mm:ss]': string;
-  'Q.No.*': string;
+  'S.No.'?: string;
   Question: string;
-  Hint: string;
-  'Option A': string;
-  'Expln-A*': string;
-  'Option B': string;
-  'Expln-B*': string;
-  'Option C': string;
-  'Expln-C*': string;
-  'Option D': string;
-  'Expln-D*': string;
+  Hint?: string;
+  'Option A'?: string;
+  'Expln-A'?: string;
+  'Option B'?: string;
+  'Expln-B'?: string;
+  'Option C'?: string; 
+  'Expln-C'?: string;
+  'Option D'?: string;
+  'Expln-D'?: string;
   'Correct Answer': string;
+  [key: string]: string | undefined;
 }
 
 class CSVItemBody {

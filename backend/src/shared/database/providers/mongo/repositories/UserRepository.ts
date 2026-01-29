@@ -108,7 +108,6 @@ export class UserRepository implements IUserRepository {
 
   async getUserNamesByIds(userIds: string[], session?: ClientSession) {
     await this.init();
-    console.log('get user name by id', userIds);
     const users = await this.usersCollection
       .find(
         { _id: { $in: userIds.map(id => new ObjectId(id)) } },

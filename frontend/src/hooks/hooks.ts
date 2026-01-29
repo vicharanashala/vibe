@@ -511,21 +511,28 @@ export function useCreateCourse(): {
   };
 }
 
-export async function useProcessInvites(inviteId: string): Promise<{
+export async function useProcessInvites(inviteId: string, action: "ACCEPT" | "REJECTED" = "ACCEPT",
+
+): Promise<{
   data: null,
   isLoading: boolean,
   error: string | null,
   refetch: () => void
 }> {
   let isLoading = true;
-  const method = 'GET';
-  const url = `${import.meta.env.VITE_BASE_URL}/notifications/invite/${inviteId}`;
+  const baseUrl = `${import.meta.env.VITE_BASE_URL}/notifications/invite/${inviteId}`;
+  const url =
+    action === "REJECTED"
+      ? `${baseUrl}?action=REJECTED`
+      : baseUrl;
 
   const res = await fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json', 'authorization': `Bearer ${localStorage.getItem('firebase-auth-token')}` },
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      authorization: `Bearer ${localStorage.getItem("firebase-auth-token")}`,
+    },
   });
-
   isLoading = false;
 
   if (!res.ok) {
@@ -1171,7 +1178,8 @@ export function useCourseEnrollmentsStats(
 export function useCourseQuizScores(
   courseId: string | undefined,
   versionId: string | undefined,
-  enabled: boolean = true
+  enabled: boolean = true,
+  statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE' 
 ): {
   data: any | undefined,
   isLoading: boolean,
@@ -1183,7 +1191,8 @@ export function useCourseQuizScores(
     '/users/enrollments/courses/{courseId}/versions/{versionId}/export/quiz-scores',
     {
       params: {
-        path: { courseId, versionId }
+        path: { courseId, versionId },
+        query: { statusTab }
       }
     },
     {
@@ -1208,10 +1217,11 @@ export function useCourseVersionEnrollments(
   page: number = 1,
   limit: number = 10,
   search: string = "",
-  sortBy: 'name' | 'enrollmentDate' | 'progress' = 'enrollmentDate',
+  sortBy: 'name' | 'enrollmentDate' | 'progress' | 'unenrolledAt' = 'enrollmentDate',
   sortOrder: 'asc' | 'desc' = 'desc',
   enabled: boolean = true,
-  filter: 'STUDENT' | 'OTHER'
+  filter: 'STUDENT' | 'OTHER',
+  statusTab: 'ACTIVE' | "INACTIVE",
 ): {
   data: components['schemas']['CourseVersionEnrollmentResponse'] | undefined,
   isLoading: boolean,
@@ -1224,7 +1234,7 @@ export function useCourseVersionEnrollments(
     {
       params: {
         path: { courseId, courseVersionId },
-        query: { page, limit, search, sortBy, sortOrder, filter },
+        query: { page, limit, search, sortBy, sortOrder, filter, statusTab },
       },
       enabled: enabled && !!courseId && !!courseVersionId,
     }
@@ -1403,7 +1413,7 @@ export function useStopItem() {
           body: { itemId },
         } = variables;
 
-      //  queryClient.invalidateQueries({
+        //  queryClient.invalidateQueries({
         //   queryKey: [
         //     "get",
         //     "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items",
@@ -1419,11 +1429,11 @@ export function useStopItem() {
         //   ],
         // });
         queryClient.invalidateQueries({
-  predicate: (query) =>
-    query.queryKey[0] === "get" &&
-    query.queryKey[1] ===
-      "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items",
-});
+          predicate: (query) =>
+            query.queryKey[0] === "get" &&
+            query.queryKey[1] ===
+            "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items",
+        });
 
       },
     }
@@ -1495,9 +1505,9 @@ export function useResetProgress(): {
   };
 }
 
-export function useRecalculateProgress():{
-  mutate: (variables: { params: { query: { courseId?: string, userId?: string, courseVersionId?: string } } }) => void,
-  mutateAsync: (variables: { params: { query: { courseId?: string, userId?: string, courseVersionId?: string } } }) => Promise<unknown>,
+export function useRecalculateProgress(): {
+  mutate: (variables: { params: { query: { courseId?: string, userId?: string, versionId?: string } } }) => void,
+  mutateAsync: (variables: { params: { query: { courseId?: string, userId?: string, versionId?: string } } }) => Promise<unknown>,
   data: unknown | undefined,
   error: string | null,
   isPending: boolean,
@@ -1507,7 +1517,7 @@ export function useRecalculateProgress():{
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("patch", "/users/enrollments/progress");
+  const result = api.useMutation("patch", "/users/enrollments/bulk-update-watchtime-progress-completeCounts");
   return {
     ...result,
     error: result.error ? (result.error.message || 'Failed to reset progress') : null
@@ -3021,37 +3031,39 @@ export interface RegistrationRequestQuery {
 export const useGetCourseRegistrationRequests = (
   versionId: string,
   query: RegistrationRequestQuery = {},
-): {
-  data: { totalDocuments: number, totalPages: number, currentPage: number, registrations: Registration[] };
-  isLoading: boolean;
-  error: string | null;
-  refetch: () => void;
-} => {
+  enabled: boolean = true,
+) => {
   const result = api.useQuery(
-    'get',
-    '/course/registration/requests/version/{versionId}' as any,
+    "get",
+    "/course/registration/requests/version/{versionId}" as any,
     {
       params: {
         path: { versionId },
-        query
-      }
+        query,
+      },
     },
     {
-      enabled: !!versionId,
+      enabled: !!versionId && enabled,
       retry: 1,
-      refetchOnWindowFocus: false
+      refetchOnWindowFocus: false,
     }
   );
 
   return {
-    data: result.data as { totalDocuments: number, totalPages: number, currentPage: number, registrations: Registration[] },
+    data: (result.data as any) ?? {
+      totalDocuments: 0,
+      totalPages: 0,
+      currentPage: 1,
+      registrations: [],
+    },
     isLoading: result.isLoading,
     error: result.error
-      ? result.error.message || 'Failed to fetch course registration requests'
+      ? result.error.message || "Failed to fetch course registration requests"
       : null,
     refetch: result.refetch,
   };
 };
+
 
 
 export const useUpdateRegistrationStatus = (): {
@@ -3332,6 +3344,14 @@ export type IssueStatus =
 export type IssueSort = "ALL" | "VIDEO" | "QUIZ" | "ARTICLE" | "QUESTION";
 
 export type EntityType = "VIDEO" | "QUIZ" | "ARTICLE" | "QUESTION";
+
+export interface IssueQueryParams {
+  page?: number;
+  limit?: number;
+  status?: string;
+  search?: string;
+  sort?: string; // Add this line
+}
 
 export interface IssueStatusHistory {
   status: IssueStatus;
@@ -3823,5 +3843,51 @@ export const useGenerateAIQuestions = (): {
   return {
     ...result,
     error: result.error ? (result.error.message || 'Failed to generate AI questions') : null,
+  };
+}
+
+
+
+
+export function useRecalculateStudentProgress(): {
+  mutate: (variables: {
+    body: {
+      courseId: string;
+      courseVersionId: string;
+    };
+  }) => void;
+  mutateAsync: (variables: {
+    body: {
+      courseId: string;
+      courseVersionId: string;
+    };
+  }) => Promise<string>;
+  data: string | undefined;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} {
+  const result = api.useMutation(
+    'post',
+    '/users/progress/recalculate',
+  );
+
+  return {
+    mutate: result.mutate,
+    mutateAsync: result.mutateAsync,
+    data: result.data,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+    error: result.error
+      ? result.error.message || 'Failed to recalculate progress'
+      : null,
   };
 }

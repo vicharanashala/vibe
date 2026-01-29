@@ -1,5 +1,11 @@
-import { Expose, Type } from 'class-transformer';
-import { IsArray, IsNumber, IsString, ValidateNested } from 'class-validator';
+import {Expose, Type} from 'class-transformer';
+import {
+  IsArray,
+  IsNumber,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 
 export class StudentQuizScoreDto {
   @Expose()
@@ -42,6 +48,11 @@ export class QuizScoresMetadataDto {
   @Expose()
   @IsNumber()
   totalStudents: number;
+
+  @Expose()
+  @IsString()
+  @IsOptional() // Made it optional for backward compatibility
+  statusTab?: 'ACTIVE' | 'INACTIVE';
 
   @Expose()
   @IsNumber()

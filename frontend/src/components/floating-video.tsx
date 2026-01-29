@@ -14,6 +14,7 @@ import { useAuthStore } from '@/store/auth-store';
 import { useCourseStore } from '@/store/course-store';
 import type { FloatingVideoProps } from '@/types/video.types';
 import { useReportAnomalyAudio, useReportAnomalyImage } from '@/hooks/hooks';
+import {registerStream, unRegisterStream} from "@/lib/MediaRegistry";
 
 // let flag = 0;
 function FloatingVideo({
@@ -29,6 +30,12 @@ function FloatingVideo({
   setReadyToDetect,
   anomalies = []
 }: FloatingVideoProps): JSX.Element | null {
+  useEffect(() => {
+    return () => {
+       unRegisterStream("floating-video-restart-stream")
+       unRegisterStream("floating-video-audio-stream")
+    };
+  }, []);
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -331,6 +338,8 @@ const lastCalledRef = useRef<number>(0);
     if (isSpeaking === "Yes" && isVoiceDetectionEnabled && !mediaRecorder) {
       // Start recording
       navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        unRegisterStream("floating-video-audio-stream")
+        registerStream("floating-video-audio-stream", stream);
         const recorder = new window.MediaRecorder(stream);
         setAudioChunks([]);
         setAudioStream(stream);
@@ -397,7 +406,6 @@ const lastCalledRef = useRef<number>(0);
     const video = videoRef.current;
     if (!video) return;
 
-    console.log('[FloatingVideo] Restarting video stream...');
 
     try {
       // Stop current stream if exists
@@ -418,6 +426,8 @@ const lastCalledRef = useRef<number>(0);
           height: { ideal: 480 }
         }
       });
+      unRegisterStream("floating-video-restart-stream")
+      registerStream("floating-video-restart-stream", stream);
 
       video.srcObject = stream;
       setCurrentStream(stream);
@@ -428,9 +438,7 @@ const lastCalledRef = useRef<number>(0);
 
         const onSuccess = () => {
           clearTimeout(timeoutId);
-          console.log('[FloatingVideo] Video stream restarted successfully');
           setTimeout(() => {
-            console.log('[FloatingVideo] AI components reinitialized');
             resolve(null);
           }, 100);
         };
@@ -454,17 +462,6 @@ const lastCalledRef = useRef<number>(0);
 
   // Debug why TensorFlow sees 0 faces
   useEffect(() => {
-    console.log('🔍 TensorFlow Face Detection Debug:', {
-      facesCount,
-      modelReady,
-      isVideoActive,
-      videoReady: videoRef.current?.readyState,
-      videoDimensions: {
-        width: videoRef.current?.videoWidth,
-        height: videoRef.current?.videoHeight
-      },
-      hasStream: !!videoRef.current?.srcObject
-    });
   }, [facesCount, modelReady, isVideoActive]);
 
   // Debug face detection
@@ -633,7 +630,6 @@ const lastCalledRef = useRef<number>(0);
         setAnomalies([]);
         // When anomalies are cleared, restore previous video state
         if (rewindVid || pauseVid) {
-          console.log(`[FloatingVideo] Anomalies cleared - restoring video state`);
           setRewindVid(false);
           setPauseVid(false);  // Resume video when anomalies are cleared
         }
@@ -687,7 +683,6 @@ const lastCalledRef = useRef<number>(0);
           const isAlreadyThumbsUp = gestureText.includes("thumb_up") || gestureText === "thumb_up";
 
           if (isAlreadyThumbsUp) {
-            console.log("[Challenge] ⚠️ Thumbs-up detected when challenge starts - marking as anomaly");
             // Add penalty for pre-emptive thumbs-up
             setPenaltyPoints(prevPoints => prevPoints + 1);
             setPenaltyType("Pre-emptive Thumbs-Up");
@@ -695,7 +690,6 @@ const lastCalledRef = useRef<number>(0);
           } else {
             // Show alert without blocking execution
             setDoGesture(true);
-            console.log("[Challenge] 🎯 Starting new thumbs-up challenge");
             setIsThumbsUpChallenge(true);
             setThumbsUpCountdown(10);
             setLastChallengeTime(now);
@@ -740,7 +734,6 @@ const lastCalledRef = useRef<number>(0);
     const isThumbsUp = gestureText.includes("thumb_up") || gestureText === "thumb_up";
     
     if (isThumbsUp) {
-      console.log("[Challenge] ✅ Thumbs-up detected! Challenge passed.");
       setDoGesture(false);
       // Success - end challenge without penalty
       setIsThumbsUpChallenge(false);
@@ -937,13 +930,11 @@ const lastCalledRef = useRef<number>(0);
     if (!video) return;
 
     const handleEnded = () => {
-      console.log('[FloatingVideo] Video ended, restarting...');
       video.currentTime = 0;
       video.play().catch(() => { });
     };
 
     const handlePause = () => {
-      console.log('[FloatingVideo] Video paused, attempting to resume...');
       // If not intentionally paused (muted, hidden, etc.), try to play
       if (video.paused && !video.ended) {
         video.play().catch(() => { });
@@ -1012,7 +1003,7 @@ const lastCalledRef = useRef<number>(0);
   const floatingVideoContent = (
     <div
       ref={containerRef}
-      className={`z-[999999] bg-black rounded-lg shadow-lg border border-gray-600 overflow-hidden select-none transition-all duration-300 ${isPoppedOut
+      className={`z-[999999] bg-black rounded-lg shadow-lg  overflow-hidden select-none transition-all duration-300 ${isPoppedOut
         ? 'fixed'
         : 'relative'
         }`}
@@ -1033,19 +1024,19 @@ const lastCalledRef = useRef<number>(0);
 
       {/* Grace period status display */}
       {isInGracePeriod && (
-        <div className="absolute top-2 left-2 bg-blue-500 text-white px-2 py-1 rounded text-xs z-50">
+         <div className="absolute top-1 left-1 bg-blue-600 text-white px-2 py-1 rounded text-xs z-50">
           ⏳ Calibrating: {Math.ceil(remainingGrace / 1000)}s
         </div>
       )}
 
       {/* Header - Anomaly state */}
       {isAnomaliesDetected && (
-        <div className="bg-green-600 text-white px-3 py-1 flex justify-between items-center text-sm min-h-[34px]">
+        <div className={`bg-red-600 text-white px-3 py-1 flex justify-between items-center text-sm min-h-[34px]`}>
           <div className="flex items-center space-x-2 flex-1 min-w-0">
             <span className="font-medium truncate">
               {isThumbsUpChallenge
                 ? `👍 Show Thumbs Up: ${thumbsUpCountdown}s`
-                : `🚨 ${isCollapsed ? `${penaltyType || 'Anomalies'} (${penaltyPoints})` : 'Detected Anomalies!'}`
+                : `⚠️ ${isCollapsed ? `${penaltyType || 'Anomalies'} (${penaltyPoints})` : 'Detected Anomalies!'}`
               }
             </span>
           </div>

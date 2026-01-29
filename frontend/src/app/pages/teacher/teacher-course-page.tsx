@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
 import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, userParseCSVtoItems, useUpdateItemOptional } from '@/hooks/hooks';
-import { Download, Upload } from 'lucide-react';
+import { Download, LogOut, Upload, UserRoundCheck } from 'lucide-react';
 import { useHideItem } from '@/hooks/hooks';
 
 const MAX_DESCRIPTION_LENGTH = 1000;
@@ -9,7 +9,8 @@ const MAX_DESCRIPTION_LENGTH = 1000;
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
-  SidebarInset, SidebarProvider, SidebarFooter, useSidebar
+  SidebarInset, SidebarProvider, SidebarFooter, useSidebar,
+  SidebarTrigger
 } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -34,7 +35,7 @@ import {
   Loader2
 } from "lucide-react";
 
-import { Link, useNavigate } from "@tanstack/react-router";
+import {  useNavigate } from "@tanstack/react-router";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Home, GraduationCap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -56,6 +57,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/utils/utils";
 import { QuestionUploadDialog } from "@/components/question-upload-dialog";
+import ConfirmationModal from "./components/confirmation-modal";
+import { useMatches, Link } from "@tanstack/react-router";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import type { BreadcrumbItemment } from "@/types/layout.types";
+import AiWorkflow from "./AiWorkflow";
+import AISectionPage from "./AISectionPage";
+type Mode = "default" | "wizard" | "custom";
+import { logout } from "@/utils/auth";
+import InviteDropdown from "@/components/inviteDropDown";
 
 
 // ✅ Icons per item type
@@ -103,14 +120,57 @@ type CSVRow = {
 };
 
 function TeacherCourseContent() {
+  const [mode, setMode] = useState<Mode>("default");
+  const matches = useMatches();
+  const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]);
+    const [showInvites, setShowInvites] = useState(false);
+    const [confirmLogout,setConfirmLogout] = useState(false);
+    const [pendingInvites, setPendingInvites] = useState<any[]>([]);
+    const invitesRef = useRef<HTMLDivElement | null>(null);
+  
+    const handleLogout = () => {
+      logout();
+      navigate({ to: "/auth" });
+    };
   const createQuestion = useCreateQuestion();
   const user = useAuthStore().user;
   const { currentCourse, setCurrentCourse } = useCourseStore();
   // Use correct keys for course/version IDs
   const courseId = currentCourse?.courseId;
   const versionId = currentCourse?.versionId;
+  useEffect(() => {
+    const items: BreadcrumbItem[] = [];
+    items.push({
+      label: "Dashboard",
+      path: "/teacher",
+      isCurrentPage: matches.length === 1,
+    });
+    items.push({
+      label: "Teacher",
+      path: "/teacher",
+      isCurrentPage: matches.length === 1,
+    });
+    if (matches.length > 1) {
+      for (let i = 1; i < matches.length; i++) {
+        const match = matches[i];
+        const path = match.pathname;
+        const segments = path.split("/").filter(Boolean);
+        let label = segments[segments.length - 1] || "";
+        label = label.replace(/-/g, " ");
+        label = label.charAt(0).toUpperCase() + label.slice(1);
 
+        items.push({
+          label,
+          path,
+          isCurrentPage: i === matches.length - 1,
+        });
+      }
+    }
+
+    setBreadcrumbs(items);
+  }, [matches]);
   const { setOpen, setOpenMobile } = useSidebar();
+  const [isDesktopSidebarVisible, setIsDesktopSidebarVisible] = useState(true);
 
   const checkScreenSize = () => {
     return window.innerWidth <= 425;
@@ -168,6 +228,8 @@ function TeacherCourseContent() {
   const [isEditingSection, setIsEditingSection] = useState(false);
   const [originalModuleData, setOriginalModuleData] = useState<ModuleData | null>(null);
   const [originalSectionData, setOriginalSectionData] = useState<{ name: string; description: string } | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [hidingModuleId, setHidingModuleId] = useState<string | null>(null);
@@ -232,7 +294,7 @@ function TeacherCourseContent() {
   const safeVersionId = versionId && versionId.trim() ? versionId : "SKIP";
   const safeModuleId = activeSectionInfo?.moduleId && activeSectionInfo.moduleId.trim() ? activeSectionInfo.moduleId : "SKIP";
   const safeSectionId = activeSectionInfo?.sectionId && activeSectionInfo.sectionId.trim() ? activeSectionInfo.sectionId : "SKIP";
-  
+
   const {
     data: currentSectionItems,
     isLoading: itemsLoading,
@@ -254,7 +316,6 @@ function TeacherCourseContent() {
     shouldFetchItem ? versionId : '',
     shouldFetchItem ? selectedEntity?.data?._id : ''
   );
-  console.log("selectedItemData", selectedItemData)
   // Sync controlled state with selectedItemData for PROJECT edit
   useEffect(() => {
     if (selectedEntity?.type === 'item' && selectedEntity.data.type === 'PROJECT') {
@@ -282,7 +343,7 @@ function TeacherCourseContent() {
   // CRUD hooks
 
   // --- MODULES ---
-  const { mutateAsync: createModuleAsync, isSuccess: isCreateModuleSuccess, isError: isCreateModuleError, error: createModuleError,  } = useCreateModule();
+  const { mutateAsync: createModuleAsync, isSuccess: isCreateModuleSuccess, isError: isCreateModuleError, error: createModuleError, } = useCreateModule();
   const { mutateAsync: updateModuleAsync, isSuccess: isUpdateModuleSuccess, isError: isUpdateModuleError, error: updateModuleError } = useUpdateModule();
   const { mutateAsync: deleteModuleAsync, isSuccess: isDeleteModuleSuccess, isError: isDeleteModuleError, error: deleteModuleError } = useDeleteModule();
   const { mutateAsync: moveModuleAsync } = useMoveModule();
@@ -386,11 +447,11 @@ function TeacherCourseContent() {
       },
     },
     errorFlags: {
-      isCreateModuleError: {
-        flag: isCreateModuleError,
-        message: createModuleError?.message,
-        fallback: "Failed to create module",
-      },
+      // isCreateModuleError: {
+      //   flag: isCreateModuleError,
+      //   message: createModuleError?.response?.data?.message || createModuleError?.message,
+      //   fallback: "Failed to create module",
+      // },
       isUpdateModuleError: {
         flag: isUpdateModuleError,
         message: updateModuleError?.message,
@@ -403,7 +464,7 @@ function TeacherCourseContent() {
       },
       isCreateSectionError: {
         flag: isCreateSectionError,
-        message: createSectionError?.message,
+        message: createSectionError?.toString(),
         fallback: "Failed to create section",
       },
       isUpdateSectionError: {
@@ -506,38 +567,43 @@ function TeacherCourseContent() {
   //   });
   // };
 
-    const handleAddModule = async () => {
-      if (!versionId) return;
+  const handleAddModule = async () => {
+    if (!versionId) return;
 
-      try {
-        await createModuleAsync({
-          params: { path: { versionId } },
-          body: {
-            name: "Untitled Module",
-            description: "Module description",
-          },
-        });
-
-        refetchVersion();
-        if (shouldFetchItems) {
-          refetchItems();
-        }
-
-        setIsEditingModule(true);
-        setOriginalModuleData({
+    try {
+      await createModuleAsync({
+        params: { path: { versionId } },
+        body: {
           name: "Untitled Module",
           description: "Module description",
-        });
+        },
+      });
 
       } catch (error: any) {
-        const message =
-          error?.response?.data?.message ||
-          error?.message ||
-          "Failed to create module";
+        // Enhanced error message extraction for backend validation errors
+        let message = "Failed to create module";
+        
+        if (error?.response?.data?.message) {
+          message = error.response.data.message;
+        } else if (error?.response?.data?.error) {
+          message = error.response.data.error;
+        } else if (error?.message) {
+          message = error.message;
+        } else if (typeof error === 'string') {
+          message = error;
+        }
 
         toast.error(message);
       }
-    };
+
+      setIsEditingModule(true);
+      setOriginalModuleData({
+        name: "Untitled Module",
+        description: "Module description",
+      });
+
+    
+  };
 
 
 
@@ -547,7 +613,11 @@ function TeacherCourseContent() {
     try {
       setShowCSVUpload(false);
       const text = await file.text();
-      const result = Papa.parse<CSVRow>(text, { header: true, skipEmptyLines: true });
+      const result = Papa.parse<CSVRow>(text, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (h) => h.trim()
+      });
 
       // Validate CSV structure
       if (!result.data.length) {
@@ -574,11 +644,11 @@ function TeacherCourseContent() {
 
 
       const response = await userCSVtoItem.mutateAsync({
-        params: { path: { courseId: courseId!, versionId:versionId!, moduleId, sectionId } },
+        params: { path: { courseId: courseId!, versionId: versionId!, moduleId, sectionId } },
         body: { youtubeurl: youtubeUrl, data: result.data }
       }).then((res) => {
-        if(res.success){
-           toast.success('Successfully created items from CSV');
+        if (res.success) {
+          toast.success('Successfully created items from CSV');
         }
         refetchVersion()
         refetchItems()
@@ -650,7 +720,6 @@ function TeacherCourseContent() {
     if (!versionId) return;
     setHidingItemId(itemId);
     try {
-      console.log("🔄 Starting hide item:", itemId, hide);
       await updateItemVisibilityAsync({
         params: { path: { versionId, itemId } },
         body: { hide: hide }
@@ -658,7 +727,6 @@ function TeacherCourseContent() {
 
       refetchVersion();
       refetchItems();
-      console.log("✅ RefetchVersion completed");
     } catch (error) {
       console.error("❌ Error in handleHideItem:", error);
     } finally {
@@ -967,13 +1035,68 @@ function TeacherCourseContent() {
             ? { afterItemId: after._id }
             : {}),
       },
-    }).then((res) => { 
+    }).then((res) => {
       if (shouldFetchItems) {
         refetchItems();
       }
     })
 
   };
+
+  const handleConfirmDelete = async () => {
+  if (!selectedEntity || !versionId) return;
+
+  const { type, data, parentIds } = selectedEntity;
+
+  try {
+    if (type === "module") {
+      await deleteModuleAsync({
+        params: {
+          path: {
+            versionId,
+            moduleId: data.moduleId,
+          },
+        },
+      });
+
+      setExpandedModules(prev => ({
+        ...prev,
+        [data.moduleId]: false,
+      }));
+      setIsEditingModule(false);
+    }
+
+    if (type === "section" && parentIds?.moduleId) {
+      if (activeSectionInfo?.sectionId === data.sectionId) {
+        setActiveSectionInfo(null);
+      }
+
+      await deleteSectionAsync({
+        params: {
+          path: {
+            versionId,
+            moduleId: parentIds.moduleId,
+            sectionId: data.sectionId,
+          },
+        },
+      });
+
+      setExpandedSections(prev => ({
+        ...prev,
+        [data.sectionId]: false,
+      }));
+      setIsEditingSection(false);
+    }
+
+    refetchVersion();
+    if (shouldFetchItems) refetchItems();
+  } finally {
+    setIsDeleteModalOpen(false);
+    setSelectedEntity(null);
+    setErrors({ title: "", description: "" });
+  }
+};
+
 
 
   useEffect(() => {
@@ -982,7 +1105,7 @@ function TeacherCourseContent() {
   }, [modules])
 
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+    <ResizablePanelGroup direction="horizontal" className="h-full w-full">  
       {/* Show loading overlay when processing CSV */}
       {isProcessingCSV && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
@@ -1155,14 +1278,16 @@ function TeacherCourseContent() {
           onClick={() => setIsMobileSidebarOpen(false)}
         />
       )}
+      {isDesktopSidebarVisible && (
       <ResizablePanel
         defaultSize={20}
         minSize={20}
         maxSize={50}
         className={`${isMobileSidebarOpen ? 'fixed inset-y-0 left-0 z-50 w-[280px]' : 'hidden md:block'}`}
       >
-        <div className="h-full overflow-hidden border-r border-border/40 bg-sidebar/50">
-          <Sidebar variant="sidebar" collapsible="none" className="h-screen w-full">
+        {/* sidebar content */}
+  <div className="h-full overflow-hidden border-r border-border/40 bg-sidebar/50">
+          <Sidebar  variant="sidebar" collapsible="none" className="h-screen w-full">
             <SidebarHeader>
               <div className="flex items-center gap-3 px-3 py-2">
                 <BookOpen className="text-primary" />
@@ -1228,7 +1353,7 @@ function TeacherCourseContent() {
                                 className={`h-3.5 w-3.5 transition-transform ${expandedModules[module.moduleId] ? "rotate-90" : ""
                                   }`}
                               />
-                              <span className="ml-2 max-w-[35ch] truncate"title={module.name}>{module.name}</span>
+                              <span className="ml-2 max-w-[35ch] truncate" title={module.name}>{module.name}</span>
                             </SidebarMenuButton>
                           </Reorder.Item>
 
@@ -1262,6 +1387,7 @@ function TeacherCourseContent() {
                                     <SidebarMenuSubItem>
                                       <SidebarMenuSubButton
                                         onClick={() => {
+                                          setMode("default");
                                           toggleSection(module.moduleId, section.sectionId);
                                           setSelectedEntity({
                                             type: "section",
@@ -1345,6 +1471,7 @@ function TeacherCourseContent() {
                                                         : "bg-transparent transition-none"
                                                         }`}
                                                       onClick={() => {
+                                                        setMode("default");
                                                         const label = getItemLabel({
                                                           itemId: item._id,
                                                           itemType: item.type,
@@ -1401,13 +1528,17 @@ function TeacherCourseContent() {
                                                         })}
                                                       </span>
                                                     </SidebarMenuSubButton>
-                                                    <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideItem(item._id, !item.isHidden)} disabled={section.isHidden || module.isHidden || hidingItemId === item._id}>
+                                                    <Button className="absolute  top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideItem(item._id, !item.isHidden)} disabled={section.isHidden || module.isHidden || hidingItemId === item._id}>
                                                       {hidingItemId === item._id ? (
                                                         <Loader2 className="h-4 w-4 animate-spin" />
                                                       ) : !item.isHidden ? (
-                                                        <Eye className="h-4 w-4" />
+                                                        <Eye className={`h-4 w-4 ${selectedItem.id == item._id
+                                                        ? "text-gray-200"
+                                                        : "text-muted-foreground"}` } />
                                                       ) : (
-                                                        <EyeOff className="h-4 w-4" />
+                                                        <EyeOff className={`h-4 w-4 ${selectedItem.id == item._id
+                                                        ? "text-gray-200"
+                                                        : "text-muted-foreground"}` } />
                                                       )}
                                                       <span className="sr-only">Hide Item</span>
                                                     </Button>
@@ -1647,7 +1778,8 @@ function TeacherCourseContent() {
                                                               itemId: null,
                                                               watchItemId: null,
                                                             });
-                                                            navigate({ to: '/teacher/ai-section' });
+                                                            setMode('custom')
+                                                            // navigate({ to: '/teacher/ai-section' });
                                                           }}
                                                         >
                                                           Custom mode
@@ -1663,7 +1795,8 @@ function TeacherCourseContent() {
                                                               itemId: null,
                                                               watchItemId: null,
                                                             });
-                                                            navigate({ to: '/teacher/ai-workflow' });
+                                                            setMode('wizard')
+                                                            // navigate({ to: '/teacher/ai-workflow' });
                                                           }}
                                                         >
                                                           Wizard mode
@@ -1768,6 +1901,16 @@ function TeacherCourseContent() {
           </Sidebar>
         </div>
       </ResizablePanel>
+    )}
+
+      {/* <ResizablePanel
+        defaultSize={20}
+        minSize={20}
+        maxSize={50}
+        className={`${isMobileSidebarOpen ? 'fixed inset-y-0 left-0 z-50 w-[280px]' : 'hidden md:block'}`}
+      >
+      
+      </ResizablePanel> */}
 
 
 
@@ -1778,12 +1921,102 @@ function TeacherCourseContent() {
 
 
 
-      <ResizableHandle className="hidden md:flex" />
+      {/* <ResizableHandle className="hidden md:flex" /> */}
+      {isDesktopSidebarVisible && <ResizableHandle className="hidden md:flex" />}
+
+      
       <ResizablePanel defaultSize={80} className="min-w-0">
         {/* Course Editor Area */}
-        <SidebarInset className="flex-1 bg-background overflow-y-auto">
+        <SidebarInset className="max-w-full overflow-hidden flex flex-col">
+              <header className="hidden md:flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear sticky top-0 z-50 bg-background">
+                            <div className="flex w-full items-center justify-between px-4">
+                              <div className="flex items-center gap-2">
+                                {/* Add Toggle Button */}
+                                <Button
+  variant="ghost"
+  size="icon"
+  onClick={() => setIsDesktopSidebarVisible((p) => !p)}
+  className="hidden md:inline-flex"
+>
+  <Menu className="h-5 w-5" />
+</Button>
+
+                                <Separator orientation="vertical" className="mx-2 h-4" />
+                                <Breadcrumb className="hidden md:flex">
+                                  <BreadcrumbList>
+                                 
+                                    {breadcrumbs.map((item, index) => (
+                                      <React.Fragment key={index}>
+                                      
+                                        {index > 0 && breadcrumbs.length - 1 && <BreadcrumbSeparator />}
+                                        <BreadcrumbItem>
+                                          {item.isCurrentPage ? (
+                                            <BreadcrumbPage className="lg:flex md:hidden">{item.label}</BreadcrumbPage>
+                                          ) : (
+                                            <BreadcrumbLink href={item.path} asChild>
+                                              <Link to={item.path}>{item.label}</Link>
+                                            </BreadcrumbLink>
+                                          )}
+                                        </BreadcrumbItem>
+                                      </React.Fragment>
+                                    ))}
+                                  </BreadcrumbList>
+                                </Breadcrumb>
+                              </div>
+                  
+                              <div className="hidden md:flex items-center gap-3">
+                  
+                                <div className="relative"  ref={invitesRef}>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setShowInvites((prev) => !prev)}
+                                   className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+                                  >
+                                    <UserRoundCheck className="h-4 w-4" />
+                                    <span className="hidden sm:block ml-2">Invites</span>
+                                  </Button>
+                  
+                                  {showInvites && <InviteDropdown setPendingInvites={setPendingInvites} pendingInvites={pendingInvites} />}
+                                </div>
+                  
+                                <ConfirmationModal isOpen={confirmLogout} 
+                                    onClose={()=>setConfirmLogout(false)} 
+                                    onConfirm={handleLogout} 
+                                    title={`Confirm Logout`}
+                                    description="Are you sure you want to log out? You will need to sign in again to access your dashboard."
+                                  />
+                  
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={()=>setConfirmLogout(true)}
+                                   className="relative  h-10 px-4 text-sm font-medium transition-all duration-300  hover:text-red-600 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:shadow-red-500/10 dark:hover:text-red-400  dark:hover:bg-gradient-to-r dark:over:from-red-500/10 dark:hover:to-red-400/5"
+                                >
+                                  <LogOut className="h-4 w-4" />
+                                  <span className="hidden sm:block ml-2">Logout</span>
+                                </Button>
+                  
+                                <ThemeToggle />
+                  
+                                <Link to="/teacher/profile" className="group relative">
+                                  <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-primary/10 via-transparent to-secondary/10 opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:scale-110 blur-sm" />
+                                  <Avatar className="relative h-9 w-9 cursor-pointer border-2 border-transparent transition-all duration-300 group-hover:border-primary/20 group-hover:shadow-xl group-hover:shadow-primary/20 group-hover:scale-105">
+                                    <AvatarImage
+                                      src={user?.avatar || "/placeholder.svg"}
+                                      alt={user?.name}
+                                      className="transition-all duration-300"
+                                    />
+                                    <AvatarFallback className="bg-gradient-to-br from-primary/15 via-primary/10 to-primary/5 text-primary font-bold text-sm transition-all duration-300 group-hover:from-primary/25 group-hover:to-primary/10">
+                                      {user?.name?.charAt(0).toUpperCase() || "U"}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                </Link>
+                              </div>
+                            </div>
+                          </header>
           <div className="w-full p-4 sm:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            {mode === "default" &&  <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 <Button
                   variant="ghost"
@@ -1820,9 +2053,14 @@ function TeacherCourseContent() {
                   </Badge>
                 </div>
               )}
-            </div>
-
-            {selectedEntity ? (
+            </div>}
+           
+            {mode === "wizard" ? (
+              <AiWorkflow/>
+            ) : mode === "custom" ? (
+              <AISectionPage/>
+            ) : (
+                selectedEntity ? (
               <div className="bg-white dark:bg-background rounded-2xl shadow-lg border border-slate-200 dark:border-gray-700 overflow-hidden">
                 <div className="p-4 md:p-6 lg:p-8">
                   {/* Header with breadcrumb */}
@@ -2231,50 +2469,44 @@ function TeacherCourseContent() {
                           Cancel
                         </Button>
                       )}
-                      {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
-                        <Button
-                          variant="outline"
-                          className="border-border bg-background"
-                          onClick={() => {
-                            const { type, parentIds } = selectedEntity;
-                            if (type === "module" && versionId) {
-                              if (window.confirm("Are you sure you want to delete this module and all its sections/items?")) {
-                                deleteModuleAsync({
-                                  params: { path: { versionId, moduleId: selectedEntity.data.moduleId } }
-                                }).then((res) => {
-                                  refetchVersion();
-                                  if (shouldFetchItems) {
-                                    refetchItems();
-                                  }
-                                });
-                                setSelectedEntity(null);
-                                setExpandedModules(prev => ({ ...prev, [selectedEntity.data.moduleId]: false }));
-                                setIsEditingModule(false);
-                              }
-                            }
-                            if (type === "section" && versionId && parentIds?.moduleId) {
-                              if (window.confirm("Are you sure you want to delete this section and all its items?")) {
-                                deleteSectionAsync({
-                                  params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: selectedEntity.data.sectionId } }
-                                }).then((res) => {
-                                  refetchVersion();
-                                  if (shouldFetchItems) {
-                                    refetchItems();
-                                  }
-                                });
-                                setSelectedEntity(null);
-                                setExpandedSections(prev => ({ ...prev, [selectedEntity.data.sectionId]: false }));
-                                setIsEditingSection(false);
-                              }
-                            }
-                            setErrors({ title: "", description: "" });
-                          }}
-                        >
-                          <X className="h-3 w-3 mr-1" />
-                          Delete {selectedEntity.type}
-                        </Button>
-                      )}
+                      
+                      {(selectedEntity?.type === "module" || selectedEntity?.type === "section") && (
+                            <Button
+                              variant="outline"
+                              className="border-border bg-background"
+                              onClick={() => setIsDeleteModalOpen(true)}
+                            >
+                              <X className="h-3 w-3 mr-1" />
+                              Delete {selectedEntity.type}
+                            </Button>
+                          )}
                     </div>
+                    <div className="relative group">
+
+                      <ConfirmationModal
+                        isOpen={isDeleteModalOpen}
+                        onClose={() => setIsDeleteModalOpen(false)}
+                        onConfirm={handleConfirmDelete}
+                        title={
+                          selectedEntity?.type === "module"
+                            ? "Delete Module"
+                            : "Delete Section"
+                        }
+                        description={
+                          selectedEntity?.type === "module"
+                            ? "This will delete this module and all its sections/items. Are you sure?"
+                            : "This will delete this section and all its items. Are you sure?"
+                        }
+                        confirmText="Delete"
+                        cancelText="Cancel"
+                        isDestructive
+                        // isLoading={isDeleting}
+                        loadingText="Deleting..."
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                     </div>
+
+                    
 
                     {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
 
@@ -2324,7 +2556,7 @@ function TeacherCourseContent() {
                             selectedEntity.parentIds?.sectionId &&
                             selectedEntity.data?._id
                           ) {
-                            if (window.confirm("Are you sure you want to delete this item?")) {
+                            
                               deleteItemAsync({
                                 params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
                               }).then((res) => {
@@ -2336,7 +2568,7 @@ function TeacherCourseContent() {
                               });
                               setSelectedEntity(null);
                               setIsEditingItem(false);
-                            }
+                            
                           }
                         }}
                         onEdit={() => setIsEditingItem(true)}
@@ -2396,7 +2628,7 @@ function TeacherCourseContent() {
                         onDelete={async () => {
                           const projectId = selectedEntity.data._id;
                           if (selectedEntity.parentIds?.itemsGroupId && projectId) {
-                            if (window.confirm("Are you sure you want to delete this item?")) {
+                            
                               await deleteItemAsync({
                                 params: { path: { itemsGroupId: selectedEntity.parentIds.itemsGroupId, itemId: projectId } },
                               });
@@ -2405,7 +2637,7 @@ function TeacherCourseContent() {
                               refetchItem();
                               setSelectedEntity(null);
                               toast.success("Project deleted successfully");
-                            }
+                            
                           }
                         }}
                         onClose={() => {
@@ -2476,7 +2708,8 @@ function TeacherCourseContent() {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-[80vh] text-center relative">
+              // Render the content according to the wizard mode or custome mode
+          <div className="flex flex-col items-center justify-center h-[80vh]  text-center relative">
                 {/* Animated Glow */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0">
                   <div className="w-60 h-60 rounded-full bg-gradient-to-br from-primary/20 via-accent/10 to-primary/20 blur-3xl opacity-70 animate-pulse"></div>
@@ -2541,7 +2774,9 @@ function TeacherCourseContent() {
                   </div>
                 </div>
               </div>
-            )}
+           ))}
+                            
+      
           </div>
         </SidebarInset>
       </ResizablePanel>

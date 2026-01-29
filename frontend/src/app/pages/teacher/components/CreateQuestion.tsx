@@ -373,7 +373,6 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                 return;
             }
 
-            console.log('Creating question:', questionData);
 
             let solutionData: any = {};
 
@@ -433,7 +432,6 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                     }
                 }
             });
-            console.log('Question created successfully:', data);
             resetForm();
             setShowCreateQuestionDialog(false);
         } catch (error) {

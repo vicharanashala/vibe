@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Check, AlertCircle, TimerOff } from "lucide-react";
+import { Check, AlertCircle, TimerOff , Eye, EyeOff} from "lucide-react";
 import { ShineBorder } from "@/components/magicui/shine-border";
 import { AnimatedGridPattern } from "@/components/magicui/animated-grid-pattern";
 import { AuroraText } from "@/components/magicui/aurora-text";
@@ -95,6 +95,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
   // New state variables
   const [isSignUp, setIsSignUp] = useState(false);
@@ -138,8 +139,16 @@ export default function LoginPage() {
 
   const validateForm = () => {
     const errors: typeof formErrors = {};
-    if (!fullName) errors.fullName = "Name is required";
-    else if (!/^[A-Za-z ]+$/.test(fullName)) errors.fullName = "Name can only contain letters and spaces";
+
+    // if (!fullName) errors.fullName = "Name is required";
+    // else if (!/^[A-Za-z ]+$/.test(fullName)) errors.fullName = "Name can only contain letters and spaces";
+
+    if (isSignUp) {
+      if (!fullName) errors.fullName = "Name is required";
+      else if (!/^[A-Za-z ]+$/.test(fullName)) {
+        errors.fullName = "Name can only contain letters and spaces";
+      }
+    }
 
     if (!email) errors.email = "Email is required";
     else if (!/\S+@\S+\.\S+/.test(email)) errors.email = "Invalid email format";
@@ -200,6 +209,7 @@ export default function LoginPage() {
 
   const handleEmailLogin = async () => {
     try {
+      if (!validateForm()) return;
       setLoading(true);
       setFormErrors({});
 
@@ -229,19 +239,27 @@ export default function LoginPage() {
 
   //SignUp
 
-  const {mutateAsync: signupMutation, error: signupError, isError:isSignUpError} = useSignup();
+  const { mutateAsync: signupMutation, error: signupError, isError: isSignUpError } = useSignup();
 
   // New function for handling signup
   const handleEmailSignup = async () => {
-    // if (!validateForm()) return;
+    if (!validateForm()) return;
 
-    if (!passwordsMatch) {
+    // if (!passwordsMatch) {
+    //   setFormErrors({
+    //     ...formErrors,
+    //     password: "Passwords do not match",
+    //   });
+    //   return;
+    // }
+    if (password !== confirmPassword) {
       setFormErrors({
         ...formErrors,
         password: "Passwords do not match",
       });
       return;
     }
+
 
     if (passwordStrength.value < 50) {
       setFormErrors({
@@ -294,16 +312,14 @@ export default function LoginPage() {
           }
         }
         else message = signupError?.message || "An error occurred during signup";
-        console.log(message)
-        console.log(signupError?.errors?.find((e: any) => e.property === 'firstName'));
 
         setFormErrors({
           ...formErrors,
           auth: message || "Failed to create account. Please try again.",
           email: Object.values(signupError?.errors?.find((e: any) => e.property === 'email')?.constraints || {}).join(', ') || "",
-          fullName: 
-            (Object.values(signupError?.errors?.find((e: any) => e.property === 'firstName')?.constraints || {}).join(', ') + 
-            (Object.values(signupError?.errors?.find((e: any) => e.property === 'lastName')?.constraints || {}).join(', '))).trim() || "",
+          fullName:
+            (Object.values(signupError?.errors?.find((e: any) => e.property === 'firstName')?.constraints || {}).join(', ') +
+              (Object.values(signupError?.errors?.find((e: any) => e.property === 'lastName')?.constraints || {}).join(', '))).trim() || "",
           password: Object.values(signupError?.errors?.find((e: any) => e.property === 'password')?.constraints || {}).join(', ') || ""
         });
       }
@@ -327,7 +343,7 @@ export default function LoginPage() {
   // Return the new beautiful auth page with Magic UI
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
-      
+
       {/* Animated Grid Background */}
       <AnimatedGridPattern
         numSquares={30}
@@ -339,25 +355,25 @@ export default function LoginPage() {
           "absolute inset-0 h-full w-full",
         )}
       />
-      
+
 
       <div className="relative z-10 flex flex-col lg:flex-row min-h-screen">
-               
-      
-                    
+
+
+
         {/* Left Side - Hero Section with Logos - Mobile & Desktop */}
         <div className="flex flex-col justify-center items-center p-6 lg:p-12 bg-gradient-to-br from-primary/10 via-primary/5 to-background relative lg:flex-1 min-h-[40vh] lg:min-h-screen">
-                 
+
           {/* Top Section with Brand - Positioned Absolutely */}
           <div className="absolute top-8 left-8 flex items-center space-x-4">
-                  <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-muted-foreground hover:!bg-[#C393E2] "
-                          onClick={() => navigate({to:"/auth"})}
-                        >
-                          ← Back
-                        </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:!bg-[#C393E2] "
+              onClick={() => navigate({ to: "/auth" })}
+            >
+              ← Back
+            </Button>
             <div className="h-12 w-12 rounded-lg overflow-hidden">
               <img
                 src={collabration}
@@ -365,7 +381,7 @@ export default function LoginPage() {
                 className="h-12 w-12 object-contain"
               />
             </div>
-           
+
             <span className="text-3xl font-bold">
               <AuroraText colors={["#A07CFE", "#FE8FB5", "#FFBE7B"]}><b>ViBe</b></AuroraText>
             </span>
@@ -373,7 +389,7 @@ export default function LoginPage() {
 
           {/* Center Section with Content - Perfectly Centered */}
           <div className="flex flex-col items-center justify-center space-y-10 max-w-2xl mx-auto py-12">
-            
+
             {/* Main Text Content */}
             <div className="text-center space-y-6">
               <h1 className="text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
@@ -471,7 +487,7 @@ export default function LoginPage() {
                 </div>
 
                 <div className="space-y-4">
-                  <Button 
+                  <Button
                     onClick={() => {
                       setActiveRole('student');
                       setShowAuthForm(true);
@@ -486,7 +502,7 @@ export default function LoginPage() {
                       Continue as Student
                     </span>
                   </Button>
-                  
+
                   <div className="relative">
                     <div className="absolute inset-0 flex items-center">
                       <span className="w-full border-t" />
@@ -498,7 +514,7 @@ export default function LoginPage() {
                     </div>
                   </div>
 
-                  <Button 
+                  <Button
                     onClick={() => {
                       setActiveRole('teacher');
                       setShowAuthForm(true);
@@ -518,15 +534,15 @@ export default function LoginPage() {
             ) : (
               <>
                 {/* Back Button */}
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="text-muted-foreground hover:bg-transparent -ml-2"
                   onClick={() => setShowAuthForm(false)}
                 >
                   ← Back
                 </Button>
-                
+
                 {/* Auth Card */}
                 <Card className="relative overflow-hidden">
                   <ShineBorder
@@ -534,11 +550,11 @@ export default function LoginPage() {
                     duration={8}
                     borderWidth={2}
                   />
-                  
+
                   {!isSignUp ? (
                     // Login Section
                     <div>
-                      <CardHeader>
+                      <CardHeader className="space-y-3 pb-6">
                         <CardTitle className="text-2xl">Welcome Back</CardTitle>
                         <CardDescription>Sign in to your account to continue</CardDescription>
                       </CardHeader>
@@ -580,10 +596,11 @@ export default function LoginPage() {
                           <Label htmlFor="password" className="text-sm font-medium">
                             Password
                           </Label>
+                          <div className="relative">
                           <Input
                             id="password"
                             name="new-password"
-                            type="password"
+                            type={showPassword ? "text" : "password"}
                             placeholder="Enter your password"
                             autoComplete="new-password"
                             value={password}
@@ -592,7 +609,11 @@ export default function LoginPage() {
                               "transition-all duration-200",
                               formErrors.password && "border-destructive focus-visible:ring-destructive"
                             )}
-                          />
+                            />
+                           <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
+                            {showPassword? <EyeOff />:<Eye />}
+                            </Button> 
+                            </div>
                           {formErrors.password && (
                             <p className="text-xs text-destructive">{formErrors.password}</p>
                           )}
@@ -636,20 +657,23 @@ export default function LoginPage() {
                         </Button>
                       </CardContent>
 
-                      <CardFooter className="pt-4">
+                     <CardFooter className="pt-4">
+                        <div className="w-full flex items-center justify-center mt-4">
+ <span className=" text-sm text-right text-muted-foreground text-nowrap "> Don't have an account?</span>
                         <Button
                           variant="link"
-                          className="w-full text-sm text-muted-foreground hover:text-foreground"
+                          className="-ml-2 text-sm text-muted-foreground hover:text-foreground"
                           onClick={toggleSignUpMode}
                         >
-                          Don't have an account? <span className="ml-1 font-medium">Sign up</span>
+                           <span className="font-medium">Sign up</span>
                         </Button>
+                          </div>
                       </CardFooter>
                     </div>
                   ) : (
                     // Sign Up Section
                     <div>
-                      <CardHeader>
+                      <CardHeader className="space-y-3 pb-6">
                         <CardTitle className="text-2xl">Create {activeRole === 'student' ? 'Student' : 'Instructor'} Account</CardTitle>
                         <CardDescription>
                           Join our learning community and start your educational journey
@@ -715,7 +739,7 @@ export default function LoginPage() {
                           </Label>
                           <Input
                             id="signup-password"
-                            type="password"
+                             type={showPassword ? "text" : "password"}
                             placeholder="Create a strong password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
@@ -789,9 +813,11 @@ export default function LoginPage() {
                           <Label htmlFor="confirmPassword" className="text-sm font-medium">
                             Confirm Password
                           </Label>
+                          <div className="relative">
                           <Input
                             id="confirmPassword"
-                            type="password"
+                            type={showPassword ? "text" : "password"}
+
                             placeholder="Confirm your password"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
@@ -800,6 +826,10 @@ export default function LoginPage() {
                               !passwordsMatch && confirmPassword && "border-destructive focus-visible:ring-destructive"
                             )}
                           />
+                           <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
+                            {showPassword? <EyeOff />:<Eye />}
+                            </Button> 
+                          </div>
                           {!passwordsMatch && confirmPassword && (
                             <p className="text-xs text-destructive">Passwords do not match</p>
                           )}
@@ -815,14 +845,18 @@ export default function LoginPage() {
                         </Button>
                       </CardContent>
 
-                      <CardFooter>
+                     <CardFooter>
+                        <div className="w-full flex items-center justify-center mt-4">
+
+                        <span className=" text-sm text-right text-muted-foreground text-nowrap "> Already have an account?</span>
                         <Button
                           variant="link"
-                          className="w-full text-sm text-muted-foreground hover:text-foreground"
+                          className="-ml-2 text-sm text-muted-foreground hover:text-foreground"
                           onClick={toggleSignUpMode}
-                        >
-                          Already have an account? <span className="ml-1 font-medium">Sign in</span>
+                          >
+                           <span className=" font-medium">Sign in</span>
                         </Button>
+                          </div>
                       </CardFooter>
                     </div>
                   )}
