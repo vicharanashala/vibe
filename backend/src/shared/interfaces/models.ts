@@ -586,8 +586,8 @@ export class EnrollmentsQuery {
   search?: string;
 
   @IsOptional()
-  @IsIn(['name', 'enrollmentDate', 'progress'])
-  sortBy: 'name' | 'enrollmentDate' | 'progress' = 'enrollmentDate';
+  @IsIn(['name', 'enrollmentDate', 'progress', 'unenrolledAt'])
+  sortBy: 'name' | 'enrollmentDate' | 'progress' | 'unenrolledAt' = 'enrollmentDate';
 
   @IsOptional()
   @IsIn(['asc', 'desc'])
@@ -596,6 +596,11 @@ export class EnrollmentsQuery {
   @IsOptional()
   @IsIn(['STUDENT', 'OTHER'])
   filter?: 'STUDENT' | 'OTHER';
+
+  @IsOptional()
+  @IsIn(['ACTIVE', 'INACTIVE'])
+  statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE';
+
 }
 
 export class BulkEnrollmentsQuery {

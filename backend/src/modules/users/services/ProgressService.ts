@@ -10,6 +10,7 @@ import {
   IWatchTime,
   IProgress,
   IVideoDetails,
+  IBlogDetails,
 } from '#root/shared/interfaces/models.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { ProgressRepository } from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
@@ -1122,63 +1123,60 @@ class ProgressService extends BaseService {
   }
 
   private isValidWatchTime(watchTime: IWatchTime, item: Item) {
-    return true;
-    // switch (item.type) {
-    //   case 'VIDEO':
-    //     return true;
-    //     if (watchTime.startTime && watchTime.endTime && item.details) {
-    //       const videoDetails = item.details as IVideoDetails;
-    //       const videoStartTime = videoDetails.startTime; // a string in HH:MM:SS format
-    //       const videoEndTime = videoDetails.endTime; // a string in HH:MM:SS format
-    //       const watchStartTime = new Date(watchTime.startTime);
-    //       const watchEndTime = new Date(watchTime.endTime);
+    // Basic sanity checks
+    if (!watchTime.startTime || !watchTime.endTime || !item.details) {
+      return false;
+    }
 
-    //       // Get Time difference in seconds
-    //       const timeDiff =
-    //         Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
+    const watchStartTime = new Date(watchTime.startTime);
+    const watchEndTime = new Date(watchTime.endTime);
 
-    //       // Get Video duration in seconds
-    //       // Convert HH:MM:SS to seconds
-    //       const videoEndTimeInSeconds =
-    //         parseInt(videoEndTime.split(':')[0]) * 3600 +
-    //         parseInt(videoEndTime.split(':')[1]) * 60 +
-    //         parseInt(videoEndTime.split(':')[2]);
-    //       const videoStartTimeInSeconds =
-    //         parseInt(videoStartTime.split(':')[0]) * 3600 +
-    //         parseInt(videoStartTime.split(':')[1]) * 60 +
-    //         parseInt(videoStartTime.split(':')[2]);
+    // Server-side measured duration in seconds
+    const serverDuration = Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
 
-    //       const videoDuration = videoEndTimeInSeconds - videoStartTimeInSeconds;
+    // Buffer for latency/load (add 5 seconds to the server's measured time)
+    // This assumes the user actually watched longer, but the server started late or ended early
+    // Effectively, we are saying If the server saw 5s, maybe they actually watched 10s
+    const adjustedDuration = serverDuration + 5;
 
-    //       // Check if the watch time is >= 0.2 * video duration
-    //       if (timeDiff >= 0.2 * videoDuration) {
-    //         return true;
-    //       }
-    //       // return false;
-    //       return true; // For now, we assume the watch time is valid
-    //     }
+    switch (item.type) {
+      case 'VIDEO':
+        const videoDetails = item.details as IVideoDetails;
+        if (!videoDetails.startTime || !videoDetails.endTime) return false;
 
-    //     break;
+        const videoEndTimeInSeconds =
+          parseInt(videoDetails.endTime.split(':')[0]) * 3600 +
+          parseInt(videoDetails.endTime.split(':')[1]) * 60 +
+          parseInt(videoDetails.endTime.split(':')[2]);
+        const videoStartTimeInSeconds =
+          parseInt(videoDetails.startTime.split(':')[0]) * 3600 +
+          parseInt(videoDetails.startTime.split(':')[1]) * 60 +
+          parseInt(videoDetails.startTime.split(':')[2]);
 
-    //   case 'BLOG':
-    //     return true;
-    //     // if (watchTime.startTime && watchTime.endTime && item.details) {
-    //     //   const blogDetails = item.details as IBlogDetails;
-    //     //   const watchStartTime = new Date(watchTime.startTime);
-    //     //   const watchEndTime = new Date(watchTime.endTime);
+        const totalVideoDuration = videoEndTimeInSeconds - videoStartTimeInSeconds;
 
-    //     //   // Get Time difference in seconds
-    //     //   const timeDiff =
-    //     //     Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
+        // Security Rule
+        // - Must have watched at least 15% of the video
+        // OR
+        // - If the video is long, must have watched at least 30 seconds
+        const minimumRequired = Math.min(totalVideoDuration * 0.15, 30);
 
-    //     //   // Check if the watch time is >= 0.5 * estimated read time
-    //     //   if (timeDiff >= 0.6 * blogDetails.estimatedReadTimeInMinutes * 60) {
-    //     //     return true;
-    //     //   }
-    //     //   return false;
-    //     // }
-    //     break;
-    // }
+        return adjustedDuration >= minimumRequired;
+
+      case 'BLOG':
+        const blogDetails = item.details as IBlogDetails;
+        // Estimated read time is in minutes
+        const readTimeSeconds = (blogDetails.estimatedReadTimeInMinutes || 1) * 60;
+
+        // Require at least 10% of estimated time OR 10 seconds
+        // This stops instant click-throughs but doesn't punish fast readers
+        const minReadTime = Math.min(readTimeSeconds * 0.10, 10);
+
+        return adjustedDuration >= minReadTime;
+
+      default:
+        return true;
+    }
   }
 
   async getUserProgress(
@@ -2005,6 +2003,7 @@ class ProgressService extends BaseService {
     userId: string,
     courseId: string,
     courseVersionId: string,
+    enrollmentId: string,
     session?: ClientSession,
   ): Promise<void> {
     return this._withTransaction(async session => {
@@ -2017,6 +2016,7 @@ class ProgressService extends BaseService {
         userId,
         courseId,
         courseVersionId,
+        enrollmentId,
         session,
       );
 
@@ -2067,6 +2067,7 @@ class ProgressService extends BaseService {
           userId,
           courseId,
           courseVersionId,
+          enrollmentId,
           session,
         ),
         quizItemIds.length
@@ -2594,6 +2595,63 @@ class ProgressService extends BaseService {
     };
   }
 
+
+  async getItemIdsUntilItem(
+    courseVersionId: string,
+    itemId: string,
+  ): Promise<string[]> {
+    if (!courseVersionId) {
+      throw new BadRequestError('courseVersionId is required');
+    }
+
+    if (!itemId) {
+      throw new BadRequestError('itemId is required');
+    }
+
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    if (!courseVersion) {
+      throw new NotFoundError(`Course version ${courseVersionId} not found`);
+    }
+
+    const collectedItemIds: string[] = [];
+    let isItemFound = false;
+
+    for (const module of courseVersion.modules) {
+      for (const section of module.sections) {
+        const itemGroupId = section.itemsGroupId;
+        if (!itemGroupId) continue;
+
+        const itemGroup = await this.itemRepo.readItemsGroup(
+          itemGroupId.toString(),
+        );
+        if (!itemGroup || !itemGroup.items) continue;
+
+        for (const item of itemGroup.items) {
+          if (!item._id) continue;
+
+          const currentItemId = item._id.toString();
+          collectedItemIds.push(currentItemId);
+
+          if (currentItemId === itemId) {
+            isItemFound = true;
+            break;
+          }
+        }
+
+        if (isItemFound) break;
+      }
+
+      if (isItemFound) break;
+    }
+
+    if (!isItemFound) {
+      throw new NotFoundError(`Item ${itemId} not found in course version`);
+    }
+
+    return collectedItemIds;
+  }
+
+
   async getAllItemIds(courseVersionId: string): Promise<string[]> {
     if (!courseVersionId) {
       throw new BadRequestError('courseVersionId is required');
@@ -2625,6 +2683,109 @@ class ProgressService extends BaseService {
     }
 
     return allItemIds;
+  }
+
+
+  async recalculateStudentProgress(
+    userId: string,
+    courseId: string,
+    versionId: string,
+  ): Promise<string> {
+    if (!userId || !courseId || !versionId) {
+      throw new BadRequestError('userId, courseId and versionId are required');
+    }
+
+    console.log(`Recalculating progress for user: ${userId}, course: ${courseId}, version: ${versionId}`);
+
+    // 1. Fetch progress  
+    const progress = await this.progressRepository.findProgress(
+      userId,
+      courseId,
+      versionId,
+    );
+
+    if (!progress) {
+      throw new NotFoundError('Progress not found for this user');
+    }
+
+    const currentItemId = progress.currentItem?.toString();
+    if (!currentItemId) {
+      throw new BadRequestError('Current item not found in progress');
+    }
+
+    // 2. Fetch required data's in parallel
+    const [
+      allItemIdsUntilCurrentItem,
+      completedItemIds,
+      courseVersion,
+      enrollment,
+    ] = await Promise.all([
+      this.getItemIdsUntilItem(versionId, currentItemId),
+      this.progressRepository.getCompletedItems(userId, courseId, versionId),
+      this.courseRepo.readVersion(versionId),
+      this.enrollmentRepo.findEnrollment(userId, courseId, versionId),
+    ]);
+
+    if (!allItemIdsUntilCurrentItem.length) {
+      throw new NotFoundError('No items found for this course version');
+    }
+
+    if (!courseVersion) {
+      throw new NotFoundError('Course version not found');
+    }
+
+    if (!enrollment) {
+      throw new NotFoundError('Enrollment not found');
+    }
+
+    const completedItemSet = new Set(completedItemIds);
+    const missedItemIds = allItemIdsUntilCurrentItem.filter(
+      itemId => !completedItemSet.has(itemId),
+    );
+
+    if (!missedItemIds.length) {
+      return; // Nothing to fix
+    }
+
+    // 3. Backfill missed watch-time records
+    await this.progressRepository.addBulkWatchTime(
+      userId,
+      courseId,
+      versionId,
+      missedItemIds,
+    );
+
+    // 4. Avoid recomputing totalItems if already stored
+    const totalItemsCount =
+      courseVersion.totalItems ??
+      (await this.itemRepo.CalculateTotalItemsCount(courseId, versionId));
+
+    const totalCompletedItemsCount =
+      completedItemSet.size + missedItemIds.length;
+
+    const normalizedTotalItemsCount = Math.max(
+      totalItemsCount,
+      totalCompletedItemsCount
+    );
+
+    const percentCompleted =
+      totalItemsCount > 0
+        ? Math.min(
+          Math.round((normalizedTotalItemsCount / totalItemsCount) * 100),
+          100
+        )
+        : 0;
+
+    // 5. Update enrollment progress
+    await this.enrollmentRepo.updateProgressPercentById(
+      enrollment._id!.toString(),
+      percentCompleted,
+      undefined,
+      normalizedTotalItemsCount,
+    );
+
+
+    return "Progress recalculated successfully";
   }
 
   async createBulkWatchiTimeDocs(

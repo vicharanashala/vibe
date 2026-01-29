@@ -246,6 +246,7 @@ export class EnrollmentService extends BaseService {
         userId,
         courseId,
         courseVersionId,
+        enrollment?._id.toString(),
         session,
       );
 
@@ -336,11 +337,13 @@ export class EnrollmentService extends BaseService {
       }));
 
       // Batch all async operations together
-      const [watchedItemsMap, quizSubmissionGrades]: [
+      const [watchedItemsMap, watchedItemsByTypeMap, quizSubmissionGrades]: [
         Map<string, number>,
+        Map<string, { videos: number; quizzes: number; articles: number; projects: number }>,
         ISubmission[],
       ] = await Promise.all([
         this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
+        this.enrollmentRepo.getWatchedItemCountsByTypeBatch(watchedKeys),
         allQuizIds.length > 0
           ? this.enrollmentRepo.getQuizSubmissionGrade(userId, allQuizIds)
           : Promise.resolve([]),
@@ -378,7 +381,6 @@ export class EnrollmentService extends BaseService {
         // const calculatedPercent = Math.floor(ratio * 100);
         const calculatedPercent = Number((ratio * 100).toFixed(1));
 
-
         // if different, update enrollment percentCompleted and completedItemsCount
         if (enr.percentCompleted !== calculatedPercent) {
           /*console.log(
@@ -398,9 +400,9 @@ export class EnrollmentService extends BaseService {
           enr.completedItemsCount = completedCount;
         }
 
-
         if (enr.percentCompleted >= 0) {
           const itemCounts = enr.itemCounts || {};
+          const completedByType = watchedItemsByTypeMap.get(watchedKey) || { videos: 0, quizzes: 0, articles: 0, projects: 0 };
 
           return {
             _id: enr._id.toString(),
@@ -412,7 +414,6 @@ export class EnrollmentService extends BaseService {
             course: this.filterCourseVersions(enr.course, enrolledVersionIds),
             percentCompleted: enr.percentCompleted || 0,
 
-            // ✅ EXACT frontend shape
             contentCounts: {
               totalItems: enr.totalItems ?? 0,
               videos: itemCounts.VIDEO ?? itemCounts.videos ?? 0,
@@ -427,6 +428,11 @@ export class EnrollmentService extends BaseService {
                 (sum, grade) => sum + (grade.totalMaxScore || 0),
                 0,
               ),
+              // Completed counts by type
+              completedVideos: completedByType.videos,
+              completedQuizzes: completedByType.quizzes,
+              completedArticles: completedByType.articles,
+              completedProjects: completedByType.projects,
             },
 
             completedItems: watchedItemsMap.get(watchedKey) || 0,
@@ -468,9 +474,10 @@ export class EnrollmentService extends BaseService {
     skip: number,
     limit: number,
     search: string,
-    sortBy: 'name' | 'enrollmentDate' | 'progress',
+    sortBy: 'name' | 'enrollmentDate' | 'progress' | 'unenrolledAt',
     sortOrder: 'asc' | 'desc',
     filter: string,
+    statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
   ) {
     return this._withTransaction(async (session: ClientSession) => {
       const courseVersion = await this.courseRepo.readVersion(
@@ -497,6 +504,7 @@ export class EnrollmentService extends BaseService {
           sortBy,
           sortOrder,
           filter,
+          statusTab,
           session,
         );
 
@@ -628,6 +636,7 @@ export class EnrollmentService extends BaseService {
   async getQuizScoresForCourseVersion(
     courseId: string,
     versionId: string,
+    statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
   ): Promise<QuizScoresExportResponseDto> {
     try {
       // Verify course and version exist in a single transaction
@@ -647,6 +656,7 @@ export class EnrollmentService extends BaseService {
       return await this.enrollmentRepo.getQuizScoresForCourseVersion(
         courseId,
         versionId,
+        statusTab,
       );
     } catch (error) {
       console.error(
@@ -710,64 +720,79 @@ export class EnrollmentService extends BaseService {
     versionId?: string,
     userId?: string,
   ): Promise<{
-    watchtimeUpdated: number;
-    progressRecalculated: number;
+    success: boolean;
+    summary: {
+      enrollmentsFound: number;
+      watchtimeUpdated: number;
+      progressRecalculated: number;
+    };
     message: string;
   }> {
     try {
-      
-      // First, update watchtime for missed items
-      let watchtimeUpdatedCount = 0;
-
-      // Get all enrollments for the specified filters
       const enrollments = await this.enrollmentRepo.getEnrollmentsByFilters({
         courseId,
         courseVersionId: versionId,
         userId,
       });
 
-      console.log(`Found ${enrollments.length} enrollments to process`);
+      console.log(`🔍 Found ${enrollments.length} enrollments to process`);
 
-      // For each enrollment, update watchtime for missed items
-      for (const enrollment of enrollments) {
-        try {
-          await this.progressService.createBulkWatchiTimeDocs(
-            enrollment.courseId.toString(),
-            enrollment.courseVersionId.toString(),
-            enrollment.userId.toString(),
-          );
-          watchtimeUpdatedCount++;
-        } catch (error) {
-          console.error(
-            `❌ Failed to update watchtime for enrollment ${enrollment._id}:`,
-            error.message,
-          );
-          // Continue with other enrollments even if watchtime update fails
-          // This allows progress recalculation to still proceed
-        }
-      }
+      let watchtimeUpdated = 0;
 
-      // Then, recalculate progress using existing bulk update method
-      const progressResult = await this.bulkUpdateAllEnrollments(courseId, userId);
-      console.log(`✅ Progress recalculation completed. Total: ${progressResult.totalCount}, Updated: ${progressResult.updatedCount}`);
-      
-      const message = watchtimeUpdatedCount > 0 
-        ? `Successfully updated watchtime for ${watchtimeUpdatedCount} enrollments and recalculated progress for ${progressResult.updatedCount} enrollments`
-        : `Watchtime update failed for all enrollments, but successfully recalculated progress for ${progressResult.updatedCount} enrollments`;
-      
+      // 🔥 Parallel watchtime updates (safe + faster)
+      await Promise.allSettled(
+        enrollments.map(async enrollment => {
+          try {
+            await this.progressService.createBulkWatchiTimeDocs(
+              enrollment.courseId.toString(),
+              enrollment.courseVersionId.toString(),
+              enrollment.userId.toString(),
+            );
+            watchtimeUpdated++;
+          } catch (err) {
+            console.error(
+              `❌ Watchtime update failed for enrollment ${enrollment._id}`,
+              err?.message || err,
+            );
+          }
+        }),
+      );
+
+      // ♻️ Recalculate progress
+      const progressResult = await this.bulkUpdateAllEnrollments(
+        courseId,
+        userId,
+      );
+
+      const message =
+        watchtimeUpdated > 0
+          ? `Successfully updated watchtime for ${watchtimeUpdated} enrollments and recalculated progress for ${progressResult.updatedCount} enrollments`
+          : `Watchtime update failed for all enrollments, but progress was recalculated for ${progressResult.updatedCount} enrollments`;
+
       return {
-        watchtimeUpdated: watchtimeUpdatedCount,
-        progressRecalculated: progressResult.updatedCount,
+        success: true,
+        summary: {
+          enrollmentsFound: enrollments.length,
+          watchtimeUpdated,
+          progressRecalculated: progressResult.updatedCount,
+        },
         message,
       };
     } catch (error) {
       console.error(
-        'Error in bulkUpdateWatchTimeAndRecalculateProgress:',
+        '❌ Error in bulkUpdateWatchTimeAndRecalculateProgress',
         error,
       );
-      throw new Error(
-        `Failed to bulk update watchtime and recalculate progress: ${error.message}`,
-      );
+
+      return {
+        success: false,
+        summary: {
+          enrollmentsFound: 0,
+          watchtimeUpdated: 0,
+          progressRecalculated: 0,
+        },
+        message: `Failed to bulk update watchtime and recalculate progress: ${error.message}`,
+      };
     }
   }
 

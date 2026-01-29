@@ -1,4 +1,4 @@
-import {ClientSession, UpdateResult} from 'mongodb';
+import { ClientSession, UpdateResult } from 'mongodb';
 import {
   ICourseSetting,
   IRegistrationSettings,
@@ -6,6 +6,7 @@ import {
   IUserSetting,
 } from '../../interfaces/models.js';
 import {
+  AuditingDto,
   DetectorOptionsDto,
   DetectorSettingsDto,
   ProctoringSettingsDto,
@@ -57,15 +58,16 @@ export interface ISettingRepository {
     courseVersionId: string,
     detectors: DetectorSettingsDto[],
     linearProgressionEnabled: boolean,
+    audit: AuditingDto,
     session?: ClientSession,
   ): Promise<UpdateResult | null>;
 
   updateRegistrationSchemas(
-  courseId: string,
-  versionId: string,
-  schemas: { jsonSchema?: any; uiSchema?: any }, // Partial update for schemas only
-  session?: ClientSession,
-): Promise<UpdateResult>
+    courseId: string,
+    versionId: string,
+    schemas: { jsonSchema?: any; uiSchema?: any }, // Partial update for schemas only
+    session?: ClientSession,
+  ): Promise<UpdateResult>
 
   /**
    * Reads course settings for a specific course and version.
@@ -110,7 +112,7 @@ export interface ISettingRepository {
     session?: ClientSession,
   ): Promise<IUserSetting | null>;
 
-  readSettingsSchema(versionId:string,session?:ClientSession)
+  readSettingsSchema(versionId: string, session?: ClientSession)
 
   /**
    * Reads user settings for a specific student, course and version.

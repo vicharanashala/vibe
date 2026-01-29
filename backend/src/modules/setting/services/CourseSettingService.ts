@@ -1,6 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { GLOBAL_TYPES } from '#root/types.js';
 import {
+  AuditingDto,
   CourseSetting,
   DetectorOptionsDto,
   DetectorSettingsDto,
@@ -18,6 +19,8 @@ import {
   ISettingRepository,
   ICourseRepository,
 } from '#shared/index.js';
+import { getISTFormattedTimestamp } from '#root/utils/toISOFormat.js';
+import { ObjectId } from 'mongodb';
 
 
 /**
@@ -116,13 +119,13 @@ class CourseSettingService extends BaseService {
         session,
       );
 
-      
+
       if (!courseSettings) {
         // Create new settings as in updateCourseSettings
         const settings = new SettingsDto();
         settings.proctors = new ProctoringSettingsDto();
         settings.proctors.detectors = [];
-        settings.linearProgressionEnabled= true;
+        settings.linearProgressionEnabled = true;
 
         const created = await this.createCourseSettings(
           new CourseSetting({
@@ -148,7 +151,8 @@ class CourseSettingService extends BaseService {
     courseId: string,
     courseVersionId: string,
     detectors: DetectorSettingsDto[],
-    linearProgressionEnabled: boolean
+    linearProgressionEnabled: boolean,
+    userId: string,
   ): Promise<boolean> {
     return this._withTransaction(async session => {
       // Check if the course settings exist
@@ -163,6 +167,20 @@ class CourseSettingService extends BaseService {
         settings.proctors = new ProctoringSettingsDto();
         settings.proctors.detectors = detectors;
 
+        settings.audit = [
+          {
+            userId: new ObjectId(userId),
+            modifiedAt: new Date(),
+            timestamp: getISTFormattedTimestamp(),
+            changes: {
+              before: null,
+              after: {
+                detectors,
+                linearProgressionEnabled,
+              },
+            },
+          },
+        ];
         // for linear progression
         settings.linearProgressionEnabled = linearProgressionEnabled;
 
@@ -172,7 +190,7 @@ class CourseSettingService extends BaseService {
           settings,
         }))
 
-        if (!result) { 
+        if (!result) {
           throw new InternalServerError(
             'Failed to create course settings. Please try again later.',
           );
@@ -180,11 +198,33 @@ class CourseSettingService extends BaseService {
         return result._id ? true : false;
       }
 
+      const beforeState = {
+        detectors: courseSettings.settings?.proctors?.detectors,
+        linearProgressionEnabled:
+          courseSettings.settings?.linearProgressionEnabled,
+      };
+
+      const afterState = {
+        detectors,
+        linearProgressionEnabled,
+      };
+
+      const audit: AuditingDto = {
+        userId: new ObjectId(userId),
+        changes: {
+          before: beforeState,
+          after: afterState,
+        },
+        timestamp: getISTFormattedTimestamp(),
+        modifiedAt: new Date(),
+      };
+
       const result = await this.settingsRepo.updateCourseSettings(
         courseId,
         courseVersionId,
         detectors,
         linearProgressionEnabled,
+        audit,
         session,
       );
 

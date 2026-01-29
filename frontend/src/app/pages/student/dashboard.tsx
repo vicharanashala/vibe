@@ -10,34 +10,44 @@ import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getGreeting } from "@/utils/helpers";
 import type { CoursePctCompletion } from '@/types/course.types';
-import { stopAllStreams} from "@/lib/MediaRegistry";
+import { stopAllStreams } from "@/lib/MediaRegistry";
 
 export default function Page() {
   useEffect(() => {
     setTimeout(stopAllStreams, 1000);
   }, []);
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, isAuthReady } = useAuthStore();
   const navigate = useNavigate();
 
-  // Redirect to auth page if not logged in yet
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (isAuthReady && !isAuthenticated) {
       console.log("User not authenticated, redirecting to auth page");
       navigate({ to: '/auth' });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, isAuthReady, navigate]);
+
+  if (!isAuthReady) {
+    return (
+      <div className="min-h-screen bg-gray-50/50 flex items-center justify-center">
+        <div className="px-4 sm:px-6 lg:px-8 w-full max-w-md">
+          <EmptyState
+            title="Loading..."
+            description="Preparing your dashboard..."
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50/50 flex items-center justify-center">
         <div className="px-4 sm:px-6 lg:px-8 w-full max-w-md">
           <EmptyState
-            title={!isAuthenticated ? "Authentication Required" : "Loading..."}
-            description={!isAuthenticated
-              ? "Please log in to view your dashboard"
-              : "Preparing your dashboard..."}
-            actionText={!isAuthenticated ? "Go to Login" : undefined}
-            onAction={!isAuthenticated ? () => navigate({ to: '/auth' }) : undefined}
+            title="Authentication Required"
+            description="Please log in to view your dashboard"
+            actionText="Go to Login"
+            onAction={() => navigate({ to: '/auth' })}
           />
         </div>
       </div>
@@ -101,11 +111,6 @@ function DashboardContent() {
             icon="🏆"
             value={enrollmentsLoading ? "—" : `${totalEnrollments}`}
             label="Enrolled Courses"
-          />
-          <StatCard
-            icon="⏱️"
-            value={!watchtimeData ? "—" : `${(watchtimeData / 3600).toFixed(2)}h`}
-            label="Study Time"
           />
           <StatCard icon="🎓" value={`${totalProgress}%`} label="Completion Percentage" />
         </div>

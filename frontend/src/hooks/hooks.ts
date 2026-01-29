@@ -511,7 +511,7 @@ export function useCreateCourse(): {
   };
 }
 
-export async function   useProcessInvites(inviteId: string,  action: "ACCEPT" | "REJECTED" = "ACCEPT",
+export async function useProcessInvites(inviteId: string, action: "ACCEPT" | "REJECTED" = "ACCEPT",
 
 ): Promise<{
   data: null,
@@ -1178,7 +1178,8 @@ export function useCourseEnrollmentsStats(
 export function useCourseQuizScores(
   courseId: string | undefined,
   versionId: string | undefined,
-  enabled: boolean = true
+  enabled: boolean = true,
+  statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE' 
 ): {
   data: any | undefined,
   isLoading: boolean,
@@ -1190,7 +1191,8 @@ export function useCourseQuizScores(
     '/users/enrollments/courses/{courseId}/versions/{versionId}/export/quiz-scores',
     {
       params: {
-        path: { courseId, versionId }
+        path: { courseId, versionId },
+        query: { statusTab }
       }
     },
     {
@@ -1215,10 +1217,11 @@ export function useCourseVersionEnrollments(
   page: number = 1,
   limit: number = 10,
   search: string = "",
-  sortBy: 'name' | 'enrollmentDate' | 'progress' = 'enrollmentDate',
+  sortBy: 'name' | 'enrollmentDate' | 'progress' | 'unenrolledAt' = 'enrollmentDate',
   sortOrder: 'asc' | 'desc' = 'desc',
   enabled: boolean = true,
-  filter: 'STUDENT' | 'OTHER'
+  filter: 'STUDENT' | 'OTHER',
+  statusTab: 'ACTIVE' | "INACTIVE",
 ): {
   data: components['schemas']['CourseVersionEnrollmentResponse'] | undefined,
   isLoading: boolean,
@@ -1231,7 +1234,7 @@ export function useCourseVersionEnrollments(
     {
       params: {
         path: { courseId, courseVersionId },
-        query: { page, limit, search, sortBy, sortOrder, filter },
+        query: { page, limit, search, sortBy, sortOrder, filter, statusTab },
       },
       enabled: enabled && !!courseId && !!courseVersionId,
     }
@@ -1410,7 +1413,7 @@ export function useStopItem() {
           body: { itemId },
         } = variables;
 
-      //  queryClient.invalidateQueries({
+        //  queryClient.invalidateQueries({
         //   queryKey: [
         //     "get",
         //     "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items",
@@ -1426,11 +1429,11 @@ export function useStopItem() {
         //   ],
         // });
         queryClient.invalidateQueries({
-  predicate: (query) =>
-    query.queryKey[0] === "get" &&
-    query.queryKey[1] ===
-      "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items",
-});
+          predicate: (query) =>
+            query.queryKey[0] === "get" &&
+            query.queryKey[1] ===
+            "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items",
+        });
 
       },
     }
@@ -1502,7 +1505,7 @@ export function useResetProgress(): {
   };
 }
 
-export function useRecalculateProgress():{
+export function useRecalculateProgress(): {
   mutate: (variables: { params: { query: { courseId?: string, userId?: string, versionId?: string } } }) => void,
   mutateAsync: (variables: { params: { query: { courseId?: string, userId?: string, versionId?: string } } }) => Promise<unknown>,
   data: unknown | undefined,
@@ -3840,5 +3843,51 @@ export const useGenerateAIQuestions = (): {
   return {
     ...result,
     error: result.error ? (result.error.message || 'Failed to generate AI questions') : null,
+  };
+}
+
+
+
+
+export function useRecalculateStudentProgress(): {
+  mutate: (variables: {
+    body: {
+      courseId: string;
+      courseVersionId: string;
+    };
+  }) => void;
+  mutateAsync: (variables: {
+    body: {
+      courseId: string;
+      courseVersionId: string;
+    };
+  }) => Promise<string>;
+  data: string | undefined;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} {
+  const result = api.useMutation(
+    'post',
+    '/users/progress/recalculate',
+  );
+
+  return {
+    mutate: result.mutate,
+    mutateAsync: result.mutateAsync,
+    data: result.data,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+    error: result.error
+      ? result.error.message || 'Failed to recalculate progress'
+      : null,
   };
 }
