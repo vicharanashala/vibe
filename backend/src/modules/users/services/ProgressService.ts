@@ -2094,7 +2094,7 @@ class ProgressService extends BaseService {
       );
 
       // Collect quizItemIds and projectItemIds
-      const quizItemIds: string[] = [];
+      // const quizItemIds: string[] = [];
       const projectItemIds: string[] = [];
 
       // Collect itemsGroupIds from courseModules
@@ -2114,9 +2114,10 @@ class ProgressService extends BaseService {
 
       for (const group of itemsGroups) {
         for (const item of group.items || []) {
-          if (item.type === 'QUIZ') {
-            quizItemIds.push(item._id.toString());
-          } else if (item.type === 'PROJECT') {
+          // if (item.type === 'QUIZ') {
+          //   quizItemIds.push(item._id.toString());
+          // } else
+          if (item.type === 'PROJECT') {
             projectItemIds.push(item._id.toString());
           }
         }
@@ -2143,9 +2144,9 @@ class ProgressService extends BaseService {
           enrollmentId,
           session,
         ),
-        quizItemIds.length
-          ? this.resetUserQuizData(userId, quizItemIds, session)
-          : Promise.resolve(),
+        // quizItemIds.length
+        //   ? this.resetUserQuizData(userId, quizItemIds, session)
+        //   : Promise.resolve(),
         projectItemIds.length
           ? this.resetUserProjectData(
               userId,
