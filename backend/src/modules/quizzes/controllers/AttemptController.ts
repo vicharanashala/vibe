@@ -115,8 +115,8 @@ class AttemptController {
     // @Body() body: QuestionAnswersBody,
     @Ability(getAttemptAbility) {ability, user},
   ): Promise<{
-    result: 'CORRECT' | 'INCORRECT' | 'PARTIALLY_CORRECT';
-    explanation?: string;
+    status: 'saved' | 'failed to save';
+    message?: string;
   }> {
     const body: QuestionAnswersBodydto = await new Promise(
       (resolve, reject) => {
