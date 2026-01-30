@@ -47,14 +47,19 @@ export default function FlaggedList() {
   const { currentCourseFlag } = useFlagStore()
   const courseId = currentCourseFlag?.courseId
   const versionId = currentCourseFlag?.versionId
+  // Sorting state
+  type SortField = (typeof SORT_MAP)[keyof typeof SORT_MAP]
 
+  const [sortBy, setSortBy] = useState<SortField>('createdAt')
+
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   if (!currentCourseFlag || !courseId || !versionId) {
     navigate({ to: '/teacher' });
     return null
   }
   const [currentPage, setCurrentPage] = useState(1)
   // Fetch reports based on course id and version id
-  const { data: flagsData, isLoading: reportLoading, error: reportError } = useGetReports(courseId || "", versionId || "", pageLimit, currentPage, selectedStatus, selectedEntityType)
+  const { data: flagsData, isLoading: reportLoading, error: reportError } = useGetReports(courseId || "", versionId || "", pageLimit, currentPage, selectedStatus, selectedEntityType, sortBy, sortOrder);
 
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
@@ -88,9 +93,6 @@ export default function FlaggedList() {
   const totalDocuments = flagsData?.totalDocuments || 0
   const totalPages = flagsData?.totalPages || 1
 
-  // Sorting state
-  const [sortBy, setSortBy] = useState<'name' | 'enrollmentDate' | 'progress'>('name')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
 
 
@@ -122,15 +124,30 @@ export default function FlaggedList() {
     }
   }
 
-  // Sorting handler
-  const handleSort = (column: 'name' | 'enrollmentDate' | 'progress') => {
-    if (sortBy === column) {
-      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+  const SORT_MAP = {
+    reason: 'reason',
+    entityType: 'entityType',
+    status: 'latestStatus',
+    reportedBy: 'reportedBy.firstName',
+    createdDate: 'createdAt',
+  } as const
+
+  type SortKey = keyof typeof SORT_MAP
+
+  const handleSort = (columnKey: SortKey) => {
+    const backendField = SORT_MAP[columnKey]
+
+    setCurrentPage(1)
+
+    if (sortBy === backendField) {
+      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))
     } else {
-      setSortBy(column)
+      setSortBy(backendField)
       setSortOrder('asc')
     }
   }
+
+
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -279,15 +296,16 @@ export default function FlaggedList() {
                         <TableHead
                           key={key}
                           className={`font-bold text-foreground cursor-pointer select-none text-center align-middle ${className}`}
-                          onClick={() => handleSort(key as 'name' | 'enrollmentDate' | 'progress')}
+                          onClick={() => handleSort(key as SortKey)}
                         >
                           <span className="flex items-center gap-1">
                             {label}
-                            {sortBy === key && (
+                            {sortBy === SORT_MAP[key as SortKey] && (
                               sortOrder === 'asc'
-                                ? <ArrowUp size={16} className="text-foreground" />
-                                : <ArrowDown size={16} className="text-foreground" />
+                                ? <ArrowUp size={16} />
+                                : <ArrowDown size={16} />
                             )}
+
                           </span>
                         </TableHead>
                       ))}
@@ -366,7 +384,7 @@ export default function FlaggedList() {
                         </TableCell>
                         <TableCell className="py-6">
                           <div className="text-muted-foreground font-medium ">
-                            {new Date(report.updatedAt).toLocaleDateString("en-US", {
+                            {new Date(report.createdAt).toLocaleDateString("en-US", {
                               month: "short",
                               day: "numeric",
                               year: "numeric",

@@ -1,10 +1,10 @@
-import { JsonController, Post, HttpCode, Body, Authorized, Get, Params, Put } from 'routing-controllers';
+import { JsonController, Post, HttpCode, Body, Authorized, Get, Params, Put, CurrentUser } from 'routing-controllers';
 import { inject, injectable } from 'inversify';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { SETTING_TYPES } from '../types.js';
 import { CourseSettingService } from '../services/CourseSettingService.js';
 import { AddCourseProctoringBody, AddCourseProctoringParams, CourseSetting, CreateCourseSettingBody, ReadCourseSettingParams, SettingNotFoundErrorResponse, UpdateCourseSettingResponse } from '../classes/index.js';
-import { BadRequestErrorResponse } from '#root/shared/index.js';
+import { BadRequestErrorResponse, IUser } from '#root/shared/index.js';
 
 @OpenAPI({
   tags: ['Course Setting'],
@@ -87,15 +87,18 @@ export class CourseSettingController {
   async updateCourseSettings(
     @Params() params: AddCourseProctoringParams,
     @Body() body: AddCourseProctoringBody,
+    @CurrentUser() user: IUser,
   ): Promise<{ success: boolean }> {
     // This method updates proctoring settings for a course version.
     const { courseId, versionId } = params;
     const { detectors, linearProgressionEnabled } = body;
+    const userId = user._id.toString();
     const result = await this.courseSettingService.updateCourseSettings(
       courseId,
       versionId,
       detectors,
-      linearProgressionEnabled
+      linearProgressionEnabled,
+      userId
     );
 
     return { success: result };

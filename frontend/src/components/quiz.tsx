@@ -70,13 +70,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const [dontStart, setDontStart] = useState(false);
   const [isEmptyQuiz, setIsEmptyQuiz] = useState(false);
   const [noAttemptsLeft, setNoAttemptsLeft] = useState(false);
-  const [explanationBox, setExplanationBox] = useState<{
-    open: boolean;
-    text: string;
-    result?: 'CORRECT' | 'INCORRECT' | 'PARTIALLY_CORRECT';
-    resolve?: () => void;
-  }>({ open: false, text: "" });
-  const [showExplanation, setShowExplanation] = useState(false)
+  //  const [explanationBox, setExplanationBox] = useState<{
+  //   open: boolean;
+  //   text: string;
+  //   result?: 'CORRECT' | 'INCORRECT' | 'PARTIALLY_CORRECT';
+  //   resolve?: () => void;
+  // }>({ open: false, text: "" });
+  // const [showExplanation, setShowExplanation] = useState(false)
   const [failedRedirectCountdown, setFailedRedirectCountdown] = useState<number | null>(null);
   const [openQuestionId, setOpenQuestionId] = useState<string | null>(null);
   const [emptyQuizRedirectCountdown, setEmptyQuizRedirectCountdown] = useState<number | null>(null);
@@ -99,28 +99,28 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
   // ===== UTILITY FUNCTIONS =====
 
-
-  function showExplanationBox(text: string, result?: 'CORRECT' | 'INCORRECT' | 'PARTIALLY_CORRECT') {
-    setShowExplanation(true)
-    return new Promise<void>((resolve) => {
-      setExplanationBox({
-        open: true,
-        text,
-        result,
-        resolve,
-      });
-      // AUTO-CLOSE after 3 seconds
-      setTimeout(() => {
-        setExplanationBox(prev => {
-          if (prev.open) {
-            prev.resolve?.();
-          }
-          setShowExplanation(false)
-          return { open: false, text: "" };
-        });
-      }, 3500);
-    });
-  }
+  
+  //   function showExplanationBox(text: string, result?: 'CORRECT' | 'INCORRECT' | 'PARTIALLY_CORRECT') {
+  //   setShowExplanation(true)
+  //   return new Promise<void>((resolve) => {
+  //     setExplanationBox({
+  //       open: true,
+  //       text,
+  //       result,
+  //       resolve,
+  //     });
+  //     // AUTO-CLOSE after 3 seconds
+  //     setTimeout(() => {
+  //       setExplanationBox(prev => {
+  //         if (prev.open) {
+  //           prev.resolve?.();
+  //         }
+  //         setShowExplanation(false)
+  //         return { open: false, text: "" };
+  //       });
+  //     }, 3500);
+  //   });
+  // }
 
 
 
@@ -676,6 +676,21 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     }
 
     try {
+      // For non-skipped quizzes, save all answers first, then submit
+      if (!isSkipped) {
+        try {
+          const answersForSaving = convertAnswersToSaveFormat();
+          await saveQuiz({
+            params: { path: { quizId: processedQuizId, attemptId: attemptId } },
+            body: { answers: answersForSaving }
+          });
+        } catch (saveErr) {
+          console.warn('Failed to save answers before submission:', saveErr);
+          toast.error('Failed to save answers before submission');
+          // Continue with submission even if save fails
+        }
+      }
+
       const answersForSubmission = convertAnswersToSaveFormat();
       const response = await submitQuiz({
         params: { path: { quizId: processedQuizId, attemptId: attemptId } },
@@ -683,7 +698,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             courseVersionId: currentCourse?.versionId,  watchItemId: currentCourse?.watchItemId}// submit watchitem also , if passed then update endtime also
       });
 
-      // No reponse for skipped quiz!
+      // No response for skipped quiz!
       if (!response) {
         // ✅ Stop will be called by course-page.tsx via ref
         setQuizCompleted(true);
@@ -728,39 +743,38 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       // ✅ Even on error, mark as completed so course-page can handle stop API
       setQuizCompleted(true);
     }
-  }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem]);
+  }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem, saveQuiz]);
 
   const handleNextQuestion = useCallback(async () => {
     setTimeLeft(0);
 
-    // Auto-save progress before moving to next question
-    if (attemptId && quizQuestions.length > 0) {
-      try {
-        const answersForSaving = convertAnswersToSaveFormat();
-        const response = await saveQuiz({
-          params: { path: { quizId: processedQuizId, attemptId: attemptId } },
-          body: { answers: answersForSaving }
-        });
+    //   if (attemptId && quizQuestions.length > 0) {
+    //   try {
+    //     const answersForSaving = convertAnswersToSaveFormat();
+    //     const response = await saveQuiz({
+    //       params: { path: { quizId: processedQuizId, attemptId: attemptId } },
+    //       body: { answers: answersForSaving }
+    //     });
 
-        // Use response explanation and result if available
-        if (response && response.explanation && response.explanation.trim() && response.explanation !== 'Nil') {
-          await showExplanationBox(response.explanation, response.result);
-        }
-      } catch (err: any) {
-        const errorMessage =
-          err?.message || (typeof err === 'string' ? err : null) ||
-          "Failed to save, try again!";
-        toast.error(errorMessage);
-        console.error('Failed to auto-save progress:', err);
-      }
-    }
+    //     // Use response explanation and result if available
+    //     if (response && response.explanation && response.explanation.trim() && response.explanation !== 'Nil') {
+    //       await showExplanationBox(response.explanation, response.result);
+    //     }
+    //   } catch (err: any) {
+    //     const errorMessage =
+    //       err?.message || (typeof err === 'string' ? err : null) ||
+    //       "Failed to save, try again!";
+    //     toast.error(errorMessage);
+    //     console.error('Failed to auto-save progress:', err);
+    //   }
+    // }
 
     if (currentQuestionIndex < quizQuestions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
     } else {
       completeQuiz();
     }
-  }, [currentQuestionIndex, quizQuestions.length, completeQuiz, attemptId, processedQuizId, saveQuiz, convertAnswersToSaveFormat]);
+  }, [currentQuestionIndex, quizQuestions.length, completeQuiz]);
 
   // Track attempts using the attempt data from the hook
   useEffect(() => {
@@ -1576,21 +1590,25 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           <Badge variant="outline">
             Question {currentQuestionIndex + 1} of {quizQuestions.length}
           </Badge>
-          {timeLeft > 0 && (
-            <Badge
-              variant="secondary"
-              className={`font-mono text-lg font-semibold px-3 py-2 border
-                ${timeLeft <= 10
-                  ? 'bg-destructive text-destructive-foreground border-destructive ring-2 ring-destructive/60 animate-pulse'
-                  : 'bg-muted text-foreground border-border'
-                }
-              `}
-            >
-              <Clock className="mr-2 h-4 w-4" />
-              {formatTime(timeLeft)}
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-sm">
+              Attempt {attempts || 0 + 1} of {maxAttempts}
             </Badge>
-          )}
-
+            {timeLeft > 0 && (
+              <Badge
+                variant="secondary"
+                className={`font-mono text-lg font-semibold px-3 py-2 border
+                  ${timeLeft <= 10
+                    ? 'bg-destructive text-destructive-foreground border-destructive ring-2 ring-destructive/60 animate-pulse'
+                    : 'bg-muted text-foreground border-border'
+                  }
+                `}
+              >
+                <Clock className="mr-2 h-4 w-4" />
+                {formatTime(timeLeft)}
+              </Badge>
+            )}
+          </div>
         </div>
         <Progress
           value={((currentQuestionIndex + 1) / quizQuestions.length) * 100}
@@ -1644,7 +1662,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               )}
             </div>
           )}
-
+{/* 
           {explanationBox.open && (
             <div className={`mb-4 p-3 rounded-lg animate-in fade-in ${explanationBox.result === 'CORRECT'
               ? 'bg-green-100 dark:bg-green-950/20 text-green-900 dark:text-green-100 border border-green-300 dark:border-green-800'
@@ -1662,9 +1680,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     >
       Next →
     </button> */}
-            </div>
-          )}
-
+            {/* </div>
+          )} */}
           {/* Single Select (SELECT_ONE_IN_LOT) */}
           {currentQuestion.type === 'SELECT_ONE_IN_LOT' && currentQuestion.options && (
             <RadioGroup
@@ -1809,7 +1826,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             <Button
               variant="outline"
               onClick={saveProgress}
-              disabled={isSaving || showExplanation}
+              disabled={isSaving}
             >
               {isSaving ? (
                 <>
@@ -1823,7 +1840,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
             <Button
               onClick={handleNextQuestion}
-              disabled={!isAnswerValid(currentQuestion, answers[currentQuestion.id]) || isSubmitting || showExplanation}
+              disabled={!isAnswerValid(currentQuestion, answers[currentQuestion.id]) || isSubmitting}
             >
               {isSubmitting ? (
                 <>

@@ -1608,6 +1608,8 @@ export interface QuestionAnswersBodydto {
   courseId?: string;
   courseVersionId?: string;
   watchItemId?: string;
+  courseId?: string;
+  courseVersionId?: string;
 }
 
 

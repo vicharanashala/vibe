@@ -10,6 +10,7 @@ import {
   IWatchTime,
   IProgress,
   IVideoDetails,
+  IBlogDetails,
 } from '#root/shared/interfaces/models.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { ProgressRepository } from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
@@ -1120,63 +1121,60 @@ class ProgressService extends BaseService {
   }
 
   private isValidWatchTime(watchTime: IWatchTime, item: Item) {
-    return true;
-    // switch (item.type) {
-    //   case 'VIDEO':
-    //     return true;
-    //     if (watchTime.startTime && watchTime.endTime && item.details) {
-    //       const videoDetails = item.details as IVideoDetails;
-    //       const videoStartTime = videoDetails.startTime; // a string in HH:MM:SS format
-    //       const videoEndTime = videoDetails.endTime; // a string in HH:MM:SS format
-    //       const watchStartTime = new Date(watchTime.startTime);
-    //       const watchEndTime = new Date(watchTime.endTime);
+    // Basic sanity checks
+    if (!watchTime.startTime || !watchTime.endTime || !item.details) {
+      return false;
+    }
 
-    //       // Get Time difference in seconds
-    //       const timeDiff =
-    //         Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
+    const watchStartTime = new Date(watchTime.startTime);
+    const watchEndTime = new Date(watchTime.endTime);
 
-    //       // Get Video duration in seconds
-    //       // Convert HH:MM:SS to seconds
-    //       const videoEndTimeInSeconds =
-    //         parseInt(videoEndTime.split(':')[0]) * 3600 +
-    //         parseInt(videoEndTime.split(':')[1]) * 60 +
-    //         parseInt(videoEndTime.split(':')[2]);
-    //       const videoStartTimeInSeconds =
-    //         parseInt(videoStartTime.split(':')[0]) * 3600 +
-    //         parseInt(videoStartTime.split(':')[1]) * 60 +
-    //         parseInt(videoStartTime.split(':')[2]);
+    // Server-side measured duration in seconds
+    const serverDuration = Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
 
-    //       const videoDuration = videoEndTimeInSeconds - videoStartTimeInSeconds;
+    // Buffer for latency/load (add 5 seconds to the server's measured time)
+    // This assumes the user actually watched longer, but the server started late or ended early
+    // Effectively, we are saying If the server saw 5s, maybe they actually watched 10s
+    const adjustedDuration = serverDuration + 5;
 
-    //       // Check if the watch time is >= 0.2 * video duration
-    //       if (timeDiff >= 0.2 * videoDuration) {
-    //         return true;
-    //       }
-    //       // return false;
-    //       return true; // For now, we assume the watch time is valid
-    //     }
+    switch (item.type) {
+      case 'VIDEO':
+        const videoDetails = item.details as IVideoDetails;
+        if (!videoDetails.startTime || !videoDetails.endTime) return false;
 
-    //     break;
+        const videoEndTimeInSeconds =
+          parseInt(videoDetails.endTime.split(':')[0]) * 3600 +
+          parseInt(videoDetails.endTime.split(':')[1]) * 60 +
+          parseInt(videoDetails.endTime.split(':')[2]);
+        const videoStartTimeInSeconds =
+          parseInt(videoDetails.startTime.split(':')[0]) * 3600 +
+          parseInt(videoDetails.startTime.split(':')[1]) * 60 +
+          parseInt(videoDetails.startTime.split(':')[2]);
 
-    //   case 'BLOG':
-    //     return true;
-    //     // if (watchTime.startTime && watchTime.endTime && item.details) {
-    //     //   const blogDetails = item.details as IBlogDetails;
-    //     //   const watchStartTime = new Date(watchTime.startTime);
-    //     //   const watchEndTime = new Date(watchTime.endTime);
+        const totalVideoDuration = videoEndTimeInSeconds - videoStartTimeInSeconds;
 
-    //     //   // Get Time difference in seconds
-    //     //   const timeDiff =
-    //     //     Math.abs(watchEndTime.getTime() - watchStartTime.getTime()) / 1000;
+        // Security Rule
+        // - Must have watched at least 15% of the video
+        // OR
+        // - If the video is long, must have watched at least 30 seconds
+        const minimumRequired = Math.min(totalVideoDuration * 0.15, 30);
 
-    //     //   // Check if the watch time is >= 0.5 * estimated read time
-    //     //   if (timeDiff >= 0.6 * blogDetails.estimatedReadTimeInMinutes * 60) {
-    //     //     return true;
-    //     //   }
-    //     //   return false;
-    //     // }
-    //     break;
-    // }
+        return adjustedDuration >= minimumRequired;
+
+      case 'BLOG':
+        const blogDetails = item.details as IBlogDetails;
+        // Estimated read time is in minutes
+        const readTimeSeconds = (blogDetails.estimatedReadTimeInMinutes || 1) * 60;
+
+        // Require at least 10% of estimated time OR 10 seconds
+        // This stops instant click-throughs but doesn't punish fast readers
+        const minReadTime = Math.min(readTimeSeconds * 0.10, 10);
+
+        return adjustedDuration >= minReadTime;
+
+      default:
+        return true;
+    }
   }
 
   async getUserProgress(
@@ -2194,6 +2192,103 @@ class ProgressService extends BaseService {
       courseVersionId,
       session,
     );
+  }
+
+  async handleQuizeProgressAfterSubmission(
+    userId: string | ObjectId,
+    quizeId: string,
+    courseId: string,
+    courseVersionId: string,
+    isPassed: boolean,
+  ) {
+    const progress = await this.progressRepository.findProgress(userId, courseId, courseVersionId);
+    console.log("Progress: ", progress);
+    if (!progress) {
+      console.log("Progress not found")
+      return;
+    }
+
+    // if (progress.currentItem !== quizeId) {
+    //   console.log("Inside if is trigreed", progress.currentItem)
+    //   return;
+    // }
+
+    // if (isPassed === false) {
+    //   return;
+    // }
+
+    // const quizeItem = await this.itemRepo.readItemById(quizeId);
+    // const itemsGroup = await this.itemRepo.readItemsGroup(quizeItem.details.itemsGroupId);
+    // const items = itemsGroup.items;
+    // const index = items.indexOf(quizeId);
+    // if(index === -1){
+    //   return;
+    // }
+    // if(isPassed){
+    //   const nextItem = items[index + 1];
+    //   if(nextItem){
+    //     progress.currentItem = nextItem._id;
+    //   }
+    // }else{
+    //   const prevItem = items[index -1];
+    //   if(prevItem){
+    //     progress.currentItem = prevItem._id;
+    //   }
+    // }
+
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    console.log("courseVersion: ", courseVersion);
+
+
+    if (isPassed) {
+      const nextItemDetails = await this.getNextItemInSequence(
+        courseVersion,
+        progress.currentModule.toString(),
+        progress.currentSection.toString(),
+        quizeId,
+      );
+
+      console.log("NextItemDetails Object", nextItemDetails);
+
+      const newProgress = {
+        currentModule: nextItemDetails.moduleId,
+        currentSection: nextItemDetails.sectionId,
+        currentItem: nextItemDetails.itemId,
+      };
+
+      console.log("newProgress Object: ", newProgress);
+
+      await this.progressRepository.updateProgress(
+        userId,
+        courseId,
+        courseVersionId,
+        newProgress,
+      );
+    } else {
+      const previousDetails = await this.getPreviousItemInSequence(
+        courseVersion,
+        progress.currentModule.toString(),
+        progress.currentSection.toString(),
+        quizeId,
+      );
+
+      console.log("PreviousDetails Object: ", previousDetails)
+
+      const previousProgress = {
+        currentModule: previousDetails.moduleId,
+        currentSection: previousDetails.sectionId,
+        currentItem: previousDetails.itemId,
+      }
+
+      console.log("PreviousProgress Object: ", previousProgress)
+      await this.progressRepository.updateProgress(
+        userId,
+        courseId,
+        courseVersionId,
+        previousProgress,
+      );
+    }
+
   }
 
   // Admin Level Endpoint

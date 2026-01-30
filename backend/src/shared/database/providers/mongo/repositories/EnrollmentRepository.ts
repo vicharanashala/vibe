@@ -46,32 +46,24 @@ export class EnrollmentRepository {
   ) { }
 
   private async init() {
-
-    this.enrollmentCollection = await this.db.getCollection<IEnrollment>(
-      'enrollment',
-    );
-    this.progressCollection = await this.db.getCollection<IProgress>(
-      'progress',
-    );
-    this.courseVersionCollection = await this.db.getCollection<ICourseVersion>(
-      'newCourseVersion',
-    );
-    this.watchTimeCollection = await this.db.getCollection<IWatchTime>(
-      'watchTime',
-    );
+    this.enrollmentCollection =
+      await this.db.getCollection<IEnrollment>('enrollment');
+    this.progressCollection =
+      await this.db.getCollection<IProgress>('progress');
+    this.courseVersionCollection =
+      await this.db.getCollection<ICourseVersion>('newCourseVersion');
+    this.watchTimeCollection =
+      await this.db.getCollection<IWatchTime>('watchTime');
     this.submissionCollection = await this.db.getCollection<ISubmission>(
       'quiz_submission_results',
     );
     this.quizCollection = await this.db.getCollection<QuizItem>('quizzes');
-    this.itemsGroupCollection = await this.db.getCollection<ItemsGroup>(
-      'itemsGroup',
-    );
-    this.attemptCollection = await this.db.getCollection<IAttempt>(
-      'quiz_attempts',
-    );
-    this.questionBankCollection = await this.db.getCollection<IQuestionBank>(
-      'questionBanks',
-    );
+    this.itemsGroupCollection =
+      await this.db.getCollection<ItemsGroup>('itemsGroup');
+    this.attemptCollection =
+      await this.db.getCollection<IAttempt>('quiz_attempts');
+    this.questionBankCollection =
+      await this.db.getCollection<IQuestionBank>('questionBanks');
   }
 
   /**
@@ -271,8 +263,6 @@ export class EnrollmentRepository {
     if (result.modifiedCount === 0) {
       throw new NotFoundError('Enrollment not found to delete');
     }
-
-
   }
 
   /**
@@ -1099,6 +1089,107 @@ export class EnrollmentRepository {
     return map;
   }
 
+  async getWatchedItemCountsByTypeBatch(
+    entries: {
+      userId: ObjectId;
+      courseId: ObjectId;
+      courseVersionId: ObjectId;
+    }[],
+  ): Promise<Map<string, { videos: number; quizzes: number; articles: number; projects: number }>> {
+    if (entries.length === 0) {
+      return new Map();
+    }
+
+    const matchConditions = entries.map(e => ({
+      userId: e.userId,
+      courseId: e.courseId,
+      courseVersionId: e.courseVersionId,
+      isHidden: { $ne: true },
+      isDeleted: { $ne: true },
+      endTime: { $exists: true, $ne: null },
+    }));
+
+    const watchedItems = await this.watchTimeCollection
+      .aggregate([
+        { $match: { $or: matchConditions } },
+        {
+          $group: {
+            _id: {
+              userId: '$userId',
+              courseId: '$courseId',
+              courseVersionId: '$courseVersionId',
+              itemId: '$itemId',
+            },
+          },
+        },
+      ])
+      .toArray();
+
+    if (watchedItems.length === 0) {
+      return new Map();
+    }
+
+    const allItemIds = [...new Set(watchedItems.map(w => w._id.itemId))];
+
+    const itemsGroupCollection = await this.db.getCollection('itemsGroup');
+    const itemTypeResults = await itemsGroupCollection
+      .aggregate([
+        { $unwind: '$items' },
+        {
+          $match: {
+            $or: [
+              { 'items._id': { $in: allItemIds } },
+              {
+                'items._id': {
+                  $in: allItemIds.map(id => {
+                    try { return new ObjectId(id as string); } catch { return null; }
+                  }).filter(Boolean)
+                }
+              }
+            ]
+          }
+        },
+        { $project: { itemId: { $toString: '$items._id' }, type: '$items.type' } }
+      ])
+      .toArray();
+
+    const itemTypeMap = new Map<string, string>();
+    for (const item of itemTypeResults) {
+      itemTypeMap.set(item.itemId, item.type);
+    }
+
+    const map = new Map<string, { videos: number; quizzes: number; articles: number; projects: number }>();
+
+    for (const watched of watchedItems) {
+      const key = `${watched._id.userId.toString()}-${watched._id.courseId.toString()}-${watched._id.courseVersionId.toString()}`;
+
+      if (!map.has(key)) {
+        map.set(key, { videos: 0, quizzes: 0, articles: 0, projects: 0 });
+      }
+
+      const counts = map.get(key)!;
+      const itemIdStr = watched._id.itemId?.toString() || '';
+      const itemType = itemTypeMap.get(itemIdStr) || 'UNKNOWN';
+
+      switch (itemType) {
+        case 'VIDEO':
+          counts.videos++;
+          break;
+        case 'QUIZ':
+          counts.quizzes++;
+          break;
+        case 'BLOG':
+          counts.articles++;
+          break;
+        case 'PROJECT':
+          counts.projects++;
+          break;
+      }
+    }
+
+    return map;
+  }
+
   async getAllEnrollments(userId: string, session?: ClientSession) {
     await this.init();
 
@@ -1127,33 +1218,55 @@ export class EnrollmentRepository {
     skip: number,
     limit: number,
     search: string,
-    sortBy: 'name' | 'enrollmentDate' | 'progress',
+    sortBy: 'name' | 'enrollmentDate' | 'progress' | 'unenrolledAt',
     sortOrder: 'asc' | 'desc',
     filter: string,
     statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
     session?: ClientSession,
   ) {
     await this.init();
-    const matchStage: any = {
+
+    const baseMatch: any = {
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
-      status: { $regex: /^active$/i },
-      isDeleted: { $ne: true }, // Exclude soft-deleted enrollments
     };
 
-    // ✅ ACTIVE tab
+    let matchStage: any = { ...baseMatch };
+
+    //  ACTIVE tab
     if (statusTab === 'ACTIVE') {
-      matchStage.status = {$regex: /^active$/i};
-      matchStage.isDeleted = {$ne: true};
+      matchStage = {
+        ...baseMatch,
+        status: { $regex: /^active$/i },
+        isDeleted: { $ne: true },
+      };
     }
 
-    // ✅ INACTIVE tab
+    //  INACTIVE tab
     if (statusTab === 'INACTIVE') {
-      matchStage.$or = [
-        {status: {$regex: /^inactive$/i}},
-        {isDeleted: true},
-      ];
+      matchStage = {
+        ...baseMatch,
+        $or: [{ status: { $regex: /^inactive$/i } }, { isDeleted: true }],
+      };
     }
+
+    // const matchStage: any = {
+    //   courseId: new ObjectId(courseId),
+    //   courseVersionId: new ObjectId(courseVersionId),
+    //   status: {$regex: /^active$/i},
+    //   isDeleted: {$ne: true}, // Exclude soft-deleted enrollments
+    // };
+
+    // // ✅ ACTIVE tab
+    // if (statusTab === 'ACTIVE') {
+    //   matchStage.status = {$regex: /^active$/i};
+    //   matchStage.isDeleted = {$ne: true};
+    // }
+
+    // // ✅ INACTIVE tab
+    // if (statusTab === 'INACTIVE') {
+    //   matchStage.$or = [{status: {$regex: /^inactive$/i}}, {isDeleted: true}];
+    // }
 
     // const matchStage: any = {
     //   courseId: new ObjectId(courseId),
@@ -1161,7 +1274,7 @@ export class EnrollmentRepository {
     //   // status: {$regex: /^active$/i},
     //   isDeleted: {$ne: true}, // Exclude soft-deleted enrollments
     // };
-    
+
     if (filter) {
       if (filter === 'STUDENT') {
         matchStage.role = 'STUDENT';
@@ -1182,6 +1295,8 @@ export class EnrollmentRepository {
       sortField = { enrollmentDate: sortOrder === 'asc' ? 1 : -1 };
     } else if (sortBy === 'progress') {
       sortField = { percentCompleted: sortOrder === 'asc' ? 1 : -1 };
+    } else if (sortBy === 'unenrolledAt') {
+      sortField = { unenrolledAt: sortOrder === 'asc' ? 1 : -1 };
     }
 
     const aggregationPipeline: any[] = [
@@ -1346,8 +1461,6 @@ export class EnrollmentRepository {
       isDeleted: { $ne: true },
       status: { $regex: /^active$/i },
     });
-
-
   }
   /*Update enrollments for all records in db */
   async bulkUpdateEnrollments(
@@ -1374,12 +1487,11 @@ export class EnrollmentRepository {
   }) {
     await this.init();
 
-
     const query: any = {
       isDeleted: { $ne: true },
       status: { $regex: /^active$/i },
       role: 'STUDENT',
-      percentCompleted: { $exists: true, $gte: 99, $lt: 100 }
+      percentCompleted: { $exists: true, $gte: 99, $lt: 100 },
     };
 
     if (filters.courseId) query.courseId = new ObjectId(filters.courseId);
@@ -1406,7 +1518,6 @@ export class EnrollmentRepository {
       // await this.enrollmentCollection.createIndex({ courseId: 1 });
       // await this.enrollmentCollection.createIndex({ courseVersionId: 1 });
       // await this.enrollmentCollection.createIndex({ enrollmentDate: -1 });
-
     } catch (err) {
       console.log(err);
     }
@@ -2208,6 +2319,7 @@ export class EnrollmentRepository {
   async getQuizScoresForCourseVersion(
     courseId: string,
     versionId: string,
+    statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
   ): Promise<QuizScoresExportResponseDto> {
     const startTime = Date.now();
     await this.init();
@@ -2223,12 +2335,22 @@ export class EnrollmentRepository {
     const courseIdObj = new ObjectId(courseId);
     const versionIdObj = new ObjectId(versionId);
 
-    const studentFilter = {
+    const studentFilter: any = {
       courseId: courseIdObj,
       courseVersionId: versionIdObj,
       role: 'STUDENT' as EnrollmentRole,
-      status: { $regex: /^active$/i },
     };
+
+    // Add status-specific filters
+    if (statusTab === 'ACTIVE') {
+      studentFilter.status = { $regex: /^active$/i };
+      studentFilter.isDeleted = { $ne: true };
+    } else if (statusTab === 'INACTIVE') {
+      studentFilter.$or = [
+        { status: { $regex: /^inactive$/i } },
+        { isDeleted: true },
+      ];
+    }
 
     /* -------------------------------------------------------
      * 1️⃣ FETCH ENROLLMENTS (ONCE)
@@ -2263,6 +2385,7 @@ export class EnrollmentRepository {
           courseId,
           versionId,
           totalStudents: 0,
+          statusTab,
           durationMs: Date.now() - startTime,
           generatedAt: new Date().toISOString(),
         },
@@ -2274,9 +2397,8 @@ export class EnrollmentRepository {
     /* -------------------------------------------------------
      * 2️⃣ FETCH QUIZ STRUCTURE
      * ----------------------------------------------------- */
-    const quizzesByModuleSection = await this.getQuizIdsByModulesAndSections(
-      versionId,
-    );
+    const quizzesByModuleSection =
+      await this.getQuizIdsByModulesAndSections(versionId);
 
     const validQuizIds = [
       ...new Set(
@@ -2293,6 +2415,7 @@ export class EnrollmentRepository {
           courseId,
           versionId,
           totalStudents: enrollments.length,
+          statusTab,
           durationMs: Date.now() - startTime,
           generatedAt: new Date().toISOString(),
         },

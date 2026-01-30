@@ -1,5 +1,5 @@
 import { Clock, FileText, CheckCircle2, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play } from "lucide-react";
-import {  } from "lucide-react";
+import { } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,7 @@ import { bufferToHex } from "@/utils/helpers";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
 import { Pagination } from "../ui/Pagination";
-import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard', className, completion, setCompletion }: CourseCardProps) => {
   // Add null checks to prevent errors when enrollment data is incomplete
@@ -51,7 +51,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   // const progress = Math.round(enrollment.percentCompleted || 0) as number 
   const progress = Number(((enrollment.percentCompleted || 0)).toFixed(1));
 
-  const contentCounts = enrollment.contentCounts as { totalItems?: number; videos?: number; quizzes?: number; articles?: number; project?: number, totalQuizScore?: number, totalQuizMaxScore?: number } || {};
+  const contentCounts = enrollment.contentCounts as { totalItems?: number; videos?: number; quizzes?: number; articles?: number; project?: number, totalQuizScore?: number, totalQuizMaxScore?: number, completedVideos?: number, completedQuizzes?: number, completedArticles?: number, completedProjects?: number } || {};
   const totalLessons = contentCounts.totalItems || 0;
   const completedLessons = enrollment.completedItems as number || 0;
   const isCompleted = (typeof enrollment.percentCompleted === 'number' && enrollment.percentCompleted >= 100) || false;
@@ -62,6 +62,12 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const quizCount: number = contentCounts.quizzes || 0;
   const articleCount: number = contentCounts.articles || 0;
   const projectCount: number = contentCounts.project || 0;
+
+
+  const completedVideos: number = contentCounts.completedVideos || 0;
+  const completedQuizzes: number = contentCounts.completedQuizzes || 0;
+  const completedArticles: number = contentCounts.completedArticles || 0;
+  const completedProjects: number = contentCounts.completedProjects || 0;
 
 
   // Find if this courseVersionId is already in completion
@@ -152,16 +158,14 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   </div>
                 </div> */}
                 <div className="flex lg:flex-nowrap flex-wrap items-center gap-2 mb-1 xl:mb-0">
-                  <TooltipProvider>
-                    <Tooltip delayDuration={0}>
-                      <TooltipTrigger asChild>
-                        <Info className="h-4 w-4 cursor-pointer text-muted-foreground hover:text-foreground transition-colors" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>This course is actively updated with new content.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 cursor-pointer text-muted-foreground hover:text-foreground transition-colors" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" sideOffset={8}>
+                      <p>This course is actively updated with new content.</p>
+                    </TooltipContent>
+                  </Tooltip>
                   <span>Ongoing training — subject to change</span>
                 </div>
                 <div className="flex items-center gap-2 mb-1 xl:mb-0">
@@ -174,17 +178,15 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                       />
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <span>{Math.round(progress)}% ({completedLessons}/{totalLessons})</span>
-                        <TooltipProvider>
-                          <Tooltip delayDuration={0}>
-                            <TooltipTrigger asChild>
-                              <Info className="h-3.5 w-3.5 text-muted-foreground cursor-pointer hover:text-foreground transition-colors" />
-                            </TooltipTrigger>
-                          <TooltipContent>
-                            <p>These are the tentative numbers, please keep in mind.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <span>{Math.round(progress)}%</span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3.5 w-3.5 text-muted-foreground cursor-pointer hover:text-foreground transition-colors" />
+                        </TooltipTrigger>
+                        <TooltipContent side="top" sideOffset={8}>
+                          <p>Percentage of course items you have completed</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                 </div>
@@ -199,7 +201,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                           month: '2-digit',
                           year: 'numeric',
                         })
-                        : 'Recently'}  
+                        : 'Recently'}
                     </span>
                   </div>
                 </div>
@@ -219,13 +221,12 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           <div className="mt-auto flex flex-col sm:flex-row gap-2">
             <Button
               variant={progress === 0 ? "default" : isCompleted ? "default" : "default"}
-              className={`${
-                progress === 0
-                  ? ""
-                  : isCompleted
-                    ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
-                    : ""
-              } w-full sm:w-auto transition-all duration-200`}
+              className={`${progress === 0
+                ? ""
+                : isCompleted
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
+                  : ""
+                } w-full sm:w-auto transition-all duration-200`}
               onClick={handleContinue}
             >
               {progress === 0 ? 'Start' : progress >= 100 ? 'Completed' : 'Continue'}
@@ -298,6 +299,34 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                         <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
                           <p className="text-sm font-medium text-muted-foreground">Quiz Scores</p>
                           <p className="text-xl font-semibold">{totalQuizScore} / {totalQuizMaxScore}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    <div>
+                      <h3 className="text-lg font-semibold">Completion Details</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-2">
+                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                          <p className="text-sm font-medium text-muted-foreground">Total Completed</p>
+                          <p className="text-xl font-semibold">{completedLessons} / {totalLessons}</p>
+                        </div>
+                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                          <p className="text-sm font-medium text-muted-foreground">Videos Watched</p>
+                          <p className="text-xl font-semibold">{completedVideos} / {videoCount}</p>
+                        </div>
+                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                          <p className="text-sm font-medium text-muted-foreground">Quizzes Completed</p>
+                          <p className="text-xl font-semibold">{completedQuizzes} / {quizCount}</p>
+                        </div>
+                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                          <p className="text-sm font-medium text-muted-foreground">Articles Read</p>
+                          <p className="text-xl font-semibold">{completedArticles} / {articleCount}</p>
+                        </div>
+                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                          <p className="text-sm font-medium text-muted-foreground">Projects Done</p>
+                          <p className="text-xl font-semibold">{completedProjects} / {projectCount}</p>
                         </div>
                       </div>
                     </div>

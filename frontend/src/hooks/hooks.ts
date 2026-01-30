@@ -1183,7 +1183,8 @@ export function useCourseEnrollmentsStats(
 export function useCourseQuizScores(
   courseId: string | undefined,
   versionId: string | undefined,
-  enabled: boolean = true
+  enabled: boolean = true,
+  statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE' 
 ): {
   data: any | undefined,
   isLoading: boolean,
@@ -1195,7 +1196,8 @@ export function useCourseQuizScores(
     '/users/enrollments/courses/{courseId}/versions/{versionId}/export/quiz-scores',
     {
       params: {
-        path: { courseId, versionId }
+        path: { courseId, versionId },
+        query: { statusTab }
       }
     },
     {
@@ -1220,7 +1222,7 @@ export function useCourseVersionEnrollments(
   page: number = 1,
   limit: number = 10,
   search: string = "",
-  sortBy: 'name' | 'enrollmentDate' | 'progress' = 'enrollmentDate',
+  sortBy: 'name' | 'enrollmentDate' | 'progress' | 'unenrolledAt' = 'enrollmentDate',
   sortOrder: 'asc' | 'desc' = 'desc',
   enabled: boolean = true,
   filter: 'STUDENT' | 'OTHER',
@@ -2772,7 +2774,8 @@ export function useSubmitFlag(): {
   };
 }
 
-export function useGetReports(courseId: string, versionId: string, limit = 10, currentPage = 1, status?: string, entityType?: string,): {
+export function useGetReports(courseId: string, versionId: string, limit = 10, currentPage = 1, status?: string, entityType?: string, sortBy?: string,
+  sortOrder?: 'asc' | 'desc'): {
   data: IReport[],
   isLoading: boolean,
   error: string | null,
@@ -2793,6 +2796,8 @@ export function useGetReports(courseId: string, versionId: string, limit = 10, c
           ...(status && status !== "ALL" ? { status } : {}),
           limit,
           currentPage,
+          sortBy,
+          sortOrder
         }
       },
     },
