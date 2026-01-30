@@ -401,6 +401,7 @@ class ReportRepository {
           courseData: 0,
           versionData: 0,
           moduleInfo: 0,
+          itemsGroupData: 0,
           videoData: 0,
           quizData: 0,
           blogData: 0,
