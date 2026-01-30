@@ -523,22 +523,6 @@ export default function CoursePage() {
     }
   }, [itemData, itemLoading]);
 
-//   useEffect(() => {
-//   const timer = setTimeout(() => {
-//     if (itemData && !itemLoading) {
-//       const item = (itemData as any)?.item || itemData;
- 
-//       if (item && typeof item === 'object' && item._id) {
-//         setCurrentItem(item);
-//         setIsNavigatingToNext(false);
-//       }
-//     }
-//   }, 1000);
- 
-//   return () => {
-//     clearTimeout(timer);
-//   };
-// }, [itemData, itemLoading]);
 
 
   // Flag handling function
@@ -1236,7 +1220,7 @@ export default function CoursePage() {
     try {
       // Stop current item before moving to previous video with proper cleanup
       if (itemContainerRef.current) {
-        itemContainerRef.current.stopCurrentItem();
+        // itemContainerRef.current.stopCurrentItem();
 
         // Allow a small delay for cleanup
         await new Promise(resolve => setTimeout(resolve, 50));

@@ -29,7 +29,6 @@ import {
   QuestionType,
   MongoDatabase,
   ILotItem,
-  IProgress,
 } from '#shared/index.js';
 import {injectable, inject} from 'inversify';
 import {ClientSession, ObjectId} from 'mongodb';
@@ -96,9 +95,6 @@ class AttemptService extends BaseService {
 
     @inject(USERS_TYPES.ProgressRepo)
     private readonly progressRepository: ProgressRepository,
-
-    @inject(USERS_TYPES.ProgressService)
-    private readonly progressService: ProgressService,
 
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
@@ -231,22 +227,22 @@ class AttemptService extends BaseService {
    * Check if the quiz has already been completed by checking if a watchTime entry
    * with endTime exists for this user and quiz.
    */
-  // private async _isQuizAlreadyCompleted(
-  //   userId: string,
-  //   quizId: string,
-  //   session?: ClientSession,
-  // ): Promise<boolean> {
-  //   const watchTimes = await this.progressRepository.getWatchTime(
-  //     userId,
-  //     quizId,
-  //     undefined,
-  //     undefined,
-  //     session,
-  //   );
+  private async _isQuizAlreadyCompleted(
+    userId: string,
+    quizId: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    const watchTimes = await this.progressRepository.getWatchTime(
+      userId,
+      quizId,
+      undefined,
+      undefined,
+      session,
+    );
 
-  //   if (!watchTimes || watchTimes.length === 0) {
-  //     return false;
-  //   }
+    if (!watchTimes || watchTimes.length === 0) {
+      return false;
+    }
 
     return watchTimes.some(
       wt => wt.endTime !== null && wt.endTime !== undefined,
@@ -271,10 +267,10 @@ class AttemptService extends BaseService {
       session,
     );
 
-  //   if (alreadyCompleted) {
-  //     return;
-  //   }
-  // }
+    if (alreadyCompleted) {
+      return;
+    }
+  }
 
   async attempt(
     userId: string | ObjectId,
@@ -372,11 +368,6 @@ class AttemptService extends BaseService {
       };
     });
   }
-
-
-
-
-
 
   async submit(
     userId: string | ObjectId,
@@ -499,10 +490,13 @@ class AttemptService extends BaseService {
 
     /* -------------------- UPDATE SUBMISSION (SMALL WRITE) -------------------- */
 
-    await this.submissionRepository.update(
-      submissionId,
-      { gradingResult },
-    );
+    await this.submissionRepository.update(submissionId, {gradingResult});
+
+    if(isFirst && !isSkipped){
+      const isPassed = gradingResult.gradingStatus==="PASSED"
+      console.log("Progress in AttemptService to check the helperfunction: ", userId, quizId, courseId, courseVersionId, isPassed)
+      await this.progressService.handleQuizeProgressAfterSubmission(userId, quizId, courseId, courseVersionId, isPassed)
+    }
 
     /* -------------------- RETURN BASED ON QUIZ SETTINGS -------------------- */
 

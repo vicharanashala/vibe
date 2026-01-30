@@ -297,70 +297,91 @@ export class ItemService extends BaseService {
         return itemsGroup.items;
       }
 
+      const completionEntries = await Promise.all(
+        itemsGroup.items.map(async (item) => {
+          const isCompleted = await this.progressRepo.isItemCompleted(
+            userId,
+            course.courseId.toString(),
+            versionId,
+            item._id.toString()
+          );
+
+          return [item._id.toString(), isCompleted] as const;
+        })
+      );
+      const completionMap = new Map<string, boolean>(completionEntries);
+
+      itemsGroup.items = itemsGroup.items.map(item => ({
+          ...item,
+          // isCompleted: true,
+          isCompleted:completionMap.get(item._id.toString()) ?? false
+        }));
+        return itemsGroup.items;
+
       // All items completed if module is before current module
-      if (moduleIndex < currentModuleIndex) {
-        itemsGroup.items = itemsGroup.items.map(item => ({
-          ...item,
-          isCompleted: true,
-        }));
-        return itemsGroup.items;
-      }
+      // if (moduleIndex < currentModuleIndex) {
+      //   itemsGroup.items = itemsGroup.items.map(item => ({
+      //     ...item,
+      //     isCompleted: true,
+      //   }));
+      //   return itemsGroup.items;
+      // }
 
-      const currentSectionIndex = course.modules[
-        currentModuleIndex
-      ]?.sections.findIndex(
-        sec => sec.sectionId.toString() === progress.currentSection?.toString(),
-      );
+      // const currentSectionIndex = course.modules[
+      //   currentModuleIndex
+      // ]?.sections.findIndex(
+      //   sec => sec.sectionId.toString() === progress.currentSection?.toString(),
+      // );
 
-      const sectionIndex = course.modules[moduleIndex]?.sections.findIndex(
-        sec => sec.sectionId.toString() === sectionId.toString(),
-      );
+      // const sectionIndex = course.modules[moduleIndex]?.sections.findIndex(
+      //   sec => sec.sectionId.toString() === sectionId.toString(),
+      // );
 
-      // Guard against invalid section indices
-      if (currentSectionIndex === -1 || sectionIndex === -1) {
-        return itemsGroup.items;
-      }
+      // // Guard against invalid section indices
+      // if (currentSectionIndex === -1 || sectionIndex === -1) {
+      //   return itemsGroup.items;
+      // }
 
-      // All items completed if section is before current section in same module
-      if (
-        moduleIndex === currentModuleIndex &&
-        sectionIndex < currentSectionIndex
-      ) {
-        itemsGroup.items = itemsGroup.items.map(item => ({
-          ...item,
-          isCompleted: true,
-        }));
-        return itemsGroup.items;
-      }
+      // // All items completed if section is before current section in same module
+      // if (
+      //   moduleIndex === currentModuleIndex &&
+      //   sectionIndex < currentSectionIndex
+      // ) {
+      //   itemsGroup.items = itemsGroup.items.map(item => ({
+      //     ...item,
+      //     isCompleted: true,
+      //   }));
+      //   return itemsGroup.items;
+      // }
 
-      const currentItemIndex = itemsGroup.items.findIndex(
-        itm => itm._id.toString() === progress.currentItem?.toString(),
-      );
+      // const currentItemIndex = itemsGroup.items.findIndex(
+      //   itm => itm._id.toString() === progress.currentItem?.toString(),
+      // );
 
-      // If current item belongs to another section, nothing here is completed
-      if (currentItemIndex === -1) {
-        return itemsGroup.items;
-      }
+      // // If current item belongs to another section, nothing here is completed
+      // if (currentItemIndex === -1) {
+      //   return itemsGroup.items;
+      // }
 
-      itemsGroup.items = itemsGroup.items.map((item, index) => {
-        if (
-          moduleIndex === currentModuleIndex &&
-          sectionIndex === currentSectionIndex &&
-          index < currentItemIndex
-        ) {
-          return { ...item, isCompleted: true };
-        }
+      // itemsGroup.items = itemsGroup.items.map((item, index) => {
+      //   if (
+      //     moduleIndex === currentModuleIndex &&
+      //     sectionIndex === currentSectionIndex &&
+      //     index < currentItemIndex
+      //   ) {
+      //     return { ...item, isCompleted: true };
+      //   }
 
-        if (
-          moduleIndex === currentModuleIndex &&
-          sectionIndex === currentSectionIndex &&
-          index === currentItemIndex
-        ) {
-          return { ...item, isCompleted: progress.completed };
-        }
+      //   if (
+      //     moduleIndex === currentModuleIndex &&
+      //     sectionIndex === currentSectionIndex &&
+      //     index === currentItemIndex
+      //   ) {
+      //     return { ...item, isCompleted: progress.completed };
+      //   }
 
-        return { ...item, isCompleted: false };
-      });
+      //   return { ...item, isCompleted: false };
+      // });
     }
 
     return itemsGroup.items;

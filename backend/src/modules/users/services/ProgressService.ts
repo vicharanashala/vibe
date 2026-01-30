@@ -41,9 +41,17 @@ import { IProjectSubmissionRepository } from '#root/modules/projects/interfaces/
 import { FeedbackRepository } from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
 import { SETTING_TYPES } from '#root/modules/setting/types.js';
 import { CourseSettingService } from '#root/modules/setting/index.js';
+import { getContainer } from "#root/bootstrap/loadModules.js";
 
 @injectable()
 class ProgressService extends BaseService {
+
+  private getCourseSettingService(): CourseSettingService {
+    return getContainer().get<CourseSettingService>(
+      SETTING_TYPES.SettingRepo
+    );
+  }
+
   constructor(
     @inject(USERS_TYPES.ProgressRepo)
     private readonly progressRepository: ProgressRepository,
@@ -1333,6 +1341,12 @@ class ProgressService extends BaseService {
       }
     }
 
+    // if linear progression is not enabled then also continue 
+    const linearProgressionEnabled = await this.getCourseSettingService().isLinearProgressionEnabled(courseId, courseVersionId);
+    if(!linearProgressionEnabled){
+      return;
+    }
+    
     // If none of the conditions pass, throw error
     throw new BadRequestError(
       "You cannot start this item yet due to linear progression rules.",
@@ -1435,6 +1449,25 @@ class ProgressService extends BaseService {
         itemId,
         session,
       );
+
+      // if linear progression is not enabled
+      const linearProgressionEnabled = await this.getCourseSettingService().isLinearProgressionEnabled(courseId, courseVersionId);
+
+      if(!linearProgressionEnabled){
+        const newProgress: Partial<IProgress> = {
+          completed: isItemCompleted,
+          currentModule: moduleId,
+          currentSection: sectionId,
+          currentItem: itemId,
+        }
+
+        await this.progressRepository.updateProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          newProgress
+        );
+      }
 
       return result;
     });
@@ -3139,13 +3172,19 @@ class ProgressService extends BaseService {
       return; // Nothing to fix
     }
 
-    // 3. Backfill missed watch-time records
-    await this.progressRepository.addBulkWatchTime(
-      userId,
-      courseId,
-      versionId,
-      missedItemIds,
-    );
+    // if linear progression is not enabled
+    const linearProgressionEnabled = await this.getCourseSettingService().isLinearProgressionEnabled(courseId, versionId);
+    console.log("linearProgressionEnabled", linearProgressionEnabled);
+    if(linearProgressionEnabled){
+      // 3. Backfill missed watch-time records
+      await this.progressRepository.addBulkWatchTime(
+        userId,
+        courseId,
+        versionId,
+        missedItemIds,
+      );
+    }
+
 
     // 4. Avoid recomputing totalItems if already stored
     const totalItemsCount =
