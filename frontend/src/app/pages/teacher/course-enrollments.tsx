@@ -153,9 +153,7 @@ export default function CourseEnrollments() {
     courseId,
     versionId,
     !!(courseId && versionId)
-  )
-  console.log(enrollmentStats,"enrollmentstats");
-  
+  )  
 
   const [selectedUser, setSelectedUser] = useState<EnrolledUser | null>(null)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
@@ -969,8 +967,6 @@ export default function CourseEnrollments() {
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-                            {/* Add the content summary here */}
-   
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -1786,9 +1782,7 @@ function EnrollmentsTable({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  studentEnrollments.map((enrollment: any) => (
-                    console.log(enrollment.contentCounts,"enroll"),
-                    
+                  studentEnrollments.map((enrollment: any) => (                    
                     <TableRow
                       key={enrollment._id}
                       className={`border-border hover:bg-muted/20 transition-colors duration-200 group ${isInactiveTab ? "opacity-80" : ""

@@ -522,44 +522,44 @@ export class EnrollmentService extends BaseService {
 
       if (enrollmentsData.enrollments.length > 0 && filter === 'STUDENT') {
 
-  // existing quiz score enrichment
-  await this.enrichEnrollmentsWithQuizScores(
-    enrollmentsData.enrollments,
-    courseVersionId,
-  );
+      // existing quiz score enrichment
+      await this.enrichEnrollmentsWithQuizScores(
+        enrollmentsData.enrollments,
+        courseVersionId,
+      );
 
-  // ✅ NEW: reuse getEnrollments()
-  const studentUserIds = enrollmentsData.enrollments.map(e =>
-    e.userId.toString(),
-  );
+      // NEW: reuse getEnrollments()
+      const studentUserIds = enrollmentsData.enrollments.map(e =>
+        e.userId.toString(),
+      );
 
-  // call getEnrollments for each student (parallel)
-  const allStudentEnrollments = await Promise.all(
-    studentUserIds.map(uid =>
-      this.getEnrollments(uid, 0, 100, 'STUDENT', ''),
-    ),
-  );
+      // call getEnrollments for each student (parallel)
+      const allStudentEnrollments = await Promise.all(
+        studentUserIds.map(uid =>
+          this.getEnrollments(uid, 0, 100, 'STUDENT', ''),
+        ),
+      );
 
-  // flatten
-  const flattened = allStudentEnrollments.flat();
+      // flatten
+      const flattened = allStudentEnrollments.flat();
 
-  // build lookup map
-  const contentCountsMap = new Map<
-    string,
-    any
-  >();
+      // build lookup map
+      const contentCountsMap = new Map<
+        string,
+        any
+      >();
 
-  flattened.forEach(enr => {
-    const key = `${enr.courseVersionId}-${enr._id}`;
-    contentCountsMap.set(key, enr.contentCounts);
-  });
+      flattened.forEach(enr => {
+        const key = `${enr.courseVersionId}-${enr._id}`;
+        contentCountsMap.set(key, enr.contentCounts);
+      });
 
-  // attach to instructor enrollments
-  enrollmentsData.enrollments.forEach(enr => {
-    const key = `${enr.courseVersionId.toString()}-${enr._id.toString()}`;
-    enr.contentCounts = contentCountsMap.get(key);
-  });
-}
+      // attach to instructor enrollments
+      enrollmentsData.enrollments.forEach(enr => {
+        const key = `${enr.courseVersionId.toString()}-${enr._id.toString()}`;
+        enr.contentCounts = contentCountsMap.get(key);
+      });
+    }
 
 
       return enrollmentsData;

@@ -215,8 +215,6 @@ export class EnrollmentController {
         message: 'No enrollments found for the user',
       };
     }
-
-    console.log(enrollments,"enrollments");
     
     return {
       totalDocuments,
@@ -449,7 +447,6 @@ export class EnrollmentController {
         averageProgressPercent: 0,
       };
     }
-    console.log(stats,"stats");
     
     return stats;
   }
