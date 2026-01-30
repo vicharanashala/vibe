@@ -696,7 +696,7 @@ class ItemRefResponse implements ItemRef {
   _id?: ID;
 
   @JSONSchema({
-    description: 'The name of the item',
+    description: 'The type of the item',
     type: 'string',
     readOnly: true,
   })
@@ -712,6 +712,24 @@ class ItemRefResponse implements ItemRef {
   @IsNotEmpty()
   @IsString()
   order: string;
+
+  @JSONSchema({
+    description: 'Whether the item is hidden',
+    type: 'boolean',
+    readOnly: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isHidden?: boolean;
+
+  @JSONSchema({
+    description: 'The name of the item',
+    type: 'string',
+    readOnly: true,
+  })
+  @IsNotEmpty()
+  @IsString()
+  name: string;
 }
 
 class ItemsGroupResponse implements ItemsGroup {
