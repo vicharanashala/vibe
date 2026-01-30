@@ -118,7 +118,7 @@ const FeedbackForm = ({
       details: formData,
       courseId: currentCourse?.courseId || "",
       courseVersionId: currentCourse?.versionId || "",
-      isSkipped: false,
+      // isSkipped: false,
     };
 
 
