@@ -293,9 +293,17 @@ export default function CoursePage() {
       currentSectionItems &&
       !itemsLoading
     ) {
-      const itemsArray =
-        (currentSectionItems as any)?.items ??
-        (Array.isArray(currentSectionItems) ? currentSectionItems : []);
+      // The backend returns items directly as an array, not wrapped in an object
+      let itemsArray = [];
+      
+      if (Array.isArray(currentSectionItems)) {
+        itemsArray = currentSectionItems;
+      } else if ((currentSectionItems as any)?.items) {
+        itemsArray = (currentSectionItems as any).items;
+      } else {
+        // Fallback: treat as direct response
+        itemsArray = currentSectionItems;
+      }
 
       setSectionItems(prev => ({
         ...prev,
@@ -1511,24 +1519,16 @@ export default function CoursePage() {
                                                     {getItemIcon(item.type)}
                                                   </div>
                                                   <div className="flex-1 text-left min-w-0">
-                                                    <div className="text-xs font-medium truncate w-full " title={currentItem?.name || 'Loading...'}>
+                                                    <div className="text-xs font-semibold truncate w-full " title={item?.name || 'Loading...'}>
                                                       {(() => {
-                                                        // Find all non-QUIZ items in this section, sorted by order
-                                                        const itemsInSection = sortItemsByOrder(sectionItems[sectionId] || []).filter((i: any) => i.type !== 'QUIZ');
-                                                        // Find the index of this item among non-QUIZ items
-                                                        const itemIndex = itemsInSection.findIndex((i: any) => i._id === itemId);
-                                                        // Compose the label with numbering
-                                                        let label = '';
+                                                        // Show loading state if this is the selected item and it's loading
                                                         if (selectedItemId === itemId && itemLoading) {
-                                                          label = 'Loading...';
-                                                        } else if (selectedItemId === itemId && currentItem?.name) {
-                                                          label = currentItem.name.length > 18 ? `${currentItem.name.substring(0, 15)}...` : currentItem.name;
-                                                        } else {
-                                                          label = ' ';
+                                                          return 'Loading...';
                                                         }
-                                                        // Add numbering prefix (e.g., Video 1, Article 2, etc.)
-                                                        const typeLabel = item.type.charAt(0).toUpperCase() + item.type.slice(1).toLowerCase();
-                                                        return label === ' ' ? `${typeLabel} ${itemIndex + 1}` : `${label}`;
+
+                                                        // Always show the actual item name, truncated if necessary
+                                                        const itemName = item?.name || item?.title || 'Untitled';
+                                                        return itemName.length > 18 ? `${itemName.substring(0, 15)}...` : itemName;
                                                       })()}
                                                     </div>
                                                     {item.isCompleted && (
