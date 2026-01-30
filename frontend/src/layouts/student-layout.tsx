@@ -20,7 +20,7 @@ import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal
 import logo from "../../public/img/vibe_logo_img.ico"
 
 export default function StudentLayout() {
-  const { user } = useAuthStore()
+  const { user, isAuthReady } = useAuthStore()
   const navigate = useNavigate()
   const { getInvites, loading, error } = useInvites(); // run after login
   const hasShownToast = useRef(false);
@@ -40,6 +40,8 @@ export default function StudentLayout() {
   }
 
   useEffect(() => {
+    if (!isAuthReady || !user) return;
+
     const toastShown = sessionStorage.getItem("inviteToastShown");
 
     const getUserInvites = async () => {
@@ -59,10 +61,9 @@ export default function StudentLayout() {
 
 
     }
-    if (user)
-      getUserInvites();
+    getUserInvites();
 
-  }, [user])
+  }, [user, isAuthReady])
 
   useEffect(() => {
     if (!showInvites) return;
@@ -200,7 +201,7 @@ export default function StudentLayout() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setConfirmLogout(true)}
-                 className="relative  h-10 px-4 text-sm font-medium transition-all duration-300  hover:text-red-600 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:shadow-red-500/10 dark:hover:text-red-400  dark:hover:bg-gradient-to-r dark:over:from-red-500/10 dark:hover:to-red-400/5"
+                className="relative  h-10 px-4 text-sm font-medium transition-all duration-300  hover:text-red-600 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:shadow-red-500/10 dark:hover:text-red-400  dark:hover:bg-gradient-to-r dark:over:from-red-500/10 dark:hover:to-red-400/5"
               >
                 <LogOut className="h-4 w-4" />
                 <span className="hidden sm:block ml-2">Logout</span>

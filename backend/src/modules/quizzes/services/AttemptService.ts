@@ -53,12 +53,13 @@ import {
   FeedbackSubmissionItem,
   QuizItem,
 } from '#root/modules/courses/classes/transformers/Item.js';
-import {QuestionRepository} from '../repositories/index.js';
-import {FeedbackRepository} from '../repositories/providers/mongodb/FeedbackRepository.js';
-import {COURSES_TYPES} from '#root/modules/courses/types.js';
-import {USERS_TYPES} from '#root/modules/users/types.js';
-import {ProgressRepository} from '#root/shared/database/providers/mongo/repositories/ProgressRepository.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import { QuestionRepository } from '../repositories/index.js';
+import { FeedbackRepository } from '../repositories/providers/mongodb/FeedbackRepository.js';
+import { COURSES_TYPES } from '#root/modules/courses/types.js';
+import { USERS_TYPES } from '#root/modules/users/types.js';
+import { ProgressRepository } from '#root/shared/database/providers/mongo/repositories/ProgressRepository.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { ProgressService } from '#root/modules/users/services/ProgressService.js';
 @injectable()
 class AttemptService extends BaseService {
   constructor(
@@ -83,6 +84,9 @@ class AttemptService extends BaseService {
     @inject(QUIZZES_TYPES.QuestionBankService)
     private questionBankService: QuestionBankService,
 
+    @inject(QUIZZES_TYPES.ProgressService)
+    private progressService: ProgressService,
+
     @inject(QUIZZES_TYPES.FeedbackRepo)
     private feedbackRepository: FeedbackRepository,
 
@@ -106,12 +110,14 @@ class AttemptService extends BaseService {
     questionRenderViews: IQuestionRenderView[];
   }> {
     const questionsBankRefs = quiz.details.questionBankRefs || [];
+    console.log('questionsBankRefs', questionsBankRefs);
     const selectedQuestionIds: string[] = [];
 
     for (const questionBankRef of questionsBankRefs) {
       const questionIdsForBank =
         await this.questionBankService.getQuestions(questionBankRef);
       selectedQuestionIds.push(...questionIdsForBank);
+      console.log("selectedQuestionIds", selectedQuestionIds);
     }
 
     const questionDetails: IQuestionDetails[] = [];
@@ -369,6 +375,8 @@ class AttemptService extends BaseService {
     attemptId: string,
     answers: IQuestionAnswer[],
     isSkipped?: boolean,
+    courseId?: string,
+    courseVersionId?: string
   ): Promise<Partial<IGradingResult> | null> {
     /* -------------------- READS OUTSIDE TRANSACTION -------------------- */
 
@@ -395,11 +403,11 @@ class AttemptService extends BaseService {
 
     let submissionId: string | undefined;
     let gradingResult: IGradingResult | undefined;
-
+    let isFirst: Boolean;
     await this._withTransaction(async session => {
       // Save answers (this method should NOT start its own transaction anymore)
       await this.save(userId, quizId, attemptId, answers, isSkipped);
-
+      
       // Fetch metrics inside transaction (it is being updated)
       const metrics = await this.userQuizMetricsRepository.get(
         userId,
@@ -411,6 +419,13 @@ class AttemptService extends BaseService {
         throw new NotFoundError(
           `UserQuizMetrics for user ${userId} and quiz ${quizId} not found`,
         );
+      }
+
+      if(metrics.attempts.length === 0){
+        console.log("Metrices lenght is: ", metrics.attempts.length);
+        isFirst = true
+      }else{
+        isFirst = false
       }
 
       if (isSkipped) {
@@ -470,6 +485,12 @@ class AttemptService extends BaseService {
     /* -------------------- UPDATE SUBMISSION (SMALL WRITE) -------------------- */
 
     await this.submissionRepository.update(submissionId, {gradingResult});
+
+    if(isFirst && !isSkipped){
+      const isPassed = gradingResult.gradingStatus==="PASSED"
+      console.log("Progress in AttemptService to check the helperfunction: ", userId, quizId, courseId, courseVersionId, isPassed)
+      await this.progressService.handleQuizeProgressAfterSubmission(userId, quizId, courseId, courseVersionId, isPassed)
+    }
 
     /* -------------------- RETURN BASED ON QUIZ SETTINGS -------------------- */
 

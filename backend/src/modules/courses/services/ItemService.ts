@@ -360,6 +360,9 @@ export class ItemService extends BaseService {
       });
     }
 
+    console.log(`[ItemService] About to return ${itemsGroup.items.length} items`);
+    console.log(`[ItemService] First item:`, itemsGroup.items[0]);
+    
     return itemsGroup.items;
   }
 

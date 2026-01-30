@@ -2062,8 +2062,8 @@ export function useSaveQuiz(): {
 }
 
 export function useSubmitQuiz(): {
-  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean } }) => void,
-  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean } }) => Promise<SubmitAttemptResponse>,
+  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined } }) => void,
+  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined } }) => Promise<SubmitAttemptResponse>,
   data: SubmitAttemptResponse | undefined,
   error: string | null,
   isPending: boolean,
@@ -2769,7 +2769,8 @@ export function useSubmitFlag(): {
   };
 }
 
-export function useGetReports(courseId: string, versionId: string, limit = 10, currentPage = 1, status?: string, entityType?: string,): {
+export function useGetReports(courseId: string, versionId: string, limit = 10, currentPage = 1, status?: string, entityType?: string, sortBy?: string,
+  sortOrder?: 'asc' | 'desc'): {
   data: IReport[],
   isLoading: boolean,
   error: string | null,
@@ -2790,6 +2791,8 @@ export function useGetReports(courseId: string, versionId: string, limit = 10, c
           ...(status && status !== "ALL" ? { status } : {}),
           limit,
           currentPage,
+          sortBy,
+          sortOrder
         }
       },
     },
