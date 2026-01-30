@@ -681,7 +681,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       const answersForSubmission = convertAnswersToSaveFormat();
       const response = await submitQuiz({
         params: { path: { quizId: processedQuizId, attemptId: attemptId } },
-        body: { answers: answersForSubmission, isSkipped }
+        body: { answers: answersForSubmission, isSkipped, courseId: currentCourse?.courseId,
+            courseVersionId: currentCourse?.versionId  }
       });
 
       // No response for skipped quiz!
@@ -759,7 +760,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     } else {
       completeQuiz();
     }
-  }, [currentQuestionIndex, quizQuestions.length, completeQuiz]);
+  }, [currentQuestionIndex, quizQuestions.length, completeQuiz, timeLeft, quizStarted]);
 
   // Track attempts using the attempt data from the hook
   useEffect(() => {
@@ -942,7 +943,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       console.log('Quiz completed, processing results...', {
         gradingStatus: submissionResults?.gradingStatus,
         quizType,
-        noAttemptsLeft
+        noAttemptsLeft,
+        passThreshold
       });
 
       // For no attempts left, always proceed to next (since we marked it as passed)
@@ -955,17 +957,21 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         return;
       }
 
-      // For regular completion, just set pass/fail status
-      // No auto-redirect - let user click the "Next Lesson" button
-      if (submissionResults?.gradingStatus !== "FAILED") {
+      // For regular completion, check grading status to determine pass/fail
+      if (submissionResults?.gradingStatus === "PASSED") {
         setQuizPassed?.(1);
         setFailedRedirectCountdown(null); // Clear any countdown
+      } else if (submissionResults?.gradingStatus === "FAILED") {
+        setQuizPassed?.(0);
+        setFailedRedirectCountdown(10);
       } else {
+        // Handle edge case where grading status is not available
+        // Default to failed if we can't determine the status
         setQuizPassed?.(0);
         setFailedRedirectCountdown(10);
       }
     }
-  }, [quizCompleted, quizType, submissionResults?.gradingStatus, setQuizPassed, onNext, onPrevVideo, noAttemptsLeft, isEmptyQuiz]);
+  }, [quizCompleted, quizType, submissionResults?.gradingStatus, setQuizPassed, onNext, onPrevVideo, noAttemptsLeft, isEmptyQuiz, passThreshold]);
 
   useEffect(() => {
     if (failedRedirectCountdown === null) return;

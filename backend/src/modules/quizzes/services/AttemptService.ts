@@ -14,14 +14,14 @@ import {
   QuestionAnswerFeedback,
   Submission,
 } from '#quizzes/classes/transformers/Submission.js';
-import {IQuestionRenderView} from '#quizzes/question-processing/index.js';
-import {QuestionProcessor} from '#quizzes/question-processing/QuestionProcessor.js';
+import { IQuestionRenderView } from '#quizzes/question-processing/index.js';
+import { QuestionProcessor } from '#quizzes/question-processing/QuestionProcessor.js';
 
 import {
   generateRandomParameterMap,
   getSelectedItemTexts,
 } from '#quizzes/utils/index.js';
-import {GLOBAL_TYPES} from '#root/types.js';
+import { GLOBAL_TYPES } from '#root/types.js';
 import {
   BaseService,
   IItemRepository,
@@ -30,35 +30,36 @@ import {
   MongoDatabase,
   ILotItem,
 } from '#shared/index.js';
-import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId} from 'mongodb';
-import {NotFoundError, BadRequestError} from 'routing-controllers';
-import {QuestionBankService} from './QuestionBankService.js';
-import {QuestionService} from './QuestionService.js';
-import {QUIZZES_TYPES} from '../types.js';
-import {instanceToPlain} from 'class-transformer';
-import {QuizRepository} from '../repositories/providers/mongodb/QuizRepository.js';
-import {AttemptRepository} from '../repositories/providers/mongodb/AttemptRepository.js';
-import {SubmissionRepository} from '../repositories/providers/mongodb/SubmissionRepository.js';
-import {UserQuizMetricsRepository} from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, ObjectId } from 'mongodb';
+import { NotFoundError, BadRequestError } from 'routing-controllers';
+import { QuestionBankService } from './QuestionBankService.js';
+import { QuestionService } from './QuestionService.js';
+import { QUIZZES_TYPES } from '../types.js';
+import { instanceToPlain } from 'class-transformer';
+import { QuizRepository } from '../repositories/providers/mongodb/QuizRepository.js';
+import { AttemptRepository } from '../repositories/providers/mongodb/AttemptRepository.js';
+import { SubmissionRepository } from '../repositories/providers/mongodb/SubmissionRepository.js';
+import { UserQuizMetricsRepository } from '../repositories/providers/mongodb/UserQuizMetricsRepository.js';
 import {
   BaseQuestion,
   NATQuestion,
   SMLQuestion,
   SOLQuestion,
 } from '../classes/transformers/Question.js';
-import {UserQuizMetrics} from '../classes/transformers/UserQuizMetrics.js';
-import {Attempt} from '../classes/transformers/Attempt.js';
+import { UserQuizMetrics } from '../classes/transformers/UserQuizMetrics.js';
+import { Attempt } from '../classes/transformers/Attempt.js';
 import {
   FeedbackSubmissionItem,
   QuizItem,
 } from '#root/modules/courses/classes/transformers/Item.js';
-import {QuestionRepository} from '../repositories/index.js';
-import {FeedbackRepository} from '../repositories/providers/mongodb/FeedbackRepository.js';
-import {COURSES_TYPES} from '#root/modules/courses/types.js';
-import {USERS_TYPES} from '#root/modules/users/types.js';
-import {ProgressRepository} from '#root/shared/database/providers/mongo/repositories/ProgressRepository.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import { QuestionRepository } from '../repositories/index.js';
+import { FeedbackRepository } from '../repositories/providers/mongodb/FeedbackRepository.js';
+import { COURSES_TYPES } from '#root/modules/courses/types.js';
+import { USERS_TYPES } from '#root/modules/users/types.js';
+import { ProgressRepository } from '#root/shared/database/providers/mongo/repositories/ProgressRepository.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { ProgressService } from '#root/modules/users/services/ProgressService.js';
 @injectable()
 class AttemptService extends BaseService {
   constructor(
@@ -83,6 +84,9 @@ class AttemptService extends BaseService {
     @inject(QUIZZES_TYPES.QuestionBankService)
     private questionBankService: QuestionBankService,
 
+    @inject(QUIZZES_TYPES.ProgressService)
+    private progressService: ProgressService,
+
     @inject(QUIZZES_TYPES.FeedbackRepo)
     private feedbackRepository: FeedbackRepository,
 
@@ -106,12 +110,14 @@ class AttemptService extends BaseService {
     questionRenderViews: IQuestionRenderView[];
   }> {
     const questionsBankRefs = quiz.details.questionBankRefs || [];
+    console.log('questionsBankRefs', questionsBankRefs);
     const selectedQuestionIds: string[] = [];
 
     for (const questionBankRef of questionsBankRefs) {
       const questionIdsForBank =
         await this.questionBankService.getQuestions(questionBankRef);
       selectedQuestionIds.push(...questionIdsForBank);
+      console.log("selectedQuestionIds", selectedQuestionIds);
     }
 
     const questionDetails: IQuestionDetails[] = [];
@@ -134,7 +140,7 @@ class AttemptService extends BaseService {
         new QuestionProcessor(question).render(questionDetail.parameterMap),
       );
     }
-    return {questionDetails, questionRenderViews};
+    return { questionDetails, questionRenderViews };
   }
 
   private _buildGradingResult(
@@ -178,6 +184,18 @@ class AttemptService extends BaseService {
     let totalScore = 0;
     let totalMaxScore = 0;
 
+    // Calculate totalMaxScore from ALL questions in the attempt, not just answered ones
+    for (const questionDetail of attempt.questionDetails) {
+      const question = await this.questionService.getById(
+        questionDetail.questionId.toString(),
+        true,
+      );
+      totalMaxScore += question.points;
+    }
+
+
+
+    // Now grade only the answered questions
     for (const answer of answers) {
       const question = await this.questionService.getById(
         answer.questionId,
@@ -187,7 +205,6 @@ class AttemptService extends BaseService {
       // to get selected answers in text
       const selectedAnswerTexts = getSelectedItemTexts(question, answer.answer);
 
-      totalMaxScore += question.points;
       //Find parameter map for the question
       const questionDetail = attempt.questionDetails.find(
         qd => qd.questionId === answer.questionId,
@@ -200,6 +217,18 @@ class AttemptService extends BaseService {
       const res = instanceToPlain(new QuestionAnswerFeedback(feedback));
       feedbacks.push(res as IQuestionAnswerFeedback);
       totalScore += feedback.score;
+    }
+
+    if (answers.length != attempt.questionDetails.length) {
+      const result: IGradingResult = {
+        gradingStatus: 'FAILED',
+        overallFeedback: feedbacks,
+        totalMaxScore,
+        totalScore,
+        gradedAt: new Date(),
+        gradedBy: 'system',
+      };
+      return result;
     }
 
     const result: IGradingResult = {
@@ -269,7 +298,7 @@ class AttemptService extends BaseService {
   async attempt(
     userId: string | ObjectId,
     quizId: string,
-  ): Promise<{attemptId: string; questionRenderViews: IQuestionRenderView[]}> {
+  ): Promise<{ attemptId: string; questionRenderViews: IQuestionRenderView[] }> {
     return this._withTransaction(async session => {
       //1. Check if UserQuizMetrics exists for the user and quiz
       let metrics = await this.userQuizMetricsRepository.get(
@@ -325,7 +354,7 @@ class AttemptService extends BaseService {
       }
 
       //4. Fetch questions for the quiz attempt
-      const {questionDetails, questionRenderViews} =
+      const { questionDetails, questionRenderViews } =
         await this._getQuestionsForAttempt(quiz);
 
       console.log('questionRenderViews:', questionRenderViews);
@@ -348,7 +377,7 @@ class AttemptService extends BaseService {
       // if the quiz maxAttempts is -1, the no need to changes remainingAttempts
       metrics.remainingAttempts =
         quiz.details.maxAttempts === -1 ? -1 : metrics.remainingAttempts - 1;
-      metrics.attempts.push({attemptId: attemptObjectId});
+      metrics.attempts.push({ attemptId: attemptObjectId });
       const updatedMetrics = await this.userQuizMetricsRepository.update(
         metrics._id.toString(),
         metrics,
@@ -369,6 +398,8 @@ class AttemptService extends BaseService {
     attemptId: string,
     answers: IQuestionAnswer[],
     isSkipped?: boolean,
+    courseId?: string,
+    courseVersionId?: string
   ): Promise<Partial<IGradingResult> | null> {
     /* -------------------- READS OUTSIDE TRANSACTION -------------------- */
 
@@ -395,7 +426,7 @@ class AttemptService extends BaseService {
 
     let submissionId: string | undefined;
     let gradingResult: IGradingResult | undefined;
-
+    let isFirst: Boolean;
     await this._withTransaction(async session => {
       // Save answers (this method should NOT start its own transaction anymore)
       await this.save(userId, quizId, attemptId, answers, isSkipped);
@@ -411,6 +442,13 @@ class AttemptService extends BaseService {
         throw new NotFoundError(
           `UserQuizMetrics for user ${userId} and quiz ${quizId} not found`,
         );
+      }
+
+      if (metrics.attempts.length === 0) {
+        console.log("Metrices lenght is: ", metrics.attempts.length);
+        isFirst = true
+      } else {
+        isFirst = false
       }
 
       if (isSkipped) {
@@ -448,7 +486,7 @@ class AttemptService extends BaseService {
 
       metrics.attempts = metrics.attempts.map(attempt =>
         attempt.attemptId.toString() === attemptId
-          ? {...attempt, submissionResultId: new ObjectId(submissionId)}
+          ? { ...attempt, submissionResultId: new ObjectId(submissionId) }
           : attempt,
       );
 
@@ -469,7 +507,13 @@ class AttemptService extends BaseService {
 
     /* -------------------- UPDATE SUBMISSION (SMALL WRITE) -------------------- */
 
-    await this.submissionRepository.update(submissionId, {gradingResult});
+    await this.submissionRepository.update(submissionId, { gradingResult });
+
+    if (isFirst && !isSkipped) {
+      const isPassed = gradingResult.gradingStatus === "PASSED"
+      console.log("Progress in AttemptService to check the helperfunction: ", userId, quizId, courseId, courseVersionId, isPassed)
+      await this.progressService.handleQuizeProgressAfterSubmission(userId, quizId, courseId, courseVersionId, isPassed)
+    }
 
     /* -------------------- RETURN BASED ON QUIZ SETTINGS -------------------- */
 
@@ -657,7 +701,7 @@ class AttemptService extends BaseService {
 
     switch (lastAnswer.questionType) {
       case 'NUMERIC_ANSWER_TYPE': {
-        const submittedValue = (lastAnswer.answer as {value: number}).value;
+        const submittedValue = (lastAnswer.answer as { value: number }).value;
         const natQuestion = question as NATQuestion;
 
         if (
@@ -696,7 +740,7 @@ class AttemptService extends BaseService {
       }
 
       case 'SELECT_MANY_IN_LOT': {
-        const answer = lastAnswer.answer as {lotItemIds: string[]};
+        const answer = lastAnswer.answer as { lotItemIds: string[] };
         const smlQuestion = question as SMLQuestion;
 
         const isCorrect = smlQuestion.correctLotItems.every(item =>
@@ -707,8 +751,8 @@ class AttemptService extends BaseService {
           result: isCorrect ? 'CORRECT' : 'INCORRECT',
           explanation: isCorrect
             ? smlQuestion.correctLotItems
-                .map(item => item.explaination)
-                .join(', ')
+              .map(item => item.explaination)
+              .join(', ')
             : 'Some of the selected answers are incorrect.',
         };
       }
@@ -783,7 +827,7 @@ class AttemptService extends BaseService {
           // Step 3: Add to bulk operations
           bulkOperations.push({
             updateOne: {
-              filter: {_id: new ObjectId(metric._id)},
+              filter: { _id: new ObjectId(metric._id) },
               update: {
                 $set: {
                   // latestAttemptId: latestAttempt?._id.toString(),
@@ -806,8 +850,7 @@ class AttemptService extends BaseService {
                 session,
               );
               console.log(
-                `✅ Batch ${++batchCount}: Updated ${
-                  bulkOperations.length
+                `✅ Batch ${++batchCount}: Updated ${bulkOperations.length
                 } user_quiz_metrics`,
               );
               bulkOperations.length = 0;
@@ -833,7 +876,7 @@ class AttemptService extends BaseService {
     }
 
     console.log(`🔹 Done! Updated ${updatedCount} / ${totalCount} records`);
-    return {updatedCount, totalCount};
+    return { updatedCount, totalCount };
   }
 
   async exportQuizSubmissions(
@@ -972,4 +1015,4 @@ class AttemptService extends BaseService {
   }
 }
 
-export {AttemptService};
+export { AttemptService };

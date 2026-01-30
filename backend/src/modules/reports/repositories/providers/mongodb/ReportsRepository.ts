@@ -15,7 +15,8 @@ import {
   ReportFiltersQuery,
   ReportResponse,
 } from '#root/modules/reports/classes/index.js';
-import {instanceToPlain, plainToInstance} from 'class-transformer';
+import { instanceToPlain, plainToInstance } from 'class-transformer';
+import { SORT_FIELD_MAP } from '#root/modules/reports/constants.js';
 @injectable()
 class ReportRepository {
   private reportCollection: Collection<IReport>;
@@ -64,11 +65,23 @@ class ReportRepository {
       },
     ];
 
+    const sortStage: any = {};
+
+    const sortField =
+      filters.sortBy && SORT_FIELD_MAP[filters.sortBy]
+        ? SORT_FIELD_MAP[filters.sortBy]
+        : 'createdAt';
+
+    sortStage[sortField] = filters.sortOrder === 'asc' ? 1 : -1;
+
+    
+
+
     const aggregationPipeline = [
       matchStage,
       ...sortStatusStages,
       ...(status ? [{$match: {latestStatus: status}}] : []),
-      {$sort: {createdAt: -1}},
+      { $sort: sortStage }, 
       {$skip: skip},
       {$limit: limit},
       {

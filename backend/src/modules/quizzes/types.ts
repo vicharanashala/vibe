@@ -1,3 +1,5 @@
+
+
 const TYPES = {
   //Controllers
   QuestionController: Symbol.for('QuestionController'),
@@ -7,6 +9,7 @@ const TYPES = {
   AttemptService: Symbol.for('AttemptService'),
   QuestionBankService: Symbol.for('QuestionBankService'),
   QuizService: Symbol.for('QuizService'),
+  ProgressService: Symbol.for('ProgressService'),
 
   //Repositories
   QuestionRepo: Symbol.for('QuestionRepo'),

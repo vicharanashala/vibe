@@ -40,6 +40,7 @@ import {BadRequestErrorResponse} from '#root/shared/index.js';
 import {getCourseAbility} from '#root/modules/courses/abilities/courseAbilities.js';
 import {createObjectCsvStringifier} from 'csv-writer';
 import {Response, Request} from 'express';
+import {hideExplanationForStartAttempt} from '../utils/functions/hideExplanationForStartAttempt.js';
 
 @OpenAPI({
   tags: ['Quiz Attempts'],
@@ -89,7 +90,9 @@ class AttemptController {
     }
 
     const attempt = await this.attemptService.attempt(userId, quizId);
-    return attempt as CreateAttemptResponse;
+
+    return hideExplanationForStartAttempt(attempt) as CreateAttemptResponse;
+    // return attempt as CreateAttemptResponse;
   }
 
   @OpenAPI({
@@ -199,7 +202,7 @@ class AttemptController {
         req.on('error', err => reject(err));
       },
     );
-    const {isSkipped, answers} = body;
+    const {isSkipped, answers, courseId, courseVersionId} = body;
     const userId = user._id.toString();
     // Build subject context first
     const attemptSubject = subject('Attempt', {quizId});
@@ -216,6 +219,8 @@ class AttemptController {
       attemptId,
       answers,
       isSkipped,
+      courseId,
+      courseVersionId
     );
     return result as SubmitAttemptResponse;
   }
