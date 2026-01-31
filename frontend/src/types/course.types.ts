@@ -34,6 +34,9 @@ export interface CourseCardProps {
       description: string;
     };
     enrollmentDate?: string;
+    moduleNumber?:string;
+    sectionNumber?:string;
+    itemType?:string;
   };
   isLoading: boolean;
   index: number;

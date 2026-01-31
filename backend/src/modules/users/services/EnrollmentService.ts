@@ -413,7 +413,9 @@ export class EnrollmentService extends BaseService {
             enrollmentDate: new Date(enr.enrollmentDate),
             course: this.filterCourseVersions(enr.course, enrolledVersionIds),
             percentCompleted: enr.percentCompleted || 0,
-
+            moduleNumber:enr.moduleNumber,
+            sectionNumber:enr.sectionNumber,
+            itemType:enr.itemType,
             contentCounts: {
               totalItems: enr.totalItems ?? 0,
               videos: itemCounts.VIDEO ?? itemCounts.videos ?? 0,
