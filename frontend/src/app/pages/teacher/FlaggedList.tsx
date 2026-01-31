@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useNavigate } from "@tanstack/react-router"
-import { Users, Loader2, ChevronDown, ArrowUp, ArrowDown, Pencil, Flag, User, Clock, MessageSquare } from 'lucide-react'
+import { Users, Loader2, ChevronDown, ArrowUp, ArrowDown, Pencil, Flag, User, Clock, MessageSquare, BookOpen, ChevronRight } from 'lucide-react'
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -12,9 +12,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 // Import hooks - including the new quiz hooks
 import {
   useGetReports,
-   useCourseById,
+  useCourseById,
   useCourseVersionById,
- 
+
   useUpdateReportStatus,
   useGetReportDetails
 } from "@/hooks/hooks"
@@ -282,37 +282,37 @@ export default function FlaggedList() {
         <Card className="border-0 shadow-lg overflow-hidden">
 
           <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border bg-muted/30 ">
-                      {[
-                        { key: 'reason', label: 'Reason', className: 'pl-6 w-[300px]' },
-                        { key: 'entityType', label: 'Type', className: 'pl-6 w-[120px]' },
-                        { key: 'status', label: 'Latest satus', className: 'w-[120px]' },
-                        { key: 'reportedBy', label: 'Reported by', className: 'w-[120px]' },
-                        { key: 'createdDate', label: 'Reported on', className: 'w-[200px]' },
-                      ].map(({ key, label, className }) => (
-                        <TableHead
-                          key={key}
-                          className={`font-bold text-foreground cursor-pointer select-none text-center align-middle ${className}`}
-                          onClick={() => handleSort(key as SortKey)}
-                        >
-                          <span className="flex items-center gap-1">
-                            {label}
-                            {sortBy === SORT_MAP[key as SortKey] && (
-                              sortOrder === 'asc'
-                                ? <ArrowUp size={16} />
-                                : <ArrowDown size={16} />
-                            )}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border bg-muted/30 ">
+                    {[
+                      { key: 'reason', label: 'Reason', className: 'pl-6 w-[300px]' },
+                      { key: 'entityType', label: 'Type', className: 'pl-6 w-[120px]' },
+                      { key: 'status', label: 'Latest satus', className: 'w-[120px]' },
+                      { key: 'reportedBy', label: 'Reported by', className: 'w-[120px]' },
+                      { key: 'createdDate', label: 'Reported on', className: 'w-[200px]' },
+                    ].map(({ key, label, className }) => (
+                      <TableHead
+                        key={key}
+                        className={`font-bold text-foreground cursor-pointer select-none text-center align-middle ${className}`}
+                        onClick={() => handleSort(key as SortKey)}
+                      >
+                        <span className="flex items-center gap-1">
+                          {label}
+                          {sortBy === SORT_MAP[key as SortKey] && (
+                            sortOrder === 'asc'
+                              ? <ArrowUp size={16} />
+                              : <ArrowDown size={16} />
+                          )}
 
-                          </span>
-                        </TableHead>
-                      ))}
-                      <TableHead className="font-bold text-foreground pr-6 w-[200px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                        </span>
+                      </TableHead>
+                    ))}
+                    <TableHead className="font-bold text-foreground pr-6 w-[200px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {reportLoading ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-12">
@@ -412,170 +412,214 @@ export default function FlaggedList() {
                           }
                         </TableCell>
                       </TableRow>
-                            ))
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {selectedFlagData && selectedReport && (
+          <Dialog open={!isUpdatingStatus && !!selectedFlagData} onOpenChange={() => setSelectedReport(null)}>
+            <DialogContent className="lg:max-w-3xl md:max-w-2xl max-w-sm max-[425px]:w-[90vw] max-h-[85vh]">
+              <DialogHeader className="pb-4">
+                <DialogTitle className="flex items-center gap-2 text-xl">
+                  <Flag className="h-5 w-5 text-primary" />
+                  Flag Report Details
+                </DialogTitle>
+              </DialogHeader>
+
+              <ScrollArea className="h-[70vh] pr-4">
+                <div className="space-y-6">
+                  {/* Flag Overview */}
+                  <Card className="border-l-4 border-l-primary">
+                    <CardContent className="p-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <User className="h-4 w-4" />
+                            Reported by
+                          </div>
+                          <p className="font-medium">
+                            {selectedFlagData.reportedBy.firstName} {selectedFlagData.reportedBy.lastName}
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Clock className="h-4 w-4" />
+                            Reported on
+                          </div>
+                          <p className="font-medium">
+                            {new Date(selectedFlagData.createdAt).toLocaleDateString("en-US", {
+                              month: "long",
+                              day: "numeric",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 mb-4">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span>{getEntityTypeIcon(selectedFlagData.entityType)}</span>
+                          Entity Type
+                        </div>
+                        <Badge variant="outline" className="font-medium">
+                          {selectedFlagData.entityType}
+                        </Badge>
+                      </div>
+
+                      <Separator className="my-4" />
+
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <MessageSquare className="h-4 w-4" />
+                          Reason for flagging
+                        </div>
+                        <div className="bg-muted/50 rounded-lg p-3 border">
+                          <p className="text-sm leading-relaxed">
+                            {selectedFlagData.reason || (
+                              <span className="italic text-muted-foreground">No reason provided</span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Module, Section, and Item Information */}
+                  {(selectedFlagData.moduleName || selectedFlagData.sectionName || selectedFlagData.itemName) && (
+                    <Card className="border-l-4 border-l-accent">
+                      <CardContent className="p-6">
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <BookOpen className="h-5 w-5 text-accent" />
+                          Content Location
+                        </h3>
+                        <div className="flex items-center gap-2 text-sm flex-wrap">
+                          {selectedFlagData.moduleName && (
+                            <>
+                              <span className="text-muted-foreground font-medium">Module:</span>
+                              <Badge variant="secondary" className="font-medium px-3 py-1">
+                                {selectedFlagData.moduleName}
+                              </Badge>
+                              {(selectedFlagData.sectionName || selectedFlagData.itemName) && (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </>
                           )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
+                          {selectedFlagData.sectionName && (
+                            <>
+                              <span className="text-muted-foreground font-medium">Section:</span>
+                              <Badge variant="secondary" className="font-medium px-3 py-1">
+                                {selectedFlagData.sectionName}
+                              </Badge>
+                              {selectedFlagData.itemName && (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </>
+                          )}
+                          {selectedFlagData.itemName && (
+                            <>
+                              <span className="text-muted-foreground font-medium">Item:</span>
+                              <Badge variant="secondary" className="font-medium px-3 py-1">
+                                {selectedFlagData.itemName}
+                              </Badge>
+                            </>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
 
-                        {selectedFlagData && selectedReport && (
-                          <Dialog open={!isUpdatingStatus && !!selectedFlagData} onOpenChange={() => setSelectedReport(null)}>
-                            <DialogContent className="lg:max-w-3xl md:max-w-2xl max-w-sm max-[425px]:w-[90vw] max-h-[85vh]">
-                              <DialogHeader className="pb-4">
-                                <DialogTitle className="flex items-center gap-2 text-xl">
-                                  <Flag className="h-5 w-5 text-primary" />
-                                  Flag Report Details
-                                </DialogTitle>
-                              </DialogHeader>
+                  {/* Status Timeline */}
+                  <Card>
+                    <CardContent className="p-6">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Clock className="h-5 w-5 text-primary" />
+                        Status Timeline
+                      </h3>
 
-                              <ScrollArea className="h-[70vh] pr-4">
-                                <div className="space-y-6">
-                                  {/* Flag Overview */}
-                                  <Card className="border-l-4 border-l-primary">
-                                    <CardContent className="p-6">
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                        <div className="space-y-2">
-                                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                            <User className="h-4 w-4" />
-                                            Reported by
-                                          </div>
-                                          <p className="font-medium">
-                                            {selectedFlagData.reportedBy.firstName} {selectedFlagData.reportedBy.lastName}
-                                          </p>
-                                        </div>
+                      <div className="relative">
+                        <div className="absolute left-4 top-8 bottom-0 w-0.5 bg-border"></div>
 
-                                        <div className="space-y-2">
-                                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                            <Clock className="h-4 w-4" />
-                                            Reported on
-                                          </div>
-                                          <p className="font-medium">
-                                            {new Date(selectedFlagData.createdAt).toLocaleDateString("en-US", {
-                                              month: "long",
-                                              day: "numeric",
-                                              year: "numeric",
-                                              hour: "2-digit",
-                                              minute: "2-digit",
-                                            })}
-                                          </p>
-                                        </div>
-                                      </div>
-
-                                      <div className="space-y-2 mb-4">
-                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                          <span>{getEntityTypeIcon(selectedFlagData.entityType)}</span>
-                                          Entity Type
-                                        </div>
-                                        <Badge variant="outline" className="font-medium">
-                                          {selectedFlagData.entityType}
-                                        </Badge>
-                                      </div>
-
-                                      <Separator className="my-4" />
-
-                                      <div className="space-y-2">
-                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                          <MessageSquare className="h-4 w-4" />
-                                          Reason for flagging
-                                        </div>
-                                        <div className="bg-muted/50 rounded-lg p-3 border">
-                                          <p className="text-sm leading-relaxed">
-                                            {selectedFlagData.reason || (
-                                              <span className="italic text-muted-foreground">No reason provided</span>
-                                            )}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </CardContent>
-                                  </Card>
-
-                                  {/* Status Timeline */}
-                                  <Card>
-                                    <CardContent className="p-6">
-                                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                                        <Clock className="h-5 w-5 text-primary" />
-                                        Status Timeline
-                                      </h3>
-
-                                      <div className="relative">
-                                        <div className="absolute left-4 top-8 bottom-0 w-0.5 bg-border"></div>
-
-                                        <div className="space-y-6">
-                                          {selectedFlagData.status.map((item, index) => (
-                                            <div key={index} className="relative flex gap-4">
-                                              {/* Timeline dot */}
-                                              <div className="relative z-10 flex-shrink-0">
-                                                <div className="w-8 h-8 bg-background border-2 border-primary rounded-full flex items-center justify-center shadow-sm">
-                                                  <div className="w-3 h-3 bg-primary rounded-full"></div>
-                                                </div>
-                                              </div>
-
-                                              {/* Content */}
-                                              <div className="flex-1 min-w-0 pb-6">
-                                                <div className="bg-card border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
-                                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                                                    <Badge className={getStatusColor(item.status)}>{item.status.replace("_", " ")}</Badge>
-
-                                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                                      <Clock className="h-3 w-3" />
-                                                      {new Date(item.createdAt).toLocaleDateString("en-US", {
-                                                        month: "short",
-                                                        day: "numeric",
-                                                        year: "numeric",
-                                                        hour: "2-digit",
-                                                        minute: "2-digit",
-                                                      })}
-                                                    </div>
-                                                  </div>
-
-                                                  {item.comment && (
-                                                    <div className="bg-muted/30 rounded-md p-3 border-l-2 border-primary/30">
-                                                      <p className="text-sm text-foreground leading-relaxed">{item.comment}</p>
-                                                    </div>
-                                                  )}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    </CardContent>
-                                  </Card>
-
-                                  {/* Additional Info */}
-                                  <Card className="bg-muted/20">
-                                    <CardContent className="p-4">
-                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-muted-foreground">
-                                        <div>
-                                          <span className="font-medium">Course :</span>
-                                          <p className="font-mono mt-1 break-all">{selectedFlagData.courseId.name}</p>
-                                        </div>
-                                        <div>
-                                          <span className="font-medium">Entity ID:</span>
-                                          <p className="font-mono mt-1 break-all">{selectedFlagData.entityId}</p>
-                                        </div>
-                                        <div>
-                                          <span className="font-medium">Last Updated:</span>
-                                          <p className="mt-1">
-                                            {new Date(selectedFlagData.updatedAt).toLocaleDateString("en-US", {
-                                              month: "short",
-                                              day: "numeric",
-                                              hour: "2-digit",
-                                              minute: "2-digit",
-                                            })}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </CardContent>
-                                  </Card>
+                        <div className="space-y-6">
+                          {selectedFlagData.status.map((item, index) => (
+                            <div key={index} className="relative flex gap-4">
+                              {/* Timeline dot */}
+                              <div className="relative z-10 flex-shrink-0">
+                                <div className="w-8 h-8 bg-background border-2 border-primary rounded-full flex items-center justify-center shadow-sm">
+                                  <div className="w-3 h-3 bg-primary rounded-full"></div>
                                 </div>
-                              </ScrollArea>
-                            </DialogContent>
-                          </Dialog>
-                        )
-                        }
+                              </div>
+
+                              {/* Content */}
+                              <div className="flex-1 min-w-0 pb-6">
+                                <div className="bg-card border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                                    <Badge className={getStatusColor(item.status)}>{item.status.replace("_", " ")}</Badge>
+
+                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                      <Clock className="h-3 w-3" />
+                                      {new Date(item.createdAt).toLocaleDateString("en-US", {
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
+                                    </div>
+                                  </div>
+
+                                  {item.comment && (
+                                    <div className="bg-muted/30 rounded-md p-3 border-l-2 border-primary/30">
+                                      <p className="text-sm text-foreground leading-relaxed">{item.comment}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Additional Info */}
+                  <Card className="bg-muted/20">
+                    <CardContent className="p-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-muted-foreground">
+                        <div>
+                          <span className="font-medium">Course :</span>
+                          <p className="font-mono mt-1 break-all">{selectedFlagData.courseId.name}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium">Entity ID:</span>
+                          <p className="font-mono mt-1 break-all">{selectedFlagData.entityId}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium">Last Updated:</span>
+                          <p className="mt-1">
+                            {new Date(selectedFlagData.updatedAt).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </ScrollArea>
+            </DialogContent>
+          </Dialog>
+        )
+        }
         {selectedReport?.id &&
           <FlagModal
             open={updateStatusModalOpen}
