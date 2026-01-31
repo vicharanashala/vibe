@@ -8,6 +8,7 @@ import { useStartItem, useStopItem, useSubmitFeedback } from "@/hooks/hooks";
 import { useEffect, useRef } from "react";
 import { ISubmitFeedbackBody } from "@/components/Item-container";
 import Form from "@rjsf/shadcn";
+import { toast } from "sonner";
 
 
 interface FeedbackFormProps {
@@ -124,7 +125,8 @@ const FeedbackForm = ({
 
     try {
       // 1️⃣ If this fails, it immediately goes to catch
-      await submitFeedback.mutateAsync(payload);
+       const result = await submitFeedback.mutateAsync(payload);
+       toast.success(result.message);
 
       // 2️⃣ Only runs if submitFeedback succeeded
       await stopItem.mutateAsync({
@@ -146,7 +148,7 @@ const FeedbackForm = ({
       onNext();
 
     } catch (err) {
-      console.error("Feedback submit or stop failed:", err);
+      console.error("Feedback submit or stopItem failed:", err);
     }
   };
 
