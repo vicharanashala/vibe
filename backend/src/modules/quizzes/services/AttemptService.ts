@@ -483,10 +483,6 @@ class AttemptService extends BaseService {
 
     gradingResult = await this._grade(attemptId, quizId, answers);
 
-    // if passed endtime should be updated even if the nextitem is not clicked therfore the change
-    if(gradingResult.gradingStatus === "PASSED"){ 
-      await this.progressRepository.stopItemTracking(watchItemId); 
-    }
 
     /* -------------------- UPDATE SUBMISSION (SMALL WRITE) -------------------- */
 

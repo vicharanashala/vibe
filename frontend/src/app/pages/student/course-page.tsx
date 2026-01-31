@@ -178,6 +178,7 @@ export default function CoursePage() {
   const [isQuizSkipped, setIsQuizSkipped] = useState(false);
   const [readyToDetect, setReadyToDetect] = useState(false);
   const [isNavigatingToPrev, setIsNavigatingToPrev] = useState<boolean>(false);
+  const [isVerifyingItem, setIsVerifyingItem] = useState<boolean>(false);
 
 
 
@@ -241,7 +242,8 @@ export default function CoursePage() {
     data: itemData,
     isLoading: itemLoading,
     error: itemError,
-    errorName: itemErrorName
+    errorName: itemErrorName,
+    refetch:refetchItem
   } = useItemById( 
     shouldFetchItem ? COURSE_ID : '',
     shouldFetchItem ? VERSION_ID : '',
@@ -509,19 +511,50 @@ export default function CoursePage() {
   }, [progressData, updateCourseNavigation, initialLoadComplete]);
 
   // Effect to set current item when item data is fetched
+  // useEffect(() => {
+  //   console.log("Item Data: ", itemData);
+  //   if (itemData && !itemLoading) {
+  //     // Handle the different possible response structures
+  //     const item = (itemData as any)?.item || itemData;
+  //     if (item && typeof item === 'object' && item._id) {
+  //       setCurrentItem(item);
+  //       // Clear loading state when new item is successfully loaded
+  //       setIsNavigatingToNext(false);
+  //       console.log("item ",item);
+  //     }
+  //   }
+  // }, [itemData, itemLoading]);
+
   useEffect(() => {
-    console.log("Item Data: ", itemData);
-    if (itemData && !itemLoading) {
-      // Handle the different possible response structures
-      const item = (itemData as any)?.item || itemData;
-      if (item && typeof item === 'object' && item._id) {
-        setCurrentItem(item);
-        // Clear loading state when new item is successfully loaded
-        setIsNavigatingToNext(false);
-        console.log("item ",item);
-      }
+    if (!itemData || itemLoading) return;
+
+    const localItem = (itemData as any)?.item || itemData;
+    if (!localItem?._id) return;
+
+    let cancelled = false;
+
+    const verify = async () => {
+    setIsVerifyingItem(true);
+
+    const response = await refetchItem();
+    const backendItem =
+    (response.data as any)?.item || response.data;
+
+    console.log("Verifying item: ", backendItem, localItem);
+
+    if (!cancelled && backendItem?.isItemAlreadyCompleted === localItem.isItemAlreadyCompleted) {
+    setCurrentItem(localItem); // ✅ commit verified truth
+    setIsVerifyingItem(false);
+    setIsNavigatingToNext(false); // Clear loading state
     }
-  }, [itemData, itemLoading]);
+    };
+
+    verify();
+
+    return () => {
+    cancelled = true;
+    };
+  }, [refetchItem, itemLoading, itemData]);
 
 
 
@@ -1900,8 +1933,8 @@ export default function CoursePage() {
                       onNext={handleNext}
                       isProgressUpdating={isNavigatingToNext}
                     />
-                  ) : (
-                    <ItemContainer
+                  ) : (isVerifyingItem || !currentItem ? (<div>Loading.....</div>):(                    
+                  <ItemContainer
                       ref={itemContainerRef}
                       item={currentItem}
                       nextItem={findNextItem()}
@@ -1924,7 +1957,7 @@ export default function CoursePage() {
                       courseId={COURSE_ID}
                       versionId={VERSION_ID}
                       sectionId={sectionId}
-                    />
+                    />)
                   )}
 
                 </div>
