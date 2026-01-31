@@ -24,27 +24,30 @@ export type EntityType =
     | 'QUESTION';
 
 export enum ReportEntityEntity {
-  VIDEO = 'VIDEO',
-  QUIZ = 'QUIZ',
-  ARTICLE= "ARTICLE",
-  QUESTION="QUESTION"
+    VIDEO = 'VIDEO',
+    QUIZ = 'QUIZ',
+    ARTICLE = "ARTICLE",
+    QUESTION = "QUESTION"
 }
 export type ReportStatus = 'REPORTED' | 'IN_REVIEW' | 'RESOLVED' | 'DISCARDED' | 'CLOSED';
 
 export interface IStatus {
- status: ReportStatus;
- comment: string;
+    status: ReportStatus;
+    comment: string;
 }
 
 export interface IReport {
-    _id: string ;
+    _id: string;
     courseId: string | components['schemas']['CourseDataResponse'];
-    versionId: string ;
-    entityId: string ;
+    versionId: string;
+    entityId: string;
     entityType: EntityType;
     reportedBy: string | components['schemas']['UserByFirebaseUIDResponse'];
     reason: string;
     status: IStatus[];
     createdAt: Date;
     updatedAt: Date;
+    moduleName?: string;
+    sectionName?: string;
+    itemName?: string;
 }
