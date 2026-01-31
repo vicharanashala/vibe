@@ -62,7 +62,28 @@ export class AuthController {
     statusCode: 401,
   })
   async signup(@Body() body: SignUpBody, @Req() req: any) {
-    const acknowledgedInvites = await this.authService.signup(body);
+    const { recaptchaToken, ...signUpData } = body;
+
+    // Verify reCAPTCHA token
+    if (!recaptchaToken) {
+      throw new HttpError(400, 'reCAPTCHA verification is required');
+    }
+
+    const { verifyRecaptcha } = await import('#root/shared/functions/verifyRecaptcha.js');
+
+    try {
+      const isValidRecaptcha = await verifyRecaptcha(recaptchaToken);
+      if (!isValidRecaptcha) {
+        throw new HttpError(400, 'reCAPTCHA verification failed. Please try again.');
+      }
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      throw new HttpError(500, 'Failed to verify reCAPTCHA. Please try again.');
+    }
+
+    const acknowledgedInvites = await this.authService.signup(signUpData as any);
     // req.session.userId = acknowledgedInvites;
     if (acknowledgedInvites) {
       return acknowledgedInvites;
