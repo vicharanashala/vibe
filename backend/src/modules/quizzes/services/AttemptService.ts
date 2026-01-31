@@ -624,8 +624,8 @@ class AttemptService extends BaseService {
     answers: IQuestionAnswer[],
     isSkipped?: boolean,
   ): Promise<{
-    result: 'CORRECT' | 'INCORRECT' | 'PARTIALLY_CORRECT';
-    explanation?: string;
+    status: 'saved' | 'failed to save';
+    message?: string;
   }> {
     /* -------------------- READS OUTSIDE TRANSACTION -------------------- */
 
@@ -643,126 +643,50 @@ class AttemptService extends BaseService {
       throw new BadRequestError('Quiz deadline has passed');
     }
 
-    // 3. Get last answer (if any)
-    const lastAnswer = answers?.at(-1);
-
-    // 4. Fetch question only if needed
-    let question: NATQuestion | SOLQuestion | SMLQuestion | undefined;
-
-    if (lastAnswer) {
-      question = (await this.questionService.getById(
-        lastAnswer.questionId,
-        true,
-      )) as typeof question;
-    }
-
     /* -------------------- TRANSACTION (WRITE ONLY) -------------------- */
-    await this._withTransaction(async session => {
-      const attempt = await this.attemptRepository.getById(
-        attemptId,
-        quizId,
-        session,
-      );
-
-      if (!attempt) {
-        throw new NotFoundError(`Attempt with ID ${attemptId} not found`);
-      }
-
-      // Ownership validation
-      if (
-        attempt.userId.toString() !== userId.toString() ||
-        attempt.quizId.toString() !== quizId
-      ) {
-        throw new BadRequestError(
-          'Attempt does not belong to the user or quiz',
+    try {
+      await this._withTransaction(async session => {
+        const attempt = await this.attemptRepository.getById(
+          attemptId,
+          quizId,
+          session,
         );
-      }
 
-      // Update attempt
-      attempt.updatedAt = new Date();
+        if (!attempt) {
+          throw new NotFoundError(`Attempt with ID ${attemptId} not found`);
+        }
 
-      if (isSkipped) {
-        attempt.isSkipped = true;
-      } else {
-        attempt.answers = answers;
-      }
-
-      await this.attemptRepository.update(attemptId, attempt);
-    });
-
-    /* -------------------- ANSWER EVALUATION (NO TRANSACTION) -------------------- */
-
-    if (isSkipped || !lastAnswer || !question) {
-      return {
-        result: 'INCORRECT',
-        explanation: 'Question was skipped or no answer provided',
-      };
-    }
-
-    switch (lastAnswer.questionType) {
-      case 'NUMERIC_ANSWER_TYPE': {
-        const submittedValue = (lastAnswer.answer as { value: number }).value;
-        const natQuestion = question as NATQuestion;
-
+        // Ownership validation
         if (
-          submittedValue < natQuestion.lowerLimit ||
-          submittedValue > natQuestion.upperLimit
+          attempt.userId.toString() !== userId.toString() ||
+          attempt.quizId.toString() !== quizId
         ) {
           throw new BadRequestError(
-            `Answer should be in range ${natQuestion.lowerLimit} - ${natQuestion.upperLimit}`,
+            'Attempt does not belong to the user or quiz',
           );
         }
 
-        return {
-          result:
-            submittedValue === natQuestion.value ? 'CORRECT' : 'INCORRECT',
-        };
-      }
+        // Update attempt
+        attempt.updatedAt = new Date();
 
-      case 'SELECT_ONE_IN_LOT': {
-        const answer = lastAnswer.answer as ISOLAnswer;
-        const solQuestion = question as SOLQuestion;
+        if (isSkipped) {
+          attempt.isSkipped = true;
+        } else {
+          attempt.answers = answers;
+        }
 
-        const isCorrect =
-          solQuestion.correctLotItem?._id.toString() === answer.lotItemId;
+        await this.attemptRepository.update(attemptId, attempt);
+      });
 
-        const allOptions = [
-          solQuestion.correctLotItem,
-          ...solQuestion.incorrectLotItems,
-        ];
-
-        return {
-          result: isCorrect ? 'CORRECT' : 'INCORRECT',
-          explanation: allOptions.find(
-            opt => opt._id.toString() === answer.lotItemId,
-          )?.explaination,
-        };
-      }
-
-      case 'SELECT_MANY_IN_LOT': {
-        const answer = lastAnswer.answer as { lotItemIds: string[] };
-        const smlQuestion = question as SMLQuestion;
-
-        const isCorrect = smlQuestion.correctLotItems.every(item =>
-          answer.lotItemIds.includes(item._id.toString()),
-        );
-
-        return {
-          result: isCorrect ? 'CORRECT' : 'INCORRECT',
-          explanation: isCorrect
-            ? smlQuestion.correctLotItems
-              .map(item => item.explaination)
-              .join(', ')
-            : 'Some of the selected answers are incorrect.',
-        };
-      }
-
-      default:
-        return {
-          result: 'INCORRECT',
-          explanation:
-            'Unable to determine correctness for the provided answers.',
-        };
+      return {
+        status: 'saved',
+        message: 'Answers saved successfully',
+      };
+    } catch (error) {
+      return {
+        status: 'failed to save',
+        message: 'Failed to save answers',
+      };
     }
   }
 
