@@ -966,6 +966,22 @@ export default function CoursePage() {
         if (itemContainerRef.current) {
           try {
             await itemContainerRef.current.stopCurrentItem();
+            // ✅ Mark current item as completed locally
+            if (selectedSectionId && selectedItemId) {
+              setSectionItems(prev => {
+                const section = prev[selectedSectionId];
+                if (!section) return prev;
+
+                return {
+                  ...prev,
+                  [selectedSectionId]: section.map(item =>
+                    item._id === selectedItemId
+                      ? { ...item, isCompleted: true }
+                      : item
+                  )
+                };
+              });
+            }
           } catch (error: any) {
             const errorMessage = error?.response?.data?.message || error?.message || 'Failed to save progress. Please try again.';
             toast.error(errorMessage);
