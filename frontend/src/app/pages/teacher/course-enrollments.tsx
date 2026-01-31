@@ -199,7 +199,7 @@ export default function CourseEnrollments() {
       return (
         <div className="flex justify-between items-center">
           <span className="text-muted-foreground">{label}</span>
-          <span className="font-semibold">{value ?? 0}</span>
+          <span className="font-semibold text-right min-w-16">{value ?? 0}</span>
         </div>
       )
     }
