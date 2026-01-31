@@ -1437,7 +1437,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                             ? 'border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/20'
                             : 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/20'
                         : hasAnswer
-                          ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20'
+                          ? 'border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-950/20'
                           : 'border-gray-200'
                     }
                   >
@@ -1470,7 +1470,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                         <Badge variant={
                           questionFeedback
                             ? questionFeedback.status === 'CORRECT' ? 'default' : 'destructive'
-                            : hasAnswer ? 'default' : 'destructive'
+                            : hasAnswer ? 'secondary' : 'destructive'
                         }>
                           {showScoreAfterSubmission && questionFeedback
                             ? `${questionFeedback.score}/${question.points} Points`
@@ -1497,13 +1497,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                         </div>
                       )}
                       {/* Show correct answers if enabled and available */}
-                      {/* {showCorrectAnswersAfterSubmission && questionFeedback && (
+                      {showCorrectAnswersAfterSubmission && questionFeedback && (
                         <div className="mt-3 p-2 bg-green-50 dark:bg-green-950/20 rounded">
                           <p className="text-sm font-medium text-green-700 dark:text-green-300">
                             Status: {questionFeedback.status}
                           </p>
                         </div>
-                      )} */}
+                      )}
                       {/* Show explanation if enabled and available */}
                       {showExplanationAfterSubmission && questionFeedback?.answerFeedback && (
                         <div className="mt-3 p-2 bg-amber-50 dark:bg-amber-950/20 rounded">
