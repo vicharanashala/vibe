@@ -19,6 +19,7 @@ export interface IUser {
   firstName: string;
   lastName?: string;
   roles: 'admin' | 'user';
+  avatar?:string; //Added this for avatar
 }
 
 export type Versions = {

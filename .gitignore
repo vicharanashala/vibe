@@ -69,3 +69,6 @@ google_credentials.json
 backend/tsconfig.tsbuildinfo
 frontend/tsconfig.tsbuildinfo
 frontend/.firebase
+
+commands.txt
+cors.json

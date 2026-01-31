@@ -1697,8 +1697,8 @@ export function useWatchTimeByItemId(userId: string, courseId: string, courseVer
 }
 
 export function useEditUser(): {
-  mutate: (variables: { body: { firstName?: string; lastName?: string } }) => void,
-  mutateAsync: (variables: { body: { firstName?: string; lastName?: string } }) => Promise<void>,
+  mutate: (variables: { body: { firstName?: string; lastName?: string; avatar?:string } }) => void,
+  mutateAsync: (variables: { body: { firstName?: string; lastName?: string; avatar?:string } }) => Promise<void>,
   data: void | undefined,
   error: string | null,
   isPending: boolean,

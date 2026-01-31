@@ -17,6 +17,10 @@ import { LogOut } from "lucide-react"
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal"
 import { Skeleton } from "@/components/ui/skeleton"
 
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { getStorage } from "firebase/storage";
+import { app } from "@/lib/firebase";
+const storage = getStorage(app);
 export default function UserProfile({ role = "student" }: { role?: "student" | "teacher" | "admin" }) {
   const { user, setUser } = useAuthStore()
   const navigate = useNavigate()
@@ -65,8 +69,48 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
   const [newFirstName, setNewFirstName] = useState(firstName || "")
   const [newLastName, setNewLastName] = useState(lastName || "")
   const [confirmLogout, setConfirmLogout] = useState(false);
-
+  
   const { mutateAsync: editUser } = useEditUser();
+  const [uploading, setUploading] = useState(false);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if(!file) return;
+
+    if(file.size > 5 * 1024 * 1024){
+      toast.error("Profile Picture should be less than 5MB");
+      return;
+    }
+    setUploading(true);
+    try{
+      
+      // For demo only:
+    // const url = URL.createObjectURL(file);
+    // console.log("Avatar file:", file);
+    // console.log("Avatar URL:", url);
+    const storageRef= ref(storage,`avatars/${user?.uid}`);
+
+    await uploadBytes(storageRef,file);
+    const url = await getDownloadURL(storageRef);
+
+    await editUser({ body: { avatar: url } });
+    if(user){
+      setUser({ ...user, avatar: url });
+    }
+    toast.success("Profile picture updated!");
+
+    console.log("Uploaded avatar URL:", url);
+    console.log("Avatar upload successful for user:", user?.uid);
+
+    }catch(err){
+      toast.error(`Failed to upload profile picture: ${err instanceof Error ? err.message : String(err)}`);
+    }finally{
+      setUploading(false);
+    }
+
+  }
+
+
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -124,6 +168,18 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                       {avatarFallback.toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
+                  {/* Edit button shape*/ }
+                  <div className= "absolute bottom-4 right-0">
+                    {/**file input */}
+                    <input type="file" accept="image/*" id="avatar-upload" style={{display:"none"}} onChange={handleAvatarChange} disabled={uploading}  />
+                    <label htmlFor="avatar-upload">
+                      <Button variant="ghost" size="icon" className="rounded-full bg-white/80 hover:bg-white" asChild>
+                        <span>
+                          <Pencil className="h-5 w-5 text-gray-700"/>
+                        </span>
+                      </Button>
+                    </label>
+                  </div> 
                   <div className="absolute -bottom-2 right-4">
                     <Badge variant="secondary" className="text-xs px-3 py-1 bg-white dark:bg-gray-800 shadow-lg border">
                       {displayRole}
@@ -133,10 +189,11 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
 
                 <div className="text-center space-y-2">
                   <h3 className="font-bold text-xl">{displayName}</h3>
-                  <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
+                  {/** Changing because of hydration error Div cann't be inside P */}
+                  <div className="text-sm text-muted-foreground flex items-center justify-center gap-2">
                     <div className="xl:flex lg:hidden flex"><Mail className="h-4 w-4" /></div>
                     {displayEmail}
-                  </p>
+                  </div>
                 </div>
 
                 <div className="w-full space-y-4">

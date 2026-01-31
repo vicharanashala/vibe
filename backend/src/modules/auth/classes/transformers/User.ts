@@ -7,6 +7,7 @@ import {Expose, Transform} from 'class-transformer';
 import { IsNotEmpty, IsString } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 import {ObjectId} from 'mongodb';
+import { title } from 'process';
 
 class User implements IUser {
   @Transform(ObjectIdToString.transformer, {toPlainOnly: true}) // Convert ObjectId -> string when serializing
@@ -60,6 +61,14 @@ class User implements IUser {
   })
   roles: 'admin' | 'user';
 
+  @Expose()
+  @IsString()
+  @JSONSchema({
+    title:"Avatar",
+    description:"User's avatar URL",
+  })
+  avatar?:string;
+
   constructor(data: Partial<IUser>) {
     this._id = data?._id ? new ObjectId(data?._id) : null;
     this.firebaseUID = data?.firebaseUID;
@@ -67,6 +76,7 @@ class User implements IUser {
     this.firstName = data?.firstName;
     this.lastName = data?.lastName;
     this.roles = data?.roles || 'user';
+    this.avatar = data?.avatar;
   }
 }
 
