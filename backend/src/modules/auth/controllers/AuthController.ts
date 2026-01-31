@@ -149,7 +149,25 @@ export class AuthController {
     statusCode: 401,
   })
   async login(@Body() body: LoginBody) {
-    const {email, password} = body;
+    const {email, password, recaptchaToken} = body;
+
+    // Import verifyRecaptcha dynamically to avoid circular dependency
+    const { verifyRecaptcha } = await import('#root/shared/functions/verifyRecaptcha.js');
+
+    // Verify reCAPTCHA token
+    try {
+      const isValidRecaptcha = await verifyRecaptcha(recaptchaToken);
+      if (!isValidRecaptcha) {
+        throw new HttpError(400, 'reCAPTCHA verification failed. Please try again.');
+      }
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      throw new HttpError(500, 'Failed to verify reCAPTCHA. Please try again.');
+    }
+
+    // Proceed with Firebase authentication
     const data = await fetch(
       `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${appConfig.firebase.apiKey}`,
       {

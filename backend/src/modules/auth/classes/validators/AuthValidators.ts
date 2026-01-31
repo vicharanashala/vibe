@@ -256,6 +256,16 @@ class LoginBody {
   @IsNotEmpty()
   @MinLength(8)
   password: string;
+
+  @JSONSchema({
+    title: 'reCAPTCHA Token',
+    description: 'reCAPTCHA verification token obtained from the frontend widget',
+    example: '03AGdBq27...',
+    type: 'string',
+  })
+  @IsString()
+  @IsNotEmpty()
+  recaptchaToken: string;
 }
 
 class LoginResponse {
