@@ -48,16 +48,15 @@ import {
   ProgressActions,
   getProgressAbility,
 } from '../abilities/progressAbilities.js';
-import {Ability} from '#root/shared/functions/AbilityDecorator.js';
-import {subject} from '@casl/ability';
-import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
-import {QuizService} from '#root/modules/quizzes/services/index.js';
-import {BadRequestErrorResponse, IUser} from '#root/shared/index.js';
-import {InternalServerErrorResponse} from '../../../shared/middleware/errorHandler.js';
-import {COURSES_TYPES} from '#root/modules/courses/types.js';
-import {ItemService} from '#root/modules/courses/services/ItemService.js';
-import {SuccessResponse} from '#root/modules/projects/classes/validators/ProjectValidators.js';
-import { GetCurrentProgressPathResponse } from '../dtos/GetCurrentProgressPathResponse.ts';
+import { Ability } from '#root/shared/functions/AbilityDecorator.js';
+import { subject } from '@casl/ability';
+import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
+import { QuizService } from '#root/modules/quizzes/services/index.js';
+import { BadRequestErrorResponse, IUser } from '#root/shared/index.js';
+import { InternalServerErrorResponse } from '../../../shared/middleware/errorHandler.js';
+import { COURSES_TYPES } from '#root/modules/courses/types.js';
+import { ItemService } from '#root/modules/courses/services/ItemService.js';
+import { SuccessResponse } from '#root/modules/projects/classes/validators/ProjectValidators.js';
 import { CourseVersionQuery } from '#root/modules/courses/classes/index.js';
 
 @OpenAPI({
@@ -118,22 +117,22 @@ class ProgressController {
     return progress;
   }
 
-@Authorized()
-@Get('/progress/courses/:courseId/versions/:versionId/current-path')
-@HttpCode(200)
-async getCurrentProgressPath(
-  @Params() params: GetUserProgressParams,
-  @Ability(getProgressAbility) { user },
-): Promise<GetCurrentProgressPathResponse> {
-  const { courseId, versionId } = params
-  const userId = user._id.toString()
+  @Authorized()
+  @Get('/progress/courses/:courseId/versions/:versionId/current-path')
+  @HttpCode(200)
+  async getCurrentProgressPath(
+    @Params() params: GetUserProgressParams,
+    @Ability(getProgressAbility) { user },
+  ): Promise<any> {
+    const { courseId, versionId } = params
+    const userId = user._id.toString()
 
-  return await this.progressService.getCurrentProgressPath(
-    userId,
-    courseId,
-    versionId
-  )
-}
+    return await this.progressService.getCurrentProgressPath(
+      userId,
+      courseId,
+      versionId
+    )
+  }
   @OpenAPI({
     summary: 'Get %age progress in a course version',
     description:
@@ -159,39 +158,17 @@ async getCurrentProgressPath(
     // Create a progress resource object for permission checking
     const progressResource = subject('Progress', { userId, courseId, versionId });
 
- 
-@OpenAPI({
-  summary: 'Get %age progress in a course version',
-})
-@Authorized()
-@Get('/progress/courses/:courseId/versions/:versionId/percentage')
-@HttpCode(200)
-@ResponseSchema(CompletedProgressResponse)
-@ResponseSchema(ProgressNotFoundErrorResponse, { statusCode: 404 })
-async getUserProgressPercentage(
-  @Params() params: GetUserProgressParams,
-  @Ability(getProgressAbility) { ability, user },
-): Promise<CompletedProgressResponse> {
 
-  const { courseId, versionId } = params;
-  const userId = user._id.toString();
+    if (!ability.can(ProgressActions.View, progressResource)) {
+      throw new ForbiddenError('You do not have permission');
+    }
 
-  const progressResource = subject('Progress', {
-    userId,
-    courseId,
-    versionId,
-  });
-
-  if (!ability.can(ProgressActions.View, progressResource)) {
-    throw new ForbiddenError('You do not have permission');
+    return await this.progressService.getUserProgressPercentage(
+      userId,
+      courseId,
+      versionId,
+    );
   }
-
-  return await this.progressService.getUserProgressPercentage(
-    userId,
-    courseId,
-    versionId,
-  );
-}
 
 
   @OpenAPI({
