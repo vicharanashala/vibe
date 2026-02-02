@@ -360,9 +360,11 @@ export class ItemService extends BaseService {
       });
     }
 
-    console.log(`[ItemService] About to return ${itemsGroup.items.length} items`);
+    console.log(
+      `[ItemService] About to return ${itemsGroup.items.length} items`,
+    );
     console.log(`[ItemService] First item:`, itemsGroup.items[0]);
-    
+
     return itemsGroup.items;
   }
 
@@ -513,6 +515,14 @@ export class ItemService extends BaseService {
   public async deleteItem(itemsGroupId: string, itemId: string) {
     return this._withTransaction(async session => {
       try {
+        // Read Item
+        const item = await this.itemRepo.readItemById(itemId, session);
+        if (!item) throw new InternalServerError('Item not found');
+
+        // Check item type
+        if (item.type === 'FEEDBACK') {
+          await this.feedbackRepo.deleteSubmissionsByFormId(itemId, session);
+        }
         // Step 1: Delete item
         const deleted = await this.itemRepo.deleteItem(
           itemsGroupId,
@@ -992,10 +1002,10 @@ export class ItemService extends BaseService {
           const timeCache = new Map<string, number>();
 
           const endTime = timestamp
-            ? timeCache.get(timestamp) ??
+            ? (timeCache.get(timestamp) ??
               timeCache
                 .set(timestamp, this._convertTimeToSeconds(timestamp))
-                .get(timestamp)!
+                .get(timestamp)!)
             : previousEndTime + 300;
 
           // Create video item

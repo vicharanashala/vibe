@@ -410,6 +410,13 @@ export interface IProgress {
   completedAt?: Date;
 }
 
+export interface ICurrentProgressPath {
+  module: { id: string; name: string } | null;
+  section: { id: string; name: string } | null;
+  item: { id: string; name: string; type: string } | null;
+  message?: string;
+}
+
 export interface IWatchTime {
   _id?: string | ObjectId | null;
   userId: string | ObjectId;
