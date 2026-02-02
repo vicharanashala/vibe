@@ -18,6 +18,10 @@ export interface CourseCardProps {
       articles?: number;
       totalQuizScore?: number;
       totalQuizMaxScore?: number;
+      completedVideos?: number;
+      completedQuizzes?: number;
+      completedArticles?: number;
+      completedProjects?: number;
     };
     completedItems?: number;
     course?: {

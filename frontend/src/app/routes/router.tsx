@@ -114,19 +114,37 @@ const teacherLayoutRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/teacher',
   notFoundComponent: NotFoundComponent,
-  beforeLoad: () => {
-    // Auth and role check
-    const { isAuthenticated, user } = useAuthStore.getState();
-    if (!isAuthenticated) {
+  beforeLoad: async () => {
+    const { isAuthReady } = useAuthStore.getState();
+
+    // If auth isn't ready, wait for it (max 5 seconds)
+    if (!isAuthReady) {
+      await new Promise<void>((resolve) => {
+        const unsubscribe = useAuthStore.subscribe((state) => {
+          if (state.isAuthReady) {
+            unsubscribe();
+            resolve();
+          }
+        });
+        setTimeout(() => {
+          unsubscribe();
+          resolve();
+        }, 5000);
+      });
+    }
+
+    // Re-check auth state after waiting
+    const currentState = useAuthStore.getState();
+    if (!currentState.isAuthenticated) {
       throw redirect({ to: '/auth' });
     }
 
     // Role check - must be a teacher
-    if (user?.role !== 'teacher') {
-      if (user?.role === 'student') {
-        throw redirect({ to: '/student' }); // Redirect students to their dashboard
+    if (currentState.user?.role !== 'teacher') {
+      if (currentState.user?.role === 'student') {
+        throw redirect({ to: '/student' });
       } else {
-        throw redirect({ to: '/auth' }); // Redirect others to auth
+        throw redirect({ to: '/auth' });
       }
     }
   },
@@ -138,24 +156,42 @@ const studentLayoutRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/student',
   notFoundComponent: NotFoundComponent,
-  beforeLoad: () => {
-    // Auth and role check
-    const { isAuthenticated, user } = useAuthStore.getState();
-    if (!isAuthenticated) {
+  beforeLoad: async () => {
+    const { isAuthReady } = useAuthStore.getState();
+
+    // If auth isn't ready, wait for it (max 5 seconds)
+    if (!isAuthReady) {
+      await new Promise<void>((resolve) => {
+        const unsubscribe = useAuthStore.subscribe((state) => {
+          if (state.isAuthReady) {
+            unsubscribe();
+            resolve();
+          }
+        });
+        setTimeout(() => {
+          unsubscribe();
+          resolve();
+        }, 5000);
+      });
+    }
+
+    // Re-check auth state after waiting
+    const currentState = useAuthStore.getState();
+    if (!currentState.isAuthenticated) {
       throw redirect({ to: '/auth' });
     }
     // Role check - must be a student
-    if (user?.role !== 'student') {
-      if (user?.role === 'teacher') {
+    if (currentState.user?.role !== 'student') {
+      if (currentState.user?.role === 'teacher') {
         throw redirect({ to: '/teacher' }); // Redirect teachers to their dashboard
       } else {
         throw redirect({ to: '/auth' }); // Redirect others to auth
       }
     }
   },
-  component: ()=> (
+  component: () => (
     <StudentRouteGuard>
-      <StudentLayout/>
+      <StudentLayout />
     </StudentRouteGuard>
   )
   ,
@@ -233,9 +269,9 @@ const teacherCourseInstructorsRoute = new Route({
 
 // Teacher Course Regstration requests
 const teacherCourseRegistrationRequests = new Route({
-  getParentRoute:() => teacherLayoutRoute,
-  path:'/courses/registration-requests',
-  component:RegisteredUsers
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/registration-requests',
+  component: RegisteredUsers
 })
 
 
@@ -270,9 +306,9 @@ const teacherAddCourseRoute = new Route({
 
 //Teacher feedback form route 
 const teacherFeedBackEditorRoute = new Route({
-  getParentRoute:() => teacherLayoutRoute,
-  path:'editor/feedback',
-  component:FeedbackFormEditor
+  getParentRoute: () => teacherLayoutRoute,
+  path: 'editor/feedback',
+  component: FeedbackFormEditor
 })
 
 // Teacher generate section route
@@ -313,9 +349,9 @@ const studentCoursesRoute = new Route({
 // student issues routes 
 
 const studentIssuesRoute = new Route({
-  getParentRoute:() => studentLayoutRoute,
-  path:'/issues',
-  component:CourseIssueReports,
+  getParentRoute: () => studentLayoutRoute,
+  path: '/issues',
+  component: CourseIssueReports,
 })
 
 // Student leaderboard route
@@ -332,9 +368,9 @@ const studentProfileRoute = new Route({
   component: StudentProfile,
 });
 
-export  const studentCourseInviteRegistration = new Route({
+export const studentCourseInviteRegistration = new Route({
   getParentRoute: () => studentLayoutRoute,
-  path:"/course-registration/$versionId",
+  path: "/course-registration/$versionId",
   component: CourseRegistration,
 })
 
@@ -388,7 +424,7 @@ const routeTree = rootRoute.addChildren([
     // teacherDashboardRoute,
     teacherCreateArticleRoute,
     teacherCoursesPageRoute,
-    teacherViewCourseRoute,teacherCourseFlagsRoute,
+    teacherViewCourseRoute, teacherCourseFlagsRoute,
     teacherProfileRoute,
     teacherCourseEnrollmentsRoute,
     teacherAudioManagerRoute,

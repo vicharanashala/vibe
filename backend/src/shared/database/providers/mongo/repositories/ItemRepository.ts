@@ -1,13 +1,13 @@
-﻿import {GLOBAL_TYPES} from '#root/types.js';
-import {ICourseRepository} from '#shared/database/interfaces/ICourseRepository.js';
-import {IItemRepository} from '#shared/database/interfaces/IItemRepository.js';
-import {IQuizItem, ItemType} from '#shared/interfaces/models.js';
-import {instanceToPlain} from 'class-transformer';
-import {injectable, inject} from 'inversify';
-import {Collection, ClientSession, ObjectId} from 'mongodb';
-import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {MongoDatabase} from '../MongoDatabase.js';
-import {IQuestionBank} from '#root/shared/interfaces/quiz.js';
+﻿import { GLOBAL_TYPES } from '#root/types.js';
+import { ICourseRepository } from '#shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#shared/database/interfaces/IItemRepository.js';
+import { IQuizItem, ItemType } from '#shared/interfaces/models.js';
+import { instanceToPlain } from 'class-transformer';
+import { injectable, inject } from 'inversify';
+import { Collection, ClientSession, ObjectId } from 'mongodb';
+import { InternalServerError, NotFoundError } from 'routing-controllers';
+import { MongoDatabase } from '../MongoDatabase.js';
+import { IQuestionBank } from '#root/shared/interfaces/quiz.js';
 import {
   ItemsGroup,
   VideoItem,
@@ -18,9 +18,9 @@ import {
   FeedBackFormItem,
   ItemRef,
 } from '#courses/classes/transformers/Item.js';
-import {UpdateItemBody} from '#root/modules/courses/classes/index.js';
-import {QuestionBank} from '#root/modules/quizzes/classes/transformers/QuestionBank.js';
-import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
+import { UpdateItemBody } from '#root/modules/courses/classes/index.js';
+import { QuestionBank } from '#root/modules/quizzes/classes/transformers/QuestionBank.js';
+import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
 
 @injectable()
 export class ItemRepository implements IItemRepository {
@@ -39,7 +39,7 @@ export class ItemRepository implements IItemRepository {
     private db: MongoDatabase,
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
-  ) {}
+  ) { }
 
   private async init() {
     this.itemsGroupCollection = await this.db.getCollection<ItemsGroup>(
@@ -55,7 +55,7 @@ export class ItemRepository implements IItemRepository {
       'feedback_forms',
     );
 
-    this.itemsGroupCollection.createIndex({items: 1});
+    this.itemsGroupCollection.createIndex({ items: 1 });
     this.questionBankCollection = await this.db.getCollection<IQuestionBank>(
       'questionBanks',
     );
@@ -79,8 +79,8 @@ export class ItemRepository implements IItemRepository {
       throw new InternalServerError('Failed to create items group.');
     }
     const newItemsGroup = await this.itemsGroupCollection.findOne(
-      {_id: result.insertedId},
-      {session},
+      { _id: result.insertedId },
+      { session },
     );
     if (!newItemsGroup) {
       throw new InternalServerError(
@@ -101,8 +101,8 @@ export class ItemRepository implements IItemRepository {
     await this.init();
     const itemGroups = await this.itemsGroupCollection
       .find(
-        {_id: {$in: groupIds.map(id => new ObjectId(id))}},
-        {projection: {items: 1}, session}, // only return `items`
+        { _id: { $in: groupIds.map(id => new ObjectId(id)) } },
+        { projection: { items: 1 }, session }, // only return `items`
       )
       .toArray();
 
@@ -120,14 +120,28 @@ export class ItemRepository implements IItemRepository {
     // console.log('Reading ItemsGroup with ID:', itemsGroupId);
 
     const itemsGroup = await this.itemsGroupCollection.findOne(
-      {_id: new ObjectId(itemsGroupId), isDeleted: {$ne: true}},
-      {session},
+      { _id: new ObjectId(itemsGroupId), isDeleted: { $ne: true } },
+      { session },
     );
     if (!itemsGroup) {
-      throw new NotFoundError(`ItemsGroup ${itemsGroupId} not found.`);
+      // Create a new empty ItemsGroup if it doesn't exist
+      console.log(`[ItemRepository] ItemsGroup ${itemsGroupId} not found, creating new empty group`);
+      const newItemsGroup = {
+        _id: new ObjectId(itemsGroupId),
+        items: [],
+        sectionId: new ObjectId(itemsGroupId), // Use the same ID for now
+        isDeleted: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      
+      await this.itemsGroupCollection.insertOne(newItemsGroup, { session });
+      return instanceToPlain(
+        Object.assign(new ItemsGroup(), newItemsGroup),
+      ) as ItemsGroup;
     }
 
-    // Lookup items to check if they are deleted
+    // Lookup items to check if they are deleted and fetch their names
     const filteredItems = [];
     for (const item of itemsGroup.items) {
       let collection: Collection<any>;
@@ -153,13 +167,25 @@ export class ItemRepository implements IItemRepository {
           );
       }
       const existingItem = await collection.findOne(
-        {_id: new ObjectId(item._id), isDeleted: {$ne: true}},
-        {session},
+        { _id: new ObjectId(item._id), isDeleted: { $ne: true } },
+        { session },
       );
       if (existingItem) {
-        filteredItems.push(item);
+        // Explicitly create an object with all ItemRef fields
+        const itemRef = {
+          _id: item._id,
+          type: item.type,
+          order: item.order,
+          isHidden: item.isHidden,
+          name: existingItem.name || 'Untitled',
+        };
+        console.log(`[ItemRepository] Item ${item._id} (${item.type}): name="${itemRef.name}"`);
+        filteredItems.push(itemRef);
       }
     }
+
+    console.log(`[ItemRepository] Returning ${filteredItems.length} items with names:`,
+      filteredItems.map(i => ({ id: i._id, type: i.type, name: i.name })));
 
     itemsGroup.items = filteredItems;
 
@@ -174,11 +200,11 @@ export class ItemRepository implements IItemRepository {
     session: ClientSession,
   ): Promise<ItemsGroup> {
     await this.init();
-    const {_id, ...fields} = itemsGroup;
+    const { _id, ...fields } = itemsGroup;
     const result = await this.itemsGroupCollection.updateOne(
-      {_id: new ObjectId(itemsGroupId)},
-      {$set: fields},
-      {session},
+      { _id: new ObjectId(itemsGroupId) },
+      { $set: fields },
+      { session },
     );
     if (result.matchedCount === 0) {
       throw new InternalServerError(
@@ -186,8 +212,8 @@ export class ItemRepository implements IItemRepository {
       );
     }
     const updated = await this.itemsGroupCollection.findOne(
-      {_id: new ObjectId(itemsGroupId)},
-      {session},
+      { _id: new ObjectId(itemsGroupId) },
+      { session },
     );
     if (!updated) {
       throw new InternalServerError(
@@ -207,11 +233,11 @@ export class ItemRepository implements IItemRepository {
 
     const itemFilter =
       typeof itemId === 'string' && ObjectId.isValid(itemId)
-        ? {$in: [itemId, new ObjectId(itemId)]}
+        ? { $in: [itemId, new ObjectId(itemId)] }
         : itemId;
     const itemsGroup = await this.itemsGroupCollection.findOne(
-      {'items._id': itemFilter},
-      {session},
+      { 'items._id': itemFilter },
+      { session },
     );
     // const itemsGroup = await this.itemsGroupCollection.findOne(
     //   { 'items._id': itemId },
@@ -251,14 +277,14 @@ export class ItemRepository implements IItemRepository {
       default:
         throw new Error(`Unsupported item type: ${(item as any).type}`);
     }
-    const result = await collection.insertOne(item, {session});
+    const result = await collection.insertOne(item, { session });
     if (!result.insertedId) {
       throw new Error(`Failed to insert item of type ${item.type}.`);
     }
 
     const createdItem = await collection.findOne(
-      {_id: result.insertedId},
-      {session},
+      { _id: result.insertedId },
+      { session },
     );
 
     return createdItem as Item;
@@ -288,14 +314,14 @@ export class ItemRepository implements IItemRepository {
           throw new Error(`Unsupported item type: ${item.type}`);
       }
 
-      const result = await collection.insertOne(item, {session});
+      const result = await collection.insertOne(item, { session });
       if (!result.insertedId) {
         throw new Error(`Failed to insert item of type ${item.type}`);
       }
 
       const createdItem = await collection.findOne(
-        {_id: result.insertedId},
-        {session},
+        { _id: result.insertedId },
+        { session },
       );
       if (!createdItem)
         throw new Error(`Failed to fetch inserted item of type ${item.type}`);
@@ -341,25 +367,25 @@ export class ItemRepository implements IItemRepository {
             case ItemType.VIDEO:
               item = (await this.videoCollection.findOne({
                 _id: new ObjectId(found._id),
-                isDeleted: {$ne: true},
+                isDeleted: { $ne: true },
               })) as VideoItem;
               break;
             case ItemType.QUIZ:
               item = (await this.quizCollection.findOne({
                 _id: new ObjectId(found._id),
-                isDeleted: {$ne: true},
+                isDeleted: { $ne: true },
               })) as QuizItem;
               break;
             case ItemType.BLOG:
               item = (await this.blogCollection.findOne({
                 _id: new ObjectId(found._id),
-                isDeleted: {$ne: true},
+                isDeleted: { $ne: true },
               })) as BlogItem;
               break;
             case ItemType.PROJECT:
               item = (await this.projectCollection.findOne({
                 _id: new ObjectId(found._id),
-                isDeleted: {$ne: true},
+                isDeleted: { $ne: true },
               })) as ProjectItem;
               break;
             case ItemType.FEEDBACK:
@@ -389,19 +415,19 @@ export class ItemRepository implements IItemRepository {
     let item: Item =
       (await this.videoCollection.findOne({
         _id: objectId,
-        isDeleted: {$ne: true},
+        isDeleted: { $ne: true },
       })) ||
       (await this.quizCollection.findOne({
         _id: objectId,
-        isDeleted: {$ne: true},
+        isDeleted: { $ne: true },
       })) ||
       (await this.blogCollection.findOne({
         _id: objectId,
-        isDeleted: {$ne: true},
+        isDeleted: { $ne: true },
       })) ||
       (await this.projectCollection.findOne({
         _id: objectId,
-        isDeleted: {$ne: true},
+        isDeleted: { $ne: true },
       })) ||
       (await this.feedbackFormCollection.findOne({
         _id: objectId,
@@ -445,7 +471,7 @@ export class ItemRepository implements IItemRepository {
     }
 
     const result = await collection.findOneAndUpdate(
-      {_id: new ObjectId(itemId)},
+      { _id: new ObjectId(itemId) },
       {
         $set: {
           name: item.name,
@@ -456,7 +482,7 @@ export class ItemRepository implements IItemRepository {
           details: item?.details,
         },
       },
-      {returnDocument: 'after', session},
+      { returnDocument: 'after', session },
     );
 
     if (!result) {
@@ -488,9 +514,9 @@ export class ItemRepository implements IItemRepository {
     // Delete the item from the appropriate collection based on its type
     if (itemsGroup.items[itemIndex].type === ItemType.VIDEO) {
       await this.videoCollection.updateOne(
-        {_id: new ObjectId(itemId)},
-        {$set: {isDeleted: true, deletedAt: new Date()}},
-        {session},
+        { _id: new ObjectId(itemId) },
+        { $set: { isDeleted: true, deletedAt: new Date() } },
+        { session },
       );
     } else if (itemsGroup.items[itemIndex].type === ItemType.QUIZ) {
       const itemObjectId = new ObjectId(itemId);
@@ -498,8 +524,8 @@ export class ItemRepository implements IItemRepository {
 
       // 1. Fetch quizItem
       const quizItem = await this.quizCollection.findOne(
-        {_id: itemObjectId},
-        {session},
+        { _id: itemObjectId },
+        { session },
       );
 
       if (!quizItem) {
@@ -508,9 +534,9 @@ export class ItemRepository implements IItemRepository {
 
       // 2. Soft delete quiz item
       await this.quizCollection.updateOne(
-        {_id: itemObjectId},
-        {$set: {isDeleted: true, deletedAt: now}},
-        {session},
+        { _id: itemObjectId },
+        { $set: { isDeleted: true, deletedAt: now } },
+        { session },
       );
 
       // 3. Extract questionBankIds
@@ -520,16 +546,16 @@ export class ItemRepository implements IItemRepository {
 
       // 4. Soft delete the question banks
       await this.questionBankCollection.updateMany(
-        {_id: {$in: questionBankIds}},
-        {$set: {isDeleted: true, deletedAt: now}},
-        {session},
+        { _id: { $in: questionBankIds } },
+        { $set: { isDeleted: true, deletedAt: now } },
+        { session },
       );
 
       // 5. Pull all questionIds
       const questionBanks = await this.questionBankCollection
         .find(
-          {_id: {$in: questionBankIds}},
-          {projection: {questions: 1}, session},
+          { _id: { $in: questionBankIds } },
+          { projection: { questions: 1 }, session },
         )
         .toArray();
 
@@ -540,29 +566,29 @@ export class ItemRepository implements IItemRepository {
       // skip update if none
       if (questionIds.length > 0) {
         await this.questionsCollection.updateMany(
-          {_id: {$in: questionIds}},
-          {$set: {isDeleted: true, deletedAt: now}},
-          {session},
+          { _id: { $in: questionIds } },
+          { $set: { isDeleted: true, deletedAt: now } },
+          { session },
         );
       }
     } else if (itemsGroup.items[itemIndex].type === ItemType.BLOG) {
       await this.blogCollection.updateOne(
-        {_id: new ObjectId(itemId)},
-        {$set: {isDeleted: true, deletedAt: new Date()}},
-        {session},
+        { _id: new ObjectId(itemId) },
+        { $set: { isDeleted: true, deletedAt: new Date() } },
+        { session },
       );
     } else if (itemsGroup.items[itemIndex].type === ItemType.PROJECT) {
       await this.projectCollection.updateOne(
-        {_id: new ObjectId(itemId)},
-        {$set: {isDeleted: true, deletedAt: new Date()}},
-        {session},
+        { _id: new ObjectId(itemId) },
+        { $set: { isDeleted: true, deletedAt: new Date() } },
+        { session },
       );
     } else if (itemsGroup.items[itemIndex].type === ItemType.FEEDBACK) {
       await this.feedbackFormCollection.deleteOne(
         {
           _id: new ObjectId(itemId),
         },
-        {session},
+        { session },
       );
     } else {
       throw new InternalServerError(
@@ -572,9 +598,9 @@ export class ItemRepository implements IItemRepository {
     itemsGroup.items.splice(itemIndex, 1);
 
     await this.itemsGroupCollection.updateOne(
-      {_id: new ObjectId(itemGroupsId)},
-      {$set: {items: itemsGroup.items}},
-      {session},
+      { _id: new ObjectId(itemGroupsId) },
+      { $set: { items: itemsGroup.items } },
+      { session },
     );
 
     return itemsGroup;
@@ -709,13 +735,13 @@ export class ItemRepository implements IItemRepository {
     session?: ClientSession,
   ): Promise<ObjectId[]> {
     const docs = await collection
-      .find(filter, {projection: {_id: 1}, session})
+      .find(filter, { projection: { _id: 1 }, session })
       .toArray();
 
     if (docs.length === 0) return [];
 
     const ids = docs.map(doc => doc._id);
-    await collection.deleteMany({_id: {$in: ids}}, {session});
+    await collection.deleteMany({ _id: { $in: ids } }, { session });
 
     return ids;
   }
@@ -728,7 +754,7 @@ export class ItemRepository implements IItemRepository {
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
       // 1. Delete quizzes marked as deleted
-      const deletedFilter = {isDeleted: true, deletedAt: {$lte: thirtyDaysAgo}};
+      const deletedFilter = { isDeleted: true, deletedAt: { $lte: thirtyDaysAgo } };
 
       // start with questions.
       const deletedQuestionsIds = await this.deleteAndReturnIds(
@@ -740,9 +766,9 @@ export class ItemRepository implements IItemRepository {
       // pull the question ids from question banks
       if (deletedQuestionsIds.length > 0) {
         await this.questionBankCollection.updateMany(
-          {questions: {$in: deletedQuestionsIds}},
-          {$pullAll: {questions: deletedQuestionsIds}},
-          {session},
+          { questions: { $in: deletedQuestionsIds } },
+          { $pullAll: { questions: deletedQuestionsIds } },
+          { session },
         );
       }
 
@@ -756,15 +782,15 @@ export class ItemRepository implements IItemRepository {
       // pull the question bank ids from quizzes
       if (deletedQuestionBankIds.length > 0) {
         await this.quizCollection.updateMany(
-          {'details.questionBankRefs.bankId': {$in: deletedQuestionBankIds}},
+          { 'details.questionBankRefs.bankId': { $in: deletedQuestionBankIds } },
           {
             $pull: {
               'details.questionBankRefs': {
-                bankId: {$in: deletedQuestionBankIds},
+                bankId: { $in: deletedQuestionBankIds },
               },
             },
           },
-          {session},
+          { session },
         );
       }
 
@@ -792,25 +818,25 @@ export class ItemRepository implements IItemRepository {
       // 3. Delete Independedly soft deleted items.
       const deletedQuizIds = await this.deleteAndReturnIds(
         this.quizCollection,
-        {...deletedFilter, _id: {$in: itemMap[ItemType.QUIZ]}},
+        { ...deletedFilter, _id: { $in: itemMap[ItemType.QUIZ] } },
         session,
       );
 
       const deletedVideoIds = await this.deleteAndReturnIds(
         this.videoCollection,
-        {...deletedFilter, _id: {$in: itemMap[ItemType.VIDEO]}},
+        { ...deletedFilter, _id: { $in: itemMap[ItemType.VIDEO] } },
         session,
       );
 
       const deletedBlogIds = await this.deleteAndReturnIds(
         this.blogCollection,
-        {...deletedFilter, _id: {$in: itemMap[ItemType.BLOG]}},
+        { ...deletedFilter, _id: { $in: itemMap[ItemType.BLOG] } },
         session,
       );
 
       const deletedProjectIds = await this.deleteAndReturnIds(
         this.projectCollection,
-        {...deletedFilter, _id: {$in: itemMap[ItemType.PROJECT]}},
+        { ...deletedFilter, _id: { $in: itemMap[ItemType.PROJECT] } },
         session,
       );
 
@@ -824,9 +850,9 @@ export class ItemRepository implements IItemRepository {
 
       if (allDeletedItemIds.length > 0) {
         await this.itemsGroupCollection.updateMany(
-          {'items._id': {$in: allDeletedItemIds}},
-          {$pull: {items: {_id: {$in: allDeletedItemIds}}}},
-          {session},
+          { 'items._id': { $in: allDeletedItemIds } },
+          { $pull: { items: { _id: { $in: allDeletedItemIds } } } },
+          { session },
         );
       }
 
@@ -844,7 +870,7 @@ export class ItemRepository implements IItemRepository {
 
     const objectIds = itemGroupIds.map(id => new ObjectId(id));
     const itemGroups = await this.itemsGroupCollection
-      .find({_id: {$in: objectIds}}, {session})
+      .find({ _id: { $in: objectIds } }, { session })
       .toArray();
 
     return itemGroups.map(ig =>
@@ -860,7 +886,7 @@ export class ItemRepository implements IItemRepository {
 
     const bulkOps = itemGroups.map(group => ({
       replaceOne: {
-        filter: {_id: new ObjectId(group._id)},
+        filter: { _id: new ObjectId(group._id) },
         replacement: group,
         upsert: true,
       },
@@ -904,9 +930,9 @@ export class ItemRepository implements IItemRepository {
     }
 
     const result = await collection.findOneAndUpdate(
-      {_id: new ObjectId(itemId)},
-      {$set: item},
-      {session, returnDocument: 'after'},
+      { _id: new ObjectId(itemId) },
+      { $set: item },
+      { session, returnDocument: 'after' },
     );
 
     if (!result) {
@@ -919,7 +945,7 @@ export class ItemRepository implements IItemRepository {
   async getQuizInfo(
     itemGroupIds: string[],
     session?: ClientSession,
-  ): Promise<{_id: ObjectId; items: ItemRef}[]> {
+  ): Promise<{ _id: ObjectId; items: ItemRef }[]> {
     await this.init();
 
     const objectIds = itemGroupIds.map(id => new ObjectId(id));
@@ -929,7 +955,7 @@ export class ItemRepository implements IItemRepository {
         [
           {
             $match: {
-              _id: {$in: objectIds},
+              _id: { $in: objectIds },
             },
           },
           {
@@ -939,7 +965,7 @@ export class ItemRepository implements IItemRepository {
                 $filter: {
                   input: '$items',
                   as: 'item',
-                  cond: {$eq: ['$$item.type', 'QUIZ']},
+                  cond: { $eq: ['$$item.type', 'QUIZ'] },
                 },
               },
             },
@@ -950,11 +976,11 @@ export class ItemRepository implements IItemRepository {
             },
           },
         ],
-        {session},
+        { session },
       )
       .toArray();
 
-    return filteredGroups as {_id: ObjectId; items: ItemRef}[];
+    return filteredGroups as { _id: ObjectId; items: ItemRef }[];
   }
 
   async calculateItemCountsForVersion(
@@ -981,18 +1007,18 @@ export class ItemRepository implements IItemRepository {
             },
           },
 
-          {$unwind: '$modules'},
-          {$unwind: '$modules.sections'},
+          { $unwind: '$modules' },
+          { $unwind: '$modules.sections' },
 
           {
             $lookup: {
               from: 'itemsGroup',
-              let: {igId: '$modules.sections.itemsGroupId'},
+              let: { igId: '$modules.sections.itemsGroupId' },
               pipeline: [
                 {
                   $match: {
                     $expr: {
-                      $eq: ['$_id', {$toObjectId: '$$igId'}],
+                      $eq: ['$_id', { $toObjectId: '$$igId' }],
                     },
                   },
                 },
@@ -1001,13 +1027,13 @@ export class ItemRepository implements IItemRepository {
             },
           },
 
-          {$unwind: '$itemGroup'},
-          {$unwind: '$itemGroup.items'},
+          { $unwind: '$itemGroup' },
+          { $unwind: '$itemGroup.items' },
 
           {
             $match: {
-              'itemGroup.items.isHidden': {$ne: true},
-              'itemGroup.items.isDeleted': {$ne: true},
+              'itemGroup.items.isHidden': { $ne: true },
+              'itemGroup.items.isDeleted': { $ne: true },
             },
           },
 
@@ -1017,19 +1043,19 @@ export class ItemRepository implements IItemRepository {
           {
             $facet: {
               VIDEO: [
-                {$match: {'itemGroup.items.type': 'VIDEO'}},
+                { $match: { 'itemGroup.items.type': 'VIDEO' } },
                 {
                   $lookup: {
                     from: 'videos',
-                    let: {itemId: '$itemGroup.items._id'},
+                    let: { itemId: '$itemGroup.items._id' },
                     pipeline: [
                       {
                         $match: {
                           $expr: {
                             $and: [
-                              {$eq: ['$_id', {$toObjectId: '$$itemId'}]},
-                              {$ne: ['$isDeleted', true]},
-                              {$ne: ['$isHidden', true]},
+                              { $eq: ['$_id', { $toObjectId: '$$itemId' }] },
+                              { $ne: ['$isDeleted', true] },
+                              { $ne: ['$isHidden', true] },
                             ],
                           },
                         },
@@ -1038,23 +1064,23 @@ export class ItemRepository implements IItemRepository {
                     as: 'item',
                   },
                 },
-                {$unwind: '$item'},
+                { $unwind: '$item' },
               ],
 
               QUIZ: [
-                {$match: {'itemGroup.items.type': 'QUIZ'}},
+                { $match: { 'itemGroup.items.type': 'QUIZ' } },
                 {
                   $lookup: {
                     from: 'quizzes',
-                    let: {itemId: '$itemGroup.items._id'},
+                    let: { itemId: '$itemGroup.items._id' },
                     pipeline: [
                       {
                         $match: {
                           $expr: {
                             $and: [
-                              {$eq: ['$_id', {$toObjectId: '$$itemId'}]},
-                              {$ne: ['$isDeleted', true]},
-                              {$ne: ['$isHidden', true]},
+                              { $eq: ['$_id', { $toObjectId: '$$itemId' }] },
+                              { $ne: ['$isDeleted', true] },
+                              { $ne: ['$isHidden', true] },
                             ],
                           },
                         },
@@ -1063,23 +1089,23 @@ export class ItemRepository implements IItemRepository {
                     as: 'item',
                   },
                 },
-                {$unwind: '$item'},
+                { $unwind: '$item' },
               ],
 
               BLOG: [
-                {$match: {'itemGroup.items.type': 'BLOG'}},
+                { $match: { 'itemGroup.items.type': 'BLOG' } },
                 {
                   $lookup: {
                     from: 'blogs',
-                    let: {itemId: '$itemGroup.items._id'},
+                    let: { itemId: '$itemGroup.items._id' },
                     pipeline: [
                       {
                         $match: {
                           $expr: {
                             $and: [
-                              {$eq: ['$_id', {$toObjectId: '$$itemId'}]},
-                              {$ne: ['$isDeleted', true]},
-                              {$ne: ['$isHidden', true]},
+                              { $eq: ['$_id', { $toObjectId: '$$itemId' }] },
+                              { $ne: ['$isDeleted', true] },
+                              { $ne: ['$isHidden', true] },
                             ],
                           },
                         },
@@ -1088,23 +1114,23 @@ export class ItemRepository implements IItemRepository {
                     as: 'item',
                   },
                 },
-                {$unwind: '$item'},
+                { $unwind: '$item' },
               ],
 
               PROJECT: [
-                {$match: {'itemGroup.items.type': 'PROJECT'}},
+                { $match: { 'itemGroup.items.type': 'PROJECT' } },
                 {
                   $lookup: {
                     from: 'projects',
-                    let: {itemId: '$itemGroup.items._id'},
+                    let: { itemId: '$itemGroup.items._id' },
                     pipeline: [
                       {
                         $match: {
                           $expr: {
                             $and: [
-                              {$eq: ['$_id', {$toObjectId: '$$itemId'}]},
-                              {$ne: ['$isDeleted', true]},
-                              {$ne: ['$isHidden', true]},
+                              { $eq: ['$_id', { $toObjectId: '$$itemId' }] },
+                              { $ne: ['$isDeleted', true] },
+                              { $ne: ['$isHidden', true] },
                             ],
                           },
                         },
@@ -1113,23 +1139,23 @@ export class ItemRepository implements IItemRepository {
                     as: 'item',
                   },
                 },
-                {$unwind: '$item'},
+                { $unwind: '$item' },
               ],
 
               FEEDBACK: [
-                {$match: {'itemGroup.items.type': 'FEEDBACK'}},
+                { $match: { 'itemGroup.items.type': 'FEEDBACK' } },
                 {
                   $lookup: {
                     from: 'feedbackForms',
-                    let: {itemId: '$itemGroup.items._id'},
+                    let: { itemId: '$itemGroup.items._id' },
                     pipeline: [
                       {
                         $match: {
                           $expr: {
                             $and: [
-                              {$eq: ['$_id', {$toObjectId: '$$itemId'}]},
-                              {$ne: ['$isDeleted', true]},
-                              {$ne: ['$isHidden', true]},
+                              { $eq: ['$_id', { $toObjectId: '$$itemId' }] },
+                              { $ne: ['$isDeleted', true] },
+                              { $ne: ['$isHidden', true] },
                             ],
                           },
                         },
@@ -1138,7 +1164,7 @@ export class ItemRepository implements IItemRepository {
                     as: 'item',
                   },
                 },
-                {$unwind: '$item'},
+                { $unwind: '$item' },
               ],
             },
           },
@@ -1160,19 +1186,19 @@ export class ItemRepository implements IItemRepository {
             },
           },
 
-          {$unwind: '$items'},
+          { $unwind: '$items' },
 
           {
             $group: {
               _id: '$items.itemGroup.items.type',
-              count: {$sum: 1},
+              count: { $sum: 1 },
             },
           },
 
           {
             $group: {
               _id: null,
-              totalItems: {$sum: '$count'},
+              totalItems: { $sum: '$count' },
               itemCounts: {
                 $push: {
                   type: '$_id',
@@ -1201,7 +1227,7 @@ export class ItemRepository implements IItemRepository {
             },
           },
         ],
-        {session},
+        { session },
       )
       .toArray();
 
