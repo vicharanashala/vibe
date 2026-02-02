@@ -306,6 +306,12 @@ export class CourseVersionService extends BaseService {
       let newModules: Module[];
       let existingEnrollments;
 
+      const cloneStartTime = Date.now();
+      console.log(`\n=== Course Clone Started ===`);
+      console.log(`Started at: ${new Date().toISOString()}`);
+      console.log(`Source Course: ${existingCourse.name}`);
+      console.log(`Modules to clone: ${existingVersion.modules.length}`);
+
       if (USE_WORKERS) {
         const { startCourseCloneProcessing } = await import('#root/workers/clone-course.pool.js');
 
@@ -336,6 +342,26 @@ export class CourseVersionService extends BaseService {
           ),
         ]);
       }
+
+      const cloneEndTime = Date.now();
+      const durationMs = cloneEndTime - cloneStartTime;
+      const durationSec = (durationMs / 1000).toFixed(2);
+
+      const totalSections = newModules.reduce((sum, mod) => sum + mod.sections.length, 0);
+      const totalItems = newModules.reduce(
+        (sum, mod) => sum + mod.sections.reduce((s, sec) => s + (sec.itemsGroupId ? 1 : 0), 0),
+        0,
+      );
+
+      console.log(`\n=== Course Clone Completed ===`);
+      console.log(`Finished at: ${new Date().toISOString()}`);
+      console.log(`Duration: ${durationMs}ms (${durationSec}s)`);
+      console.log(`Summary:`);
+      console.log(`  - Modules cloned: ${newModules.length}`);
+      console.log(`  - Sections cloned: ${totalSections}`);
+      console.log(`  - Item groups cloned: ${totalItems}`);
+      console.log(`  - New course: ${newCourse.name}`);
+      console.log(`=============================\n`);
 
       await this.courseRepo.addModulesToVersion(newVersionId, newModules);
 
