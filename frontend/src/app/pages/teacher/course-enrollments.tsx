@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { QuizSubmissionDisplay } from "./QuizSubmissionDisplay"
 import { WatchTimeDisplay } from "./WatchTimeDisplay"
-import { useStudentCurrentProgressPath } from "@/hooks/useStudentCurrentProgressPath"
+import { useStudentCurrentProgressPath } from "@/hooks/hooks"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 // Import hooks - including the new quiz hooks
@@ -948,7 +948,7 @@ const hasCompletedCourse = totalItems > 0 && completedItems >= totalItems
               </div>
   
               <div className="mt-4">
-  {hasCompletedCourse ? (
+  {/* {hasCompletedCourse ? (
     <div className="p-4 rounded-lg bg-green-50 border border-green-200 text-green-700 font-medium">
       🎉 Student has completed the course
     </div>
@@ -956,7 +956,7 @@ const hasCompletedCourse = totalItems > 0 && completedItems >= totalItems
     <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 font-medium">
       ⏳ Course is still in progress
     </div>
-  )}
+  )} */}
 </div>
 
 {/* Current Learning Position */}
@@ -966,9 +966,10 @@ const hasCompletedCourse = totalItems > 0 && completedItems >= totalItems
   </h4>
 
   {pathError && (
-    <p className="text-sm text-destructive">
-      Failed to load current progress
-    </p>
+    <div className="text-sm text-destructive">
+      <p>Failed to load current progress</p>
+      <p className="text-xs mt-1">Error: {pathError.message || 'Unknown error'}</p>
+    </div>
   )}
 
   {!currentPath && !pathError && (
@@ -977,7 +978,13 @@ const hasCompletedCourse = totalItems > 0 && completedItems >= totalItems
     </p>
   )}
 
-  {currentPath && (
+  {currentPath && currentPath.message && (
+    <div className="text-sm text-muted-foreground">
+      <p>{currentPath.message}</p>
+    </div>
+  )}
+
+  {currentPath && currentPath.module && (
     <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
       <span className="px-2 py-1 rounded bg-blue-100 text-blue-700">
         {currentPath.module.name}
@@ -1773,7 +1780,7 @@ function EnrollmentsTable({
               </TableHeader>
 
               <TableBody>
-                <TableRow>
+                <TableRow key="loading-initial">
                   <TableCell colSpan={5} className="text-center py-16">
                     <div className="flex items-center justify-center">
                       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1845,7 +1852,7 @@ function EnrollmentsTable({
 
               <TableBody>
                 {(enrollmentsLoading || isSearching) ? (
-                  <TableRow>
+                  <TableRow key="loading-secondary">
                     <TableCell colSpan={5} className="text-center py-16">
                       <div className="flex items-center justify-center">
                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1853,10 +1860,26 @@ function EnrollmentsTable({
                       </div>
                     </TableCell>
                   </TableRow>
+                ) : studentEnrollments.length === 0 ? (
+                  <TableRow key="empty-state">
+                    <TableCell colSpan={5} className="text-center py-16">
+                      <div className="flex items-center justify-center">
+                        <Users className="h-12 w-12 text-muted-foreground mb-4" />
+                        <div>
+                          <p className="text-foreground text-lg font-semibold mb-2">
+                            No {isInactiveTab ? "inactive" : "active"} students found
+                          </p>
+                          <p className="text-muted-foreground">
+                            {searchQuery ? "Try adjusting your search terms" : "No enrollments found"}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   studentEnrollments.map((enrollment: any) => (                    
                     <TableRow
-                      key={enrollment._id}
+                      key={enrollment._id || enrollment.user?._id || `enrollment-${Math.random()}`}
                       className={`border-border hover:bg-muted/20 transition-colors duration-200 group ${isInactiveTab ? "opacity-80" : ""
                         }`}
                     >
@@ -1868,7 +1891,9 @@ function EnrollmentsTable({
                             <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
                               {[enrollment?.user?.firstName?.[0], enrollment?.user?.lastName?.[0]]
                                 .filter(Boolean)
-                                .map((ch: string) => ch.toUpperCase())
+                                .map((ch: string, index: number) => (
+                                  <span key={index}>{ch.toUpperCase()}</span>
+                                ))
                                 .join("") || "?"}
                             </AvatarFallback>
                           </Avatar>
