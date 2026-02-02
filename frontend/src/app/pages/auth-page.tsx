@@ -263,7 +263,7 @@ export default function AuthPage() {
       setLoading(true);
       setFormErrors({});
 
-      // const result = await createUserWithEmail(email, password, fullName);
+      const result = await createUserWithEmail(email, password, fullName);
 
       // Parse fullName into firstName and lastName
       const nameParts = fullName.trim().split(' ');
@@ -278,7 +278,7 @@ export default function AuthPage() {
           lastName: lastName
         }
       });
-      const result = await loginWithEmail(email, password);
+      // const result = await loginWithEmail(email, password);
 
       // Set user in store
       setUser({

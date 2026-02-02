@@ -489,6 +489,53 @@ export class CourseRepository implements ICourseRepository {
     return courseVersions as ICourseVersion[];
   }
 
+  async getModulebyId(
+    versionId: string,
+    moduleId: string,
+    session?: ClientSession,
+  ): Promise<IModule | null> {
+    await this.init();
+    try {
+      // Convert versionId and moduleId to ObjectId
+      const versionObjectId = new ObjectId(versionId);
+      const moduleObjectId = new ObjectId(moduleId);
+
+      // Find the course version
+      const courseVersion = await this.courseVersionCollection.findOne(
+        {
+          _id: versionObjectId,
+        },
+        { session },
+      );
+
+      if (!courseVersion) {
+        throw new NotFoundError('Course Version not found');
+      }
+
+      // Find the module to delete
+      const module = courseVersion.modules.find(m =>
+        new ObjectId(m.moduleId).equals(moduleObjectId),
+      );
+
+      if (!module) {
+        throw new NotFoundError('Module not found');
+      }
+
+      return module;
+
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      if (error instanceof InternalServerError) {
+        throw error;
+      }
+      throw new InternalServerError(
+        'Failed to delete module.\n More Details: ' + error,
+      );
+    }
+  }
+
   async updateVersion(
     versionId: string,
     courseVersion: CourseVersion,

@@ -1,4 +1,5 @@
 import { Progress } from '#users/classes/transformers/Progress.js';
+import { ICurrentProgressPath } from '#shared/interfaces/models.js';
 import {
   GetUserProgressParams,
   StartItemParams,
@@ -41,6 +42,7 @@ import {
   Param,
   QueryParams,
   CurrentUser,
+  Req,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
@@ -117,6 +119,44 @@ class ProgressController {
     return progress;
   }
 
+
+  @OpenAPI({
+    summary: 'Get current progress path for a user',
+    description: 'Retrieves the current learning position (module, section, item) for a specific user in a course version',
+  })
+  @Authorized()
+  @Get('/progress/courses/:courseId/versions/:versionId/current-path')
+  @HttpCode(200)
+  async getCurrentProgressPath(
+    @Params() params: GetUserProgressParams,
+    @Ability(getProgressAbility) { user },
+    @Req() request: any,
+  ): Promise<ICurrentProgressPath> {
+    const { courseId, versionId } = params
+    
+    // Validate and extract userId with proper error handling
+    const queryUserId = request.query?.userId as string
+    const userId = queryUserId && queryUserId.trim() ? queryUserId : user._id.toString()
+    
+    if (!userId) {
+      return {
+        module: null,
+        section: null,
+        item: null,
+        message: 'Invalid user ID'
+      }
+    }
+
+    const result = await this.progressService.getCurrentProgressPath(
+      userId,
+      courseId,
+      versionId
+    )
+
+    return result
+  }
+
+
   @OpenAPI({
     summary: 'Get %age progress in a course version',
     description:
@@ -142,21 +182,18 @@ class ProgressController {
     // Create a progress resource object for permission checking
     const progressResource = subject('Progress', { userId, courseId, versionId });
 
-    // Check permission using ability.can() with the actual progress resource
+
     if (!ability.can(ProgressActions.View, progressResource)) {
-      throw new ForbiddenError(
-        'You do not have permission to view this progress',
-      );
+      throw new ForbiddenError('You do not have permission');
     }
 
-    const progress = await this.progressService.getUserProgressPercentage(
+    return await this.progressService.getUserProgressPercentage(
       userId,
       courseId,
       versionId,
     );
-
-    return progress;
   }
+
 
   @OpenAPI({
     summary: 'Start an item for user progress',

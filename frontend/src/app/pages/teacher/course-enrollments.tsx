@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { QuizSubmissionDisplay } from "./QuizSubmissionDisplay"
 import { WatchTimeDisplay } from "./WatchTimeDisplay"
+import { useStudentCurrentProgressPath } from "@/hooks/hooks"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 // Import hooks - including the new quiz hooks
@@ -129,7 +130,6 @@ const getRoleBadge = (role: EnrollmentRole) => {
   )
 }
 
-
 export default function CourseEnrollments() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
@@ -153,7 +153,7 @@ export default function CourseEnrollments() {
     courseId,
     versionId,
     !!(courseId && versionId)
-  )
+  )  
 
   const [selectedUser, setSelectedUser] = useState<EnrolledUser | null>(null)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
@@ -187,6 +187,23 @@ export default function CourseEnrollments() {
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
   const [isSearching, setIsSearching] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+
+  const [showContentSummary, setShowContentSummary] = useState(false)
+  function SummaryRow({
+  label,
+  value,
+    }: {
+      label: string
+      value: string | number
+    }) {
+      return (
+        <div className="flex justify-between items-center">
+          <span className="text-muted-foreground">{label}</span>
+          <span className="font-semibold text-right min-w-16">{value ?? 0}</span>
+        </div>
+      )
+    }
+
 
   // Quiz scores hook - using the hook directly with enabled: false to control when to fetch
   // const {
@@ -398,10 +415,27 @@ export default function CourseEnrollments() {
     setIsResetDialogOpen(true)
   }
 
-  const handleViewProgress = (user: EnrolledUser) => {
-    setSelectedUser(user)
-    setIsViewProgressDialogOpen(true)
-  }
+ const handleViewProgress = (user: EnrolledUser) => {
+  setSelectedUser({
+    ...user,
+    contentCounts: user.contentCounts || {
+      totalItems: 0,
+      videos: 0,
+      quizzes: 0,
+      articles: 0,
+      project: 0,
+      completedVideos: 0,
+      completedQuizzes: 0,
+      completedArticles: 0,
+      completedProjects: 0,
+      totalQuizScore: 0,
+      totalQuizMaxScore: 0,
+    },
+  })
+
+  setIsViewProgressDialogOpen(true)
+}
+
 
   const handleRemoveStudent = (user: EnrolledUser) => {
     setUserToRemove(user)
@@ -601,7 +635,23 @@ export default function CourseEnrollments() {
       bgColor: "bg-purple-50",
     },
   ]
+ const {
+  data: currentPath,
+  error: pathError,
+} = useStudentCurrentProgressPath(
+  selectedUser?.id,
+  courseId,
+  versionId,
+  isViewProgressDialogOpen
+)
 
+// ===== Derived progress helpers =====
+const totalItems = version?.totalItems ?? 0
+
+const completedItems = selectedUser?.completedItemsCount ?? 0
+
+const hasCompletedCourse = totalItems > 0 && completedItems >= totalItems
+ 
   // Loading state
   if ((courseLoading || versionLoading) && !course && !version) {
     return (
@@ -793,6 +843,7 @@ export default function CourseEnrollments() {
 
 
         {/* Enhanced View Progress Modal */}
+        
         {isViewProgressDialogOpen && selectedUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
             {/* Enhanced Backdrop */}
@@ -839,7 +890,125 @@ export default function CourseEnrollments() {
                     </p>
                   )}
                 </div>
+              {/* Content Summary Dropdown */}
+              {selectedUser?.contentCounts && (
+                <div className="border border-border rounded-lg ml-auto">
+
+                  {/* Header */}
+                  <button
+                    onClick={() => setShowContentSummary(prev => !prev)}
+                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium hover:bg-muted/20 rounded-md"
+                  >
+                    Content Summary
+                    {/* {showContentSummary ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )} */}
+                  </button>
+
+                  {/* Body */}
+                  {
+                  // showContentSummary &&
+                  (
+                    <div className="px-4 pb-3 pt-2 grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+
+                      <SummaryRow label="Total Items" value={selectedUser.contentCounts.totalItems} />
+
+                      <SummaryRow
+                        label="Videos"
+                        value={`${selectedUser.contentCounts.completedVideos} / ${selectedUser.contentCounts.videos}`}
+                      />
+
+                      <SummaryRow
+                        label="Quizzes"
+                        value={`${selectedUser.contentCounts.completedQuizzes} / ${selectedUser.contentCounts.quizzes}`}
+                      />
+
+                      <SummaryRow
+                        label="Articles"
+                        value={`${selectedUser.contentCounts.completedArticles} / ${selectedUser.contentCounts.articles}`}
+                      />
+
+                      <SummaryRow
+                        label="Projects"
+                        value={`${selectedUser.contentCounts.completedProjects} / ${selectedUser.contentCounts.project}`}
+                      />
+
+                      <SummaryRow
+                        label="Quiz Score"
+                        value={`${selectedUser.contentCounts.totalQuizScore || 0} / ${selectedUser.contentCounts.totalQuizMaxScore || 0}`}
+                      />
+
+                    </div>
+                  )}
+                </div>
+              )}
+
               </div>
+  
+              <div className="mt-4">
+  {/* {hasCompletedCourse ? (
+    <div className="p-4 rounded-lg bg-green-50 border border-green-200 text-green-700 font-medium">
+      🎉 Student has completed the course
+    </div>
+  ) : (
+    <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 font-medium">
+      ⏳ Course is still in progress
+    </div>
+  )} */}
+</div>
+
+{/* Current Learning Position */}
+<div className="space-y-2 p-4 rounded-lg border border-border bg-muted/20">
+  <h4 className="text-sm font-semibold text-muted-foreground">
+    Current Learning Position
+  </h4>
+
+  {pathError && (
+    <div className="text-sm text-destructive">
+      <p>Failed to load current progress</p>
+      <p className="text-xs mt-1">Error: {pathError.message || 'Unknown error'}</p>
+    </div>
+  )}
+
+  {!currentPath && !pathError && (
+    <p className="text-sm text-muted-foreground">
+      Progress not started yet
+    </p>
+  )}
+
+  {currentPath && currentPath.message && (
+    <div className="text-sm text-muted-foreground">
+      <p>{currentPath.message}</p>
+    </div>
+  )}
+
+  {currentPath && currentPath.module && (
+    <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+      <span className="px-2 py-1 rounded bg-blue-100 text-blue-700">
+        {currentPath.module.name}
+      </span>
+
+      <span className="text-muted-foreground">›</span>
+
+      <span className="px-2 py-1 rounded bg-emerald-100 text-emerald-700">
+        {currentPath.section.name}
+      </span>
+
+      <span className="text-muted-foreground">›</span>
+
+      <span className="px-2 py-1 rounded bg-purple-100 text-purple-700">
+        {currentPath.item.name}
+      </span>
+
+      <span className="ml-2 text-xs px-2 py-0.5 rounded border">
+        {currentPath.item.type}
+      </span>
+    </div>
+  )}
+</div>
+
 
               {/* Course Structure */}
               <div className="space-y-4">
@@ -877,7 +1046,6 @@ export default function CourseEnrollments() {
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -914,7 +1082,7 @@ export default function CourseEnrollments() {
                     </TooltipProvider>
                   </div>
                 )}
-
+                {/* add the code here */}
                 <h3 className="text-lg font-semibold text-foreground">Course Structure</h3>
                 <div className="space-y-2 max-h-96 overflow-y-auto border border-border rounded-lg p-4">
                   {getAvailableModules().map((module: any) => (
@@ -1612,7 +1780,7 @@ function EnrollmentsTable({
               </TableHeader>
 
               <TableBody>
-                <TableRow>
+                <TableRow key="loading-initial">
                   <TableCell colSpan={5} className="text-center py-16">
                     <div className="flex items-center justify-center">
                       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1684,7 +1852,7 @@ function EnrollmentsTable({
 
               <TableBody>
                 {(enrollmentsLoading || isSearching) ? (
-                  <TableRow>
+                  <TableRow key="loading-secondary">
                     <TableCell colSpan={5} className="text-center py-16">
                       <div className="flex items-center justify-center">
                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1692,10 +1860,26 @@ function EnrollmentsTable({
                       </div>
                     </TableCell>
                   </TableRow>
+                ) : studentEnrollments.length === 0 ? (
+                  <TableRow key="empty-state">
+                    <TableCell colSpan={5} className="text-center py-16">
+                      <div className="flex items-center justify-center">
+                        <Users className="h-12 w-12 text-muted-foreground mb-4" />
+                        <div>
+                          <p className="text-foreground text-lg font-semibold mb-2">
+                            No {isInactiveTab ? "inactive" : "active"} students found
+                          </p>
+                          <p className="text-muted-foreground">
+                            {searchQuery ? "Try adjusting your search terms" : "No enrollments found"}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ) : (
-                  studentEnrollments.map((enrollment: any) => (
+                  studentEnrollments.map((enrollment: any) => (                    
                     <TableRow
-                      key={enrollment._id}
+                      key={enrollment._id || enrollment.user?._id || `enrollment-${Math.random()}`}
                       className={`border-border hover:bg-muted/20 transition-colors duration-200 group ${isInactiveTab ? "opacity-80" : ""
                         }`}
                     >
@@ -1707,7 +1891,9 @@ function EnrollmentsTable({
                             <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
                               {[enrollment?.user?.firstName?.[0], enrollment?.user?.lastName?.[0]]
                                 .filter(Boolean)
-                                .map((ch: string) => ch.toUpperCase())
+                                .map((ch: string, index: number) => (
+                                  <span key={index}>{ch.toUpperCase()}</span>
+                                ))
                                 .join("") || "?"}
                             </AvatarFallback>
                           </Avatar>
@@ -1787,9 +1973,25 @@ function EnrollmentsTable({
                                 enrolledDate: enrollment.enrollmentDate,
                                 progress: Math.round(enrollment.progress || 0),
                                 completedItemsCount: enrollment.completedItemsCount || 0,
+
+                                contentCounts: {
+                                  totalItems: enrollment.contentCounts?.totalItems || 0,
+                                  videos: enrollment.contentCounts?.videos || 0,
+                                  quizzes: enrollment.contentCounts?.quizzes || 0,
+                                  articles: enrollment.contentCounts?.articles || 0,
+                                  project: enrollment.contentCounts?.project || 0,
+                                  completedVideos: enrollment.contentCounts?.completedVideos || 0,
+                                  completedQuizzes: enrollment.contentCounts?.completedQuizzes || 0,
+                                  completedArticles: enrollment.contentCounts?.completedArticles || 0,
+                                  completedProjects: enrollment.contentCounts?.completedProjects || 0,
+                                  totalQuizScore: enrollment.contentCounts?.totalQuizScore || 0,
+                                  totalQuizMaxScore: enrollment.contentCounts?.totalQuizMaxScore || 0,
+                                },
+
                                 isDeleted: enrollment.isDeleted,
                               })
                             }
+
                             disabled={
                               Math.round(enrollment.progress || 0) === 0 ||
                               enrollment?.isDeleted
