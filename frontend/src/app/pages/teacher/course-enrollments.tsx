@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { QuizSubmissionDisplay } from "./QuizSubmissionDisplay"
 import { WatchTimeDisplay } from "./WatchTimeDisplay"
+import { useStudentCurrentProgressPath } from "@/hooks/useStudentCurrentProgressPath"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 // Import hooks - including the new quiz hooks
@@ -128,7 +129,6 @@ const getRoleBadge = (role: EnrollmentRole) => {
     </Badge>
   )
 }
-
 
 export default function CourseEnrollments() {
   const navigate = useNavigate()
@@ -635,7 +635,23 @@ export default function CourseEnrollments() {
       bgColor: "bg-purple-50",
     },
   ]
+ const {
+  data: currentPath,
+  error: pathError,
+} = useStudentCurrentProgressPath(
+  selectedUser?.id,
+  courseId,
+  versionId,
+  isViewProgressDialogOpen
+)
 
+// ===== Derived progress helpers =====
+const totalItems = version?.totalItems ?? 0
+
+const completedItems = selectedUser?.completedItemsCount ?? 0
+
+const hasCompletedCourse = totalItems > 0 && completedItems >= totalItems
+ 
   // Loading state
   if ((courseLoading || versionLoading) && !course && !version) {
     return (
@@ -930,6 +946,62 @@ export default function CourseEnrollments() {
               )}
 
               </div>
+  
+              <div className="mt-4">
+  {hasCompletedCourse ? (
+    <div className="p-4 rounded-lg bg-green-50 border border-green-200 text-green-700 font-medium">
+      🎉 Student has completed the course
+    </div>
+  ) : (
+    <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 font-medium">
+      ⏳ Course is still in progress
+    </div>
+  )}
+</div>
+
+{/* Current Learning Position */}
+<div className="space-y-2 p-4 rounded-lg border border-border bg-muted/20">
+  <h4 className="text-sm font-semibold text-muted-foreground">
+    Current Learning Position
+  </h4>
+
+  {pathError && (
+    <p className="text-sm text-destructive">
+      Failed to load current progress
+    </p>
+  )}
+
+  {!currentPath && !pathError && (
+    <p className="text-sm text-muted-foreground">
+      Progress not started yet
+    </p>
+  )}
+
+  {currentPath && (
+    <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+      <span className="px-2 py-1 rounded bg-blue-100 text-blue-700">
+        {currentPath.module.name}
+      </span>
+
+      <span className="text-muted-foreground">›</span>
+
+      <span className="px-2 py-1 rounded bg-emerald-100 text-emerald-700">
+        {currentPath.section.name}
+      </span>
+
+      <span className="text-muted-foreground">›</span>
+
+      <span className="px-2 py-1 rounded bg-purple-100 text-purple-700">
+        {currentPath.item.name}
+      </span>
+
+      <span className="ml-2 text-xs px-2 py-0.5 rounded border">
+        {currentPath.item.type}
+      </span>
+    </div>
+  )}
+</div>
+
 
               {/* Course Structure */}
               <div className="space-y-4">

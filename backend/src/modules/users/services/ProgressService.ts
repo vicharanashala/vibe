@@ -35,10 +35,11 @@ import {
   QuizRepository,
   UserQuizMetricsRepository,
 } from '#root/modules/quizzes/repositories/index.js';
-import {EnrollmentRepository} from '#root/shared/index.js';
-import {PROJECTS_TYPES} from '#root/modules/projects/types.js';
-import {IProjectSubmissionRepository} from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
-import {FeedbackRepository} from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
+import { EnrollmentRepository } from '#root/shared/index.js';
+import { PROJECTS_TYPES } from '#root/modules/projects/types.js';
+import { IProjectSubmissionRepository } from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
+import { FeedbackRepository } from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
+import { GetCurrentProgressPathResponse } from '../classes/dtos/GetCurrentProgressPathResponse.js';
 
 @injectable()
 class ProgressService extends BaseService {
@@ -1248,6 +1249,35 @@ class ProgressService extends BaseService {
       return Object.assign(new Progress(), progress);
     });
   }
+
+async getCurrentProgressPath(
+  userId: string,
+  courseId: string,
+  versionId: string
+): Promise<GetCurrentProgressPathResponse> {
+
+  const progress = await this.progressRepository.findOne({
+    userId,
+    courseId,
+    versionId,
+  })
+
+  if (!progress || !progress.currentItem) {
+    throw new BadRequestError('Progress not started')
+  }
+
+  const { moduleId, sectionId, itemId } = progress.currentItem
+
+  const module = await this.courseRepo.getModuleById(courseId, versionId, moduleId)
+  const section = module.sections.find(s => s.sectionId === sectionId)
+  const item = section.items.find(i => i._id.toString() === itemId)
+
+  return {
+    module: { id: module.moduleId, name: module.name },
+    section: { id: section.sectionId, name: section.name },
+    item: { id: item._id, name: item.name, type: item.type },
+  }
+}
 
   async getUserProgressPercentage(
     userId: string | ObjectId,
