@@ -18,3 +18,11 @@ export const ENTITY_TYPE_VALUES = Object.values(EntityTypeEnum);
 export enum ReportPermissionSubject  {
   REPORT = 'Report'
 }
+
+export const SORT_FIELD_MAP: Record<string, string> = {
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  entityType: 'entityType',
+  reason: 'reason',
+  latestStatus: 'latestStatus',
+};
