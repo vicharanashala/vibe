@@ -508,19 +508,13 @@ export default function AISectionPage() {
       !expandedAccordionItems.includes(recentTranscriptionRun.id) &&
       !manuallyCollapsedItems.includes(recentTranscriptionRun.id)) {
 
-      console.log('useEffect: Found completed transcription run, expanding:', recentTranscriptionRun.id);
-      console.log('useEffect: Current expanded items:', expandedAccordionItems);
-      console.log('useEffect: Manually collapsed items:', manuallyCollapsedItems);
 
       setTimeout(() => {
         setExpandedAccordionItems(prev => {
           if (!prev.includes(recentTranscriptionRun.id)) {
-            console.log('useEffect: Adding to expanded items:', recentTranscriptionRun.id);
             const newExpanded = [...prev, recentTranscriptionRun.id];
-            console.log('useEffect: New expanded items will be:', newExpanded);
             return newExpanded;
           }
-          console.log('useEffect: Run already expanded, skipping');
           return prev;
         });
       }, 500);
@@ -532,11 +526,9 @@ export default function AISectionPage() {
 
     completedTranscriptionRuns.forEach(run => {
       if (!expandedAccordionItems.includes(run.id) && !manuallyCollapsedItems.includes(run.id)) {
-        console.log('Backup expansion: Found completed transcription run not expanded:', run.id);
         setTimeout(() => {
           setExpandedAccordionItems(prev => {
             if (!prev.includes(run.id)) {
-              console.log('Backup expansion: Expanding run:', run.id);
               return [...prev, run.id];
             }
             return prev;
@@ -1887,7 +1879,6 @@ export default function AISectionPage() {
       // const status = await aiSectionAPI.getJobStatus(aiJobId);
       // setAiJobStatus(status);
       const status: any = aiJobStatus;
-      console.log(aiJobStatus)
       const prevJobStatus = prevJobStatusRef.current;
       // Only show toast if transitioning to COMPLETED and not on first mount
       if (
@@ -1929,14 +1920,10 @@ export default function AISectionPage() {
         });
 
         if (completedRunId && !manuallyCollapsedItems.includes(completedRunId)) {
-          console.log('Transcription completed, expanding accordion for run:', completedRunId);
           setTimeout(() => {
             setExpandedAccordionItems(prevExpanded => {
-              console.log('Current expanded items:', prevExpanded);
-              console.log('Adding run to expanded:', completedRunId);
               if (!prevExpanded.includes(completedRunId!)) {
                 const newExpanded = [...prevExpanded, completedRunId!];
-                console.log('New expanded items:', newExpanded);
                 return newExpanded;
               }
               return prevExpanded;
@@ -2189,7 +2176,6 @@ export default function AISectionPage() {
             setTaskRuns((prevTaskRuns: any) => {
               const lastLoadingIdx = [...prevTaskRuns.transcription].reverse().findIndex(run => run.status === 'loading');
               if (lastLoadingIdx === -1) {
-                console.log('Live update: No loading transcription run found');
                 return prevTaskRuns;
               }
 
@@ -2207,12 +2193,10 @@ export default function AISectionPage() {
               if (completedRunId && !manuallyCollapsedItems.includes(completedRunId)) {
 
                 setExpandedAccordionItems(prevExpanded => {
-                  console.log('Live update: Current expanded items before update:', prevExpanded);
                   if (!prevExpanded.includes(completedRunId)) {
                     const newExpanded = [...prevExpanded, completedRunId];
                     return newExpanded;
                   }
-                  console.log('Live update: Run already in expanded items');
                   return prevExpanded;
                 });
               } else {

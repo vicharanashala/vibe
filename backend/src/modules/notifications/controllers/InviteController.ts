@@ -148,8 +148,9 @@ export class InviteController {
     );
     return {link};
   }
-
+  
   @Get('/:inviteId')
+  @Post('/:inviteId')
   @HttpCode(200)
   @ContentType('html')
   @OpenAPI({
@@ -169,8 +170,9 @@ export class InviteController {
     @Req() req: any,
   ): Promise<string> {
     const {inviteId} = params;
+     const action = req.query.action === 'REJECTED' ? 'REJECTED' : 'ACCEPT';
     try {
-      const result = await this.inviteService.processInvite(inviteId);
+      const result = await this.inviteService.processInvite(inviteId,action);
       if (result.isBulk) {
       }
       return inviteRedirectTemplate(result.message, appConfig.origins[0]);

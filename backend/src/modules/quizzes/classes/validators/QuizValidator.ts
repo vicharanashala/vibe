@@ -1605,6 +1605,8 @@ class GetAllQuestionBanksResponse {
 export interface QuestionAnswersBodydto {
   answers: QuestionAnswer[];
   isSkipped?: boolean;
+  courseId?: string;
+  courseVersionId?: string;
 }
 
 

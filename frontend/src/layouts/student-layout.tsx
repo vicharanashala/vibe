@@ -20,7 +20,7 @@ import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal
 import logo from "../../public/img/vibe_logo_img.ico"
 
 export default function StudentLayout() {
-  const { user } = useAuthStore()
+  const { user, isAuthReady } = useAuthStore()
   const navigate = useNavigate()
   const { getInvites, loading, error } = useInvites(); // run after login
   const hasShownToast = useRef(false);
@@ -40,6 +40,8 @@ export default function StudentLayout() {
   }
 
   useEffect(() => {
+    if (!isAuthReady || !user) return;
+
     const toastShown = sessionStorage.getItem("inviteToastShown");
 
     const getUserInvites = async () => {
@@ -59,10 +61,9 @@ export default function StudentLayout() {
 
 
     }
-    if (user)
-      getUserInvites();
+    getUserInvites();
 
-  }, [user])
+  }, [user, isAuthReady])
 
   useEffect(() => {
     if (!showInvites) return;
@@ -186,7 +187,7 @@ export default function StudentLayout() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowInvites((prev) => !prev)}
-                  className="relative h-9 px-2 sm:px-3 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:text-red-600 dark:hover:text-red-400 hover:shadow-lg hover:shadow-red-500/10"
+                  className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
                 >
                   <UserRoundCheck className="h-4 w-4" />
                   <span className="hidden sm:block ml-2">Invites</span>
@@ -200,7 +201,7 @@ export default function StudentLayout() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setConfirmLogout(true)}
-                className="relative h-9 px-2 sm:px-3 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:text-red-600 dark:hover:text-red-400 hover:shadow-lg hover:shadow-red-500/10 before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-red-500/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+                className="relative  h-10 px-4 text-sm font-medium transition-all duration-300  hover:text-red-600 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:shadow-red-500/10 dark:hover:text-red-400  dark:hover:bg-gradient-to-r dark:over:from-red-500/10 dark:hover:to-red-400/5"
               >
                 <LogOut className="h-4 w-4" />
                 <span className="hidden sm:block ml-2">Logout</span>

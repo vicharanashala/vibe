@@ -174,6 +174,7 @@ export type InviteStatus =
   | 'ACCEPTED'
   | 'PENDING'
   | 'CANCELLED'
+  | 'REJECTED'
   | 'EMAIL_FAILED'
   | 'ALREADY_ENROLLED'
   | 'EXPIRED';

@@ -55,14 +55,11 @@ export async function setupItemAbilities(
         case 'STUDENT':
           can(ItemActions.ViewAll, 'Item', versionBounded);
 
-          // fetch courseVersion (to get linearProgression flag)
-          const courseSettings = await courseSettingService.readCourseSettings(
+          // true if linearProgressionEnabled field is not available
+          const linearProgressionEnabled = courseSettingService.isLinearProgressionEnabled(
             enrollment.courseId,
             enrollment.versionId,
           );
-
-          const linearProgressionEnabled =
-            courseSettings?.settings?.linearProgressionEnabled ?? true;
 
           let progress: any;
           try {
@@ -72,9 +69,6 @@ export async function setupItemAbilities(
               enrollment.versionId,
             );
           } catch (error) {
-            console.log(
-              'No progress found for student, course not started yet',
-            );
             progress = null;
           }
 

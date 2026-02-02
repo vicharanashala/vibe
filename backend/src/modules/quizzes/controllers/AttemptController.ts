@@ -10,6 +10,7 @@ import {
   Res,
   Controller,
   Req,
+  ContentType,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
@@ -40,6 +41,7 @@ import {BadRequestErrorResponse} from '#root/shared/index.js';
 import {getCourseAbility} from '#root/modules/courses/abilities/courseAbilities.js';
 import {createObjectCsvStringifier} from 'csv-writer';
 import {Response, Request} from 'express';
+import {hideExplanationForStartAttempt} from '../utils/functions/hideExplanationForStartAttempt.js';
 
 @OpenAPI({
   tags: ['Quiz Attempts'],
@@ -89,7 +91,9 @@ class AttemptController {
     }
 
     const attempt = await this.attemptService.attempt(userId, quizId);
-    return attempt as CreateAttemptResponse;
+
+    return hideExplanationForStartAttempt(attempt) as CreateAttemptResponse;
+    // return attempt as CreateAttemptResponse;
   }
 
   @OpenAPI({
@@ -115,8 +119,8 @@ class AttemptController {
     // @Body() body: QuestionAnswersBody,
     @Ability(getAttemptAbility) {ability, user},
   ): Promise<{
-    result: 'CORRECT' | 'INCORRECT' | 'PARTIALLY_CORRECT';
-    explanation?: string;
+    status: 'saved' | 'failed to save';
+    message?: string;
   }> {
     const body: QuestionAnswersBodydto = await new Promise(
       (resolve, reject) => {
@@ -199,7 +203,7 @@ class AttemptController {
         req.on('error', err => reject(err));
       },
     );
-    const {isSkipped, answers} = body;
+    const {isSkipped, answers, courseId, courseVersionId} = body;
     const userId = user._id.toString();
     // Build subject context first
     const attemptSubject = subject('Attempt', {quizId});
@@ -216,6 +220,8 @@ class AttemptController {
       attemptId,
       answers,
       isSkipped,
+      courseId,
+      courseVersionId,
     );
     return result as SubmitAttemptResponse;
   }
@@ -227,6 +233,7 @@ class AttemptController {
   })
   @Authorized()
   @Post('/:itemId/feedback/submit')
+  @ContentType('application/json')
   @HttpCode(200)
   @ResponseSchema(SubmitAttemptResponse, {
     description: 'Feedback submitted successfully',
@@ -244,12 +251,12 @@ class AttemptController {
     @Params() params: SubmitFeedbackParams,
     @Body() body: SubmitFeedbackBody,
     @Ability(getCourseAbility) {ability, user},
-  ): Promise<string> {
+  ): Promise<{message: string}> {
     const {itemId} = params;
     const {details, courseId, courseVersionId, sectionId} = body;
     const userId = user._id.toString();
 
-    return await this.attemptService.submitFeedBackForm(
+    const message = await this.attemptService.submitFeedBackForm(
       userId,
       courseId,
       courseVersionId,
@@ -257,6 +264,7 @@ class AttemptController {
       details,
       // isSkipped,
     );
+    return {message};
   }
 
   @OpenAPI({

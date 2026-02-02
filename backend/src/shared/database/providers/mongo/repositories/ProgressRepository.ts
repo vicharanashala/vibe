@@ -4,7 +4,8 @@ import { injectable, inject } from 'inversify';
 import { Collection, ObjectId, ClientSession } from 'mongodb';
 import { MongoDatabase } from '../MongoDatabase.js';
 import { GLOBAL_TYPES } from '#root/types.js';
-import { InternalServerError } from 'routing-controllers';
+import { BadRequestError, InternalServerError } from 'routing-controllers';
+import { ActiveUserDto, Course, CourseVersion } from '#root/modules/courses/classes/index.js';
 
 type CurrentProgress = Pick<
   IProgress,
@@ -16,6 +17,8 @@ class ProgressRepository {
   private progressCollection!: Collection<IProgress>;
   private watchTimeCollection!: Collection<IWatchTime>;
   private attemptCollection: Collection<IAttempt>;
+  private courseCollection: Collection<Course>;
+  private courseVersionCollection: Collection<CourseVersion>;
   private initialized = false;
 
   constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
@@ -27,6 +30,11 @@ class ProgressRepository {
     }
    
 
+    this.courseCollection = await this.db.getCollection<Course>('newCourse');
+    this.courseVersionCollection = await this.db.getCollection<CourseVersion>(
+      'newCourseVersion',
+    );
+
     this.progressCollection = await this.db.getCollection<IProgress>(
       'progress',
     );
@@ -37,7 +45,8 @@ class ProgressRepository {
       'quiz_attempts',
     );
 
-     this.initialized = true;
+    this.initialized = true;
+
 
     // Create indexes with background: true and error handling
     try {
@@ -95,8 +104,9 @@ class ProgressRepository {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
-        // endTime: {$exists: true, $ne: null},
+        endTime: { $exists: true, $ne: null },
         isDeleted: { $ne: true },
+
       },
       { session },
     );
@@ -416,6 +426,8 @@ class ProgressRepository {
         session,
       },
     );
+
+
   }
 
   async findById(
@@ -439,9 +451,6 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<IProgress | null> {
     await this.init();
-    console.log(
-      '<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Hey from updated progress REPO>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>',
-    );
     const normalizedProgress: Partial<CurrentProgress> = {
       ...progress,
 
@@ -526,13 +535,12 @@ class ProgressRepository {
       { $set: { endTime: new Date() } },
       { returnDocument: 'after', session },
     );
-    console.log(result);
     return result;
   }
 
   async getWatchTime(
     userId: string | ObjectId,
-    itemId: string,
+    itemId: string | string[],
     courseId?: string,
     courseVersionId?: string,
     session?: ClientSession,
@@ -542,7 +550,11 @@ class ProgressRepository {
     // Build query dynamically and add logging
     const query: any = {
       userId: new ObjectId(userId),
-      itemId: new ObjectId(itemId),
+      itemId: {
+        $in: Array.isArray(itemId)
+          ? itemId.map(id => new ObjectId(id))
+          : [new ObjectId(itemId)],
+      },
     };
 
     // Add optional courseId and courseVersionId if provided
@@ -597,6 +609,7 @@ class ProgressRepository {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
+        isDeleted: { $ne: true },
       },
       { $set: progress },
       {
@@ -769,13 +782,9 @@ class ProgressRepository {
 
   async addBulkWatchTime(
     userId: string,
-
     courseId: string,
-
     versionId: string,
-
     itemIds: string[],
-
     session?: ClientSession,
   ) {
     await this.init();
@@ -786,15 +795,10 @@ class ProgressRepository {
 
     const docs: IWatchTime[] = itemIds.map(itemId => ({
       userId: new ObjectId(userId),
-
       courseId: new ObjectId(courseId),
-
       courseVersionId: new ObjectId(versionId),
-
       itemId: new ObjectId(itemId),
-
       startTime: now,
-
       endTime: now,
       isBulk: true,
     }));
@@ -807,6 +811,123 @@ class ProgressRepository {
       insertedCount: result.insertedCount,
     };
   }
+
+  async getActiveUsers(
+    courseId?: string,
+    courseVersionId?: string,
+    startTimeStamp?: string,
+    endTimeStamp?: string,
+  ): Promise<{
+    courseName?: string;
+    courseVersionName?: string;
+    activeUsers: ActiveUserDto[];
+  }> {
+    await this.init();
+
+    const matchConditions: any = {
+      isDeleted: { $ne: true },
+    };
+
+    if (courseId) {
+      matchConditions.courseId = new ObjectId(courseId);
+    }
+
+    if (courseVersionId) {
+      matchConditions.courseVersionId = new ObjectId(courseVersionId);
+    }
+
+    if (startTimeStamp || endTimeStamp) {
+      matchConditions.startTime = {};
+
+      if (startTimeStamp) {
+        const startEpoch = Number(startTimeStamp);
+        if (!Number.isFinite(startEpoch)) {
+          throw new BadRequestError(
+            'Invalid startTimeStamp. Expected Unix epoch time in milliseconds.',
+          );
+        }
+        matchConditions.startTime.$gte = new Date(startEpoch);
+      }
+
+      if (endTimeStamp) {
+        const endEpoch = Number(endTimeStamp);
+        if (!Number.isFinite(endEpoch)) {
+          throw new BadRequestError(
+            'Invalid endTimeStamp. Expected Unix epoch time in milliseconds.',
+          );
+        }
+        matchConditions.startTime.$lte = new Date(endEpoch);
+      }
+    }
+
+    /* -----------------------------
+       Fetch Active Users
+    ------------------------------ */
+    const activeUsers = (await this.watchTimeCollection
+      .aggregate([
+        { $match: matchConditions },
+        {
+          $group: {
+            _id: '$userId',
+            lastActiveTime: { $max: '$startTime' },
+          },
+        },
+        { $sort: { lastActiveTime: -1 } },
+        {
+          $lookup: {
+            from: 'users',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'user',
+          },
+        },
+        { $unwind: '$user' },
+        {
+          $project: {
+            _id: 0,
+            firstName: '$user.firstName',
+            email: '$user.email',
+            lastActiveTime: {
+              $dateToString: {
+                date: '$lastActiveTime',
+                format: '%d-%m-%Y %H:%M:%S',
+                timezone: 'Asia/Kolkata',
+              },
+            },
+          },
+        },
+      ])
+      .toArray()) as ActiveUserDto[];
+
+    /* -----------------------------
+       Fetch Course / Version Names
+    ------------------------------ */
+    let courseName: string | undefined;
+    let courseVersionName: string | undefined;
+
+    if (courseId) {
+      const course = await this.courseCollection.findOne(
+        { _id: new ObjectId(courseId), isDeleted: { $ne: true } },
+        { projection: { name: 1 } },
+      );
+      courseName = course?.name;
+    }
+
+    if (courseVersionId) {
+      const version = await this.courseVersionCollection.findOne(
+        { _id: new ObjectId(courseVersionId), isDeleted: { $ne: true } },
+        { projection: { version: 1 } },
+      );
+      courseVersionName = version?.version;
+    }
+
+    return {
+      courseName,
+      courseVersionName,
+      activeUsers,
+    };
+  }
+
 }
 
 export { ProgressRepository };

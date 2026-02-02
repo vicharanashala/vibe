@@ -1,7 +1,7 @@
 ﻿import { GLOBAL_TYPES } from '#root/types.js';
 import { ICourseRepository } from '#shared/database/interfaces/ICourseRepository.js';
 import { IItemRepository } from '#shared/database/interfaces/IItemRepository.js';
-import { ItemType } from '#shared/interfaces/models.js';
+import { IQuizItem, ItemType } from '#shared/interfaces/models.js';
 import { instanceToPlain } from 'class-transformer';
 import { injectable, inject } from 'inversify';
 import { Collection, ClientSession, ObjectId } from 'mongodb';
@@ -21,7 +21,6 @@ import {
 import { UpdateItemBody } from '#root/modules/courses/classes/index.js';
 import { QuestionBank } from '#root/modules/quizzes/classes/transformers/QuestionBank.js';
 import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
-
 
 @injectable()
 export class ItemRepository implements IItemRepository {
@@ -106,7 +105,6 @@ export class ItemRepository implements IItemRepository {
         { projection: { items: 1 }, session }, // only return `items`
       )
       .toArray();
-    console.log('Items group ', ItemsGroup);
 
     return itemGroups.reduce(
       (total, group) => total + (group.items ? group.items.length : 0),
@@ -125,10 +123,24 @@ export class ItemRepository implements IItemRepository {
       { session },
     );
     if (!itemsGroup) {
-      throw new NotFoundError(`ItemsGroup ${itemsGroupId} not found.`);
+      // Create a new empty ItemsGroup if it doesn't exist
+      console.log(`[ItemRepository] ItemsGroup ${itemsGroupId} not found, creating new empty group`);
+      const newItemsGroup = {
+        _id: new ObjectId(itemsGroupId),
+        items: [],
+        sectionId: new ObjectId(itemsGroupId), // Use the same ID for now
+        isDeleted: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      
+      await this.itemsGroupCollection.insertOne(newItemsGroup, { session });
+      return instanceToPlain(
+        Object.assign(new ItemsGroup(), newItemsGroup),
+      ) as ItemsGroup;
     }
 
-    // Lookup items to check if they are deleted
+    // Lookup items to check if they are deleted and fetch their names
     const filteredItems = [];
     for (const item of itemsGroup.items) {
       let collection: Collection<any>;
@@ -158,9 +170,21 @@ export class ItemRepository implements IItemRepository {
         { session },
       );
       if (existingItem) {
-        filteredItems.push(item);
+        // Explicitly create an object with all ItemRef fields
+        const itemRef = {
+          _id: item._id,
+          type: item.type,
+          order: item.order,
+          isHidden: item.isHidden,
+          name: existingItem.name || 'Untitled',
+        };
+        console.log(`[ItemRepository] Item ${item._id} (${item.type}): name="${itemRef.name}"`);
+        filteredItems.push(itemRef);
       }
     }
+
+    console.log(`[ItemRepository] Returning ${filteredItems.length} items with names:`,
+      filteredItems.map(i => ({ id: i._id, type: i.type, name: i.name })));
 
     itemsGroup.items = filteredItems;
 
@@ -382,10 +406,7 @@ export class ItemRepository implements IItemRepository {
     );
   }
 
-  async readItemById(
-    itemId: string,
-    session?: ClientSession,
-  ): Promise<Item> {
+  async readItemById(itemId: string, session?: ClientSession): Promise<Item> {
     await this.init();
 
     const objectId = new ObjectId(itemId);
@@ -417,7 +438,6 @@ export class ItemRepository implements IItemRepository {
 
     return item;
   }
-
 
   async updateItem(
     itemId: string,
@@ -585,9 +605,11 @@ export class ItemRepository implements IItemRepository {
     return itemsGroup;
   }
 
-  async getFirstOrderItems(
-    courseVersionId: string,
-  ): Promise<{ moduleId: ObjectId; sectionId: ObjectId; itemId: ObjectId } | null> {
+  async getFirstOrderItems(courseVersionId: string): Promise<{
+    moduleId: ObjectId;
+    sectionId: ObjectId;
+    itemId: ObjectId;
+  } | null> {
     await this.init();
 
     const version = await this.courseRepo.readVersion(courseVersionId);
@@ -605,11 +627,11 @@ export class ItemRepository implements IItemRepository {
     const firstSection = firstModule.sections
       .slice()
       .sort((a, b) => a.order.localeCompare(b.order))[0];
-    
+
     if (!firstSection || !firstSection.itemsGroupId) {
       return null;
     }
-    
+
     const itemsGroup = await this.readItemsGroup(
       firstSection.itemsGroupId.toString(),
     );
@@ -663,9 +685,6 @@ export class ItemRepository implements IItemRepository {
 
     return itemsCounts.reduce((sum, count) => sum + count, 0);
   }
-
-
-
 
   async getTotalItemsCount(
     courseId: string,
@@ -922,6 +941,47 @@ export class ItemRepository implements IItemRepository {
     return result as Item;
   }
 
+  async getQuizInfo(
+    itemGroupIds: string[],
+    session?: ClientSession,
+  ): Promise<{ _id: ObjectId; items: ItemRef }[]> {
+    await this.init();
+
+    const objectIds = itemGroupIds.map(id => new ObjectId(id));
+
+    const filteredGroups = await this.itemsGroupCollection
+      .aggregate(
+        [
+          {
+            $match: {
+              _id: { $in: objectIds },
+            },
+          },
+          {
+            $project: {
+              _id: 1,
+              items: {
+                $filter: {
+                  input: '$items',
+                  as: 'item',
+                  cond: { $eq: ['$$item.type', 'QUIZ'] },
+                },
+              },
+            },
+          },
+          {
+            $unwind: {
+              path: '$items',
+            },
+          },
+        ],
+        { session },
+      )
+      .toArray();
+
+    return filteredGroups as { _id: ObjectId; items: ItemRef }[];
+  }
+
   async calculateItemCountsForVersion(
     courseVersionId: string,
     session?: ClientSession,
@@ -931,10 +991,7 @@ export class ItemRepository implements IItemRepository {
   }> {
     await this.init();
 
-    const version = await this.courseRepo.readVersion(
-      courseVersionId,
-      session,
-    );
+    const version = await this.courseRepo.readVersion(courseVersionId, session);
 
     if (!version) {
       throw new Error(`CourseVersion ${courseVersionId} not found`);
@@ -949,33 +1006,33 @@ export class ItemRepository implements IItemRepository {
             },
           },
 
-          { $unwind: "$modules" },
-          { $unwind: "$modules.sections" },
+          { $unwind: '$modules' },
+          { $unwind: '$modules.sections' },
 
           {
             $lookup: {
-              from: "itemsGroup",
-              let: { igId: "$modules.sections.itemsGroupId" },
+              from: 'itemsGroup',
+              let: { igId: '$modules.sections.itemsGroupId' },
               pipeline: [
                 {
                   $match: {
                     $expr: {
-                      $eq: ["$_id", { $toObjectId: "$$igId" }],
+                      $eq: ['$_id', { $toObjectId: '$$igId' }],
                     },
                   },
                 },
               ],
-              as: "itemGroup",
+              as: 'itemGroup',
             },
           },
 
-          { $unwind: "$itemGroup" },
-          { $unwind: "$itemGroup.items" },
+          { $unwind: '$itemGroup' },
+          { $unwind: '$itemGroup.items' },
 
           {
             $match: {
-              "itemGroup.items.isHidden": { $ne: true },
-              "itemGroup.items.isDeleted": { $ne: true },
+              'itemGroup.items.isHidden': { $ne: true },
+              'itemGroup.items.isDeleted': { $ne: true },
             },
           },
 
@@ -985,128 +1042,128 @@ export class ItemRepository implements IItemRepository {
           {
             $facet: {
               VIDEO: [
-                { $match: { "itemGroup.items.type": "VIDEO" } },
+                { $match: { 'itemGroup.items.type': 'VIDEO' } },
                 {
                   $lookup: {
-                    from: "videos",
-                    let: { itemId: "$itemGroup.items._id" },
+                    from: 'videos',
+                    let: { itemId: '$itemGroup.items._id' },
                     pipeline: [
                       {
                         $match: {
                           $expr: {
                             $and: [
-                              { $eq: ["$_id", { $toObjectId: "$$itemId" }] },
-                              { $ne: ["$isDeleted", true] },
-                              { $ne: ["$isHidden", true] },
+                              { $eq: ['$_id', { $toObjectId: '$$itemId' }] },
+                              { $ne: ['$isDeleted', true] },
+                              { $ne: ['$isHidden', true] },
                             ],
                           },
                         },
                       },
                     ],
-                    as: "item",
+                    as: 'item',
                   },
                 },
-                { $unwind: "$item" },
+                { $unwind: '$item' },
               ],
 
               QUIZ: [
-                { $match: { "itemGroup.items.type": "QUIZ" } },
+                { $match: { 'itemGroup.items.type': 'QUIZ' } },
                 {
                   $lookup: {
-                    from: "quizzes",
-                    let: { itemId: "$itemGroup.items._id" },
+                    from: 'quizzes',
+                    let: { itemId: '$itemGroup.items._id' },
                     pipeline: [
                       {
                         $match: {
                           $expr: {
                             $and: [
-                              { $eq: ["$_id", { $toObjectId: "$$itemId" }] },
-                              { $ne: ["$isDeleted", true] },
-                              { $ne: ["$isHidden", true] },
+                              { $eq: ['$_id', { $toObjectId: '$$itemId' }] },
+                              { $ne: ['$isDeleted', true] },
+                              { $ne: ['$isHidden', true] },
                             ],
                           },
                         },
                       },
                     ],
-                    as: "item",
+                    as: 'item',
                   },
                 },
-                { $unwind: "$item" },
+                { $unwind: '$item' },
               ],
 
               BLOG: [
-                { $match: { "itemGroup.items.type": "BLOG" } },
+                { $match: { 'itemGroup.items.type': 'BLOG' } },
                 {
                   $lookup: {
-                    from: "blogs",
-                    let: { itemId: "$itemGroup.items._id" },
+                    from: 'blogs',
+                    let: { itemId: '$itemGroup.items._id' },
                     pipeline: [
                       {
                         $match: {
                           $expr: {
                             $and: [
-                              { $eq: ["$_id", { $toObjectId: "$$itemId" }] },
-                              { $ne: ["$isDeleted", true] },
-                              { $ne: ["$isHidden", true] },
+                              { $eq: ['$_id', { $toObjectId: '$$itemId' }] },
+                              { $ne: ['$isDeleted', true] },
+                              { $ne: ['$isHidden', true] },
                             ],
                           },
                         },
                       },
                     ],
-                    as: "item",
+                    as: 'item',
                   },
                 },
-                { $unwind: "$item" },
+                { $unwind: '$item' },
               ],
 
               PROJECT: [
-                { $match: { "itemGroup.items.type": "PROJECT" } },
+                { $match: { 'itemGroup.items.type': 'PROJECT' } },
                 {
                   $lookup: {
-                    from: "projects",
-                    let: { itemId: "$itemGroup.items._id" },
+                    from: 'projects',
+                    let: { itemId: '$itemGroup.items._id' },
                     pipeline: [
                       {
                         $match: {
                           $expr: {
                             $and: [
-                              { $eq: ["$_id", { $toObjectId: "$$itemId" }] },
-                              { $ne: ["$isDeleted", true] },
-                              { $ne: ["$isHidden", true] },
+                              { $eq: ['$_id', { $toObjectId: '$$itemId' }] },
+                              { $ne: ['$isDeleted', true] },
+                              { $ne: ['$isHidden', true] },
                             ],
                           },
                         },
                       },
                     ],
-                    as: "item",
+                    as: 'item',
                   },
                 },
-                { $unwind: "$item" },
+                { $unwind: '$item' },
               ],
 
               FEEDBACK: [
-                { $match: { "itemGroup.items.type": "FEEDBACK" } },
+                { $match: { 'itemGroup.items.type': 'FEEDBACK' } },
                 {
                   $lookup: {
-                    from: "feedbackForms",
-                    let: { itemId: "$itemGroup.items._id" },
+                    from: 'feedbackForms',
+                    let: { itemId: '$itemGroup.items._id' },
                     pipeline: [
                       {
                         $match: {
                           $expr: {
                             $and: [
-                              { $eq: ["$_id", { $toObjectId: "$$itemId" }] },
-                              { $ne: ["$isDeleted", true] },
-                              { $ne: ["$isHidden", true] },
+                              { $eq: ['$_id', { $toObjectId: '$$itemId' }] },
+                              { $ne: ['$isDeleted', true] },
+                              { $ne: ['$isHidden', true] },
                             ],
                           },
                         },
                       },
                     ],
-                    as: "item",
+                    as: 'item',
                   },
                 },
-                { $unwind: "$item" },
+                { $unwind: '$item' },
               ],
             },
           },
@@ -1118,21 +1175,21 @@ export class ItemRepository implements IItemRepository {
             $project: {
               items: {
                 $concatArrays: [
-                  "$VIDEO",
-                  "$QUIZ",
-                  "$BLOG",
-                  "$PROJECT",
-                  "$FEEDBACK",
+                  '$VIDEO',
+                  '$QUIZ',
+                  '$BLOG',
+                  '$PROJECT',
+                  '$FEEDBACK',
                 ],
               },
             },
           },
 
-          { $unwind: "$items" },
+          { $unwind: '$items' },
 
           {
             $group: {
-              _id: "$items.itemGroup.items.type",
+              _id: '$items.itemGroup.items.type',
               count: { $sum: 1 },
             },
           },
@@ -1140,11 +1197,11 @@ export class ItemRepository implements IItemRepository {
           {
             $group: {
               _id: null,
-              totalItems: { $sum: "$count" },
+              totalItems: { $sum: '$count' },
               itemCounts: {
                 $push: {
-                  type: "$_id",
-                  count: "$count",
+                  type: '$_id',
+                  count: '$count',
                 },
               },
             },
@@ -1157,11 +1214,11 @@ export class ItemRepository implements IItemRepository {
               itemCounts: {
                 $arrayToObject: {
                   $map: {
-                    input: "$itemCounts",
-                    as: "t",
+                    input: '$itemCounts',
+                    as: 't',
                     in: {
-                      k: "$$t.type",
-                      v: "$$t.count",
+                      k: '$$t.type',
+                      v: '$$t.count',
                     },
                   },
                 },
@@ -1174,16 +1231,13 @@ export class ItemRepository implements IItemRepository {
       .toArray();
 
     return (
-      result[0] as { totalItems: number; itemCounts: Record<string, number> } ?? {
+      (result[0] as {
+        totalItems: number;
+        itemCounts: Record<string, number>;
+      }) ?? {
         totalItems: 0,
         itemCounts: {},
       }
     );
   }
-
-
-
-
-
-
 }
