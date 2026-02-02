@@ -16,6 +16,12 @@ export interface CourseCardProps {
       videos?: number;
       quizzes?: number;
       articles?: number;
+      totalQuizScore?: number;
+      totalQuizMaxScore?: number;
+      completedVideos?: number;
+      completedQuizzes?: number;
+      completedArticles?: number;
+      completedProjects?: number;
     };
     completedItems?: number;
     course?: {
@@ -88,6 +94,7 @@ export interface EnrolledUser {
   email: string
   avatar?: string
   enrolledDate: string
+  unenrolledAt?: string
   progress: number
   completedItemsCount?: number
   isDeleted?: boolean

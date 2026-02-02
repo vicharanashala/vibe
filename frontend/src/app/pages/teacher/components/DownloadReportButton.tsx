@@ -28,7 +28,6 @@ export const DownloadReportButton: React.FC<{
   const [showLoading, setShowLoading] = useState(false);
 
   useEffect(() => {
-    console.log("QuizReportData: ", data);
     if (showLoading) {
       const timer = setTimeout(() => {
         setShowLoading(false);

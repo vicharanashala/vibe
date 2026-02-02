@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/store/auth-store"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
-import { useEditUser, useUserEnrollments, useWatchtimeTotal } from "@/hooks/hooks"
+import { useEditUser, useUserEnrollments } from "@/hooks/hooks"
 import { logout } from "@/utils/auth"
 import { useNavigate } from "@tanstack/react-router"
 import { LogOut } from "lucide-react"
@@ -28,7 +28,6 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
   // Fetch user data and statistics
   const { token } = useAuthStore();
   const { data: enrollmentsData, isLoading: enrollmentsLoading } = useUserEnrollments(1, 100, !!token);
-  const { data: watchtimeData, isLoading: watchtimeLoading } = useWatchtimeTotal();
 
   // Calculate statistics
   const totalEnrollments = enrollmentsData?.totalDocuments || 0;
@@ -183,7 +182,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                       variant="ghost"
                       size="sm"
                       onClick={() => setConfirmLogout(true)}
-                      className="relative h-9 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:text-red-600 dark:hover:text-red-400 hover:shadow-lg hover:shadow-red-500/10"
+                       className="relative  h-10 px-4 text-sm font-medium transition-all duration-300  hover:text-red-600 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:shadow-red-500/10 dark:hover:text-red-400  dark:hover:bg-gradient-to-r dark:over:from-red-500/10 dark:hover:to-red-400/5"
                     >
                       <LogOut className="h-4 w-4 mr-2" />
                       Logout
@@ -278,18 +277,6 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                     </div>
                   )}
                   <p className="text-sm text-muted-foreground">Enrolled Courses</p>
-                </div>
-                {/* Study Time */}
-                <div className="text-center">
-                  {watchtimeLoading ? (
-                    <Skeleton className="h-8 w-16 mx-auto mb-1" />
-                  ) : (
-                    <div className="text-2xl font-bold text-primary flex items-center justify-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      {(watchtimeData / 3600 || 0).toFixed(2)}h
-                    </div>
-                  )}
-                  <p className="text-sm text-muted-foreground">Study Time</p>
                 </div>
                 
                 {/* Overall Progress */}

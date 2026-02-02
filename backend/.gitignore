@@ -77,3 +77,5 @@ client/
 tsconfig.tsbuildinfo
 client/
 build/
+
+*txt

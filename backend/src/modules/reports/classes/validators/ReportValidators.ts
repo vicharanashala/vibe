@@ -10,6 +10,7 @@ import {
   IsArray,
   IsIn,
 } from 'class-validator';
+import {ReportSortColumn} from '../../types.js';
 import {Type} from 'class-transformer';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {ID} from '#root/shared/interfaces/models.js';
@@ -188,6 +189,13 @@ export class ReportFiltersQuery {
   @IsInt()
   @Min(0)
   currentPage?: number = 1;
+
+  @IsOptional()
+  sortBy?: ReportSortColumn;
+
+  @IsOptional()
+  @IsEnum(['asc', 'desc'])
+  sortOrder?: 'asc' | 'desc' = 'desc';
 }
 
 class ReportDataResponse {
@@ -333,18 +341,12 @@ export class IssueFilterQuery {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @JSONSchema({
-    description:'number of pages to be shown'
-  })
   page: number = 1;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @JSONSchema({
-    description:'limit of entries displayed in single page'
-  })
   limit: number = 10;
 
   @IsOptional()
@@ -356,9 +358,10 @@ export class IssueFilterQuery {
   search: string = '';
 
   @IsOptional()
-  @IsEnum(IssueSortEnum)
-  sort: IssueSortEnum = IssueSortEnum.ALL;
+  @IsString()
+  sort?: string;
 }
+
 
 class IssueReportResponse{
   @JSONSchema({
