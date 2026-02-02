@@ -24,9 +24,8 @@ class FeedbackRepository {
         'feedback_submission',
       );
 
-    this.feedbackFormCollection = await this.db.getCollection<FeedBackFormItem>(
-      'feedback_forms',
-    );
+    this.feedbackFormCollection =
+      await this.db.getCollection<FeedBackFormItem>('feedback_forms');
   }
 
   /* ------------------------------------------------------
@@ -104,6 +103,20 @@ class FeedbackRepository {
     );
 
     return result ?? null;
+  }
+
+  async deleteSubmissionsByFormId(
+    formId: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+
+    const result = await this.feedbackSubmissionCollection.deleteMany(
+      {feedbackFormId: new ObjectId(formId)},
+      {session},
+    );
+
+    return result.deletedCount ?? 0;
   }
 
   async findByPreviousItemId(
