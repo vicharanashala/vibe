@@ -183,8 +183,6 @@ export class ItemRepository implements IItemRepository {
       }
     }
 
-    console.log(`[ItemRepository] Returning ${filteredItems.length} items with names:`,
-      filteredItems.map(i => ({ id: i._id, type: i.type, name: i.name })));
 
     itemsGroup.items = filteredItems;
 
