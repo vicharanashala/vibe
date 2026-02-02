@@ -782,15 +782,14 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { course
         </p>
       </DialogHeader>
 
-      <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full pr-4">
-          {isLoading && (
-            <div className="space-y-3">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
-          )}
+      <ScrollArea className="h-[450px] pr-4">
+        {isLoading && (
+          <div className="space-y-3">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        )}
 
           {error && !isLoading && (
             <p className="text-muted-foreground text-center py-8">{error}</p>
