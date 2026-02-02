@@ -2138,9 +2138,24 @@ async getCurrentProgressPath(
       }
 
       // Fetch itemGroups in parallel
-      const itemsGroups = await Promise.all(
-        itemsGroupIds.map(id => this.itemRepo.readItemsGroup(id, session)),
-      );
+      // const itemsGroups = await Promise.all(
+      //   itemsGroupIds.map(id => this.itemRepo.readItemsGroup(id, session)),
+      // );
+      let itemsGroups: ItemsGroup[] = [];
+      for (const id of itemsGroupIds) {
+        try {
+          const group = await this.itemRepo.readItemsGroup(id, session);
+          itemsGroups.push(group);
+        } catch (err) {
+          if (err instanceof NotFoundError) {
+            console.warn(
+              `[unenrollUser] Missing ItemsGroup ${id}. Skipping cleanup for this group.`,
+            );
+            continue;
+          }
+          throw err; // unknown error → fail transaction
+        }
+      }
 
       for (const group of itemsGroups) {
         for (const item of group.items || []) {
