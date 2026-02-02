@@ -80,7 +80,7 @@ export const CourseCard = ({
   const versionId = bufferToHex(enrollment.courseVersionId as string) || "";
   const module_number=enrollment.moduleNumber||"";
   const section_number=enrollment.sectionNumber || "";
-  const item_type=enrollment.itemType|| " &bull;VIDEO";
+  const item_type=enrollment.itemType|| " VIDEO";
   // Fetch course version to get supportLink
   const {data: courseVersionData} = useCourseVersionById(versionId);
   const supportLink = (courseVersionData as any)?.supportLink;
