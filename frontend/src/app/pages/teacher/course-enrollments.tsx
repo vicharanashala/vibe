@@ -1992,10 +1992,10 @@ function EnrollmentsTable({
                               })
                             }
 
-                            disabled={
-                              (enrollment.progress || 0) === 0 ||
-                              enrollment?.isDeleted
-                            }
+                            // disabled={
+                            //   Math.round(enrollment.progress || 0) === 0 ||
+                            //   enrollment?.isDeleted
+                            // }
                             className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
                           >
                             <Eye className="h-4 w-4 mr-2" />
