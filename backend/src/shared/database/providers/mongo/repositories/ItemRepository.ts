@@ -117,13 +117,14 @@ export class ItemRepository implements IItemRepository {
     session?: ClientSession,
   ): Promise<ItemsGroup> {
     await this.init();
-    // console.log('Reading ItemsGroup with ID:', itemsGroupId);
 
     const itemsGroup = await this.itemsGroupCollection.findOne(
       { _id: new ObjectId(itemsGroupId), isDeleted: { $ne: true } },
       { session },
     );
     if (!itemsGroup) {
+      // Create a new empty ItemsGroup if it doesn't exist
+      // console.log(`[ItemRepository] ItemsGroup ${itemsGroupId} not found, creating new empty group`);
       const newItemsGroup = {
         _id: new ObjectId(itemsGroupId),
         items: [],
@@ -177,12 +178,13 @@ export class ItemRepository implements IItemRepository {
           isHidden: item.isHidden,
           name: existingItem.name || 'Untitled',
         };
-
+        // console.log(`[ItemRepository] Item ${item._id} (${item.type}): name="${itemRef.name}"`);
         filteredItems.push(itemRef);
       }
     }
 
-
+    console.log(`[ItemRepository] Returning ${filteredItems.length} items with names:`,
+      filteredItems.map(i => ({ id: i._id, type: i.type, name: i.name })));
 
     itemsGroup.items = filteredItems;
 
@@ -316,13 +318,12 @@ export class ItemRepository implements IItemRepository {
         throw new Error(`Failed to insert item of type ${item.type}`);
       }
 
-      const createdItem = await collection.findOne(
-        { _id: result.insertedId },
-        { session },
-      );
-      if (!createdItem)
-        throw new Error(`Failed to fetch inserted item of type ${item.type}`);
-      createdItems.push(createdItem);
+      createdItems.push({
+        ...item,
+        _id: result.insertedId,
+      });
+
+
     }
     return createdItems;
   }

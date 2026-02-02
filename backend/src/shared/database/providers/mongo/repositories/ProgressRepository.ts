@@ -28,6 +28,7 @@ class ProgressRepository {
     if (this.initialized) {
       return;
     }
+   
 
     this.courseCollection = await this.db.getCollection<Course>('newCourse');
     this.courseVersionCollection = await this.db.getCollection<CourseVersion>(
@@ -225,6 +226,10 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
+    if(!this.watchTimeCollection){
+      console.log('[ProgressRepository] watchTimeCollection not initialized');
+      return;
+    }
     const result = await this.watchTimeCollection.updateMany(
       {
         userId: new ObjectId(userId),
