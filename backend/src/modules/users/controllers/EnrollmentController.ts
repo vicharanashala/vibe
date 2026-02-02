@@ -215,7 +215,7 @@ export class EnrollmentController {
         message: 'No enrollments found for the user',
       };
     }
-
+    
     return {
       totalDocuments,
       totalPages: Math.ceil(totalDocuments / limit),
@@ -368,6 +368,7 @@ export class EnrollmentController {
           completedItemsCount: enrollment.completedItemsCount || 0,
           totalQuizScore: enrollment.totalQuizScore || 0,
           totalQuizMaxScore: enrollment.totalQuizMaxScore || 0,
+          contentCounts: enrollment.contentCounts,
         }))
         .sort((a, b) => {
           // sort by isDeleted deleted should be at the bottom
@@ -446,7 +447,7 @@ export class EnrollmentController {
         averageProgressPercent: 0,
       };
     }
-
+    
     return stats;
   }
   // @Authorized()

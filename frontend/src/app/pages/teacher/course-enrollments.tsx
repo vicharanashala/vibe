@@ -153,7 +153,7 @@ export default function CourseEnrollments() {
     courseId,
     versionId,
     !!(courseId && versionId)
-  )
+  )  
 
   const [selectedUser, setSelectedUser] = useState<EnrolledUser | null>(null)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
@@ -187,6 +187,23 @@ export default function CourseEnrollments() {
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
   const [isSearching, setIsSearching] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+
+  const [showContentSummary, setShowContentSummary] = useState(false)
+  function SummaryRow({
+  label,
+  value,
+    }: {
+      label: string
+      value: string | number
+    }) {
+      return (
+        <div className="flex justify-between items-center">
+          <span className="text-muted-foreground">{label}</span>
+          <span className="font-semibold text-right min-w-16">{value ?? 0}</span>
+        </div>
+      )
+    }
+
 
   // Quiz scores hook - using the hook directly with enabled: false to control when to fetch
   // const {
@@ -398,10 +415,27 @@ export default function CourseEnrollments() {
     setIsResetDialogOpen(true)
   }
 
-  const handleViewProgress = (user: EnrolledUser) => {
-    setSelectedUser(user)
-    setIsViewProgressDialogOpen(true)
-  }
+ const handleViewProgress = (user: EnrolledUser) => {
+  setSelectedUser({
+    ...user,
+    contentCounts: user.contentCounts || {
+      totalItems: 0,
+      videos: 0,
+      quizzes: 0,
+      articles: 0,
+      project: 0,
+      completedVideos: 0,
+      completedQuizzes: 0,
+      completedArticles: 0,
+      completedProjects: 0,
+      totalQuizScore: 0,
+      totalQuizMaxScore: 0,
+    },
+  })
+
+  setIsViewProgressDialogOpen(true)
+}
+
 
   const handleRemoveStudent = (user: EnrolledUser) => {
     setUserToRemove(user)
@@ -793,6 +827,7 @@ export default function CourseEnrollments() {
 
 
         {/* Enhanced View Progress Modal */}
+        
         {isViewProgressDialogOpen && selectedUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
             {/* Enhanced Backdrop */}
@@ -839,6 +874,61 @@ export default function CourseEnrollments() {
                     </p>
                   )}
                 </div>
+              {/* Content Summary Dropdown */}
+              {selectedUser?.contentCounts && (
+                <div className="border border-border rounded-lg ml-auto">
+
+                  {/* Header */}
+                  <button
+                    onClick={() => setShowContentSummary(prev => !prev)}
+                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium hover:bg-muted/20 rounded-md"
+                  >
+                    Content Summary
+                    {/* {showContentSummary ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )} */}
+                  </button>
+
+                  {/* Body */}
+                  {
+                  // showContentSummary &&
+                  (
+                    <div className="px-4 pb-3 pt-2 grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+
+                      <SummaryRow label="Total Items" value={selectedUser.contentCounts.totalItems} />
+
+                      <SummaryRow
+                        label="Videos"
+                        value={`${selectedUser.contentCounts.completedVideos} / ${selectedUser.contentCounts.videos}`}
+                      />
+
+                      <SummaryRow
+                        label="Quizzes"
+                        value={`${selectedUser.contentCounts.completedQuizzes} / ${selectedUser.contentCounts.quizzes}`}
+                      />
+
+                      <SummaryRow
+                        label="Articles"
+                        value={`${selectedUser.contentCounts.completedArticles} / ${selectedUser.contentCounts.articles}`}
+                      />
+
+                      <SummaryRow
+                        label="Projects"
+                        value={`${selectedUser.contentCounts.completedProjects} / ${selectedUser.contentCounts.project}`}
+                      />
+
+                      <SummaryRow
+                        label="Quiz Score"
+                        value={`${selectedUser.contentCounts.totalQuizScore || 0} / ${selectedUser.contentCounts.totalQuizMaxScore || 0}`}
+                      />
+
+                    </div>
+                  )}
+                </div>
+              )}
+
               </div>
 
               {/* Course Structure */}
@@ -877,7 +967,6 @@ export default function CourseEnrollments() {
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -914,7 +1003,7 @@ export default function CourseEnrollments() {
                     </TooltipProvider>
                   </div>
                 )}
-
+                {/* add the code here */}
                 <h3 className="text-lg font-semibold text-foreground">Course Structure</h3>
                 <div className="space-y-2 max-h-96 overflow-y-auto border border-border rounded-lg p-4">
                   {getAvailableModules().map((module: any) => (
@@ -1693,7 +1782,7 @@ function EnrollmentsTable({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  studentEnrollments.map((enrollment: any) => (
+                  studentEnrollments.map((enrollment: any) => (                    
                     <TableRow
                       key={enrollment._id}
                       className={`border-border hover:bg-muted/20 transition-colors duration-200 group ${isInactiveTab ? "opacity-80" : ""
@@ -1787,9 +1876,25 @@ function EnrollmentsTable({
                                 enrolledDate: enrollment.enrollmentDate,
                                 progress: Math.round(enrollment.progress || 0),
                                 completedItemsCount: enrollment.completedItemsCount || 0,
+
+                                contentCounts: {
+                                  totalItems: enrollment.contentCounts?.totalItems || 0,
+                                  videos: enrollment.contentCounts?.videos || 0,
+                                  quizzes: enrollment.contentCounts?.quizzes || 0,
+                                  articles: enrollment.contentCounts?.articles || 0,
+                                  project: enrollment.contentCounts?.project || 0,
+                                  completedVideos: enrollment.contentCounts?.completedVideos || 0,
+                                  completedQuizzes: enrollment.contentCounts?.completedQuizzes || 0,
+                                  completedArticles: enrollment.contentCounts?.completedArticles || 0,
+                                  completedProjects: enrollment.contentCounts?.completedProjects || 0,
+                                  totalQuizScore: enrollment.contentCounts?.totalQuizScore || 0,
+                                  totalQuizMaxScore: enrollment.contentCounts?.totalQuizMaxScore || 0,
+                                },
+
                                 isDeleted: enrollment.isDeleted,
                               })
                             }
+
                             disabled={
                               Math.round(enrollment.progress || 0) === 0 ||
                               enrollment?.isDeleted
