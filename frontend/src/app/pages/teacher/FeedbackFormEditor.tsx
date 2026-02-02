@@ -321,6 +321,7 @@ export default function FeedbackFormEditor({
                     {details &&
                       <div className="overflow-y-auto max-h-[70vh] pr-2">
                         <div className="max-w-lg mx-auto w-full space-y-4">
+                          <div className="text-left items-start">
                           <Form
                             schema={details?.item?.details?.jsonSchema}
                             validator={validator}
@@ -328,6 +329,7 @@ export default function FeedbackFormEditor({
                             onSubmit={onSubmit}
                             disabled={isSubmitting}
                           />
+                          </div>
                         </div>
                       </div>
                     }
