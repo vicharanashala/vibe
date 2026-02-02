@@ -117,6 +117,22 @@ class ProgressController {
     return progress;
   }
 
+  @Authorized()
+  @Get('/progress/courses/:courseId/versions/:versionId/current-path')
+  @HttpCode(200)
+  async getCurrentProgressPath(
+    @Params() params: GetUserProgressParams,
+    @Ability(getProgressAbility) { user },
+  ): Promise<any> {
+    const { courseId, versionId } = params
+    const userId = user._id.toString()
+
+    return await this.progressService.getCurrentProgressPath(
+      userId,
+      courseId,
+      versionId
+    )
+  }
   @OpenAPI({
     summary: 'Get %age progress in a course version',
     description:
@@ -142,21 +158,18 @@ class ProgressController {
     // Create a progress resource object for permission checking
     const progressResource = subject('Progress', { userId, courseId, versionId });
 
-    // Check permission using ability.can() with the actual progress resource
+
     if (!ability.can(ProgressActions.View, progressResource)) {
-      throw new ForbiddenError(
-        'You do not have permission to view this progress',
-      );
+      throw new ForbiddenError('You do not have permission');
     }
 
-    const progress = await this.progressService.getUserProgressPercentage(
+    return await this.progressService.getUserProgressPercentage(
       userId,
       courseId,
       versionId,
     );
-
-    return progress;
   }
+
 
   @OpenAPI({
     summary: 'Start an item for user progress',

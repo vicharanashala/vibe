@@ -10,6 +10,7 @@ import {
   Res,
   Controller,
   Req,
+  ContentType,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
@@ -220,7 +221,7 @@ class AttemptController {
       answers,
       isSkipped,
       courseId,
-      courseVersionId
+      courseVersionId,
     );
     return result as SubmitAttemptResponse;
   }
@@ -232,6 +233,7 @@ class AttemptController {
   })
   @Authorized()
   @Post('/:itemId/feedback/submit')
+  @ContentType('application/json')
   @HttpCode(200)
   @ResponseSchema(SubmitAttemptResponse, {
     description: 'Feedback submitted successfully',
@@ -249,12 +251,12 @@ class AttemptController {
     @Params() params: SubmitFeedbackParams,
     @Body() body: SubmitFeedbackBody,
     @Ability(getCourseAbility) {ability, user},
-  ): Promise<string> {
+  ): Promise<{message: string}> {
     const {itemId} = params;
     const {details, courseId, courseVersionId, sectionId} = body;
     const userId = user._id.toString();
 
-    return await this.attemptService.submitFeedBackForm(
+    const message = await this.attemptService.submitFeedBackForm(
       userId,
       courseId,
       courseVersionId,
@@ -262,6 +264,7 @@ class AttemptController {
       details,
       // isSkipped,
     );
+    return {message};
   }
 
   @OpenAPI({
