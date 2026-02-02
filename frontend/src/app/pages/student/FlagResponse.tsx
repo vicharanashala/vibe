@@ -562,7 +562,7 @@
 
 
 
-
+import { ArrowUp, ArrowDown, Search as SearchIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   Card,
@@ -642,22 +642,21 @@ export default function CourseIssueReports() {
   const [currentPage, setCurrentPage] = useState(1);
   const { currentCourse } = useCourseStore()
   const versionId = currentCourse?.versionId
-
+  const [sortBy, setSortBy] = useState<'reason' | 'createdAt'>('createdAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const PAGE_LIMIT = 15;
 
   const params = useMemo(() => ({
     status: filterStatus,
     search: debouncedSearchTerm,
-    sort: issueSort,
+    sort: `${sortBy}:${sortOrder}`,
     page: currentPage,
     limit: PAGE_LIMIT,
-  }), [filterStatus, debouncedSearchTerm, issueSort, currentPage]);
+  }), [filterStatus, debouncedSearchTerm, sortBy, sortOrder, currentPage]);
+
   const { data: issuesData, isLoading, refetch: issuesRefetch } = useGetCourseIssueReports(versionId as string, params);
   const issues = issuesData?.issues || []
-  console.log(issues)
-  useEffect(() => {
-    issuesRefetch();
-  }, [params, issuesRefetch]);
+
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -668,11 +667,22 @@ export default function CourseIssueReports() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [filterStatus]);
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
   };
+
+  const handleSort = (column: 'reason' | 'createdAt') => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortOrder('asc');
+    }
+    setCurrentPage(1);
+  };
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -712,11 +722,16 @@ export default function CourseIssueReports() {
                       </span>
                     </TableHead>
 
-                    <TableHead className="font-bold text-foreground">
-                      <span className="inline-flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                    <TableHead
+                      className="cursor-pointer hover:text-primary transition-colors"
+                      onClick={() => handleSort('reason')}
+                    >
+                      <div className="flex items-center gap-2">
                         Reason
-                      </span>
+                        {sortBy === 'reason' && (
+                          sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                        )}
+                      </div>
                     </TableHead>
 
                     <TableHead className="font-bold text-foreground">
@@ -740,11 +755,16 @@ export default function CourseIssueReports() {
                       </span>
                     </TableHead>
 
-                    <TableHead className="font-bold text-foreground w-[200px]">
-                      <span className="inline-flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <TableHead
+                      className="cursor-pointer hover:text-primary transition-colors"
+                      onClick={() => handleSort('createdAt')}
+                    >
+                      <div className="flex items-center gap-2">
                         Reported On
-                      </span>
+                        {sortBy === 'createdAt' && (
+                          sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                        )}
+                      </div>
                     </TableHead>
 
                     <TableHead className="font-bold text-foreground pr-6 w-[150px]">
@@ -784,12 +804,9 @@ export default function CourseIssueReports() {
                   ) : (
                     issues?.map((issue: IssueReport, index: number) => {
                       const detail = issue || {};
-                      console.log("Issue ", issue)
-                      console.log("detail", detail)
                       const latestStatus = Array.isArray(issue.status) && issue.status.length > 0
                         ? issue.status[issue.status.length - 1].status
                         : issue.status;
-                      console.log("latest status ", latestStatus)
                       return (
                         <TableRow
                           key={issue._id}

@@ -1,14 +1,15 @@
 import fs from 'fs/promises';
 import path from 'path';
-import {Container, ContainerModule} from 'inversify';
-import {useContainer} from 'routing-controllers';
-import {InversifyAdapter} from '#root/inversify-adapter.js';
+import { Container, ContainerModule } from 'inversify';
+import { useContainer } from 'routing-controllers';
+import { InversifyAdapter } from '#root/inversify-adapter.js';
 import { appConfig } from '#root/config/app.js';
 
 interface LoadedModuleResult {
   controllers: Function[];
   validators: Function[];
 }
+let container: Container | null = null;
 
 export async function loadAppModules(moduleName: string): Promise<LoadedModuleResult> {
   const isAll = moduleName === 'all';
@@ -51,12 +52,20 @@ export async function loadAppModules(moduleName: string): Promise<LoadedModuleRe
 
   if (isAll) {
     const uniqueModules = Array.from(new Set(allContainerModules));
-    const container = new Container();
+    container = new Container();
     await container.load(...uniqueModules);
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);
   }
 
-  return {controllers, validators};
+  return { controllers, validators };
 }
 
+export const getContainer = (): Container => {
+  if (!container) {
+    throw new Error(
+      'Container not initialized. Call loadAppModules("all") first.',
+    );
+  }
+  return container;
+};

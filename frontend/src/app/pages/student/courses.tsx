@@ -10,8 +10,12 @@ import { CourseCard } from "@/components/course/CourseCard";
 import { Pagination } from "@/components/ui/Pagination";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
+import { stopAllStreams} from "@/lib/MediaRegistry";
 
 export default function StudentCourses() {
+  useEffect(() => {
+    setTimeout(stopAllStreams, 1000);
+  }, []);
   const [activeTab, setActiveTab] = useState("enrolled");
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("")

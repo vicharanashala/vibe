@@ -16,6 +16,9 @@ import {
   Search,
   Download,
   Upload,
+  Check,
+  Pencil,
+  Trash2,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -40,6 +43,10 @@ import type { EmailInvite, EnrollmentRole, InviteStatus, InviteResult } from "@/
 import { useNavigate, redirect } from "@tanstack/react-router"
 import { Pagination } from "@/components/ui/Pagination"
 
+const isValidEmail = (email: string) => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
 export default function InvitePage() {
   const navigate = useNavigate()
 
@@ -58,7 +65,56 @@ export default function InvitePage() {
   const [cancelingInviteId, setCancelingInviteId] = useState<string | null>(null);
 
   // CSV parsed emails state
-  const [parsedEmails, setParsedEmails] = useState<string[]>([]);
+  const [parsedEmails, setParsedEmails] = useState<{ id: string, email: string }[]>([]);
+
+  // handle CSV parsed emails states
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftEmail, setDraftEmail] = useState<string>("");
+  const [error, setError] = useState<string>("")
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [isMessageBulk, setIsMessageBulk] = useState(false);
+
+  // handle edit or remove csv parsed emails starts
+  const startEdit = (item: { id: string, email: string }) => {
+    setEditingId(item.id);
+    setDraftEmail(item.email);
+    setError("")
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setDraftEmail("");
+  }
+
+  const saveEdit = (id: string) => {
+    const trimmed = draftEmail.trim().toLowerCase();
+    const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+    if (!emailRegex.test(trimmed)) {
+      setError("Please enter a valid email address")
+      return;
+    }
+    if (parsedEmails.some((item) => item.email === trimmed && item.id !== id)) {
+
+      setError(" This email already exits in the list")
+      return;
+    }
+    setParsedEmails((prev) =>
+      prev.map((item) =>
+        item.id === id ?
+          { ...item, email: trimmed }
+          : item)
+    )
+    setError("");
+    cancelEdit();
+  }
+
+  const removeEmail = (id: string) => {
+    setParsedEmails((prev) =>
+      prev.filter((item) =>
+        item.id !== id))
+  }
+
+  // edit or remove csv parsed emails ends 
 
   // filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -82,8 +138,8 @@ export default function InvitePage() {
     isLoading: invitesLoading,
     error: invitesError,
     refetch: refetchInvites,
-  } = useCourseInvites(courseId || "", versionId || "", !!(courseId && versionId), debouncedSearchQuery, 
-      currentPage, itemsPerPage, inviteStatus, sort, startDate, endDate);
+  } = useCourseInvites(courseId || "", versionId || "", !!(courseId && versionId), debouncedSearchQuery,
+    currentPage, itemsPerPage, inviteStatus, sort, startDate, endDate);
 
   // Add course version data hook to check structure
   const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(versionId || "")
@@ -106,7 +162,7 @@ export default function InvitePage() {
       return false
     }
 
-    const firstModule = courseVersion.modules.sort((a, b) => 
+    const firstModule = courseVersion.modules.sort((a, b) =>
       a.order.localeCompare(b.order)
     )[0]
 
@@ -114,7 +170,7 @@ export default function InvitePage() {
       return false
     }
 
-    const firstSection = firstModule.sections.sort((a, b) => 
+    const firstSection = firstModule.sections.sort((a, b) =>
       a.order.localeCompare(b.order)
     )[0]
 
@@ -123,7 +179,7 @@ export default function InvitePage() {
     // For now, we'll assume that if a section exists, it should have an itemsGroup
     return true
   }
-  
+
   const handlePageChange = (newPage: number) => {
     if (invitesData && newPage >= 1 && newPage <= invitesData.totalPages) {
       setCurrentPage(newPage)
@@ -145,7 +201,7 @@ export default function InvitePage() {
       return "Course must have at least one module to send invites to students"
     }
 
-    const firstModule = courseVersion.modules.sort((a, b) => 
+    const firstModule = courseVersion.modules.sort((a, b) =>
       a.order.localeCompare(b.order)
     )[0]
 
@@ -159,53 +215,66 @@ export default function InvitePage() {
   // Check if course has required structure
   const canSendInvites = hasRequiredStructure()
 
-    // Default role based on course structure
-const defaultRole: EnrollmentRole = canSendInvites ? "STUDENT" : "INSTRUCTOR";
+  // Default role based on course structure
+  const defaultRole: EnrollmentRole = canSendInvites ? "STUDENT" : "INSTRUCTOR";
 
-// State for new invites
-const [inviteEmails, setInviteEmails] = useState<EmailInvite[]>([
-  { email: "", role: defaultRole }
-]);
+  // State for new invites
+  const [inviteEmails, setInviteEmails] = useState<EmailInvite[]>([
+    { email: "", role: defaultRole }
+  ]);
 
 // Handle adding new invite row
 const addInviteRow = () => {
-  setInviteEmails([...inviteEmails, { email: "", role: defaultRole }]);
+  const lastInvite = inviteEmails[inviteEmails.length - 1];
+
+  if (
+    lastInvite.email.trim() === "" ||
+    !isValidEmail(lastInvite.email)
+  ) {
+    toast.error("Please enter a valid email before adding another.");
+    return;
+  }
+
+  setInviteEmails([
+    ...inviteEmails,
+    { email: "", role: defaultRole },
+  ]);
 };
 
 
 
   const roles = [
-  {
-    label: "Student",
-    value: "STUDENT",
-    color: "bg-blue-500",
-    disabled: !canSendInvites,
-  },
-  {
-    label: "Teaching Assistant",
-    value: "TA",
-    color: "bg-green-500",
-    disabled: false,
-  },
-  {
-    label: "Instructor",
-    value: "INSTRUCTOR",
-    color: "bg-purple-500",
-    disabled: false,
-  },
-  {
-    label: "Manager",
-    value: "MANAGER",
-    color: "bg-red-500",
-    disabled: false,
-  },
-  {
-    label: "Staff",
-    value: "STAFF",
-    color: "bg-yellow-500",
-    disabled: false,
-  },
-];
+    {
+      label: "Student",
+      value: "STUDENT",
+      color: "bg-blue-500",
+      disabled: !canSendInvites,
+    },
+    {
+      label: "Teaching Assistant",
+      value: "TA",
+      color: "bg-green-500",
+      disabled: false,
+    },
+    {
+      label: "Instructor",
+      value: "INSTRUCTOR",
+      color: "bg-purple-500",
+      disabled: false,
+    },
+    {
+      label: "Manager",
+      value: "MANAGER",
+      color: "bg-red-500",
+      disabled: false,
+    },
+    {
+      label: "Staff",
+      value: "STAFF",
+      color: "bg-yellow-500",
+      disabled: false,
+    },
+  ];
 
 
 
@@ -250,7 +319,7 @@ const addInviteRow = () => {
 
   // Handle updating invite role
   const updateInviteRole = (index: number, role: EnrollmentRole) => {
-    
+
     const newInvites = [...inviteEmails]
     newInvites[index].role = role
     setInviteEmails(newInvites)
@@ -290,6 +359,7 @@ const addInviteRow = () => {
 
       // Refetch invites to show updated list
       refetchInvites()
+      setShowConfirmationModal(false);
     } catch {
       toast.error(inviteUsers.error || "Failed to send invites")
     }
@@ -341,7 +411,7 @@ const addInviteRow = () => {
 
     const validExtensions = ['.csv']
     const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'))
-    
+
     if (!validExtensions.includes(fileExtension)) {
       toast.error("Please upload a CSV file")
       e.target.value = ''
@@ -387,15 +457,21 @@ const addInviteRow = () => {
       }
 
       const uniqueEmails = [...new Set(emails)]
-      
+
       if (uniqueEmails.length > 500) {
         toast.error(`CSV contains ${uniqueEmails.length} emails. Maximum allowed is 500 emails per upload.`)
         e.target.value = ''
         return
       }
-      
-      setParsedEmails(uniqueEmails)
-      
+
+      //adding temp ids to emails
+      const emailsWithIds = uniqueEmails.map((email, indx) => ({
+        id: `email-${Date.now()}-${indx}`,
+        email,
+      }))
+
+      setParsedEmails(emailsWithIds)
+
       toast.success(`Found ${uniqueEmails.length} email(s) from CSV file`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to process CSV file")
@@ -411,8 +487,8 @@ const addInviteRow = () => {
     }
 
     try {
-      const inviteData = parsedEmails.map(email => ({
-        email,
+      const inviteData = parsedEmails.map(item => ({
+        email: item.email,
         role: 'STUDENT' as EnrollmentRole
       }))
 
@@ -444,9 +520,21 @@ const addInviteRow = () => {
       if (input) input.value = ''
 
       refetchInvites()
+      setShowConfirmationModal(false);
+      setIsMessageBulk(false);
     } catch (error) {
       toast.error(inviteUsers.error || "Failed to send invites")
     }
+  }
+
+  const handleBulkClick = () => {
+    setShowConfirmationModal(true);
+    setIsMessageBulk(true);
+  }
+
+  const removeBulkClick = ()=>{
+    setShowConfirmationModal(false);
+    setIsMessageBulk(false);
   }
 
   // Status badge variants
@@ -483,7 +571,21 @@ const addInviteRow = () => {
       </Badge>
     )
   }
+  // ---------------- EMAIL COUNT LOGIC ----------------
 
+// count only valid emails
+const validEmailCount = inviteEmails.filter(
+  (invite) =>
+    invite.email.trim() !== "" &&
+    isValidEmail(invite.email)
+).length
+
+// check if any invalid email exists
+const hasInvalidEmail = inviteEmails.some(
+  (invite) =>
+    invite.email.trim() !== "" &&
+    !isValidEmail(invite.email)
+)
   if (courseLoading || versionLoading) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -529,12 +631,12 @@ const addInviteRow = () => {
               <span>Send New Invites</span>
             </div>
             <Badge variant="secondary" className="text-xs">
-              {inviteEmails.filter(invite => invite.email.trim() !== "").length} recipient(s)
+              {validEmailCount} recipient(s)
             </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          
+
           <div className="space-y-3">
             {inviteEmails.map((invite, index) => (
               <div key={index} className="flex items-center gap-3 p-3 border rounded-lg bg-muted/50">
@@ -542,36 +644,47 @@ const addInviteRow = () => {
                   #{index + 1}
                 </div>
 
-                <div className="flex-1">
-                  <Input
-                    id={`email-${index}`}
-                    type="email"
-                    placeholder="Enter email address (space-separated for multiple)"
-                    value={invite.email}
-                    onChange={(e) => updateInviteEmail(index, e.target.value)}
-                    className="h-9"
-                  />
-                </div>
+                <div className="flex-1 space-y-1">
+  <Input
+    id={`email-${index}`}
+    type="email"
+    placeholder="Enter email (space-separated)"
+    value={invite.email}
+    onChange={(e) => updateInviteEmail(index, e.target.value)}
+    className={`h-9 ${
+      invite.email && !isValidEmail(invite.email)
+        ? "border-destructive focus-visible:ring-destructive/30"
+        : ""
+    }`}
+  />
+
+  {/* Show only when invalid */}
+  {invite.email && !isValidEmail(invite.email) && (
+    <p className="text-xs text-destructive">
+      Enter a valid email address
+    </p>
+  )}
+</div>
 
                 <div className="lg:w-40">
                   <Select
-  value={invite.role}
-  onValueChange={(value: EnrollmentRole) => updateInviteRole(index, value)}
->
-  <SelectTrigger className="h-9">
-    <SelectValue />
-  </SelectTrigger>
-  <SelectContent>
-    {roles.map(role => (
-      <SelectItem key={role.value} value={role.value} disabled={role.disabled}>
-        <div className="flex items-center">
-          <div className={`w-2 h-2 rounded-full mr-2 ${role.color}`}></div>
-          {role.label}
-        </div>
-      </SelectItem>
-    ))}
-  </SelectContent>
-</Select>
+                    value={invite.role}
+                    onValueChange={(value: EnrollmentRole) => updateInviteRole(index, value)}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roles.map(role => (
+                        <SelectItem key={role.value} value={role.value} disabled={role.disabled}>
+                          <div className="flex items-center">
+                            <div className={`w-2 h-2 rounded-full mr-2 ${role.color}`}></div>
+                            {role.label}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
                 </div>
 
@@ -605,7 +718,7 @@ const addInviteRow = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-3 sm:space-y-0">
             <div className="text-sm text-muted-foreground">
               <span className="font-medium text-foreground">
-                {inviteEmails.filter(invite => invite.email.trim() !== "").length}
+                {hasInvalidEmail ? 0 : validEmailCount}
               </span>
               {" "}valid email(s) ready to send
             </div>
@@ -614,14 +727,20 @@ const addInviteRow = () => {
               <Button
                 variant="outline"
                 onClick={() => setInviteEmails([{ email: "", role: "STUDENT" }])}
-                disabled={inviteUsers.isPending}
+                disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0}
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
                 Reset
               </Button>
-              <Button
+
+              {/* <Button
                 onClick={handleSendInvites}
-                disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0 }
+                 disabled={
+    inviteUsers.isPending ||
+    hasInvalidEmail ||
+    validEmailCount === 0
+  }
+                disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0}
                 className="min-w-[120px]"
               >
                 {inviteUsers.isPending ? (
@@ -635,7 +754,9 @@ const addInviteRow = () => {
                     Send Invites
                   </>
                 )}
-              </Button>
+              </Button> */}
+
+              <Button className="min-w-[120px]" onClick={() => setShowConfirmationModal(true)} disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0}>Send Invites</Button>
             </div>
           </div>
         </CardContent>
@@ -671,11 +792,10 @@ const addInviteRow = () => {
               disabled={inviteUsers.isPending || !canSendInvites}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
             />
-            <div className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
-              !canSendInvites 
-                ? 'border-muted-foreground/10 bg-muted/20 opacity-50 cursor-not-allowed' 
-                : 'border-muted-foreground/25 hover:border-muted-foreground/50 cursor-pointer'
-            }`}>
+            <div className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${!canSendInvites
+              ? 'border-muted-foreground/10 bg-muted/20 opacity-50 cursor-not-allowed'
+              : 'border-muted-foreground/25 hover:border-muted-foreground/50 cursor-pointer'
+              }`}>
               <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
               <p className="text-base font-medium mb-1">Click to upload or drag and drop</p>
               <p className="text-sm text-muted-foreground">CSV file with student emails (max 5MB)</p>
@@ -729,21 +849,99 @@ const addInviteRow = () => {
                   </Button>
                 </div>
                 <div className="max-h-32 overflow-y-auto text-xs text-muted-foreground space-y-1">
-                  {parsedEmails.slice(0, 10).map((email, idx) => (
-                    <div key={idx}>{email}</div>
-                  ))}
-                  {parsedEmails.length > 10 && (
-                    <div className="italic">...and {parsedEmails.length - 10} more</div>
-                  )}
+                  {parsedEmails.map(({ id, email }, _idx) => {
+                    const isEditing = editingId === id;
+                    return (
+
+                      <div key={id} className="flex items-start gap-2 justify-between group">
+                        {
+                          isEditing ? (
+
+                            <div className="flex-1">
+                              <input
+                                value={draftEmail}
+                                onChange={(e) => {
+                                  setDraftEmail(e.target.value);
+                                  if (error) setError("");
+                                }}
+                                className={`w-full flex-1 px-1 py-0.5 text-xs border rounded ${error ? "border-red-500" : ""}`}
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") saveEdit(id)
+                                  if (e.key === "Escape") cancelEdit()
+                                }}
+                              />
+                              {
+                                error && (
+                                  <p className="mt-0.5 text-[10px] text-red-500">
+                                    {error}
+                                  </p>
+                                )
+                              }
+                            </div>
+                          ) : (
+                            <span className="truncate">{email}</span>
+                          )
+                        }
+
+                        <div className="flex items-start gap-1 opacity-0 group-hover:opacity-100 transition mr-2">
+                          {
+                            isEditing ? (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-auto w-auto p-1"
+                                  onClick={() => saveEdit(id)}
+                                >
+                                  <Check className="w-4 h-4 text-green-500 cursor-pointer" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-auto w-auto p-1"
+                                  onClick={cancelEdit}
+                                >
+                                  <X className="w-4 h-4 text-gray-500 cursor-pointer" />
+                                </Button>
+                              </>
+                            )
+                              :
+                              (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-auto w-auto p-1"
+                                    onClick={() => startEdit({ id, email })}
+                                  >
+                                    <Pencil className="w-4 h-4 text-gray-500 cursor-pointer" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-auto w-auto p-1"
+                                    onClick={() => removeEmail(id)}
+                                  >
+                                    <Trash2 className="w-4 h-4 text-red-500 cursor-pointer" />
+                                  </Button>
+                                </>
+                              )
+                          }
+                        </div>
+                      </div>
+
+                    )
+                  })}
                 </div>
               </div>
 
               <Button
-                onClick={handleSendBulkInvites}
+                onClick={handleBulkClick}
                 disabled={inviteUsers.isPending}
                 className="w-full"
               >
-                {inviteUsers.isPending ? (
+                {/* {inviteUsers.isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Sending...
@@ -753,7 +951,8 @@ const addInviteRow = () => {
                     <Send className="w-4 h-4 mr-2" />
                     Send {parsedEmails.length} Invite(s)
                   </>
-                )}
+                )} */}
+                Send Invites
               </Button>
             </>
           )}
@@ -776,8 +975,8 @@ const addInviteRow = () => {
             >
               {invitesLoading ? (
                 <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                
+                  <Loader2 className="w-4 h-4 animate-spin" />
+
                 </>
               ) : (
                 <RotateCcw className="w-4 h-4" />
@@ -786,113 +985,113 @@ const addInviteRow = () => {
           </CardTitle>
           <div className="w-full flex flex-col gap-4 mt-5 px-4">
             <div className="relative w-full max-w-md">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg blur-sm"></div>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by student name, email ... "
-                value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value) }}
-                className="pl-10 pr-10 w-full bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
-              />
-              <X className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground cursor-pointer"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setSearchQuery("");
-                }} />
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg blur-sm"></div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by student name, email ... "
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value) }}
+                  className="pl-10 pr-10 w-full bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
+                />
+                <X className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground cursor-pointer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setSearchQuery("");
+                  }} />
+              </div>
             </div>
-            </div>
-          <div className="flex items-center flex-wrap gap-3">
-            <div className="flex items-center gap-2 w-auto">
-              <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-                Status:
-              </label>
-              <Select
-                value={inviteStatus}
-                onValueChange={(value) => {
-                  setInviteStatus(value === "All" ? "" : value);
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="All" />
-                </SelectTrigger>
-                <SelectContent>
-                  {inviteStatusOptions.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status === "All" ? "All" : status}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2 w-auto">
-              <label htmlFor="sortFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-                Sort:
-              </label>
-              <Select
-                value={sort}
-                onValueChange={(value) => {
-                  setSort(value === "All" ? "" : value);
-                }}
-              >
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Recent" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sortOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label === "All Invites" ? "All" : option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2 w-auto">
-              <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-                From:
-              </label>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-[140px]"
-              />
-            </div>
-            <div className="flex items-center gap-2 w-auto">
-              <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-                To:
-              </label>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-[140px]"
-              />
-            </div>
-            <div className="flex items-center gap-2 w-auto">
-              <span className="text-sm text-muted-foreground whitespace-nowrap">Show</span>
-              <select
-                value={itemsPerPage}
-                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm w-[70px]"
-              >
-                <option value={10}>10</option>
-                <option value={15}>15</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
-              <span className="text-sm text-muted-foreground whitespace-nowrap">per page</span>
+            <div className="flex items-center flex-wrap gap-3">
+              <div className="flex items-center gap-2 w-auto">
+                <label htmlFor="statusFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                  Status:
+                </label>
+                <Select
+                  value={inviteStatus}
+                  onValueChange={(value) => {
+                    setInviteStatus(value === "All" ? "" : value);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="All" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {inviteStatusOptions.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {status === "All" ? "All" : status}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2 w-auto">
+                <label htmlFor="sortFilter" className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                  Sort:
+                </label>
+                <Select
+                  value={sort}
+                  onValueChange={(value) => {
+                    setSort(value === "All" ? "" : value);
+                  }}
+                >
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Recent" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label === "All Invites" ? "All" : option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2 w-auto">
+                <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                  From:
+                </label>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-[140px]"
+                />
+              </div>
+              <div className="flex items-center gap-2 w-auto">
+                <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                  To:
+                </label>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-[140px]"
+                />
+              </div>
+              <div className="flex items-center gap-2 w-auto">
+                <span className="text-sm text-muted-foreground whitespace-nowrap">Show</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                  className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm w-[70px]"
+                >
+                  <option value={10}>10</option>
+                  <option value={15}>15</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+                <span className="text-sm text-muted-foreground whitespace-nowrap">per page</span>
+              </div>
             </div>
           </div>
-        </div>
         </CardHeader>
         <CardContent>
           {invitesError && (
@@ -907,33 +1106,60 @@ const addInviteRow = () => {
             </div>
           ) : invitesData?.invites?.length ? (
             <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Accepted At</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                
-                {/* Display invites in reverse order */}
-                {invitesData.invites.slice().reverse().map((invite: InviteResult) => (
-                  <TableRow key={invite.inviteId}>
-                    <TableCell className="font-medium">{invite.email}</TableCell>
-                    <TableCell>{getRoleBadge(invite.role)}</TableCell>
-                    <TableCell>{getStatusBadge(invite.inviteStatus)}</TableCell>
-                    <TableCell>
-                      {invite.acceptedAt
-                        ? new Date(invite.acceptedAt).toLocaleDateString()
-                        : "-"}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        {invite.inviteStatus === "PENDING" && (
-                          <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Accepted At</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+
+                  {/* Display invites in reverse order */}
+                  {invitesData.invites.slice().reverse().map((invite: InviteResult) => (
+                    <TableRow key={invite.inviteId}>
+                      <TableCell className="font-medium">{invite.email}</TableCell>
+                      <TableCell>{getRoleBadge(invite.role)}</TableCell>
+                      <TableCell>{getStatusBadge(invite.inviteStatus)}</TableCell>
+                      <TableCell>
+                        {invite.acceptedAt
+                          ? new Date(invite.acceptedAt).toLocaleDateString()
+                          : "-"}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          {invite.inviteStatus === "PENDING" && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleResendInvite(invite.inviteId)}
+                                disabled={resendingInviteId === invite.inviteId}
+                              >
+                                {resendingInviteId === invite.inviteId ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <RotateCcw className="w-3 h-3" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => handleCancelInvite(invite.inviteId)}
+                                disabled={cancelingInviteId === invite.inviteId}
+                              >
+                                {cancelingInviteId === invite.inviteId ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <X className="w-3 h-3" />
+                                )}
+                              </Button>
+                            </>
+                          )}
+                          {invite.inviteStatus === "EMAIL_FAILED" && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -946,41 +1172,14 @@ const addInviteRow = () => {
                                 <RotateCcw className="w-3 h-3" />
                               )}
                             </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleCancelInvite(invite.inviteId)}
-                              disabled={cancelingInviteId === invite.inviteId}
-                            >
-                              {cancelingInviteId === invite.inviteId ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <X className="w-3 h-3" />
-                              )}
-                            </Button>
-                          </>
-                        )}
-                        {invite.inviteStatus === "EMAIL_FAILED" && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleResendInvite(invite.inviteId)}
-                            disabled={resendingInviteId === invite.inviteId}
-                          >
-                            {resendingInviteId === invite.inviteId ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <RotateCcw className="w-3 h-3" />
-                            )}
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-             {invitesData && invitesData?.totalPages > 1 && (
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {invitesData && invitesData?.totalPages > 1 && (
                 <Pagination
                   currentPage={currentPage}
                   totalPages={invitesData.totalPages}
@@ -988,7 +1187,7 @@ const addInviteRow = () => {
                   onPageChange={handlePageChange}
                 />
               )}
-              </>
+            </>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               No invites found for this course version.
@@ -996,6 +1195,72 @@ const addInviteRow = () => {
           )}
         </CardContent>
       </Card>
+
+
+      {showConfirmationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+            onClick={removeBulkClick}
+          />
+          <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Sure to Send Invites</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={removeBulkClick}
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="space-y-8">
+              <p className="text-lg text-card-foreground">Recipents can get your mail at delay. This can take few minutes to hours!!</p>
+            </div>
+            <div className="flex justify-between pt-4">
+              <Button onClick={removeBulkClick}>No Cancel</Button>
+              {isMessageBulk ? (<Button
+                onClick={handleSendBulkInvites}
+                disabled={inviteUsers.isPending}
+                className=""
+              >
+                {inviteUsers.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Send {parsedEmails.length} Invite(s)
+                  </>
+                )}
+              </Button>) : (
+                <Button
+                  onClick={handleSendInvites}
+                  disabled={inviteUsers.isPending || inviteEmails.filter(invite => invite.email.trim() !== "").length === 0}
+                  className="min-w-[120px]"
+                >
+                  {inviteUsers.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-4 h-4 mr-2" />
+                      Send Invites
+                    </>
+                  )}
+                </Button>)}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+
+
