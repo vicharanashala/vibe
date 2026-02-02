@@ -1,6 +1,16 @@
-import { ICourseVersion } from '#root/shared/interfaces/models.js';
-import { IsEmpty, IsNotEmpty, IsString, IsMongoId, IsInt, IsOptional, IsUrl } from 'class-validator';
-import { JSONSchema } from 'class-validator-jsonschema';
+import {ICourseVersion} from '#root/shared/interfaces/models.js';
+import {
+  IsEmpty,
+  IsNotEmpty,
+  IsString,
+  IsMongoId,
+  IsInt,
+  IsOptional,
+  IsUrl,
+  MinLength,
+  MaxLength,
+} from 'class-validator';
+import {JSONSchema} from 'class-validator-jsonschema';
 
 class CreateCourseVersionBody implements Partial<ICourseVersion> {
   @JSONSchema({
@@ -11,6 +21,8 @@ class CreateCourseVersionBody implements Partial<ICourseVersion> {
   })
   @IsNotEmpty()
   @IsString()
+  @MinLength(3)
+  @MaxLength(255)
   version: string;
 
   @JSONSchema({
@@ -21,6 +33,7 @@ class CreateCourseVersionBody implements Partial<ICourseVersion> {
   })
   @IsNotEmpty()
   @IsString()
+  @MaxLength(1000)
   description: string;
 
   @JSONSchema({
@@ -174,27 +187,23 @@ class CourseVersionNotFoundErrorResponse {
 }
 
 class CreateCourseVersionResponse {
-
   @IsNotEmpty()
   @JSONSchema({
     description: 'The updated course object',
     type: 'object',
-    example:
-    {
-      "_id": "68ee228f54e2f6908d54de1r",
-      "courseId": "68d0f72fd802390872101b5",
-      "version": "Version title",
-      "description": "Version description",
-      "modules": [],
-      "totalItems": null,
-      "createdAt": "2025-10-14T10:14:39.363Z",
-      "updatedAt": "2025-10-14T10:14:39.363Z"
-    }
-    ,
+    example: {
+      _id: '68ee228f54e2f6908d54de1r',
+      courseId: '68d0f72fd802390872101b5',
+      version: 'Version title',
+      description: 'Version description',
+      modules: [],
+      totalItems: null,
+      createdAt: '2025-10-14T10:14:39.363Z',
+      updatedAt: '2025-10-14T10:14:39.363Z',
+    },
     readOnly: true,
   })
   course: Record<string, any>;
-
 }
 
 class UpdateCourseVersionParams {
@@ -226,6 +235,8 @@ class UpdateCourseVersionBody implements Partial<ICourseVersion> {
   })
   @IsNotEmpty()
   @IsString()
+  @MinLength(3)
+  @MaxLength(255)
   version: string;
 
   @JSONSchema({
@@ -236,6 +247,7 @@ class UpdateCourseVersionBody implements Partial<ICourseVersion> {
   })
   @IsNotEmpty()
   @IsString()
+  @MaxLength(1000)
   description: string;
 
   @JSONSchema({
@@ -250,16 +262,19 @@ class UpdateCourseVersionBody implements Partial<ICourseVersion> {
 }
 class CopyCourseVersionParams {
   @IsString()
-  @JSONSchema({ description: 'The ID of the course' })
+  @JSONSchema({description: 'The ID of the course'})
   courseId!: string;
 
   @IsString()
-  @JSONSchema({ description: 'The ID of the version to copy' })
+  @JSONSchema({description: 'The ID of the version to copy'})
   versionId!: string;
 }
 class CopyCourseVersionResponse {
   @IsString()
-  @JSONSchema({ description: 'Success message', example: 'Course version copied successfully' })
+  @JSONSchema({
+    description: 'Success message',
+    example: 'Course version copied successfully',
+  })
   message!: string;
 }
 export {

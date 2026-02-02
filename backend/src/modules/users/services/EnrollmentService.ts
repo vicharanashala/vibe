@@ -510,17 +510,59 @@ export class EnrollmentService extends BaseService {
           session,
         );
 
+      // if (enrollmentsData.enrollments.length > 0 && filter === 'STUDENT') {
+      //   await this.enrichEnrollmentsWithQuizScores(
+      //     enrollmentsData.enrollments,
+      //     courseVersionId,
+      //   );
+      //   // Log sample enrollment to verify mutation
+      //   console.log(
+      //     '🔍 Sample enriched enrollment:',
+      //     JSON.stringify(enrollmentsData.enrollments[0], null, 2),
+      //   );
+      // }
+
       if (enrollmentsData.enrollments.length > 0 && filter === 'STUDENT') {
-        await this.enrichEnrollmentsWithQuizScores(
-          enrollmentsData.enrollments,
-          courseVersionId,
-        );
-        // Log sample enrollment to verify mutation
-        console.log(
-          '🔍 Sample enriched enrollment:',
-          JSON.stringify(enrollmentsData.enrollments[0], null, 2),
-        );
-      }
+
+      // existing quiz score enrichment
+      await this.enrichEnrollmentsWithQuizScores(
+        enrollmentsData.enrollments,
+        courseVersionId,
+      );
+
+      // NEW: reuse getEnrollments()
+      const studentUserIds = enrollmentsData.enrollments.map(e =>
+        e.userId.toString(),
+      );
+
+      // call getEnrollments for each student (parallel)
+      const allStudentEnrollments = await Promise.all(
+        studentUserIds.map(uid =>
+          this.getEnrollments(uid, 0, 100, 'STUDENT', ''),
+        ),
+      );
+
+      // flatten
+      const flattened = allStudentEnrollments.flat();
+
+      // build lookup map
+      const contentCountsMap = new Map<
+        string,
+        any
+      >();
+
+      flattened.forEach(enr => {
+        const key = `${enr.courseVersionId}-${enr._id}`;
+        contentCountsMap.set(key, enr.contentCounts);
+      });
+
+      // attach to instructor enrollments
+      enrollmentsData.enrollments.forEach(enr => {
+        const key = `${enr.courseVersionId.toString()}-${enr._id.toString()}`;
+        enr.contentCounts = contentCountsMap.get(key);
+      });
+    }
+
 
       return enrollmentsData;
     });
@@ -589,7 +631,7 @@ export class EnrollmentService extends BaseService {
 
     // 3. Get all user IDs from enrollments
     const userIds = enrollments.map(e => e.userId);
-    console.log('🔍 User IDs for quiz lookup:', userIds);
+    console.log('🔍 User IDs for quiz lookup:', enrollments);
 
     // 4. Batch fetch quiz submissions for all users
     const quizSubmissions =

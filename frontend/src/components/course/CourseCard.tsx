@@ -1,26 +1,75 @@
-import { Clock, FileText, CheckCircle2, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play } from "lucide-react";
-import { } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useCourseById, useUserProgressPercentage, useLeaderboard, useCourseVersionById } from "@/hooks/hooks";
-import { useCourseStore } from "@/store/course-store";
-import { useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { bufferToHex } from "@/utils/helpers";
-import { cn } from "@/utils/utils";
-import type { CourseCardProps } from '@/types/course.types';
-import { Pagination } from "../ui/Pagination";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Clock,
+  FileText,
+  CheckCircle2,
+  Trophy,
+  Medal,
+  Award,
+  Crown,
+  Info,
+  ExternalLink,
+  Copy,
+  MessageCircle,
+  Users,
+  Check,
+  Sparkles,
+  LifeBuoy,
+  Mail,
+  Headphones,
+  Play,
+} from 'lucide-react';
+import {} from 'lucide-react';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
+import {Button} from '@/components/ui/button';
+import {Badge} from '@/components/ui/badge';
+import {Progress} from '@/components/ui/progress';
+import {ImageWithFallback} from '@/components/ui/ImageWithFallback';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {ScrollArea} from '@/components/ui/scroll-area';
+import {Separator} from '@/components/ui/separator';
+import {Avatar, AvatarFallback} from '@/components/ui/avatar';
+import {Skeleton} from '@/components/ui/skeleton';
+import {
+  useCourseById,
+  useUserProgressPercentage,
+  useLeaderboard,
+  useCourseVersionById,
+} from '@/hooks/hooks';
+import {useCourseStore} from '@/store/course-store';
+import {useNavigate} from '@tanstack/react-router';
+import {useState} from 'react';
+import {bufferToHex} from '@/utils/helpers';
+import {cn} from '@/utils/utils';
+import type {CourseCardProps} from '@/types/course.types';
+import {Pagination} from '../ui/Pagination';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
-export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard', className, completion, setCompletion }: CourseCardProps) => {
+export const CourseCard = ({
+  enrollment,
+  index,
+  isLoading,
+  variant = 'dashboard',
+  className,
+  completion,
+  setCompletion,
+}: CourseCardProps) => {
   // Add null checks to prevent errors when enrollment data is incomplete
   if (!enrollment || !enrollment.courseId || !enrollment.courseVersionId) {
     console.error('Invalid enrollment data:', enrollment);
@@ -33,11 +82,11 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const section_number=enrollment.sectionNumber || "";
   const item_type=enrollment.itemType|| " &bull;VIDEO";
   // Fetch course version to get supportLink
-  const { data: courseVersionData } = useCourseVersionById(versionId);
+  const {data: courseVersionData} = useCourseVersionById(versionId);
   const supportLink = (courseVersionData as any)?.supportLink;
 
   // const { data: courseDetails, isLoading: isCourseLoading } = useCourseById(courseId);
-  const { setCurrentCourse } = useCourseStore();
+  const {setCurrentCourse} = useCourseStore();
   const navigate = useNavigate();
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isForumOpen, setIsForumOpen] = useState(false);
@@ -46,35 +95,49 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const supportEmail =
-    enrollment.courseId === "692f030a945e82ec875e9116"
-      ? "vibe-support@vicharanashala.zohodesk"
-      : "internship-support@vicharanashala.zohodesk";
+    enrollment.courseId === '692f030a945e82ec875e9116'
+      ? 'vibe-support@vicharanashala.zohodesk'
+      : 'internship-support@vicharanashala.zohodesk';
 
-  // const progress = Math.round(enrollment.percentCompleted || 0) as number 
-  const progress = Number(((enrollment.percentCompleted || 0)).toFixed(1));
+  // const progress = Math.round(enrollment.percentCompleted || 0) as number
+  const progress = Number((enrollment.percentCompleted || 0).toFixed(1));
 
-  const contentCounts = enrollment.contentCounts as { totalItems?: number; videos?: number; quizzes?: number; articles?: number; project?: number, totalQuizScore?: number, totalQuizMaxScore?: number, completedVideos?: number, completedQuizzes?: number, completedArticles?: number, completedProjects?: number } || {};
+  const contentCounts =
+    (enrollment.contentCounts as {
+      totalItems?: number;
+      videos?: number;
+      quizzes?: number;
+      articles?: number;
+      project?: number;
+      totalQuizScore?: number;
+      totalQuizMaxScore?: number;
+      completedVideos?: number;
+      completedQuizzes?: number;
+      completedArticles?: number;
+      completedProjects?: number;
+    }) || {};
   const totalLessons = contentCounts.totalItems || 0;
-  const completedLessons = enrollment.completedItems as number || 0;
-  const isCompleted = (typeof enrollment.percentCompleted === 'number' && enrollment.percentCompleted >= 100) || false;
-  const totalQuizScore = contentCounts.totalQuizScore as number || 0;
-  const totalQuizMaxScore = contentCounts.totalQuizMaxScore as number || 0;
+  const completedLessons = (enrollment.completedItems as number) || 0;
+  const isCompleted =
+    (typeof enrollment.percentCompleted === 'number' &&
+      enrollment.percentCompleted >= 100) ||
+    false;
+  const totalQuizScore = (contentCounts.totalQuizScore as number) || 0;
+  const totalQuizMaxScore = (contentCounts.totalQuizMaxScore as number) || 0;
 
   const videoCount: number = contentCounts.videos || 0;
   const quizCount: number = contentCounts.quizzes || 0;
   const articleCount: number = contentCounts.articles || 0;
   const projectCount: number = contentCounts.project || 0;
 
-
   const completedVideos: number = contentCounts.completedVideos || 0;
   const completedQuizzes: number = contentCounts.completedQuizzes || 0;
   const completedArticles: number = contentCounts.completedArticles || 0;
   const completedProjects: number = contentCounts.completedProjects || 0;
 
-
   // Find if this courseVersionId is already in completion
   const existingCompletionIndex = completion?.findIndex(
-    (c) => c.courseVersionId === versionId
+    c => c.courseVersionId === versionId,
   );
 
   // If not found, append the user progress percentage to the list
@@ -84,8 +147,12 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
       {
         courseVersionId: versionId,
         percentage: typeof progress === 'number' ? progress : 0,
-        totalItems: typeof contentCounts.totalItems === 'number' ? contentCounts.totalItems : 0,
-        completedItems: typeof completedLessons === 'number' ? completedLessons : 0
+        totalItems:
+          typeof contentCounts.totalItems === 'number'
+            ? contentCounts.totalItems
+            : 0,
+        completedItems:
+          typeof completedLessons === 'number' ? completedLessons : 0,
       },
     ]);
   }
@@ -97,7 +164,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
         month: 'short',
         year: 'numeric',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
       });
     } catch (error) {
       return 'N/A';
@@ -105,9 +172,9 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   };
 
   const handleContinue = () => {
-    console.log("Setting course store:", {
+    console.log('Setting course store:', {
       courseId: courseId,
-      versionId: versionId
+      versionId: versionId,
     });
 
     // Pass both courseId and versionId to the store
@@ -117,10 +184,10 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
       moduleId: null,
       sectionId: null,
       itemId: null,
-      watchItemId: null
+      watchItemId: null,
     });
 
-    navigate({ to: "/student/learn" });
+    navigate({to: '/student/learn'});
   };
 
   if (isLoading) {
@@ -129,7 +196,9 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
   if (variant === 'dashboard') {
     return (
-      <Card className={`dark:bg-[#4b341e4b] border border-border overflow-hidden flex flex-col sm:flex-row student-card-hover p-0 ${className || ''}`}>
+      <Card
+        className={`dark:bg-[#4b341e4b] border border-border overflow-hidden flex flex-col sm:flex-row student-card-hover p-0 ${className || ''}`}
+      >
         <div className="w-full h-40 sm:h-auto sm:w-32 flex-shrink-0 flex items-center justify-center">
           <ImageWithFallback
             src="https://us.123rf.com/450wm/warat42/warat422108/warat42210800253/173451733-charts-graph-with-analysis-business-financial-data-white-clipboard-checklist-smartphone-wallet.jpg?ver=6"
@@ -176,7 +245,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                     <div className="w-16 h-2 bg-secondary rounded-full overflow-hidden">
                       <div
                         className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
-                        style={{ width: `${progress}%` }}
+                        style={{width: `${progress}%`}}
                       />
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -197,12 +266,15 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   <div className="flex items-center gap-1">
                     <Clock className="h-4 w-4 text-green-500" />
                     <span className="text-green-500">
-                      {enrollment.enrollmentDate && typeof enrollment.enrollmentDate === 'string'
-                        ? new Date(enrollment.enrollmentDate).toLocaleDateString('en-GB', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                        })
+                      {enrollment.enrollmentDate &&
+                      typeof enrollment.enrollmentDate === 'string'
+                        ? new Date(
+                            enrollment.enrollmentDate,
+                          ).toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                          })
                         : 'Recently'}
                     </span>
                   </div>
@@ -225,29 +297,46 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           </p>
           <div className="mt-auto flex flex-col sm:flex-row gap-2">
             <Button
-              variant={progress === 0 ? "default" : isCompleted ? "default" : "default"}
-              className={`${progress === 0
-                ? ""
-                : isCompleted
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
-                  : ""
-                } w-full sm:w-auto transition-all duration-200`}
+              variant={
+                progress === 0 ? 'default' : isCompleted ? 'default' : 'default'
+              }
+              className={`${
+                progress === 0
+                  ? ''
+                  : isCompleted
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-md'
+                    : ''
+              } w-full sm:w-auto transition-all duration-200`}
               onClick={handleContinue}
             >
-              {progress === 0 ? 'Start' : progress >= 100 ? 'Completed' : 'Continue'}
+              {progress === 0
+                ? 'Start'
+                : progress >= 100
+                  ? 'Completed'
+                  : 'Continue'}
             </Button>
-            <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
+            <Dialog
+              open={isLeaderboardOpen}
+              onOpenChange={setIsLeaderboardOpen}
+            >
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full sm:w-auto">
                   <Trophy className="h-4 w-4 mr-2" />
                   Leaderboard
                 </Button>
               </DialogTrigger>
-              <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} />
+              <LeaderboardDialog
+                courseId={courseId}
+                versionId={versionId}
+                courseName={enrollment?.course?.name}
+                isOpen={isLeaderboardOpen}
+              />
             </Dialog>
             <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" className="w-full sm:w-auto">View Details</Button>
+                <Button variant="outline" className="w-full sm:w-auto">
+                  View Details
+                </Button>
               </DialogTrigger>
               <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 max-h-full flex flex-col">
                 <DialogHeader className="mb-3 text-left">
@@ -258,20 +347,34 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                     <div>
                       <div className="grid grid-cols-2 gap-4 mt-2">
                         <div className="space-y-1">
-                          <p className="text-sm font-medium text-muted-foreground">Course Name</p>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Course Name
+                          </p>
                           <p>{enrollment?.course?.name || 'N/A'}</p>
                         </div>
                         <div className="space-y-1">
-                          <p className="text-sm font-medium text-muted-foreground">Version</p>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Version
+                          </p>
                           <p>{enrollment?.courseVersion?.name || 'N/A'}</p>
                         </div>
                         <div className="space-y-1 col-span-2">
-                          <p className="text-sm font-medium text-muted-foreground">Description</p>
-                          <p className="text-sm">{enrollment?.course?.description || 'No description available'}</p>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Description
+                          </p>
+                          <p className="text-sm">
+                            {enrollment?.course?.description ||
+                              'No description available'}
+                          </p>
                         </div>
                         <div className="space-y-1 col-span-2">
-                          <p className="text-sm font-medium text-muted-foreground">Version Description</p>
-                          <p className="text-sm">{enrollment?.courseVersion?.description || 'No version description available'}</p>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Version Description
+                          </p>
+                          <p className="text-sm">
+                            {enrollment?.courseVersion?.description ||
+                              'No version description available'}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -282,28 +385,48 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                       <h3 className="text-lg font-semibold">Content Summary</h3>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
                         <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Contents</p>
-                          <p className="text-xl font-semibold">{totalLessons}</p>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Contents
+                          </p>
+                          <p className="text-xl font-semibold">
+                            {totalLessons}
+                          </p>
                         </div>
                         <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Videos</p>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Videos
+                          </p>
                           <p className="text-xl font-semibold">{videoCount}</p>
                         </div>
                         <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Quizzes</p>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Quizzes
+                          </p>
                           <p className="text-xl font-semibold">{quizCount}</p>
                         </div>
                         <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Articles</p>
-                          <p className="text-xl font-semibold">{articleCount}</p>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Articles
+                          </p>
+                          <p className="text-xl font-semibold">
+                            {articleCount}
+                          </p>
                         </div>
                         <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Project</p>
-                          <p className="text-xl font-semibold">{projectCount}</p>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Project
+                          </p>
+                          <p className="text-xl font-semibold">
+                            {projectCount}
+                          </p>
                         </div>
                         <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Quiz Scores</p>
-                          <p className="text-xl font-semibold">{totalQuizScore} / {totalQuizMaxScore}</p>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Quiz Scores
+                          </p>
+                          <p className="text-xl font-semibold">
+                            {totalQuizScore} / {totalQuizMaxScore}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -311,27 +434,49 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                     <Separator />
 
                     <div>
-                      <h3 className="text-lg font-semibold">Completion Details</h3>
+                      <h3 className="text-lg font-semibold">
+                        Completion Details
+                      </h3>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-2">
                         <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Total Completed</p>
-                          <p className="text-xl font-semibold">{completedLessons} / {totalLessons}</p>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Total Completed
+                          </p>
+                          <p className="text-xl font-semibold">
+                            {completedLessons} / {totalLessons}
+                          </p>
                         </div>
                         <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Videos Watched</p>
-                          <p className="text-xl font-semibold">{completedVideos} / {videoCount}</p>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Videos Watched
+                          </p>
+                          <p className="text-xl font-semibold">
+                            {completedVideos} / {videoCount}
+                          </p>
                         </div>
                         <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Quizzes Completed</p>
-                          <p className="text-xl font-semibold">{completedQuizzes} / {quizCount}</p>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Quizzes Completed
+                          </p>
+                          <p className="text-xl font-semibold">
+                            {completedQuizzes} / {quizCount}
+                          </p>
                         </div>
                         <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Articles Read</p>
-                          <p className="text-xl font-semibold">{completedArticles} / {articleCount}</p>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Articles Read
+                          </p>
+                          <p className="text-xl font-semibold">
+                            {completedArticles} / {articleCount}
+                          </p>
                         </div>
                         <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Projects Done</p>
-                          <p className="text-xl font-semibold">{completedProjects} / {projectCount}</p>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Projects Done
+                          </p>
+                          <p className="text-xl font-semibold">
+                            {completedProjects} / {projectCount}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -339,14 +484,24 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                     <Separator />
 
                     <div>
-                      <h3 className="text-lg font-semibold">Enrollment Details</h3>
+                      <h3 className="text-lg font-semibold">
+                        Enrollment Details
+                      </h3>
                       <div className="grid grid-cols-2 gap-4 mt-2">
                         <div className="space-y-1">
-                          <p className="text-sm font-medium text-muted-foreground">Enrolled On</p>
-                          <p>{enrollment?.enrollmentDate ? formatDate(enrollment.enrollmentDate as string) : 'N/A'}</p>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Enrolled On
+                          </p>
+                          <p>
+                            {enrollment?.enrollmentDate
+                              ? formatDate(enrollment.enrollmentDate as string)
+                              : 'N/A'}
+                          </p>
                         </div>
                         <div className="space-y-1">
-                          <p className="text-sm font-medium text-muted-foreground">Status</p>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Status
+                          </p>
                           <div className="flex items-center gap-1">
                             {isCompleted ? (
                               <>
@@ -363,43 +518,49 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                         </div>
                       </div>
                     </div>
-
-
                   </div>
                 </ScrollArea>
               </DialogContent>
             </Dialog>
 
-            {supportLink && (() => {
-              const isEmail = supportLink.startsWith('mailto:') || (!supportLink.startsWith('http://') && !supportLink.startsWith('https://') && !supportLink.startsWith('//') && supportLink.includes('@'));
-              const href = supportLink.startsWith('mailto:')
-                ? supportLink
-                : supportLink.startsWith('http://') || supportLink.startsWith('https://') || supportLink.startsWith('//')
+            {supportLink &&
+              (() => {
+                const isEmail =
+                  supportLink.startsWith('mailto:') ||
+                  (!supportLink.startsWith('http://') &&
+                    !supportLink.startsWith('https://') &&
+                    !supportLink.startsWith('//') &&
+                    supportLink.includes('@'));
+                const href = supportLink.startsWith('mailto:')
                   ? supportLink
-                  : supportLink.includes('@')
-                    ? `mailto:${supportLink}`
-                    : supportLink;
-              return (
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto"
-                  asChild
-                >
-                  <a
-                    href={href}
-                    target={isEmail ? undefined : "_blank"}
-                    rel={isEmail ? undefined : "noopener noreferrer"}
-                    className="flex items-center gap-2"
+                  : supportLink.startsWith('http://') ||
+                      supportLink.startsWith('https://') ||
+                      supportLink.startsWith('//')
+                    ? supportLink
+                    : supportLink.includes('@')
+                      ? `mailto:${supportLink}`
+                      : supportLink;
+                return (
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    asChild
                   >
-                    <Headphones className="h-4 w-4" />
-                    Get Support
-                  </a>
-                </Button>
-              );
-            })()}
+                    <a
+                      href={href}
+                      target={isEmail ? undefined : '_blank'}
+                      rel={isEmail ? undefined : 'noopener noreferrer'}
+                      className="flex items-center gap-2"
+                    >
+                      <Headphones className="h-4 w-4" />
+                      Get Support
+                    </a>
+                  </Button>
+                );
+              })()}
 
             {/* JUST ADD THIS FOR MERN CASE STUDY COURSE ONLY */}
-            {enrollment.courseId === "692f030a945e82ec875e9116" && (
+            {enrollment.courseId === '692f030a945e82ec875e9116' && (
               <Dialog open={isForumOpen} onOpenChange={setIsForumOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="w-full sm:w-auto">
@@ -417,25 +578,30 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                       <Separator className="mb-6" />
 
                       <div className="space-y-4">
-
                         {/* Section Header */}
                         <div className="flex items-center gap-2 mb-4">
                           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
                             <MessageCircle className="w-4 h-4 text-primary-foreground" />
                           </div>
-                          <h3 className="text-lg font-semibold">Discord Community</h3>
+                          <h3 className="text-lg font-semibold">
+                            Discord Community
+                          </h3>
                           <Sparkles className="w-4 h-4 text-primary" />
                         </div>
 
                         {/* Discord Card */}
                         <div className="rounded-xl border bg-primary/5 shadow-sm hover:shadow-md transition-all">
                           <div className="p-6 space-y-5">
-
                             {/* Top Section */}
                             <div className="flex items-start justify-between gap-4">
                               <div className="flex items-center gap-3 flex-1 min-w-0">
                                 <div className="w-14 h-14 rounded-xl bg-[#5865F2] flex items-center justify-center shadow-md group-hover:scale-105 transition-transform flex-shrink-0">
-                                  <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                  <svg
+                                    className="w-8 h-8 text-white"
+                                    viewBox="0 0 24 24"
+                                    fill="currentColor"
+                                    aria-hidden="true"
+                                  >
                                     <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z" />
                                   </svg>
                                 </div>
@@ -460,18 +626,22 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                             <div className="grid grid-cols-2 gap-3">
                               <div className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg border bg-primary/5">
                                 <Users className="w-4 h-4 text-primary" />
-                                <span className="font-medium">Student Network</span>
+                                <span className="font-medium">
+                                  Student Network
+                                </span>
                               </div>
                               <div className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg border bg-primary/5">
                                 <MessageCircle className="w-4 h-4 text-primary" />
-                                <span className="font-medium">Live Discussions</span>
+                                <span className="font-medium">
+                                  Live Discussions
+                                </span>
                               </div>
                             </div>
 
                             {/* Description */}
                             <p className="text-sm text-muted-foreground leading-relaxed px-4 py-3 rounded-lg border bg-primary/5">
-                              Get help, share resources, and connect with your coursemates in
-                              our exclusive Discord server.
+                              Get help, share resources, and connect with your
+                              coursemates in our exclusive Discord server.
                             </p>
 
                             {/* Actions */}
@@ -494,7 +664,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                                 onClick={async () => {
                                   try {
                                     await navigator.clipboard.writeText(
-                                      "https://discord.gg/kKNBu3PF"
+                                      'https://discord.gg/kKNBu3PF',
                                     );
                                     setCopied(true);
                                     setCopyError(false);
@@ -545,8 +715,13 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               >
                 <a
                   href={
-                    (enrollment.courseVersion as any).supportLink.startsWith('mailto:') || (enrollment.courseVersion as any).supportLink.includes('@')
-                      ? (enrollment.courseVersion as any).supportLink.startsWith('mailto:')
+                    (enrollment.courseVersion as any).supportLink.startsWith(
+                      'mailto:',
+                    ) ||
+                    (enrollment.courseVersion as any).supportLink.includes('@')
+                      ? (
+                          enrollment.courseVersion as any
+                        ).supportLink.startsWith('mailto:')
                         ? (enrollment.courseVersion as any).supportLink
                         : `mailto:${(enrollment.courseVersion as any).supportLink}`
                       : (enrollment.courseVersion as any).supportLink
@@ -563,10 +738,9 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
             )}
 
             {/* Legacy hardcoded support - only show if no dynamic supportLink is configured */}
-            {!(enrollment.courseVersion as any)?.supportLink && (
-              enrollment.courseId === "6943b2cafa4e840eb39490b6" ||
-              enrollment.courseId === "692f030a945e82ec875e9116"
-            ) && (
+            {!(enrollment.courseVersion as any)?.supportLink &&
+              (enrollment.courseId === '6943b2cafa4e840eb39490b6' ||
+                enrollment.courseId === '692f030a945e82ec875e9116') && (
                 <Dialog open={isSupportOpen} onOpenChange={setIsSupportOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" className="w-full sm:w-auto">
@@ -589,7 +763,9 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
                               <LifeBuoy className="w-4 h-4 text-primary-foreground" />
                             </div>
-                            <h3 className="text-lg font-semibold">Internship Support</h3>
+                            <h3 className="text-lg font-semibold">
+                              Internship Support
+                            </h3>
                           </div>
 
                           {/* Support Card */}
@@ -613,8 +789,9 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
                               {/* Description */}
                               <p className="text-sm text-muted-foreground leading-relaxed px-4 py-3 rounded-lg border bg-primary/5">
-                                For course-related queries, guidance, or issues, feel free to
-                                reach out to our support team via email.
+                                For course-related queries, guidance, or issues,
+                                feel free to reach out to our support team via
+                                email.
                               </p>
 
                               {/* Email */}
@@ -637,10 +814,6 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   </DialogContent>
                 </Dialog>
               )}
-
-
-
-
           </div>
         </CardContent>
       </Card>
@@ -657,11 +830,14 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               {enrollment?.course?.name || `Course ${index + 1}`}
             </CardTitle>
             <CardDescription>
-              by <b>{enrollment?.course?.instructors
-                ? (Array.isArray(enrollment?.course.instructors)
-                  ? enrollment?.course.instructors.join(', ')
-                  : enrollment?.course.instructors)
-                : "Unknown Instructor"}</b>
+              by{' '}
+              <b>
+                {enrollment?.course?.instructors
+                  ? Array.isArray(enrollment?.course.instructors)
+                    ? enrollment?.course.instructors.join(', ')
+                    : enrollment?.course.instructors
+                  : 'Unknown Instructor'}
+              </b>
             </CardDescription>
           </div>
           <div className="flex flex-col items-end gap-1">
@@ -682,13 +858,19 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
         )}
         <div className="space-y-2">
           <div className="flex justify-between text-sm text-muted-foreground">
-            <span>{completedLessons} of {totalLessons} lessons completed</span>
+            <span>
+              {completedLessons} of {totalLessons} lessons completed
+            </span>
             <span>{progress}%</span>
           </div>
           <Progress value={progress} />
         </div>
         <Button className="w-full" onClick={handleContinue}>
-          {progress === 0 ? 'Start Learning' : progress >= 100 ? 'Completed' : 'Continue Learning'}
+          {progress === 0
+            ? 'Start Learning'
+            : progress >= 100
+              ? 'Completed'
+              : 'Continue Learning'}
         </Button>
       </CardContent>
     </Card>
@@ -696,7 +878,11 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 };
 
 // Skeleton component for loading states
-export const CourseCardSkeleton = ({ variant = 'dashboard' }: { variant?: 'dashboard' | 'courses' }) => {
+export const CourseCardSkeleton = ({
+  variant = 'dashboard',
+}: {
+  variant?: 'dashboard' | 'courses';
+}) => {
   if (variant === 'dashboard') {
     return (
       <Card className="border border-border overflow-hidden flex flex-row student-card-hover p-0">
@@ -731,15 +917,23 @@ export const CourseCardSkeleton = ({ variant = 'dashboard' }: { variant?: 'dashb
 };
 
 // Leaderboard Dialog Component
-const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { courseId: string; versionId: string; courseName?: string, isOpen: boolean }) => {
+const LeaderboardDialog = ({
+  courseId,
+  versionId,
+  courseName,
+  isOpen,
+}: {
+  courseId: string;
+  versionId: string;
+  courseName?: string;
+  isOpen: boolean;
+}) => {
   const [page, setPage] = useState(1);
-  const { leaderboard,
-    totalPages,
-    totalDocuments,
-    isLoading, error, myStats } = useLeaderboard(courseId, versionId, page, 10, isOpen);
+  const {leaderboard, totalPages, totalDocuments, isLoading, error, myStats} =
+    useLeaderboard(courseId, versionId, page, 10, isOpen);
 
   const getInitials = (name: string) => {
-    const parts = name.split(" ");
+    const parts = name.split(' ');
     if (parts.length >= 2) {
       return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     }
@@ -750,26 +944,26 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { course
     switch (rank) {
       case 1:
         return {
-          bgColor: "bg-gradient-to-br from-yellow-400 to-yellow-600",
-          textColor: "text-yellow-900",
+          bgColor: 'bg-gradient-to-br from-yellow-400 to-yellow-600',
+          textColor: 'text-yellow-900',
           icon: <Crown className="h-5 w-5" />,
         };
       case 2:
         return {
-          bgColor: "bg-gradient-to-br from-gray-300 to-gray-500",
-          textColor: "text-gray-900",
+          bgColor: 'bg-gradient-to-br from-gray-300 to-gray-500',
+          textColor: 'text-gray-900',
           icon: <Medal className="h-5 w-5" />,
         };
       case 3:
         return {
-          bgColor: "bg-gradient-to-br from-orange-400 to-orange-700",
-          textColor: "text-orange-900",
+          bgColor: 'bg-gradient-to-br from-orange-400 to-orange-700',
+          textColor: 'text-orange-900',
           icon: <Award className="h-5 w-5" />,
         };
       default:
         return {
-          bgColor: "bg-muted",
-          textColor: "text-muted-foreground",
+          bgColor: 'bg-muted',
+          textColor: 'text-muted-foreground',
           icon: null,
         };
     }
@@ -787,123 +981,138 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { course
         </p>
       </DialogHeader>
 
-      <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full pr-4">
-          {isLoading && (
-            <div className="space-y-3">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
-          )}
+      <ScrollArea className="h-[450px] pr-4">
+        {isLoading && (
+          <div className="space-y-3">
+            {Array.from({length: 10}).map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        )}
 
-          {error && !isLoading && (
-            <p className="text-muted-foreground text-center py-8">{error}</p>
-          )}
+        {error && !isLoading && (
+          <p className="text-muted-foreground text-center py-8">{error}</p>
+        )}
 
-          {!isLoading && !error && (!leaderboard || leaderboard.length === 0) && (
-            <p className="text-muted-foreground text-center py-8">
-              No students enrolled yet
-            </p>
-          )}
+        {!isLoading && !error && (!leaderboard || leaderboard.length === 0) && (
+          <p className="text-muted-foreground text-center py-8">
+            No students enrolled yet
+          </p>
+        )}
 
-          {!isLoading && !error && leaderboard && leaderboard.length > 0 && (
-            <div className="space-y-2 pb-4">
-              {leaderboard.map((entry) => {
-                const rankStyle = getRankStyle(entry.rank);
-                return (
-                  <div
-                    key={entry.userId}
-                    className={cn(
-                      "flex items-center gap-3 p-3 rounded-lg transition-colors",
-                      entry.rank <= 3
-                        ? "bg-muted/50 border-2"
-                        : "bg-muted/20",
-                      entry.rank === 1 && "border-yellow-400",
-                      entry.rank === 2 && "border-gray-400",
-                      entry.rank === 3 && "border-orange-400"
-                    )}
-                  >
-                    {/* Rank */}
-                    <div className="flex-shrink-0 w-10 text-center">
-                      {entry.rank <= 3 ? (
-                        <div className={cn("w-8 h-8 rounded-full flex items-center justify-center mx-auto", rankStyle.bgColor)}>
-                          <span className={cn("font-bold text-sm", rankStyle.textColor)}>
-                            {entry.rank}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-base font-semibold text-muted-foreground">
-                          {entry.rank}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Avatar */}
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback
+        {!isLoading && !error && leaderboard && leaderboard.length > 0 && (
+          <div className="space-y-2 pb-4">
+            {leaderboard.map(entry => {
+              const rankStyle = getRankStyle(entry.rank);
+              return (
+                <div
+                  key={entry.userId}
+                  className={cn(
+                    'flex items-center gap-3 p-3 rounded-lg transition-colors',
+                    entry.rank <= 3 ? 'bg-muted/50 border-2' : 'bg-muted/20',
+                    entry.rank === 1 && 'border-yellow-400',
+                    entry.rank === 2 && 'border-gray-400',
+                    entry.rank === 3 && 'border-orange-400',
+                  )}
+                >
+                  {/* Rank */}
+                  <div className="flex-shrink-0 w-10 text-center">
+                    {entry.rank <= 3 ? (
+                      <div
                         className={cn(
-                          entry.rank === 1 && "bg-yellow-100 text-yellow-800",
-                          entry.rank === 2 && "bg-gray-100 text-gray-700",
-                          entry.rank === 3 && "bg-orange-100 text-orange-700",
-                          entry.rank > 3 && "bg-muted"
+                          'w-8 h-8 rounded-full flex items-center justify-center mx-auto',
+                          rankStyle.bgColor,
                         )}
                       >
-                        {getInitials(entry.userName)}
-                      </AvatarFallback>
-                    </Avatar>
+                        <span
+                          className={cn(
+                            'font-bold text-sm',
+                            rankStyle.textColor,
+                          )}
+                        >
+                          {entry.rank}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-base font-semibold text-muted-foreground">
+                        {entry.rank}
+                      </span>
+                    )}
+                  </div>
 
-                    {/* Name and Stats */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate">{entry.userName}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {Math.round(entry.completionPercentage) === 100 ? (
-                          <>
-                            <span className="text-green-600 font-medium">
-                              ✓ Completed
-                            </span>
-                            {entry.completedAt && (
-                              <span className="ml-2">
-                                on {new Date(entry.completedAt).toLocaleString()}
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          `In Progress: ${Math.round(entry.completionPercentage)}%`
-                        )}
-                      </p>
-                    </div>
-
-                    {/* Completion Badge */}
-                    <div
+                  {/* Avatar */}
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback
                       className={cn(
-                        "px-3 py-1 rounded-full font-semibold text-sm",
-                        Math.round(entry.completionPercentage) === 100
-                          ? "bg-green-100 text-green-800"
-                          : "bg-blue-100 text-blue-800"
+                        entry.rank === 1 && 'bg-yellow-100 text-yellow-800',
+                        entry.rank === 2 && 'bg-gray-100 text-gray-700',
+                        entry.rank === 3 && 'bg-orange-100 text-orange-700',
+                        entry.rank > 3 && 'bg-muted',
                       )}
                     >
-                      {Math.round(entry.completionPercentage)}%
-                    </div>
+                      {getInitials(entry.userName)}
+                    </AvatarFallback>
+                  </Avatar>
+
+                  {/* Name and Stats */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold truncate">{entry.userName}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {Math.round(entry.completionPercentage) === 100 ? (
+                        <>
+                          <span className="text-green-600 font-medium">
+                            ✓ Completed
+                          </span>
+                          {entry.completedAt && (
+                            <span className="ml-2">
+                              on {new Date(entry.completedAt).toLocaleString()}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        `In Progress: ${Math.round(entry.completionPercentage)}%`
+                      )}
+                    </p>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </ScrollArea>
-      </div>
+
+                  {/* Completion Badge */}
+                  <div
+                    className={cn(
+                      'px-3 py-1 rounded-full font-semibold text-sm',
+                      Math.round(entry.completionPercentage) === 100
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-blue-100 text-blue-800',
+                    )}
+                  >
+                    {Math.round(entry.completionPercentage)}%
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </ScrollArea>
+
       <div className="flex-shrink-0 pt-4 border-t border-border/50 bg-background flex items-center justify-between">
         {/* My Stats */}
         {myStats ? (
           <div className="flex items-center gap-4 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border/50">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground uppercase tracking-wider">Your Rank</span>
-              <span className="font-display font-bold text-lg text-gold">#{myStats.rank}</span>
+              <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                Your Rank
+              </span>
+              <span className="font-display font-bold text-lg text-gold">
+                #{myStats.rank}
+              </span>
             </div>
             <div className="w-px h-6 bg-border" />
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground uppercase tracking-wider">Progress</span>
-              <span className="font-semibold text-foreground">{myStats.completionPercentage}%</span>
+              <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                Progress
+              </span>
+              <span className="font-semibold text-foreground">
+                {myStats.completionPercentage}%
+              </span>
             </div>
           </div>
         ) : (
@@ -918,7 +1127,6 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { course
           />
         )}
       </div>
-
     </DialogContent>
   );
 };
