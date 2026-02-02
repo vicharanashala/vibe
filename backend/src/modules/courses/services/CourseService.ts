@@ -6,6 +6,7 @@ import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDataba
 import {
   IItemRepository,
   ProctoringComponent,
+  ProgressRepository,
   SettingRepository,
 } from '#root/shared/index.js';
 import { GLOBAL_TYPES } from '#root/types.js';
@@ -13,7 +14,7 @@ import { injectable, inject } from 'inversify';
 import { ObjectId } from 'mongodb';
 import { InternalServerError, NotFoundError } from 'routing-controllers';
 import { CourseVersionService } from './CourseVersionService.js';
-import { CreateCourseVersionBody } from '../classes/index.js';
+import { ActiveUserDto, CreateCourseVersionBody } from '../classes/index.js';
 import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
 import { SETTING_TYPES } from '#root/modules/setting/types.js';
 import {
@@ -37,6 +38,9 @@ class CourseService extends BaseService {
 
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
+
+    @inject(USERS_TYPES.ProgressRepo)
+    private progressRepo: ProgressRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly mongoDatabase: MongoDatabase,
@@ -232,9 +236,17 @@ class CourseService extends BaseService {
     };
   }
 
-
-
-
+  async getActiveUsersByCourse(
+    courseId?: string,
+    courseVersionId?: string,
+    startTimeStamp?: string,
+    endTimeStamp?: string,
+  ): Promise<{ activeUsers: ActiveUserDto[] }> {
+    return this._withTransaction(async session => {
+      const activeUsers = await this.progressRepo.getActiveUsers(courseId, courseVersionId, startTimeStamp, endTimeStamp);
+      return activeUsers
+    });
+  }
 }
 
 export { CourseService };

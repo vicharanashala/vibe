@@ -13,7 +13,7 @@ export interface ISubmitFeedbackBody {
   details: Record<string, any>;
   courseId: string;
   courseVersionId: string;
-  isSkipped?: boolean;
+  // isSkipped?: boolean;
 }
 const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, onPrevVideo, isProgressUpdating,readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson,keyboardLockEnabled,setIsQuizSkipped, linearProgressionEnabled,courseId,versionId}, ref) => {
   const articleRef = useRef<ArticleRef>(null);
@@ -38,7 +38,6 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
 
   const renderContent = () => {
     const itemType = item.type.toLowerCase();
-    console.log("itemType ",itemType)
     switch (itemType) {
       case 'video':
         return <Video
