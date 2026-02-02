@@ -25,16 +25,19 @@ import {
 import type { BreadcrumbItemment } from "@/types/layout.types";
 import InviteDropdown from "@/components/inviteDropDown";
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal";
+import { useInvites } from "@/hooks/hooks";
+import { toast } from "sonner";
 
 export default function TeacherLayout() {
   const matches = useMatches();
   const navigate = useNavigate();
-  const { user } = useAuthStore(); // 🧠 from store
+  const { user, isAuthReady } = useAuthStore(); // 🧠 from store
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]);
   const [showInvites, setShowInvites] = useState(false);
-  const [confirmLogout,setConfirmLogout] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
   const invitesRef = useRef<HTMLDivElement | null>(null);
+  const { getInvites } = useInvites();
 
   const handleLogout = () => {
     logout();
@@ -99,7 +102,33 @@ export default function TeacherLayout() {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [showInvites]);
-  
+
+  useEffect(() => {
+    if (!isAuthReady || !user) return;
+
+    const toastShown = sessionStorage.getItem("inviteToastShown");
+
+    const getUserInvites = async () => {
+      getInvites().then(result => {
+        if (result.invites.length > 0) {
+          console.log(result);
+          setPendingInvites(result.invites)
+
+          if (!toastShown) {
+            toast.info("You have a new invite! Check the invites dropdown.", {
+              richColors: true,
+            });
+            sessionStorage.setItem("inviteToastShown", "true");
+          }
+        }
+      })
+
+
+    }
+    getUserInvites();
+
+  }, [user, isAuthReady])
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -112,10 +141,10 @@ export default function TeacherLayout() {
 
               <Breadcrumb className="hidden md:flex">
                 <BreadcrumbList>
-               
+
                   {breadcrumbs.map((item, index) => (
                     <React.Fragment key={index}>
-                    
+
                       {index > 0 && breadcrumbs.length - 1 && <BreadcrumbSeparator />}
                       <BreadcrumbItem>
                         {item.isCurrentPage ? (
@@ -134,32 +163,33 @@ export default function TeacherLayout() {
 
             <div className="flex items-center gap-3">
 
-              <div className="relative"  ref={invitesRef}>
+              <div className="relative" ref={invitesRef}>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowInvites((prev) => !prev)}
-                 className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+                  className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
                 >
                   <UserRoundCheck className="h-4 w-4" />
                   <span className="hidden sm:block ml-2">Invites</span>
+                  {pendingInvites.length > 0 && <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500" />}
                 </Button>
 
                 {showInvites && <InviteDropdown setPendingInvites={setPendingInvites} pendingInvites={pendingInvites} />}
               </div>
 
-              <ConfirmationModal isOpen={confirmLogout} 
-                  onClose={()=>setConfirmLogout(false)} 
-                  onConfirm={handleLogout} 
-                  title={`Confirm Logout`}
-                  description="Are you sure you want to log out? You will need to sign in again to access your dashboard."
-                />
+              <ConfirmationModal isOpen={confirmLogout}
+                onClose={() => setConfirmLogout(false)}
+                onConfirm={handleLogout}
+                title={`Confirm Logout`}
+                description="Are you sure you want to log out? You will need to sign in again to access your dashboard."
+              />
 
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={()=>setConfirmLogout(true)}
-                 className="relative  h-10 px-4 text-sm font-medium transition-all duration-300  hover:text-red-600 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:shadow-red-500/10 dark:hover:text-red-400  dark:hover:bg-gradient-to-r dark:over:from-red-500/10 dark:hover:to-red-400/5"
+                onClick={() => setConfirmLogout(true)}
+                className="relative  h-10 px-4 text-sm font-medium transition-all duration-300  hover:text-red-600 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:shadow-red-500/10 dark:hover:text-red-400  dark:hover:bg-gradient-to-r dark:over:from-red-500/10 dark:hover:to-red-400/5"
               >
                 <LogOut className="h-4 w-4" />
                 <span className="hidden sm:block ml-2">Logout</span>
