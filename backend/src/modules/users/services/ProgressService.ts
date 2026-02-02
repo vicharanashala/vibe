@@ -462,7 +462,7 @@ class ProgressService extends BaseService {
     completedItems: number,
   ): number {
     if (!totalItems || totalItems === 0) return 0;
-    return ((completedItems ?? 0) / totalItems) * 100;
+    return parseFloat((((completedItems ?? 0) / totalItems) * 100).toFixed(2));
   }
 
   private async verifyDetails(
@@ -1679,8 +1679,8 @@ class ProgressService extends BaseService {
       courseVersion.totalItems ??
       (await this.itemRepo.CalculateTotalItemsCount(courseId, courseVersionId));
 
-    const percentCompleted = Math.round(
-      (totalItems > 0 ? completedItemsSet.size / totalItems : 0) * 100,
+    const percentCompleted = parseFloat(
+      ((totalItems > 0 ? completedItemsSet.size / totalItems : 0) * 100).toFixed(2),
     );
 
     // Fire-and-forget safe update
@@ -2910,7 +2910,7 @@ class ProgressService extends BaseService {
     const percentCompleted =
       totalItemsCount > 0
         ? Math.min(
-          Math.round((normalizedTotalItemsCount / totalItemsCount) * 100),
+          parseFloat(((normalizedTotalItemsCount / totalItemsCount) * 100).toFixed(2)),
           100,
         )
         : 0;
