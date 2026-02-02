@@ -90,13 +90,13 @@ function EnrollmentProgress(props: { progress: number }) {
         <div
           className={`h-full rounded-full bg-gradient-to-r ${getProgressColor(progress)}`}
           style={{
-            width: `${progress.toFixed(1)}%`,
+            width: `${progress.toFixed(2)}%`,
             transition: "width 0.4s cubic-bezier(0.4,0,0.2,1)",
           }}
         />
       </div>
       <span className="text-sm font-bold text-foreground min-w-[3rem] text-right">
-        {progress.toFixed(1)}%
+        {progress.toFixed(2)}%
       </span>
     </div>
   )
@@ -282,7 +282,7 @@ export default function CourseEnrollments() {
       // ⏱️ Stable filename (no locale overhead)
       const timestamp = new Date().toISOString().replace(/[:.]/g, '_');
       const statusLabel = enrollmentTab === 'ACTIVE' ? 'active' : 'inactive';
-       const filename = `quiz_scores_${statusLabel}_${timestamp}.xlsx`;
+      const filename = `quiz_scores_${statusLabel}_${timestamp}.xlsx`;
 
       // 🧠 Let UI breathe before heavy Excel generation
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -317,12 +317,12 @@ export default function CourseEnrollments() {
   // Active / Inactive tab
   const [enrollmentTab, setEnrollmentTab] = useState<"ACTIVE" | "INACTIVE">("ACTIVE")
   const statusTab: "ACTIVE" | "INACTIVE" = enrollmentTab
-   const {
+  const {
     data: quizScores,
     isLoading: isLoadingQuizScores,
     error: quizScoresError,
     refetch: fetchQuizScores,
-  } = useCourseQuizScores(courseId, versionId, isExporting,enrollmentTab);
+  } = useCourseQuizScores(courseId, versionId, isExporting, enrollmentTab);
 
 
   // Fetch enrollments data
@@ -629,7 +629,7 @@ export default function CourseEnrollments() {
     },
     {
       title: "Avg. Progress",
-      value: `${enrollmentStats?.averageProgressPercent}%`,
+      value: `${Number(enrollmentStats?.averageProgressPercent || 0).toFixed(2)}%`,
       icon: TrendingUp,
       color: "text-purple-600",
       bgColor: "bg-purple-50",
@@ -1944,7 +1944,7 @@ function EnrollmentsTable({
 
                       {/* Progress */}
                       <TableCell className="py-6">
-                        <EnrollmentProgress progress={Math.round(enrollment.progress || 0)} />
+                        <EnrollmentProgress progress={enrollment.progress || 0} />
                       </TableCell>
 
                       {/* Score obtained */}
@@ -1971,7 +1971,7 @@ function EnrollmentsTable({
                                   "Unknown User",
                                 email: enrollment.user?.email,
                                 enrolledDate: enrollment.enrollmentDate,
-                                progress: Math.round(enrollment.progress || 0),
+                                progress: enrollment.progress || 0,
                                 completedItemsCount: enrollment.completedItemsCount || 0,
 
                                 contentCounts: {

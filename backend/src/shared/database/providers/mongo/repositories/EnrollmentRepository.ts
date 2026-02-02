@@ -1424,7 +1424,7 @@ export class EnrollmentRepository {
                   {
                     $round: [
                       { $divide: ['$totalProgress', '$totalEnrollments'] },
-                      1,
+                      2,
                     ],
                   },
                   0,
