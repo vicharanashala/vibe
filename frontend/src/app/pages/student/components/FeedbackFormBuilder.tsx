@@ -345,6 +345,9 @@ const FeedbackFormBuilder = ({
         case 'tel':
           ui['ui:options'] = { inputType: 'tel' };
           break;
+        case 'checkbox':
+          ui['ui:widget'] = 'checkbox';
+          break;
         default:
           ui['ui:widget'] = 'text';
       }
