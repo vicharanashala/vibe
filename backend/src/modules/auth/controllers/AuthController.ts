@@ -62,6 +62,8 @@ export class AuthController {
     statusCode: 401,
   })
   async signup(@Body() body: SignUpBody, @Req() req: any) {
+
+    return {message:'Signup is temporarily disabled'};
     const { recaptchaToken, ...signUpData } = body;
 
     // Verify reCAPTCHA token
