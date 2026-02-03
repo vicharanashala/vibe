@@ -41,9 +41,19 @@ import { PROJECTS_TYPES } from '#root/modules/projects/types.js';
 import { IProjectSubmissionRepository } from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
 import { FeedbackRepository } from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
 import { GetCurrentProgressPathResponse } from '../classes/dtos/GetCurrentProgressPathResponse.js';
+import { SETTING_TYPES } from '#root/modules/setting/types.js';
+import { CourseSettingService } from '#root/modules/setting/index.js';
+import { getContainer } from "#root/bootstrap/loadModules.js";
 
 @injectable()
 class ProgressService extends BaseService {
+
+  private getCourseSettingService(): CourseSettingService {
+    return getContainer().get<CourseSettingService>(
+      SETTING_TYPES.SettingRepo
+    );
+  }
+
   constructor(
     @inject(USERS_TYPES.ProgressRepo)
     private readonly progressRepository: ProgressRepository,
@@ -519,6 +529,12 @@ class ProgressService extends BaseService {
     );
 
     if (isItemCompleted) {
+      return;
+    }
+
+    // if linear progression is not enabled then also continue 
+    const linearProgressionEnabled = await this.getCourseSettingService().isLinearProgressionEnabled(courseId, courseVersionId);
+    if(!linearProgressionEnabled){
       return;
     }
 
@@ -1465,6 +1481,23 @@ class ProgressService extends BaseService {
         itemId,
         session,
       );
+
+      const linearProgressionEnabled = await this.getCourseSettingService().isLinearProgressionEnabled(courseId, courseVersionId);
+      if(!linearProgressionEnabled){
+        const newProgress: Partial<IProgress> = {
+          completed: isItemCompleted,
+          currentModule: moduleId,
+          currentSection: sectionId,
+          currentItem: itemId,
+        }
+
+        await this.progressRepository.updateProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          newProgress
+        );
+      }
 
       return result;
     });
