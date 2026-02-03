@@ -31,6 +31,8 @@ export interface YTPlayerInstance {
   setVolume: (volume: number) => void;
   setPlaybackRate: (rate: number) => void;
   getAvailablePlaybackRates?: () => number[];
+  getAvailableQualityLevels?: () => string[];
+  setPlaybackQuality?: (quality: string) => void;
   anomalies?: string[];
 }
 

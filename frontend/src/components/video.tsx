@@ -62,6 +62,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
 
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(false);
   const [subtitlesAvailable, setSubtitlesAvailable] = useState(false);
+  const [availableQualities, setAvailableQualities] = useState<string[]>([]);
+  const [selectedQuality, setSelectedQuality] = useState<string>('auto');
 
   // Track if video was playing before gesture pause
   const wasPlayingBeforeGesture = useRef(false);
@@ -189,6 +191,12 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
   useEffect(() => {
     playerRef.current?.setPlaybackRate(playbackRate);
   }, [playbackRate, playerRef, videoId, iframeRef, playerReady, currentTime]);
+
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player || !playerReady) return;
+    applySelectedQuality(player);
+  }, [selectedQuality, playerReady]);
 
   // Control handlers
   const handlePlayPause = useCallback(() => {
@@ -416,6 +424,49 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
     else if (qualities.includes('large')) player.setPlaybackQuality('large');
   };
 
+  const getQualityLabel = (quality: string) => {
+    switch (quality) {
+      case 'highres':
+        return 'Highres';
+      case 'hd2160':
+        return '4K (2160p)';
+      case 'hd1440':
+        return '1440p';
+      case 'hd1080':
+        return '1080p';
+      case 'hd720':
+        return '720p';
+      case 'large':
+        return '480p';
+      case 'medium':
+        return '360p';
+      case 'small':
+        return '240p';
+      case 'tiny':
+        return '144p';
+      case 'auto':
+        return 'Auto (Best)';
+      default:
+        return quality;
+    }
+  };
+
+  const applySelectedQuality = (player: YTPlayerInstance) => {
+    if (selectedQuality === 'auto') {
+      forceHighestQuality(player);
+      return;
+    }
+    player.setPlaybackQuality(selectedQuality as YTPlayerInstance['setPlaybackQuality'] extends (q: infer Q) => any ? Q : any);
+  };
+
+  const syncAvailableQualities = (player: YTPlayerInstance) => {
+    const qualities = player.getAvailableQualityLevels?.() ?? [];
+    setAvailableQualities(qualities);
+    if (selectedQuality !== 'auto' && !qualities.includes(selectedQuality)) {
+      setSelectedQuality('auto');
+    }
+  };
+
   // Load YouTube IFrame API
   useEffect(() => {
     if (!readyToDetect) return;
@@ -454,6 +505,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
             setDuration(dur);
             setVolume(event.target.getVolume());
             setMaxTime(startTimeSeconds);
+            syncAvailableQualities(event.target);
             event.target.seekTo(startTimeSeconds, true);
             onDurationChange?.(dur);
             event.target.pauseVideo();
@@ -473,7 +525,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
                 progressStartedRef.current = true;
               }
               setTimeout(() => {
-                forceHighestQuality(event.target);
+                syncAvailableQualities(event.target);
+                applySelectedQuality(event.target);
               }, 500);
             } else if (window.YT && event.data === window.YT.PlayerState.ENDED) {
               // Video naturally ended (when no endTimeSeconds constraint)
@@ -1511,6 +1564,28 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
                   )}
                 </span>
               </Button>
+
+              {/* Quality Control */}
+              <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
+                <span className="text-md font-bold text-foreground min-w-[24px]">
+                  Quality
+                </span>
+                <select
+                  value={selectedQuality}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSelectedQuality(value);
+                  }}
+                  className="bg-transparent text-foreground text-sm font-semibold outline-none"
+                >
+                  <option value="auto">{getQualityLabel('auto')}</option>
+                  {availableQualities.map((q) => (
+                    <option key={q} value={q}>
+                      {getQualityLabel(q)}
+                    </option>
+                  ))}
+                </select>
+              </Card>
 
               {/* Speed Control */}
               <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
