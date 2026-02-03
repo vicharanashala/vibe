@@ -553,17 +553,17 @@ const FeedbackFormBuilder = ({
                           <div
                             key={field.id}
                             className={`relative group p-3 rounded-lg border-2 transition-all cursor-pointer ${selectedFieldId === field.id
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover:border-muted-foreground/30"
+                              ? "border-primary bg-primary/5"
+                              : "border-border hover:border-muted-foreground/30"
                               }`}
                             onClick={() => {
-                              if (
-                                field.label === "Name" ||
-                                field.label === "Email"
-                              ) {
-                                toast.error("Cannot select default fields")
-                                return
-                              }
+                              // if (
+                              // field.label === "Name" ||
+                              // field.label === "Email"
+                              // ) {
+                              // toast.error("Cannot select default fields")
+                              // return
+                              // }
                               setSelectedFieldId(field.id)
                             }}
                           >
@@ -616,20 +616,20 @@ const FeedbackFormBuilder = ({
                                 <Trash2 className="w-3 h-3" />
                               </Button> */}
 
-                              {field.label !== "Name" && field.label !== "Email" && (
-                                <Button
-                                  size="icon"
-                                  type="button"
-                                  variant="destructive"
-                                  className="h-7 w-7 shadow-sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setFieldIdToDelete(field.id);
-                                  }}
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              )}
+                              {/* {field.label !== "Name" && field.label !== "Email" && ( */}
+                              <Button
+                                size="icon"
+                                type="button"
+                                variant="destructive"
+                                className="h-7 w-7 shadow-sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setFieldIdToDelete(field.id);
+                                }}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                              {/* )} */}
                             </div>
 
                             <div className="space-y-2" onClick={(e) => e.stopPropagation()}>

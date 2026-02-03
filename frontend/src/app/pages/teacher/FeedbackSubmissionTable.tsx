@@ -53,9 +53,9 @@ export const FeedbackSubmissionsTable: React.FC<FeedbackSubmissionsTableProps> =
   const hasExtraFields = Object.keys(filteredFormFields).length > 0;
     const normalizedSubmission = {
       userInfo: {
-        firstName: submission.user?.firstName || '',
-        lastName: submission.user?.lastName || '',
-        email: submission.user?.email || 'N/A',
+        firstName: details?.Name || 'Anonymous',
+        lastName: '',
+        email: details?.Email || 'N/A',
       },
       submittedAt: submission.createdAt || submission.submittedAt || new Date().toISOString(),
       itemType: submission.previousItemType || 'FEEDBACK',
