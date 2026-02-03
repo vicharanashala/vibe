@@ -33,7 +33,7 @@ export const CourseSection = ({
       );
     }
 
-    if (error) {
+    if (error && enrollments.length>0) {
       if (error === "Authorization is required for request on GET /api/users/enrollments?page=1&limit=5") {
         onRetry?.()
       }
