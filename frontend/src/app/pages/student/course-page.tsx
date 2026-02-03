@@ -520,17 +520,28 @@ export default function CoursePage() {
       // Handle the different possible response structures
       const item = (itemData as any)?.item || itemData;
       if (item && typeof item === 'object' && item._id) {
+        // Get completion status from section items if available
+        if (selectedSectionId && sectionItems[selectedSectionId]) {
+          const sectionItem = sectionItems[selectedSectionId].find(
+            (sectionItem: any) => sectionItem._id === item._id
+          );
+          if (sectionItem && (sectionItem as any).isCompleted !== undefined) {
+            (item as any).isCompleted = (sectionItem as any).isCompleted;
+          }
+        }
+        
         setCurrentItem(item);
         // Clear loading state when new item is successfully loaded
         setIsNavigatingToNext(false);
       }
     }
-  }, [itemData, itemLoading]);
-
+  }, [itemData, itemLoading, selectedSectionId, sectionItems]);
 
   // Flag handling function
   const handleFlagSubmit = async (reason: string) => {
     try {
+      if (!currentItem?._id) return;
+
       if (!currentItem) {
         console.warn("Current item not founded", currentItem);
         return;
