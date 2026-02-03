@@ -179,17 +179,25 @@ export class CourseRepository implements ICourseRepository {
     //    - Extract all itemsGroupId values from its modules/sections
     //    - Call deleteVersion(...) to delete the version and its items
     const versionIds: string[] = Array.isArray((courseDoc as any).versions)
-      ? (courseDoc as any).versions.map((v: any) => v.toString())
+      ? (courseDoc as any).versions
+        .map((v: any) => v?.toString())
+        .filter((id: string) => id != null && id !== '' && ObjectId.isValid(id))
       : [];
 
     for (const versionId of versionIds) {
+      if (!ObjectId.isValid(versionId)) {
+        console.warn(`Skipping invalid versionId: ${versionId}`);
+        continue;
+      }
+
       // 2a. Fetch the raw CourseVersion document
       const rawVersion = await this.courseVersionCollection.findOne(
         { _id: new ObjectId(versionId) },
         { session },
       );
       if (!rawVersion) {
-        throw new NotFoundError(`CourseVersion with ID ${versionId} not found`);
+        console.warn(`CourseVersion with ID ${versionId} not found, skipping`);
+        continue;
       }
 
       // 2b. Walk through modules → sections → collect all itemsGroupId
@@ -198,7 +206,9 @@ export class CourseRepository implements ICourseRepository {
         for (const mod of (rawVersion as any).modules as any[]) {
           if (Array.isArray(mod.sections)) {
             for (const sec of mod.sections as any[]) {
-              itemGroupsIds.push(new ObjectId(sec.itemsGroupId));
+              if (sec.itemsGroupId && ObjectId.isValid(sec.itemsGroupId)) {
+                itemGroupsIds.push(new ObjectId(sec.itemsGroupId));
+              }
             }
           }
         }
