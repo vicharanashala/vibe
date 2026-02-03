@@ -78,7 +78,7 @@ describe('Item Controller Integration Tests', () => {
     const password = faker.internet.password();
     const firstName = faker.person.firstName().replace(/[^a-zA-Z]/g, '');
     const lastName = faker.person.lastName().replace(/[^a-zA-Z]/g, '');
-    const signUpBody: SignUpBody = { email, password, firstName, lastName };
+    const signUpBody: SignUpBody = { email, password, firstName, lastName, recaptchaToken: 'mock-token' };
 
     const signUpResponse = await request(app)
       .post('/auth/signup')
@@ -194,7 +194,7 @@ describe('Item Controller Integration Tests', () => {
         const password = faker.internet.password();
         const firstName = faker.person.firstName().replace(/[^a-zA-Z]/g, '');
         const lastName = faker.person.lastName().replace(/[^a-zA-Z]/g, '');
-        const signUpBody: SignUpBody = { email, password, firstName, lastName };
+        const signUpBody: SignUpBody = { email, password, firstName, lastName, recaptchaToken: 'mock-token' };
 
         const signUpResponse = await request(app)
           .post('/auth/signup')

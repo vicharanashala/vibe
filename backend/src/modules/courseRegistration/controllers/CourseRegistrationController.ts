@@ -91,9 +91,10 @@ class CourseRegistrationController {
             schema: {
               type: 'object',
               properties: {
-              result:{type:'String',
-                example:'60d5ec49b3f1c8e4a8f8b8d1'
-              }
+                result: {
+                  type: 'String',
+                  example: '60d5ec49b3f1c8e4a8f8b8d1'
+                }
 
               },
             },
@@ -101,7 +102,7 @@ class CourseRegistrationController {
         },
       },
     },
-  
+
   })
   @Authorized()
   @Post('/version/:versionId')
@@ -118,10 +119,36 @@ class CourseRegistrationController {
   ) {
     const userId = user._id;
     const { versionId } = params;
+
+    // Extract and verify reCAPTCHA token
+    const recaptchaToken = body.recaptchaToken;
+
+    if (!recaptchaToken) {
+      throw new BadRequestError('reCAPTCHA verification is required');
+    }
+
+    // Import and verify reCAPTCHA
+    const { verifyRecaptcha } = await import('#root/shared/functions/verifyRecaptcha.js');
+
+    try {
+      const isValidRecaptcha = await verifyRecaptcha(recaptchaToken);
+      if (!isValidRecaptcha) {
+        throw new BadRequestError('reCAPTCHA verification failed. Please try again.');
+      }
+    } catch (error) {
+      if (error instanceof BadRequestError) {
+        throw error;
+      }
+      throw new BadRequestError('Failed to verify reCAPTCHA. Please try again.');
+    }
+
+    // Remove recaptchaToken from body before processing
+    const { recaptchaToken: _, ...registrationBody } = body;
+
     const registrationData = {
       userId,
       versionId,
-      detail: body,
+      detail: registrationBody,
       status: 'PENDING' as const,
     };
 

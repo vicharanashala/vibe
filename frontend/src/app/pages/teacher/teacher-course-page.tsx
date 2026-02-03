@@ -73,6 +73,7 @@ import AISectionPage from "./AISectionPage";
 type Mode = "default" | "wizard" | "custom";
 import { logout } from "@/utils/auth";
 import InviteDropdown from "@/components/inviteDropDown";
+import { useQueryClient } from "@tanstack/react-query"
 
 
 // ✅ Icons per item type
@@ -369,6 +370,7 @@ function TeacherCourseContent() {
   const [showCSVUpload, setShowCSVUpload] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const userCSVtoItem = userParseCSVtoItems();
+  const queryClient = useQueryClient()
 
 
   const updateItemOptional = useUpdateItemOptional();
@@ -454,12 +456,12 @@ function TeacherCourseContent() {
       // },
       isUpdateModuleError: {
         flag: isUpdateModuleError,
-        message: updateModuleError?.message,
+        message: updateModuleError?.toString(),
         fallback: "Failed to update module",
       },
       isDeleteModuleError: {
         flag: isDeleteModuleError,
-        message: deleteModuleError?.message,
+        message: deleteModuleError?.toString(),
         fallback: "Failed to delete module",
       },
       isCreateSectionError: {
@@ -469,32 +471,32 @@ function TeacherCourseContent() {
       },
       isUpdateSectionError: {
         flag: isUpdateSectionError,
-        message: updateSectionError?.message,
+        message: updateSectionError?.toString(),
         fallback: "Failed to update section",
       },
       isDeleteSectionError: {
         flag: isDeleteSectionError,
-        message: deleteSectionError?.message,
+        message: deleteSectionError?.toString(),
         fallback: "Failed to delete section",
       },
       isCreateItemError: {
         flag: isCreateItemError,
-        message: createItemError?.message,
+        message: createItemError?.toString(),
         fallback: "Failed to create item",
       },
       isUpdateItemError: {
         flag: isUpdateItemError,
-        message: updateItemError?.message,
+        message: updateItemError?.toString(),
         fallback: "Failed to update item",
       },
       isDeleteItemError: {
         flag: isDeleteItemError,
-        message: deleteItemError?.message,
+        message: deleteItemError?.toString(),
         fallback: "Failed to delete item",
       },
       isMoveItemError: {
         flag: isMoveItemError,
-        message: moveItemError?.message,
+        message: moveItemError?.toString(),
         fallback: "Failed to move item",
       },
     },
@@ -590,6 +592,37 @@ function TeacherCourseContent() {
   };
 
 
+  // Invalidate all related queries
+  const invalidateAllQueries = async () => {
+    // Invalidate section items queries as in refetchitems
+    await queryClient.invalidateQueries({
+      queryKey: ["get", "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items"]
+    })
+
+    // Invalidate all item detail queries as in refetchitem
+    await queryClient.invalidateQueries({
+      queryKey: ["get", "/courses/{courseId}/versions/{versionId}/item/{itemId}"]
+    })
+
+    // // Invalidate all course version queries
+    await queryClient.invalidateQueries({
+      queryKey: ["get", "/courses/versions/{id}"]
+    })
+  }
+
+  // invalidated as sometimes questions are not fetched properly
+  const handleinvalidateItemQueries = async () => {
+    // Invalidate all related queries for question banks
+    await queryClient.invalidateQueries({
+      queryKey: ["get", "/quizzes/question-bank/{questionBankId}"]
+    })
+
+    // Invalidate all related queries for questions
+    await queryClient.invalidateQueries({
+      queryKey: ["get", "/quizzes/questions/{questionId}"]
+    })
+  }
+
 
   // Process CSV file and create items
   const processCSV = async (file: File, moduleId: string, sectionId: string, youtubeUrl: string) => {
@@ -630,14 +663,14 @@ function TeacherCourseContent() {
       const response = await userCSVtoItem.mutateAsync({
         params: { path: { courseId: courseId!, versionId: versionId!, moduleId, sectionId } },
         body: { youtubeurl: youtubeUrl, data: result.data }
-      }).then((res) => {
-        if (res.success) {
-          toast.success('Successfully created items from CSV');
-        }
-        refetchVersion()
-        refetchItems()
-        setIsProcessingCSV(false);
       });
+
+      if (response.success) {
+        toast.success('Successfully created items from CSV');
+      }
+
+      await invalidateAllQueries();
+      setIsProcessingCSV(false);
     } catch (error) {
       console.error('Error processing CSV:', error);
       toast.error(`Failed to process CSV: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -899,7 +932,7 @@ function TeacherCourseContent() {
           }
         })
         .catch((err) => {
-          toast.error("Failed to create feedback form");
+          toast.error("Failed to create feedback form: ", err.message);
           console.error(err);
         });
     }
@@ -1454,7 +1487,8 @@ function TeacherCourseContent() {
                                                           ? "bg-zinc-600 text-gray-200"
                                                           : "bg-transparent transition-none"
                                                           }`}
-                                                        onClick={() => {
+                                                        onClick={async () => {
+                                                         await handleinvalidateItemQueries();
                                                           setMode("default");
                                                           const label = getItemLabel({
                                                             itemId: item._id,
@@ -2601,7 +2635,7 @@ function TeacherCourseContent() {
                                   body: { name, description, details: { name, description }, type: 'PROJECT' }
                                 });
                                 refetchVersion();
-                                refetchItems(); ``
+                                refetchItems();
                                 refetchItem();
                                 toast.success("Project updated successfully");
                               } catch (err) {
