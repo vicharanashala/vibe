@@ -108,6 +108,7 @@
     "react": "^19.0.0",
     "react-device-detect": "^2.2.3",
     "react-dom": "^19.0.0",
+    "react-google-recaptcha": "^3.1.0",
     "react-katex": "^3.1.0",
     "react-markdown": "^10.1.0",
     "react-resizable-panels": "^3.0.3",

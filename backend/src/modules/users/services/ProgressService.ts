@@ -11,6 +11,7 @@ import {
   IProgress,
   IVideoDetails,
   IBlogDetails,
+  ICurrentProgressPath,
 } from '#root/shared/interfaces/models.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { ProgressRepository } from '#shared/database/providers/mongo/repositories/ProgressRepository.js';
@@ -462,7 +463,7 @@ class ProgressService extends BaseService {
     completedItems: number,
   ): number {
     if (!totalItems || totalItems === 0) return 0;
-    return ((completedItems ?? 0) / totalItems) * 100;
+    return parseFloat((((completedItems ?? 0) / totalItems) * 100).toFixed(2));
   }
 
   private async verifyDetails(
@@ -1254,7 +1255,7 @@ class ProgressService extends BaseService {
     userId: string,
     courseId: string,
     versionId: string
-  ): Promise<any> {
+  ): Promise<ICurrentProgressPath> {
 
     const progress = await this.progressRepository.findProgress(
       userId,
@@ -1262,20 +1263,68 @@ class ProgressService extends BaseService {
       versionId,
     )
 
-    if (!progress || !progress.currentItem) {
-      throw new BadRequestError('Progress not started')
+    if (!progress) {
+      return {
+        module: null,
+        section: null,
+        item: null,
+        message: 'No progress found'
+      }
+    }
+
+    if (!progress.currentItem) {
+      return {
+        module: null,
+        section: null,
+        item: null,
+        message: 'Progress not started'
+      }
     }
 
     const { currentModule, currentSection, currentItem } = progress
 
-    const module = await this.courseRepo.getModulebyId(versionId, currentModule.toString())
-    const section = module.sections.find(s => s.sectionId === currentSection)
-    // const item = section.items.find(i => i._id.toString() === currentItem)
+    try {
+      const module = await this.courseRepo.getModulebyId(versionId, currentModule.toString())
+      
+      if (!module) {
+        return {
+          module: null,
+          section: null,
+          item: null,
+          message: 'Module not found'
+        }
+      }
 
-    return {
-      module: { id: module.moduleId, name: module.name },
-      section: { id: section.sectionId, name: section.name },
-      // item: { id: item._id, name: item.name, type: item.type },
+      const section = module.sections.find(s => s.sectionId === currentSection.toString())
+      
+      if (!section) {
+        return {
+          module: { id: module.moduleId.toString(), name: module.name },
+          section: null,
+          item: null,
+          message: 'Section not found'
+        }
+      }
+      
+      // Get the actual item details
+      const itemDetails = await this.itemRepo.readItem(versionId, currentItem.toString())
+      
+      return {
+        module: { id: module.moduleId.toString(), name: module.name },
+        section: { id: section.sectionId.toString(), name: section.name },
+        item: { 
+          id: itemDetails?._id?.toString() || currentItem.toString(), 
+          name: itemDetails?.name || 'Unknown Item', 
+          type: itemDetails?.type || 'unknown' 
+        },
+      }
+    } catch (error) {
+      return {
+        module: null,
+        section: null,
+        item: null,
+        message: 'Error occurred: ' + error.message
+      }
     }
   }
 
@@ -1679,8 +1728,8 @@ class ProgressService extends BaseService {
       courseVersion.totalItems ??
       (await this.itemRepo.CalculateTotalItemsCount(courseId, courseVersionId));
 
-    const percentCompleted = Math.round(
-      (totalItems > 0 ? completedItemsSet.size / totalItems : 0) * 100,
+    const percentCompleted = parseFloat(
+      ((totalItems > 0 ? completedItemsSet.size / totalItems : 0) * 100).toFixed(2),
     );
 
     // Fire-and-forget safe update
@@ -2910,7 +2959,7 @@ class ProgressService extends BaseService {
     const percentCompleted =
       totalItemsCount > 0
         ? Math.min(
-          Math.round((normalizedTotalItemsCount / totalItemsCount) * 100),
+          parseFloat(((normalizedTotalItemsCount / totalItemsCount) * 100).toFixed(2)),
           100,
         )
         : 0;

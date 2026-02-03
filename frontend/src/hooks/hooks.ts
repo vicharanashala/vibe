@@ -330,6 +330,12 @@ export interface Anomaly {
   status: 'Pending' | 'Investigated' | 'Resolved';
 }
 
+export interface ExportFeedbackSubmissionsProps {
+    courseId: string;
+    feedbackId: string;
+}
+
+
 export function useAnomaliesByCourseItem(
   courseId: string | undefined,
   versionId: string | undefined,
@@ -577,17 +583,26 @@ export function useStudentCurrentProgressPath(
   versionId?: string,
   enabled?: boolean
 ) {
-  return useQuery({
-    queryKey: ['current-progress-path', userId, courseId, versionId],
-    queryFn: () =>
-      api.users.getCurrentProgressPath({
-        params: {
-          path: { courseId: courseId!, versionId: versionId! },
-          query: { userId: userId! },
-        },
-      }),
-    enabled: Boolean(enabled && userId && courseId && versionId),
-  })
+  const result = api.useQuery(
+    "get",
+    "/users/progress/courses/{courseId}/versions/{versionId}/current-path",
+    {
+      params: {
+        path: { courseId: courseId!, versionId: versionId! },
+        query: { userId: userId! },
+      },
+    },
+    {
+      enabled: Boolean(enabled && userId && courseId && versionId),
+    }
+  );
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to load current progress') : null,
+    refetch: result.refetch
+  };
 }
 
 // PATCH /courses/{id}
@@ -3912,3 +3927,43 @@ export function useRecalculateStudentProgress(): {
       : null,
   };
 }
+
+// Hook to export feedback submissions as CSV
+
+export const useExportFeedbackSubmissions = ({ courseId, feedbackId }: ExportFeedbackSubmissionsProps) => {
+    const [isExporting, setIsExporting] = useState(false);
+
+    const exportCSV = async () => {
+        try {
+            setIsExporting(true);
+            const baseUrl = import.meta.env.VITE_BASE_URL;
+            const response = await fetch(`${baseUrl}/courses/${courseId}/item/${feedbackId}/feedback/submissions/export`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('firebase-auth-token')}`
+                }
+            });
+
+            if (!response.ok) throw new Error('Failed to export submissions');
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `feedback_submissions_${feedbackId}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            toast.success('Feedback submissions exported successfully');
+        } catch (error) {
+            console.error('Export error:', error);
+            toast.error('Failed to export feedback submissions');
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    return { exportCSV, isExporting };
+};
+
+

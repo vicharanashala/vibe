@@ -30,6 +30,7 @@ describe('Auth Controller Integration Tests', () => {
         password: faker.internet.password(),
         firstName: faker.person.firstName('male').replace(/[^a-zA-Z]/g, ''),
         lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
+        recaptchaToken: 'mock-token',
       };
       const response = await request(app)
         .post('/auth/signup/')
@@ -43,6 +44,7 @@ describe('Auth Controller Integration Tests', () => {
         password: faker.internet.password(),
         firstName: faker.person.firstName().replace(/[^a-zA-Z]/g, ''),
         lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
+        recaptchaToken: 'mock-token',
       };
       const response = await request(app)
         .post('/auth/signup/')
@@ -61,6 +63,7 @@ describe('Auth Controller Integration Tests', () => {
         password: '',
         firstName: '',
         lastName: '',
+        recaptchaToken: '',
       };
       const response = await request(app)
         .post('/auth/signup/')
@@ -75,6 +78,7 @@ describe('Auth Controller Integration Tests', () => {
         password: '123',
         firstName: faker.person.firstName().replace(/[^a-zA-Z]/g, ''),
         lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
+        recaptchaToken: 'mock-token',
       };
       const response = await request(app)
         .post('/auth/signup/')

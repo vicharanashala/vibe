@@ -99,8 +99,9 @@ jobs:
             SMTP_USER=${{ secrets.SMTP_USER }}
             SMTP_PASS=${{ secrets.SMTP_PASS }}
             TAILSCALE_AUTHKEY=${{ secrets.TAILSCALE_AUTHKEY }}
+            RECAPTCHA_SECRET_KEY=${{ secrets.RECAPTCHA_SECRET_KEY }}
             AI_PROXY_ADDRESS=socks5h://localhost:1055
-            SESSION_SECRET=${{ secrets.SESSION_SECRET }}
+           
           flags: --allow-unauthenticated
 
   deploy_production:
@@ -140,6 +141,7 @@ jobs:
             SMTP_USER=${{ secrets.SMTP_USER }}
             SMTP_PASS=${{ secrets.SMTP_PASS }}
             TAILSCALE_AUTHKEY=${{ secrets.TAILSCALE_AUTHKEY }}
+             RECAPTCHA_SECRET_KEY=${{ secrets.RECAPTCHA_SECRET_KEY }}
             AI_PROXY_ADDRESS=socks5h://localhost:1055
-            SESSION_SECRET=${{ secrets.SESSION_SECRET }}
+            
           flags: --allow-unauthenticated

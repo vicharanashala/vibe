@@ -12,8 +12,8 @@ interface LimiterOptions {
  */
 export const createRateLimiter = (options?: LimiterOptions): RateLimitRequestHandler => {
   return rateLimit({
-    windowMs: options?.windowMs ?? 15 * 60 * 1000, // default 15 minutes
-    max: options?.max ?? 100,                      // default 100 requests per IP
+    windowMs: options?.windowMs ?? 1 * 60 * 1000, // default 15 minutes
+    max: options?.max ?? 300,                      // default 100 requests per IP
     standardHeaders: true,                          // Send RateLimit-* headers
     legacyHeaders: false,                           // Disable X-RateLimit-* headers
     message: options?.message ?? {

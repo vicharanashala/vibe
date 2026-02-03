@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { QuizSubmissionDisplay } from "./QuizSubmissionDisplay"
 import { WatchTimeDisplay } from "./WatchTimeDisplay"
-import { useStudentCurrentProgressPath } from "@/hooks/useStudentCurrentProgressPath"
+import { useStudentCurrentProgressPath } from "@/hooks/hooks"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 // Import hooks - including the new quiz hooks
@@ -90,13 +90,13 @@ function EnrollmentProgress(props: { progress: number }) {
         <div
           className={`h-full rounded-full bg-gradient-to-r ${getProgressColor(progress)}`}
           style={{
-            width: `${progress.toFixed(1)}%`,
+            width: `${progress.toFixed(2)}%`,
             transition: "width 0.4s cubic-bezier(0.4,0,0.2,1)",
           }}
         />
       </div>
       <span className="text-sm font-bold text-foreground min-w-[3rem] text-right">
-        {progress.toFixed(1)}%
+        {progress.toFixed(2)}%
       </span>
     </div>
   )
@@ -282,7 +282,7 @@ export default function CourseEnrollments() {
       // ⏱️ Stable filename (no locale overhead)
       const timestamp = new Date().toISOString().replace(/[:.]/g, '_');
       const statusLabel = enrollmentTab === 'ACTIVE' ? 'active' : 'inactive';
-       const filename = `quiz_scores_${statusLabel}_${timestamp}.xlsx`;
+      const filename = `quiz_scores_${statusLabel}_${timestamp}.xlsx`;
 
       // 🧠 Let UI breathe before heavy Excel generation
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -317,12 +317,12 @@ export default function CourseEnrollments() {
   // Active / Inactive tab
   const [enrollmentTab, setEnrollmentTab] = useState<"ACTIVE" | "INACTIVE">("ACTIVE")
   const statusTab: "ACTIVE" | "INACTIVE" = enrollmentTab
-   const {
+  const {
     data: quizScores,
     isLoading: isLoadingQuizScores,
     error: quizScoresError,
     refetch: fetchQuizScores,
-  } = useCourseQuizScores(courseId, versionId, isExporting,enrollmentTab);
+  } = useCourseQuizScores(courseId, versionId, isExporting, enrollmentTab);
 
 
   // Fetch enrollments data
@@ -629,7 +629,7 @@ export default function CourseEnrollments() {
     },
     {
       title: "Avg. Progress",
-      value: `${enrollmentStats?.averageProgressPercent}%`,
+      value: `${Number(enrollmentStats?.averageProgressPercent || 0).toFixed(2)}%`,
       icon: TrendingUp,
       color: "text-purple-600",
       bgColor: "bg-purple-50",
@@ -948,7 +948,7 @@ const hasCompletedCourse = totalItems > 0 && completedItems >= totalItems
               </div>
   
               <div className="mt-4">
-  {hasCompletedCourse ? (
+  {/* {hasCompletedCourse ? (
     <div className="p-4 rounded-lg bg-green-50 border border-green-200 text-green-700 font-medium">
       🎉 Student has completed the course
     </div>
@@ -956,7 +956,7 @@ const hasCompletedCourse = totalItems > 0 && completedItems >= totalItems
     <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 font-medium">
       ⏳ Course is still in progress
     </div>
-  )}
+  )} */}
 </div>
 
 {/* Current Learning Position */}
@@ -966,9 +966,10 @@ const hasCompletedCourse = totalItems > 0 && completedItems >= totalItems
   </h4>
 
   {pathError && (
-    <p className="text-sm text-destructive">
-      Failed to load current progress
-    </p>
+    <div className="text-sm text-destructive">
+      <p>Failed to load current progress</p>
+      <p className="text-xs mt-1">Error: {pathError.message || 'Unknown error'}</p>
+    </div>
   )}
 
   {!currentPath && !pathError && (
@@ -977,7 +978,13 @@ const hasCompletedCourse = totalItems > 0 && completedItems >= totalItems
     </p>
   )}
 
-  {currentPath && (
+  {currentPath && currentPath.message && (
+    <div className="text-sm text-muted-foreground">
+      <p>{currentPath.message}</p>
+    </div>
+  )}
+
+  {currentPath && currentPath.module && (
     <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
       <span className="px-2 py-1 rounded bg-blue-100 text-blue-700">
         {currentPath.module.name}
@@ -1773,7 +1780,7 @@ function EnrollmentsTable({
               </TableHeader>
 
               <TableBody>
-                <TableRow>
+                <TableRow key="loading-initial">
                   <TableCell colSpan={5} className="text-center py-16">
                     <div className="flex items-center justify-center">
                       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1845,7 +1852,7 @@ function EnrollmentsTable({
 
               <TableBody>
                 {(enrollmentsLoading || isSearching) ? (
-                  <TableRow>
+                  <TableRow key="loading-secondary">
                     <TableCell colSpan={5} className="text-center py-16">
                       <div className="flex items-center justify-center">
                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1853,10 +1860,26 @@ function EnrollmentsTable({
                       </div>
                     </TableCell>
                   </TableRow>
+                ) : studentEnrollments.length === 0 ? (
+                  <TableRow key="empty-state">
+                    <TableCell colSpan={5} className="text-center py-16">
+                      <div className="flex items-center justify-center">
+                        <Users className="h-12 w-12 text-muted-foreground mb-4" />
+                        <div>
+                          <p className="text-foreground text-lg font-semibold mb-2">
+                            No {isInactiveTab ? "inactive" : "active"} students found
+                          </p>
+                          <p className="text-muted-foreground">
+                            {searchQuery ? "Try adjusting your search terms" : "No enrollments found"}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   studentEnrollments.map((enrollment: any) => (                    
                     <TableRow
-                      key={enrollment._id}
+                      key={enrollment._id || enrollment.user?._id || `enrollment-${Math.random()}`}
                       className={`border-border hover:bg-muted/20 transition-colors duration-200 group ${isInactiveTab ? "opacity-80" : ""
                         }`}
                     >
@@ -1868,7 +1891,9 @@ function EnrollmentsTable({
                             <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
                               {[enrollment?.user?.firstName?.[0], enrollment?.user?.lastName?.[0]]
                                 .filter(Boolean)
-                                .map((ch: string) => ch.toUpperCase())
+                                .map((ch: string, index: number) => (
+                                  <span key={index}>{ch.toUpperCase()}</span>
+                                ))
                                 .join("") || "?"}
                             </AvatarFallback>
                           </Avatar>
@@ -1919,7 +1944,7 @@ function EnrollmentsTable({
 
                       {/* Progress */}
                       <TableCell className="py-6">
-                        <EnrollmentProgress progress={Math.round(enrollment.progress || 0)} />
+                        <EnrollmentProgress progress={enrollment.progress || 0} />
                       </TableCell>
 
                       {/* Score obtained */}
@@ -1946,7 +1971,7 @@ function EnrollmentsTable({
                                   "Unknown User",
                                 email: enrollment.user?.email,
                                 enrolledDate: enrollment.enrollmentDate,
-                                progress: Math.round(enrollment.progress || 0),
+                                progress: enrollment.progress || 0,
                                 completedItemsCount: enrollment.completedItemsCount || 0,
 
                                 contentCounts: {
@@ -1967,10 +1992,10 @@ function EnrollmentsTable({
                               })
                             }
 
-                            disabled={
-                              Math.round(enrollment.progress || 0) === 0 ||
-                              enrollment?.isDeleted
-                            }
+                            // disabled={
+                            //   Math.round(enrollment.progress || 0) === 0 ||
+                            //   enrollment?.isDeleted
+                            // }
                             className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
                           >
                             <Eye className="h-4 w-4 mr-2" />

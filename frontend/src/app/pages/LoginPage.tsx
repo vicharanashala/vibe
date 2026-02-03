@@ -2,7 +2,7 @@ import { loginWithGoogle, loginWithEmail, createUserWithEmail } from "@/lib/fire
 import { useAuthStore } from "@/store/auth-store";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { useState, createContext, useContext, useEffect } from "react";
+import { useState, createContext, useContext, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import { cn } from "@/utils/utils";
 import { useSignup, useLoginWithGoogle } from "@/hooks/hooks.ts";
 import collabration from "../../../public/img/collabration.svg";
 import vledLogo from "../../../public/img/vled-logo-login.png";
+import ReCAPTCHA from "react-google-recaptcha";
 
 // Create a context for tab state management
 const TabsContext = createContext<{
@@ -95,7 +96,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // New state variables
   const [isSignUp, setIsSignUp] = useState(false);
@@ -107,8 +108,13 @@ export default function LoginPage() {
     password?: string;
     fullName?: string;
     auth?: string;
+    recaptcha?: string;
   }>({});
   const [showAuthForm, setShowAuthForm] = useState(false);
+
+  // reCAPTCHA state
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   // Removed the unused clearUser variable
   const setUser = useAuthStore((state) => state.setUser);
@@ -210,10 +216,39 @@ export default function LoginPage() {
   const handleEmailLogin = async () => {
     try {
       if (!validateForm()) return;
+
+      // Validate reCAPTCHA
+      if (!recaptchaToken) {
+        setFormErrors({
+          ...formErrors,
+          recaptcha: "Please complete the reCAPTCHA verification"
+        });
+        return;
+      }
+
       setLoading(true);
       setFormErrors({});
 
-      // This function now handles login only
+      // Call backend login endpoint with reCAPTCHA token
+      const backendUrl = `${import.meta.env.VITE_BASE_URL}/auth/login`;
+      const response = await fetch(backendUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          recaptchaToken,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Login failed');
+      }
+
+      // If backend validation succeeds, proceed with Firebase login
       const result = await loginWithEmail(email, password);
 
       // Set user in store
@@ -226,11 +261,18 @@ export default function LoginPage() {
       });
 
       navigate({ to: `/${activeRole}` });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Email Login Failed", error);
+
+      // Reset reCAPTCHA on error
+      if (recaptchaRef.current) {
+        recaptchaRef.current.reset();
+        setRecaptchaToken(null);
+      }
+
       setFormErrors({
         ...formErrors,
-        auth: "Invalid email or password. Please try again."
+        auth: error.message || "Invalid email or password. Please try again."
       });
     } finally {
       setLoading(false);
@@ -269,6 +311,11 @@ export default function LoginPage() {
       return;
     }
 
+    if (!recaptchaToken) {
+      setFormErrors({ ...formErrors, recaptcha: "Please complete the reCAPTCHA" });
+      return;
+    }
+
     try {
       setLoading(true);
       setFormErrors({});
@@ -285,8 +332,9 @@ export default function LoginPage() {
           email: email,
           password: password,
           firstName: firstName,
-          lastName: lastName
-        }
+          lastName: lastName,
+          recaptchaToken: recaptchaToken
+        } as any
       });
       const result = await loginWithEmail(email, password);
 
@@ -597,25 +645,49 @@ export default function LoginPage() {
                             Password
                           </Label>
                           <div className="relative">
-                          <Input
-                            id="password"
-                            name="new-password"
-                            type={showPassword ? "text" : "password"}
-                            placeholder="Enter your password"
-                            autoComplete="new-password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className={cn(
-                              "transition-all duration-200",
-                              formErrors.password && "border-destructive focus-visible:ring-destructive"
-                            )}
+                            <Input
+                              id="password"
+                              name="new-password"
+                              type={showPassword ? "text" : "password"}
+                              placeholder="Enter your password"
+                              autoComplete="new-password"
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              className={cn(
+                                "transition-all duration-200",
+                                formErrors.password && "border-destructive focus-visible:ring-destructive"
+                              )}
                             />
-                           <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
-                            {showPassword? <EyeOff />:<Eye />}
-                            </Button> 
-                            </div>
+                            <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
+                              {showPassword ? <EyeOff /> : <Eye />}
+                            </Button>
+                          </div>
                           {formErrors.password && (
                             <p className="text-xs text-destructive">{formErrors.password}</p>
+                          )}
+                        </div>
+
+                        {/* reCAPTCHA */}
+                        <div className="flex justify-center scale-[0.95] origin-left">
+                          <ReCAPTCHA
+                            ref={recaptchaRef}
+                            sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                            theme="dark"
+                            onChange={(token) => {
+                              setRecaptchaToken(token);
+                              setFormErrors({ ...formErrors, recaptcha: undefined });
+                            }}
+                            onExpired={() => setRecaptchaToken(null)}
+                            onErrored={() => {
+                              setRecaptchaToken(null);
+                              setFormErrors({
+                                ...formErrors,
+                                recaptcha: "reCAPTCHA error. Please try again."
+                              });
+                            }}
+                          />
+                          {formErrors.recaptcha && (
+                            <p className="text-xs text-destructive">{formErrors.recaptcha}</p>
                           )}
                         </div>
 
@@ -623,7 +695,7 @@ export default function LoginPage() {
                         <Button
                           className="w-full h-11 font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
                           onClick={handleEmailLogin}
-                          disabled={loading}
+                          disabled={loading || !recaptchaToken}
                         >
                           {loading ? "Signing in..." : `Sign in as ${activeRole}`}
                         </Button>
@@ -657,17 +729,17 @@ export default function LoginPage() {
                         </Button>
                       </CardContent>
 
-                     <CardFooter className="pt-4">
+                      <CardFooter className="pt-4">
                         <div className="w-full flex items-center justify-center mt-4">
- <span className=" text-sm text-right text-muted-foreground text-nowrap "> Don't have an account?</span>
-                        <Button
-                          variant="link"
-                          className="-ml-2 text-sm text-muted-foreground hover:text-foreground"
-                          onClick={toggleSignUpMode}
-                        >
-                           <span className="font-medium">Sign up</span>
-                        </Button>
-                          </div>
+                          <span className=" text-sm text-right text-muted-foreground text-nowrap "> Don't have an account?</span>
+                          <Button
+                            variant="link"
+                            className="-ml-2 text-sm text-muted-foreground hover:text-foreground"
+                            onClick={toggleSignUpMode}
+                          >
+                            <span className="font-medium">Sign up</span>
+                          </Button>
+                        </div>
                       </CardFooter>
                     </div>
                   ) : (
@@ -739,7 +811,7 @@ export default function LoginPage() {
                           </Label>
                           <Input
                             id="signup-password"
-                             type={showPassword ? "text" : "password"}
+                            type={showPassword ? "text" : "password"}
                             placeholder="Create a strong password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
@@ -814,49 +886,68 @@ export default function LoginPage() {
                             Confirm Password
                           </Label>
                           <div className="relative">
-                          <Input
-                            id="confirmPassword"
-                            type={showPassword ? "text" : "password"}
+                            <Input
+                              id="confirmPassword"
+                              type={showPassword ? "text" : "password"}
 
-                            placeholder="Confirm your password"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            className={cn(
-                              "transition-all duration-200",
-                              !passwordsMatch && confirmPassword && "border-destructive focus-visible:ring-destructive"
-                            )}
-                          />
-                           <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
-                            {showPassword? <EyeOff />:<Eye />}
-                            </Button> 
+                              placeholder="Confirm your password"
+                              value={confirmPassword}
+                              onChange={(e) => setConfirmPassword(e.target.value)}
+                              className={cn(
+                                "transition-all duration-200",
+                                !passwordsMatch && confirmPassword && "border-destructive focus-visible:ring-destructive"
+                              )}
+                            />
+                            <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
+                              {showPassword? <EyeOff />:<Eye />}
+                            </Button>
                           </div>
                           {!passwordsMatch && confirmPassword && (
                             <p className="text-xs text-destructive">Passwords do not match</p>
                           )}
                         </div>
 
+                        {/* reCAPTCHA */}
+                        <div className="flex justify-center scale-[0.95] origin-left">
+                          <ReCAPTCHA
+                            ref={recaptchaRef}
+                            sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                            theme="dark"
+                            onChange={(token) => {
+                              setRecaptchaToken(token);
+                              setFormErrors({ ...formErrors, recaptcha: undefined });
+                            }}
+                          />
+                        </div>
+                        {formErrors.recaptcha && (
+                          <div className="flex items-center space-x-2 text-destructive justify-center">
+                            <AlertCircle className="h-4 w-4" />
+                            <p className="text-xs">{formErrors.recaptcha}</p>
+                          </div>
+                        )}
+
                         {/* Sign Up Button */}
                         <Button
                           className="w-full h-11 font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-200"
                           onClick={handleEmailSignup}
-                          disabled={!passwordsMatch || passwordStrength.value < 50 || loading}
+                          disabled={!passwordsMatch || passwordStrength.value < 50 || loading || !recaptchaToken}
                         >
                           {loading ? "Creating account..." : "Create Account"}
                         </Button>
                       </CardContent>
 
-                     <CardFooter>
+                      <CardFooter>
                         <div className="w-full flex items-center justify-center mt-4">
 
-                        <span className=" text-sm text-right text-muted-foreground text-nowrap "> Already have an account?</span>
-                        <Button
-                          variant="link"
-                          className="-ml-2 text-sm text-muted-foreground hover:text-foreground"
-                          onClick={toggleSignUpMode}
+                          <span className=" text-sm text-right text-muted-foreground text-nowrap "> Already have an account?</span>
+                          <Button
+                            variant="link"
+                            className="-ml-2 text-sm text-muted-foreground hover:text-foreground"
+                            onClick={toggleSignUpMode}
                           >
-                           <span className=" font-medium">Sign in</span>
-                        </Button>
-                          </div>
+                            <span className=" font-medium">Sign in</span>
+                          </Button>
+                        </div>
                       </CardFooter>
                     </div>
                   )}

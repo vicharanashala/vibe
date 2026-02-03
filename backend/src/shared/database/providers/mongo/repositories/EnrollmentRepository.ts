@@ -511,7 +511,7 @@ export class EnrollmentRepository {
     }
   }
 
-  async getBasicEnrollments(
+   async getBasicEnrollments(
     userId: string,
     skip: number,
     limit: number,
@@ -525,12 +525,48 @@ export class EnrollmentRepository {
         $match: {
           userId: userObjectId,
           role,
-          isDeleted: { $ne: true },
+          isDeleted: {$ne: true},
           status: 'ACTIVE',
         },
       },
 
-      { $sort: { enrollmentDate: -1 } },
+      {$sort: {enrollmentDate: -1}},
+            //from progress
+      {
+        $lookup:{
+            from:'progress',
+            let: {
+            userId: "$userId",
+            courseId: "$courseId",
+            courseVersionId: "$courseVersionId"
+        },
+            pipeline:[
+               {
+      $match: {
+        $expr: {
+          $and: [
+            {$eq: ["$userId", "$$userId"]},
+            {$eq: ["$courseId", "$$courseId"]},
+            {$eq: ["$courseVersionId", "$$courseVersionId"]}
+          ]
+        }
+      }
+    },
+      {
+      $project: {
+        currentModule: 1,
+        currentSection: 1,
+        currentItem: 1
+      }
+    }
+            ],
+            as:"progress",
+        }
+      },
+      // {$unwind: '$progress'},
+{      $unwind: { path: "$progress", preserveNullAndEmptyArrays: true },
+},
+   
 
       /* ---------------- COURSE LOOKUP ---------------- */
       {
@@ -550,7 +586,7 @@ export class EnrollmentRepository {
           ],
         },
       },
-      { $unwind: '$course' },
+      {$unwind: '$course'},
 
       /* ---------------- COURSE VERSION LOOKUP (NEW) ---------------- */
       {
@@ -567,19 +603,143 @@ export class EnrollmentRepository {
                 supportLink: 1,
                 version: 1,
                 description: 1,
+                modules:1,
               },
             },
           ],
         },
       },
 
-      { $unwind: { path: '$courseVersion', preserveNullAndEmptyArrays: true } },
-      { $skip: skip },
-      { $limit: limit },
+      {$unwind: {path: '$courseVersion', preserveNullAndEmptyArrays: true}},
+      {$skip: skip},
+      {$limit: limit},
       /* ---------------- SEARCH ---------------- */
       ...(search?.trim()
-        ? [{ $match: { 'course.name': { $regex: search, $options: 'i' } } }]
+        ? [{$match: {'course.name': {$regex: search, $options: 'i'}}}]
         : []),
+        //i have converted the id(object form right) to string
+        {
+  $addFields: {
+    currentModuleStr: { $toString: "$progress.currentModule" },
+    currentSectionStr: { $toString: "$progress.currentSection" },
+    currentItemStr: { $toString: "$progress.currentItem" }
+  }
+},
+//getting items group for current section id
+{
+
+  $lookup: {
+    from: "itemsGroup",
+    let: {
+      sectionId: "$progress.currentSection"
+    },
+    pipeline: [
+      {
+        $match: {
+          $expr: { $eq: ["$sectionId", "$$sectionId"] }
+        }
+      },
+      {
+        $project: { items: 1 }
+      }
+    ],
+    as: "itemsGroup"
+  }
+},
+//getting item object from items group to get type.
+{
+  $addFields: {
+    currentItemObj: {
+      $first: {
+        $filter: {
+          input: {
+            $reduce: {
+              input: "$itemsGroup",
+              initialValue: [],
+              in: { $concatArrays: ["$$value", "$$this.items"] }
+            }
+          },
+          as: "i",
+          cond: { $eq: [{ $toString: "$$i._id" }, "$currentItemStr"] }
+        }
+      }
+    }
+  }
+},
+//accessing current module
+
+{
+    $addFields: {
+    currentModuleObj: {
+      $first: {
+        $filter: {
+          input: "$courseVersion.modules",
+          as: "m",
+          cond: { $eq: [{ $toString: "$$m.moduleId" }, "$currentModuleStr"] }
+        }
+      }
+    }
+  }
+},
+{
+  $addFields: {
+    moduleNumber: {
+      $add: [
+        {
+          $indexOfArray: [
+            {
+              $map: {
+                input: "$courseVersion.modules",
+                as: "m",
+                in: { $toString: "$$m.moduleId" }
+              }
+            },
+            "$currentModuleStr"
+          ]
+        },
+        1
+      ]
+    }
+  }
+},
+
+//accessing current section
+{
+    $addFields:{
+        currentSectionObj:{
+            $first:{
+                $filter:{
+                    input:"$currentModuleObj.sections",
+                    as:"s",
+                    cond:{$eq:[ { $toString: "$$s.sectionId" },"$currentSectionStr"]}
+                }
+            }
+        }
+    }
+},
+{
+  $addFields:{
+    sectionNumber:{
+      $add:[
+        {
+           $indexOfArray:[
+            {
+              $map: {
+                input: "$currentModuleObj.sections",
+                as: "s",
+                in: { $toString: "$$s.sectionId" }
+              }
+            },
+            "$currentSectionStr"
+           ]
+        },1
+      ]
+    }
+  }
+},
+
+
+
 
       /* ---------------- FINAL SHAPE ---------------- */
       {
@@ -592,79 +752,20 @@ export class EnrollmentRepository {
           enrollmentDate: 1,
           course: 1,
           courseVersion: 1,
+          //getting current course completion details(not actual details)
+          moduleNumber:"$moduleNumber",
+          sectionNumber:"$sectionNumber",
+          itemType:"$currentItemObj.type",
 
           // 🔥 pulled from courseVersion
-          totalItems: { $ifNull: ['$courseVersion.totalItems', 0] },
-          itemCounts: { $ifNull: ['$courseVersion.itemCounts', {}] },
+          totalItems: {$ifNull: ['$courseVersion.totalItems', 0]},
+          itemCounts: {$ifNull: ['$courseVersion.itemCounts', {}]},
 
-          percentCompleted: { $ifNull: ['$percentCompleted', 0] },
+          percentCompleted: {$ifNull: ['$percentCompleted', 0]},
         },
       },
     ];
 
-    /*const pipeline: any[] = [
-      {$match: {userId: userObjectId, role}},
-      {$sort: {enrollmentDate: -1}},
-      {$skip: skip},
-      {$limit: limit},
-      {
-        $lookup: {
-          from: 'newCourse',
-          localField: 'courseId',
-          foreignField: '_id',
-          as: 'course',
-          pipeline: [
-            {$match: {versions: {$exists: true, $ne: []}}},
-            {
-              $lookup: {
-                from: 'newCourseVersion',
-                let: {versionIds: '$versions'},
-                pipeline: [
-                  {
-                    $match: {
-                      $expr: {$in: ['$_id', '$$versionIds']},
-                      isDeleted: {$ne: true},
-                    },
-                  },
-                ],
-                as: 'versionDetails',
-              },
-            },
-          ],
-        },
-      },
-      {
-        $unwind: {
-          path: '$course',
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      // Use versionDetails to populate the versions array
-      {
-        $addFields: {
-          'course.versions': {
-            $map: {
-              input: '$course.versionDetails',
-              as: 'v',
-              in: {$toString: '$$v._id'},
-            },
-          },
-        },
-      },
-      {
-        $project: {
-          _id: 1,
-          userId: 1,
-          courseId: 1,
-          courseVersionId: 1,
-          role: 1,
-          status: 1,
-          enrollmentDate: 1,
-          percentCompleted: 1,
-          course: 1,
-        },
-      },
-    ];*/
 
     const enrollments = await this.enrollmentCollection
       .aggregate(pipeline)
@@ -1424,7 +1525,7 @@ export class EnrollmentRepository {
                   {
                     $round: [
                       { $divide: ['$totalProgress', '$totalEnrollments'] },
-                      1,
+                      2,
                     ],
                   },
                   0,
