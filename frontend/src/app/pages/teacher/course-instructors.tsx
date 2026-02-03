@@ -138,7 +138,7 @@ export default function CourseInstructors() {
   const { data: course, error: courseError } = useCourseById(courseId || "")
   const { data: version, error: versionError } = useCourseVersionById(versionId || "")
 
-  const totalDocuments = instructorEnrollments?.totalDocuments || 0
+  const totalDocuments = enrollmentsData?.totalDocuments || 0
   const totalPages = enrollmentsData?.totalPages || 1
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
