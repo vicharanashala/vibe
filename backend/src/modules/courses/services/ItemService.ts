@@ -1,6 +1,10 @@
 import {injectable, inject} from 'inversify';
 import {ClientSession, ObjectId} from 'mongodb';
-import {NotFoundError, InternalServerError} from 'routing-controllers';
+import {
+  NotFoundError,
+  InternalServerError,
+  BadRequestError,
+} from 'routing-controllers';
 import {COURSES_TYPES} from '#courses/types.js';
 import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
 import {
@@ -165,6 +169,39 @@ export class ItemService extends BaseService {
           sectionId,
           session,
         );
+      // Check if any previous "learning item" exists before making the feedback form in the db
+      if (body.type === ItemType.FEEDBACK) {
+        const dbItemsGroup = await this.itemRepo.readItemsGroup(
+          section.itemsGroupId.toString(),
+          session,
+        );
+
+        const sectionItems = dbItemsGroup?.items || [];
+
+        if (sectionItems.length === 0) {
+          throw new BadRequestError(
+            'Feedback form cannot be the first item in a section',
+          );
+        }
+
+        const lastItemRef = [...sectionItems]
+          .sort((a, b) => a.order.localeCompare(b.order))
+          .pop();
+
+        const previousItem = await this.itemRepo.readItemById(
+          lastItemRef._id.toString(),
+          session,
+        );
+
+        const allowed = [ItemType.VIDEO, ItemType.QUIZ, ItemType.BLOG];
+
+        if (!allowed.includes(previousItem.type)) {
+          throw new BadRequestError(
+            'Feedback can only be added after VIDEO, QUIZ, or BLOG items',
+          );
+        }
+      }
+
       // Step 2: Create a new item instance
       const item = new ItemBase(body, itemsGroup.items);
 
@@ -360,9 +397,11 @@ export class ItemService extends BaseService {
       });
     }
 
-    console.log(`[ItemService] About to return ${itemsGroup.items.length} items`);
+    console.log(
+      `[ItemService] About to return ${itemsGroup.items.length} items`,
+    );
     console.log(`[ItemService] First item:`, itemsGroup.items[0]);
-    
+
     return itemsGroup.items;
   }
 
@@ -992,10 +1031,10 @@ export class ItemService extends BaseService {
           const timeCache = new Map<string, number>();
 
           const endTime = timestamp
-            ? timeCache.get(timestamp) ??
+            ? (timeCache.get(timestamp) ??
               timeCache
                 .set(timestamp, this._convertTimeToSeconds(timestamp))
-                .get(timestamp)!
+                .get(timestamp)!)
             : previousEndTime + 300;
 
           // Create video item
