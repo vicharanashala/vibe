@@ -456,12 +456,12 @@ function TeacherCourseContent() {
       // },
       isUpdateModuleError: {
         flag: isUpdateModuleError,
-        message: updateModuleError?.message,
+        message: updateModuleError?.toString(),
         fallback: "Failed to update module",
       },
       isDeleteModuleError: {
         flag: isDeleteModuleError,
-        message: deleteModuleError?.message,
+        message: deleteModuleError?.toString(),
         fallback: "Failed to delete module",
       },
       isCreateSectionError: {
@@ -471,32 +471,32 @@ function TeacherCourseContent() {
       },
       isUpdateSectionError: {
         flag: isUpdateSectionError,
-        message: updateSectionError?.message,
+        message: updateSectionError?.toString(),
         fallback: "Failed to update section",
       },
       isDeleteSectionError: {
         flag: isDeleteSectionError,
-        message: deleteSectionError?.message,
+        message: deleteSectionError?.toString(),
         fallback: "Failed to delete section",
       },
       isCreateItemError: {
         flag: isCreateItemError,
-        message: createItemError?.message,
+        message: createItemError?.toString(),
         fallback: "Failed to create item",
       },
       isUpdateItemError: {
         flag: isUpdateItemError,
-        message: updateItemError?.message,
+        message: updateItemError?.toString(),
         fallback: "Failed to update item",
       },
       isDeleteItemError: {
         flag: isDeleteItemError,
-        message: deleteItemError?.message,
+        message: deleteItemError?.toString(),
         fallback: "Failed to delete item",
       },
       isMoveItemError: {
         flag: isMoveItemError,
-        message: moveItemError?.message,
+        message: moveItemError?.toString(),
         fallback: "Failed to move item",
       },
     },
@@ -932,7 +932,7 @@ function TeacherCourseContent() {
           }
         })
         .catch((err) => {
-          toast.error("Failed to create feedback form");
+          toast.error("Failed to create feedback form: ", err.message);
           console.error(err);
         });
     }
