@@ -26,7 +26,7 @@ import { GLOBAL_TYPES } from './types.js';
 const app = express();
 const globalRateLimiter = createRateLimiter();
 
-app.use(globalRateLimiter);
+// app.use(globalRateLimiter);
 app.use(loggingHandler);
 
 app.set('trust proxy', 1);

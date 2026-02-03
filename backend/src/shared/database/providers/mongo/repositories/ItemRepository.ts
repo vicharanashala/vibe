@@ -117,7 +117,6 @@ export class ItemRepository implements IItemRepository {
     session?: ClientSession,
   ): Promise<ItemsGroup> {
     await this.init();
-    // console.log('Reading ItemsGroup with ID:', itemsGroupId);
 
     const itemsGroup = await this.itemsGroupCollection.findOne(
       { _id: new ObjectId(itemsGroupId), isDeleted: { $ne: true } },
@@ -125,7 +124,7 @@ export class ItemRepository implements IItemRepository {
     );
     if (!itemsGroup) {
       // Create a new empty ItemsGroup if it doesn't exist
-      console.log(`[ItemRepository] ItemsGroup ${itemsGroupId} not found, creating new empty group`);
+      // console.log(`[ItemRepository] ItemsGroup ${itemsGroupId} not found, creating new empty group`);
       const newItemsGroup = {
         _id: new ObjectId(itemsGroupId),
         items: [],
@@ -134,7 +133,7 @@ export class ItemRepository implements IItemRepository {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      
+
       await this.itemsGroupCollection.insertOne(newItemsGroup, { session });
       return instanceToPlain(
         Object.assign(new ItemsGroup(), newItemsGroup),
@@ -179,7 +178,7 @@ export class ItemRepository implements IItemRepository {
           isHidden: item.isHidden,
           name: existingItem.name || 'Untitled',
         };
-        console.log(`[ItemRepository] Item ${item._id} (${item.type}): name="${itemRef.name}"`);
+        // console.log(`[ItemRepository] Item ${item._id} (${item.type}): name="${itemRef.name}"`);
         filteredItems.push(itemRef);
       }
     }
@@ -319,13 +318,12 @@ export class ItemRepository implements IItemRepository {
         throw new Error(`Failed to insert item of type ${item.type}`);
       }
 
-      const createdItem = await collection.findOne(
-        { _id: result.insertedId },
-        { session },
-      );
-      if (!createdItem)
-        throw new Error(`Failed to fetch inserted item of type ${item.type}`);
-      createdItems.push(createdItem);
+      createdItems.push({
+        ...item,
+        _id: result.insertedId,
+      });
+
+
     }
     return createdItems;
   }

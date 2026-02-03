@@ -49,7 +49,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
       : "internship-support@vicharanashala.zohodesk";
 
   // const progress = Math.round(enrollment.percentCompleted || 0) as number 
-  const progress = Number(((enrollment.percentCompleted || 0)).toFixed(1));
+  const progress = Number(((enrollment.percentCompleted || 0)).toFixed(2));
 
   const contentCounts = enrollment.contentCounts as { totalItems?: number; videos?: number; quizzes?: number; articles?: number; project?: number, totalQuizScore?: number, totalQuizMaxScore?: number, completedVideos?: number, completedQuizzes?: number, completedArticles?: number, completedProjects?: number } || {};
   const totalLessons = contentCounts.totalItems || 0;
@@ -178,7 +178,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                       />
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <span>{Math.round(progress)}%</span>
+                      <span>{progress.toFixed(2)}%</span>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Info className="h-3.5 w-3.5 text-muted-foreground cursor-pointer hover:text-foreground transition-colors" />
@@ -660,7 +660,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
             </CardDescription>
           </div>
           <div className="flex flex-col items-end gap-1">
-            <Badge variant="outline">{progress}% complete</Badge>
+            <Badge variant="outline">{progress.toFixed(2)}% complete</Badge>
             {isCompleted && (
               <Badge className="bg-green-100 text-green-800 border-0 font-normal">
                 Completed
@@ -678,7 +678,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
         <div className="space-y-2">
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>{completedLessons} of {totalLessons} lessons completed</span>
-            <span>{progress}%</span>
+            <span>{progress.toFixed(2)}%</span>
           </div>
           <Progress value={progress} />
         </div>
@@ -864,7 +864,7 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { course
                             )}
                           </>
                         ) : (
-                          `In Progress: ${Math.round(entry.completionPercentage)}%`
+                          `In Progress: ${entry.completionPercentage.toFixed(2)}%`
                         )}
                       </p>
                     </div>

@@ -203,7 +203,7 @@ export class InviteController {
     const {courseId, versionId} = params;
     const {inviteStatus, currentPage, limit, search, sort, startDate, endDate} =
       query;
-
+         
     // Build subject context first
     const inviteContext = {courseId, versionId};
     const inviteSubject = subject('Invite', inviteContext);
