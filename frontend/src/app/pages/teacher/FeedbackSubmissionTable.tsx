@@ -43,14 +43,14 @@ export const FeedbackSubmissionsTable: React.FC<FeedbackSubmissionsTableProps> =
   const handleViewDetails = (submission: any) => {
     const details = submission.details || {};
 
-    const ignoredKeys = ['Name', 'Email', 'Feedback'];
-    const filteredFormFields = Object.entries(details).reduce((acc, [key, value]) => {
-      if (!ignoredKeys.includes(key)) {
-        acc[key] = value;
-      }
-      return acc;
-    }, {} as Record<string, any>);
-    const hasExtraFields = Object.keys(filteredFormFields).length > 0;
+  const ignoredKeys = [''];
+  const filteredFormFields = Object.entries(details).reduce((acc, [key, value]) => {
+    if (!ignoredKeys.includes(key)) {
+      acc[key] = value;
+    }
+    return acc;
+  }, {} as Record<string, any>);
+  const hasExtraFields = Object.keys(filteredFormFields).length > 0;
     const normalizedSubmission = {
       userInfo: {
         firstName: submission.user?.firstName || '',
@@ -145,7 +145,7 @@ export const FeedbackSubmissionsTable: React.FC<FeedbackSubmissionsTableProps> =
               ) : (
                 submissions.map((sub: any, index: number) => {
                   const slNo = (currentPage - 1) * limit + index + 1;
-                  const username = `${sub.user?.firstName || ''} ${sub.user?.lastName || ''}`.trim() || 'Anonymous';
+                  const username =`${sub.user?.firstName || ''} ${sub.user?.lastName || ''}`.trim() || 'Anonymous';
                   const email = sub.user?.email || 'N/A';
                   const itemType = sub.previousItemType || 'FEEDBACK';
                   const itemName = sub.previousItem?.name || 'N/A';

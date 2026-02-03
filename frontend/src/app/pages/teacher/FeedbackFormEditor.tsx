@@ -321,6 +321,7 @@ export default function FeedbackFormEditor({
                     {details &&
                       <div className="overflow-y-auto max-h-[70vh] pr-2">
                         <div className="max-w-lg mx-auto w-full space-y-4">
+                          <div className="text-left items-start">
                           <Form
                             schema={details?.item?.details?.jsonSchema}
                             validator={validator}
@@ -328,6 +329,7 @@ export default function FeedbackFormEditor({
                             onSubmit={onSubmit}
                             disabled={isSubmitting}
                           />
+                          </div>
                         </div>
                       </div>
                     }
@@ -368,10 +370,10 @@ export default function FeedbackFormEditor({
             {/* Sticky Header */}
             <DialogHeader className="p-5 border-b sticky top-0 bg-card z-20 flex items-center justify-between relative">
               <div>
-                <DialogTitle className="text-xl font-semibold">
+                <DialogTitle className="text-xl text-center font-semibold">
                   Build Feedback Form
                 </DialogTitle>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-center text-muted-foreground">
                   Customize your form layout and fields.
                 </p>
               </div>
