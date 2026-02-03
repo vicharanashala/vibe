@@ -53,9 +53,9 @@ export const FeedbackSubmissionsTable: React.FC<FeedbackSubmissionsTableProps> =
     const hasExtraFields = Object.keys(filteredFormFields).length > 0;
     const normalizedSubmission = {
       userInfo: {
-        firstName: submission.user?.firstName || '',
-        lastName: submission.user?.lastName || '',
-        email: submission.user?.email || 'N/A',
+        firstName: details?.Name || 'Anonymous',
+        lastName: '',
+        email: details?.Email || 'N/A',
       },
       submittedAt: submission.createdAt || submission.submittedAt || new Date().toISOString(),
       itemType: submission.previousItemType || 'FEEDBACK',
@@ -145,8 +145,8 @@ export const FeedbackSubmissionsTable: React.FC<FeedbackSubmissionsTableProps> =
               ) : (
                 submissions.map((sub: any, index: number) => {
                   const slNo = (currentPage - 1) * limit + index + 1;
-                  const username = `${sub.user?.firstName || ''} ${sub.user?.lastName || ''}`.trim() || 'Anonymous';
-                  const email = sub.user?.email || 'N/A';
+                  const username = sub.details?.Name || 'Anonymous';
+                  const email = sub.details?.Email || 'N/A';
                   const itemType = sub.previousItemType || 'FEEDBACK';
                   const itemName = sub.previousItem?.name || 'N/A';
                   const FeedbackOnly = sub.details.Feedback || "N/A";

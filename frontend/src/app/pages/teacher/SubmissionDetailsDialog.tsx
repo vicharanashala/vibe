@@ -15,7 +15,7 @@ export const SubmissionDetailsDialog: React.FC<SubmissionDetailsDialogProps> = (
 
     if (!submission) return null;
 
-    const username = `${submission.userInfo?.firstName || ''} ${submission.userInfo?.lastName || ''}`.trim() || 'Anonymous';
+    const username = submission.userInfo?.firstName || 'Anonymous';
     const formFields = submission.formFields || {};
     const hasFormFields = Object.keys(formFields).length > 0;
     //   const fullFeedback = typeof submission.feedback === 'string' ? submission.feedback : JSON.stringify(submission.feedback, null, 2);
