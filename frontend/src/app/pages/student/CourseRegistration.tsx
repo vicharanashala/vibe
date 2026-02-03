@@ -4,18 +4,18 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import Form from "@rjsf/shadcn";
 import { useGetCourseRegistration, useGetDynamicFields, useSubmitCourseRegistration } from '@/hooks/hooks';
 import { useParams } from '@tanstack/react-router';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import ReCAPTCHA from "react-google-recaptcha";
 import { toast } from 'sonner';
 import validator from "@rjsf/validator-ajv8";
 import type { IChangeEvent } from "@rjsf/core";
 import { Skeleton } from '@/components/ui/skeleton';
-import { BookOpen, CalendarDays, ChevronDown, ChevronUp, Clock, GraduationCap, ListChecks, Loader2, NotebookText, Play, UserPlus, Users } from 'lucide-react';
+import { BookOpen, CalendarDays, ChevronDown, ChevronUp, GraduationCap, ListChecks, Loader2, NotebookText, UserPlus, Users } from 'lucide-react';
 import { AlignedFieldTemplate } from './components/AlignedFieldTemplate';
 import { CustomSubmitButton } from './components/CustomSubmitButton';
 
@@ -93,8 +93,9 @@ const CourseRegistration: React.FC = () => {
   const { versionId } = useParams({ from: studentCourseInviteRegistration.id });
 
   const [formData, setFormData] = useState<Record<string, any>>({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
   // const [showModules, setShowModules] = useState(false);
 
   const { data: versionData, isLoading: isLoadingVersionData } = useGetCourseRegistration(versionId);
@@ -115,7 +116,7 @@ const CourseRegistration: React.FC = () => {
   const onSubmit = async (data: IChangeEvent<any>) => {
     try {
 
-      let body: any = data.formData;
+      let body: any = { ...data.formData, recaptchaToken };
 
       const hasFiles = Object.values(data.formData).some(v => v instanceof File);
       if (hasFiles) {
@@ -127,6 +128,9 @@ const CourseRegistration: React.FC = () => {
             formDataObj.append(key, String(value));
           }
         });
+        if (recaptchaToken) {
+          formDataObj.append('recaptchaToken', recaptchaToken);
+        }
         body = formDataObj;
       }
 
@@ -140,8 +144,7 @@ const CourseRegistration: React.FC = () => {
       });
 
       toast.success('You have been registered for this course version.');
-      setIsDialogOpen(false);
-      setErrors({});
+      setIsRegistering(false);
       setFormData({});
     } catch (err: any) {
       toast.error(err?.message || 'Something went wrong, please try again.');
@@ -150,7 +153,8 @@ const CourseRegistration: React.FC = () => {
 
   const resetForm = () => {
     setFormData({});
-    setErrors({});
+    setRecaptchaToken(null);
+    recaptchaRef.current?.reset();
   };
 
 
@@ -195,75 +199,77 @@ const CourseRegistration: React.FC = () => {
       </header>
 
       <section className="w-full">
-        <Card className="w-full border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
-          <CardHeader className="space-y-2">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 rounded-lg blur-sm"></div>
-                <div className="relative bg-gradient-to-r from-primary to-primary/80 p-2 rounded-lg">
-                  <GraduationCap className="h-5 w-5 text-primary-foreground" />
-                </div>
-              </div>
-
-              <CardTitle className="text-xl font-bold">
-                Course Version {versionData?.version}
-              </CardTitle>
-            </div>
-            <CardDescription className="text-pretty">
-              {versionData?.description}
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="space-y-8">
-            <section className="space-y-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  <ListChecks className="w-4 h-4" />
-                  Total Items: {versionData?.totalItems}
-                </Badge>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                <div className="flex items-start gap-2">
-                  <CalendarDays className="w-4 h-4 mt-1 text-muted-foreground" />
-                  <div className="leading-tight">
-                    <span className="block">Created On</span>
-                    <span className="font-medium text-foreground">
-                      {formatDate(versionData?.createdAt?.toString())}
-                    </span>
+        <section className="space-y-4">
+          {/* Registration Section */}
+          {!isRegistering ? (
+            <Card className="w-full border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
+              <CardHeader className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 rounded-lg blur-sm"></div>
+                    <div className="relative bg-gradient-to-r from-primary to-primary/80 p-2 rounded-lg">
+                      <GraduationCap className="h-5 w-5 text-primary-foreground" />
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex items-start gap-2">
-                  <CalendarDays className="w-4 h-4 mt-1 text-muted-foreground" />
-                  <div className="leading-tight">
-                    <span className="block">Last Updated</span>
-                    <span className="font-medium text-foreground">
-                      {formatDate(versionData?.updatedAt?.toString())}
-                    </span>
+                  <CardTitle className="text-xl font-bold">
+                    Course Version {versionData?.version}
+                  </CardTitle>
+                </div>
+                <CardDescription className="text-pretty">
+                  {versionData?.description}
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent className="space-y-8">
+                <section className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary" className="flex items-center gap-1">
+                      <ListChecks className="w-4 h-4" />
+                      Total Items: {versionData?.totalItems}
+                    </Badge>
                   </div>
-                </div>
-              </div>
 
-            </section>
+                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-start gap-2">
+                      <CalendarDays className="w-4 h-4 mt-1 text-muted-foreground" />
+                      <div className="leading-tight">
+                        <span className="block">Created On</span>
+                        <span className="font-medium text-foreground">
+                          {formatDate(versionData?.createdAt?.toString())}
+                        </span>
+                      </div>
+                    </div>
 
-            <section>
-              <h3 className="text-lg font-semibold text-foreground mb-1">
-                Register for this Version
-              </h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Provide your details to enroll in this course version.
-              </p>
+                    <div className="flex items-start gap-2">
+                      <CalendarDays className="w-4 h-4 mt-1 text-muted-foreground" />
+                      <div className="leading-tight">
+                        <span className="block">Last Updated</span>
+                        <span className="font-medium text-foreground">
+                          {formatDate(versionData?.updatedAt?.toString())}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
 
-              <Dialog
-                open={isDialogOpen}
-                onOpenChange={(open) => {
-                  setIsDialogOpen(open);
-                  if (!open) resetForm();
-                }}
-              >
-                <DialogTrigger asChild>
-                  <Button className="w-full flex items-center justify-center gap-2" disabled={isFormFieldsLoading}>
+                </section>
+
+                <section>
+                  <h3 className="text-lg font-semibold text-foreground mb-1">
+                    Register for this Version
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Provide your details to enroll in this course version.
+                  </p>
+
+                  <Button
+                    onClick={() => {
+                      setIsRegistering(true);
+                      resetForm();
+                    }}
+                    className="w-full flex items-center justify-center gap-2"
+                    disabled={isFormFieldsLoading}
+                  >
                     {isFormFieldsLoading ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -276,47 +282,70 @@ const CourseRegistration: React.FC = () => {
                       </>
                     )}
                   </Button>
-                </DialogTrigger>
-                <DialogContent
-                  className=" p-6 pb-1  max-h-[80vh] "
-                >
-                  <DialogHeader className="mb-4 ml-5">
-                    <div className="flex items-center justify-between">
-                      <DialogTitle className="text-xl sm:text-2xl font-semibold">
-                        Course Registration Form
-                      </DialogTitle>
-                    </div>
-                  </DialogHeader>
-                  <ScrollArea className="max-h-[calc(80vh-80px)] h-auto px-4 overflow-auto">
-                    {isFormFieldsLoading ? (
-                      <div className="text-center text-muted-foreground py-8">
-                        Loading form fields...
-                      </div>
-                    ) : !jsonSchema?.properties ? (
-                      <div className="text-center text-muted-foreground py-8">
-                        No form fields available.
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <Form
-                          schema={jsonSchema}
-                          validator={validator}
-                          uiSchema={uiSchema}
-                          templates={{ FieldTemplate: AlignedFieldTemplate, ButtonTemplates: {
-                            SubmitButton: CustomSubmitButton,
-                          }, }}
-                          onSubmit={onSubmit}
-                          disabled={isSubmitting}
+                </section>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="w-full border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-xl font-bold">
+                 Course Registration Form
+                </CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => setIsRegistering(false)}>
+                  <ChevronUp className="h-4 w-4 mr-1" />
+                  Cancel
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {isFormFieldsLoading ? (
+                  <div className="text-center text-muted-foreground py-8">
+                    Loading form fields...
+                  </div>
+                ) : !jsonSchema?.properties ? (
+                  <div className="text-center text-muted-foreground py-8">
+                    No form fields available.
+                  </div>
+                ) : (
+                  <div className="space-y-4 max-w-2xl mx-auto py-4">
+                    <Form
+                      schema={jsonSchema}
+                      validator={validator}
+                      uiSchema={uiSchema}
+                      templates={{
+                        FieldTemplate: AlignedFieldTemplate,
+                        ButtonTemplates: {
+                          SubmitButton: CustomSubmitButton,
+                        }, }}
+                      onSubmit={onSubmit}
+                      formData={formData}
+                      onChange={(e) => setFormData(e.formData)}
+                      disabled={isSubmitting}
+                    >
+                      <div className="flex flex-col items-center justify-center mt-6 mb-6 gap-4">
+                        <ReCAPTCHA
+                          ref={recaptchaRef}
+                          sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                          theme="dark"
+                          onChange={(token) => setRecaptchaToken(token)}
                         />
+                        <Button type="submit" disabled={isSubmitting || !recaptchaToken}>
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Registering...
+                            </>
+                          ) : (
+                            'Submit Registration'
+                          )}
+                        </Button>
                       </div>
-                    )}
-                  </ScrollArea>
-                </DialogContent>
-
-              </Dialog>
-            </section>
-          </CardContent>
-        </Card>
+                    </Form>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </section>
       </section>
 
       <section className="space-y-3">
@@ -421,9 +450,9 @@ const CourseRegistration: React.FC = () => {
                             <p className="font-semibold">
                               {(m as any).title ?? (m as any).name}
                             </p>
-                              <Badge variant="outline">
-                                {((m as any).itemsCount ?? 0).toString()} items
-                              </Badge>
+                            <Badge variant="outline">
+                              {((m as any).itemsCount ?? 0).toString()} items
+                            </Badge>
                           </div>
 
                         </div>
