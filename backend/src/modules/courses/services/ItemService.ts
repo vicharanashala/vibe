@@ -346,10 +346,10 @@ export class ItemService extends BaseService {
       const completionMap = new Map<string, boolean>(completionEntries);
 
       itemsGroup.items = itemsGroup.items.map(item => ({
-          ...item,
-          // isCompleted: true,
-          isCompleted:completionMap.get(item._id.toString()) ?? false
-        }));
+        ...item,
+        // isCompleted: true,
+        isCompleted:completionMap.get(item._id.toString()) ?? false
+      }));
       return itemsGroup.items;
 
       // // All items completed if module is before current module
@@ -759,17 +759,16 @@ export class ItemService extends BaseService {
 
       return submissions.map(sub => {
         const details = sub.details || {};
-        const userInfo = sub.user || {};
         const previousItem = sub.previousItem || {};
+        const { Name, Email, ...otherDetails } = details;
 
         return {
-          'First Name': userInfo.firstName || '',
-          'Last Name': userInfo.lastName || '',
-          'Email': userInfo.email || '',
+          'Username': Name || 'Anonymous',
+          'Email': Email || 'N/A',
           'Item Type': sub.previousItemType || 'FEEDBACK',
           'Item Name': previousItem.name || 'N/A',
           'Submitted At': sub.createdAt ? new Date(sub.createdAt).toLocaleString() : 'N/A',
-          ...details
+          ...otherDetails
         };
       });
     });
