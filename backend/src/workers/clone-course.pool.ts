@@ -48,7 +48,7 @@ export const startCourseCloneProcessing = (
         jobs[jobId] = job;
 
         const cpuCount = os.cpus().length;
-        const MAX_WORKERS = Math.min(10, Math.max(2, Math.floor(cpuCount / 2)));
+        const MAX_WORKERS = Math.min(8, Math.max(2, Math.floor(cpuCount / 2)));
         console.log("Mx workers", MAX_WORKERS)
         const CHUNK_SIZE = Math.ceil(modules.length / MAX_WORKERS);
         const chunks = chunkArray(modules, CHUNK_SIZE);
