@@ -54,6 +54,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           readyToDetect={readyToDetect}
           anomalies={anomalies}
           linearProgressionEnabled={linearProgressionEnabled}
+          isCompleted={item.isCompleted || false}
         />;
 
       case 'quiz':
