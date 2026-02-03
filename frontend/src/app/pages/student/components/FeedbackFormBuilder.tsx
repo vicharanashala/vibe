@@ -522,7 +522,7 @@ const FeedbackFormBuilder = ({
                   </div>
                 </CardHeader>
                 <CardContent className="flex-1 min-h-0 p-4">
-                  <ScrollArea className="h-full pr-3">
+                  <ScrollArea className="h-[120%] pr-3">
                     {fields.length === 0 ? (
                       <div className="h-full flex items-center justify-center px-8">
                         <div className="text-center max-w-sm">
