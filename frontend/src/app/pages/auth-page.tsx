@@ -242,7 +242,7 @@ export default function AuthPage() {
   // New function for handling signup
   const handleEmailSignup = async () => {
     // if (!validateForm()) return;
-    return ; // Disable signup functionality temporarily
+
     if (!passwordsMatch) {
       setFormErrors({
         ...formErrors,
@@ -601,7 +601,6 @@ export default function AuthPage() {
 
                                 <div className="space-y-2">
                                   <Input
-                                    disabled={true}
                                     id="fullName"
                                     placeholder="Enter your full name"
                                     value={fullName}
@@ -618,7 +617,6 @@ export default function AuthPage() {
 
                                 <div className="space-y-2">
                                   <Input
-                                    disabled={true}
                                     id="signup-email"
                                     type="email"
                                     placeholder="Enter your email"
@@ -636,7 +634,6 @@ export default function AuthPage() {
 
                                 <div className="space-y-2">
                                   <Input
-                                    disabled={true}
                                     id="signup-password"
                                     type="password"
                                     placeholder="Create a strong password"
@@ -709,7 +706,6 @@ export default function AuthPage() {
 
                                 <div className="space-y-2">
                                   <Input
-                                    disabled={true}
                                     id="confirmPassword"
                                     type="password"
                                     placeholder="Confirm your password"
@@ -728,8 +724,7 @@ export default function AuthPage() {
                                   <Button
                                     className="w-full h-16 text-lg font-semibold !bg-[rgb(52,152,169)] hover:!bg-[rgb(102,187,205)] text-white border-0 shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300"
                                     onClick={handleEmailSignup}
-                                    disabled={true}
-                                    // !passwordsMatch || passwordStrength.value < 50 || loading
+                                    disabled={!passwordsMatch || passwordStrength.value < 50 || loading}
                                   >
                                     {loading ? "Creating account..." : "Create Account"}
                                   </Button>

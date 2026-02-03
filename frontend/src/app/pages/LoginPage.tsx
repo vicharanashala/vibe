@@ -285,7 +285,6 @@ export default function LoginPage() {
 
   // New function for handling signup
   const handleEmailSignup = async () => {
-    return; // Disable signup functionality temporarily
     if (!validateForm()) return;
 
     // if (!passwordsMatch) {
@@ -746,9 +745,6 @@ export default function LoginPage() {
                   ) : (
                     // Sign Up Section
                     <div>
-                      <div className="text-sm text-yellow-600 bg-yellow-50 p-3 rounded-md">
-                          ⚠️ Email signup is temporarily disabled.
-                      </div>
                       <CardHeader className="space-y-3 pb-6">
                         <CardTitle className="text-2xl">Create {activeRole === 'student' ? 'Student' : 'Instructor'} Account</CardTitle>
                         <CardDescription>
@@ -773,7 +769,6 @@ export default function LoginPage() {
                             Full Name
                           </Label>
                           <Input
-                            disabled={true}
                             id="fullName"
                             placeholder="Enter your full name"
                             value={fullName}
@@ -794,7 +789,6 @@ export default function LoginPage() {
                             Email Address
                           </Label>
                           <Input
-                            disabled={true}
                             id="signup-email"
                             type="email"
                             placeholder="Enter your email"
@@ -816,7 +810,6 @@ export default function LoginPage() {
                             Password
                           </Label>
                           <Input
-                            disabled={true}
                             id="signup-password"
                             type={showPassword ? "text" : "password"}
                             placeholder="Create a strong password"
@@ -894,7 +887,6 @@ export default function LoginPage() {
                           </Label>
                           <div className="relative">
                             <Input
-                              disabled={true}
                               id="confirmPassword"
                               type={showPassword ? "text" : "password"}
 
@@ -906,7 +898,7 @@ export default function LoginPage() {
                                 !passwordsMatch && confirmPassword && "border-destructive focus-visible:ring-destructive"
                               )}
                             />
-                            <Button disabled variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
+                            <Button variant="ghost" size="icon" aria-label="" className="absolute inset-y-0 right-1" onClick={() => setShowPassword(p => !p)}>
                               {showPassword? <EyeOff />:<Eye />}
                             </Button>
                           </div>
@@ -916,7 +908,7 @@ export default function LoginPage() {
                         </div>
 
                         {/* reCAPTCHA */}
-                        {/* <div className="flex justify-center scale-[0.95] origin-left">
+                        <div className="flex justify-center scale-[0.95] origin-left">
                           <ReCAPTCHA
                             ref={recaptchaRef}
                             sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
@@ -926,7 +918,7 @@ export default function LoginPage() {
                               setFormErrors({ ...formErrors, recaptcha: undefined });
                             }}
                           />
-                        </div> */}
+                        </div>
                         {formErrors.recaptcha && (
                           <div className="flex items-center space-x-2 text-destructive justify-center">
                             <AlertCircle className="h-4 w-4" />
@@ -938,8 +930,7 @@ export default function LoginPage() {
                         <Button
                           className="w-full h-11 font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-200"
                           onClick={handleEmailSignup}
-                          disabled={true}
-                          // !passwordsMatch || passwordStrength.value < 50 || loading || !recaptchaToken
+                          disabled={!passwordsMatch || passwordStrength.value < 50 || loading || !recaptchaToken}
                         >
                           {loading ? "Creating account..." : "Create Account"}
                         </Button>
