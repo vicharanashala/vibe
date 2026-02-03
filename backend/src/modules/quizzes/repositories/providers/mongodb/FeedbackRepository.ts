@@ -181,12 +181,12 @@ class FeedbackRepository {
 
         ...(search
           ? [
-              {
-                $match: {
-                  'user.firstName': {$regex: search, $options: 'i'},
-                },
+            {
+              $match: {
+                'user.firstName': {$regex: search, $options: 'i'},
               },
-            ]
+            },
+          ]
           : []),
 
         // --------------------------
@@ -293,6 +293,110 @@ class FeedbackRepository {
     } catch (error) {
       throw new InternalServerError(
         `Failed to get Feedback submission for form ${feedbackFormId}`,
+      );
+    }
+  }
+
+  async getAllSubmissions(
+    feedbackFormId: string,
+    courseId: string,
+  ) {
+    await this.init();
+
+    try {
+      const pipeline: any[] = [
+        {
+          $match: {
+            feedbackFormId: new ObjectId(feedbackFormId),
+            courseId: new ObjectId(courseId),
+          },
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'userId',
+            foreignField: '_id',
+            as: 'user',
+          },
+        },
+        { $unwind: '$user' },
+        {
+          $lookup: {
+            from: 'videos',
+            localField: 'previousItemId',
+            foreignField: '_id',
+            as: 'videoItem',
+          },
+        },
+        {
+          $lookup: {
+            from: 'quizzes',
+            localField: 'previousItemId',
+            foreignField: '_id',
+            as: 'quizItem',
+          },
+        },
+        {
+          $lookup: {
+            from: 'blogs',
+            localField: 'previousItemId',
+            foreignField: '_id',
+            as: 'blogItem',
+          },
+        },
+        {
+          $lookup: {
+            from: 'projects',
+            localField: 'previousItemId',
+            foreignField: '_id',
+            as: 'projectItem',
+          },
+        },
+        {
+          $addFields: {
+            previousItem: {
+              $switch: {
+                branches: [
+                  {
+                    case: { $eq: ['$previousItemType', 'VIDEO'] },
+                    then: { $arrayElemAt: ['$videoItem', 0] },
+                  },
+                  {
+                    case: { $eq: ['$previousItemType', 'QUIZ'] },
+                    then: { $arrayElemAt: ['$quizItem', 0] },
+                  },
+                  {
+                    case: { $eq: ['$previousItemType', 'BLOG'] },
+                    then: { $arrayElemAt: ['$blogItem', 0] },
+                  },
+                  {
+                    case: { $eq: ['$previousItemType', 'PROJECT'] },
+                    then: { $arrayElemAt: ['$projectItem', 0] },
+                  },
+                ],
+                default: null,
+              },
+            },
+          },
+        },
+        {
+          $project: {
+            videoItem: 0,
+            quizItem: 0,
+            blogItem: 0,
+            projectItem: 0,
+          },
+        },
+        // Sort by submission date
+        { $sort: { createdAt: -1 } }
+      ];
+
+      return await this.feedbackSubmissionCollection
+        .aggregate(pipeline)
+        .toArray();
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed to get all Feedback submissions for form ${feedbackFormId}`,
       );
     }
   }
