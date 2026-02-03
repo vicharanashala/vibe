@@ -747,12 +747,11 @@ export class ItemService extends BaseService {
     });
   }
 
-  public async exportFeedbackSubmissions(
-    courseId: string,
-    itemId: string,
-  ) {
+  public async exportFeedbackSubmissions(courseId: string, itemId: string) {
     return await this._withTransaction(async (session: ClientSession) => {
-      const submissions = await this.feedbackRepo.getAllSubmissions(
+      console.log('USING LABEL EXPORT');
+
+      const submissions = await this.feedbackRepo.getAllSubmissionsWithLabels(
         itemId,
         courseId,
       );
@@ -1077,10 +1076,10 @@ export class ItemService extends BaseService {
               firstQuestion['Question Timestamp [mm:ss]'] ||
               (Object.keys(firstQuestion).find(k => k.includes('Timestamp'))
                 ? firstQuestion[
-                Object.keys(firstQuestion).find(k =>
-                  k.includes('Timestamp'),
-                )!
-                ]
+                    Object.keys(firstQuestion).find(k =>
+                      k.includes('Timestamp'),
+                    )!
+                  ]
                 : undefined);
           }
 

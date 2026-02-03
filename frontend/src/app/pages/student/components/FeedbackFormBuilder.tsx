@@ -99,6 +99,8 @@ export interface JSONSchemaProperty {
 
   // Enum / select
   enum?: string[];
+  oneOf?: { const: string; title: string }[];
+
 
   // Object / array
   properties?: Record<string, JSONSchemaProperty>;
@@ -295,7 +297,10 @@ const FeedbackFormBuilder = ({
           break;
         case 'select':
         case 'radio':
-          fieldSchema.enum = options?.map((opt) => opt.value) || [];
+          fieldSchema.oneOf = options?.map(opt => ({
+            const: opt.value,
+            title: opt.label,
+          }));
           break;
         case 'date':
           fieldSchema.type = 'string';
@@ -396,13 +401,17 @@ const FeedbackFormBuilder = ({
         const helpText = ui[label]?.['ui:help'] || '';
 
         let options: SelectOption[] | undefined;
-        if (typedProp.enum) {
-          options = typedProp.enum.map((value: string) => ({
-            label: value,
-            value,
-          }));
-        }
-
+        if ((typedProp as any).oneOf) {
+        options = (typedProp as any).oneOf.map((opt: any) => ({
+          label: opt.title,
+          value: opt.const,
+        }));
+        } else if (typedProp.enum) {
+        options = typedProp.enum.map((value: string) => ({
+          label: value,
+          value,
+        }));
+      }
         let inline = false;
         if (fieldType === 'radio') {
           inline = ui[label]?.['ui:options']?.inline === true;
@@ -1030,9 +1039,9 @@ const FeedbackFormBuilder = ({
                                       value={option.label}
                                       onChange={(e) => {
                                         const label = e.target.value
-                                        const value = label.trim()
-                                          ? label.toLowerCase().replace(/\s+/g, "_")
-                                          : `option_${index}`
+                                        const value = label.trim()? 
+                                        label.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")  
+                                        : `option-${index}`;
                                         updateOption(selectedField.id, index, { label, value })
                                       }}
                                       placeholder="Option label"
