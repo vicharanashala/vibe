@@ -38,7 +38,7 @@ export const FeedbackSubmissionsTable: React.FC<FeedbackSubmissionsTableProps> =
   const handleViewDetails = (submission: any) => {
     const details = submission.details || {};
 
-  const ignoredKeys = [""];
+  const ignoredKeys = [''];
   const filteredFormFields = Object.entries(details).reduce((acc, [key, value]) => {
     if (!ignoredKeys.includes(key)) {
       acc[key] = value;
@@ -128,8 +128,8 @@ export const FeedbackSubmissionsTable: React.FC<FeedbackSubmissionsTableProps> =
               ) : (
                 submissions.map((sub: any, index: number) => {
                   const slNo = (currentPage - 1) * limit + index + 1;
-                  const username =sub.details?.Name|| `${sub.user?.firstName || ''} ${sub.user?.lastName || ''}`.trim() || 'Anonymous';
-                  const email = sub.details?.Email||sub.user?.email || 'N/A';
+                  const username =`${sub.user?.firstName || ''} ${sub.user?.lastName || ''}`.trim() || 'Anonymous';
+                  const email = sub.user?.email || 'N/A';
                   const itemType = sub.previousItemType || 'FEEDBACK';
                   const itemName = sub.previousItem?.name || 'N/A';
                   const FeedbackOnly = sub.details.Feedback || "N/A";
