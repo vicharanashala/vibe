@@ -689,6 +689,34 @@ export class ItemService extends BaseService {
     });
   }
 
+  public async exportFeedbackSubmissions(
+    courseId: string,
+    itemId: string,
+  ) {
+    return await this._withTransaction(async (session: ClientSession) => {
+      const submissions = await this.feedbackRepo.getAllSubmissions(
+        itemId,
+        courseId,
+      );
+
+      return submissions.map(sub => {
+        const details = sub.details || {};
+        const userInfo = sub.user || {};
+        const previousItem = sub.previousItem || {};
+
+        return {
+          'First Name': userInfo.firstName || '',
+          'Last Name': userInfo.lastName || '',
+          'Email': userInfo.email || '',
+          'Item Type': sub.previousItemType || 'FEEDBACK',
+          'Item Name': previousItem.name || 'N/A',
+          'Submitted At': sub.createdAt ? new Date(sub.createdAt).toLocaleString() : 'N/A',
+          ...details
+        };
+      });
+    });
+  }
+
   public async getFeedbackSubmissions(
     courseId: string,
     itemId: string,
@@ -992,10 +1020,10 @@ export class ItemService extends BaseService {
               firstQuestion['Question Timestamp [mm:ss]'] ||
               (Object.keys(firstQuestion).find(k => k.includes('Timestamp'))
                 ? firstQuestion[
-                    Object.keys(firstQuestion).find(k =>
-                      k.includes('Timestamp'),
-                    )!
-                  ]
+                Object.keys(firstQuestion).find(k =>
+                  k.includes('Timestamp'),
+                )!
+                ]
                 : undefined);
           }
 
