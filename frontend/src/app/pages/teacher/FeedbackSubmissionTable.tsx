@@ -38,7 +38,7 @@ export const FeedbackSubmissionsTable: React.FC<FeedbackSubmissionsTableProps> =
   const handleViewDetails = (submission: any) => {
     const details = submission.details || {};
 
-  const ignoredKeys = ['Name', 'Email', 'Feedback'];
+  const ignoredKeys = [""];
   const filteredFormFields = Object.entries(details).reduce((acc, [key, value]) => {
     if (!ignoredKeys.includes(key)) {
       acc[key] = value;

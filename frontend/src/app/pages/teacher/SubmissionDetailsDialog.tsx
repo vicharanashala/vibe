@@ -15,7 +15,7 @@ export const SubmissionDetailsDialog: React.FC<SubmissionDetailsDialogProps> = (
 
     if (!submission) return null;
 
-    const username = `${submission.userInfo?.firstName || ''} ${submission.userInfo?.lastName || ''}`.trim() || 'Anonymous';
+    const username =submission.formFields?.Name|| `${submission.userInfo?.firstName || ''} ${submission.userInfo?.lastName || ''}`.trim() || 'Anonymous';
     const formFields = submission.formFields || {};
     const hasFormFields = Object.keys(formFields).length > 0;
     //   const fullFeedback = typeof submission.feedback === 'string' ? submission.feedback : JSON.stringify(submission.feedback, null, 2);
@@ -74,7 +74,7 @@ export const SubmissionDetailsDialog: React.FC<SubmissionDetailsDialogProps> = (
                             </div>
                             <div>
                                 <Label className="text-xs font-medium uppercase text-muted-foreground">Email</Label>
-                                <p>{submission.userInfo?.email || 'N/A'}</p>
+                                <p>{submission.formFields?.Email||submission.userInfo?.email || 'N/A'}</p>
                             </div>
                             <div>
                                 <Label className="text-xs font-medium uppercase text-muted-foreground">Submitted At</Label>
