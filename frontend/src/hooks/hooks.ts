@@ -577,17 +577,26 @@ export function useStudentCurrentProgressPath(
   versionId?: string,
   enabled?: boolean
 ) {
-  return useQuery({
-    queryKey: ['current-progress-path', userId, courseId, versionId],
-    queryFn: () =>
-      api.users.getCurrentProgressPath({
-        params: {
-          path: { courseId: courseId!, versionId: versionId! },
-          query: { userId: userId! },
-        },
-      }),
-    enabled: Boolean(enabled && userId && courseId && versionId),
-  })
+  const result = api.useQuery(
+    "get",
+    "/users/progress/courses/{courseId}/versions/{versionId}/current-path",
+    {
+      params: {
+        path: { courseId: courseId!, versionId: versionId! },
+        query: { userId: userId! },
+      },
+    },
+    {
+      enabled: Boolean(enabled && userId && courseId && versionId),
+    }
+  );
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to load current progress') : null,
+    refetch: result.refetch
+  };
 }
 
 // PATCH /courses/{id}
