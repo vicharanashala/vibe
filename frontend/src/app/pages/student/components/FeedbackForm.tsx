@@ -9,7 +9,7 @@ import { useEffect, useRef } from "react";
 import { ISubmitFeedbackBody } from "@/components/Item-container";
 import Form from "@rjsf/shadcn";
 import { toast } from "sonner";
-import { buildEmptyFormData } from "@/utils/utils";
+import { buildEmptyFormData, normalizeSchemaOptions } from "@/utils/utils";
 
 interface FeedbackFormProps {
   title: string;
@@ -219,7 +219,8 @@ const FeedbackForm = ({
         <CardContent className="pt-6">
           <div className="max-h-[60vh] overflow-y-auto pr-4">
             <Form
-              schema={jsonSchema}
+              // schema={jsonSchema}
+              schema={normalizeSchemaOptions(jsonSchema)}
               validator={validator}
               uiSchema={uiSchema}
               onSubmit={handleSubmit}
