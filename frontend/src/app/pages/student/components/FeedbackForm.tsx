@@ -174,6 +174,17 @@ const FeedbackForm = ({
     onNext()
 
   };
+  const buildEmptyFormData = (schema: any) => {
+  if (!schema?.properties) return {};
+
+  const obj: Record<string, any> = {};
+  Object.keys(schema.properties).forEach((key) => {
+    obj[key] = undefined; //  stops enum auto select
+  });
+
+  return obj;
+};
+
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6">
@@ -226,6 +237,8 @@ const FeedbackForm = ({
               uiSchema={uiSchema}
               onSubmit={handleSubmit}
               disabled={isSubmitting}
+            formData={buildEmptyFormData(jsonSchema)}
+             
             />
           </div>
         </CardContent>
