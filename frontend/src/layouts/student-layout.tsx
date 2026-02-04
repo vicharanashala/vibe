@@ -63,7 +63,7 @@ export default function StudentLayout() {
     }
     getUserInvites();
 
-  }, [user, isAuthReady])
+  }, [user, isAuthReady]);
 
   useEffect(() => {
     if (!showInvites) return;
