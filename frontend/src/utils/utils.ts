@@ -70,3 +70,13 @@ export const formatDateTime = (dateString: string, asString = false) => {
 
   return asString ? `${formatted.date} ${formatted.time}` : formatted;
 }
+export const buildEmptyFormData = (schema: any) => {
+  if (!schema?.properties) return {};
+
+  const obj: Record<string, any> = {};
+  Object.keys(schema.properties).forEach((key) => {
+    obj[key] = undefined; //  stops enum auto select
+  });
+
+  return obj;
+};
