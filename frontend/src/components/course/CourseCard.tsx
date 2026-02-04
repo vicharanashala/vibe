@@ -29,6 +29,9 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
   const courseId = bufferToHex(enrollment.courseId as string);
   const versionId = bufferToHex(enrollment.courseVersionId as string) || "";
+  const module_number=enrollment.moduleNumber||"";
+  const section_number=enrollment.sectionNumber || "";
+  const item_type=enrollment.itemType || "VIDEO";
 
   // Fetch course version to get supportLink
   const { data: courseVersionData } = useCourseVersionById(versionId);
@@ -217,6 +220,9 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               : progress === 0
                 ? 'Start your learning journey'
                 : 'Continue Learning'}
+                
+                 &nbsp;&nbsp;&nbsp;
+                {isCompleted?"":(progress==0)?"":<span>&bull; MOD {module_number} &bull; SEC {section_number} &bull; {item_type}</span> }
           </p>
           <div className="mt-auto flex flex-col sm:flex-row gap-2">
             <Button
