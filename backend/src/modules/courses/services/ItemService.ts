@@ -1,6 +1,10 @@
 import {injectable, inject} from 'inversify';
 import {ClientSession, ObjectId} from 'mongodb';
-import {NotFoundError, InternalServerError} from 'routing-controllers';
+import {
+  NotFoundError,
+  InternalServerError,
+  BadRequestError,
+} from 'routing-controllers';
 import {COURSES_TYPES} from '#courses/types.js';
 import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
 import {
@@ -165,6 +169,39 @@ export class ItemService extends BaseService {
           sectionId,
           session,
         );
+      // Check if any previous "learning item" exists before making the feedback form in the db
+      if (body.type === ItemType.FEEDBACK) {
+        const dbItemsGroup = await this.itemRepo.readItemsGroup(
+          section.itemsGroupId.toString(),
+          session,
+        );
+
+        const sectionItems = dbItemsGroup?.items || [];
+
+        if (sectionItems.length === 0) {
+          throw new BadRequestError(
+            'Feedback form cannot be the first item in a section',
+          );
+        }
+
+        const lastItemRef = [...sectionItems]
+          .sort((a, b) => a.order.localeCompare(b.order))
+          .pop();
+
+        const previousItem = await this.itemRepo.readItemById(
+          lastItemRef._id.toString(),
+          session,
+        );
+
+        const allowed = [ItemType.VIDEO, ItemType.QUIZ, ItemType.BLOG];
+
+        if (!allowed.includes(previousItem.type)) {
+          throw new BadRequestError(
+            'Feedback can only be added after VIDEO, QUIZ, or BLOG items',
+          );
+        }
+      }
+
       // Step 2: Create a new item instance
       const item = new ItemBase(body, itemsGroup.items);
 
@@ -294,70 +331,91 @@ export class ItemService extends BaseService {
         return itemsGroup.items;
       }
 
-      // All items completed if module is before current module
-      if (moduleIndex < currentModuleIndex) {
-        itemsGroup.items = itemsGroup.items.map(item => ({
-          ...item,
-          isCompleted: true,
-        }));
-        return itemsGroup.items;
-      }
+      const completionEntries = await Promise.all(
+        itemsGroup.items.map(async (item) => {
+          const isCompleted = await this.progressRepo.isItemCompleted(
+            userId,
+            course.courseId.toString(),
+            versionId,
+            item._id.toString()
+          );
 
-      const currentSectionIndex = course.modules[
-        currentModuleIndex
-      ]?.sections.findIndex(
-        sec => sec.sectionId.toString() === progress.currentSection?.toString(),
+          return [item._id.toString(), isCompleted] as const;
+        })
       );
+      const completionMap = new Map<string, boolean>(completionEntries);
 
-      const sectionIndex = course.modules[moduleIndex]?.sections.findIndex(
-        sec => sec.sectionId.toString() === sectionId.toString(),
-      );
+      itemsGroup.items = itemsGroup.items.map(item => ({
+        ...item,
+        // isCompleted: true,
+        isCompleted:completionMap.get(item._id.toString()) ?? false
+      }));
+      return itemsGroup.items;
 
-      // Guard against invalid section indices
-      if (currentSectionIndex === -1 || sectionIndex === -1) {
-        return itemsGroup.items;
-      }
+      // // All items completed if module is before current module
+      // if (moduleIndex < currentModuleIndex) {
+      //   itemsGroup.items = itemsGroup.items.map(item => ({
+      //     ...item,
+      //     isCompleted: true,
+      //   }));
+      //   return itemsGroup.items;
+      // }
 
-      // All items completed if section is before current section in same module
-      if (
-        moduleIndex === currentModuleIndex &&
-        sectionIndex < currentSectionIndex
-      ) {
-        itemsGroup.items = itemsGroup.items.map(item => ({
-          ...item,
-          isCompleted: true,
-        }));
-        return itemsGroup.items;
-      }
+      // const currentSectionIndex = course.modules[
+      //   currentModuleIndex
+      // ]?.sections.findIndex(
+      //   sec => sec.sectionId.toString() === progress.currentSection?.toString(),
+      // );
 
-      const currentItemIndex = itemsGroup.items.findIndex(
-        itm => itm._id.toString() === progress.currentItem?.toString(),
-      );
+      // const sectionIndex = course.modules[moduleIndex]?.sections.findIndex(
+      //   sec => sec.sectionId.toString() === sectionId.toString(),
+      // );
 
-      // If current item belongs to another section, nothing here is completed
-      if (currentItemIndex === -1) {
-        return itemsGroup.items;
-      }
+      // // Guard against invalid section indices
+      // if (currentSectionIndex === -1 || sectionIndex === -1) {
+      //   return itemsGroup.items;
+      // }
 
-      itemsGroup.items = itemsGroup.items.map((item, index) => {
-        if (
-          moduleIndex === currentModuleIndex &&
-          sectionIndex === currentSectionIndex &&
-          index < currentItemIndex
-        ) {
-          return {...item, isCompleted: true};
-        }
+      // // All items completed if section is before current section in same module
+      // if (
+      //   moduleIndex === currentModuleIndex &&
+      //   sectionIndex < currentSectionIndex
+      // ) {
+      //   itemsGroup.items = itemsGroup.items.map(item => ({
+      //     ...item,
+      //     isCompleted: true,
+      //   }));
+      //   return itemsGroup.items;
+      // }
 
-        if (
-          moduleIndex === currentModuleIndex &&
-          sectionIndex === currentSectionIndex &&
-          index === currentItemIndex
-        ) {
-          return {...item, isCompleted: progress.completed};
-        }
+      // const currentItemIndex = itemsGroup.items.findIndex(
+      //   itm => itm._id.toString() === progress.currentItem?.toString(),
+      // );
 
-        return {...item, isCompleted: false};
-      });
+      // // If current item belongs to another section, nothing here is completed
+      // if (currentItemIndex === -1) {
+      //   return itemsGroup.items;
+      // }
+
+      // itemsGroup.items = itemsGroup.items.map((item, index) => {
+      //   if (
+      //     moduleIndex === currentModuleIndex &&
+      //     sectionIndex === currentSectionIndex &&
+      //     index < currentItemIndex
+      //   ) {
+      //     return {...item, isCompleted: true};
+      //   }
+
+      //   if (
+      //     moduleIndex === currentModuleIndex &&
+      //     sectionIndex === currentSectionIndex &&
+      //     index === currentItemIndex
+      //   ) {
+      //     return {...item, isCompleted: progress.completed};
+      //   }
+
+      //   return {...item, isCompleted: false};
+      // });
     }
 
     console.log(
@@ -686,6 +744,32 @@ export class ItemService extends BaseService {
         courseId: version.courseId.toString(),
         versionId: version._id.toString(),
       };
+    });
+  }
+
+  public async exportFeedbackSubmissions(courseId: string, itemId: string) {
+    return await this._withTransaction(async (session: ClientSession) => {
+      console.log('USING LABEL EXPORT');
+
+      const submissions = await this.feedbackRepo.getAllSubmissionsWithLabels(
+        itemId,
+        courseId,
+      );
+
+      return submissions.map(sub => {
+        const details = sub.details || {};
+        const previousItem = sub.previousItem || {};
+        const { Name, Email, ...otherDetails } = details;
+
+        return {
+          'Username': Name || 'Anonymous',
+          'Email': Email || 'N/A',
+          'Item Type': sub.previousItemType || 'FEEDBACK',
+          'Item Name': previousItem.name || 'N/A',
+          'Submitted At': sub.createdAt ? new Date(sub.createdAt).toLocaleString() : 'N/A',
+          ...otherDetails
+        };
+      });
     });
   }
 

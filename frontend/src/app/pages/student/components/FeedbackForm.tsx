@@ -9,7 +9,7 @@ import { useEffect, useRef } from "react";
 import { ISubmitFeedbackBody } from "@/components/Item-container";
 import Form from "@rjsf/shadcn";
 import { toast } from "sonner";
-
+import { buildEmptyFormData } from "@/utils/utils";
 
 interface FeedbackFormProps {
   title: string;
@@ -22,10 +22,6 @@ interface FeedbackFormProps {
   isSubmitting?: boolean;
   onNext: () => void
 }
-
-
-
-
 
 const FeedbackForm = ({
   title,
@@ -174,6 +170,8 @@ const FeedbackForm = ({
     onNext()
 
   };
+ 
+
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6">
@@ -226,6 +224,8 @@ const FeedbackForm = ({
               uiSchema={uiSchema}
               onSubmit={handleSubmit}
               disabled={isSubmitting}
+            formData={buildEmptyFormData(jsonSchema)}
+             
             />
           </div>
         </CardContent>
