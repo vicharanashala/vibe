@@ -70,9 +70,10 @@ import {
 import type { BreadcrumbItemment } from "@/types/layout.types";
 import AiWorkflow from "./AiWorkflow";
 import AISectionPage from "./AISectionPage";
-type Mode = "default" | "wizard" | "custom";
+type Mode = "default" | "wizard" | "custom" | "ai-module";
 import { logout } from "@/utils/auth";
 import InviteDropdown from "@/components/inviteDropDown";
+import AiModule from "./AiModule";
 
 
 // ✅ Icons per item type
@@ -1785,6 +1786,24 @@ function TeacherCourseContent() {
                                                           >
                                                             Wizard mode
                                                           </DropdownMenuItem>
+
+                                                           <DropdownMenuItem
+                                                            className="text-xs cursor-pointer"
+                                                            onClick={() => {
+                                                              setCurrentCourse({
+                                                                courseId,
+                                                                versionId,
+                                                                moduleId: module.moduleId,
+                                                                sectionId: section.sectionId,
+                                                                itemId: null,
+                                                                watchItemId: null,
+                                                              });
+                                                              setMode('ai-module')
+                                                              // navigate({ to: '/teacher/ai-module' });
+                                                            }}
+                                                          >
+                                                            AI Module Mode
+                                                          </DropdownMenuItem>
                                                         </DropdownMenuContent>
                                                       </DropdownMenu>
                                                     </TooltipTrigger>
@@ -2039,7 +2058,7 @@ function TeacherCourseContent() {
               )}
             </div>}
 
-            {mode === "wizard" ? (
+            {mode==="ai-module" ? <AiModule /> : mode === "wizard" ? (
               <AiWorkflow />
             ) : mode === "custom" ? (
               <AISectionPage />
