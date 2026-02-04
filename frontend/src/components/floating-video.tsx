@@ -18,7 +18,7 @@ import {registerStream, unRegisterStream} from "@/lib/MediaRegistry";
 
 // let flag = 0;
 function FloatingVideo({
-  isVisible = true,
+  isVisible,
   setDoGesture,
   settings,
   rewindVid,

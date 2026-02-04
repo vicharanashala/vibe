@@ -102,7 +102,7 @@ export default function CoursePage() {
   const { mutateAsync: skipItemAsync, isPending: isSkipping } = useSkipOptionalItem();
   const { mutateAsync: recalculateStudentProgressAsync } = useRecalculateStudentProgress();
   const [closing, setClosing] = useState(false);
-
+  const [allProctorsDisabled, setAllProctorsDisabled] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
 
   // Check for microphone and camera access, otherwise redirect to dashboard
@@ -126,7 +126,7 @@ export default function CoursePage() {
         }
       }
     }
-    if (!showProctorDialog) {
+    if (!showProctorDialog && !allProctorsDisabled) {
       checkMediaPermissions();
     }
     return () => {
@@ -368,6 +368,14 @@ export default function CoursePage() {
     async function fetch() {
       const data = await getSettings(COURSE_ID, VERSION_ID);
       setProctoringData(data);
+      const allProctorsDisabled =
+        data.settings.proctors.detectors.every(
+          (detector: any) => detector.settings.enabled === false
+        );
+      if (allProctorsDisabled) {
+        setShowProctorDialog(false);
+        setAllProctorsDisabled(true);
+      }
     }
     fetch();
   }, []);
@@ -1574,7 +1582,7 @@ export default function CoursePage() {
             </SidebarContent>
             <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60 ">
               <FloatingVideo
-                isVisible={true}
+                isVisible={!allProctorsDisabled}
                 onClose={() => { }}
                 onAnomalyDetected={() => { }}
                 setDoGesture={setDoGesture}
