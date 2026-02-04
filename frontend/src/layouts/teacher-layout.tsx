@@ -110,8 +110,8 @@ export default function TeacherLayout() {
 
     const getUserInvites = async () => {
       getInvites().then(result => {
+        if(result.invites.length === 0) return;
         if (result.invites.length > 0) {
-          console.log(result);
           setPendingInvites(result.invites)
 
           if (!toastShown) {
@@ -122,7 +122,6 @@ export default function TeacherLayout() {
           }
         }
       })
-
 
     }
     getUserInvites();
