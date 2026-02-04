@@ -412,10 +412,29 @@ const VideoModal: React.FC<VideoModalProps> = ({
         }
     };
 
+    const modalRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (videoId) {
+            modalRef.current?.scrollTo({
+                top: 0,
+                behavior: "smooth",
+            });
+        }
+    }, [videoId]);
+
+
     return (
         <>
             {isLoading ? <Loader /> :
-                <div className={`bg-background rounded-lg border p-6 xl:min-w-[700px] backdrop-blur-md bg-background/80`}>
+                <div
+                    ref={modalRef}
+                    className="bg-background rounded-lg border p-6 xl:min-w-[700px]
+             backdrop-blur-md bg-background/80
+             max-h-[90vh] overflow-y-auto"
+                >
+
+
                     <div className="mb-4 flex justify-between items-center">
                         <h2 className="text-lg font-semibold">
                             {action === "add" && "Add Video"}

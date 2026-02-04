@@ -22,6 +22,7 @@ interface IReport {
     versionId?: string | ObjectId;
     entityId?: string | ObjectId;
     entityType?: EntityType;
+    questionId?: string | ObjectId;
     reportedBy?: string | ObjectId;
     reason?: string;
     satisfied?: string;
