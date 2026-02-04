@@ -317,6 +317,13 @@ class ReportRepository {
           },
           versionId: { $toString: '$versionId' },
           entityId: { $toString: '$entityId' },
+          questionId: {
+            $cond: {
+              if: { $ifNull: ['$questionId', false] },
+              then: { $toString: '$questionId' },
+              else: '$$REMOVE'
+            }
+          },
 
           // Resolve Item Name
           itemName: {
