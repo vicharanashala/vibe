@@ -1889,12 +1889,13 @@ function EnrollmentsTable({
                           <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
                             <AvatarImage src="/placeholder.svg" alt={enrollment?.user?.email || ""} />
                             <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
-                              {[enrollment?.user?.firstName?.[0], enrollment?.user?.lastName?.[0]]
-                                .filter(Boolean)
-                                .map((ch: string, index: number) => (
-                                  <span key={index}>{ch.toUpperCase()}</span>
-                                ))
-                                .join("") || "?"}
+                              <span>
+                                {[enrollment?.user?.firstName, enrollment?.user?.lastName]
+                                      .map(name => name?.trim()?.[0])
+                                      .filter(Boolean)
+                                      .map(ch => ch!.toUpperCase())
+                                      .join("") || "?"}
+                              </span>
                             </AvatarFallback>
                           </Avatar>
 

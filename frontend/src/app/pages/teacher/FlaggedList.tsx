@@ -377,7 +377,7 @@ export default function FlaggedList() {
                               <p className="font-semibold text-foreground text-base md:text-lg overflow-hidden text-ellipsis whitespace-nowrap max-w-[180px]"
                                 title={`${report.reportedBy.firstName} ${report.reportedBy.lastName}`}
                               >
-                                {report.reportedBy.firstName + " " + report.reportedBy.lastName || "Unknown User"}
+                                {[report.reportedBy?.firstName, report.reportedBy?.lastName].filter(Boolean).join(" ") || "Unknown User"}
                               </p>
                             </div>
                           </div>
