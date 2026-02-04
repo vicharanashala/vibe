@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
+import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
 import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, userParseCSVtoItems, useUpdateItemOptional } from '@/hooks/hooks';
 import { Download, LogOut, Upload, UserRoundCheck } from 'lucide-react';
@@ -73,9 +73,10 @@ import AISectionPage from "./AISectionPage";
 type Mode = "default" | "wizard" | "custom";
 import { logout } from "@/utils/auth";
 import InviteDropdown from "@/components/inviteDropDown";
+import { useQueryClient } from "@tanstack/react-query"
 
 
-// ✅ Icons per item type
+// ? Icons per item type
 const getItemIcon = (type: string) => {
   switch (type) {
     case "BLOG": return <FileText className="h-3 w-3" />;
@@ -251,6 +252,8 @@ function TeacherCourseContent() {
   }, [currentTextIndex, aiMessages]);
 
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
+  const [autoSelectSectionsToLoad, setAutoSelectSectionsToLoad] = useState<Array<{ moduleId: string, sectionId: string }>>([]);
+  const [autoSelectCurrentIndex, setAutoSelectCurrentIndex] = useState(0);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [selectedEntity, setSelectedEntity] = useState<{
     type: "module" | "section" | "item";
@@ -369,6 +372,7 @@ function TeacherCourseContent() {
   const [showCSVUpload, setShowCSVUpload] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const userCSVtoItem = userParseCSVtoItems();
+  const queryClient = useQueryClient()
 
 
   const updateItemOptional = useUpdateItemOptional();
@@ -454,12 +458,12 @@ function TeacherCourseContent() {
       // },
       isUpdateModuleError: {
         flag: isUpdateModuleError,
-        message: updateModuleError?.message,
+        message: updateModuleError?.toString(),
         fallback: "Failed to update module",
       },
       isDeleteModuleError: {
         flag: isDeleteModuleError,
-        message: deleteModuleError?.message,
+        message: deleteModuleError?.toString(),
         fallback: "Failed to delete module",
       },
       isCreateSectionError: {
@@ -469,32 +473,32 @@ function TeacherCourseContent() {
       },
       isUpdateSectionError: {
         flag: isUpdateSectionError,
-        message: updateSectionError?.message,
+        message: updateSectionError?.toString(),
         fallback: "Failed to update section",
       },
       isDeleteSectionError: {
         flag: isDeleteSectionError,
-        message: deleteSectionError?.message,
+        message: deleteSectionError?.toString(),
         fallback: "Failed to delete section",
       },
       isCreateItemError: {
         flag: isCreateItemError,
-        message: createItemError?.message,
+        message: createItemError?.toString(),
         fallback: "Failed to create item",
       },
       isUpdateItemError: {
         flag: isUpdateItemError,
-        message: updateItemError?.message,
+        message: updateItemError?.toString(),
         fallback: "Failed to update item",
       },
       isDeleteItemError: {
         flag: isDeleteItemError,
-        message: deleteItemError?.message,
+        message: deleteItemError?.toString(),
         fallback: "Failed to delete item",
       },
       isMoveItemError: {
         flag: isMoveItemError,
-        message: moveItemError?.message,
+        message: moveItemError?.toString(),
         fallback: "Failed to move item",
       },
     },
@@ -523,12 +527,225 @@ function TeacherCourseContent() {
     ) {
 
       const itemsArray = (currentSectionItems as any)?.items || (Array.isArray(currentSectionItems) ? currentSectionItems : []);
+
+
       setSectionItems(prev => ({
         ...prev,
         [activeSectionInfo.sectionId]: itemsArray
       }));
+
+      // If we're in auto-select mode and have a watchItemId, check if the target item is in this newly loaded section
+      const watchItemId = currentCourse?.watchItemId;
+
+
+      if (watchItemId && itemsArray.length > 0) {
+
+        const targetItem = itemsArray.find((item: any) => item._id === watchItemId);
+        if (targetItem) {
+
+
+          // Find the module for this section
+          const targetModule = modules?.find(module =>
+            module.sections?.some(section => section.sectionId === activeSectionInfo.sectionId)
+          );
+
+          if (targetModule) {
+            const targetSection = targetModule.sections?.find(section => section.sectionId === activeSectionInfo.sectionId);
+
+            if (targetSection) {
+
+
+              // Show toast notification for successful navigation
+              const questionId = currentCourse?.questionId;
+              if (questionId) {
+                toast.success(`Navigated to flagged question in "${targetItem.name}"`);
+              } else {
+                toast.success(`Navigated to flagged item: "${targetItem.name}"`);
+              }
+
+              // Expand the module and section
+              setExpandedModules(prev => ({ ...prev, [targetModule.moduleId]: true }));
+              setExpandedSections(prev => ({ ...prev, [targetSection.sectionId]: true }));
+
+              // Select the item
+              setSelectedEntity({
+                type: 'item',
+                data: targetItem,
+                parentIds: {
+                  moduleId: targetModule.moduleId,
+                  sectionId: targetSection.sectionId
+                }
+              });
+
+              // Clear watchItemId and questionId after navigation
+              setCurrentCourse({
+                ...currentCourse,
+                watchItemId: null,
+                questionId: null
+              });
+              setAutoSelectSectionsToLoad([]);
+              setAutoSelectCurrentIndex(0);
+
+
+            } else {
+
+            }
+          } else {
+
+          }
+        } else {
+
+        }
+      }
     }
-  }, [currentSectionItems, itemsLoading, activeSectionInfo, shouldFetchItems]);
+  }, [currentSectionItems, itemsLoading, activeSectionInfo, shouldFetchItems, currentCourse, modules]);
+
+  // Auto-select item when navigating from flagged list
+  useEffect(() => {
+    const watchItemId = currentCourse?.watchItemId;
+    const questionId = currentCourse?.questionId;
+
+    // Wait for version data to load before attempting auto-select
+    if (isLoading) {
+
+      return;
+    }
+
+    if (!watchItemId || !modules || modules.length === 0) return;
+
+
+
+    if (questionId) {
+
+    }
+
+    // First, try to find the item in already-loaded sectionItems
+    for (const module of modules) {
+
+      for (const section of module.sections || []) {
+
+        const items = sectionItems[section.sectionId] || [];
+
+
+        const targetItem = items.find((item: any) => item._id === watchItemId);
+
+        if (targetItem) {
+
+
+          // Show toast notification for successful navigation
+          if (questionId) {
+            toast.success(`Navigated to flagged question in "${targetItem.name}"`);
+          } else {
+            toast.success(`Navigated to flagged item: "${targetItem.name}"`);
+          }
+
+          // Expand the module and section
+          setExpandedModules(prev => ({ ...prev, [module.moduleId]: true }));
+          setExpandedSections(prev => ({ ...prev, [section.sectionId]: true }));
+
+          // Select the item
+          setSelectedEntity({
+            type: 'item',
+            data: targetItem,
+            parentIds: {
+              moduleId: module.moduleId,
+              sectionId: section.sectionId
+            }
+          });
+
+          // Clear watchItemId and questionId after navigation
+          setCurrentCourse({
+            ...currentCourse,
+            watchItemId: null,
+            questionId: null
+          });
+          setAutoSelectSectionsToLoad([]);
+          setAutoSelectCurrentIndex(0);
+
+          return;
+        }
+      }
+    }
+
+    // If not found and we haven't started loading sections yet, prepare the list
+    if (autoSelectSectionsToLoad.length === 0) {
+
+
+      const sectionsToLoad: Array<{ moduleId: string, sectionId: string }> = [];
+      modules.forEach(module => {
+
+        module.sections?.forEach(section => {
+
+          sectionsToLoad.push({ moduleId: module.moduleId, sectionId: section.sectionId });
+        });
+      });
+
+
+      setAutoSelectSectionsToLoad(sectionsToLoad);
+      setAutoSelectCurrentIndex(0);
+
+      // Expand all modules and sections
+      const newExpandedModules: Record<string, boolean> = {};
+      const newExpandedSections: Record<string, boolean> = {};
+      modules.forEach(module => {
+        newExpandedModules[module.moduleId] = true;
+        module.sections?.forEach(section => {
+          newExpandedSections[section.sectionId] = true;
+        });
+      });
+      setExpandedModules(newExpandedModules);
+      setExpandedSections(newExpandedSections);
+    }
+  }, [currentCourse?.watchItemId, modules, sectionItems, autoSelectSectionsToLoad.length, isLoading]);
+
+  // Load sections one by one for auto-selection
+  useEffect(() => {
+    if (autoSelectSectionsToLoad.length === 0 || !currentCourse?.watchItemId) return;
+
+    if (autoSelectCurrentIndex < autoSelectSectionsToLoad.length) {
+      const section = autoSelectSectionsToLoad[autoSelectCurrentIndex];
+
+      setActiveSectionInfo(section);
+
+      // Move to next section after a delay
+      setTimeout(() => {
+        setAutoSelectCurrentIndex(prev => prev + 1);
+      }, 100);
+    } else {
+      // All sections queued for loading, reset the loading state
+
+      setAutoSelectSectionsToLoad([]);
+      setAutoSelectCurrentIndex(0);
+    }
+  }, [autoSelectCurrentIndex, autoSelectSectionsToLoad, currentCourse?.watchItemId]);
+
+
+
+  // Load sections one by one for auto-selection
+  useEffect(() => {
+    if (autoSelectSectionsToLoad.length === 0 || !currentCourse?.watchItemId) return;
+
+    if (autoSelectCurrentIndex < autoSelectSectionsToLoad.length) {
+      const section = autoSelectSectionsToLoad[autoSelectCurrentIndex];
+
+      setActiveSectionInfo(section);
+
+      // Move to next section after a delay
+      setTimeout(() => {
+        setAutoSelectCurrentIndex(prev => prev + 1);
+      }, 100);
+    } else {
+      // All sections queued for loading, reset the loading state
+
+      setAutoSelectSectionsToLoad([]);
+      setAutoSelectCurrentIndex(0);
+    }
+  }, [autoSelectCurrentIndex, autoSelectSectionsToLoad, currentCourse?.watchItemId]);
+
+
+
+
+
 
   const getItemLabel = ({ itemId, itemType, sectionItems, sectionId }: LabelOptions): string => {
     const item = (sectionItems[sectionId] || []).find(i => i._id === itemId);
@@ -590,6 +807,37 @@ function TeacherCourseContent() {
   };
 
 
+  // Invalidate all related queries
+  const invalidateAllQueries = async () => {
+    // Invalidate section items queries as in refetchitems
+    await queryClient.invalidateQueries({
+      queryKey: ["get", "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items"]
+    })
+
+    // Invalidate all item detail queries as in refetchitem
+    await queryClient.invalidateQueries({
+      queryKey: ["get", "/courses/{courseId}/versions/{versionId}/item/{itemId}"]
+    })
+
+    // // Invalidate all course version queries
+    await queryClient.invalidateQueries({
+      queryKey: ["get", "/courses/versions/{id}"]
+    })
+  }
+
+  // invalidated as sometimes questions are not fetched properly
+  const handleinvalidateItemQueries = async () => {
+    // Invalidate all related queries for question banks
+    await queryClient.invalidateQueries({
+      queryKey: ["get", "/quizzes/question-bank/{questionBankId}"]
+    })
+
+    // Invalidate all related queries for questions
+    await queryClient.invalidateQueries({
+      queryKey: ["get", "/quizzes/questions/{questionId}"]
+    })
+  }
+
 
   // Process CSV file and create items
   const processCSV = async (file: File, moduleId: string, sectionId: string, youtubeUrl: string) => {
@@ -630,14 +878,14 @@ function TeacherCourseContent() {
       const response = await userCSVtoItem.mutateAsync({
         params: { path: { courseId: courseId!, versionId: versionId!, moduleId, sectionId } },
         body: { youtubeurl: youtubeUrl, data: result.data }
-      }).then((res) => {
-        if (res.success) {
-          toast.success('Successfully created items from CSV');
-        }
-        refetchVersion()
-        refetchItems()
-        setIsProcessingCSV(false);
       });
+
+      if (response.success) {
+        toast.success('Successfully created items from CSV');
+      }
+
+      await invalidateAllQueries();
+      setIsProcessingCSV(false);
     } catch (error) {
       console.error('Error processing CSV:', error);
       toast.error(`Failed to process CSV: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -712,7 +960,7 @@ function TeacherCourseContent() {
       refetchVersion();
       refetchItems();
     } catch (error) {
-      console.error("❌ Error in handleHideItem:", error);
+      console.error("? Error in handleHideItem:", error);
     } finally {
       setHidingItemId(null);
     }
@@ -899,7 +1147,7 @@ function TeacherCourseContent() {
           }
         })
         .catch((err) => {
-          toast.error("Failed to create feedback form");
+          toast.error("Failed to create feedback form: ", err.message);
           console.error(err);
         });
     }
@@ -1454,7 +1702,8 @@ function TeacherCourseContent() {
                                                           ? "bg-zinc-600 text-gray-200"
                                                           : "bg-transparent transition-none"
                                                           }`}
-                                                        onClick={() => {
+                                                        onClick={async () => {
+                                                          await handleinvalidateItemQueries();
                                                           setMode("default");
                                                           const label = getItemLabel({
                                                             itemId: item._id,
@@ -2163,7 +2412,7 @@ function TeacherCourseContent() {
                       </div>
                       <div className="text-sm text-slate-500 dark:text-gray-400 flex items-center gap-2">
                         <BookOpen className="h-4 w-4" />
-                        <span>Course › Module › {selectedEntity.type}</span>
+                        <span>Course � Module � {selectedEntity.type}</span>
                       </div>
                     </div>
 
@@ -2572,6 +2821,7 @@ function TeacherCourseContent() {
                           analytics={quizAnalytics}
                           // submissions={quizSubmissions}
                           performance={quizPerformance}
+                          questionId={currentCourse?.questionId || null}
                           onDelete={() => {
                             deleteItemAsync({
                               params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedQuizId } }
@@ -2601,7 +2851,7 @@ function TeacherCourseContent() {
                                   body: { name, description, details: { name, description }, type: 'PROJECT' }
                                 });
                                 refetchVersion();
-                                refetchItems(); ``
+                                refetchItems();
                                 refetchItem();
                                 toast.success("Project updated successfully");
                               } catch (err) {
@@ -2874,3 +3124,13 @@ export function useStatusToasts({
 }
 
 // 4. ADD A SIMPLE FEEDBACK EDITOR COMPONENT (Hello World for now)
+
+
+
+
+
+
+
+
+
+

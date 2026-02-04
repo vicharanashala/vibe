@@ -11,6 +11,7 @@ import {
   Put,
   Authorized,
   QueryParams,
+  Res,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { COURSES_TYPES } from '#courses/types.js';
@@ -42,6 +43,8 @@ import { QuizService } from '#root/modules/quizzes/services/QuizService.js';
 import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 import { ItemType } from '#shared/interfaces/models.js';
 import { HideModuleBody } from '../classes/index.js';
+import { createObjectCsvStringifier } from 'csv-writer';
+import { Response } from 'express';
 
 @OpenAPI({
   tags: ['Course Items'],
@@ -146,7 +149,7 @@ export class ItemController {
       const sampleItemResource = subject('Item', { versionId, _id: 'sample' });
       const canManage = ability.can(ItemActions.Modify, sampleItemResource);
 
- 
+
 
       if (canManage) {
         // Instructors/managers/TAs can see all items including blank quizzes
@@ -383,6 +386,46 @@ Access control logic:
   }
 
   @OpenAPI({
+    summary: 'Export feedback submissions as CSV',
+    description: `Export all feedback submissions for a particular course item.`,
+  })
+  @Authorized()
+  @Get('/:courseId/item/:feedbackId/feedback/submissions/export')
+  async exportFeedbackSubmissions(
+    @Params() params: GetFeedbackSubmissionsParams,
+    @Res() res: Response,
+  ) {
+    const { courseId, feedbackId } = params;
+    const result = await this.itemService.exportFeedbackSubmissions(
+      courseId,
+      feedbackId,
+    );
+
+    if (result.length === 0) {
+      return res.status(200).send('No submissions found');
+    }
+
+    const headers = Object.keys(result[0]).map(key => ({ id: key, title: key }));
+
+    const csvStringifier = createObjectCsvStringifier({
+      header: headers,
+    });
+
+    const csvContent =
+      csvStringifier.getHeaderString() +
+      csvStringifier.stringifyRecords(result);
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="feedback_submissions_${feedbackId}.csv"`,
+    );
+    res.setHeader('Cache-Control', 'no-cache');
+
+    return res.send(csvContent);
+  }
+
+  @OpenAPI({
     summary: 'Update item optional status',
     description: `Updates the optional status of a specific item.
 Accessible to:
@@ -499,11 +542,11 @@ Accessible to:
 
     const result = await this.itemService.processCSVAndCreateItems(
       youtubeurl,
-      moduleId,    
-      sectionId,   
-      versionId,   
-      courseId,    
-      userId,      
+      moduleId,
+      sectionId,
+      versionId,
+      courseId,
+      userId,
       data
     );
     return result;

@@ -41,9 +41,19 @@ import { PROJECTS_TYPES } from '#root/modules/projects/types.js';
 import { IProjectSubmissionRepository } from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
 import { FeedbackRepository } from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
 import { GetCurrentProgressPathResponse } from '../classes/dtos/GetCurrentProgressPathResponse.js';
+import { SETTING_TYPES } from '#root/modules/setting/types.js';
+import { CourseSettingService } from '#root/modules/setting/index.js';
+import { getContainer } from "#root/bootstrap/loadModules.js";
 
 @injectable()
 class ProgressService extends BaseService {
+
+  private getCourseSettingService(): CourseSettingService {
+    return getContainer().get<CourseSettingService>(
+      SETTING_TYPES.SettingRepo
+    );
+  }
+
   constructor(
     @inject(USERS_TYPES.ProgressRepo)
     private readonly progressRepository: ProgressRepository,
@@ -463,7 +473,7 @@ class ProgressService extends BaseService {
     completedItems: number,
   ): number {
     if (!totalItems || totalItems === 0) return 0;
-    return ((completedItems ?? 0) / totalItems) * 100;
+    return parseFloat((((completedItems ?? 0) / totalItems) * 100).toFixed(2));
   }
 
   private async verifyDetails(
@@ -519,6 +529,12 @@ class ProgressService extends BaseService {
     );
 
     if (isItemCompleted) {
+      return;
+    }
+
+    // if linear progression is not enabled then also continue 
+    const linearProgressionEnabled = await this.getCourseSettingService().isLinearProgressionEnabled(courseId, courseVersionId);
+    if(!linearProgressionEnabled){
       return;
     }
 
@@ -1466,6 +1482,23 @@ class ProgressService extends BaseService {
         session,
       );
 
+      const linearProgressionEnabled = await this.getCourseSettingService().isLinearProgressionEnabled(courseId, courseVersionId);
+      if(!linearProgressionEnabled){
+        const newProgress: Partial<IProgress> = {
+          completed: isItemCompleted,
+          currentModule: moduleId,
+          currentSection: sectionId,
+          currentItem: itemId,
+        }
+
+        await this.progressRepository.updateProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          newProgress
+        );
+      }
+
       return result;
     });
   }
@@ -1728,8 +1761,8 @@ class ProgressService extends BaseService {
       courseVersion.totalItems ??
       (await this.itemRepo.CalculateTotalItemsCount(courseId, courseVersionId));
 
-    const percentCompleted = Math.round(
-      (totalItems > 0 ? completedItemsSet.size / totalItems : 0) * 100,
+    const percentCompleted = parseFloat(
+      ((totalItems > 0 ? completedItemsSet.size / totalItems : 0) * 100).toFixed(2),
     );
 
     // Fire-and-forget safe update
@@ -2959,7 +2992,7 @@ class ProgressService extends BaseService {
     const percentCompleted =
       totalItemsCount > 0
         ? Math.min(
-          Math.round((normalizedTotalItemsCount / totalItemsCount) * 100),
+          parseFloat(((normalizedTotalItemsCount / totalItemsCount) * 100).toFixed(2)),
           100,
         )
         : 0;
