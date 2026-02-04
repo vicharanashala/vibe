@@ -9,7 +9,7 @@ import { useEffect, useRef } from "react";
 import { ISubmitFeedbackBody } from "@/components/Item-container";
 import Form from "@rjsf/shadcn";
 import { toast } from "sonner";
-
+import { buildEmptyFormData } from "@/utils/utils";
 
 interface FeedbackFormProps {
   title: string;
@@ -22,10 +22,6 @@ interface FeedbackFormProps {
   isSubmitting?: boolean;
   onNext: () => void
 }
-
-
-
-
 
 const FeedbackForm = ({
   title,
@@ -174,16 +170,7 @@ const FeedbackForm = ({
     onNext()
 
   };
-  const buildEmptyFormData = (schema: any) => {
-  if (!schema?.properties) return {};
-
-  const obj: Record<string, any> = {};
-  Object.keys(schema.properties).forEach((key) => {
-    obj[key] = undefined; //  stops enum auto select
-  });
-
-  return obj;
-};
+ 
 
 
   return (
