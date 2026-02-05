@@ -1465,8 +1465,15 @@ export function useStopItem() {
           predicate: (query) =>
             query.queryKey[0] === "get" &&
             query.queryKey[1] ===
-            "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items",
+            `/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items`,
         });
+      queryClient.invalidateQueries({
+  predicate: (query) =>
+    query.queryKey[0] === "get" &&
+    query.queryKey[1] ===
+      "/users/progress/courses/{courseId}/versions/{versionId}/modules",
+});
+
 
       },
     }
@@ -3698,6 +3705,42 @@ export const exportQuizSubmissions = async (quizId: string) => {
 
   URL.revokeObjectURL(url);
 }
+
+export function useModuleProgress(
+  courseId: string,
+  versionId: string
+): {
+  data: {
+    moduleId: string;
+    moduleName: string;
+    totalItems: number;
+    completedItems: number;
+  }[] | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = api.useQuery(
+    'get',
+    `/users/progress/courses/${courseId}/versions/${versionId}/modules` as any,
+    {
+      params: {
+        path: { courseId, versionId }
+      }
+    },
+    {
+      enabled: !!courseId && !!versionId
+    }
+  );
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || "Failed to fetch module progress") : null,
+    refetch: result.refetch
+  };
+}
+
 
 export const useHideModule = (): {
   mutate: (variables: { params: { path: { versionId: string, moduleId: string } }, body: { hide: boolean } }) => void,
