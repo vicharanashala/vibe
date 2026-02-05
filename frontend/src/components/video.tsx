@@ -729,9 +729,6 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
             const newMaxTime = Math.max(currentMaxTime, time);
             maxTimeRef.current = newMaxTime; // Update ref immediately
             setMaxTime(newMaxTime); // Update state for UI
-          // Simple progress tracking - no complex seeking logic
-          if (time >= startTimeSeconds && time <= endTimeSeconds) {
-            // Just track progress without interfering
           }
         }
       }, Math.max(200, 500 / playbackRate));
