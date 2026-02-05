@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react"; ExternalLink
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"; ExternalLink
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -52,6 +52,7 @@ import { toast } from "sonner";
 import ItemContainer from "@/components/Item-container";
 import logo from "../../../../public/img/vibe_logo_img.ico"
 import { registerStream, unRegisterStream } from "@/lib/MediaRegistry";
+import { useModuleProgress } from "@/hooks/hooks";
 
 // Helper function to get icon for item type
 const getItemIcon = (type: string) => {
@@ -202,6 +203,9 @@ export default function CoursePage() {
   // Fetch user progress
   const { data: progressData, isLoading: progressLoading, error: progressError } =
     useUserProgress(COURSE_ID, VERSION_ID);
+  const { data: moduleProgressData, isLoading: moduleProgressLoading } =
+  useModuleProgress(COURSE_ID, VERSION_ID);
+
 
   // Fetch proctoring settings for the course (fetched once when component loads)
   const [proctoringData, setProctoringData] = useState<StudentProctoringSettings | null>(null);
@@ -570,6 +574,16 @@ export default function CoursePage() {
       setIsFlagModalOpen(false);
     }
   };
+  const moduleProgressMap = useMemo(() => {
+  const map = new Map();
+
+  moduleProgressData?.forEach((m: any) => {
+    map.set(m.moduleId, m);
+  });
+
+  return map;
+}, [moduleProgressData]);
+
 
 
   // Handle item selection
@@ -1444,6 +1458,7 @@ export default function CoursePage() {
                 <SidebarMenu className="space-y-1 text-sm pr-0">
                   {modules.map((module: any) => {
                     const moduleId = module.moduleId;
+                    const progress = moduleProgressMap.get(moduleId);
                     const isModuleExpanded = expandedModules[moduleId];
                     const isCurrentModule = moduleId === selectedModuleId;
 
@@ -1461,8 +1476,17 @@ export default function CoursePage() {
                           <div className="flex-1 text-left min-w-0 ml-2">
                             <Tooltip>
                               <TooltipTrigger asChild>
+                                <div className="flex gap-4 items-center justify-between">
+                                   
                                 <div className="font-medium text-xs truncate">
                                   {module.name.length > 34 ? `${module.name.substring(0, 31)}...` : module.name}
+                                </div>
+                                 <div className={`text-[10px] ${(progress?.completedItems===progress?.totalItems && progress?.totalItems>0) ?`dark:text-green-500 text-green-600 `:` text-muted-foreground` }`}>
+                                    {moduleProgressLoading
+                                      ? "..."
+                                      : `${progress?.completedItems ?? 0}/${progress?.totalItems ?? 0} completed`
+                                    }
+                              </div>
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent side="right" align="center">
@@ -1472,6 +1496,7 @@ export default function CoursePage() {
                             <div className="text-[10px] text-muted-foreground truncate">
                               {module.sections?.length || 0} sections
                             </div>
+                            
                           </div>
                         </SidebarMenuButton>
 
