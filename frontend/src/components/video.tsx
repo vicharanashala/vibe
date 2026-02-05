@@ -75,6 +75,9 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
   // Track if we've already auto-played the video
   const hasAutoPlayedRef = useRef(false)
 
+  // Track maxTime with a ref for synchronous updates (state updates are async)
+  const maxTimeRef = useRef(startTimeSeconds);
+
   // Track grace period completion
   const [gracePeriodCompleted, setGracePeriodCompleted] = useState(false);
 
@@ -176,7 +179,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
   useEffect(() => {
     setGracePeriodCompleted(false);
     hasAutoPlayedRef.current = false; // Reset autoplay flag for new video
-  }, [videoId]);
+    maxTimeRef.current = startTimeSeconds; // Reset maxTime ref
+  }, [videoId, startTimeSeconds]);
 
   // // Ensure video doesn't autoplay accidentally
   // useEffect(() => {
@@ -189,7 +193,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
 
   useEffect(() => {
     playerRef.current?.setPlaybackRate?.(playbackRate);
-  }, [playbackRate, playerRef, videoId, iframeRef, playerReady, currentTime]);
+  }, [playbackRate]);
 
   // Control handlers
   const handlePlayPause = useCallback(() => {
@@ -423,7 +427,6 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
 
     function createPlayer() {
       if (!iframeRef.current || !videoId) return;
-
 
       playerRef.current = new window.YT!.Player(iframeRef.current, {
         videoId,
@@ -715,13 +718,19 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
           // Prevent forward seeking beyond what they've already watched
           // BUT allow forward seeking if either the video is completed OR seek forward is enabled in settings
           const speedTolerance = playbackRate * 1.0;
-          const timeDifference = time - maxTime;
+          const currentMaxTime = maxTimeRef.current; // Use ref for synchronous value
+          const timeDifference = time - currentMaxTime;
 
-          if (timeDifference > speedTolerance + 1.0 && time <= endTimeSeconds && !seekForwardEnabled) {
+          // Determine the effective end time (use duration if no end time is set)
+          const effectiveEndTime = endTimeSeconds > 0 ? endTimeSeconds : duration;
+
+          if (timeDifference > speedTolerance + 1.0 && time <= effectiveEndTime && !seekForwardEnabled) {
             if (!player) return;
-            player.seekTo(maxTime, true);
-          } else if (time >= startTimeSeconds && time <= endTimeSeconds) {
-            setMaxTime(Math.max(maxTime, time));
+            player.seekTo(currentMaxTime, true);
+          } else if (time >= startTimeSeconds && (endTimeSeconds === 0 || time <= endTimeSeconds)) {
+            const newMaxTime = Math.max(currentMaxTime, time);
+            maxTimeRef.current = newMaxTime; // Update ref immediately
+            setMaxTime(newMaxTime); // Update state for UI
           }
         }
       }, Math.max(200, 500 / playbackRate));
