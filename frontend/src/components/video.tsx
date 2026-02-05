@@ -75,6 +75,9 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
   // Track if we've already auto-played the video
   const hasAutoPlayedRef = useRef(false)
 
+  // Track maxTime with a ref for synchronous updates (state updates are async)
+  const maxTimeRef = useRef(startTimeSeconds);
+
   // Track grace period completion
   const [gracePeriodCompleted, setGracePeriodCompleted] = useState(false);
 
@@ -175,7 +178,9 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
   // Reset when video changes
   useEffect(() => {
     setGracePeriodCompleted(false);
-  }, [videoId]);
+    hasAutoPlayedRef.current = false; // Reset autoplay flag for new video
+    maxTimeRef.current = startTimeSeconds; // Reset maxTime ref
+  }, [videoId, startTimeSeconds]);
 
   // // Ensure video doesn't autoplay accidentally
   // useEffect(() => {
@@ -187,8 +192,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
   // }, [playerReady]);
 
   useEffect(() => {
-    playerRef.current?.setPlaybackRate(playbackRate);
-  }, [playbackRate, playerRef, videoId, iframeRef, playerReady, currentTime]);
+    playerRef.current?.setPlaybackRate?.(playbackRate);
+  }, [playbackRate]);
 
   // Control handlers
   const handlePlayPause = useCallback(() => {
@@ -214,7 +219,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
     if (!player) return;
     // Allow forward seek if either the video is completed OR seek forward is enabled in settings
     if (!seekForwardEnabled) return;
-    
+
     const maxSeekTime = endTimeSeconds > 0 ? endTimeSeconds : duration;
     const newTime = Math.min(maxSeekTime, currentTime + 10);
     player.seekTo(newTime, true);
@@ -423,7 +428,6 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
     function createPlayer() {
       if (!iframeRef.current || !videoId) return;
 
-
       playerRef.current = new window.YT!.Player(iframeRef.current, {
         videoId,
         playerVars: {
@@ -555,6 +559,9 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
       progressStoppedRef.current = false;
       stopInFlightRef.current = false;
       watchItemIdRef.current = null;
+
+      // Reset player ready state when video changes
+      setPlayerReady(false);
 
       // Destroy player
       if (playerRef.current) {
@@ -706,9 +713,22 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
             return;
           }
 
-          // Simple progress tracking - no complex seeking logic
-          if (time >= startTimeSeconds && time <= endTimeSeconds) {
-            // Just track progress without interfering
+          // Prevent forward seeking beyond what they've already watched
+          // BUT allow forward seeking if either the video is completed OR seek forward is enabled in settings
+          const speedTolerance = playbackRate * 1.0;
+          const currentMaxTime = maxTimeRef.current; // Use ref for synchronous value
+          const timeDifference = time - currentMaxTime;
+
+          // Determine the effective end time (use duration if no end time is set)
+          const effectiveEndTime = endTimeSeconds > 0 ? endTimeSeconds : duration;
+
+          if (timeDifference > speedTolerance + 1.0 && time <= effectiveEndTime && !seekForwardEnabled) {
+            if (!player) return;
+            player.seekTo(currentMaxTime, true);
+          } else if (time >= startTimeSeconds && (endTimeSeconds === 0 || time <= endTimeSeconds)) {
+            const newMaxTime = Math.max(currentMaxTime, time);
+            maxTimeRef.current = newMaxTime; // Update ref immediately
+            setMaxTime(newMaxTime); // Update state for UI
           }
         }
       }, Math.max(200, 500 / playbackRate));
@@ -1536,7 +1556,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
                       // Update both local state and global store
                       setPlaybackRate(closest);
                     } else {
-                      playerRef.current?.setPlaybackRate(rate);
+                      playerRef.current?.setPlaybackRate?.(rate);
                       // Update both local state and global store
                       setPlaybackRate(rate);
                     }
