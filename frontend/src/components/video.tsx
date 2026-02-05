@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent } from '@/components/ui/card';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Captions, Loader2, XCircle, Maximize, Minimize } from 'lucide-react';
 import { useSkipOptionalItem, useStartItem, useStopItem } from '../hooks/hooks';
 
@@ -32,7 +33,7 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-export default function Video({ URL, startTime, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, isCompleted = false }: VideoProps) {
+export default function Video({ URL, startTime, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, linearProgressionEnabled, seekForwardEnabled, isCompleted = false }: VideoProps) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const [playerReady, setPlayerReady] = useState(false);
@@ -74,6 +75,9 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
 
   // Track if we've already auto-played the video
   const hasAutoPlayedRef = useRef(false)
+
+  // Track maxTime with a ref for synchronous updates (state updates are async)
+  const maxTimeRef = useRef(startTimeSeconds);
 
   // Track grace period completion
   const [gracePeriodCompleted, setGracePeriodCompleted] = useState(false);
@@ -175,7 +179,9 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
   // Reset when video changes
   useEffect(() => {
     setGracePeriodCompleted(false);
-  }, [videoId]);
+    hasAutoPlayedRef.current = false; // Reset autoplay flag for new video
+    maxTimeRef.current = startTimeSeconds; // Reset maxTime ref
+  }, [videoId, startTimeSeconds]);
 
   // // Ensure video doesn't autoplay accidentally
   // useEffect(() => {
@@ -187,8 +193,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
   // }, [playerReady]);
 
   useEffect(() => {
-    playerRef.current?.setPlaybackRate(playbackRate);
-  }, [playbackRate, playerRef, videoId, iframeRef, playerReady, currentTime]);
+    playerRef.current?.setPlaybackRate?.(playbackRate);
+  }, [playbackRate]);
 
   // Control handlers
   const handlePlayPause = useCallback(() => {
@@ -212,9 +218,9 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
   const handleForward = () => {
     const player = playerRef.current;
     if (!player) return;
-    // Only allow forward seek if the video is completed
-    if (!isCompleted) return;
-    
+    // Allow forward seek if either the video is completed OR seek forward is enabled in settings
+    if (!seekForwardEnabled) return;
+
     const maxSeekTime = endTimeSeconds > 0 ? endTimeSeconds : duration;
     const newTime = Math.min(maxSeekTime, currentTime + 10);
     player.seekTo(newTime, true);
@@ -423,7 +429,6 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
     function createPlayer() {
       if (!iframeRef.current || !videoId) return;
 
-
       playerRef.current = new window.YT!.Player(iframeRef.current, {
         videoId,
         playerVars: {
@@ -556,6 +561,9 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
       stopInFlightRef.current = false;
       watchItemIdRef.current = null;
 
+      // Reset player ready state when video changes
+      setPlayerReady(false);
+
       // Destroy player
       if (playerRef.current) {
         playerRef.current.destroy?.();
@@ -619,7 +627,6 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
           if (time < startTimeSeconds) {
             if (!player) return;
             player.seekTo(startTimeSeconds, true);
-            setMaxTime(startTimeSeconds);
             return;
           }
 
@@ -701,7 +708,6 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
             player.pauseVideo();
             if (!player) return;
             player.seekTo(endTimeSeconds, true);
-            setMaxTime(endTimeSeconds);
             if (!videoEnded) {
               setVideoEnded(true);
             }
@@ -709,21 +715,27 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
           }
 
           // Prevent forward seeking beyond what they've already watched
-          // BUT allow forward seeking if the video is completed
+          // BUT allow forward seeking if either the video is completed OR seek forward is enabled in settings
           const speedTolerance = playbackRate * 1.0;
-          const timeDifference = time - maxTime;
+          const currentMaxTime = maxTimeRef.current; // Use ref for synchronous value
+          const timeDifference = time - currentMaxTime;
 
-          if (timeDifference > speedTolerance + 1.0 && time <= endTimeSeconds && !isCompleted) {
+          // Determine the effective end time (use duration if no end time is set)
+          const effectiveEndTime = endTimeSeconds > 0 ? endTimeSeconds : duration;
+
+          if (timeDifference > speedTolerance + 1.0 && time <= effectiveEndTime && !seekForwardEnabled) {
             if (!player) return;
-            player.seekTo(maxTime, true);
-          } else if (time >= startTimeSeconds && time <= endTimeSeconds) {
-            setMaxTime(Math.max(maxTime, time));
+            player.seekTo(currentMaxTime, true);
+          } else if (time >= startTimeSeconds && (endTimeSeconds === 0 || time <= endTimeSeconds)) {
+            const newMaxTime = Math.max(currentMaxTime, time);
+            maxTimeRef.current = newMaxTime; // Update ref immediately
+            setMaxTime(newMaxTime); // Update state for UI
           }
         }
       }, Math.max(200, 500 / playbackRate));
     }
     return () => clearInterval(interval);
-  }, [playerReady, maxTime, playbackRate, startTimeSeconds, endTimeSeconds, videoEnded, isCompleted]);
+  }, [playerReady, playbackRate, startTimeSeconds, endTimeSeconds, videoEnded]);
 
   useEffect(() => {
     if (!keyboardLockEnabled) return;
@@ -1388,18 +1400,28 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Progress Bar - Visual indicator only, no seeking */}
+          {/* Progress Bar - Seeking controlled by seekForwardEnabled */}
           <div style={{ marginBottom: 8 }}>
             <Slider
               value={[currentTime]}
               min={startTimeSeconds}
               max={endTimeSeconds > 0 ? endTimeSeconds : duration}
               step={0.1}
-              onValueChange={() => {
-                // Disabled - no seeking allowed
+              onValueChange={(value) => {
+                const newTime = value[0];
+                
+                // If seekForward is disabled and user tries to seek forward
+                if (!seekForwardEnabled && newTime > currentTime) {
+                  toast.error('You are not allowed to seek forward');
+                  return;
+                }
+                
+                // Allow seeking (backward always, forward only if enabled)
+                if (playerRef.current) {
+                  playerRef.current.seekTo(newTime, true);
+                }
               }}
-              className="w-full pointer-events-none"
-              disabled
+              className="w-full"
             />
           </div>
 
@@ -1439,8 +1461,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
                 <SkipBack className="h-3 w-3 scale-130" />
               </Button>
 
-              {/* Forward seek button - only shown for completed videos */}
-              {isCompleted && (
+              {/* Forward seek button - shown when seekForwardEnabled is true */}
+              {seekForwardEnabled && (
                 <Button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -1450,7 +1472,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
                   variant="secondary"
                   className="rounded-full w-11 h-11 flex-shrink-0"
                   aria-label="Forward 10 seconds"
-                  title="Forward 10 seconds (available for completed videos)"
+                  title="Forward 10 seconds"
                 >
                   <SkipForward className="h-3 w-3 scale-130" />
                 </Button>
@@ -1473,98 +1495,114 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
 
-              {/* Subtitles */}
-              <Button
-                onClick={handleToggleSubtitles}
-                variant="ghost"
-                size="icon"
-                className={`rounded-sm relative group transition-colors duration-200 ${subtitlesEnabled
-                  ? "text-black dark:text-white"
-                  : "text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
-                  }`}
-              >
-                <span className="scale-[1.4] flex items-center justify-center">
-                  <Captions className="h-6 w-6" strokeWidth={2.5} />
-                </span>
+              <TooltipProvider>
+                {/* Subtitles */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      onClick={handleToggleSubtitles}
+                      variant="ghost"
+                      size="icon"
+                      className={`rounded-sm relative group transition-colors duration-200 ${subtitlesEnabled
+                        ? "text-black dark:text-white"
+                        : "text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
+                        }`}
+                    >
+                      <span className="scale-[1.4] flex items-center justify-center">
+                        <Captions className="h-6 w-6" strokeWidth={2.5} />
+                      </span>
 
-                {subtitlesEnabled && (
-                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-[2px] bg-red-500 rounded-full"></span>
-                )}
-              </Button>
+                      {subtitlesEnabled && (
+                        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-[2px] bg-red-500 rounded-full"></span>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Toggle Subtitles</p>
+                  </TooltipContent>
+                </Tooltip>
 
-              {/* Fullscreen Toggle */}
-              <Button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleFullscreen();
-                }}
-                variant="ghost"
-                size="icon"
-                className="rounded-sm relative group transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
-                aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-              >
-                <span className="scale-[1.4] flex items-center justify-center">
-                  {isFullscreen ? (
-                    <Minimize className="h-6 w-6" strokeWidth={2.5} />
-                  ) : (
-                    <Maximize className="h-6 w-6" strokeWidth={2.5} />
-                  )}
-                </span>
-              </Button>
-
-              {/* Speed Control */}
-              <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
-                <span className="text-md font-bold text-foreground min-w-[24px]">
-                  Speed
-                </span>
-                <Slider
-                  value={[playbackRate]}
-                  min={0.25}
-                  max={2}
-                  step={0.05}
-                  onValueChange={(value) => {
-                    const rate = value[0];
-                    const player = playerRef.current;
-                    if (player && typeof player.getAvailablePlaybackRates === 'function') {
-                      const availableRates = player.getAvailablePlaybackRates!();
-                      let closest = availableRates[0];
-                      for (const r of availableRates) {
-                        if (Math.abs(r - rate) < Math.abs(closest - rate)) closest = r;
+                {/* Speed Control */}
+                <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
+                  <span className="text-md font-bold text-foreground min-w-[24px]">
+                    Speed
+                  </span>
+                  <Slider
+                    value={[playbackRate]}
+                    min={0.25}
+                    max={2}
+                    step={0.05}
+                    onValueChange={(value) => {
+                      const rate = value[0];
+                      const player = playerRef.current;
+                      if (player && typeof player.getAvailablePlaybackRates === 'function') {
+                        const availableRates = player.getAvailablePlaybackRates!();
+                        let closest = availableRates[0];
+                        for (const r of availableRates) {
+                          if (Math.abs(r - rate) < Math.abs(closest - rate)) closest = r;
+                        }
+                        player.setPlaybackRate(closest);
+                        // Update both local state and global store
+                        setPlaybackRate(closest);
+                      } else {
+                        playerRef.current?.setPlaybackRate(rate);
+                        // Update both local state and global store
+                        setPlaybackRate(rate);
                       }
-                      player.setPlaybackRate(closest);
-                      // Update both local state and global store
-                      setPlaybackRate(closest);
-                    } else {
-                      playerRef.current?.setPlaybackRate(rate);
-                      // Update both local state and global store
-                      setPlaybackRate(rate);
-                    }
-                  }}
-                  className="w-[80px]"
-                />
-                <span className="text-md font-semibold text-primary min-w-[24px] text-center">
-                  {playbackRate.toFixed(2)}x
-                </span>
-              </Card>
+                    }}
+                    className="w-[80px]"
+                  />
+                  <span className="text-md font-semibold text-primary min-w-[24px] text-center">
+                    {playbackRate.toFixed(2)}x
+                  </span>
+                </Card>
 
-              {/* Volume Control */}
-              <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
-                <Volume2 className="h-3 w-3 text-accent flex-shrink-0 scale-160" />
-                <Slider
-                  value={[volume]}
-                  min={0}
-                  max={100}
-                  onValueChange={(value) => {
-                    const v = value[0];
-                    setVolume(v);
-                    playerRef.current?.setVolume(v);
-                  }}
-                  className="w-[80px]"
-                />
-                <span className="text-md font-bold text-foreground min-w-[24px] text-center">
-                  {Math.round(volume)}%
-                </span>
-              </Card>
+                {/* Volume Control */}
+                <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
+                  <Volume2 className="h-3 w-3 text-accent flex-shrink-0 scale-160" />
+                  <Slider
+                    value={[volume]}
+                    min={0}
+                    max={100}
+                    onValueChange={(value) => {
+                      const v = value[0];
+                      setVolume(v);
+                      playerRef.current?.setVolume(v);
+                    }}
+                    className="w-[80px]"
+                  />
+                  <span className="text-md font-bold text-foreground min-w-[24px] text-center">
+                    {Math.round(volume)}%
+                  </span>
+                </Card>
+
+                {/* Fullscreen Toggle */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFullscreen();
+                      }}
+                      variant="ghost"
+                      size="icon"
+                      className="rounded-sm relative group transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
+                      aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+                    >
+                      <span className="scale-[1.4] flex items-center justify-center">
+                        {isFullscreen ? (
+                          <Minimize className="h-6 w-6" strokeWidth={2.5} />
+                        ) : (
+                          <Maximize className="h-6 w-6" strokeWidth={2.5} />
+                        )}
+                      </span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
 

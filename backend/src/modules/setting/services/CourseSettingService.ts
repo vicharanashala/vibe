@@ -126,6 +126,7 @@ class CourseSettingService extends BaseService {
         settings.proctors = new ProctoringSettingsDto();
         settings.proctors.detectors = [];
         settings.linearProgressionEnabled = true;
+        settings.seekForwardEnabled = false;
 
         const created = await this.createCourseSettings(
           new CourseSetting({
@@ -152,6 +153,7 @@ class CourseSettingService extends BaseService {
     courseVersionId: string,
     detectors: DetectorSettingsDto[],
     linearProgressionEnabled: boolean,
+    seekForwardEnabled: boolean,
     userId: string,
   ): Promise<boolean> {
     return this._withTransaction(async session => {
@@ -166,6 +168,8 @@ class CourseSettingService extends BaseService {
         const settings = new SettingsDto();
         settings.proctors = new ProctoringSettingsDto();
         settings.proctors.detectors = detectors;
+        settings.linearProgressionEnabled = linearProgressionEnabled;
+        settings.seekForwardEnabled = seekForwardEnabled;
 
         settings.audit = [
           {
@@ -177,6 +181,7 @@ class CourseSettingService extends BaseService {
               after: {
                 detectors,
                 linearProgressionEnabled,
+                seekForwardEnabled,
               },
             },
           },
@@ -202,11 +207,14 @@ class CourseSettingService extends BaseService {
         detectors: courseSettings.settings?.proctors?.detectors,
         linearProgressionEnabled:
           courseSettings.settings?.linearProgressionEnabled,
+        seekForwardEnabled:
+          courseSettings.settings?.seekForwardEnabled,
       };
 
       const afterState = {
         detectors,
         linearProgressionEnabled,
+        seekForwardEnabled,
       };
 
       const audit: AuditingDto = {
@@ -224,6 +232,7 @@ class CourseSettingService extends BaseService {
         courseVersionId,
         detectors,
         linearProgressionEnabled,
+        seekForwardEnabled,
         audit,
         session,
       );
