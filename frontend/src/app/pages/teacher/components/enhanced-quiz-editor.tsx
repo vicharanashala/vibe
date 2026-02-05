@@ -76,6 +76,7 @@ interface EnhancedQuizEditorProps {
   selectedItemName: string,
   isLoading: boolean;
   performance: any;
+  questionId?: string | null;
   onDelete: () => void;
 }
 
@@ -265,6 +266,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   analytics,
   // submissions,
   performance,
+  questionId,
   onDelete,
 }) => {
   const [selectedTab, setSelectedTab] = useState('analytics');
@@ -910,6 +912,22 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
     <>
       {isLoading ? <Loader /> :
         <div className="h-full flex flex-col">
+          {/* Flagged Question Banner */}
+          {questionId && (
+            <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-4">
+              <div className="flex items-center">
+                <FlagTriangleRight className="h-5 w-5 text-amber-400 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-amber-800">
+                    Viewing Flagged Question
+                  </p>
+                  <p className="text-xs text-amber-700">
+                    Question ID: {questionId.slice(-8)} • This question was flagged by a student
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="border-b">
             <div className="md:p-6 pb-6">
               <div className="lg:flex items-center justify-between">
