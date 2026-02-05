@@ -118,6 +118,13 @@ export class SettingsDto {
   })
   @IsBoolean()
   linearProgressionEnabled: boolean;
+
+  @JSONSchema({
+    description: 'Indicates whether seek forward is enabled for all videos',
+    examples: [true, false],
+  })
+  @IsBoolean()
+  seekForwardEnabled: boolean;
   // jsonSchema?:any
   // uiSchema?:any
   @IsOptional()
@@ -297,6 +304,13 @@ export class AddCourseProctoringBody {
     description: 'Student should follow the cours linearly if this is enabled'
   })
   linearProgressionEnabled: boolean;
+
+  @IsDefined()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Allow students to seek forward in all videos if this is enabled'
+  })
+  seekForwardEnabled: boolean;
 
 }
 

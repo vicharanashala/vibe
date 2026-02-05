@@ -1901,6 +1901,7 @@ export default function CoursePage() {
                       anomalies={anomalies}
                       keyboardLockEnabled={!isFlagModalOpen}
                       linearProgressionEnabled={proctoringData?.settings.linearProgressionEnabled || true}
+                      seekForwardEnabled={proctoringData?.settings.seekForwardEnabled || false}
                       setIsQuizSkipped={setIsQuizSkipped}
                       courseId={COURSE_ID}
                       versionId={VERSION_ID}
