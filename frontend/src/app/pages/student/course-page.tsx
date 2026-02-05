@@ -42,7 +42,7 @@ import {
   Headphones,
   ExternalLink
 } from "lucide-react";
-import FloatingVideo from "@/components/floating-video";
+import FloatingVideo, { FloatingVideoPlaceholder } from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
 import { logout } from "@/utils/auth";
 import { StudentProctoringSettings } from "@/types/video.types";
@@ -1375,7 +1375,6 @@ export default function CoursePage() {
     <>
       <Dialog open={showProctorDialog} onOpenChange={(open) => {
         if (!open) {
-          setShowProctorDialog(false);
           router.navigate({ to: '/student' });
         }
       }}>
@@ -1385,7 +1384,7 @@ export default function CoursePage() {
           </DialogHeader>
           <ul className="text-base text-foreground mb-4 list-disc pl-6 space-y-2">
             <li>
-              I understand that my camera and microphone will be used for proctoring during this exam.
+              I understand that my camera and microphone will be used during this course for proctoring.
             </li>
             <li>
               I agree that images from my webcam may be captured at various points if unusual activity is detected.
@@ -1581,32 +1580,34 @@ export default function CoursePage() {
               </ScrollArea>
             </SidebarContent>
             <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60 ">
-              <FloatingVideo
-                isVisible={!allProctorsDisabled}
-                onClose={() => { }}
-                onAnomalyDetected={() => { }}
-                setDoGesture={setDoGesture}
-                settings={proctoringData || {
-                  _id: "",
-                  studentId: "",
-                  versionId: "",
-                  courseId: "",
-                  settings: {
-                    proctors: {
-                      detectors: []
-                    },
-                    linearProgressionEnabled: true
-                  }
-                }}
-                anomalies={anomalies}
-                readyToDetect={readyToDetect}
-                setReadyToDetect={setReadyToDetect}
-                setAnomalies={setAnomalies}
-                rewindVid={rewindVid}
-                setRewindVid={setRewindVid}
-                pauseVid={pauseVid}
-                setPauseVid={setPauseVid}
-              />
+              {!showProctorDialog ?
+                <FloatingVideo
+                  isVisible={!allProctorsDisabled}
+                  onClose={() => { }}
+                  onAnomalyDetected={() => { }}
+                  setDoGesture={setDoGesture}
+                  settings={proctoringData || {
+                    _id: "",
+                    studentId: "",
+                    versionId: "",
+                    courseId: "",
+                    settings: {
+                      proctors: {
+                        detectors: []
+                      },
+                      linearProgressionEnabled: true
+                    }
+                  }}
+                  anomalies={anomalies}
+                  readyToDetect={readyToDetect}
+                  setReadyToDetect={setReadyToDetect}
+                  setAnomalies={setAnomalies}
+                  rewindVid={rewindVid}
+                  setRewindVid={setRewindVid}
+                  pauseVid={pauseVid}
+                  setPauseVid={setPauseVid}
+                />:
+                <FloatingVideoPlaceholder/>}
             </SidebarFooter>
             {/* Navigation Footer */}
             <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
@@ -1909,6 +1910,7 @@ export default function CoursePage() {
                       anomalies={anomalies}
                       keyboardLockEnabled={!isFlagModalOpen}
                       linearProgressionEnabled={proctoringData?.settings.linearProgressionEnabled || true}
+                      seekForwardEnabled={proctoringData?.settings.seekForwardEnabled || false}
                       setIsQuizSkipped={setIsQuizSkipped}
                       courseId={COURSE_ID}
                       versionId={VERSION_ID}

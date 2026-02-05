@@ -189,11 +189,7 @@ const studentLayoutRoute = new Route({
       }
     }
   },
-  component: () => (
-    <StudentRouteGuard>
-      <StudentLayout />
-    </StudentRouteGuard>
-  )
+  component: StudentLayout
   ,
 });
 
@@ -377,7 +373,11 @@ export const studentCourseInviteRegistration = new Route({
 const coursePageRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/student/learn',
-  component: CoursePage,
+  component: () => (
+    <StudentRouteGuard>
+      <CoursePage />
+    </StudentRouteGuard>
+  ),
   beforeLoad: () => {
     const { isAuthenticated, user } = useAuthStore.getState();
     if (!isAuthenticated) {

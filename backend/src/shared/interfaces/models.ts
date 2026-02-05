@@ -494,6 +494,7 @@ export interface IRegistrationSettings {
 export interface ISettings {
   proctors: IProctoringSettings;
   linearProgressionEnabled: boolean;
+  seekForwardEnabled: boolean;
   // registration_settings?: IRegistrationSettings[];
   registration?: {
     jsonSchema?: any;
