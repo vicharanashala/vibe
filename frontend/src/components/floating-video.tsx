@@ -109,7 +109,7 @@ function FloatingVideo({
       (detector) => detector.detectorName === componentName
     );
     
-    return detector?.settings?.enabled ?? true;
+    return detector?.settings?.enabled ?? false;
   }, [settings]);
 
   // Check which components are enabled
