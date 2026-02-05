@@ -175,6 +175,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
   // Reset when video changes
   useEffect(() => {
     setGracePeriodCompleted(false);
+    hasAutoPlayedRef.current = false; // Reset autoplay flag for new video
   }, [videoId]);
 
   // // Ensure video doesn't autoplay accidentally
@@ -187,7 +188,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
   // }, [playerReady]);
 
   useEffect(() => {
-    playerRef.current?.setPlaybackRate(playbackRate);
+    playerRef.current?.setPlaybackRate?.(playbackRate);
   }, [playbackRate, playerRef, videoId, iframeRef, playerReady, currentTime]);
 
   // Control handlers
@@ -214,7 +215,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
     if (!player) return;
     // Only allow forward seek if the video is completed
     if (!isCompleted) return;
-    
+
     const maxSeekTime = endTimeSeconds > 0 ? endTimeSeconds : duration;
     const newTime = Math.min(maxSeekTime, currentTime + 10);
     player.seekTo(newTime, true);
@@ -555,6 +556,9 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
       progressStoppedRef.current = false;
       stopInFlightRef.current = false;
       watchItemIdRef.current = null;
+
+      // Reset player ready state when video changes
+      setPlayerReady(false);
 
       // Destroy player
       if (playerRef.current) {
@@ -1535,7 +1539,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
                       // Update both local state and global store
                       setPlaybackRate(closest);
                     } else {
-                      playerRef.current?.setPlaybackRate(rate);
+                      playerRef.current?.setPlaybackRate?.(rate);
                       // Update both local state and global store
                       setPlaybackRate(rate);
                     }
