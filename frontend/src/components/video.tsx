@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent } from '@/components/ui/card';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Captions, Loader2, XCircle, Maximize, Minimize } from 'lucide-react';
 import { useSkipOptionalItem, useStartItem, useStopItem } from '../hooks/hooks';
 
@@ -214,7 +215,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
     if (!player) return;
     // Only allow forward seek if the video is completed
     if (!isCompleted) return;
-    
+
     const maxSeekTime = endTimeSeconds > 0 ? endTimeSeconds : duration;
     const newTime = Math.min(maxSeekTime, currentTime + 10);
     player.seekTo(newTime, true);
@@ -1473,98 +1474,114 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
 
-              {/* Subtitles */}
-              <Button
-                onClick={handleToggleSubtitles}
-                variant="ghost"
-                size="icon"
-                className={`rounded-sm relative group transition-colors duration-200 ${subtitlesEnabled
-                  ? "text-black dark:text-white"
-                  : "text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
-                  }`}
-              >
-                <span className="scale-[1.4] flex items-center justify-center">
-                  <Captions className="h-6 w-6" strokeWidth={2.5} />
-                </span>
+              <TooltipProvider>
+                {/* Subtitles */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      onClick={handleToggleSubtitles}
+                      variant="ghost"
+                      size="icon"
+                      className={`rounded-sm relative group transition-colors duration-200 ${subtitlesEnabled
+                        ? "text-black dark:text-white"
+                        : "text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
+                        }`}
+                    >
+                      <span className="scale-[1.4] flex items-center justify-center">
+                        <Captions className="h-6 w-6" strokeWidth={2.5} />
+                      </span>
 
-                {subtitlesEnabled && (
-                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-[2px] bg-red-500 rounded-full"></span>
-                )}
-              </Button>
+                      {subtitlesEnabled && (
+                        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-[2px] bg-red-500 rounded-full"></span>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Toggle Subtitles</p>
+                  </TooltipContent>
+                </Tooltip>
 
-              {/* Fullscreen Toggle */}
-              <Button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleFullscreen();
-                }}
-                variant="ghost"
-                size="icon"
-                className="rounded-sm relative group transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
-                aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-              >
-                <span className="scale-[1.4] flex items-center justify-center">
-                  {isFullscreen ? (
-                    <Minimize className="h-6 w-6" strokeWidth={2.5} />
-                  ) : (
-                    <Maximize className="h-6 w-6" strokeWidth={2.5} />
-                  )}
-                </span>
-              </Button>
-
-              {/* Speed Control */}
-              <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
-                <span className="text-md font-bold text-foreground min-w-[24px]">
-                  Speed
-                </span>
-                <Slider
-                  value={[playbackRate]}
-                  min={0.25}
-                  max={2}
-                  step={0.05}
-                  onValueChange={(value) => {
-                    const rate = value[0];
-                    const player = playerRef.current;
-                    if (player && typeof player.getAvailablePlaybackRates === 'function') {
-                      const availableRates = player.getAvailablePlaybackRates!();
-                      let closest = availableRates[0];
-                      for (const r of availableRates) {
-                        if (Math.abs(r - rate) < Math.abs(closest - rate)) closest = r;
+                {/* Speed Control */}
+                <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
+                  <span className="text-md font-bold text-foreground min-w-[24px]">
+                    Speed
+                  </span>
+                  <Slider
+                    value={[playbackRate]}
+                    min={0.25}
+                    max={2}
+                    step={0.05}
+                    onValueChange={(value) => {
+                      const rate = value[0];
+                      const player = playerRef.current;
+                      if (player && typeof player.getAvailablePlaybackRates === 'function') {
+                        const availableRates = player.getAvailablePlaybackRates!();
+                        let closest = availableRates[0];
+                        for (const r of availableRates) {
+                          if (Math.abs(r - rate) < Math.abs(closest - rate)) closest = r;
+                        }
+                        player.setPlaybackRate(closest);
+                        // Update both local state and global store
+                        setPlaybackRate(closest);
+                      } else {
+                        playerRef.current?.setPlaybackRate(rate);
+                        // Update both local state and global store
+                        setPlaybackRate(rate);
                       }
-                      player.setPlaybackRate(closest);
-                      // Update both local state and global store
-                      setPlaybackRate(closest);
-                    } else {
-                      playerRef.current?.setPlaybackRate(rate);
-                      // Update both local state and global store
-                      setPlaybackRate(rate);
-                    }
-                  }}
-                  className="w-[80px]"
-                />
-                <span className="text-md font-semibold text-primary min-w-[24px] text-center">
-                  {playbackRate.toFixed(2)}x
-                </span>
-              </Card>
+                    }}
+                    className="w-[80px]"
+                  />
+                  <span className="text-md font-semibold text-primary min-w-[24px] text-center">
+                    {playbackRate.toFixed(2)}x
+                  </span>
+                </Card>
 
-              {/* Volume Control */}
-              <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
-                <Volume2 className="h-3 w-3 text-accent flex-shrink-0 scale-160" />
-                <Slider
-                  value={[volume]}
-                  min={0}
-                  max={100}
-                  onValueChange={(value) => {
-                    const v = value[0];
-                    setVolume(v);
-                    playerRef.current?.setVolume(v);
-                  }}
-                  className="w-[80px]"
-                />
-                <span className="text-md font-bold text-foreground min-w-[24px] text-center">
-                  {Math.round(volume)}%
-                </span>
-              </Card>
+                {/* Volume Control */}
+                <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
+                  <Volume2 className="h-3 w-3 text-accent flex-shrink-0 scale-160" />
+                  <Slider
+                    value={[volume]}
+                    min={0}
+                    max={100}
+                    onValueChange={(value) => {
+                      const v = value[0];
+                      setVolume(v);
+                      playerRef.current?.setVolume(v);
+                    }}
+                    className="w-[80px]"
+                  />
+                  <span className="text-md font-bold text-foreground min-w-[24px] text-center">
+                    {Math.round(volume)}%
+                  </span>
+                </Card>
+
+                {/* Fullscreen Toggle */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFullscreen();
+                      }}
+                      variant="ghost"
+                      size="icon"
+                      className="rounded-sm relative group transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
+                      aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+                    >
+                      <span className="scale-[1.4] flex items-center justify-center">
+                        {isFullscreen ? (
+                          <Minimize className="h-6 w-6" strokeWidth={2.5} />
+                        ) : (
+                          <Maximize className="h-6 w-6" strokeWidth={2.5} />
+                        )}
+                      </span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
 
