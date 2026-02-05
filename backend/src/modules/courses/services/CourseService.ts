@@ -96,6 +96,7 @@ class CourseService extends BaseService {
             })),
           },
           linearProgressionEnabled: false,
+          seekForwardEnabled: false,
         },
       };
       const courseSettings = new CourseSetting(defaultSettingsPayload);

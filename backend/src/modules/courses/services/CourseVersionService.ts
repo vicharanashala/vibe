@@ -108,6 +108,7 @@ export class CourseVersionService extends BaseService {
             })),
           },
           linearProgressionEnabled: false,
+          seekForwardEnabled: false,
         },
       };
       const courseSettings = new CourseSetting(defaultSettingsPayload);
@@ -392,6 +393,7 @@ export class CourseVersionService extends BaseService {
             })),
           },
           linearProgressionEnabled: false,
+          seekForwardEnabled: false,
         },
       };
       const courseSettings = new CourseSetting(defaultSettingsPayload);
