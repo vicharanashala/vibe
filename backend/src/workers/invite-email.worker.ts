@@ -92,8 +92,11 @@ const inviteService = new InviteService(inviteRepo, userRepo, courseRepo, enroll
   try {
     const course = await courseRepo.read(courseId.toString());
     const version = await courseRepo.readVersion(courseVersionId.toString());
-
-
+    const courseSettings = await settingsRepo.readCourseSettings(courseId.toString(), courseVersionId.toString());
+    const allProctorsDisabled =
+    courseSettings.settings.proctors.detectors.every(
+      (detector: any) => detector.settings.enabled === false
+    );
     let processed = 0;
 
     for (const inviteId of inviteIds) {
@@ -104,7 +107,8 @@ const inviteService = new InviteService(inviteRepo, userRepo, courseRepo, enroll
         const email = inviteService.createInviteEmailMessage(
           invite,
           course,
-          version
+          version,
+          allProctorsDisabled
         );
 
 
