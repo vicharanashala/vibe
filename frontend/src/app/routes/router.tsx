@@ -189,11 +189,7 @@ const studentLayoutRoute = new Route({
       }
     }
   },
-  component: () => (
-    <StudentRouteGuard>
-      <StudentLayout />
-    </StudentRouteGuard>
-  )
+  component: StudentLayout
   ,
 });
 
@@ -377,24 +373,11 @@ export const studentCourseInviteRegistration = new Route({
 const coursePageRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/student/learn',
-  component: CoursePage,
-  beforeLoad: () => {
-    const { isAuthenticated, user } = useAuthStore.getState();
-    if (!isAuthenticated) {
-      throw redirect({ to: '/auth' });
-    }
-
-    // Ensure user is a student
-    if (user?.role !== 'student') {
-      throw redirect({ to: '/auth' });
-    }
-
-    // Ensure courseId and versionId are in zustand store
-    const { currentCourse } = useCourseStore.getState();
-    if (!currentCourse || !currentCourse.courseId || !currentCourse.versionId) {
-      throw redirect({ to: '/student/courses' });
-    }
-  },
+  component: () => (
+    <StudentRouteGuard>
+      <CoursePage />
+    </StudentRouteGuard>
+  ),
 });
 
 // Create a catch-all not found route
