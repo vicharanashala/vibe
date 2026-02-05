@@ -1586,7 +1586,8 @@ export function useEditProctoringSettings() {
     versionId: string,
     detectors: { name: string; enabled: boolean }[],
     isNew: boolean,
-    linearProgressionEnabled: boolean
+    linearProgressionEnabled: boolean,
+    seekForwardEnabled: boolean
   ) => {
     setLoading(true);
     setError(null);
@@ -1602,7 +1603,8 @@ export function useEditProctoringSettings() {
           detectorName: d.name,
           settings: { enabled: d.enabled },
         })),
-        linearProgressionEnabled
+        linearProgressionEnabled,
+        seekForwardEnabled
       };
 
       const res = await fetch(url, {
@@ -1610,7 +1612,6 @@ export function useEditProctoringSettings() {
         headers: { 'Content-Type': 'application/json', 'authorization': `Bearer ${localStorage.getItem('firebase-auth-token')}` },
         body: JSON.stringify(body),
       });
-
 
       if (!res.ok) {
         throw new Error(`Failed to update settings: ${res.status}`);
@@ -2416,7 +2417,7 @@ export function useGetProcotoringSettings(): {
 
     try {
       const method = 'GET';
-      const url = `${import.meta.env.VITE_BASE_URL}/setting/course-setting/${courseId}/${courseVersionId}/`;
+      const url = `${import.meta.env.VITE_BASE_URL}/setting/course-setting/${courseId}/${courseVersionId}`;
 
       const res = await fetch(url, {
         method,
@@ -2427,7 +2428,8 @@ export function useGetProcotoringSettings(): {
         throw new Error(`Failed to update settings: ${res.status}`);
       }
 
-      return await res.json();
+      const data = await res.json();
+      return data;
     } catch (err: any) {
       setSettingError(err.message || 'Unknown error');
     } finally {

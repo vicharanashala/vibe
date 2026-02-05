@@ -32,7 +32,7 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-export default function Video({ URL, startTime, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, isCompleted = false }: VideoProps) {
+export default function Video({ URL, startTime, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, linearProgressionEnabled, seekForwardEnabled, isCompleted = false }: VideoProps) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const [playerReady, setPlayerReady] = useState(false);
@@ -213,8 +213,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
   const handleForward = () => {
     const player = playerRef.current;
     if (!player) return;
-    // Only allow forward seek if the video is completed
-    if (!isCompleted) return;
+    // Allow forward seek if either the video is completed OR seek forward is enabled in settings
+    if (!seekForwardEnabled) return;
 
     const maxSeekTime = endTimeSeconds > 0 ? endTimeSeconds : duration;
     const newTime = Math.min(maxSeekTime, currentTime + 10);
@@ -713,11 +713,11 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
           }
 
           // Prevent forward seeking beyond what they've already watched
-          // BUT allow forward seeking if the video is completed
+          // BUT allow forward seeking if either the video is completed OR seek forward is enabled in settings
           const speedTolerance = playbackRate * 1.0;
           const timeDifference = time - maxTime;
 
-          if (timeDifference > speedTolerance + 1.0 && time <= endTimeSeconds && !isCompleted) {
+          if (timeDifference > speedTolerance + 1.0 && time <= endTimeSeconds && !seekForwardEnabled) {
             if (!player) return;
             player.seekTo(maxTime, true);
           } else if (time >= startTimeSeconds && time <= endTimeSeconds) {
@@ -727,7 +727,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
       }, Math.max(200, 500 / playbackRate));
     }
     return () => clearInterval(interval);
-  }, [playerReady, maxTime, playbackRate, startTimeSeconds, endTimeSeconds, videoEnded, isCompleted]);
+  }, [playerReady, playbackRate, startTimeSeconds, endTimeSeconds, videoEnded, seekForwardEnabled]);
 
   useEffect(() => {
     if (!keyboardLockEnabled) return;
@@ -1443,8 +1443,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
                 <SkipBack className="h-3 w-3 scale-130" />
               </Button>
 
-              {/* Forward seek button - only shown for completed videos */}
-              {isCompleted && (
+              {/* Forward seek button - shown when seekForwardEnabled is true */}
+              {seekForwardEnabled && (
                 <Button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -1454,7 +1454,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
                   variant="secondary"
                   className="rounded-full w-11 h-11 flex-shrink-0"
                   aria-label="Forward 10 seconds"
-                  title="Forward 10 seconds (available for completed videos)"
+                  title="Forward 10 seconds"
                 >
                   <SkipForward className="h-3 w-3 scale-130" />
                 </Button>

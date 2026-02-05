@@ -36,7 +36,7 @@ const MobileFallbackScreen = () => {
         <Button
           size="lg"
           className="px-8 py-5 text-base"
-          onClick={() => navigate({ to: '/auth' })}
+          onClick={() => navigate({ to: '/student' })}
         >
           Return to Home
         </Button>
