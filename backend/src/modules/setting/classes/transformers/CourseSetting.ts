@@ -384,6 +384,7 @@ class CourseSetting implements ICourseSetting {
         },
       },
       linearProgressionEnabled: { type: 'boolean' },
+      seekForwardEnabled: { type: 'boolean' },
       registration: {
         type: 'object',
         description: 'Registration configuration schemas',
@@ -421,6 +422,7 @@ class CourseSetting implements ICourseSetting {
       detectors: IDetectorSettings[];
     };
     linearProgressionEnabled: boolean;
+    seekForwardEnabled: boolean;
     registration?: {
       jsonSchema?: any;
       uiSchema?: any;
@@ -448,6 +450,8 @@ class CourseSetting implements ICourseSetting {
       },
       linearProgressionEnabled:
         courseSettingsBody?.settings?.linearProgressionEnabled ?? false,
+      seekForwardEnabled:
+        courseSettingsBody?.settings?.seekForwardEnabled ?? false,
       registration: {
         jsonSchema: courseSettingsBody?.settings?.registration?.jsonSchema,
         uiSchema: courseSettingsBody?.settings?.registration?.uiSchema,

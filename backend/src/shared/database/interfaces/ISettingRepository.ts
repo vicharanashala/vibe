@@ -58,6 +58,7 @@ export interface ISettingRepository {
     courseVersionId: string,
     detectors: DetectorSettingsDto[],
     linearProgressionEnabled: boolean,
+    seekForwardEnabled: boolean,
     audit: AuditingDto,
     session?: ClientSession,
   ): Promise<UpdateResult | null>;

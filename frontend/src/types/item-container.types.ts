@@ -6,6 +6,7 @@ export interface Item {
   description?: string;
   type: string;
   order?: string;
+  isCompleted?: boolean;
   details?: {
     points?: string;
 
@@ -60,6 +61,7 @@ export interface ItemContainerProps {
   keyboardLockEnabled?: boolean;
   setIsQuizSkipped: React.Dispatch<React.SetStateAction<boolean>>;
   linearProgressionEnabled: boolean;
+  seekForwardEnabled: boolean;
   courseId:string;
   versionId:string
 }

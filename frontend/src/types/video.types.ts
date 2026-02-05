@@ -14,6 +14,7 @@ export interface VideoProps {
   onDurationChange?: (duration: number) => void;
   keyboardLockEnabled?: boolean;
   linearProgressionEnabled: boolean;
+  seekForwardEnabled: boolean;
   isCompleted?: boolean;
 }
 
@@ -73,6 +74,7 @@ export interface StudentProctoringSettings {
       detectors: IDetectorSettings[];
     };
     linearProgressionEnabled: boolean;
+    seekForwardEnabled: boolean;
   };
 }
 
