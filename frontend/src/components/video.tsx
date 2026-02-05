@@ -626,7 +626,6 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
           if (time < startTimeSeconds) {
             if (!player) return;
             player.seekTo(startTimeSeconds, true);
-            setMaxTime(startTimeSeconds);
             return;
           }
 
@@ -708,7 +707,6 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
             player.pauseVideo();
             if (!player) return;
             player.seekTo(endTimeSeconds, true);
-            setMaxTime(endTimeSeconds);
             if (!videoEnded) {
               setVideoEnded(true);
             }
@@ -731,12 +729,15 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
             const newMaxTime = Math.max(currentMaxTime, time);
             maxTimeRef.current = newMaxTime; // Update ref immediately
             setMaxTime(newMaxTime); // Update state for UI
+          // Simple progress tracking - no complex seeking logic
+          if (time >= startTimeSeconds && time <= endTimeSeconds) {
+            // Just track progress without interfering
           }
         }
       }, Math.max(200, 500 / playbackRate));
     }
     return () => clearInterval(interval);
-  }, [playerReady, playbackRate, startTimeSeconds, endTimeSeconds, videoEnded, seekForwardEnabled]);
+  }, [playerReady, playbackRate, startTimeSeconds, endTimeSeconds, videoEnded]);
 
   useEffect(() => {
     if (!keyboardLockEnabled) return;
@@ -1401,18 +1402,28 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Progress Bar - Visual indicator only, no seeking */}
+          {/* Progress Bar - Seeking controlled by seekForwardEnabled */}
           <div style={{ marginBottom: 8 }}>
             <Slider
               value={[currentTime]}
               min={startTimeSeconds}
               max={endTimeSeconds > 0 ? endTimeSeconds : duration}
               step={0.1}
-              onValueChange={() => {
-                // Disabled - no seeking allowed
+              onValueChange={(value) => {
+                const newTime = value[0];
+                
+                // If seekForward is disabled and user tries to seek forward
+                if (!seekForwardEnabled && newTime > currentTime) {
+                  toast.error('You are not allowed to seek forward');
+                  return;
+                }
+                
+                // Allow seeking (backward always, forward only if enabled)
+                if (playerRef.current) {
+                  playerRef.current.seekTo(newTime, true);
+                }
               }}
-              className="w-full pointer-events-none"
-              disabled
+              className="w-full"
             />
           </div>
 
