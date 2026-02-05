@@ -378,6 +378,23 @@ const coursePageRoute = new Route({
       <CoursePage />
     </StudentRouteGuard>
   ),
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+    if (!isAuthenticated) {
+      throw redirect({ to: '/auth' });
+    }
+
+    // Ensure user is a student
+    if (user?.role !== 'student') {
+      throw redirect({ to: '/auth' });
+    }
+
+    // Ensure courseId and versionId are in zustand store
+    const { currentCourse } = useCourseStore.getState();
+    if (!currentCourse || !currentCourse.courseId || !currentCourse.versionId) {
+      throw redirect({ to: '/student/courses' });
+    }
+  },
 });
 
 // Create a catch-all not found route
