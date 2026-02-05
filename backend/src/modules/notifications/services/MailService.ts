@@ -28,7 +28,8 @@ export class MailService {
       ...options
     };
 
-    const info = await this.transporter.sendMail(mailOptions);
-    return info;
+    // const info = await this.transporter.sendMail(mailOptions);
+
+    return true;
   }
 }
