@@ -1482,7 +1482,7 @@ export default function CoursePage() {
                                 <div className="font-medium text-xs truncate">
                                   {module.name.length > 34 ? `${module.name.substring(0, 31)}...` : module.name}
                                 </div>
-                                 <div className="text-[10px] text-muted-foreground">
+                                 <div className={`text-[10px] ${(progress?.completedItems===progress?.totalItems && progress?.totalItems>0) ?`dark:text-green-500 text-green-600 `:` text-muted-foreground` }`}>
                                     {moduleProgressLoading
                                       ? "..."
                                       : `${progress?.completedItems ?? 0}/${progress?.totalItems ?? 0} completed`
