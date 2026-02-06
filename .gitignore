@@ -69,3 +69,10 @@ google_credentials.json
 backend/tsconfig.tsbuildinfo
 frontend/tsconfig.tsbuildinfo
 frontend/.firebase
+
+
+# Playwright artifacts
+e2e/test-results/
+e2e/screenshots/
+e2e/playwright-report/
+e2e/*.txt
