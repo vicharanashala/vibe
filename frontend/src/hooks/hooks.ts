@@ -1030,6 +1030,40 @@ export function useItemById(
   };
 }
 
+
+
+export function useVideoAnalytics(
+  courseId: string,
+  versionId: string,
+  itemId: string
+): {
+  data:any
+  isLoading: boolean;
+  error: string | null;
+  errorName: string | null;
+  refetch: () => void;
+} {
+  const result = api.useQuery(
+    "get",
+    "/courses/{courseId}/versions/{versionId}/item/{itemId}/analytics",
+    {
+      params: { path: { courseId, versionId, itemId } },
+    },
+    {
+      enabled: !!courseId && !!versionId && !!itemId,
+    }
+  );
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? result.error.message || "Video analytics fetch failed" : null,
+    errorName: result.error ? result.error.name || null : null,
+    refetch: result.refetch,
+  };
+}
+
+
 export function useUpdateCourseItem(): {
   mutate: (variables: { params: { path: { versionId: string, itemId: string } }, body: components['schemas']['UpdateItemBody'] }) => void,
   mutateAsync: (variables: { params: { path: { versionId: string, itemId: string } }, body: components['schemas']['UpdateItemBody'] }) => Promise<components['schemas']['ItemDataResponse']>,
