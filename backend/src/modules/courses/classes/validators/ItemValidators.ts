@@ -766,6 +766,36 @@ class ItemsGroupResponse implements ItemsGroup {
   sectionId: ID;
 }
 
+
+export class VideoUserAnalytics {
+  videoId!: string;
+  videoDuration!: number;
+  userId!: string;
+  viewCount!: number;
+  watchHours!: number;
+}
+
+export class VideoOverallAnalytics {
+  videoId!: string;
+  videoDuration!: number;
+  totalViews!: number;
+  totalWatchHours!: number;
+  averageViewsPerUser!: number;
+  averageWatchHoursPerUser!: number;
+}
+
+export class VideoAnalyticsResponse {
+  overall!: VideoOverallAnalytics;
+  users!: VideoUserAnalytics[];
+}
+
+export class GetVideoAnalyticsParams {
+  courseId!: string;
+  versionId!: string;
+  itemId!: string; // videoId
+}
+
+
 class ItemDataResponse {
   @JSONSchema({
     description: 'The item data',
@@ -922,7 +952,7 @@ class CSVQuizQuestion {
   'Expln-A'?: string;
   'Option B'?: string;
   'Expln-B'?: string;
-  'Option C'?: string; 
+  'Option C'?: string;
   'Expln-C'?: string;
   'Option D'?: string;
   'Expln-D'?: string;
