@@ -10,9 +10,8 @@ import { useCourseStore } from "@/store/course-store";
 import { toast } from "sonner";
 import { aiSectionAPI, Chunk, QuestionGenerationParameters, SegmentationParameters } from "@/lib/genai-api";
 import { CurrentJob } from "./AiWorkflow";
+import { last } from "slate";
 
-
-// const YT_IFRAME_API_SRC = "https://www.youtube.com/iframe_api"
 
 
 
@@ -23,9 +22,8 @@ const AiModule = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [urlError, setUrlError] = useState<string | null>(null);
     const [aiJobId, setAiJobId] = useState<string | null>(null);
-    // const [videoPlayer, setVideoPlayer] = useState(false);
+    const [videoPlayer, setVideoPlayer] = useState(false);
     const [videoId, setVideoId] = useState<string | null>("");
-    // const [isYTReady, setIsYTReady] = useState(false);
     const [isAudioExtracting, setIsAudioExtracting] = useState(false);
     const [isTranscribing, setIsTranscribing] = useState(false);
     const [transcribedData, setTranscribedData] = useState<TranscriberData | undefined>(undefined)
@@ -33,15 +31,20 @@ const AiModule = () => {
     const [isAiJobStarted, setIsAiJobStarted] = useState(false);
     const [currentJob, setCurrentJob] = useState<CurrentJob>({ task: "AUDIO_EXTRACTION", status: "WAITING" })
     const [error, setError] = useState("");
-
+    const [startTime, setStartTime] = useState<number | null>(null);
+    const [endTime, setEndTime] = useState<number | null>(null);
+    const [isPaused, setIsPaused] = useState(false);
 
 
     const navigate = useNavigate();
 
 
 
-    // const playerRef = useRef<any>(null);
-    // const iframeRef = useRef<HTMLDivElement>(null);
+    const playerRef = useRef<any>(null);
+    const iframeRef = useRef<HTMLDivElement>(null);
+    const lastStartTimeRef = useRef<number>(0);
+    const pauseTimeRef = useRef<number>(0);
+    const endTimeRef = useRef<number>(0);
 
     const clearStoredQuestions = () => {
         localStorage.removeItem('questions');
@@ -82,7 +85,7 @@ const AiModule = () => {
     };
 
     const extractIdFromUrl = (url: string): string | null => {
-        const match = url.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/i);
+        const match = url.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);
         return match ? match[1] : null;
     }
     const handleValidateURL = () => {
@@ -185,50 +188,100 @@ const AiModule = () => {
         }
     }
 
-    //   useEffect(() => {
-    //   if (window.YT && window.YT.Player) {
-    //     setIsYTReady(true);
-    //     return;
-    //   }
+    //     const handleSegmentedTranscription = () => {
+    //     if (!audioData) return;
+    //     if (!props.isAIModulePage) return;
+    //     const startTime = lastStartTimeRef.current || 0;
+    //     props.setStartTime(startTime);
+    //     const endTime = pauseTimeRef.current || audioData.buffer.duration;
+    //     props.setEndTime(endTime);
+    //     if (endTime - startTime < 1.5) {
+    //         console.log("Segment too short, skipping transcription");
+    //         return
+    //     }
+    //     const sampleRate = audioData.buffer.sampleRate;
+    //     const startSample = Math.floor(startTime * sampleRate);
+    //     const endSample = Math.floor(endTime * sampleRate);
+    //     if (endSample <= startSample) {
+    //         console.log("Invalid segment, skipping transcription");
+    //         return;
+    //     }
+    //     const segmentBuffer = sliceAudioBuffer(
+    //         audioData.buffer,
+    //         startSample,
+    //         endSample
+    //     );
+    //     props.transcriber.start(segmentBuffer);
+    //     lastProccessedTimeRef.current = endTime;
+    // }
 
-    //   const tag = document.createElement("script");
-    //   tag.src = YT_IFRAME_API_SRC;
-    //   document.body.appendChild(tag);
 
-    //   window.onYouTubeIframeAPIReady = () => {
-    //     setIsYTReady(true);
-    //   };
-    // }, []);
+    useEffect(() => {
 
-    // useEffect(() => {
-    //     if (!videoId || !iframeRef.current || !isYTReady ) return;
-    //     playerRef.current = new window.YT.Player(iframeRef.current, {
-    //         videoId,
-    //         playerVars: {
-    //             controls: 1,
-    //             modestbranding: 1,
-    //             rel: 0,
-    //             fs: 0,
-    //             autoplay: 0,
-    //         },
-    //         events: {
-    //             onReady: (event: any) => {
-    //                 console.log("Player is ready");
-    //                 setVideoPlayer(true);
-    //             },
-    //             onStateChange(event: any) {
-    //                 console.log("Player state changed to:", event.data);
-    //             },
-    //         }
-    //     })
+        function createPlayer() {
 
-    //     return () => {
-    //         if (playerRef.current) {
-    //             playerRef.current.destroy();
-    //             playerRef.current = null;
-    //         }
-    //     };
-    // }, [videoId, isYTReady]);
+            if (!isURLValidated || !iframeRef.current || !videoId) {
+                console.log("YT Player not ready yet");
+                return;
+            }
+
+            playerRef.current = new window.YT!.Player(iframeRef.current, {
+                videoId,
+                playerVars: {
+                    controls: 1,
+                    modestbranding: 1,
+                    rel: 0,
+                    fs: 0,
+                    autoplay: 0,
+                },
+                events: {
+                    onReady: (event: any) => {
+                        console.log("Player is ready");
+                        setVideoPlayer(true);
+                    },
+                    onStateChange(event: any) {
+                        if(event.data === window.YT?.PlayerState.PLAYING){
+                            lastStartTimeRef.current = playerRef.current.getCurrentTime();
+                            console.log("Video started at:", lastStartTimeRef.current);
+                            setIsPaused(false);
+                            setStartTime(lastStartTimeRef.current);
+                        }
+                        if(event.data === window.YT?.PlayerState.PAUSED){
+                            pauseTimeRef.current = playerRef.current.getCurrentTime();
+                            console.log("Video paused at:", pauseTimeRef.current);
+                            setIsPaused(true);
+                            setEndTime(pauseTimeRef.current);
+                        }
+                        if(event.data === window.YT?.PlayerState.ENDED){
+                            endTimeRef.current = playerRef.current.getCurrentTime();
+                            console.log("Video ended at:", endTimeRef.current);
+                            setIsPaused(true);
+                            setEndTime(endTimeRef.current);
+                        }
+                    },
+                }
+            })
+        }
+
+        if (window.YT && window.YT.Player) {
+            createPlayer();
+        } else {
+            const tag = document.createElement('script');
+            tag.src = 'https://www.youtube.com/iframe_api';
+            document.body.appendChild(tag);
+            window.onYouTubeIframeAPIReady = createPlayer;
+        }
+
+
+        return () => {
+            if (playerRef.current) {
+                playerRef.current.destroy();
+                playerRef.current = null;
+            }
+        };
+    }, [isURLValidated, videoId]);
+
+
 
     return (
         <>
@@ -271,22 +324,13 @@ const AiModule = () => {
                         (<div className=" bg-linear-to-br from-background to-muted/20">
                             {isURLValidated && videoId && (
                                 <>
-                                    <div className="w-full aspect-video rounded-xl overflow-hidden bg-black">
-                                        <iframe
-                                            className="w-full h-full"
-                                            src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
-                                            title="YouTube video player"
-                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                            allowFullScreen
-                                        />
-                                    </div>
-                                    <hr className="my-6" />
+
                                     <div>
                                         <div className="flex items-center gap-3 p-4">
-                                              <Upload className="w-6 h-6 dark:text-white" />
-                                        <h2 className="text-xl font-bold">Upload Audio</h2>
+                                            <Upload className="w-6 h-6 dark:text-white" />
+                                            <h2 className="text-xl font-bold">Upload Audio</h2>
                                         </div>
-                                      
+
                                         <p className="text-md text-gray-600 dark:text-gray-200 p-4">
                                             Upload your audio file to generate a high-quality transcription of the spoken content.
                                         </p>
@@ -300,12 +344,32 @@ const AiModule = () => {
                                             jobError={error}
                                             createAiJob={handleCreateJob}
                                             isCreatingAiJob={isCreatingAiJob}
+                                            isAIModulePage={true}
+                                            startTimeRef={lastStartTimeRef}
+                                            pauseTimeRef={pauseTimeRef}
+                                            endTimeRef={endTimeRef}
+                                            startTime={startTime}
+                                            endTime={endTime}
+                                            isPaused={isPaused}
                                         />
                                     </div>
+
+                                    <hr className="my-6" />
+                                    <div style={{ width: "100%", aspectRatio: "16/9", background: "#000" }}>
+                                        <div
+                                            ref={iframeRef}
+                                            style={{
+                                                width: "100%",
+                                                height: "100%",
+                                                background: "#000",
+                                                borderRadius: "12px 12px 0 0",
+                                                overflow: "hidden",
+                                            }}
+                                        />
+                                    </div>
+
                                 </>
-
                             )}
-
                         </div>)}
                 </Card>
             </div>

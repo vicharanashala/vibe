@@ -15,6 +15,8 @@ interface TranscriptionResultProps {
   tooltipContent?: string;
   isEditing: boolean;
   setIsEditing: React.Dispatch<React.SetStateAction<boolean>>;
+  startTime?: number | null;
+  endTime?: number | null;
 }
 
 export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
@@ -26,7 +28,9 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
   audioUrl,
   tooltipContent,
   isEditing,
-  setIsEditing
+  setIsEditing,
+  startTime,
+  endTime,
 }) => {
   // const [isEditing, setIsEditing] = useState(false);
   const [editedText, setEditedText] = useState(transcription);
@@ -47,6 +51,8 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
     setHighlightedText(transcription);
   }, [transcription]);
 
+
+
   // Handle search and highlighting
   useEffect(() => {
     if (searchTerm.trim()) {
@@ -63,7 +69,7 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
       setError('Transcription cannot be empty');
       return;
     }
-    
+
     onTranscriptionUpdate(editedText);
     setIsEditing(false);
     setError('');
@@ -119,6 +125,25 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
     return Math.ceil(words / 200); // Average reading speed: 200 words per minute
   };
 
+  function formatTime(seconds: number | undefined): string {
+    if (seconds === undefined) return "00:00";
+    if (!Number.isFinite(seconds)) return "00:00";
+
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+
+    if (hrs > 0) {
+      return `${hrs.toString().padStart(2, "0")}:${mins
+        .toString()
+        .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    }
+
+    return `${mins.toString().padStart(2, "0")}:${secs
+      .toString()
+      .padStart(2, "0")}`;
+  }
+
   return (
     <div className={`w-full bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 bg-card ${className}`}>
       {/* Header */}
@@ -130,11 +155,16 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
           <div>
             <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">Transcription Result</h3>
             {/* <p className="text-sm text-gray-500 dark:text-gray-400">{timestamp}</p> */}
+            {startTime !== null && endTime !== null && (
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {`Segment: ${formatTime(startTime)} - ${formatTime(endTime)}`}
+              </p>
+            )}
           </div>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-              <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
+                <Info className="w-5 h-5 text-gray-500 dark:text-gray-400 cursor-pointer" />
               </TooltipTrigger>
               {tooltipContent && (
                 <TooltipContent>
@@ -318,7 +348,7 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
           ) : (
             <div className={`w-full p-4 text-base leading-relaxed bg-card text-gray-800 dark:text-gray-100 bg-gradient-to-br   border border-gray-200 dark:border-gray-600 rounded-xl overflow-y-auto shadow-inner ${isExpanded ? 'h-[350px]' : 'h-[200px]'}`}>
               {transcription ? (
-                <div 
+                <div
                   className="whitespace-pre-wrap"
                   dangerouslySetInnerHTML={{ __html: highlightedText }}
                 />
@@ -347,7 +377,7 @@ export const TranscriptionResult: React.FC<TranscriptionResultProps> = ({
 
       {transcription && (
         <div className="px-6 py-2 bg-card rounded-b-2xl border-t border-gray-200 dark:border-gray-700">
-           <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
             {/* <span>Language: {language}</span> */}
             {copySuccess && <span className="text-green-600">✓ Copied to clipboard</span>}
             {downloadSuccess && <span className="text-green-600">✓ Downloaded successfully</span>}
