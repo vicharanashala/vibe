@@ -12,8 +12,15 @@ interface IAudioTranscripter {
     setIsAudioExtracting: (value: boolean) => void;
     isRunningAiJob: boolean;
     isCreatingAiJob: boolean;
+    isAIModulePage?: boolean;
     jobError: string;
     createAiJob: () => void
+    startTimeRef?: React.MutableRefObject<number | null>;
+    pauseTimeRef?: React.MutableRefObject<number | null>;
+    endTimeRef?: React.MutableRefObject<number | null>;
+    startTime?: number | null;
+    endTime?: number | null;
+    isPaused?: boolean;
 }
 
 // Validation
@@ -35,6 +42,7 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
     const [transcriptText, setTranscriptText] = useState("");
     const [prevTranscript, setPrevTranscript] = useState("");
     const [error, setError] = useState("");
+
 
     useEffect(() => {
 
@@ -94,8 +102,7 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
       return (
         <div className="flex justify-center items-start py-10 ">
             <div className={`w-full ${!transcriber.output?.text && "max-w-3xl"} flex flex-col items-center gap-6`}>
-                {transcriber.output?.text && (
-                    <div className="w-full">
+                {transcriber.output?.chunks.length === 0 ? (<p>Transcribe data will showed here...</p>) : ( <div className="w-full">
                       <TranscriptionResult 
                         transcription={transcriptText} 
                         isEditing={isEditing} 
@@ -104,11 +111,13 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
                         isProcessing={transcriber.isBusy}
                         isRunningAiJob={props.isRunningAiJob}
                         tooltipContent={"Converts extracted audio into accurate text transcripts."}
+                        startTime={props.startTime}
+                        endTime={props.endTime}
                       />
-                    </div>
-                )}
+                    </div>)}
                 <AudioManager 
                     transcriber={transcriber} 
+                    isProcessing={transcriber.isBusy}
                     // isDisableButton={
                     // (transcriber.output?.text && !props.isRunningAiJob && !props.isCreatingAiJob) ? false : 
                     // (!!transcriber.output?.text || props.isRunningAiJob || transcriber.isBusy)
@@ -118,6 +127,11 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
                     createAiJob = {props.createAiJob}
                     isCreatingAiJob = {props.isCreatingAiJob}
                     isRunningAiJob={props.isRunningAiJob}
+                    isAIModulePage={props.isAIModulePage}
+                    startTimeRef={props.startTimeRef}
+                    pauseTimeRef={props.pauseTimeRef}
+                    endTimeRef={props.endTimeRef}
+                    isPaused={props.isPaused}
                 />
                  
             </div>

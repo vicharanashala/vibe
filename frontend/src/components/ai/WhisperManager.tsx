@@ -1,13 +1,14 @@
-import React, {  JSX, useEffect, useState } from "react";
+import React, { JSX, useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { DetailedHTMLProps, InputHTMLAttributes, useRef  } from "react";
+import { DetailedHTMLProps, InputHTMLAttributes, useRef } from "react";
 import { Transcriber } from "@/hooks/useTranscriber";
 import Constants from "@/utils/AudioUtils";
 import { webmFixDuration, formatAudioTimestamp } from "@/utils/AudioUtils";
 import { ArrowRight, Loader2, RefreshCw, PlayCircle, Upload } from "lucide-react";
 import { Button } from "../ui/button";
 import { toast } from "sonner";
-import { registerStream, unRegisterStream} from "@/lib/MediaRegistry";  
+import { registerStream, unRegisterStream } from "@/lib/MediaRegistry";
+import { end } from "slate";
 
 
 interface Props extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -22,37 +23,36 @@ function TranscribeButton(props: Props) {
     const { isModelLoading, isTranscribing, isTranscribed, isCreatingAiJob, onClick, ...buttonProps } = props;
     const isLoading = isTranscribing || isModelLoading || isCreatingAiJob;
     return (
-            <button
+        <button
             {...buttonProps}
             onClick={(event) => {
                 if (isTranscribing || isModelLoading) return;
                 if (onClick) {
-                onClick(event);
+                    onClick(event);
                 }
             }}
             disabled={isLoading}
-           className={`w-full sm:w-auto font-semibold px-8 py-3 rounded-xl shadow-md transition-all duration-300 transform flex items-center justify-center gap-2
-            ${
-                isTranscribing
-                ? "bg-primary text-primary-foreground cursor-wait"
-                : isTranscribed
-                ? "border border-gray-400 text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-800"
-                : "bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground hover:shadow-xl hover:scale-105"
-            }
+            className={`w-full sm:w-auto font-semibold px-8 py-3 rounded-xl shadow-md transition-all duration-300 transform flex items-center justify-center gap-2
+            ${isTranscribing
+                    ? "bg-primary text-primary-foreground cursor-wait"
+                    : isTranscribed
+                        ? "border border-gray-400 text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-800"
+                        : "bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground hover:shadow-xl hover:scale-105"
+                }
             disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
-            >
+        >
             {isTranscribed ? (
                 <>
-                <RefreshCw className="w-5 h-5" />
-                <span>Regenerate</span>
+                    <RefreshCw className="w-5 h-5" />
+                    <span>Regenerate</span>
                 </>
             ) : (
                 <>
-                <Upload className="w-5 h-5" />
-                <span>Upload Audio</span>
+                    <Upload className="w-5 h-5" />
+                    <span>Upload Audio</span>
                 </>
             )}
-            </button>
+        </button>
 
     );
 }
@@ -122,16 +122,16 @@ function getMimeType() {
 function AudioRecorder(props: {
     onRecordingComplete: (blob: Blob) => void;
 }) {
-      useEffect(() => {
+    useEffect(() => {
         return () => {
             unRegisterStream("AudioRecorder-audio-stream");
         };
-      }, []);
+    }, []);
     const [recording, setRecording] = useState(false);
     const [duration, setDuration] = useState(0);
     const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
 
-    
+
     const streamRef = useRef<MediaStream | null>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
@@ -212,13 +212,13 @@ function AudioRecorder(props: {
         }
 
         return () => {
-            if (streamRef.current ) {
+            if (streamRef.current) {
                 streamRef.current.getTracks().forEach((track) => track.stop());
             }
         };
     }, [recording]);
 
-    
+
     const handleToggleRecording = () => {
         if (recording) {
             stopRecording();
@@ -231,11 +231,10 @@ function AudioRecorder(props: {
         <div className='flex flex-col justify-center items-center'>
             <button
                 type='button'
-                className={`m-2 inline-flex justify-center rounded-md border border-transparent px-4 py-2 text-sm font-medium text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 transition-all duration-200 ${
-                    recording
-                        ? "bg-red-500 hover:bg-red-600"
-                        : "bg-green-500 hover:bg-green-600"
-                }`}
+                className={`m-2 inline-flex justify-center rounded-md border border-transparent px-4 py-2 text-sm font-medium text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 transition-all duration-200 ${recording
+                    ? "bg-red-500 hover:bg-red-600"
+                    : "bg-green-500 hover:bg-green-600"
+                    }`}
                 onClick={handleToggleRecording}
             >
                 {recording
@@ -286,47 +285,46 @@ function Modal({
     submitEnabled = true,
 }: ModalProps) {
     return (
-    <Dialog.Root open={show} onOpenChange={onClose}>
-        <Dialog.Portal>
-            <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" />
+        <Dialog.Root open={show} onOpenChange={onClose}>
+            <Dialog.Portal>
+                <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" />
 
-            <Dialog.Content className="fixed top-1/2 left-1/2 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 p-6 shadow-2xl animate-scale-in">
-            <Dialog.Title className="text-lg font-semibold text-gray-100">
-                {title}
-            </Dialog.Title>
+                <Dialog.Content className="fixed top-1/2 left-1/2 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 p-6 shadow-2xl animate-scale-in">
+                    <Dialog.Title className="text-lg font-semibold text-gray-100">
+                        {title}
+                    </Dialog.Title>
 
-            <div className="mt-3 text-sm text-gray-300">{content}</div>
+                    <div className="mt-3 text-sm text-gray-300">{content}</div>
 
-            <div className="mt-6 flex flex-row-reverse gap-3">
-                {submitText && (
-                <button
-                    type="button"
-                    disabled={!submitEnabled}
-                    className={`inline-flex justify-center rounded-lg px-4 py-2 text-sm font-medium transition-all duration-300 shadow-md
-                    ${
-                        submitEnabled
-                        ? "bg-indigo-600 text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                        : "bg-gray-600 text-gray-300 cursor-not-allowed opacity-70"
-                    }`}
-                    onClick={onSubmit}
-                >
-                    {submitText}
-                </button>
-                )}
+                    <div className="mt-6 flex flex-row-reverse gap-3">
+                        {submitText && (
+                            <button
+                                type="button"
+                                disabled={!submitEnabled}
+                                className={`inline-flex justify-center rounded-lg px-4 py-2 text-sm font-medium transition-all duration-300 shadow-md
+                    ${submitEnabled
+                                        ? "bg-indigo-600 text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                        : "bg-gray-600 text-gray-300 cursor-not-allowed opacity-70"
+                                    }`}
+                                onClick={onSubmit}
+                            >
+                                {submitText}
+                            </button>
+                        )}
 
-                <Dialog.Close asChild>
-                <button
-                    type="button"
-                    className="inline-flex justify-center rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-gray-200 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-400 transition-all duration-300"
-                    onClick={onClose}
-                >
-                    Close
-                </button>
-                </Dialog.Close>
-            </div>
-            </Dialog.Content>
-        </Dialog.Portal>
-    </Dialog.Root>
+                        <Dialog.Close asChild>
+                            <button
+                                type="button"
+                                className="inline-flex justify-center rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-gray-200 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-400 transition-all duration-300"
+                                onClick={onClose}
+                            >
+                                Close
+                            </button>
+                        </Dialog.Close>
+                    </div>
+                </Dialog.Content>
+            </Dialog.Portal>
+        </Dialog.Root>
     );
 }
 
@@ -354,11 +352,16 @@ function UrlInput(
 export default function AudioPlayer(props: {
     audioUrl: string;
     mimeType: string;
+    isAIModulePage?: boolean;
+    lastStartTimeRef?: React.MutableRefObject<number>;
+    pauseTimeRef?: React.MutableRefObject<number>;
+    endTimeRef?: React.MutableRefObject<number>;
+    handleSegmentedTranscription?: () => void;
+    isProcessing?: boolean;
 }) {
     const audioPlayer = useRef<HTMLAudioElement>(null);
     const audioSource = useRef<HTMLSourceElement>(null);
 
-    // Updates src when url changes
     useEffect(() => {
         if (audioPlayer.current && audioSource.current) {
             audioSource.current.src = props.audioUrl;
@@ -366,19 +369,48 @@ export default function AudioPlayer(props: {
         }
     }, [props.audioUrl]);
 
-    return (
-        <div className='flex relative p-4 w-full'>
-            <audio
-                ref={audioPlayer}
-                controls
-                className='w-full h-14 rounded-lg shadow-xl shadow-black/5 ring-1 ring-slate-700/10'
-            >
-                <source ref={audioSource} type={props.mimeType}></source>
+    if (!props.isAIModulePage) {
+        return (
+            <audio ref={audioPlayer} controls className="w-full h-14">
+                <source ref={audioSource} type={props.mimeType} />
             </audio>
+        );
+    }
+
+    return (
+        <div
+  className={`relative w-full ${
+    props.isProcessing ? "pointer-events-none opacity-60" : ""
+  }`}
+>
+        {/* <audio
+            ref={audioPlayer}
+            controls
+            className="w-full h-14"
+            onPlay={() => {
+                if (!props.lastStartTimeRef || !audioPlayer.current) return;
+                props.lastStartTimeRef.current = audioPlayer.current.currentTime;
+            }}
+            onPause={() => {
+                if (!props.pauseTimeRef || !audioPlayer.current) return;
+                props.pauseTimeRef.current = audioPlayer.current.currentTime;
+                props.handleSegmentedTranscription?.();
+            }}
+            onSeeked={() => {
+                if (!props.lastStartTimeRef || !audioPlayer.current) return;
+                props.lastStartTimeRef.current = audioPlayer.current.currentTime;
+            }}
+            onEnded={() => {
+                if (!props.endTimeRef || !audioPlayer.current) return;
+                props.endTimeRef.current = audioPlayer.current.duration;
+                props.handleSegmentedTranscription?.();
+            }}
+        >
+            <source ref={audioSource} type={props.mimeType}/>
+        </audio> */}
         </div>
     );
 }
-
 
 // List of supported languages:
 // https://help.openai.com/en/articles/7031512-whisper-api-faq
@@ -495,178 +527,180 @@ export enum AudioSource {
 
 
 interface FileTileProps {
-  onFileUpdate: (decoded: AudioBuffer, blobUrl: string, mimeType: string) => void;
-  icon?: React.ReactNode;
-  text?: string;
-  isDisabled?: boolean;
+    onFileUpdate: (decoded: AudioBuffer, blobUrl: string, mimeType: string) => void;
+    icon?: React.ReactNode;
+    text?: string;
+    isDisabled?: boolean;
 }
 const FileTile: React.FC<FileTileProps> = ({
-  onFileUpdate,
-  icon,
-  text = "Upload File",
-  isDisabled = false,
+    onFileUpdate,
+    icon,
+    text = "Upload File",
+    isDisabled = false,
 }) => {
-  const [isDragOver, setIsDragOver] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [loading, setLoading] = useState(false);
+    const [isDragOver, setIsDragOver] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [loading, setLoading] = useState(false);
 
 
-  const processFile = async (file: File) => {
-    try{
-        if (!file.type.startsWith("audio/")) {
-        toast.error("Please select a valid audio file");
-        return;
+    const processFile = async (file: File) => {
+        try {
+            if (!file.type.startsWith("audio/")) {
+                toast.error("Please select a valid audio file");
+                return;
+            }
+            setLoading(true);
+            const urlObj = URL.createObjectURL(file);
+            const mimeType = file.type;
+
+            const arrayBuffer = await file.arrayBuffer();
+            const audioCTX = new AudioContext({
+                sampleRate: Constants.SAMPLING_RATE,
+            });
+            const decoded = await audioCTX.decodeAudioData(arrayBuffer);
+
+            onFileUpdate(decoded, urlObj, mimeType);
+        } catch (err) {
+            toast.error("Failed to process audio file");
+        } finally {
+            setLoading(false);
         }
-        setLoading(true);
-        const urlObj = URL.createObjectURL(file);
-        const mimeType = file.type;
+    };
 
-        const arrayBuffer = await file.arrayBuffer();
-        const audioCTX = new AudioContext({
-        sampleRate: Constants.SAMPLING_RATE,
-        });
-        const decoded = await audioCTX.decodeAudioData(arrayBuffer);
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragOver(false);
+        if (isDisabled || loading || loading) return;
 
-        onFileUpdate(decoded, urlObj, mimeType);
-    } catch (err) {
-      toast.error("Failed to process audio file");
-    } finally {
-      setLoading(false);
-    }
-  };
+        const audioFile = Array.from(e.dataTransfer.files).find((f) =>
+            f.type.startsWith("audio/")
+        );
+        if (audioFile) processFile(audioFile);
+    };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    if (isDisabled || loading || loading) return;
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) processFile(file);
+        if (e.target) e.target.value = ""; // reset so same file can be re-selected
+    };
 
-    const audioFile = Array.from(e.dataTransfer.files).find((f) =>
-      f.type.startsWith("audio/")
-    );
-    if (audioFile) processFile(audioFile);
-  };
+    const handleClick = () => {
+        if (!isDisabled || loading && !loading) fileInputRef.current?.click();
+    };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) processFile(file);
-    if (e.target) e.target.value = ""; // reset so same file can be re-selected
-  };
-
-  const handleClick = () => {
-    if (!isDisabled || loading && !loading) fileInputRef.current?.click();
-  };
-
-  return (
-    <div
-        className={`
+    return (
+        <div
+            className={`
         w-full h-36 border-2 border-dashed rounded-xl cursor-pointer
         flex flex-col items-center justify-center text-center px-8 py-24
         transition-transform duration-300 ease-out border-gray-400 dark:border-gray-600
-        ${
-            isDragOver
-            ? "border-primary bg-primary/5 scale-[1.02] shadow-lg shadow-primary/10"
-            : "border-border hover:border-primary/60 hover:scale-[1.02] hover:shadow-md"
-        }
+        ${isDragOver
+                    ? "border-primary bg-primary/5 scale-[1.02] shadow-lg shadow-primary/10"
+                    : "border-border hover:border-primary/60 hover:scale-[1.02] hover:shadow-md"
+                }
         ${isDisabled || loading ? "opacity-50 cursor-not-allowed hover:scale-100" : ""}
         `}
-      onDrop={handleDrop}
-      onDragOver={(e) => {
-        e.preventDefault()
-        if (!isDisabled || loading || !loading) setIsDragOver(true)
-      }}
-      onDragLeave={(e) => {
-        e.preventDefault()
-        setIsDragOver(false)
-      }}
-      onClick={handleClick}
-    >
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="audio/*"
-        onChange={handleFileSelect}
-        className="hidden"
-        disabled={isDisabled || loading}
-      />
+            onDrop={handleDrop}
+            onDragOver={(e) => {
+                e.preventDefault()
+                if (!isDisabled || loading || !loading) setIsDragOver(true)
+            }}
+            onDragLeave={(e) => {
+                e.preventDefault()
+                setIsDragOver(false)
+            }}
+            onClick={handleClick}
+        >
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/*"
+                onChange={handleFileSelect}
+                className="hidden"
+                disabled={isDisabled || loading}
+            />
 
-      {loading ? (
-        <div className="flex flex-col items-center gap-3 animate-pulse">
-          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-sm text-muted-foreground">Processing audio file...</p>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center gap-4">
-          <div
-            className={`
+            {loading ? (
+                <div className="flex flex-col items-center gap-3 animate-pulse">
+                    <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-sm text-muted-foreground">Processing audio file...</p>
+                </div>
+            ) : (
+                <div className="flex flex-col items-center gap-4">
+                    <div
+                        className={`
               w-12 h-12 rounded-full flex items-center justify-center
               transition-all duration-300
               ${isDragOver ? "bg-primary/10 scale-110" : "bg-muted hover:bg-primary/5"}
             `}
-          >
-            {icon || (
-              <svg
-                className={`w-7 h-7 transition-colors duration-300 ${
-                  isDragOver
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-primary"
-                }`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
-                />
-              </svg>
-            )}
-          </div>
+                    >
+                        {icon || (
+                            <svg
+                                className={`w-7 h-7 transition-colors duration-300 ${isDragOver
+                                    ? "text-primary"
+                                    : "text-muted-foreground hover:text-primary"
+                                    }`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+                                />
+                            </svg>
+                        )}
+                    </div>
 
-          <div className="space-y-2">
-            <p
-              className={`text-sm font-semibold transition-colors duration-300 ${
-                isDragOver ? "text-primary" : "text-foreground"
-              }`}
-            >
-              {text}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {isDragOver
-                ? "Drop your audio file here"
-                : "Drag & drop or click to browse"}
-            </p>
-            <p className="text-xs text-muted-foreground/80">
-              Supports MP3, WAV, M4A formats
-            </p>
-          </div>
+                    <div className="space-y-2">
+                        <p
+                            className={`text-sm font-semibold transition-colors duration-300 ${isDragOver ? "text-primary" : "text-foreground"
+                                }`}
+                        >
+                            {text}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            {isDragOver
+                                ? "Drop your audio file here"
+                                : "Drag & drop or click to browse"}
+                        </p>
+                        <p className="text-xs text-muted-foreground/80">
+                            Supports MP3, WAV, M4A formats
+                        </p>
+                    </div>
+                </div>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 };
 
 
 
 
-export function AudioManager(props: { transcriber: Transcriber, isEditingTranscription: boolean,  jobError: string, createAiJob: () =>void, isCreatingAiJob: boolean, isRunningAiJob: boolean }, ) {
+export function AudioManager(props: { transcriber: Transcriber, isEditingTranscription: boolean, jobError: string, createAiJob: () => void, isCreatingAiJob: boolean, isRunningAiJob: boolean, isAIModulePage?: boolean, isProcessing?: boolean, startTimeRef?: React.MutableRefObject<number | null>, pauseTimeRef?: React.MutableRefObject<number | null>, endTimeRef?: React.MutableRefObject<number | null>,  isPaused?: boolean },) {
     const [progress, setProgress] = useState<number | undefined>(undefined);
     const [audioData, setAudioData] = useState<
         | {
-              buffer: AudioBuffer;
-              url: string;
-              source: AudioSource;
-              mimeType: string;
-          }
+            buffer: AudioBuffer;
+            url: string;
+            source: AudioSource;
+            mimeType: string;
+        }
         | undefined
     >(undefined);
-    
+
     const [audioDownloadUrl, setAudioDownloadUrl] = useState<
         string | undefined
     >(undefined);
 
     const isAudioLoading = progress !== undefined;
+
+
+    const lastProccessedTimeRef = useRef<number>(0);
+
+    const [showFileInput, setShowFileInput] = useState(true);
 
     const resetAudio = () => {
         setAudioData(undefined);
@@ -724,7 +758,7 @@ export function AudioManager(props: { transcriber: Transcriber, isEditingTranscr
             try {
                 setAudioData(undefined);
                 setProgress(0);
-                
+
                 const response = await fetch(audioDownloadUrl, {
                     signal: requestAbortController.signal,
                 });
@@ -735,7 +769,7 @@ export function AudioManager(props: { transcriber: Transcriber, isEditingTranscr
 
                 const contentLength = response.headers.get('content-length');
                 const total = contentLength ? parseInt(contentLength, 10) : 0;
-                
+
                 const reader = response.body?.getReader();
                 if (!reader) {
                     throw new Error('Failed to get response reader');
@@ -786,6 +820,77 @@ export function AudioManager(props: { transcriber: Transcriber, isEditingTranscr
         }
     }, [audioDownloadUrl]);
 
+    useEffect(() => {
+        if (props.isAIModulePage) {
+            props.transcriber.setMode("SEGMENTED")
+        } else {
+            props.transcriber.setMode("FULL")
+        }
+    }, [props.isAIModulePage]);
+
+    const sliceAudioBuffer = (
+        audioBuffer: AudioBuffer,
+        startSample: number,
+        endSample: number
+    ) => {
+        const frameCount = endSample - startSample;
+        const sampleRate = audioBuffer.sampleRate;
+
+        const audioCtx = new AudioContext({ sampleRate });
+
+        const slicedBuffer = audioCtx.createBuffer(
+            audioBuffer.numberOfChannels,
+            frameCount,
+            sampleRate
+        );
+
+        for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+            const channelData = audioBuffer.getChannelData(channel);
+            slicedBuffer.copyToChannel(
+                channelData.slice(startSample, endSample),
+                channel
+            );
+        }
+
+        return slicedBuffer;
+    };
+
+            const handleSegmentedTranscription = () => {
+        if (!audioData) return;
+        if (!props.isAIModulePage) return;
+        const startTime = props.startTimeRef?.current || 0;
+        
+        const endTime = props.pauseTimeRef?.current || audioData.buffer.duration;
+       
+        if (endTime - startTime < 1.5) {
+            console.log("Segment too short, skipping transcription");
+            return
+        }
+        const sampleRate = audioData.buffer.sampleRate;
+        const startSample = Math.floor(startTime * sampleRate);
+        const endSample = Math.floor(endTime * sampleRate);
+        if (endSample <= startSample) {
+            console.log("Invalid segment, skipping transcription");
+            return;
+        }
+        const segmentBuffer = sliceAudioBuffer(
+            audioData.buffer,
+            startSample,
+            endSample
+        );
+        props.transcriber.start(segmentBuffer);
+        lastProccessedTimeRef.current = endTime;
+    }
+
+
+    useEffect (()=>{
+        if(props.isPaused === false){
+            console.log("AudioManager detected isPaused false, early exiting");
+            return;
+        }
+    handleSegmentedTranscription();
+    }, [props.isPaused])
+
     return (
         <>
             {/* <div className='flex flex-col justify-center items-center shadow-md shadow-blue-500/20 ring-1 ring-blue-400/30 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-800'>
@@ -796,7 +901,7 @@ export function AudioManager(props: { transcriber: Transcriber, isEditingTranscr
                         opacity: props.isTranscribing ? 0.5 : 1,
                     }}
                     > */}
-                    {/* <UrlTile
+            {/* <UrlTile
                         icon={<AnchorIcon />}
                         text={"From URL"}
                         onUrlUpdate={(e) => {
@@ -805,21 +910,35 @@ export function AudioManager(props: { transcriber: Transcriber, isEditingTranscr
                         }}
                     />
                     <VerticalBar /> */}
-                    <FileTile
-                        icon={<FolderIcon />}
-                        text={"From file"}
-                        onFileUpdate={(decoded, blobUrl, mimeType) => {
-                        props.transcriber.onInputChange();
-                        setAudioData({
-                            buffer: decoded,
-                            url: blobUrl,
-                            source: AudioSource.FILE,
-                            mimeType: mimeType,
-                        });
-                        }}
-                        isDisabled={props.transcriber.isBusy || props.transcriber.isModelLoading}
-                    />
-                    {/* {navigator.mediaDevices && (
+            {props?.isAIModulePage === true ? (showFileInput &&  <FileTile
+                icon={<FolderIcon />}
+                text={"From file"}
+                onFileUpdate={(decoded, blobUrl, mimeType) => {
+                    props.transcriber.onInputChange();
+                    setAudioData({
+                        buffer: decoded,
+                        url: blobUrl,
+                        source: AudioSource.FILE,
+                        mimeType: mimeType,
+                    });
+                    setShowFileInput(false);
+                }}
+                isDisabled={props.transcriber.isBusy || props.transcriber.isModelLoading}
+            />):(<FileTile
+                icon={<FolderIcon />}
+                text={"From file"}
+                onFileUpdate={(decoded, blobUrl, mimeType) => {
+                    props.transcriber.onInputChange();
+                    setAudioData({
+                        buffer: decoded,
+                        url: blobUrl,
+                        source: AudioSource.FILE,
+                        mimeType: mimeType,
+                    });
+                }}
+                isDisabled={props.transcriber.isBusy || props.transcriber.isModelLoading}
+            />)}
+            {/* {navigator.mediaDevices && (
                         <>
                         <VerticalBar />
                         <RecordTile
@@ -832,63 +951,66 @@ export function AudioManager(props: { transcriber: Transcriber, isEditingTranscr
                         />
                         </>
                     )} */}
-                {/* </div> */}
+            {/* </div> */}
             {/* </div> */}
             {audioData && (
                 <>
                     <AudioPlayer
                         audioUrl={audioData.url}
                         mimeType={audioData.mimeType}
+                        isAIModulePage={props.isAIModulePage}
+                        handleSegmentedTranscription={handleSegmentedTranscription}
+                        isProcessing={props.isProcessing}
                     />
 
                     {/* {!props.isTranscriptionCompleted &&  */}
-                        <div className='relative w-full flex justify-center items-center'>
-                            <TranscribeButton
-                                onClick={() => {
-                                    props.transcriber.start(audioData.buffer);
-                                }}
-                                isModelLoading={props.transcriber.isModelLoading}
-                                isTranscribing={props.transcriber.isBusy}
-                                // isDisableButton = {props.isDisableButton}
-                                isCreatingAiJob={props.isCreatingAiJob}
-                                isTranscribed={!!props.transcriber.output?.text}
-                            />
-                            {!props.transcriber.isModelLoading && !props.transcriber.isBusy && props.transcriber.output?.text &&
-                                <Button className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary 
+                    <div className='relative w-full flex justify-center items-center'>
+                        {props.isAIModulePage ? (null) : (<TranscribeButton
+                            onClick={() => {
+                                props.transcriber.start(audioData.buffer);
+                            }}
+                            isModelLoading={props.transcriber.isModelLoading}
+                            isTranscribing={props.transcriber.isBusy}
+                            // isDisableButton = {props.isDisableButton}
+                            isCreatingAiJob={props.isCreatingAiJob}
+                            isTranscribed={!!props.transcriber.output?.text}
+                        />)}
+                        {!props.transcriber.isModelLoading && !props.transcriber.isBusy && props.transcriber.output?.text &&
+                            <Button className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary 
                                 text-primary-foreground font-semibold px-10 py-5 rounded-xl shadow-lg 
                                 hover:shadow-xl transition-all duration-300 transform hover:scale-105 
                                 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none 
-                                flex items-center justify-center gap-2 ms-12" 
+                                flex items-center justify-center gap-2 ms-12"
                                 onClick={() => {
                                     if (props.isEditingTranscription) {
                                         toast.error("You have unsaved changes in the transcription. Please save before continuing.");
                                         return;
                                     }
                                     if (props.createAiJob) {
-                                        props.createAiJob ()
+                                        props.createAiJob()
                                     }
                                 }}
                                 disabled={props.isCreatingAiJob}>
-                                    {props.isCreatingAiJob ? (
-                                        <>
-                                            <Loader2 className="h-3 w-3 animate-spin" />
-                                            {props.jobError ? "Try again..." : "Next"}
-                                        </>
-                                        ) : (
-                                        props.jobError ? "Try again!" : "Next"
-                                    )}
-                                    <ArrowRight className="w-5 h-5" />
-                                </Button> 
+                                {props.isCreatingAiJob ? (
+                                    <>
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                        {props.jobError ? "Try again..." : "Next"}
+                                    </>
+                                ) : (
+                                    props.jobError ? "Try again!" : "Next"
+                                )}
+                                <ArrowRight className="w-5 h-5" />
+                            </Button>
 
-                                }
+                        }
 
 
-                            {/* <SettingsTile
+                        {/* <SettingsTile
                                 className='absolute right-4'
                                 transcriber={props.transcriber}
                                 icon={<SettingsIcon />}
                                 /> */}
-                        </div>
+                    </div>
                     {/* } */}
                 </>
             )}
@@ -974,14 +1096,13 @@ function SettingsModal(props: {
                                 )
                             )
                             .map((key) => (
-                                <option key={key} value={key}>{`${key}${
-                                    (props.transcriber.multilingual || key.startsWith('distil-whisper/')) ? "" : ".en"
-                                } (${
+                                <option key={key} value={key}>{`${key}${(props.transcriber.multilingual || key.startsWith('distil-whisper/')) ? "" : ".en"
+                                    } (${
                                     // @ts-ignore
                                     models[key][
-                                        props.transcriber.quantized ? 0 : 1
+                                    props.transcriber.quantized ? 0 : 1
                                     ]
-                                }MB)`}</option>
+                                    }MB)`}</option>
                             ))}
                     </select>
                     <div className='flex justify-between items-center mb-3 px-1'>
@@ -1054,7 +1175,7 @@ function SettingsModal(props: {
                 </>
             }
             onClose={props.onClose}
-            onSubmit={() => {}}
+            onSubmit={() => { }}
         />
     );
 }
@@ -1271,27 +1392,27 @@ function Tile(props: {
 }
 
 function AnchorIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"
-      />
-    </svg>
-  )
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+            <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"
+            />
+        </svg>
+    )
 }
 
 function FolderIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776"
-      />
-    </svg>
-  )
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+            <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776"
+            />
+        </svg>
+    )
 }
 
 // function SettingsIcon() {
@@ -1318,13 +1439,13 @@ function FolderIcon() {
 // }
 
 function MicrophoneIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"
-      />
-    </svg>
-  )
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"
+            />
+        </svg>
+    )
 }
