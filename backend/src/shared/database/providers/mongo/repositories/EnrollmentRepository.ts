@@ -795,8 +795,8 @@ export class EnrollmentRepository {
       },
 
       { $sort: { enrollmentDate: -1 } },
-      { $skip: skip },
-      { $limit: limit },
+      // { $skip: skip },
+      // { $limit: limit },
 
       /* ---------- COURSE LOOKUP (OPTIMIZED) ---------- */
       {
@@ -858,6 +858,8 @@ export class EnrollmentRepository {
 
       /* ---------- REMOVE NON-MATCHED COURSES ---------- */
       { $unwind: '$course' },
+      { $skip: skip },
+      { $limit: limit },
 
       /* ---------- FINAL SHAPE ---------- */
       {
