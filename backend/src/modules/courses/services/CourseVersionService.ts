@@ -301,7 +301,7 @@ export class CourseVersionService extends BaseService {
 
       const newVersionId = newCourseVersion._id.toString();
 
-      const USE_WORKERS = true;
+      const USE_WORKERS = false;
 
       let newModules: Module[];
       let existingEnrollments;
