@@ -581,7 +581,7 @@ function TeacherCourseContent() {
               setCurrentCourse({
                 ...currentCourse,
                 watchItemId: null,
-                questionId: null
+                // questionId: null // Keep questionId for EnhancedQuizEditor to use
               });
               setAutoSelectSectionsToLoad([]);
               setAutoSelectCurrentIndex(0);
@@ -657,7 +657,7 @@ function TeacherCourseContent() {
           setCurrentCourse({
             ...currentCourse,
             watchItemId: null,
-            questionId: null
+            // questionId: null // Keep questionId for EnhancedQuizEditor to use
           });
           setAutoSelectSectionsToLoad([]);
           setAutoSelectCurrentIndex(0);
@@ -1552,6 +1552,7 @@ function TeacherCourseContent() {
                             <Reorder.Item
                               key={module.moduleId}
                               value={module}
+                              as="div"
                               drag
                               className={module.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
                               whileDrag={{ scale: 1.02 }}
@@ -1616,7 +1617,12 @@ function TeacherCourseContent() {
                                         handleMoveSection(module.moduleId, section.sectionId, versionId);
                                       }}
                                     >
-                                      <SidebarMenuSubItem>
+
+                                      <div
+                                        data-slot="sidebar-menu-sub-item"
+                                        data-sidebar="menu-sub-item"
+                                        className="group/menu-sub-item relative"
+                                      >
                                         <SidebarMenuSubButton
                                           onClick={() => {
                                             setMode("default");
@@ -2047,7 +2053,7 @@ function TeacherCourseContent() {
                                             </SidebarMenuSub>
                                           </Reorder.Group>
                                         )}
-                                      </SidebarMenuSubItem>
+                                      </div>
                                     </Reorder.Item>
                                   ))}
 
