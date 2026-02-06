@@ -1581,7 +1581,7 @@ class ProgressService extends BaseService {
       progress.currentSection.toString() !== sectionId ||
       progress.currentItem.toString() !== itemId
     ) {
-      if (item.type !== 'QUIZ') {
+      if (item.type !== 'QUIZ' && !isItemCompleted) {
         throw new BadRequestError('Progress mismatch');
       }
     }

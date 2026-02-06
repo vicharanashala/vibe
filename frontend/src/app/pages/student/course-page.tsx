@@ -680,7 +680,7 @@ export default function CoursePage() {
       try {
         // Stop current item immediately
         if (itemContainerRef.current) {
-          await itemContainerRef.current.stopCurrentItem();
+          // await itemContainerRef.current.stopCurrentItem();
           // Small delay for API/callback cleanup
           await new Promise(resolve => setTimeout(resolve, 50));
         }
