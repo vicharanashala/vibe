@@ -35,7 +35,7 @@ const InviteItem = ({ invite }) => {
                 } px-3 py-2 text-sm text-gray-800 dark:text-gray-100 hover:bg-red-100 dark:hover:bg-zinc-700 rounded transition-all`}
             onClick={handleToggle}
         >
-            <span className="font-medium">{invite.course.name}</span>
+            <span className="font-medium">{invite?.course?.name}</span>
             <span className="text-xs text-gray-500 dark:text-gray-400">
                 Status:{" "}
                 <span

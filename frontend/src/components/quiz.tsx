@@ -1580,7 +1580,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           </Badge>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-sm">
-              Attempt {attempts || 0 + 1} of {maxAttempts}
+              {maxAttempts === -1 ? `Attempt ${attempts || 0 + 1}`:
+              `Attempt ${attempts || 0 + 1} of ${maxAttempts}`}
             </Badge>
             {timeLeft > 0 && (
               <Badge

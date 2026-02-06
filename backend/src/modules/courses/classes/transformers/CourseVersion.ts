@@ -38,7 +38,6 @@ class CourseVersion implements ICourseVersion {
   totalItems?: number;
 
   @Expose()
-  @Type(() => Number)
   itemCounts?:{
     VIDEO?: number;
     QUIZ?: number;
