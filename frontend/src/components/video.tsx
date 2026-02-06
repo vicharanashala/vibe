@@ -672,7 +672,7 @@ const handleStopItem = useCallback(async (watchItemId: string, debounceMs: numbe
           // Enforce endTime constraint
           if (endTimeSeconds > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= endTimeSeconds - 1 && currentCourse) {
              const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
-             
+
           if (watchItemId) {
             player?.pauseVideo();
             
@@ -1413,7 +1413,12 @@ const handleStopItem = useCallback(async (watchItemId: string, debounceMs: numbe
                 
                 // If seekForward is disabled and user tries to seek forward
                 if (!seekForwardEnabled && newTime > currentTime) {
-                  toast.error('You are not allowed to seek forward');
+                  // Throttle toast to prevent spam (max once every 2 seconds)
+                  const now = Date.now();
+                  if (now - lastSeekErrorToastRef.current > 2000) {
+                    toast.error('You are not allowed to seek forward');
+                    lastSeekErrorToastRef.current = now;
+                  }
                   return;
                 }
                 
