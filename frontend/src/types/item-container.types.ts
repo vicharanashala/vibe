@@ -62,12 +62,13 @@ export interface ItemContainerProps {
   setIsQuizSkipped: React.Dispatch<React.SetStateAction<boolean>>;
   linearProgressionEnabled: boolean;
   seekForwardEnabled: boolean;
-  courseId:string;
-  versionId:string
+  courseId: string;
+  versionId: string
 }
 
 export interface ItemContainerRef {
   stopCurrentItem: () => Promise<void>;
+  getCurrentDetails?: () => { questionId?: string };
 }
 
 export type ItemMeta = {
