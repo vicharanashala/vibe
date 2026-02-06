@@ -30,7 +30,6 @@ import {
   IItemRepository,
   MongoDatabase,
   SettingRepository
-  SettingRepository
 } from '#root/shared/index.js';
 import { ClientSession, ObjectId } from 'mongodb';
 import { COURSES_TYPES } from '#root/modules/courses/types.js';
@@ -39,16 +38,9 @@ import { chunkArray } from '#root/utils/chunkArray.js';
 import { startInviteEmailProcessing } from '#root/workers/invite-email.pool.js';
 import { SETTING_TYPES } from '#root/modules/setting/types.js';
 import { getContainer } from "#root/bootstrap/loadModules.js";
-import { SETTING_TYPES } from '#root/modules/setting/types.js';
-import { getContainer } from "#root/bootstrap/loadModules.js";
 
 @injectable()
 export class InviteService extends BaseService {
-  private getCourseSettingsRepo(): SettingRepository {
-    return getContainer().get<SettingRepository>(
-      SETTING_TYPES.SettingRepo
-    );
-  }
   private getCourseSettingsRepo(): SettingRepository {
     return getContainer().get<SettingRepository>(
       SETTING_TYPES.SettingRepo
@@ -80,7 +72,6 @@ export class InviteService extends BaseService {
     course: ICourse,
     courseVersion: ICourseVersion,
     allProctorsDisabled: boolean
-    allProctorsDisabled: boolean
   ): Omit<nodemailer.SendMailOptions, 'from'> {
     return {
       to: invite.email,
@@ -89,7 +80,7 @@ export class InviteService extends BaseService {
         `Dear Participant,\n\n` +
         `We are pleased to invite you to participate in your upcoming online course - ${course.name}, delivered via our Continuous Active Learning Platform, ViBe.\n\n` +
         `To confirm your participation, please click the link below:\n${appConfig.url}${appConfig.routePrefix}/notifications/invite/${invite._id.toString()}\n\n` +
-        `We wish you a successful learning experience!\nBest regards,\nTechnical Team, CBPAI, IIT Ropar`:
+        `We wish you a successful learning experience!\nBest regards,\nTechnical Team, CBPAI, IIT Ropar` :
 
         `Dear Participant,\n\n` +
         `We are pleased to invite you to participate in your upcoming online course - ${course.name}, delivered via our Continuous Active Learning Platform, ViBe.\n\n` +
@@ -145,13 +136,11 @@ export class InviteService extends BaseService {
               </p>
               <p style="margin:0 0 16px;">
           ${allProctorsDisabled ? "To confirm your participation, please click the link below." : "Before you begin, please carefully read and follow the instructions below to ensure a smooth and compliant experience:"}
-          ${allProctorsDisabled ? "To confirm your participation, please click the link below." : "Before you begin, please carefully read and follow the instructions below to ensure a smooth and compliant experience:"}
               </p>
             </td>
           </tr>
 
           <!-- Instruction list -->
-          ${allProctorsDisabled ? "" : `
           ${allProctorsDisabled ? "" : `
           <tr>
             <td style="padding:0 24px 24px;">
@@ -164,16 +153,15 @@ export class InviteService extends BaseService {
               </ul>
             </td>
           </tr>`}
-          </tr>`}
 
           <!-- Integrity & CTA -->
           <tr>
             <td style="padding:0 24px;">
             ${allProctorsDisabled ? "" :
-              `<p style="margin:0 0 24px; font-family:Arial, sans-serif; font-size:14px; line-height:1.6;">
+          `<p style="margin:0 0 24px; font-family:Arial, sans-serif; font-size:14px; line-height:1.6;">
                 By following these rules, you help maintain the integrity and fairness of the course environment.&nbsp;
               </p>`
-            }
+        }
               <!--[if gte mso 9]><br><![endif]-->
                 <tr>
                   <td align="center" style="padding-bottom:24px;">
@@ -680,9 +668,9 @@ export class InviteService extends BaseService {
     );
 
     const allProctorsDisabled =
-    courseSettings.settings.proctors.detectors.every(
-      (detector: any) => detector.settings.enabled === false
-    );
+      courseSettings.settings.proctors.detectors.every(
+        (detector: any) => detector.settings.enabled === false
+      );
 
     const emailMessage = this.createInviteEmailMessage(
       invite,
