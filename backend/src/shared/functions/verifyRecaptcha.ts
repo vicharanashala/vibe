@@ -17,32 +17,35 @@ interface RecaptchaVerificationResponse {
  * @throws Error if the verification request fails
  */
 export async function verifyRecaptcha(token: string): Promise<boolean> {
-    const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+    if(process.env.IS_RECAPTCHA_ENABLED==="true"){
+        const secretKey = process.env.RECAPTCHA_SECRET_KEY;
 
-    if (!secretKey) {
-        throw new Error('RECAPTCHA_SECRET_KEY is not configured in environment variables');
-    }
-
-    try {
-        const response = await axios.post<RecaptchaVerificationResponse>(
-            'https://www.google.com/recaptcha/api/siteverify',
-            null,
-            {
-                params: {
-                    secret: secretKey,
-                    response: token,
-                },
-            }
-        );
-
-        if (!response.data.success) {
-            console.warn('reCAPTCHA verification failed:', response.data['error-codes']);
-            return false;
+        if (!secretKey) {
+            throw new Error('RECAPTCHA_SECRET_KEY is not configured in environment variables');
         }
 
-        return true;
-    } catch (error) {
-        console.error('Error verifying reCAPTCHA:', error);
-        throw new Error('Failed to verify reCAPTCHA');
+        try {
+            const response = await axios.post<RecaptchaVerificationResponse>(
+                'https://www.google.com/recaptcha/api/siteverify',
+                null,
+                {
+                    params: {
+                        secret: secretKey,
+                        response: token,
+                    },
+                }
+            );
+
+            if (!response.data.success) {
+                console.warn('reCAPTCHA verification failed:', response.data['error-codes']);
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Error verifying reCAPTCHA:', error);
+            throw new Error('Failed to verify reCAPTCHA');
+        }
     }
+    return true;
 }
