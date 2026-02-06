@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
 import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, userParseCSVtoItems, useUpdateItemOptional } from '@/hooks/hooks';
-import { Download, LogOut, Upload, UserRoundCheck } from 'lucide-react';
+import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video } from 'lucide-react';
 import { useHideItem } from '@/hooks/hooks';
 
 const MAX_DESCRIPTION_LENGTH = 1000;
@@ -74,6 +74,7 @@ type Mode = "default" | "wizard" | "custom";
 import { logout } from "@/utils/auth";
 import InviteDropdown from "@/components/inviteDropDown";
 import { useQueryClient } from "@tanstack/react-query"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 // ? Icons per item type
@@ -128,6 +129,7 @@ function TeacherCourseContent() {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
   const invitesRef = useRef<HTMLDivElement | null>(null);
+  const [videoTab, setVideoTab] = useState("video");
 
   const handleLogout = () => {
     logout();
@@ -2747,72 +2749,172 @@ function TeacherCourseContent() {
 
 
 
-                      {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
-
-                        <VideoModal
-                          isLoading={isItemLoading}
-                          selectedItemName={selectedItem.name}
-                          action={isEditingItem ? "edit" : "view"}
-                          item={selectedItemData?.item}
-                          onClose={() => setIsEditingItem(false)}
-                          onSave={video => {
-                            const formattedVideo = {
-                              ...video,
-                              type: "VIDEO",
-                              details: {
-                                ...video.details,
-                                startTime: video.details.startTime,
-                                endTime: video.details.endTime,
-                              }
-                            };
-                            if (
-                              selectedEntity.parentIds?.moduleId &&
-                              selectedEntity.parentIds?.sectionId &&
-                              selectedEntity.data?._id &&
-                              versionId
-                            ) {
-                              updateVideoAsync({
-                                params: {
-                                  path: {
-                                    versionId,
-                                    itemId: selectedEntity.data._id,
+                      {/* {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
+                        <>
+                        
+                          <VideoModal
+                            isLoading={isItemLoading}
+                            selectedItemName={selectedItem.name}
+                            action={isEditingItem ? "edit" : "view"}
+                            item={selectedItemData?.item}
+                            onClose={() => setIsEditingItem(false)}
+                            onSave={video => {
+                              const formattedVideo = {
+                                ...video,
+                                type: "VIDEO",
+                                details: {
+                                  ...video.details,
+                                  startTime: video.details.startTime,
+                                  endTime: video.details.endTime,
+                                }
+                              };
+                              if (
+                                selectedEntity.parentIds?.moduleId &&
+                                selectedEntity.parentIds?.sectionId &&
+                                selectedEntity.data?._id &&
+                                versionId
+                              ) {
+                                updateVideoAsync({
+                                  params: {
+                                    path: {
+                                      versionId,
+                                      itemId: selectedEntity.data._id,
+                                    }
+                                  },
+                                  body: formattedVideo,
+                                }).then((res) => {
+                                  refetchVersion();
+                                  if (shouldFetchItems) {
+                                    refetchItems();
                                   }
-                                },
-                                body: formattedVideo,
-                              }).then((res) => {
-                                refetchVersion();
-                                if (shouldFetchItems) {
-                                  refetchItems();
-                                }
-                                refetchItem();
-                              });
-                              toast.success("Video details saved successfully");
-                              setIsEditingItem(false);
-                            }
-                          }}
-                          onDelete={() => {
-                            if (
-                              selectedEntity.parentIds?.sectionId &&
-                              selectedEntity.data?._id
-                            ) {
+                                  refetchItem();
+                                });
+                                toast.success("Video details saved successfully");
+                                setIsEditingItem(false);
+                              }
+                            }}
+                            onDelete={() => {
+                              if (
+                                selectedEntity.parentIds?.sectionId &&
+                                selectedEntity.data?._id
+                              ) {
 
-                              deleteItemAsync({
-                                params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
-                              }).then((res) => {
-                                refetchVersion();
-                                if (shouldFetchItems) {
-                                  refetchItems();
-                                }
-                                refetchItem();
-                              });
-                              setSelectedEntity(null);
-                              setIsEditingItem(false);
+                                deleteItemAsync({
+                                  params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
+                                }).then((res) => {
+                                  refetchVersion();
+                                  if (shouldFetchItems) {
+                                    refetchItems();
+                                  }
+                                  refetchItem();
+                                });
+                                setSelectedEntity(null);
+                                setIsEditingItem(false);
 
-                            }
-                          }}
-                          onEdit={() => setIsEditingItem(true)}
-                        />
+                              }
+                            }}
+                            onEdit={() => setIsEditingItem(true)}
+                          />
+                        </>
+                      )} */}
+                      {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
+                        <Tabs value={videoTab} onValueChange={setVideoTab} className=" mb-4">
+
+                          <TabsList className=" overflow-x-auto no-scrollbar">
+
+                            <TabsTrigger value="video" className="flex items-center gap-2 cursor-pointer">
+                              <Video className="h-4 w-4" />
+                              Video
+                            </TabsTrigger>
+
+                            <TabsTrigger value="analytics" className="flex items-center gap-2 cursor-pointer">
+                              <BarChart3 className="h-4 w-4" />
+                              Analytics
+                            </TabsTrigger>
+
+                          </TabsList>
+                          
+                          {videoTab === "video" && (
+                            <VideoModal
+                              isLoading={isItemLoading}
+                              selectedItemName={selectedItem.name}
+                              action={isEditingItem ? "edit" : "view"}
+                              item={selectedItemData?.item}
+                              onClose={() => setIsEditingItem(false)}
+                              onSave={video => {
+                                const formattedVideo = {
+                                  ...video,
+                                  type: "VIDEO",
+                                  details: {
+                                    ...video.details,
+                                    startTime: video.details.startTime,
+                                    endTime: video.details.endTime,
+                                  }
+                                };
+
+                                if (
+                                  selectedEntity.parentIds?.moduleId &&
+                                  selectedEntity.parentIds?.sectionId &&
+                                  selectedEntity.data?._id &&
+                                  versionId
+                                ) {
+                                  updateVideoAsync({
+                                    params: {
+                                      path: {
+                                        versionId,
+                                        itemId: selectedEntity.data._id,
+                                      }
+                                    },
+                                    body: formattedVideo,
+                                  }).then(() => {
+                                    refetchVersion();
+                                    shouldFetchItems && refetchItems();
+                                    refetchItem();
+                                  });
+
+                                  toast.success("Video details saved successfully");
+                                  setIsEditingItem(false);
+                                }
+                              }}
+
+                              onDelete={() => {
+                                if (
+                                  selectedEntity.parentIds?.sectionId &&
+                                  selectedEntity.data?._id
+                                ) {
+                                  deleteItemAsync({
+                                    params: {
+                                      path: {
+                                        itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "",
+                                        itemId: selectedEntity.data._id
+                                      }
+                                    }
+                                  }).then(() => {
+                                    refetchVersion();
+                                    shouldFetchItems && refetchItems();
+                                    refetchItem();
+                                  });
+
+                                  setSelectedEntity(null);
+                                  setIsEditingItem(false);
+                                }
+                              }}
+
+                              onEdit={() => setIsEditingItem(true)}
+                            />
+                          )}
+
+                          {videoTab === "analytics" && (
+                            <div className="mt-4">
+                              <p className="text-sm text-muted-foreground">
+                                Video analytics will appear here.
+                              </p>
+                            </div>
+                          )}
+
+                        </Tabs>
                       )}
+
                       {/* <CreateArticle/> */}
                       {selectedEntity.type === "item" && selectedEntity.data.type === "QUIZ" && courseId && versionId && (
                         <EnhancedQuizEditor
