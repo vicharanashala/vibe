@@ -98,9 +98,9 @@ jobs:
             SENTRY_DSN=${{ secrets.SENTRY_DSN }}
             TAILSCALE_AUTHKEY=${{ secrets.TAILSCALE_AUTHKEY }}
             RECAPTCHA_SECRET_KEY=${{ secrets.RECAPTCHA_SECRET_KEY }}
+            IS_RECAPTCHA_ENABLED=${{ secrets.IS_RECAPTCHA_ENABLED }}
             AI_PROXY_ADDRESS=socks5h://localhost:1055
-          # SMTP_USER=${{ secrets.SMTP_USER }}
-          # SMTP_PASS=${{ secrets.SMTP_PASS }}
+            
            
           flags: --allow-unauthenticated
 
@@ -140,9 +140,9 @@ jobs:
             SENTRY_DSN=${{ secrets.SENTRY_DSN }}
             TAILSCALE_AUTHKEY=${{ secrets.TAILSCALE_AUTHKEY }}
             RECAPTCHA_SECRET_KEY=${{ secrets.RECAPTCHA_SECRET_KEY }}
+            IS_RECAPTCHA_ENABLED=${{ secrets.IS_RECAPTCHA_ENABLED }}
             AI_PROXY_ADDRESS=socks5h://localhost:1055
-          # SMTP_USER=${{ secrets.SMTP_USER }}
-          # SMTP_PASS=${{ secrets.SMTP_PASS }}
+         
           
             
           flags: --allow-unauthenticated
