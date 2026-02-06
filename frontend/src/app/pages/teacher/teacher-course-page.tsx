@@ -2282,7 +2282,7 @@ function TeacherCourseContent() {
                     variant="outline"
                     className="bg-primary/10 border-primary/20 text-primary px-3 py-1.5 text-xs sm:text-sm font-medium whitespace-nowrap"
                   >
-                    Version: {(versionData as any)?.version || (versionData as any)?.name || 'Unknown'}
+                    Version: {(versionData as any)?.version || (versionData as any)?.name || 'Unknown'} a
                   </Badge>
                 </div>
               )}
@@ -2412,7 +2412,13 @@ function TeacherCourseContent() {
                       </div>
                       <div className="text-sm text-slate-500 dark:text-gray-400 flex items-center gap-2">
                         <BookOpen className="h-4 w-4" />
-                        <span>Course � Module � {selectedEntity.type}</span>
+                        <span className="flex items-center gap-1">
+                          Course
+                          <ChevronRight size={16} />
+                          Module
+                          <ChevronRight size={16} />
+                          {selectedEntity.type}
+                        </span>
                       </div>
                     </div>
 
