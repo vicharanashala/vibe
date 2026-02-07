@@ -1363,13 +1363,14 @@ export class ItemService extends BaseService {
     query: VideoUserAnalyticsQuery
   ): Promise<VideoUserAnalyticsResponse> {
 
-    const { page = 1, limit = 20 } = query;
+    const { page = 1, limit = 12, search } = query;
     return await this.progressRepo.getVideoUserAnalytics(
       courseId,
       versionId,
       videoId,
       page,
-      limit
+      limit,
+      search
     );
   }
 }

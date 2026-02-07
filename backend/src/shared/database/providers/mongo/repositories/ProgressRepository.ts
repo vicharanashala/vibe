@@ -955,7 +955,8 @@ class ProgressRepository {
     versionId: string,
     videoId: string,
     page: number,
-    limit: number
+    limit: number,
+    search?: string
   ): Promise<VideoUserAnalyticsResponse> {
     await this.init();
 
@@ -1010,6 +1011,19 @@ class ProgressRepository {
         { $unwind: "$user" },
 
         { $sort: { totalWatchMs: -1 } },
+
+        ...(search
+          ? [
+            {
+              $match: {
+                $or: [
+                  { "user.firstName": { $regex: search, $options: "i" } },
+                  { "user.email": { $regex: search, $options: "i" } },
+                ],
+              },
+            },
+          ]
+          : []),
 
         {
           $addFields: {
