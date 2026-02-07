@@ -57,7 +57,7 @@ export interface QuizProps {
   approximateTimeToComplete: string;
   allowPartialGrading: boolean;
   allowHint: boolean;
-  allowSkip:boolean;
+  allowSkip: boolean;
   showCorrectAnswersAfterSubmission: boolean;
   showExplanationAfterSubmission: boolean;
   showScoreAfterSubmission: boolean;
@@ -77,6 +77,7 @@ export interface QuizProps {
 
 export interface QuizRef {
   stopItem: () => void;
+  getCurrentDetails?: () => { questionId?: string };
 }
 
 export interface BufferId {
@@ -89,7 +90,7 @@ export interface BufferId {
 export interface LotItem {
   text: string;
   _id: BufferId;
-  explaination:string
+  explaination: string
 }
 
 export interface BaseQuestionRenderView {

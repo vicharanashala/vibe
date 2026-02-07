@@ -983,38 +983,36 @@ export default function CourseEnrollments() {
                 <div className="flex-1">
                   <p className="font-medium text-card-foreground truncate text-base md:text-lg">{selectedUser.name}</p>
                   <p className="text-muted-foreground truncate">{selectedUser.email}</p>
+
+
+
                 </div>
-                <div className="text-right sm:w-auto w-full">
-                  <p className="text-sm text-muted-foreground mb-2">Completion Percentage</p>
-                  <EnrollmentProgress progress={(selectedUser.progress || 0)} />
-                  {version?.totalItems !== undefined && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {selectedUser.completedItemsCount || 0} / {version.totalItems} items completed
-                    </p>
-                  )}
-                </div>
+
                 {/* Content Summary Dropdown */}
                 {selectedUser?.contentCounts && (
-                  <div className="border border-border rounded-lg ml-auto">
+                  <div className="border border-border rounded-lg ml-auto p-2">
 
                     {/* Header */}
-                    <button
+                    {/* <button
                       onClick={() => setShowContentSummary(prev => !prev)}
                       className="flex items-center gap-2 px-3 py-2 text-sm font-medium hover:bg-muted/20 rounded-md"
-                    >
-                      Content Summary
+                    > */}
+                     <p>Content Summary</p> 
                       {/* {showContentSummary ? (
                       <ChevronDown className="h-4 w-4" />
                     ) : (
                       <ChevronRight className="h-4 w-4" />
                     )} */}
-                    </button>
-
+                    {/* </button> */}
+                      <div className= "flex justify-between items-center mt-2 mb-2">
+                    <p className="text-sm text-muted-foreground mb-2">Completion Percentage</p>
+                    <EnrollmentProgress progress={(selectedUser.progress || 0)} />
+                        </div>
                     {/* Body */}
                     {
                       // showContentSummary &&
                       (
-                        <div className="px-4 pb-3 pt-2 grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                        <div className=" grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
 
                           <SummaryRow label="Total Items" value={selectedUser.contentCounts.totalItems} />
 
@@ -1042,6 +1040,14 @@ export default function CourseEnrollments() {
                             label="Quiz Score"
                             value={`${selectedUser.contentCounts.totalQuizScore || 0} / ${selectedUser.contentCounts.totalQuizMaxScore || 0}`}
                           />
+
+                          <SummaryRow
+                            label="Items Completed"
+                            value={`${selectedUser.completedItemsCount || 0} / ${version?.totalItems ?? 0}`}
+                          />
+
+
+
 
                         </div>
                       )}
