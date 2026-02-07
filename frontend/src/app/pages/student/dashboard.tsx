@@ -84,6 +84,24 @@ function DashboardContent() {
   const enrollments = enrollmentsData?.enrollments || [];
   const totalEnrollments = enrollmentsData?.totalDocuments || 0;
   const { data: watchtimeData } = useWatchtimeTotal();
+  
+  // Check if student is already registered to Gurusetu course
+  const gurusetuCourseId = "6981df886e100cfe04f9c4ad";
+  const isRegisteredToGurusetu = enrollments.some(enrollment => {
+    const courseId = enrollment.course?._id;
+    // Handle MongoDB ObjectId conversion
+    let courseIdStr: string | undefined = undefined;
+    
+    if (courseId?.type === 'Buffer') {
+      // Convert Buffer to hex string
+      courseIdStr = Buffer.from(courseId.data).toString('hex');
+    } else if (courseId && typeof courseId === 'object') {
+      // Handle ObjectId object - try different methods
+      courseIdStr = courseId._id || courseId.id || courseId.toString() || JSON.stringify(courseId);
+    }
+    return enrollment.courseId === gurusetuCourseId || courseIdStr === gurusetuCourseId ;
+  });
+  
   // const filteredEnrollement = enrollments.filter(enrollment=>enrollment.role == "STUDENT");
   const [completion, setCompletion] = useState<CoursePctCompletion[]>([]);
   const totalProgress = useMemo(() => {
@@ -124,21 +142,23 @@ function DashboardContent() {
           />
         )}
       </div> */}
-      {/* Main content and sidebar */}
-      <div className="mb-6 px-0 sm:px-6 lg:px-8 xl:px-0">
-        <div className="dark:bg-[#4b341e4b] bg-amber-100 border b rounded-lg p-3">
-          <a 
-            href="https://vibe.vicharanashala.ai/student/course-registration/6981df886e100cfe04f9c4ae" 
-            target="_blank"
-            className="inline-flex items-center gap-2 hover:text-foreground text-base font-medium transition-colors duration-200"
-          >
-            🎓 Click here to register for Gurusetu course
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-          </a>
+      {/* Gurusetu Course Registration Banner - Show only if not registered */}
+      {!isRegisteredToGurusetu && (
+        <div className="px-0 sm:px-6 lg:px-8 xl:px-0">
+          <div className="dark:bg-[#4b341e4b] bg-amber-100 border b rounded-lg p-3">
+            <a 
+              href="https://vibe.vicharanashala.ai/student/course-registration/6981df886e100cfe04f9c4ae" 
+              target="_blank"
+              className="inline-flex items-center gap-2 hover:text-foreground text-lg font-medium transition-colors duration-200"
+            >
+              🎓 Click here to register for Gurusetu course
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+          </div>
         </div>
-      </div>
+      )}
       <div className="container mx-auto px-0 sm:px-6 lg:px-8 xl:px-0 py-6 flex flex-col lg:flex-row gap-6 transition-all duration-300">
         <main className="flex-1">
           <CourseSection
