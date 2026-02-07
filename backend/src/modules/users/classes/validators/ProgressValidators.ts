@@ -284,6 +284,15 @@ export class StopItemBody {
     example: true,
   })
   isSkipped?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Whether seek forward is allowed',
+    type: 'boolean',
+    example: true,
+  })
+  seekForwardEnabled?: boolean;
 }
 
 export class ItemIdparams {

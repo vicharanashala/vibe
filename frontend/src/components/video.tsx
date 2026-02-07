@@ -259,6 +259,7 @@ const handleStopItem = useCallback(async (watchItemId: string, debounceMs: numbe
             itemId: currentCourse!.itemId ?? '',
             moduleId: currentCourse!.moduleId ?? '',
             sectionId: currentCourse!.sectionId ?? '',
+            seekForwardEnabled, 
           },
         });
 
@@ -591,6 +592,7 @@ const handleStopItem = useCallback(async (watchItemId: string, debounceMs: numbe
         itemId: currentCourse.itemId ?? '',
         moduleId: currentCourse.moduleId ?? '',
         sectionId: currentCourse.sectionId ?? '',
+        seekForwardEnabled,
       },
     });
   }
@@ -690,18 +692,18 @@ const handleStopItem = useCallback(async (watchItemId: string, debounceMs: numbe
           // Handle videos without endTime constraint that reach near completion
           if (endTimeSeconds === 0 && duration > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= duration - 2 && currentCourse) {
             const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
-  if (watchItemId) {
-    player?.pauseVideo();
-    
-    // Check if user recently seeked
-    const timeSinceLastSeek = Date.now() - lastSeekTimeRef.current;
-    const debounceTime = timeSinceLastSeek < 3000 ? 2000 : 0;
-    
-    const success = await handleStopItem(watchItemId, debounceTime);
-    if (success) {
-      onNext?.();
-    }
-  }}
+            if (watchItemId) {
+            player?.pauseVideo();
+            
+            // Check if user recently seeked
+            const timeSinceLastSeek = Date.now() - lastSeekTimeRef.current;
+            const debounceTime = timeSinceLastSeek < 3000 ? 2000 : 0;
+            
+            const success = await handleStopItem(watchItemId, debounceTime);
+            if (success) {
+              onNext?.();
+            }
+          }}  
           if (endTimeSeconds > 0 && time >= endTimeSeconds) {
             player.pauseVideo();
             if (!player) return;
