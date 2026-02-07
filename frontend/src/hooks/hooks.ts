@@ -28,6 +28,7 @@ import { Field } from '@/app/pages/teacher/components/course-registration-modal'
 import { IssueSort, IssueStatus } from '@/app/pages/student/FlagResponse';
 import { ISubmitFeedbackBody } from '@/components/Item-container';
 import { TranscriptResponse } from '@/types/ai.types';
+import { VideoOverallAnalytics, VideoUserAnalytics, VideoUserAnalyticsResponse } from '@/app/pages/teacher/teacher-course-page';
 
 // Add missing ObjectId type
 type ObjectId = string;
@@ -331,8 +332,8 @@ export interface Anomaly {
 }
 
 export interface ExportFeedbackSubmissionsProps {
-    courseId: string;
-    feedbackId: string;
+  courseId: string;
+  feedbackId: string;
 }
 
 
@@ -1032,12 +1033,12 @@ export function useItemById(
 
 
 
-export function useVideoAnalytics(
+export function useOverallVideoAnalytics(
   courseId: string,
   versionId: string,
   itemId: string
 ): {
-  data:any
+  data: VideoOverallAnalytics | null;
   isLoading: boolean;
   error: string | null;
   errorName: string | null;
@@ -1058,6 +1059,54 @@ export function useVideoAnalytics(
     data: result.data,
     isLoading: result.isLoading,
     error: result.error ? result.error.message || "Video analytics fetch failed" : null,
+    errorName: result.error ? result.error.name || null : null,
+    refetch: result.refetch,
+  };
+}
+
+export function useVideoUserAnalytics(
+  courseId: string,
+  versionId: string,
+  itemId: string,
+  query?: {
+    search?: string;
+    page?: number;
+    limit?: number;
+  }
+): {
+  data: VideoUserAnalyticsResponse | null;
+  isLoading: boolean;
+  error: string | null;
+  errorName: string | null;
+  refetch: () => void;
+} {
+  const page = query?.page ?? 1;
+  const limit = query?.limit ?? 20;
+  const search = query?.search;
+
+  const result = api.useQuery(
+    "get",
+    "/courses/{courseId}/versions/{versionId}/item/{itemId}/analytics/users",
+    {
+      params: {
+        path: { courseId, versionId, itemId },
+        query: {
+          ...(search ? { search } : {}),
+          page,
+          limit,
+        },
+      },
+    },
+    {
+      enabled: !!courseId && !!versionId && !!itemId,
+      keepPreviousData: true,
+    }
+  );
+
+  return {
+    data: result.data ?? null,
+    isLoading: result.isLoading,
+    error: result.error ? result.error.message || "Video user analytics fetch failed" : null,
     errorName: result.error ? result.error.name || null : null,
     refetch: result.refetch,
   };
@@ -1246,7 +1295,7 @@ export function useCourseQuizScores(
   courseId: string | undefined,
   versionId: string | undefined,
   enabled: boolean = true,
-  statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE' 
+  statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE'
 ): {
   data: any | undefined,
   isLoading: boolean,
@@ -1501,12 +1550,12 @@ export function useStopItem() {
             query.queryKey[1] ===
             `/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items`,
         });
-      queryClient.invalidateQueries({
-  predicate: (query) =>
-    query.queryKey[0] === "get" &&
-    query.queryKey[1] ===
-      "/users/progress/courses/{courseId}/versions/{versionId}/modules",
-});
+        queryClient.invalidateQueries({
+          predicate: (query) =>
+            query.queryKey[0] === "get" &&
+            query.queryKey[1] ===
+            "/users/progress/courses/{courseId}/versions/{versionId}/modules",
+        });
 
 
       },
@@ -2847,11 +2896,11 @@ export function useSubmitFlag(): {
 
 export function useGetReports(courseId: string, versionId: string, limit = 10, currentPage = 1, status?: string, entityType?: string, sortBy?: string,
   sortOrder?: 'asc' | 'desc'): {
-  data: IReport[],
-  isLoading: boolean,
-  error: string | null,
-  refetch: () => void
-} {
+    data: IReport[],
+    isLoading: boolean,
+    error: string | null,
+    refetch: () => void
+  } {
 
   const result = api.useQuery(
     "get",
@@ -4010,39 +4059,39 @@ export function useRecalculateStudentProgress(): {
 // Hook to export feedback submissions as CSV
 
 export const useExportFeedbackSubmissions = ({ courseId, feedbackId }: ExportFeedbackSubmissionsProps) => {
-    const [isExporting, setIsExporting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
-    const exportCSV = async () => {
-        try {
-            setIsExporting(true);
-            const baseUrl = import.meta.env.VITE_BASE_URL;
-            const response = await fetch(`${baseUrl}/courses/${courseId}/item/${feedbackId}/feedback/submissions/export`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('firebase-auth-token')}`
-                }
-            });
-
-            if (!response.ok) throw new Error('Failed to export submissions');
-
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `feedback_submissions_${feedbackId}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            toast.success('Feedback submissions exported successfully');
-        } catch (error) {
-            console.error('Export error:', error);
-            toast.error('Failed to export feedback submissions');
-        } finally {
-            setIsExporting(false);
+  const exportCSV = async () => {
+    try {
+      setIsExporting(true);
+      const baseUrl = import.meta.env.VITE_BASE_URL;
+      const response = await fetch(`${baseUrl}/courses/${courseId}/item/${feedbackId}/feedback/submissions/export`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('firebase-auth-token')}`
         }
-    };
+      });
 
-    return { exportCSV, isExporting };
+      if (!response.ok) throw new Error('Failed to export submissions');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `feedback_submissions_${feedbackId}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Feedback submissions exported successfully');
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export feedback submissions');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  return { exportCSV, isExporting };
 };
 
 

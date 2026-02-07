@@ -1,19 +1,19 @@
-import {injectable, inject} from 'inversify';
-import {ClientSession, ObjectId} from 'mongodb';
+import { injectable, inject } from 'inversify';
+import { ClientSession, ObjectId } from 'mongodb';
 import {
   NotFoundError,
   InternalServerError,
   BadRequestError,
 } from 'routing-controllers';
-import {COURSES_TYPES} from '#courses/types.js';
-import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
+import { COURSES_TYPES } from '#courses/types.js';
+import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
 import {
   ItemsGroup,
   ItemBase,
   ItemRef,
   Item,
 } from '#courses/classes/transformers/Item.js';
-import {Section} from '#courses/classes/transformers/Section.js';
+import { Section } from '#courses/classes/transformers/Section.js';
 import {
   CreateItemBody,
   UpdateItemBody,
@@ -21,14 +21,18 @@ import {
   QuizDetailsPayloadValidator,
   CSVRow,
   CSVQuizQuestion,
+  VideoOverallAnalytics,
+  VideoUserAnalyticsQuery,
+  VideoUserAnalytics,
+  VideoUserAnalyticsResponse,
 } from '#courses/classes/validators/ItemValidators.js';
-import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
-import {BaseService} from '#root/shared/classes/BaseService.js';
-import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
-import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
-import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {Module} from '#courses/classes/transformers/Module.js';
+import { calculateNewOrder } from '#courses/utils/calculateNewOrder.js';
+import { BaseService } from '#root/shared/classes/BaseService.js';
+import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { Module } from '#courses/classes/transformers/Module.js';
 import {
   EnrollmentRepository,
   IBaseItem,
@@ -39,20 +43,20 @@ import {
   ProgressRepository,
   QuestionType,
 } from '#root/shared/index.js';
-import {USERS_TYPES} from '#root/modules/users/types.js';
-import {ProgressService} from '#root/modules/users/services/ProgressService.js';
-import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
+import { USERS_TYPES } from '#root/modules/users/types.js';
+import { ProgressService } from '#root/modules/users/services/ProgressService.js';
+import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 import {
   AttemptRepository,
   QuizRepository,
   UserQuizMetricsRepository,
 } from '#root/modules/quizzes/repositories/index.js';
-import {FeedbackRepository} from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
-import {QuestionBankService} from '#root/modules/quizzes/services/QuestionBankService.js';
-import {QuizService} from '#root/modules/quizzes/services/QuizService.js';
-import {QuestionService} from '#root/modules/quizzes/services/QuestionService.js';
-import {QuestionFactory} from '#root/modules/quizzes/classes/index.js';
-import {QuestionProcessor} from '#root/modules/quizzes/question-processing/QuestionProcessor.js';
+import { FeedbackRepository } from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
+import { QuestionBankService } from '#root/modules/quizzes/services/QuestionBankService.js';
+import { QuizService } from '#root/modules/quizzes/services/QuizService.js';
+import { QuestionService } from '#root/modules/quizzes/services/QuestionService.js';
+import { QuestionFactory } from '#root/modules/quizzes/classes/index.js';
+import { QuestionProcessor } from '#root/modules/quizzes/question-processing/QuestionProcessor.js';
 
 @injectable()
 export class ItemService extends BaseService {
@@ -128,17 +132,17 @@ export class ItemService extends BaseService {
         version,
         module,
         section,
-        itemsGroup: {_id: section.itemsGroupId, items: []} as ItemsGroup,
+        itemsGroup: { _id: section.itemsGroupId, items: [] } as ItemsGroup,
       };
     }
 
-    return {version, module, section, itemsGroup};
+    return { version, module, section, itemsGroup };
   }
 
   private async _updateHierarchyAndVersion(
     version: CourseVersion,
-    module: {updatedAt: Date},
-    section: {updatedAt: Date},
+    module: { updatedAt: Date },
+    section: { updatedAt: Date },
     session?: ClientSession, // Pass session if version update is part of the transaction
   ): Promise<CourseVersion> {
     const now = new Date();
@@ -162,7 +166,7 @@ export class ItemService extends BaseService {
   ) {
     return this._withTransaction(async session => {
       // Step 1: Fetch and validate parent entities
-      const {version, module, section, itemsGroup} =
+      const { version, module, section, itemsGroup } =
         await this._getVersionModuleSectionAndItemsGroup(
           versionId,
           moduleId,
@@ -256,7 +260,7 @@ export class ItemService extends BaseService {
       );
 
       // Step 3b: Update totalItems
-      const {totalItems, itemCounts} =
+      const { totalItems, itemCounts } =
         await this.itemRepo.calculateItemCountsForVersion(versionId, session);
       version.totalItems = totalItems;
       version.itemCounts = itemCounts;
@@ -283,7 +287,7 @@ export class ItemService extends BaseService {
     sectionId: string,
     userId: string,
   ): Promise<ItemRef[]> {
-    const {itemsGroup} = await this._getVersionModuleSectionAndItemsGroup(
+    const { itemsGroup } = await this._getVersionModuleSectionAndItemsGroup(
       versionId,
       moduleId,
       sectionId,
@@ -348,7 +352,7 @@ export class ItemService extends BaseService {
       itemsGroup.items = itemsGroup.items.map(item => ({
         ...item,
         // isCompleted: true,
-        isCompleted:completionMap.get(item._id.toString()) ?? false
+        isCompleted: completionMap.get(item._id.toString()) ?? false
       }));
       return itemsGroup.items;
 
@@ -459,7 +463,7 @@ export class ItemService extends BaseService {
       //  Update item first
       const result = await this.itemRepo.updateItem(
         itemId,
-        {...body, isOptional: body.isOptional || item.isOptional},
+        { ...body, isOptional: body.isOptional || item.isOptional },
         session,
       );
 
@@ -490,7 +494,7 @@ export class ItemService extends BaseService {
   async bulkUpdateEnrolledUserQuizMetrics(
     quizId: string,
     quiz: any,
-  ): Promise<{updatedCount: number; totalCount: number}> {
+  ): Promise<{ updatedCount: number; totalCount: number }> {
     const BATCH_SIZE = 5000;
     const bulkOperations: any[] = [];
     let batchCount = 0;
@@ -518,7 +522,7 @@ export class ItemService extends BaseService {
           // Step 3: Add to bulk operations
           bulkOperations.push({
             updateOne: {
-              filter: {_id: new ObjectId(metric._id)},
+              filter: { _id: new ObjectId(metric._id) },
               update: {
                 $set: {
                   // latestAttemptId: latestAttempt?._id.toString(),
@@ -540,8 +544,7 @@ export class ItemService extends BaseService {
                 session,
               );
               console.log(
-                `✅ Batch ${++batchCount}: Updated ${
-                  bulkOperations.length
+                `✅ Batch ${++batchCount}: Updated ${bulkOperations.length
                 } user_quiz_metrics`,
               );
               bulkOperations.length = 0;
@@ -567,7 +570,7 @@ export class ItemService extends BaseService {
     }
 
     console.log(`🔹 Done! Updated ${updatedCount} / ${totalCount} records`);
-    return {updatedCount, totalCount};
+    return { updatedCount, totalCount };
   }
 
   public async deleteItem(itemsGroupId: string, itemId: string) {
@@ -602,7 +605,7 @@ export class ItemService extends BaseService {
           this.enrollmentRepo.getByCourseVersion(courseId, versionId, session),
         ]);
 
-        const {totalItems, itemCounts} =
+        const { totalItems, itemCounts } =
           await this.itemRepo.calculateItemCountsForVersion(versionId, session);
         version.totalItems = totalItems;
         version.itemCounts = itemCounts;
@@ -629,7 +632,7 @@ export class ItemService extends BaseService {
         }
 
         deleted._id = deleted._id.toString();
-        return {deletedItemId: itemId, itemsGroup: deleted};
+        return { deletedItemId: itemId, itemsGroup: deleted };
       } catch (error) {
         throw new InternalServerError(
           `Failed to delete Item after / Error: ${error}`,
@@ -646,7 +649,7 @@ export class ItemService extends BaseService {
     body: MoveItemBody,
   ) {
     return this._withTransaction(async session => {
-      const {afterItemId, beforeItemId} = body;
+      const { afterItemId, beforeItemId } = body;
       if (!afterItemId && !beforeItemId) {
         throw new Error('Either afterItemId or beforeItemId is required');
       }
@@ -698,7 +701,7 @@ export class ItemService extends BaseService {
         version,
       );
 
-      return {itemsGroup: updatedItemsGroup, version: updatedVersion};
+      return { itemsGroup: updatedItemsGroup, version: updatedVersion };
     });
   }
 
@@ -846,7 +849,7 @@ export class ItemService extends BaseService {
       if (!version)
         throw new NotFoundError(`Version ${courseVersionId} not found.`);
 
-      const {totalItems, itemCounts} =
+      const { totalItems, itemCounts } =
         await this.itemRepo.calculateItemCountsForVersion(
           courseVersionId,
           session,
@@ -894,7 +897,7 @@ export class ItemService extends BaseService {
         if (nextItem) {
           await this.progressRepo.updateProgressByItemId(
             itemId,
-            {currentItem: nextItem._id.toString()},
+            { currentItem: nextItem._id.toString() },
             session,
           );
         }
@@ -1076,10 +1079,10 @@ export class ItemService extends BaseService {
               firstQuestion['Question Timestamp [mm:ss]'] ||
               (Object.keys(firstQuestion).find(k => k.includes('Timestamp'))
                 ? firstQuestion[
-                    Object.keys(firstQuestion).find(k =>
-                      k.includes('Timestamp'),
-                    )!
-                  ]
+                Object.keys(firstQuestion).find(k =>
+                  k.includes('Timestamp'),
+                )!
+                ]
                 : undefined);
           }
 
@@ -1250,10 +1253,123 @@ export class ItemService extends BaseService {
       };
     } catch (error) {
       throw new InternalServerError(
-        `Failed to process CSV: ${
-          error instanceof Error ? error.message : 'Unknown error'
+        `Failed to process CSV: ${error instanceof Error ? error.message : 'Unknown error'
         }`,
       );
     }
+  }
+
+  async getVideoAnalytics(
+    courseId: string,
+    versionId: string,
+    videoId: string,
+  ): Promise<VideoOverallAnalytics> {
+
+    return await this._withTransaction(async session => {
+
+      if (!ObjectId.isValid(videoId)) {
+        throw new BadRequestError(`Invalid video ID: ${videoId}`);
+      }
+      if (!ObjectId.isValid(versionId)) {
+        throw new BadRequestError(`Invalid version ID: ${versionId}`);
+      }
+      if (!ObjectId.isValid(courseId)) {
+        throw new BadRequestError(`Invalid course ID: ${courseId}`);
+      }
+
+      const item = await this.itemRepo.readItem(versionId, videoId, session);
+      if (!item) {
+        throw new NotFoundError(`Video item ${videoId} not found in version ${versionId}.`);
+      }
+
+      if (item.type !== 'VIDEO') {
+        throw new BadRequestError(`Item ${videoId} is not a video item.`);
+      }
+
+      const formatDuration = (start?: string, end?: string): string => {
+        if (!end) return "00:00:00";
+
+        const [sh = "0", sm = "0", ss = "0"] = (start || "00:00:00").split(":");
+        const [eh = "0", em = "0", es = "0"] = end.split(":");
+
+        const startSeconds =
+          Number(sh) * 3600 + Number(sm) * 60 + Number(ss);
+
+        const endSeconds =
+          Number(eh) * 3600 + Number(em) * 60 + Number(es);
+
+        const diff = Math.max(endSeconds - startSeconds, 0);
+
+        const hours = Math.floor(diff / 3600);
+        const minutes = Math.floor((diff % 3600) / 60);
+        const seconds = diff % 60;
+
+        const pad = (n: number) => String(n).padStart(2, "0");
+
+        return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+      };
+
+      const videoDuration = formatDuration(
+        item.details?.startTime,
+        item.details?.endTime
+      );
+
+
+      const watchTimeData = await this.progressRepo.getWatchTimeByItemId(
+        videoId,
+      );
+
+      const MAX_SECONDS_PER_VIEW = 10 * 60; // 600
+
+      const getCappedWatchSeconds = (startTime?: Date, endTime?: Date) => {
+        if (!startTime || !endTime) return 0;
+
+        const diffSeconds = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
+
+        if (!Number.isFinite(diffSeconds) || diffSeconds <= 0) return 0;
+
+        return Math.min(diffSeconds, MAX_SECONDS_PER_VIEW);
+      };
+
+      const totalViews = watchTimeData.length;
+      const uniqueUsers = new Set(watchTimeData.map(e => String(e.userId))).size || 1;
+      const totalWatchSeconds = watchTimeData.reduce((sum, entry) => {
+        return sum + getCappedWatchSeconds(entry.startTime, entry.endTime);
+      }, 0);
+
+      const averageViewsPerUser =
+        Number((totalViews / uniqueUsers).toFixed(3));
+
+      const averageWatchHoursPerUser =
+        Number(((totalWatchSeconds / uniqueUsers) / 3600).toFixed(3));
+
+
+      return {
+        videoId,
+        videoDuration,
+        totalViews,
+        totalWatchHours: totalWatchSeconds / 3600,
+        averageViewsPerUser,
+        averageWatchHoursPerUser,
+      };
+    })
+  }
+
+
+  async getVideoUserAnalytics(
+    courseId: string,
+    versionId: string,
+    videoId: string,
+    query: VideoUserAnalyticsQuery
+  ): Promise<VideoUserAnalyticsResponse> {
+
+    const { page = 1, limit = 20 } = query;
+    return await this.progressRepo.getVideoUserAnalytics(
+      courseId,
+      versionId,
+      videoId,
+      page,
+      limit
+    );
   }
 }

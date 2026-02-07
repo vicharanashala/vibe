@@ -32,8 +32,11 @@ import {
   CSVItemBody,
   CourseVersionModuleSectionParams,
   csvResponse,
-  VideoAnalyticsResponse,
+  VideoOverallAnalytics,
   GetVideoAnalyticsParams,
+  VideoUserAnalyticsQuery,
+  VideoUserAnalytics,
+  VideoUserAnalyticsResponse,
 } from '#courses/classes/validators/ItemValidators.js';
 import { ItemService } from '#courses/services/ItemService.js';
 import { injectable, inject } from 'inversify';
@@ -322,7 +325,7 @@ Access control logic:
   @Authorized()
   @Get('/:courseId/versions/:versionId/item/:itemId/analytics')
   @HttpCode(200)
-  @ResponseSchema(VideoAnalyticsResponse, {
+  @ResponseSchema(VideoOverallAnalytics, {
     description: 'Video analytics retrieved successfully',
   })
   @ResponseSchema(BadRequestErrorResponse, {
@@ -335,7 +338,6 @@ Access control logic:
   })
   async getVideoAnalytics(
     @Params() params: GetVideoAnalyticsParams,
-    @Ability(getItemAbility) { ability },
   ) {
     const { courseId, versionId, itemId: videoId } = params;
 
@@ -343,6 +345,42 @@ Access control logic:
       courseId,
       versionId,
       videoId,
+    );
+  }
+
+
+  @OpenAPI({
+    summary: "Get video analytics per student",
+    description: `Retrieves per-student analytics for a video item, with search, pagination, and filters.<br/>
+Access control logic:
+- Only instructors, managers, and teaching assistants can access analytics.
+- Students are restricted from viewing analytics.`,
+  })
+  // @Authorized()
+  @Get("/:courseId/versions/:versionId/item/:itemId/analytics/users")
+  @HttpCode(200)
+  @ResponseSchema(VideoUserAnalytics, {
+    description: "Per-student video analytics retrieved successfully",
+    isArray: true,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: "Bad Request Error",
+    statusCode: 400,
+  })
+  @ResponseSchema(ItemNotFoundErrorResponse, {
+    description: "Video item not found",
+    statusCode: 404,
+  })
+  async getVideoAnalyticsPerStudent(
+    @Params() params: GetVideoAnalyticsParams,
+    @QueryParams() query: VideoUserAnalyticsQuery
+  ): Promise<VideoUserAnalyticsResponse> {
+    const { courseId, versionId, itemId: videoId } = params;
+    return await this.itemService.getVideoUserAnalytics(
+      courseId,
+      versionId,
+      videoId,
+      query
     );
   }
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
-import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, userParseCSVtoItems, useUpdateItemOptional } from '@/hooks/hooks';
+import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useVideoUserAnalytics } from '@/hooks/hooks';
 import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video } from 'lucide-react';
 import { useHideItem } from '@/hooks/hooks';
 
@@ -75,6 +75,9 @@ import { logout } from "@/utils/auth";
 import InviteDropdown from "@/components/inviteDropDown";
 import { useQueryClient } from "@tanstack/react-query"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import { Pagination } from "@/components/ui/Pagination";
 
 
 // ? Icons per item type
@@ -131,6 +134,9 @@ function TeacherCourseContent() {
   const invitesRef = useRef<HTMLDivElement | null>(null);
   const [videoTab, setVideoTab] = useState("video");
 
+
+
+
   const handleLogout = () => {
     logout();
     navigate({ to: "/auth" });
@@ -141,6 +147,11 @@ function TeacherCourseContent() {
   // Use correct keys for course/version IDs
   const courseId = currentCourse?.courseId;
   const versionId = currentCourse?.versionId;
+
+
+
+
+
   useEffect(() => {
     const items: BreadcrumbItem[] = [];
     items.push({
@@ -321,6 +332,43 @@ function TeacherCourseContent() {
     shouldFetchItem ? versionId : '',
     shouldFetchItem ? selectedEntity?.data?._id : ''
   );
+
+  const [videoAnalyticsPage, setVideoAnalyticsPage] = useState(1);
+  const [videoAnalyticsLimit, setVideoAnalyticsLimit] = useState(5);
+  const [videoAnalyticsSearch, setVideoAnalyticsSearch] = useState("");
+
+  const {
+    data: overallAnalytics,
+    isLoading: overallLoading,
+    error: overallError,
+    refetch: refetchOverall,
+  } = useOverallVideoAnalytics(courseId!, versionId!, selectedEntity?.data?._id);
+
+  const videoUserAnalyticsQuery = useVideoUserAnalytics(
+    courseId!,
+    versionId!,
+    selectedEntity?.data?._id,
+    {
+      page: videoAnalyticsPage,
+      limit: videoAnalyticsLimit,
+      search: videoAnalyticsSearch,
+    }
+  );
+
+  const {
+    data: userAnalyticsData,
+    totalDocuments: userAnalyticsTotalDocs,
+    totalPages: userAnalyticsTotalPages,
+    page,
+    limit,
+  } = videoUserAnalyticsQuery.data ?? {};
+
+  const {
+    isLoading: usersLoading,
+    error: usersError,
+    refetch: refetchUsers,
+  } = videoUserAnalyticsQuery;
+
   // Sync controlled state with selectedItemData for PROJECT edit
   useEffect(() => {
     if (selectedEntity?.type === 'item' && selectedEntity.data.type === 'PROJECT') {
@@ -2833,7 +2881,7 @@ function TeacherCourseContent() {
                             </TabsTrigger>
 
                           </TabsList>
-                          
+
                           {videoTab === "video" && (
                             <VideoModal
                               isLoading={isItemLoading}
@@ -2907,7 +2955,10 @@ function TeacherCourseContent() {
                           {videoTab === "analytics" && (
                             <div className="mt-4">
                               <p className="text-sm text-muted-foreground">
-                                Video analytics will appear here.
+                                <UserAnalytics users={userAnalyticsData || []} overallAnalytics={overallAnalytics} currentPage={videoAnalyticsPage} limit={videoAnalyticsLimit} search={videoAnalyticsSearch} onSearchChange={(v) => {
+                                  setVideoAnalyticsSearch(v);
+                                  setVideoAnalyticsPage(1);
+                                }} onPageChange={setVideoAnalyticsPage} isLoading={overallLoading || usersLoading} totalDocuments={userAnalyticsTotalDocs || 0} totalPages={userAnalyticsTotalPages || 0} />
                               </p>
                             </div>
                           )}
@@ -3233,7 +3284,246 @@ export function useStatusToasts({
 
 // 4. ADD A SIMPLE FEEDBACK EDITOR COMPONENT (Hello World for now)
 
+export interface VideoUserAnalytics {
+  userName: string;
+  email: string;
+  userId: string;
+  viewCount: number;
+  watchHours: number;
+}
 
+export interface VideoUserAnalyticsResponse {
+  data: VideoUserAnalytics[];
+  totalDocuments: number;
+  totalPages: number;
+  page: number;
+  limit: number;
+}
+
+export interface VideoOverallAnalytics {
+  videoId: string;
+  videoDuration: number | string;
+  totalViews: number;
+  totalWatchHours: number;
+  averageViewsPerUser: number;
+  averageWatchHoursPerUser: number;
+}
+
+export type UserAnalyticsProps = {
+  users: VideoUserAnalytics[] | null;
+  overallAnalytics?: VideoOverallAnalytics | null;
+
+  search: string;
+  onSearchChange: (value: string) => void;
+
+  currentPage: number;
+  limit: number;
+  totalDocuments: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+
+  isLoading?: boolean;
+};
+
+export function UserAnalytics({
+  users,
+  overallAnalytics,
+  search,
+  onSearchChange,
+  currentPage,
+  limit,
+  totalDocuments,
+  totalPages,
+  onPageChange,
+  isLoading,
+}: UserAnalyticsProps) {
+  const safeUsers = users ?? [];
+
+  const sortedUsers = useMemo(() => {
+    return [...safeUsers].sort((a, b) => b.viewCount - a.viewCount);
+  }, [safeUsers]);
+
+  const totalViewsOnPage = useMemo(
+    () => safeUsers.reduce((sum, u) => sum + (u.viewCount || 0), 0),
+    [safeUsers]
+  );
+
+  const totalWatchHoursOnPage = useMemo(
+    () => safeUsers.reduce((sum, u) => sum + (u.watchHours || 0), 0),
+    [safeUsers]
+  );
+
+  const avgViewsPerUserOnPage = safeUsers.length ? totalViewsOnPage / safeUsers.length : 0;
+
+  const statCards = [
+    { title: "Users", value: safeUsers.length.toLocaleString() },
+    { title: "Views", value: totalViewsOnPage.toLocaleString() },
+    { title: "Watch (hrs)", value: totalWatchHoursOnPage?.toFixed(1) },
+    { title: "Avg Views", value: safeUsers.length ? avgViewsPerUserOnPage?.toFixed(0) : "0" },
+  ];
+
+  return (
+    <div className="w-full space-y-4 p-4">
+      {/* Header */}
+      <div className="space-y-1">
+        <h1 className="text-xl font-semibold tracking-tight">User Analytics</h1>
+        <p className="text-sm text-muted-foreground">Per-student engagement for this video.</p>
+      </div>
+
+      {/* Overall Analytics (compact) */}
+      {overallAnalytics && (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Card className="bg-muted/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium text-muted-foreground">Duration</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-lg font-semibold">{overallAnalytics.videoDuration}s</div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-muted/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium text-muted-foreground">Total Views</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-lg font-semibold">{overallAnalytics.totalViews.toLocaleString()}</div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-muted/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium text-muted-foreground">Watch Hours</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-lg font-semibold">{overallAnalytics.totalWatchHours?.toFixed(1)}</div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-muted/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium text-muted-foreground">Avg Watch/User</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-lg font-semibold">{overallAnalytics.averageWatchHoursPerUser?.toFixed(1)}h</div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Search + Stats */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="w-full sm:max-w-sm">
+            <Input
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search by name or email..."
+              className="h-9"
+            />
+          </div>
+
+          <div className="text-xs text-muted-foreground">
+            {isLoading ? "Loading..." : `${totalDocuments.toLocaleString()} results`}
+          </div>
+        </div>
+
+        {/* Compact stat chips */}
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+          {statCards.map((s) => (
+            <div
+              key={s.title}
+              className="rounded-md bg-muted/30 px-3 py-2 text-xs"
+            >
+              <div className="text-muted-foreground">{s.title}</div>
+              <div className="font-semibold">{s.value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Table */}
+      <Card className="bg-muted/20">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Users</CardTitle>
+          <CardDescription className="text-xs">
+            Showing{" "}
+            {totalDocuments === 0 ? 0 : (currentPage - 1) * limit + 1}–
+            {Math.min(currentPage * limit, totalDocuments)} of {totalDocuments}
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs text-muted-foreground">
+                <tr className="border-b border-border">
+                  <th className="px-3 py-2 text-left font-medium">Name</th>
+                  <th className="px-3 py-2 text-left font-medium">Email</th>
+                  <th className="px-3 py-2 text-right font-medium">Views</th>
+                  <th className="px-3 py-2 text-right font-medium">Watch (hrs)</th>
+                  <th className="px-3 py-2 text-center font-medium">Engagement</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {sortedUsers.map((user) => {
+                  const engagement =
+                    user.viewCount > avgViewsPerUserOnPage
+                      ? "high"
+                      : user.viewCount > avgViewsPerUserOnPage * 0.5
+                        ? "medium"
+                        : "low";
+
+                  const badgeClass = {
+                    high: "bg-primary/15 text-primary",
+                    medium: "bg-muted text-foreground",
+                    low: "bg-muted/60 text-muted-foreground",
+                  }[engagement];
+
+                  return (
+                    <tr key={user.userId} className="border-b border-border/60 hover:bg-muted/30">
+                      <td className="px-3 py-2 font-medium">{user.userName}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{user.email}</td>
+                      <td className="px-3 py-2 text-right font-medium tabular-nums">
+                        {user.viewCount.toLocaleString()}
+                      </td>
+                      <td className="px-3 py-2 text-right font-medium tabular-nums">
+                        {user.watchHours?.toFixed(1)}
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <Badge className={badgeClass}>
+                          {engagement.charAt(0).toUpperCase() + engagement.slice(1)}
+                        </Badge>
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {!isLoading && sortedUsers.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-3 py-10 text-center text-sm text-muted-foreground">
+                      No users found for the current search.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination (buttons should use bg-primary inside your Pagination component) */}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalDocuments={totalDocuments}
+            onPageChange={onPageChange}
+            className="mt-4"
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 
 
