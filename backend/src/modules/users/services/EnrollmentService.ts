@@ -717,9 +717,9 @@ export class EnrollmentService extends BaseService {
     }
   }
 
-  async countEnrollments(userId: string, role: EnrollmentRole) {
+  async countEnrollments(userId: string, role: EnrollmentRole, search: string) {
     return this._withTransaction(async (session: ClientSession) => {
-      const result = await this.enrollmentRepo.countEnrollments(userId, role);
+      const result = await this.enrollmentRepo.countEnrollments(userId, role, search);
       return result;
     });
   }

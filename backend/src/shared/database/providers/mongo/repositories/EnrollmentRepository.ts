@@ -1552,18 +1552,62 @@ export class EnrollmentRepository {
   /**
    * Count total enrollments for a user
    */
-  async countEnrollments(userId: string, role: EnrollmentRole) {
+  // async countEnrollments(userId: string, role: EnrollmentRole, search: string) {
+  //   await this.init();
+
+  //   const userObjectid = new ObjectId(userId);
+
+  //   return await this.enrollmentCollection.countDocuments({
+  //     userId: userObjectid,
+  //     role,
+  //     isDeleted: { $ne: true },
+  //     status: { $regex: /^active$/i },
+  //   });
+  // }
+  async countEnrollments(userId: string,role: EnrollmentRole,search?: string,) {
     await this.init();
 
-    const userObjectid = new ObjectId(userId);
+    const pipeline: any[] = [
+      {
+        $match: {
+          userId: new ObjectId(userId),
+          role,
+          isDeleted: { $ne: true },
+          status: { $regex: /^active$/i },
+        },
+      },
 
-    return await this.enrollmentCollection.countDocuments({
-      userId: userObjectid,
-      role,
-      isDeleted: { $ne: true },
-      status: { $regex: /^active$/i },
-    });
+      {
+        $lookup: {
+          from: 'newCourse',
+          let: { courseId: '$courseId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$_id', '$$courseId'] },
+                ...(search?.trim()
+                  ? { name: { $regex: search, $options: 'i' } }
+                  : {}),
+              },
+            },
+          ],
+          as: 'course',
+        },
+      },
+
+      // remove enrollments whose course did not match search
+      { $unwind: '$course' },
+
+      { $count: 'total' },
+    ];
+
+    const result = await this.enrollmentCollection
+      .aggregate(pipeline)
+      .toArray();
+
+    return result[0]?.total || 0;
   }
+
   /*Update enrollments for all records in db */
   async bulkUpdateEnrollments(
     bulkOperations: any[],

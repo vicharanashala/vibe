@@ -203,7 +203,7 @@ export class EnrollmentController {
     // 🚀 Run DB queries in parallel
     const [enrollments, totalDocuments] = await Promise.all([
       this.enrollmentService.getEnrollments(userId, skip, limit, role, search),
-      this.enrollmentService.countEnrollments(userId, role),
+      this.enrollmentService.countEnrollments(userId, role, search),
     ]);
 
     if (!enrollments || enrollments.length === 0) {
