@@ -339,6 +339,27 @@ const mapValidationToSchema = (
            fieldSchema.type = 'boolean';
            break;
          case 'select':
+            fieldSchema.type = 'string';
+
+            if (options && options.length > 0) {
+              const validOptions = options.filter(
+                opt => opt.value && opt.label
+              );
+
+              fieldSchema.oneOf = [
+                { const: "", title: "Select an option" }, // 👈 empty option
+                ...validOptions.map(opt => ({
+                  const: opt.value,
+                  title: opt.label,
+                })),
+              ];
+
+              fieldSchema.enum = ["", ...validOptions.map(o => o.value)];
+            }
+
+            fieldSchema.default = ""; //  explicitly empty
+            break;
+
          case 'radio':
            fieldSchema.type = 'string';
            
@@ -359,6 +380,8 @@ const mapValidationToSchema = (
            
            // not setting a default value for select/radio
            delete fieldSchema.default;
+          // fieldSchema.default = undefined;
+
            break;
          case 'date':
            fieldSchema.type = 'string';
@@ -378,7 +401,10 @@ const mapValidationToSchema = (
  
        if (validation) Object.assign(fieldSchema, mapValidationToSchema(validation,type));
  
-       if (validation?.required) jsonSchema.required?.push(sanitizedLabel);
+       if (validation?.required && field.type !== "radio") {
+          jsonSchema.required?.push(sanitizedLabel);
+        }
+
  
        jsonSchema.properties![sanitizedLabel] = fieldSchema;
  

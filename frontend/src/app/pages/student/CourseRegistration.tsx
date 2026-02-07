@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import Form from "@rjsf/shadcn";
 import { useGetCourseRegistration, useGetDynamicFields, useSubmitCourseRegistration } from '@/hooks/hooks';
 import { useParams } from '@tanstack/react-router';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ReCAPTCHA from "react-google-recaptcha";
 import { toast } from 'sonner';
 import validator from "@rjsf/validator-ajv8";
@@ -150,17 +150,42 @@ const CourseRegistration: React.FC = () => {
 
       toast.success('You have been registered for this course version.');
       setIsRegistering(false);
-      setFormData({});
+      setFormData(buildEmptyFormData(jsonSchema!));
+
     } catch (err: any) {
       toast.error(err?.message || 'Something went wrong, please try again.');
     }
   };
 
   const resetForm = () => {
-    setFormData({});
-    setRecaptchaToken(null);
-    recaptchaRef.current?.reset();
-  };
+  if (jsonSchema) {
+    setFormData(buildEmptyFormData(jsonSchema));
+  }
+  setRecaptchaToken(null);
+  recaptchaRef.current?.reset();
+};
+
+  const buildEmptyFormData = (schema: RJSFSchema) => {
+  if (!schema?.properties) return {};
+
+  const obj: Record<string, any> = {};
+
+  Object.entries(schema.properties).forEach(([key, prop]: any) => {
+    if (prop.type === "boolean") {
+      obj[key] = false;            // checkbox unchecked
+    } else {
+      obj[key] = undefined;        // prevents enum auto-select
+    }
+  });
+
+  return obj;
+};
+useEffect(() => {
+  if (jsonSchema?.properties) {
+    setFormData(buildEmptyFormData(jsonSchema));
+  }
+}, [jsonSchema]);
+
 
 
 
