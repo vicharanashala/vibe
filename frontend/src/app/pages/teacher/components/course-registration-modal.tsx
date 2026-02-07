@@ -263,7 +263,7 @@ const mapValidationToSchema = (
 
   if (validation.required) {
     if (fieldType === 'checkbox') {
-      schema.const = true; // ✅ checkbox must be checked
+      schema.const = true; 
     } else {
       schema.minLength = 1;
     }
@@ -766,10 +766,11 @@ const mapValidationToSchema = (
                             </div>
 
                             <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                              {field.type !== "url" && (
                               <label className="text-sm font-medium flex items-center gap-1">
                                 {field.label}
                                 {field.validation.required && <span className="text-destructive">*</span>}
-                              </label>
+                              </label>)}
 
                               {field.type === "text" && (
                                 <Input
@@ -888,7 +889,7 @@ const mapValidationToSchema = (
                                 />
                               )}
 
-                              {field.type === "url" && (
+                              {/* {field.type === "url" && (
                                 <Input
                                   type="url"
                                   placeholder={field.placeholder}
@@ -896,9 +897,20 @@ const mapValidationToSchema = (
                                   onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
                                   className="h-9"
                                 />
-                              )}
+                              )} */}
+                            {field.type === "url" && (<>
+                                      <p className="text-xs text-muted-foreground">{field.helpText}</p>
+                                    <div className="rounded-md border bg-muted/40 px-3 py-2">
+                                      <p className="text-sm font-medium text-foreground">
+                                        {field.label}
+                                      </p>
+                                    </div>
+                            </>
+                            )}
 
-                              {field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
+
+
+                              {field.type !== "url" && field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
                             </div>
                           </div>
                         ))}

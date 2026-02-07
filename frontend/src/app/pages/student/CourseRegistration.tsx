@@ -341,6 +341,7 @@ useEffect(() => {
                       schema={jsonSchema}
                       validator={validator}
                       uiSchema={uiSchema}
+                      formContext={{ formData }} 
                       templates={{
                         FieldTemplate: AlignedFieldTemplate,
                         ButtonTemplates: {
