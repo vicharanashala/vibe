@@ -198,6 +198,8 @@ export default function FlaggedList() {
 
 
 
+
+
     // Extract courseId - handle both string and object types
     const extractedCourseId = typeof selectedFlagData.courseId === 'string'
       ? selectedFlagData.courseId
@@ -215,6 +217,7 @@ export default function FlaggedList() {
       watchItemId: selectedFlagData.entityId, // Navigate to the flagged item
       questionId: selectedFlagData.questionId || null, // Include questionId for flagged questions
     };
+
 
 
     setCurrentCourse(courseInfo);
@@ -373,12 +376,14 @@ export default function FlaggedList() {
                         key={report._id}
                         className="border-border hover:bg-muted/20 transition-colors duration-200 group"
                         onClick={() => {
+                          console.log('📋 Clicked report item:', report);
                           if (selectedReport?.id === report._id) {
                             setSelectedReport(null);
                           } else {
                             setSelectedReport({ id: report._id, status: report.latestStatus });
                           }
                         }}
+
                       >
                         <TableCell className="pl-6 py-6 w-[250px] align-top">
                           <div className="max-h-[100px] overflow-y-auto  whitespace-pre-wrap break-words text-sm pr-2">
