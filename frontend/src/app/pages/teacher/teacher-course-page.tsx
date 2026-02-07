@@ -334,8 +334,20 @@ function TeacherCourseContent() {
   );
 
   const [videoAnalyticsPage, setVideoAnalyticsPage] = useState(1);
-  const [videoAnalyticsLimit, setVideoAnalyticsLimit] = useState(5);
+  const [videoAnalyticsLimit, setVideoAnalyticsLimit] = useState(12);
   const [videoAnalyticsSearch, setVideoAnalyticsSearch] = useState("");
+  const [debouncedVideoAnalyticsSearch, setDebouncedVideoAnalyticsSearch] = useState("");
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedVideoAnalyticsSearch(videoAnalyticsSearch);
+      setVideoAnalyticsPage(1);
+    }, 300);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [videoAnalyticsSearch]);
 
   const {
     data: overallAnalytics,
@@ -351,7 +363,7 @@ function TeacherCourseContent() {
     {
       page: videoAnalyticsPage,
       limit: videoAnalyticsLimit,
-      search: videoAnalyticsSearch,
+      search: debouncedVideoAnalyticsSearch,
     }
   );
 
@@ -3285,11 +3297,11 @@ export function useStatusToasts({
 // 4. ADD A SIMPLE FEEDBACK EDITOR COMPONENT (Hello World for now)
 
 export interface VideoUserAnalytics {
-  userName: string;
+  firstName: string;
   email: string;
   userId: string;
   viewCount: number;
-  watchHours: number;
+  totalWatchTime: number;
 }
 
 export interface VideoUserAnalyticsResponse {
@@ -3355,12 +3367,7 @@ export function UserAnalytics({
 
   const avgViewsPerUserOnPage = safeUsers.length ? totalViewsOnPage / safeUsers.length : 0;
 
-  const statCards = [
-    { title: "Users", value: safeUsers.length.toLocaleString() },
-    { title: "Views", value: totalViewsOnPage.toLocaleString() },
-    { title: "Watch (hrs)", value: totalWatchHoursOnPage?.toFixed(1) },
-    { title: "Avg Views", value: safeUsers.length ? avgViewsPerUserOnPage?.toFixed(0) : "0" },
-  ];
+
 
   return (
     <div className="w-full space-y-4 p-4">
@@ -3373,41 +3380,58 @@ export function UserAnalytics({
       {/* Overall Analytics (compact) */}
       {overallAnalytics && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="bg-muted/30">
+          <Card className="bg-blue-50 border-blue-100">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">Duration</CardTitle>
+              <CardTitle className="text-m font-medium text-blue-900">
+                Duration
+              </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="text-lg font-semibold">{overallAnalytics.videoDuration}s</div>
+              <div className="text-lg font-semibold text-blue-950">
+                {overallAnalytics.videoDuration}s
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-muted/30">
+          <Card className="bg-green-50 border-green-100">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">Total Views</CardTitle>
+              <CardTitle className="text-m font-medium text-green-900">
+                Total Views
+              </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="text-lg font-semibold">{overallAnalytics.totalViews.toLocaleString()}</div>
+              <div className="text-lg font-semibold text-green-950">
+                {overallAnalytics.totalViews.toLocaleString()}
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-muted/30">
+          <Card className="bg-purple-50 border-purple-100">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">Watch Hours</CardTitle>
+              <CardTitle className="text-m font-medium text-purple-900">
+                Watch Hours
+              </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="text-lg font-semibold">{overallAnalytics.totalWatchHours?.toFixed(1)}</div>
+              <div className="text-lg font-semibold text-purple-950">
+                {overallAnalytics.totalWatchHours?.toFixed(1)}
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-muted/30">
+          <Card className="bg-orange-50 border-orange-100">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">Avg Watch/User</CardTitle>
+              <CardTitle className="text-m font-medium text-orange-900">
+                Avg Watch / User
+              </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="text-lg font-semibold">{overallAnalytics.averageWatchHoursPerUser?.toFixed(1)}h</div>
+              <div className="text-lg font-semibold text-orange-950">
+                {overallAnalytics.averageWatchHoursPerUser?.toFixed(1)}h
+              </div>
             </CardContent>
           </Card>
+
         </div>
       )}
 
@@ -3428,18 +3452,7 @@ export function UserAnalytics({
           </div>
         </div>
 
-        {/* Compact stat chips */}
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-          {statCards.map((s) => (
-            <div
-              key={s.title}
-              className="rounded-md bg-muted/30 px-3 py-2 text-xs"
-            >
-              <div className="text-muted-foreground">{s.title}</div>
-              <div className="font-semibold">{s.value}</div>
-            </div>
-          ))}
-        </div>
+
       </div>
 
       {/* Table */}
@@ -3454,8 +3467,8 @@ export function UserAnalytics({
         </CardHeader>
 
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto min-h-[600px] relative">
+            <table className="w-full text-sm ">
               <thead className="text-xs text-muted-foreground">
                 <tr className="border-b border-border">
                   <th className="px-3 py-2 text-left font-medium">Name</th>
@@ -3483,13 +3496,13 @@ export function UserAnalytics({
 
                   return (
                     <tr key={user.userId} className="border-b border-border/60 hover:bg-muted/30">
-                      <td className="px-3 py-2 font-medium">{user.userName}</td>
+                      <td className="px-3 py-2 font-medium">{user.firstName}</td>
                       <td className="px-3 py-2 text-muted-foreground">{user.email}</td>
                       <td className="px-3 py-2 text-right font-medium tabular-nums">
                         {user.viewCount.toLocaleString()}
                       </td>
                       <td className="px-3 py-2 text-right font-medium tabular-nums">
-                        {user.watchHours?.toFixed(1)}
+                        {user.totalWatchTime}
                       </td>
                       <td className="px-3 py-2 text-center">
                         <Badge className={badgeClass}>
@@ -3499,6 +3512,13 @@ export function UserAnalytics({
                     </tr>
                   );
                 })}
+
+                
+                {isLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-background/60">
+                    Loading users…
+                  </div>
+                )}
 
                 {!isLoading && sortedUsers.length === 0 && (
                   <tr>
