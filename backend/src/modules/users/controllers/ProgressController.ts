@@ -271,8 +271,15 @@ class ProgressController {
     @Ability(getProgressAbility) {ability, user},
   ): Promise<void> {
     const {courseId, versionId} = params;
-    const {itemId, sectionId, moduleId, watchItemId, attemptId, isSkipped} =
-      body;
+    const {
+      itemId,
+      sectionId,
+      moduleId,
+      watchItemId,
+      attemptId,
+      isSkipped,
+      seekForwardEnabled,
+    } = body;
 
     const userId = String(user._id);
 
@@ -298,6 +305,7 @@ class ProgressController {
       watchItemId,
       attemptId,
       isSkipped,
+      seekForwardEnabled,
     );
   }
 

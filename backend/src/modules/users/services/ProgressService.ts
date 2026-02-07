@@ -1528,6 +1528,7 @@ class ProgressService extends BaseService {
     watchItemId: string,
     attemptId?: string,
     isSkipped?: boolean,
+    seekForwardEnabled?: boolean,
   ): Promise<void> {
     /* ----------------------------------------------------
        1. READ-ONLY PRE-VALIDATION (NO TRANSACTION)
@@ -1623,7 +1624,8 @@ class ProgressService extends BaseService {
 
         if (
           stoppedWatchTime &&
-          (item.type === 'VIDEO' || item.type === 'BLOG')
+          (item.type === 'VIDEO' || item.type === 'BLOG') &&
+          !seekForwardEnabled
         ) {
           if (!this.isValidWatchTime(stoppedWatchTime, item)) {
             throw new BadRequestError('Invalid watch time');
