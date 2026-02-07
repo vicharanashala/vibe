@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -18,6 +18,7 @@ import {
   ValidateNested,
   IsEnum,
   IsArray,
+  IsInt,
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 import { CourseVersion } from '../transformers/CourseVersion.js';
@@ -768,31 +769,72 @@ class ItemsGroupResponse implements ItemsGroup {
 
 
 export class VideoUserAnalytics {
-  videoId!: string;
-  videoDuration!: number;
+  @IsString()
+  userName!: string;
+  @IsString()
+  email!: string;
+  @IsString()
   userId!: string;
+  @IsNumber()
   viewCount!: number;
+  @IsNumber()
   watchHours!: number;
+}
+
+export class VideoUserAnalyticsResponse {
+  data: VideoUserAnalytics[];
+
+  @IsInt()
+  totalDocuments: number;
+
+  @IsInt()
+  totalPages: number;
+
+  @IsInt()
+  page: number;
+
+  @IsInt()
+  limit: number;
+}
+
+export class VideoUserAnalyticsQuery {
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(1)
+  page: number = 1;
+
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(1)
+  @Max(200)
+  limit: number = 20;
 }
 
 export class VideoOverallAnalytics {
   videoId!: string;
-  videoDuration!: number;
+  videoDuration!: number | string;
   totalViews!: number;
   totalWatchHours!: number;
   averageViewsPerUser!: number;
   averageWatchHoursPerUser!: number;
 }
 
-export class VideoAnalyticsResponse {
-  overall!: VideoOverallAnalytics;
-  users!: VideoUserAnalytics[];
-}
 
 export class GetVideoAnalyticsParams {
+  @IsMongoId()
   courseId!: string;
+
+  @IsMongoId()
   versionId!: string;
-  itemId!: string; // videoId
+
+  @IsMongoId()
+  itemId!: string;
 }
 
 
