@@ -88,6 +88,50 @@ export interface RJSFSchema {
   required: string[];
 }
 
+export const normalizeSchemaOptions = (schema: any): any => {
+  if (!schema || typeof schema !== "object") return schema;
+
+  const clone = { ...schema };
+
+  const toTitle = (str: string) =>
+    str
+      .replace(/[_-]/g, " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase());
+
+  if (clone.properties) {
+    clone.properties = Object.fromEntries(
+      Object.entries(clone.properties).map(([key, value]: any) => {
+        let prop = { ...value };
+
+        // enum + oneOf → remove enum
+        if (prop.oneOf && prop.enum) {
+          delete prop.enum;
+        }
+
+        // enum only → convert to oneOf
+        if (!prop.oneOf && prop.enum) {
+          prop.oneOf = prop.enum.map((val: string) => ({
+            const: val,
+            title: toTitle(val),
+          }));
+          delete prop.enum;
+        }
+
+      //not adding empty option
+        if (prop.oneOf) {
+          prop["ui:placeholder"] = "Select an option";
+          prop["ui:emptyValue"] = undefined;
+        }
+
+        return [key, normalizeSchemaOptions(prop)];
+      })
+    );
+  }
+
+  return clone;
+};
+
+
 
 const CourseRegistration: React.FC = () => {
   const { versionId } = useParams({ from: studentCourseInviteRegistration.id });
@@ -343,7 +387,7 @@ useEffect(()=>{setIsRegistered(false)},[])
                 ) : (
                 <div className="space-y-4 max-w-2xl mx-auto py-4">
   <Form
-    schema={jsonSchema}
+    schema={normalizeSchemaOptions(jsonSchema)}
     validator={validator}
     uiSchema={uiSchema}
     formContext={{ formData }}
