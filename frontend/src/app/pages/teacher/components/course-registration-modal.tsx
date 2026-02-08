@@ -347,7 +347,6 @@ const mapValidationToSchema = (
               );
 
               fieldSchema.oneOf = [
-                { const: "", title: "Select an option" }, // 👈 empty option
                 ...validOptions.map(opt => ({
                   const: opt.value,
                   title: opt.label,
@@ -768,6 +767,7 @@ const mapValidationToSchema = (
                             <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
                               {field.type !== "url" && (
                               <label className="text-sm font-medium flex items-center gap-1">
+                                
                                 {field.label}
                                 {field.validation.required && <span className="text-destructive">*</span>}
                               </label>)}
@@ -820,7 +820,7 @@ const mapValidationToSchema = (
                                     onCheckedChange={(checked) =>
                                       setFormData({
                                         ...formData,
-                                        [field.id]: checked === true, // ✅ always boolean
+                                        [field.id]: checked === true, 
                                       })
                                     }
                                   />
@@ -899,26 +899,29 @@ const mapValidationToSchema = (
                                 />
                               )} */}
                           {field.type === "url" && (
-  <>
-    {field.helpText && (
-      <p className="text-xs text-muted-foreground">
-        {field.helpText}
-      </p>
-    )}
+                            <>
+                                <label htmlFor={field.id} className="text-sm cursor-pointer">
+                                  {field.placeholder || "Check the link"}
+                                </label>
+                                  {field.helpText && (
+                                    <p className="text-xs text-muted-foreground">
+                                      {field.helpText}
+                                    </p>
+                                  )}
 
-    <div className="rounded-md border bg-muted/40 px-3 py-2">
-      <a
-        href={field.label}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-sm font-medium text-primary underline break-all hover:opacity-80"
-        onClick={(e) => e.stopPropagation()} // 🔑 prevents selecting the field accidentally
-      >
-        {field.label}
-      </a>
-    </div>
-  </>
-)}
+                              <div className="rounded-md border bg-muted/40 px-3 py-2">
+                                <a
+                                  href={field.label}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sm font-medium text-primary underline break-all hover:opacity-80"
+                                  onClick={(e) => e.stopPropagation()} // 🔑 prevents selecting the field accidentally
+                                >
+                                  {field.label}
+                                </a>
+                              </div>
+                            </>
+                          )}
 
 
 
@@ -1033,11 +1036,11 @@ const mapValidationToSchema = (
                                   },
                                 })
                               }
-                            />
+                              />
                             <label htmlFor="field-required" className="cursor-pointer">
                               Required field
                             </label>
-                          </div>
+                          </div>                           
 
                           {/* Min/Max Length */}
                           {(selectedField.type === "text" ||
