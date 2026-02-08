@@ -454,7 +454,7 @@ useEffect(()=>{setIsRegistered(false)},[])
  
 
   <div className="flex justify-center pt-2">
-    <Button
+   {versionId==="6981df886e100cfe04f9c4ae"?<Button
       asChild
       className="flex items-center gap-2 px-6 py-5 text-base sm:text-lg"
     >
@@ -462,7 +462,8 @@ useEffect(()=>{setIsRegistered(false)},[])
         <BookOpen className="w-5 h-5" />
         Go to Course
       </a>
-    </Button>
+    </Button>:<p className="text-sm text-muted-foreground">Your registration has been received and is pending approval.
+Please wait for further updates.</p>}
   </div>
 </CardContent>
 
