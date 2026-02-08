@@ -18,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { BookOpen, CalendarDays, ChevronDown, ChevronUp, GraduationCap, ListChecks, Loader2, NotebookText, UserPlus, Users } from 'lucide-react';
 import { AlignedFieldTemplate } from './components/AlignedFieldTemplate';
 import { CustomSubmitButton } from './components/CustomSubmitButton';
+import { FocusableSelectWidget } from './components/FocusableSelectWidget';
 
 
 interface IModule {
@@ -397,10 +398,13 @@ useEffect(()=>{setIsRegistered(false)},[])
         SubmitButton: CustomSubmitButton,
       },
     }}
+    widgets={{
+    SelectWidget: FocusableSelectWidget, 
+  }}
     onSubmit={onSubmit}
     formData={formData}
     onChange={(e) => setFormData(e.formData)}
-    disabled={isSubmitting}
+    // disabled={isSubmitting}
   >
     <div className="flex flex-col items-center justify-center mt-6 mb-6 gap-4">
       {isRecaptchaEnabled && (
