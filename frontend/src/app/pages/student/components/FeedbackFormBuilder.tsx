@@ -465,7 +465,6 @@ const FeedbackFormBuilder = ({
     console.log('Schema built successfully:', { jsonSchema, uiSchema });
     return { jsonSchema, uiSchema };
   };
-
   if (isLoading) {
     return (
       <div className="p-6 flex items-center justify-center">
@@ -862,6 +861,7 @@ const FeedbackFormBuilder = ({
                             <CheckSquare className="w-4 h-4 text-muted-foreground" />
                             Validation Rules
                           </h4>
+                          {/* {(selectedField.type !== "url") && (<> */}
 
                           <div className="flex items-center gap-2 mb-3">
                             <Checkbox
@@ -875,11 +875,12 @@ const FeedbackFormBuilder = ({
                                   },
                                 })
                               }
-                            />
+                              />
                             <label htmlFor="field-required" className="cursor-pointer">
                               Required field
                             </label>
                           </div>
+                              {/* </>)} */}
 
                           {(selectedField.type === "text" ||
                             selectedField.type === "email" ||

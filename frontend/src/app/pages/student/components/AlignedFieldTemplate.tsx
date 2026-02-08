@@ -18,11 +18,17 @@ export function AlignedFieldTemplate(props: FieldTemplateProps) {
   
 
   if (isUrlField) {
+    // console.log('childrennnn------------------------', children);
+    // console.log(children.props.children[0].props.uiSchema["ui:placeholder"]);
+    const placeholder = children.props.children[0].props.uiSchema["ui:placeholder"];
+    const helpText = children.props.children[0].props.uiSchema["ui:help"];
+    const widgetType = children.props.children[0].props.uiSchema["ui:widget"];
    
     return (
       <div className="mb-2">
-       
-        {children}
+       <p className={`text-sm font-medium  ${hasError ? "text-red-400" : "text-black dark:text-white"}`}>
+        {placeholder}
+       </p>
        <a
           href={label}
           target="_blank"
@@ -34,6 +40,7 @@ export function AlignedFieldTemplate(props: FieldTemplateProps) {
           {label}
           {required && <span className="ml-1">*</span>}
         </a>
+        <p className='ml-2 text-muted-foreground text-sm'>{helpText}</p>
       </div>
     );
   }
