@@ -110,7 +110,7 @@ export default function LoginPage() {
     auth?: string;
     recaptcha?: string;
   }>({});
-  const [showAuthForm, setShowAuthForm] = useState(false);
+  const [showAuthForm, setShowAuthForm] = useState(true);
 
   const isRecaptchaEnabled:boolean= import.meta.env.VITE_IS_RECAPTCHA_ENABLED==="true";
 

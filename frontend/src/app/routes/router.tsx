@@ -364,11 +364,36 @@ const studentProfileRoute = new Route({
   component: StudentProfile,
 });
 
+// export const studentCourseInviteRegistration = new Route({
+//   getParentRoute: () => studentLayoutRoute,
+//   path: "/course-registration/$versionId",
+//   component: CourseRegistration,
+// })
+
 export const studentCourseInviteRegistration = new Route({
-  getParentRoute: () => studentLayoutRoute,
-  path: "/course-registration/$versionId",
+  getParentRoute: () => rootRoute, // 👈 IMPORTANT: NOT studentLayoutRoute
+  path: "/student/course-registration/$versionId",
   component: CourseRegistration,
-})
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+
+    // ❌ Not logged in → go to student login
+    if (!isAuthenticated) {
+      throw redirect({
+        to: '/login',
+        search: {
+          redirect: window.location.pathname, // optional: come back after login
+        },
+      });
+    }
+
+    // ❌ Logged in but not a student
+    if (user?.role !== 'student') {
+      throw redirect({ to: '/auth' });
+    }
+  },
+});
+
 
 const coursePageRoute = new Route({
   getParentRoute: () => rootRoute,
