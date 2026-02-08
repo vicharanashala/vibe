@@ -89,33 +89,24 @@ export interface JSONSchemaProperty {
   type: 'string' | 'number' | 'boolean' | 'array' | 'object';
   title?: string;
   description?: string;
-
-  // String-specific
   format?: 'email' | 'uri' | 'date' | 'date-time' | 'hostname' | string;
   minLength?: number;
   maxLength?: number;
   pattern?: string;
-
-  // Number-specific
   minimum?: number;
   maximum?: number;
-
-  // Enum / select
   enum?: string[];
-
-  // Object / array
+  oneOf?: { const: string; title: string }[];
   properties?: Record<string, JSONSchemaProperty>;
   items?: JSONSchemaProperty;
-
-  // Default value
   default?: any;
+  const?: any;
 }
 
 
 const FIELD_TYPES = [
   { type: 'text' as FieldType, label: 'Text Input', icon: Type },
   { type: 'email' as FieldType, label: 'Email', icon: Mail },
-  // { type: 'password' as FieldType, label: 'Password', icon: Lock },
   { type: 'number' as FieldType, label: 'Number', icon: Hash },
   { type: 'textarea' as FieldType, label: 'Text Area', icon: AlignLeft },
   { type: 'checkbox' as FieldType, label: 'Checkbox', icon: CheckSquare },
@@ -124,8 +115,8 @@ const FIELD_TYPES = [
   { type: 'date' as FieldType, label: 'Date Picker', icon: Calendar },
   { type: 'tel' as FieldType, label: 'Phone', icon: Phone },
   { type: 'url' as FieldType, label: 'URL', icon: Link },
-  // { type: 'file' as FieldType, label: 'File Upload', icon: FileText },
 ];
+
 
 export const FormBuilder = ({ versionId,  handleNavigateToRequests }: { versionId: string,  handleNavigateToRequests:(currentFieldsLength: number, existingFieldsLength: number) => void } ) => {
   const [fields, setFields] = useState<FormField[]>([]);
@@ -264,179 +255,282 @@ export const FormBuilder = ({ versionId,  handleNavigateToRequests }: { versionI
     });
   };
 
-  const mapValidationToSchema = (validation: ValidationRule): Partial<JSONSchemaProperty> => {
-    const schema: Partial<JSONSchemaProperty> = {};
+const mapValidationToSchema = (
+  validation: ValidationRule,
+  fieldType?: FieldType
+): Partial<JSONSchemaProperty> => {
+  const schema: Partial<JSONSchemaProperty> = {};
 
-    if (validation.required) schema['minLength'] = 1;
-    if (validation.minLength !== undefined) schema.minLength = validation.minLength;
-    if (validation.maxLength !== undefined) schema.maxLength = validation.maxLength;
-    if (validation.min !== undefined) schema.minimum = validation.min;
-    if (validation.max !== undefined) schema.maximum = validation.max;
-    if (validation.pattern) schema.pattern = validation.pattern;
-
-    return schema;
-  };
-
-  const buildSchemas = (): { jsonSchema: RJSFSchema; uiSchema: Record<string, any> } => {
-    const jsonSchema: RJSFSchema = {
-      type: 'object',
-      properties: {},
-      required: [],
-    };
-
-    const uiSchema: Record<string, any> = {};
-
-    fields.forEach((field) => {
-      const { type, label, validation, options, placeholder, helpText } = field;
-
-      // Base field schema
-      const fieldSchema: JSONSchemaProperty = { type: 'string' };
-
-      switch (type) {
-        case 'text':
-          fieldSchema.type = 'string';
-          break;
-        case 'email':
-          fieldSchema.type = 'string';
-          fieldSchema.format = 'email';
-          break;
-        case 'number':
-          fieldSchema.type = 'number';
-          break;
-        case 'textarea':
-          fieldSchema.type = 'string';
-          break;
-        case 'checkbox':
-          fieldSchema.type = 'boolean';
-          break;
-        case 'select':
-        case 'radio':
-          fieldSchema.enum = options?.map((opt) => opt.value) || [];
-          break;
-        case 'date':
-          fieldSchema.type = 'string';
-          fieldSchema.format = 'date';
-          break;
-        case 'tel':
-          fieldSchema.type = 'string';
-          fieldSchema.pattern = validation?.pattern || '^\\+?[0-9\\-\\s]{7,15}$';
-          break;
-        case 'url':
-          fieldSchema.type = 'string';
-          fieldSchema.format = 'uri';
-          break;
-        default:
-          fieldSchema.type = 'string';
-      }
-
-      if (validation) Object.assign(fieldSchema, mapValidationToSchema(validation));
-
-      if (validation?.required) jsonSchema.required?.push(label);
-
-      jsonSchema.properties![label] = fieldSchema;
-
-      const ui: Record<string, any> = {};
-      if (placeholder) ui['ui:placeholder'] = placeholder;
-      if (helpText) ui['ui:help'] = helpText;
-
-      switch (type) {
-        case 'textarea':
-          ui['ui:widget'] = 'textarea';
-          break;
-        case 'number':
-          ui['ui:widget'] = 'updown';
-          break;
-        case 'radio':
-          ui['ui:widget'] = 'radio';
-          ui['ui:options'] = {
-            inline: true,
-          }
-          break;
-        case 'select':
-          ui['ui:widget'] = 'select';
-          break;
-        case 'date':
-          ui['ui:widget'] = 'date';
-          break;
-        case 'tel':
-          ui['ui:options'] = { inputType: 'tel' };
-          break;
-        default:
-          ui['ui:widget'] = 'text';
-      }
-
-      uiSchema[label] = ui;
-    });
-
-    return { jsonSchema, uiSchema };
-  };
-
-
-
-  const schemasToFields = (
-    schema: RJSFSchema,
-    ui: Record<string, any>,
-  ): FormField[] => {
-    const populatedFields: FormField[] = [];
-
-    if (schema.properties) {
-      Object.entries(schema.properties).forEach(([label, prop]) => {
-        const typedProp = prop as JSONSchemaProperty;
-
-        let fieldType: FieldType = 'text';
-        if (typedProp.type === 'number') fieldType = 'number';
-        else if (typedProp.type === 'boolean') fieldType = 'checkbox';
-        else if (typedProp.format === 'email') fieldType = 'email';
-        else if (typedProp.format === 'date') fieldType = 'date';
-        else if (typedProp.format === 'uri') fieldType = 'url';
-        else if (typedProp.type === 'string' && ui[label]?.['ui:widget'] === 'textarea') fieldType = 'textarea';
-        else if (typedProp.type === 'string' && ui[label]?.['ui:options']?.inputType === 'tel') fieldType = 'tel';
-        else if (typedProp.enum && typedProp.enum.length > 0) {
-          // Check ui widget to distinguish radio vs select
-          fieldType = ui[label]?.['ui:widget'] === 'radio' ? 'radio' : 'select';
-        }
-
-        const validation: ValidationRule = {
-          required: schema.required?.includes(label) || false,
-          minLength: typedProp.minLength,
-          maxLength: typedProp.maxLength,
-          min: typedProp.minimum,
-          max: typedProp.maximum,
-          pattern: typedProp.pattern,
-        };
-
-        const placeholder = ui[label]?.['ui:placeholder'] || '';
-        const helpText = ui[label]?.['ui:help'] || '';
-
-        let options: SelectOption[] | undefined;
-        if (typedProp.enum) {
-          options = typedProp.enum.map((value: string) => ({
-            label: value, 
-            value,
-          }));
-        }
-
-        let inline = false;
-        if (fieldType === 'radio') {
-          inline = ui[label]?.['ui:options']?.inline === true;
-        }
-
-        const formField: FormField = {
-          id: label.toLowerCase().replace(/\s+/g, '_'),
-          type: fieldType,
-          label,
-          placeholder,
-          helpText,
-          validation,
-          options,
-        };
-
-        populatedFields.push(formField);
-      });
+  if (validation.required) {
+    if (fieldType === 'checkbox') {
+      schema.const = true; 
+    } else {
+      schema.minLength = 1;
     }
+  }
 
-    return populatedFields;
-  };
+  if (validation.minLength !== undefined) schema.minLength = validation.minLength;
+  if (validation.maxLength !== undefined) schema.maxLength = validation.maxLength;
+  if (validation.min !== undefined) schema.minimum = validation.min;
+  if (validation.max !== undefined) schema.maximum = validation.max;
+  if (validation.pattern) schema.pattern = validation.pattern;
+  
+
+  return schema;
+};
+
+
+  const buildSchemas = (): { jsonSchema: RJSFSchema; uiSchema: Record<string, any> } | null => {
+     //  Check for empty labels
+     const emptyLabelFields = fields.filter(f => !f.label || !f.label.trim());
+     if (emptyLabelFields.length > 0) {
+       toast.error('All fields must have a label');
+       console.error('Fields with empty labels:', emptyLabelFields);
+       return null;
+     }
+ 
+     // Check for duplicate labels
+     const labels = fields.map(f => f.label.trim());
+     const duplicates = labels.filter((label, index) => labels.indexOf(label) !== index);
+     if (duplicates.length > 0) {
+       toast.error(`Duplicate field names: ${duplicates.join(', ')}`);
+       return null;
+     }
+ 
+     //  Check select/radio have options
+     const fieldsWithoutOptions = fields.filter(
+       f => (f.type === 'select' || f.type === 'radio') && (!f.options || f.options.length === 0)
+     );
+     if (fieldsWithoutOptions.length > 0) {
+       toast.error('All dropdown/radio fields must have at least one option');
+       console.error('Fields without options:', fieldsWithoutOptions);
+       return null;
+     }
+ 
+     const jsonSchema: RJSFSchema = {
+       type: 'object',
+       properties: {},
+       required: [],
+     };
+ 
+     const uiSchema: Record<string, any> = {};
+ 
+     fields.forEach((field) => {
+       const { type, label, validation, options, placeholder, helpText } = field;
+       const sanitizedLabel = label.trim();
+ 
+       const fieldSchema: JSONSchemaProperty = { type: 'string' };
+ 
+       switch (type) {
+         case 'text':
+           fieldSchema.type = 'string';
+           break;
+         case 'email':
+           fieldSchema.type = 'string';
+           fieldSchema.format = 'email';
+           break;
+         case 'number':
+           fieldSchema.type = 'number';
+           break;
+         case 'textarea':
+           fieldSchema.type = 'string';
+           break;
+         case 'checkbox':
+           fieldSchema.type = 'boolean';
+           break;
+         case 'select':
+            fieldSchema.type = 'string';
+
+            if (options && options.length > 0) {
+              const validOptions = options.filter(
+                opt => opt.value && opt.label
+              );
+
+              fieldSchema.oneOf = [
+                { const: "", title: "Select an option" }, // 👈 empty option
+                ...validOptions.map(opt => ({
+                  const: opt.value,
+                  title: opt.label,
+                })),
+              ];
+
+              fieldSchema.enum = ["", ...validOptions.map(o => o.value)];
+            }
+
+            fieldSchema.default = ""; //  explicitly empty
+            break;
+
+         case 'radio':
+           fieldSchema.type = 'string';
+           
+           //  Only use oneOf format, filter empty options
+           if (options && options.length > 0) {
+             const validOptions = options.filter(opt => opt.value && opt.value.trim() && opt.label && opt.label.trim());
+             
+             if (validOptions.length > 0) {
+               fieldSchema.oneOf = validOptions.map(opt => ({
+                 const: opt.value,
+                 title: opt.label,
+               }));
+               
+               // adding enum for backward compatibility
+               fieldSchema.enum = validOptions.map(o => o.value);
+             }
+           }
+           
+           // not setting a default value for select/radio
+           delete fieldSchema.default;
+          // fieldSchema.default = undefined;
+
+           break;
+         case 'date':
+           fieldSchema.type = 'string';
+           fieldSchema.format = 'date';
+           break;
+         case 'tel':
+           fieldSchema.type = 'string';
+           fieldSchema.pattern = validation?.pattern || '^\\+?[0-9\\-\\s]{7,15}$';
+           break;
+         case 'url':
+           fieldSchema.type = 'string';
+           fieldSchema.format = 'uri';
+           break;
+         default:
+           fieldSchema.type = 'string';
+       }
+ 
+       if (validation) Object.assign(fieldSchema, mapValidationToSchema(validation,type));
+ 
+       if (validation?.required && field.type !== "radio") {
+          jsonSchema.required?.push(sanitizedLabel);
+        }
+
+ 
+       jsonSchema.properties![sanitizedLabel] = fieldSchema;
+ 
+       const ui: Record<string, any> = {};
+       if (placeholder) ui['ui:placeholder'] = placeholder;
+       if (helpText) ui['ui:help'] = helpText;
+ 
+       switch (type) {
+         case 'textarea':
+           ui['ui:widget'] = 'textarea';
+           break;
+         case 'number':
+           ui['ui:widget'] = 'updown';
+           break;
+         case 'radio':
+           ui['ui:widget'] = 'radio';
+           ui['ui:options'] = { inline: true };
+           break;
+         case 'select':
+           ui['ui:widget'] = 'select';
+           break;
+         case 'date':
+           ui['ui:widget'] = 'date';
+           break;
+         case 'tel':
+           ui['ui:options'] = { inputType: 'tel' };
+           break;
+         case 'checkbox':
+           ui['ui:widget'] = 'checkbox';
+           break;
+         default:
+           ui['ui:widget'] = 'text';
+       }
+ 
+       uiSchema[sanitizedLabel] = ui;
+     });
+ 
+     console.log('Schema built successfully:', { jsonSchema, uiSchema });
+     return { jsonSchema, uiSchema };
+   };
+
+
+    const schemasToFields = (
+      schema: RJSFSchema,
+      ui: Record<string, any>,
+    ): FormField[] => {
+      const populatedFields: FormField[] = [];
+  
+      if (schema.properties) {
+        Object.entries(schema.properties).forEach(([label, prop]) => {
+          const typedProp = prop as JSONSchemaProperty;
+  
+          let fieldType: FieldType = 'text';
+          
+          //  Checking for select/radio before other type checks
+          const widget = ui[label]?.['ui:widget'];
+          const hasOptions = (typedProp.oneOf && typedProp.oneOf.length > 0) || 
+                            (typedProp.enum && typedProp.enum.length > 0);
+          
+          if (hasOptions) {
+            // If it has options, determine if it's radio or select based on widget
+            fieldType = widget === 'radio' ? 'radio' : 'select';
+          } else if (typedProp.type === 'number') {
+            fieldType = 'number';
+          } else if (typedProp.type === 'boolean') {
+            fieldType = 'checkbox';
+          } else if (typedProp.format === 'email') {
+            fieldType = 'email';
+          } else if (typedProp.format === 'date') {
+            fieldType = 'date';
+          } else if (typedProp.format === 'uri') {
+            fieldType = 'url';
+          } else if (widget === 'textarea') {
+            fieldType = 'textarea';
+          } else if (ui[label]?.['ui:options']?.inputType === 'tel') {
+            fieldType = 'tel';
+          }
+  
+          const validation: ValidationRule = {
+            required: schema.required?.includes(label) || false,
+            minLength: typedProp.minLength,
+            maxLength: typedProp.maxLength,
+            min: typedProp.minimum,
+            max: typedProp.maximum,
+            pattern: typedProp.pattern,
+          };
+  
+          const placeholder = ui[label]?.['ui:placeholder'] || '';
+          const helpText = ui[label]?.['ui:help'] || '';
+  
+          // Properly extract options, filtering out empty ones
+          let options: SelectOption[] | undefined;
+          if (typedProp.oneOf) {
+            // Use oneOf (newer format) 
+            options = typedProp.oneOf
+              .filter(opt => opt.const && opt.const.trim() !== '') 
+              .map(opt => ({
+                label: opt.title || opt.const,
+                value: opt.const,
+              }));
+          } else if (typedProp.enum) {
+            // Fallback to enum (older format)
+            options = typedProp.enum
+              .filter(value => value && value.trim() !== '') 
+              .map((value: string) => ({
+                label: value.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                value,
+              }));
+          }
+  
+          const formField: FormField = {
+            id: label.toLowerCase().replace(/\s+/g, '_'),
+            type: fieldType,
+            label,
+            placeholder,
+            helpText,
+            validation,
+            options,
+          };
+  
+          populatedFields.push(formField);
+        });
+      }
+  
+      return populatedFields;
+    };
 
 
   const handleSubmit = async () => {
@@ -672,10 +766,11 @@ export const FormBuilder = ({ versionId,  handleNavigateToRequests }: { versionI
                             </div>
 
                             <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                              {field.type !== "url" && (
                               <label className="text-sm font-medium flex items-center gap-1">
                                 {field.label}
                                 {field.validation.required && <span className="text-destructive">*</span>}
-                              </label>
+                              </label>)}
 
                               {field.type === "text" && (
                                 <Input
@@ -721,9 +816,15 @@ export const FormBuilder = ({ versionId,  handleNavigateToRequests }: { versionI
                                 <div className="flex items-center gap-2">
                                   <Checkbox
                                     id={field.id}
-                                    checked={formData[field.id] || false}
-                                    onCheckedChange={(checked) => setFormData({ ...formData, [field.id]: checked })}
+                                    checked={Boolean(formData[field.id])}
+                                    onCheckedChange={(checked) =>
+                                      setFormData({
+                                        ...formData,
+                                        [field.id]: checked === true, // ✅ always boolean
+                                      })
+                                    }
                                   />
+
                                   <label htmlFor={field.id} className="text-sm cursor-pointer">
                                     {field.placeholder || "Check this box"}
                                   </label>
@@ -788,7 +889,7 @@ export const FormBuilder = ({ versionId,  handleNavigateToRequests }: { versionI
                                 />
                               )}
 
-                              {field.type === "url" && (
+                              {/* {field.type === "url" && (
                                 <Input
                                   type="url"
                                   placeholder={field.placeholder}
@@ -796,9 +897,20 @@ export const FormBuilder = ({ versionId,  handleNavigateToRequests }: { versionI
                                   onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
                                   className="h-9"
                                 />
-                              )}
+                              )} */}
+                            {field.type === "url" && (<>
+                                      <p className="text-xs text-muted-foreground">{field.helpText}</p>
+                                    <div className="rounded-md border bg-muted/40 px-3 py-2">
+                                      <p className="text-sm font-medium text-foreground">
+                                        {field.label}
+                                      </p>
+                                    </div>
+                            </>
+                            )}
 
-                              {field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
+
+
+                              {field.type !== "url" && field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
                             </div>
                           </div>
                         ))}
