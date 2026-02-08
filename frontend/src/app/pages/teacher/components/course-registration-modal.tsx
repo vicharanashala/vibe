@@ -347,7 +347,6 @@ const mapValidationToSchema = (
               );
 
               fieldSchema.oneOf = [
-                { const: "", title: "Select an option" }, // 👈 empty option
                 ...validOptions.map(opt => ({
                   const: opt.value,
                   title: opt.label,
