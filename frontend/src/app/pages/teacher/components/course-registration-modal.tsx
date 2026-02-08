@@ -898,15 +898,27 @@ const mapValidationToSchema = (
                                   className="h-9"
                                 />
                               )} */}
-                            {field.type === "url" && (<>
-                                      <p className="text-xs text-muted-foreground">{field.helpText}</p>
-                                    <div className="rounded-md border bg-muted/40 px-3 py-2">
-                                      <p className="text-sm font-medium text-foreground">
-                                        {field.label}
-                                      </p>
-                                    </div>
-                            </>
-                            )}
+                          {field.type === "url" && (
+  <>
+    {field.helpText && (
+      <p className="text-xs text-muted-foreground">
+        {field.helpText}
+      </p>
+    )}
+
+    <div className="rounded-md border bg-muted/40 px-3 py-2">
+      <a
+        href={field.label}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-sm font-medium text-primary underline break-all hover:opacity-80"
+        onClick={(e) => e.stopPropagation()} // 🔑 prevents selecting the field accidentally
+      >
+        {field.label}
+      </a>
+    </div>
+  </>
+)}
 
 
 
