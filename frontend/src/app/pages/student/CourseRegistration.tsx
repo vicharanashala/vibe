@@ -20,7 +20,6 @@ import { AlignedFieldTemplate } from './components/AlignedFieldTemplate';
 import { CustomSubmitButton } from './components/CustomSubmitButton';
 import { FocusableSelectWidget } from './components/FocusableSelectWidget';
 
-
 interface IModule {
   id: string;
   name: string;
@@ -142,6 +141,7 @@ const CourseRegistration: React.FC = () => {
   const [isRegistered, setIsRegistered] = useState(false);
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
+const [submitErrors, setSubmitErrors] = useState<string[]>([]);
 
   const isRecaptchaEnabled:boolean= import.meta.env.VITE_IS_RECAPTCHA_ENABLED==="true";
   // const [showModules, setShowModules] = useState(false);
@@ -392,12 +392,16 @@ useEffect(()=>{setIsRegistered(false)},[])
     validator={validator}
     uiSchema={uiSchema}
     formContext={{ formData }}
+   showErrorList={false}
     templates={{
       FieldTemplate: AlignedFieldTemplate,
       ButtonTemplates: {
         SubmitButton: CustomSubmitButton,
       },
     }}
+    onError={(errors) => {
+    setSubmitErrors(errors.map(e => e.stack));
+  }}
     widgets={{
     SelectWidget: FocusableSelectWidget, 
   }}
@@ -457,6 +461,18 @@ useEffect(()=>{setIsRegistered(false)},[])
       </svg>
     </a>
   </div>}
+  {submitErrors.length > 0 && (
+  <div className="w-full rounded-md border border-red-200 bg-red-50 p-3">
+    <p className="text-sm font-medium text-red-600 mb-1">
+      Please fix the following:
+    </p>
+    <ul className="list-disc list-inside text-sm text-red-600 space-y-1">
+      {submitErrors.map((err, i) => (
+        <li key={i}>{err}</li>
+      ))}
+    </ul>
+  </div>
+)}
       <Button
         type="submit"
         disabled={isSubmitting || (!recaptchaToken && isRecaptchaEnabled)}
@@ -679,3 +695,4 @@ Please wait for further updates.</p>}
 };
 
 export default CourseRegistration;
+
