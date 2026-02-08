@@ -593,13 +593,13 @@ const mapValidationToSchema = (
               isOpen={isConfirmationModalOpen}
               onClose={() => setIsConfirmationModalOpen(false)}
               onConfirm={handleSubmit}
-              title="Submit Form"
-              description="Are you sure you want to submit this form? Make sure all required fields are added and correct before proceeding."
-              confirmText="Submit"
+              title="Build Form"
+              description="Are you sure you want to build this form? Make sure all required fields are added and correct before proceeding."
+              confirmText="Confirm"
               cancelText="Cancel"
               isDestructive={false}
               isLoading={isUpdatingFields}
-              loadingText="Submitting..."
+              loadingText="Building..."
             />
 
             <ConfirmationModal
@@ -929,7 +929,7 @@ const mapValidationToSchema = (
 
                         <Button type="submit" className="w-full h-9">
                           <FileText className="w-4 h-4 mr-2" />
-                          Submit Form
+                          Build Form
                         </Button>
                       </form>
                     )}
