@@ -21,6 +21,7 @@ import type {
 import type { ProctoringSettings } from '@/types/video.types';
 import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.types';
 import { EntityType, IReport, ReportStatus } from '@/types/flag.types';
+import { PendingRegistrationNotification, ApprovedRegistrationNotification } from '@/types/notification.types';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { VersionWithCourse } from '@/app/pages/student/CourseRegistration';
 import { Registration, RegistrationStatus } from '@/app/pages/teacher/CourseRegistrationRequests';
@@ -4010,5 +4011,74 @@ export const useExportFeedbackSubmissions = ({ courseId, feedbackId }: ExportFee
 
     return { exportCSV, isExporting };
 };
+
+// GET /course/registration/pending
+export function useGetPendingRegistrations(instructorId: string): {
+  data: PendingRegistrationNotification[];
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = api.useQuery("get", "/course/registration/pending", {
+    params: {
+      query: { instructorId }
+    }
+  }, {
+    enabled: !!instructorId,
+    refetchOnWindowFocus: false
+  });
+
+  return {
+    data: Array.isArray(result?.data) ? result?.data : [],
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch pending registrations') : null,
+    refetch: result.refetch
+  };
+}
+
+// GET /course/registration/notifications/unread
+export function useGetUnreadApprovedRegistrations(studentId: string): {
+  data: ApprovedRegistrationNotification[];
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = api.useQuery("get", "/course/registration/notifications/unread", {
+    params: {
+      query: { studentId }
+    }
+  }, {
+    enabled: !!studentId,
+    refetchOnWindowFocus: false
+  });
+
+  return {
+    data: Array.isArray(result?.data) ? result?.data : [],
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch unread notifications') : null,
+    refetch: result.refetch
+  };
+}
+
+// PATCH /course/registration/notifications/{registrationId}/read
+export function useMarkNotificationAsRead(): {
+  mutate: (variables: { params: { path: { registrationId: string } } }) => void,
+  mutateAsync: (variables: { params: { path: { registrationId: string } } }) => Promise<{ message: string; success: boolean }>,
+  data: { message: string; success: boolean } | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("patch", "/course/registration/notifications/{registrationId}/read");
+  
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to mark notification as read') : null
+  };
+}
 
 
