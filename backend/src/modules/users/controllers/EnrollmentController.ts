@@ -18,6 +18,8 @@ import {
   CourseVersionEnrollmentResponse,
   EnrollmentStatisticsResponse,
   UpdateEnrollmentProgressResponse,
+  BulkUnenrollBody,
+  BulkUnenrollResponse,
 } from '#users/classes/validators/EnrollmentValidators.js';
 import {QuizScoresExportResponseDto} from '../dtos/QuizScoresExportDto.js';
 import {EnrollmentService} from '#users/services/EnrollmentService.js';
@@ -173,6 +175,61 @@ export class EnrollmentController {
   }
 
   @OpenAPI({
+    summary: 'Bulk unenroll users from a course version',
+    description:
+      'Removes multiple users\' enrollments and progress from a specific course version.',
+  })
+  @Authorized()
+  @Post('/enrollments/courses/:courseId/versions/:versionId/bulk-unenroll')
+  @HttpCode(200)
+  @ResponseSchema(BulkUnenrollResponse, {
+    description: 'Users unenrolled successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid request or missing user IDs',
+    statusCode: 400,
+  })
+  async bulkUnenrollUsers(
+    @Param('courseId') courseId: string,
+    @Param('versionId') versionId: string,
+    @Body() body: BulkUnenrollBody,
+    @Ability(getEnrollmentAbility) { ability },
+  ): Promise<BulkUnenrollResponse> {
+    const { userIds } = body;
+
+    if (!userIds || userIds.length === 0) {
+      throw new BadRequestError('User IDs array is required and cannot be empty');
+    }
+
+    // Check permissions for bulk unenroll
+    const enrollmentResource = subject('Enrollment', {
+      courseId,
+      versionId,
+    });
+
+    if (!ability.can(EnrollmentActions.Delete, enrollmentResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to unenroll users from this course',
+      );
+    }
+
+    const results = await this.enrollmentService.bulkUnenrollUsers(
+      userIds,
+      courseId,
+      versionId,
+    );
+
+    return {
+      success: true,
+      totalRequested: userIds.length,
+      successCount: results.successCount,
+      failureCount: results.failureCount,
+      errors: results.errors,
+    };
+  }
+
+  @OpenAPI({
     summary: 'Get all enrollments for a user',
     description:
       'Retrieves a paginated list of all course enrollments for a user.',
@@ -203,7 +260,7 @@ export class EnrollmentController {
     // 🚀 Run DB queries in parallel
     const [enrollments, totalDocuments] = await Promise.all([
       this.enrollmentService.getEnrollments(userId, skip, limit, role, search),
-      this.enrollmentService.countEnrollments(userId, role),
+      this.enrollmentService.countEnrollments(userId, role, search),
     ]);
 
     if (!enrollments || enrollments.length === 0) {

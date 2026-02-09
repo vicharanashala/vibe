@@ -784,7 +784,7 @@ export default function AuthPage() {
         <div className="bg-[rgb(240,248,250)]">
           <div className="w-full max-w-[1280px] mx-auto py-16 px-4 sm:px-6">
             <h3 className="text-[rgb(25,90,105)] text-2xl sm:text-3xl md:text-[36px] font-bold leading-10 mb-[52px]">
-              {"Generously funded by".split("").map((char, i) => (
+              {"Funded by".split("").map((char, i) => (
                 <span key={i} className="inline-block transition-colors duration-300 hover:text-[rgba(228,143,57,1)] cursor-default">
                   {char === ' ' ? '\u00A0' : char}
                 </span>

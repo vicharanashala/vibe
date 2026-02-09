@@ -700,47 +700,41 @@ function TeacherCourseContent() {
 
   // Load sections one by one for auto-selection
   useEffect(() => {
+    // If not in auto-select mode or no item to watch, do nothing
     if (autoSelectSectionsToLoad.length === 0 || !currentCourse?.watchItemId) return;
 
-    if (autoSelectCurrentIndex < autoSelectSectionsToLoad.length) {
-      const section = autoSelectSectionsToLoad[autoSelectCurrentIndex];
+    const currentTarget = autoSelectSectionsToLoad[autoSelectCurrentIndex];
 
-      setActiveSectionInfo(section);
-
-      // Move to next section after a delay
-      setTimeout(() => {
-        setAutoSelectCurrentIndex(prev => prev + 1);
-      }, 100);
-    } else {
-      // All sections queued for loading, reset the loading state
-
+    // If we've run out of sections to check, stop
+    if (!currentTarget) {
       setAutoSelectSectionsToLoad([]);
       setAutoSelectCurrentIndex(0);
+      return;
     }
-  }, [autoSelectCurrentIndex, autoSelectSectionsToLoad, currentCourse?.watchItemId]);
 
-
-
-  // Load sections one by one for auto-selection
-  useEffect(() => {
-    if (autoSelectSectionsToLoad.length === 0 || !currentCourse?.watchItemId) return;
-
-    if (autoSelectCurrentIndex < autoSelectSectionsToLoad.length) {
-      const section = autoSelectSectionsToLoad[autoSelectCurrentIndex];
-
-      setActiveSectionInfo(section);
-
-      // Move to next section after a delay
-      setTimeout(() => {
-        setAutoSelectCurrentIndex(prev => prev + 1);
-      }, 100);
-    } else {
-      // All sections queued for loading, reset the loading state
-
-      setAutoSelectSectionsToLoad([]);
-      setAutoSelectCurrentIndex(0);
+    // If the active section doesn't match our target, switch to it
+    if (activeSectionInfo?.sectionId !== currentTarget.sectionId) {
+      setActiveSectionInfo(currentTarget);
+      return;
     }
-  }, [autoSelectCurrentIndex, autoSelectSectionsToLoad, currentCourse?.watchItemId]);
+
+    // If the active section matches AND we've finished loading:
+    // We can assume the item wasn't found (because the other useEffect would have cleared the state)
+    // So we move to the next section
+    if (!itemsLoading && currentSectionItems) {
+      setAutoSelectCurrentIndex(prev => prev + 1);
+    }
+  }, [
+    autoSelectCurrentIndex,
+    autoSelectSectionsToLoad,
+    currentCourse?.watchItemId,
+    activeSectionInfo,
+    itemsLoading,
+    currentSectionItems
+  ]);
+
+
+
 
 
 

@@ -4012,3 +4012,7 @@ export const useExportFeedbackSubmissions = ({ courseId, feedbackId }: ExportFee
 };
 
 
+// Bulk Unenroll Users Hook
+export const useBulkUnenrollUsers = () => {
+  return api.useMutation('post', '/users/enrollments/courses/{courseId}/versions/{versionId}/bulk-unenroll');
+};
