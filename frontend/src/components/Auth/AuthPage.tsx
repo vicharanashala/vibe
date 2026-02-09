@@ -348,14 +348,15 @@ export default function AuthPage({role}: AuthPageProps) {
           <div className="mx-auto w-full max-w-md space-y-8">
               <>
                 {/* Back Button */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground hover:bg-transparent -ml-2"
-                  onClick={() => navigate({to:"/select-role"})}
-                >
-                  ← Back
-                </Button>
+                          <div className="inline-flex items-center gap-3 px-4 py-2">
+                              <span className="text-md text-muted-foreground">Not a {role}?</span>
+                              <button
+                                  onClick={() => navigate({ to: "/select-role" })}
+                                  className="cursor-pointer text-md font-medium text-primary hover:text-primary/80 hover:underline hover:underline-offset-4 transition-colors"
+                              >
+                                  Switch role
+                              </button>
+                          </div>
 
                 {/* Auth Card */}
                 <Card className="relative overflow-hidden">
