@@ -36,4 +36,16 @@ export interface ICourseRegistrationRepository {
   ): Promise<number>;
   remove(userId: string, courseId: string, versionId: string, session?: ClientSession)
   deleteRegistrationByVersionId(versionId: string, session?: ClientSession)
+  getPendingRegistrations(
+    instructorId: string,
+    session?: ClientSession,
+  ): Promise<any[]>;
+  getUnreadApprovedRegistrations(
+    studentId: string,
+    session?: ClientSession,
+  ): Promise<any[]>;
+  markNotificationAsRead(
+    registrationId: string,
+    session?: ClientSession,
+  ): Promise<boolean>;
 }
