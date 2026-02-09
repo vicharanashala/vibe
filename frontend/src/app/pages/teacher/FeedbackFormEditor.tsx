@@ -15,6 +15,8 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FeedbackSubmissionsTable } from './FeedbackSubmissionTable';
 import ConfirmationModal from './components/confirmation-modal';
+import { buildEmptyFormData, normalizeSchemaOptions } from "@/utils/utils";
+
 
 interface FeedbackFormEditorProps {
   isLoading?: boolean;
@@ -323,11 +325,14 @@ export default function FeedbackFormEditor({
                         <div className="max-w-lg mx-auto w-full space-y-4">
                           <div className="text-left items-start">
                           <Form
-                            schema={details?.item?.details?.jsonSchema}
+                            // schema={details?.item?.details?.jsonSchema}
+                            schema={normalizeSchemaOptions(details?.item?.details?.jsonSchema)}
                             validator={validator}
                             uiSchema={details?.item?.details?.uiSchema}
                             onSubmit={onSubmit}
                             disabled={isSubmitting}
+                           formData={buildEmptyFormData(details?.item?.details?.jsonSchema)}
+                            
                           />
                           </div>
                         </div>

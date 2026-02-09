@@ -34,12 +34,10 @@ import {
   Plus,
   Eye,
   PlusCircle,
-  ArrowLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { RJSFSchema } from '@rjsf/utils';
 import ConfirmationModal from '../../teacher/components/confirmation-modal';
-import { useCreateFeedbackFormFields, useGetFeedbackFormFields } from '@/hooks/hooks';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -81,38 +79,26 @@ interface FormField {
   options?: SelectOption[];
 }
 
-// Basic JSON Schema property definition
 export interface JSONSchemaProperty {
   type: 'string' | 'number' | 'boolean' | 'array' | 'object';
   title?: string;
   description?: string;
-
-  // String-specific
   format?: 'email' | 'uri' | 'date' | 'date-time' | 'hostname' | string;
   minLength?: number;
   maxLength?: number;
   pattern?: string;
-
-  // Number-specific
   minimum?: number;
   maximum?: number;
-
-  // Enum / select
   enum?: string[];
-
-  // Object / array
+  oneOf?: { const: string; title: string }[];
   properties?: Record<string, JSONSchemaProperty>;
   items?: JSONSchemaProperty;
-
-  // Default value
   default?: any;
 }
-
 
 const FIELD_TYPES = [
   { type: 'text' as FieldType, label: 'Text Input', icon: Type },
   { type: 'email' as FieldType, label: 'Email', icon: Mail },
-  // { type: 'password' as FieldType, label: 'Password', icon: Lock },
   { type: 'number' as FieldType, label: 'Number', icon: Hash },
   { type: 'textarea' as FieldType, label: 'Text Area', icon: AlignLeft },
   { type: 'checkbox' as FieldType, label: 'Checkbox', icon: CheckSquare },
@@ -121,8 +107,10 @@ const FIELD_TYPES = [
   { type: 'date' as FieldType, label: 'Date Picker', icon: Calendar },
   { type: 'tel' as FieldType, label: 'Phone', icon: Phone },
   { type: 'url' as FieldType, label: 'URL', icon: Link },
-  // { type: 'file' as FieldType, label: 'File Upload', icon: FileText },
 ];
+
+
+
 interface FeedbackFormBuilderProps {
   fetchedSchemas?: {
     jsonSchema?: any;
@@ -132,6 +120,7 @@ interface FeedbackFormBuilderProps {
   isSaving?: boolean;
   onCancel?: () => void;
 }
+
 const FeedbackFormBuilder = ({
   fetchedSchemas,
   onSave,
@@ -141,18 +130,96 @@ const FeedbackFormBuilder = ({
   const [fields, setFields] = useState<FormField[]>([]);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
-  const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
-  // Added loading state for fetching existing schemas
+  const [fieldIdToDelete, setFieldIdToDelete] = useState("")
   const [isLoading, setIsLoading] = useState(true);
-  // Get selected field
+
   const selectedField = fields.find((f) => f.id === selectedFieldId);
 
-  const [fieldIdToDelete, setFieldIdToDelete] = useState("")
+  const schemasToFields = (
+    schema: RJSFSchema,
+    ui: Record<string, any>,
+  ): FormField[] => {
+    const populatedFields: FormField[] = [];
 
-  //   const { mutateAsync: updateFields, isPending: isUpdatingFields } = useCreateFeedbackFormFields(feedbackId as string); 
-  //   const { data: fetchedSchemas, isLoading: fetchLoading, error: fetchError,refetch } = useGetFeedbackFormFields(feedbackId as string);
+    if (schema.properties) {
+      Object.entries(schema.properties).forEach(([label, prop]) => {
+        const typedProp = prop as JSONSchemaProperty;
 
-  // Added useEffect to populate fields from fetched schemas on mount or when data changes
+        let fieldType: FieldType = 'text';
+        
+        //  Checking for select/radio before other type checks
+        const widget = ui[label]?.['ui:widget'];
+        const hasOptions = (typedProp.oneOf && typedProp.oneOf.length > 0) || 
+                          (typedProp.enum && typedProp.enum.length > 0);
+        
+        if (hasOptions) {
+          // If it has options, determine if it's radio or select based on widget
+          fieldType = widget === 'radio' ? 'radio' : 'select';
+        } else if (typedProp.type === 'number') {
+          fieldType = 'number';
+        } else if (typedProp.type === 'boolean') {
+          fieldType = 'checkbox';
+        } else if (typedProp.format === 'email') {
+          fieldType = 'email';
+        } else if (typedProp.format === 'date') {
+          fieldType = 'date';
+        } else if (typedProp.format === 'uri') {
+          fieldType = 'url';
+        } else if (widget === 'textarea') {
+          fieldType = 'textarea';
+        } else if (ui[label]?.['ui:options']?.inputType === 'tel') {
+          fieldType = 'tel';
+        }
+
+        const validation: ValidationRule = {
+          required: schema.required?.includes(label) || false,
+          minLength: typedProp.minLength,
+          maxLength: typedProp.maxLength,
+          min: typedProp.minimum,
+          max: typedProp.maximum,
+          pattern: typedProp.pattern,
+        };
+
+        const placeholder = ui[label]?.['ui:placeholder'] || '';
+        const helpText = ui[label]?.['ui:help'] || '';
+
+        // Properly extract options, filtering out empty ones
+        let options: SelectOption[] | undefined;
+        if (typedProp.oneOf) {
+          // Use oneOf (newer format) 
+          options = typedProp.oneOf
+            .filter(opt => opt.const && opt.const.trim() !== '') 
+            .map(opt => ({
+              label: opt.title || opt.const,
+              value: opt.const,
+            }));
+        } else if (typedProp.enum) {
+          // Fallback to enum (older format)
+          options = typedProp.enum
+            .filter(value => value && value.trim() !== '') 
+            .map((value: string) => ({
+              label: value.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+              value,
+            }));
+        }
+
+        const formField: FormField = {
+          id: label.toLowerCase().replace(/\s+/g, '_'),
+          type: fieldType,
+          label,
+          placeholder,
+          helpText,
+          validation,
+          options,
+        };
+
+        populatedFields.push(formField);
+      });
+    }
+
+    return populatedFields;
+  };
+
   useEffect(() => {
     if (!fetchedSchemas) {
       setFields([]);
@@ -172,7 +239,6 @@ const FeedbackFormBuilder = ({
     setIsLoading(false);
   }, [fetchedSchemas]);
 
-  // Add a new field to the form
   const addField = (type: FieldType) => {
     const newField: FormField = {
       id: `field_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -180,7 +246,9 @@ const FeedbackFormBuilder = ({
       label: `New ${type.charAt(0).toUpperCase() + type.slice(1)} Field`,
       placeholder: '',
       helpText: '',
-      validation: {},
+      validation: {
+        required: false,  // Ensure new fields are not required by default
+      },
       options:
         type === 'select' || type === 'radio'
           ? [
@@ -195,12 +263,10 @@ const FeedbackFormBuilder = ({
     toast.success('Field added to form');
   };
 
-  // Update field properties
   const updateField = (id: string, updates: Partial<FormField>) => {
     setFields(fields.map((f) => (f.id === id ? { ...f, ...updates } : f)));
   };
 
-  // Delete a field
   const deleteField = () => {
     setFields(fields.filter((f) => f.id !== fieldIdToDelete));
     if (selectedFieldId === fieldIdToDelete) {
@@ -224,7 +290,6 @@ const FeedbackFormBuilder = ({
     });
   };
 
-  // Update option
   const updateOption = (
     fieldId: string,
     optionIndex: number,
@@ -238,7 +303,6 @@ const FeedbackFormBuilder = ({
     updateField(fieldId, { options: newOptions });
   };
 
-  // Delete option
   const deleteOption = (fieldId: string, optionIndex: number) => {
     const field = fields.find((f) => f.id === fieldId);
     if (!field || !field.options || field.options.length <= 1) return;
@@ -261,7 +325,34 @@ const FeedbackFormBuilder = ({
     return schema;
   };
 
-  const buildSchemas = (): { jsonSchema: RJSFSchema; uiSchema: Record<string, any> } => {
+
+  const buildSchemas = (): { jsonSchema: RJSFSchema; uiSchema: Record<string, any> } | null => {
+    //  Check for empty labels
+    const emptyLabelFields = fields.filter(f => !f.label || !f.label.trim());
+    if (emptyLabelFields.length > 0) {
+      toast.error('All fields must have a label');
+      console.error('Fields with empty labels:', emptyLabelFields);
+      return null;
+    }
+
+    // Check for duplicate labels
+    const labels = fields.map(f => f.label.trim());
+    const duplicates = labels.filter((label, index) => labels.indexOf(label) !== index);
+    if (duplicates.length > 0) {
+      toast.error(`Duplicate field names: ${duplicates.join(', ')}`);
+      return null;
+    }
+
+    //  Check select/radio have options
+    const fieldsWithoutOptions = fields.filter(
+      f => (f.type === 'select' || f.type === 'radio') && (!f.options || f.options.length === 0)
+    );
+    if (fieldsWithoutOptions.length > 0) {
+      toast.error('All dropdown/radio fields must have at least one option');
+      console.error('Fields without options:', fieldsWithoutOptions);
+      return null;
+    }
+
     const jsonSchema: RJSFSchema = {
       type: 'object',
       properties: {},
@@ -272,8 +363,8 @@ const FeedbackFormBuilder = ({
 
     fields.forEach((field) => {
       const { type, label, validation, options, placeholder, helpText } = field;
+      const sanitizedLabel = label.trim();
 
-      // Base field schema
       const fieldSchema: JSONSchemaProperty = { type: 'string' };
 
       switch (type) {
@@ -295,7 +386,25 @@ const FeedbackFormBuilder = ({
           break;
         case 'select':
         case 'radio':
-          fieldSchema.enum = options?.map((opt) => opt.value) || [];
+          fieldSchema.type = 'string';
+          
+          //  Only use oneOf format, filter empty options
+          if (options && options.length > 0) {
+            const validOptions = options.filter(opt => opt.value && opt.value.trim() && opt.label && opt.label.trim());
+            
+            if (validOptions.length > 0) {
+              fieldSchema.oneOf = validOptions.map(opt => ({
+                const: opt.value,
+                title: opt.label,
+              }));
+              
+              // adding enum for backward compatibility
+              fieldSchema.enum = validOptions.map(o => o.value);
+            }
+          }
+          
+          // not setting a default value for select/radio
+          delete fieldSchema.default;
           break;
         case 'date':
           fieldSchema.type = 'string';
@@ -315,9 +424,9 @@ const FeedbackFormBuilder = ({
 
       if (validation) Object.assign(fieldSchema, mapValidationToSchema(validation));
 
-      if (validation?.required) jsonSchema.required?.push(label);
+      if (validation?.required) jsonSchema.required?.push(sanitizedLabel);
 
-      jsonSchema.properties![label] = fieldSchema;
+      jsonSchema.properties![sanitizedLabel] = fieldSchema;
 
       const ui: Record<string, any> = {};
       if (placeholder) ui['ui:placeholder'] = placeholder;
@@ -332,9 +441,7 @@ const FeedbackFormBuilder = ({
           break;
         case 'radio':
           ui['ui:widget'] = 'radio';
-          ui['ui:options'] = {
-            inline: true,
-          }
+          ui['ui:options'] = { inline: true };
           break;
         case 'select':
           ui['ui:widget'] = 'select';
@@ -352,77 +459,11 @@ const FeedbackFormBuilder = ({
           ui['ui:widget'] = 'text';
       }
 
-      uiSchema[label] = ui;
+      uiSchema[sanitizedLabel] = ui;
     });
 
+    console.log('Schema built successfully:', { jsonSchema, uiSchema });
     return { jsonSchema, uiSchema };
-  };
-
-
-
-  const schemasToFields = (
-    schema: RJSFSchema,
-    ui: Record<string, any>,
-  ): FormField[] => {
-    const populatedFields: FormField[] = [];
-
-    if (schema.properties) {
-      Object.entries(schema.properties).forEach(([label, prop]) => {
-        const typedProp = prop as JSONSchemaProperty;
-
-        let fieldType: FieldType = 'text';
-        if (typedProp.type === 'number') fieldType = 'number';
-        else if (typedProp.type === 'boolean') fieldType = 'checkbox';
-        else if (typedProp.format === 'email') fieldType = 'email';
-        else if (typedProp.format === 'date') fieldType = 'date';
-        else if (typedProp.format === 'uri') fieldType = 'url';
-        else if (typedProp.type === 'string' && ui[label]?.['ui:widget'] === 'textarea') fieldType = 'textarea';
-        else if (typedProp.type === 'string' && ui[label]?.['ui:options']?.inputType === 'tel') fieldType = 'tel';
-        else if (typedProp.enum && typedProp.enum.length > 0) {
-          // Check ui widget to distinguish radio vs select
-          fieldType = ui[label]?.['ui:widget'] === 'radio' ? 'radio' : 'select';
-        }
-
-        const validation: ValidationRule = {
-          required: schema.required?.includes(label) || false,
-          minLength: typedProp.minLength,
-          maxLength: typedProp.maxLength,
-          min: typedProp.minimum,
-          max: typedProp.maximum,
-          pattern: typedProp.pattern,
-        };
-
-        const placeholder = ui[label]?.['ui:placeholder'] || '';
-        const helpText = ui[label]?.['ui:help'] || '';
-
-        let options: SelectOption[] | undefined;
-        if (typedProp.enum) {
-          options = typedProp.enum.map((value: string) => ({
-            label: value,
-            value,
-          }));
-        }
-
-        let inline = false;
-        if (fieldType === 'radio') {
-          inline = ui[label]?.['ui:options']?.inline === true;
-        }
-
-        const formField: FormField = {
-          id: label.toLowerCase().replace(/\s+/g, '_'),
-          type: fieldType,
-          label,
-          placeholder,
-          helpText,
-          validation,
-          options,
-        };
-
-        populatedFields.push(formField);
-      });
-    }
-
-    return populatedFields;
   };
 
   if (isLoading) {
@@ -437,10 +478,7 @@ const FeedbackFormBuilder = ({
     <div className="min-h-screen bg-background w-full ">
       <div className="container mx-auto ">
         <div className="flex items-center gap-4 mb-4">
-
           <div className="flex items-center gap-3">
-
-
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent pt-2">
               Form Builder
             </h1>
@@ -500,7 +538,6 @@ const FeedbackFormBuilder = ({
               </CardContent>
             </Card>
 
-
             <div className="flex flex-col lg:flex-row lg:gap-1 gap-3 flex-1 pb-6">
               <Card className="flex-1 lg:flex-[2] flex flex-col min-w-0">
                 <CardHeader className="sm:px-6 px-4 pb-2 border-b">
@@ -536,7 +573,12 @@ const FeedbackFormBuilder = ({
                         className="space-y-4"
                         onSubmit={(e) => {
                           e.preventDefault();
-                          const { jsonSchema, uiSchema } = buildSchemas();
+                          const schemas = buildSchemas();               
+                          if (!schemas) {
+                            console.error('Schema validation failed - cannot save');
+                            return;
+                          }
+                          const { jsonSchema, uiSchema } = schemas;
                           onSave({ jsonSchema, uiSchema });
                         }}
                       >
@@ -544,21 +586,11 @@ const FeedbackFormBuilder = ({
                           <div
                             key={field.id}
                             className={`relative group p-3 rounded-lg border-2 transition-all cursor-pointer ${selectedFieldId === field.id
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover:border-muted-foreground/30"
+                              ? "border-primary bg-primary/5"
+                              : "border-border hover:border-muted-foreground/30"
                               }`}
-                            onClick={() => {
-                              if (
-                                field.label === "Name" ||
-                                field.label === "Email"
-                              ) {
-                                toast.error("Cannot select default fields")
-                                return
-                              }
-                              setSelectedFieldId(field.id)
-                            }}
+                            onClick={() => setSelectedFieldId(field.id)}
                           >
-                            {/* Field Actions */}
                             <div className="absolute -right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1 z-50 w-10">
                               <Button
                                 size="icon"
@@ -594,33 +626,18 @@ const FeedbackFormBuilder = ({
                               >
                                 <ArrowDown className="w-3 h-3" />
                               </Button>
-                              {/* <Button
+                              <Button
                                 size="icon"
                                 type="button"
                                 variant="destructive"
                                 className="h-7 w-7 shadow-sm"
-                                onClick={(e) => { 
-                                  e.stopPropagation()
-                                  setFieldIdToDelete(field.id)
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setFieldIdToDelete(field.id);
                                 }}
                               >
                                 <Trash2 className="w-3 h-3" />
-                              </Button> */}
-
-                              {field.label !== "Name" && field.label !== "Email" && (
-                                <Button
-                                  size="icon"
-                                  type="button"
-                                  variant="destructive"
-                                  className="h-7 w-7 shadow-sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setFieldIdToDelete(field.id);
-                                  }}
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              )}
+                              </Button>
                             </div>
 
                             <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
@@ -684,7 +701,7 @@ const FeedbackFormBuilder = ({
 
                               {field.type === "select" && (
                                 <Select
-                                  value={formData[field.id] || ""}
+                                  value={formData[field.id] ?? undefined}
                                   onValueChange={(value) => setFormData({ ...formData, [field.id]: value })}
                                 >
                                   <SelectTrigger className="h-9">
@@ -755,11 +772,6 @@ const FeedbackFormBuilder = ({
                           </div>
                         ))}
 
-                        {/* <Button type="submit" className="w-full h-9">
-                          <FileText className="w-4 h-4 mr-2" />
-                          Submit Form
-                        </Button> */}
-
                         <Button
                           type="submit"
                           className="w-full h-9"
@@ -773,8 +785,6 @@ const FeedbackFormBuilder = ({
                 </CardContent>
               </Card>
 
-              {/* Field Settings - Right Sidebar */}
-              {/* <Card className="w-full lg:w-[380px] flex-shrink-0 flex flex-col min-h-0 lg:min-h-[400px]"> */}
               <Card className="w-full lg:w-[380px] flex-shrink-0 flex flex-col max-h-[calc(100vh-150px)]">
                 <CardHeader className="sm:px-6 px-4 pb-2 border-b">
                   <CardTitle className="text-lg flex items-center gap-2">
@@ -791,7 +801,6 @@ const FeedbackFormBuilder = ({
                   ) : (
                     <ScrollArea className="h-full px-4 py-4">
                       <div className="space-y-6 px-1">
-                        {/* Label */}
                         <div>
                           <label htmlFor="field-label" className="font-medium flex items-center gap-2">
                             <Type className="w-4 h-4 text-muted-foreground" />
@@ -806,7 +815,6 @@ const FeedbackFormBuilder = ({
                           <span className="text-xs text-muted-foreground">Display name of the field shown to users.</span>
                         </div>
 
-                        {/* Placeholder */}
                         {selectedField.type !== "checkbox" && selectedField.type !== "radio" && (
                           <div>
                             <label htmlFor="field-placeholder" className="font-medium flex items-center gap-2">
@@ -829,7 +837,6 @@ const FeedbackFormBuilder = ({
                           </div>
                         )}
 
-                        {/* Help Text */}
                         <div>
                           <label htmlFor="field-help" className="font-medium flex items-center gap-2">
                             <Info className="w-4 h-4 text-muted-foreground" />
@@ -850,14 +857,12 @@ const FeedbackFormBuilder = ({
 
                         <Separator />
 
-                        {/* Validation Rules */}
                         <div>
                           <h4 className="font-semibold mb-3 flex items-center gap-2">
                             <CheckSquare className="w-4 h-4 text-muted-foreground" />
                             Validation Rules
                           </h4>
 
-                          {/* Required */}
                           <div className="flex items-center gap-2 mb-3">
                             <Checkbox
                               id="field-required"
@@ -876,7 +881,6 @@ const FeedbackFormBuilder = ({
                             </label>
                           </div>
 
-                          {/* Min/Max Length */}
                           {(selectedField.type === "text" ||
                             selectedField.type === "email" ||
                             selectedField.type === "textarea" ||
@@ -929,7 +933,6 @@ const FeedbackFormBuilder = ({
                               </>
                             )}
 
-                          {/* Min/Max Value */}
                           {selectedField.type === "number" && (
                             <>
                               <div className="mb-3">
@@ -976,7 +979,6 @@ const FeedbackFormBuilder = ({
                             </>
                           )}
 
-                          {/* Pattern */}
                           {(selectedField.type === "text" ||
                             selectedField.type === "email" ||
                             selectedField.type === "tel" ||
@@ -1007,7 +1009,6 @@ const FeedbackFormBuilder = ({
                             )}
                         </div>
 
-                        {/* Options */}
                         {(selectedField.type === "select" || selectedField.type === "radio") && (
                           <>
                             <Separator />
@@ -1030,9 +1031,9 @@ const FeedbackFormBuilder = ({
                                       value={option.label}
                                       onChange={(e) => {
                                         const label = e.target.value
-                                        const value = label.trim()
-                                          ? label.toLowerCase().replace(/\s+/g, "_")
-                                          : `option_${index}`
+                                        const value = label.trim() ? 
+                                          label.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") 
+                                          : `option-${index}`;
                                         updateOption(selectedField.id, index, { label, value })
                                       }}
                                       placeholder="Option label"
@@ -1054,7 +1055,6 @@ const FeedbackFormBuilder = ({
 
                         <Separator />
 
-                        {/* Delete Button */}
                         <Button variant="destructive" className="w-full" onClick={() => setFieldIdToDelete(selectedField.id)}>
                           <Trash2 className="w-4 h-4 mr-2" />
                           Delete Field
@@ -1071,4 +1071,5 @@ const FeedbackFormBuilder = ({
     </div>
   );
 };
-export default FeedbackFormBuilder
+
+export default FeedbackFormBuilder;

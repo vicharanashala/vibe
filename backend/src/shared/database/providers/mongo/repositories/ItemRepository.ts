@@ -307,6 +307,9 @@ export class ItemRepository implements IItemRepository {
         case ItemType.PROJECT:
           collection = this.projectCollection;
           break;
+        case ItemType.FEEDBACK:
+          collection = this.feedbackFormCollection;
+          break;
         default:
           throw new Error(`Unsupported item type: ${item.type}`);
       }
@@ -1004,7 +1007,18 @@ export class ItemRepository implements IItemRepository {
           },
 
           { $unwind: '$modules' },
+          {
+            $match: {
+              'modules.isDeleted': { $ne: true },
+            },
+          },
           { $unwind: '$modules.sections' },
+          {
+            $match: {
+              'modules.sections.isDeleted': { $ne: true },
+            },
+          },
+
 
           {
             $lookup: {
@@ -1142,7 +1156,7 @@ export class ItemRepository implements IItemRepository {
                 { $match: { 'itemGroup.items.type': 'FEEDBACK' } },
                 {
                   $lookup: {
-                    from: 'feedbackForms',
+                    from: 'feedback_forms',
                     let: { itemId: '$itemGroup.items._id' },
                     pipeline: [
                       {

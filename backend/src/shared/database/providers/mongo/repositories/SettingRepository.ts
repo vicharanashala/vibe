@@ -219,10 +219,12 @@ export class SettingRepository implements ISettingRepository {
         { session },
       );
 
-      return Object.assign(
-        new CourseSetting(),
-        createdSettings,
-      ) as CourseSetting;
+      // Create a proper CourseSetting instance without Object.assign
+      return new CourseSetting({
+        courseId: createdSettings.courseId.toString(),
+        courseVersionId: createdSettings.courseVersionId.toString(),
+        settings: createdSettings.settings
+      });
     } else {
       return null;
     }
@@ -234,7 +236,6 @@ export class SettingRepository implements ISettingRepository {
     session?: ClientSession,
   ): Promise<ICourseSetting | null> {
     await this.init();
-
     const courseSettings = await this.courseSettingsCollection.findOne(
       {
         courseId: new ObjectId(courseId),
@@ -266,6 +267,7 @@ export class SettingRepository implements ISettingRepository {
     courseVersionId: string,
     detectors: DetectorSettingsDto[],
     linearProgressionEnabled: boolean,
+    seekForwardEnabled: boolean,
     audit: AuditingDto,
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
@@ -320,6 +322,7 @@ export class SettingRepository implements ISettingRepository {
         $set: {
           'settings.proctors.detectors': detectors,
           'settings.linearProgressionEnabled': linearProgressionEnabled,
+          'settings.seekForwardEnabled': seekForwardEnabled,
         },
         $push: {
           'settings.audit': audit,
