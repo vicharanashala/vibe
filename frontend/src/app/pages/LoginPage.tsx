@@ -455,7 +455,7 @@ export default function LoginPage() {
             <div className="w-full max-w-lg">
               <div className="text-center mb-6">
                 <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                  A Collaboration Between
+                 Funded by
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-6">
