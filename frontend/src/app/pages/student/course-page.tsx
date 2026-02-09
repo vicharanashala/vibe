@@ -278,9 +278,7 @@ export default function CoursePage() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
-      if (e.key === "Tab") {
-        e.preventDefault();
-      }
+      if (e.key === "Tab") return;
     };
 
     window.addEventListener("keydown", handleKeyDown);
