@@ -96,11 +96,11 @@ jobs:
             DB_URL=${{ secrets.DB_URL }}
             DB_NAME=${{ secrets.DB_NAME }}
             SENTRY_DSN=${{ secrets.SENTRY_DSN }}
-            #SMTP_USER=${{ secrets.SMTP_USER }}
-            #SMTP_PASS=${{ secrets.SMTP_PASS }}
             TAILSCALE_AUTHKEY=${{ secrets.TAILSCALE_AUTHKEY }}
             RECAPTCHA_SECRET_KEY=${{ secrets.RECAPTCHA_SECRET_KEY }}
+            IS_RECAPTCHA_ENABLED=${{ secrets.IS_RECAPTCHA_ENABLED }}
             AI_PROXY_ADDRESS=socks5h://localhost:1055
+            
            
           flags: --allow-unauthenticated
 
@@ -138,10 +138,11 @@ jobs:
             DB_URL=${{ secrets.DB_URL }}
             DB_NAME=${{ secrets.DB_NAME }}
             SENTRY_DSN=${{ secrets.SENTRY_DSN }}
-            #SMTP_USER=${{ secrets.SMTP_USER }}
-            #SMTP_PASS=${{ secrets.SMTP_PASS }}
             TAILSCALE_AUTHKEY=${{ secrets.TAILSCALE_AUTHKEY }}
-             RECAPTCHA_SECRET_KEY=${{ secrets.RECAPTCHA_SECRET_KEY }}
+            RECAPTCHA_SECRET_KEY=${{ secrets.RECAPTCHA_SECRET_KEY }}
+            IS_RECAPTCHA_ENABLED=${{ secrets.IS_RECAPTCHA_ENABLED }}
             AI_PROXY_ADDRESS=socks5h://localhost:1055
+         
+          
             
           flags: --allow-unauthenticated

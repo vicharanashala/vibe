@@ -96,7 +96,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
   // ===== UTILITY FUNCTIONS =====
 
-  
+
   //   function showExplanationBox(text: string, result?: 'CORRECT' | 'INCORRECT' | 'PARTIALLY_CORRECT') {
   //   setShowExplanation(true)
   //   return new Promise<void>((resolve) => {
@@ -481,7 +481,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       setIsEmptyQuiz(true);
       setQuizStarted(true);
       setQuizCompleted(true);
-      
+
       // Start progress tracking
       await handleSendStartItem();
 
@@ -681,8 +681,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       const answersForSubmission = convertAnswersToSaveFormat();
       const response = await submitQuiz({
         params: { path: { quizId: processedQuizId, attemptId: attemptId } },
-        body: { answers: answersForSubmission, isSkipped, courseId: currentCourse?.courseId,
-            courseVersionId: currentCourse?.versionId  }
+        body: {
+          answers: answersForSubmission, isSkipped, courseId: currentCourse?.courseId,
+          courseVersionId: currentCourse?.versionId
+        }
       });
 
       // No response for skipped quiz!
@@ -1042,8 +1044,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     },
     cleanup: () => {
       resetQuiz();
+    },
+    getCurrentDetails: () => {
+      return {
+        questionId: currentQuestion?.id
+      };
     }
-  }), [stopItem, currentCourse, attemptId, resetQuiz]);
+  }), [stopItem, currentCourse, attemptId, resetQuiz, currentQuestion]);
 
   // ===== RENDER LOGIC =====
 
@@ -1217,68 +1224,68 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center mx-auto">
               <FileQuestion className="w-8 h-8 text-blue-600 dark:text-blue-400" />
             </div>
-              <h3 className="text-2xl font-semibold text-foreground">
-                No questions available in this quiz.
-              </h3>
-              {/* Live countdown timer for empty quizzes */}
-              {emptyQuizRedirectCountdown !== null && (
-                <p className="mt-2 text-md text-primary font-medium animate-pulse">
-                  Moving to next item in {emptyQuizRedirectCountdown} second{emptyQuizRedirectCountdown !== 1 ? 's' : ''}...
-                </p>
-              )}
-              {/* Action Buttons - side by side */}
-              <div className="pt-4 flex flex-col items-center gap-3">
-                <div className="flex flex-wrap justify-center gap-3">
-                  {/* Rewatch Video Button - always available */}
-                  {onPrevVideo && (
-                    <Button
-                      onClick={() => {
-                        // setQuizCompleted(false);
-                        clearTimeout(emptyQuizNextTimerRef.current);
-                        setEmptyQuizRedirectCountdown(null);
-                        onPrevVideo();
-                      }}
-                      disabled={isProgressUpdating}
-                      variant="outline"
-                      className="min-w-[180px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
-                      size="lg"
-                    >
-                      {isProgressUpdating ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2" />
-                          Processing
-                        </>
-                      ) : (
-                        <>
+            <h3 className="text-2xl font-semibold text-foreground">
+              No questions available in this quiz.
+            </h3>
+            {/* Live countdown timer for empty quizzes */}
+            {emptyQuizRedirectCountdown !== null && (
+              <p className="mt-2 text-md text-primary font-medium animate-pulse">
+                Moving to next item in {emptyQuizRedirectCountdown} second{emptyQuizRedirectCountdown !== 1 ? 's' : ''}...
+              </p>
+            )}
+            {/* Action Buttons - side by side */}
+            <div className="pt-4 flex flex-col items-center gap-3">
+              <div className="flex flex-wrap justify-center gap-3">
+                {/* Rewatch Video Button - always available */}
+                {onPrevVideo && (
+                  <Button
+                    onClick={() => {
+                      // setQuizCompleted(false);
+                      clearTimeout(emptyQuizNextTimerRef.current);
+                      setEmptyQuizRedirectCountdown(null);
+                      onPrevVideo();
+                    }}
+                    disabled={isProgressUpdating}
+                    variant="outline"
+                    className="min-w-[180px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
+                    size="lg"
+                  >
+                    {isProgressUpdating ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2" />
+                        Processing
+                      </>
+                    ) : (
+                      <>
                         <ChevronLeft className="h-4 w-4 mr-2" />
-                          Rewatch Video
-                        </>
-                      )}
-                    </Button>
-                  )}
-                  {/* Next Lesson Button-If user doesn't want to wait*/}
-                  {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
-                    <Button
-                      onClick={onNext}
-                      disabled={isProgressUpdating}
-                      className="min-w-[180px] h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
-                      size="lg"
-                    >
-                      {isProgressUpdating ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
-                          Processing
-                        </>
-                      ) : (
-                        <>
-                          Next Lesson
-                          <ChevronRight className="h-4 w-4 ml-2" />
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
+                        Rewatch Video
+                      </>
+                    )}
+                  </Button>
+                )}
+                {/* Next Lesson Button-If user doesn't want to wait*/}
+                {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
+                  <Button
+                    onClick={onNext}
+                    disabled={isProgressUpdating}
+                    className="min-w-[180px] h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
+                    size="lg"
+                  >
+                    {isProgressUpdating ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
+                        Processing
+                      </>
+                    ) : (
+                      <>
+                        Next Lesson
+                        <ChevronRight className="h-4 w-4 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
+            </div>
           </CardContent>
         </Card>
       );
@@ -1448,71 +1455,70 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                           setOpenQuestionId(openQuestionId === question.id ? null : question.id)
                         }
                       >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <Badge variant="outline">
-                            Q{index + 1}: {getQuestionTypeLabel(question.type)}
-                          </Badge>
-                          {questionFeedback && (
-                            <Badge variant={
-                              questionFeedback.status === 'CORRECT' ? 'default' :
-                                questionFeedback.status === 'PARTIAL' ? 'secondary' :
-                                  'destructive'
-                            }>
-                              {questionFeedback.status === 'CORRECT' ? '✓ Correct' :
-                                questionFeedback.status === 'PARTIAL' ? '◐ Partial' :
-                                  '✗ Incorrect'}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <Badge variant="outline">
+                              Q{index + 1}: {getQuestionTypeLabel(question.type)}
                             </Badge>
-                          )}
+                            {questionFeedback && (
+                              <Badge variant={
+                                questionFeedback.status === 'CORRECT' ? 'default' :
+                                  questionFeedback.status === 'PARTIAL' ? 'secondary' :
+                                    'destructive'
+                              }>
+                                {questionFeedback.status === 'CORRECT' ? '✓ Correct' :
+                                  questionFeedback.status === 'PARTIAL' ? '◐ Partial' :
+                                    '✗ Incorrect'}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className='flex justify-center items-center'>
+                          <Badge variant={
+                            questionFeedback
+                              ? questionFeedback.status === 'CORRECT' ? 'default' : 'destructive'
+                              : hasAnswer ? 'secondary' : 'destructive'
+                          }>
+                            {showScoreAfterSubmission && questionFeedback
+                              ? `${questionFeedback.score}/${question.points} Points`
+                              : hasAnswer ? `+${question.points}` : '0'
+                            }
+                          </Badge>
+                          <ChevronDown className={`w-5 h-5 ml-5 transition-transform ${openQuestionId === question.id ? 'rotate-180' : ''}`} />
                         </div>
                       </div>
-                      <div className='flex justify-center items-center'>
-                        <Badge variant={
-                          questionFeedback
-                            ? questionFeedback.status === 'CORRECT' ? 'default' : 'destructive'
-                            : hasAnswer ? 'secondary' : 'destructive'
-                        }>
-                          {showScoreAfterSubmission && questionFeedback
-                            ? `${questionFeedback.score}/${question.points} Points`
-                            : hasAnswer ? `+${question.points}` : '0'
-                          }
-                        </Badge>
-                          <ChevronDown className={`w-5 h-5 ml-5 transition-transform ${
-                              openQuestionId === question.id ? 'rotate-180' : ''}`}/>
-                      </div>
-                    </div>
-                    {openQuestionId === question.id && (<>
-                      <p className="text-sm text-muted-foreground my-3 ml-2">
-                        <MathRenderer>
-                          {preprocessMathContent(question.question)}
-                        </MathRenderer>
-                      </p>
+                      {openQuestionId === question.id && (<>
+                        <p className="text-sm text-muted-foreground my-3 ml-2">
+                          <MathRenderer>
+                            {preprocessMathContent(question.question)}
+                          </MathRenderer>
+                        </p>
 
-                      {/* Show user's answer if any */}
-                      {hasAnswer && (
-                        <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
-                          <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                            Your Answer: {formatUserAnswer(question, userAnswer)}
-                          </p>
-                        </div>
-                      )}
-                      {/* Show correct answers if enabled and available */}
-                      {showCorrectAnswersAfterSubmission && questionFeedback && (
-                        <div className="mt-3 p-2 bg-green-50 dark:bg-green-950/20 rounded">
-                          <p className="text-sm font-medium text-green-700 dark:text-green-300">
-                            Status: {questionFeedback.status}
-                          </p>
-                        </div>
-                      )}
-                      {/* Show explanation if enabled and available */}
-                      {showExplanationAfterSubmission && questionFeedback?.answerFeedback && (
-                        <div className="mt-3 p-2 bg-amber-50 dark:bg-amber-950/20 rounded">
-                          <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
-                            <strong>Explanation:</strong> {questionFeedback.answerFeedback}
-                          </p>
-                        </div>
-                      )}
-                    </>)}
+                        {/* Show user's answer if any */}
+                        {hasAnswer && (
+                          <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+                            <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                              Your Answer: {formatUserAnswer(question, userAnswer)}
+                            </p>
+                          </div>
+                        )}
+                        {/* Show correct answers if enabled and available */}
+                        {showCorrectAnswersAfterSubmission && questionFeedback && (
+                          <div className="mt-3 p-2 bg-green-50 dark:bg-green-950/20 rounded">
+                            <p className="text-sm font-medium text-green-700 dark:text-green-300">
+                              Status: {questionFeedback.status}
+                            </p>
+                          </div>
+                        )}
+                        {/* Show explanation if enabled and available */}
+                        {showExplanationAfterSubmission && questionFeedback?.answerFeedback && (
+                          <div className="mt-3 p-2 bg-amber-50 dark:bg-amber-950/20 rounded">
+                            <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                              <strong>Explanation:</strong> {questionFeedback.answerFeedback}
+                            </p>
+                          </div>
+                        )}
+                      </>)}
                     </CardContent>
                   </Card>
                 );
@@ -1580,7 +1586,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           </Badge>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-sm">
-              Attempt {attempts || 0 + 1} of {maxAttempts}
+              {maxAttempts === -1 ? `Attempt ${attempts || 0 + 1}` :
+                `Attempt ${attempts || 0 + 1} of ${maxAttempts}`}
             </Badge>
             {timeLeft > 0 && (
               <Badge
@@ -1650,7 +1657,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               )}
             </div>
           )}
-{/* 
+          {/* 
           {explanationBox.open && (
             <div className={`mb-4 p-3 rounded-lg animate-in fade-in ${explanationBox.result === 'CORRECT'
               ? 'bg-green-100 dark:bg-green-950/20 text-green-900 dark:text-green-100 border border-green-300 dark:border-green-800'
@@ -1659,7 +1666,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               <p className="text-sm leading-relaxed">{explanationBox.text}</p>
 
               {/* OPTIONAL Next Button */}
-              {/* <button
+          {/* <button
       className="mt-2 px-3 py-1 rounded bg-green-600 text-white text-sm"
       onClick={() => {
         explanationBox.resolve?.();
@@ -1668,7 +1675,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     >
       Next →
     </button> */}
-            {/* </div>
+          {/* </div>
           )} */}
           {/* Single Select (SELECT_ONE_IN_LOT) */}
           {currentQuestion.type === 'SELECT_ONE_IN_LOT' && currentQuestion.options && (

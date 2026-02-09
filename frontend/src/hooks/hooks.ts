@@ -331,8 +331,8 @@ export interface Anomaly {
 }
 
 export interface ExportFeedbackSubmissionsProps {
-    courseId: string;
-    feedbackId: string;
+  courseId: string;
+  feedbackId: string;
 }
 
 
@@ -1212,7 +1212,7 @@ export function useCourseQuizScores(
   courseId: string | undefined,
   versionId: string | undefined,
   enabled: boolean = true,
-  statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE' 
+  statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE'
 ): {
   data: any | undefined,
   isLoading: boolean,
@@ -1467,12 +1467,12 @@ export function useStopItem() {
             query.queryKey[1] ===
             `/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items`,
         });
-      queryClient.invalidateQueries({
-  predicate: (query) =>
-    query.queryKey[0] === "get" &&
-    query.queryKey[1] ===
-      "/users/progress/courses/{courseId}/versions/{versionId}/modules",
-});
+        queryClient.invalidateQueries({
+          predicate: (query) =>
+            query.queryKey[0] === "get" &&
+            query.queryKey[1] ===
+            "/users/progress/courses/{courseId}/versions/{versionId}/modules",
+        });
 
 
       },
@@ -2794,8 +2794,8 @@ export function useQuizSubmissions(quizId: string, gradeStatus: GradingSystemSta
 }
 
 export function useSubmitFlag(): {
-  mutate: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType: EntityType, reason: string } }) => void,
-  mutateAsync: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType: EntityType, reason: string } }) => Promise<void>,
+  mutate: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType: EntityType, reason: string, questionId?: string } }) => void,
+  mutateAsync: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType: EntityType, reason: string, questionId?: string } }) => Promise<void>,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
@@ -2813,11 +2813,11 @@ export function useSubmitFlag(): {
 
 export function useGetReports(courseId: string, versionId: string, limit = 10, currentPage = 1, status?: string, entityType?: string, sortBy?: string,
   sortOrder?: 'asc' | 'desc'): {
-  data: IReport[],
-  isLoading: boolean,
-  error: string | null,
-  refetch: () => void
-} {
+    data: IReport[],
+    isLoading: boolean,
+    error: string | null,
+    refetch: () => void
+  } {
 
   const result = api.useQuery(
     "get",
@@ -3976,39 +3976,43 @@ export function useRecalculateStudentProgress(): {
 // Hook to export feedback submissions as CSV
 
 export const useExportFeedbackSubmissions = ({ courseId, feedbackId }: ExportFeedbackSubmissionsProps) => {
-    const [isExporting, setIsExporting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
-    const exportCSV = async () => {
-        try {
-            setIsExporting(true);
-            const baseUrl = import.meta.env.VITE_BASE_URL;
-            const response = await fetch(`${baseUrl}/courses/${courseId}/item/${feedbackId}/feedback/submissions/export`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('firebase-auth-token')}`
-                }
-            });
-
-            if (!response.ok) throw new Error('Failed to export submissions');
-
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `feedback_submissions_${feedbackId}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            toast.success('Feedback submissions exported successfully');
-        } catch (error) {
-            console.error('Export error:', error);
-            toast.error('Failed to export feedback submissions');
-        } finally {
-            setIsExporting(false);
+  const exportCSV = async () => {
+    try {
+      setIsExporting(true);
+      const baseUrl = import.meta.env.VITE_BASE_URL;
+      const response = await fetch(`${baseUrl}/courses/${courseId}/item/${feedbackId}/feedback/submissions/export`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('firebase-auth-token')}`
         }
-    };
+      });
 
-    return { exportCSV, isExporting };
+      if (!response.ok) throw new Error('Failed to export submissions');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `feedback_submissions_${feedbackId}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Feedback submissions exported successfully');
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export feedback submissions');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  return { exportCSV, isExporting };
 };
 
 
+// Bulk Unenroll Users Hook
+export const useBulkUnenrollUsers = () => {
+  return api.useMutation('post', '/users/enrollments/courses/{courseId}/versions/{versionId}/bulk-unenroll');
+};

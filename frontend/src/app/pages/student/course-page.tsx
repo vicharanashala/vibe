@@ -204,7 +204,7 @@ export default function CoursePage() {
   const { data: progressData, isLoading: progressLoading, error: progressError } =
     useUserProgress(COURSE_ID, VERSION_ID);
   const { data: moduleProgressData, isLoading: moduleProgressLoading } =
-  useModuleProgress(COURSE_ID, VERSION_ID);
+    useModuleProgress(COURSE_ID, VERSION_ID);
 
 
   // Fetch proctoring settings for the course (fetched once when component loads)
@@ -299,7 +299,7 @@ export default function CoursePage() {
     ) {
       // The backend returns items directly as an array, not wrapped in an object
       let itemsArray = [];
-      
+
       if (Array.isArray(currentSectionItems)) {
         itemsArray = currentSectionItems;
       } else if ((currentSectionItems as any)?.items) {
@@ -541,7 +541,7 @@ export default function CoursePage() {
             (item as any).isCompleted = (sectionItem as any).isCompleted;
           }
         }
-        
+
         setCurrentItem(item);
         // Clear loading state when new item is successfully loaded
         setIsNavigatingToNext(false);
@@ -555,7 +555,6 @@ export default function CoursePage() {
       if (!currentItem?._id) return;
 
       if (!currentItem) {
-        console.warn("Current item not founded", currentItem);
         return;
       }
       const submitFlagBody = {
@@ -564,7 +563,9 @@ export default function CoursePage() {
         entityId: currentItem._id,
         entityType: currentItem.type as EntityType,
         reason,
+        questionId: itemContainerRef.current?.getCurrentDetails?.()?.questionId
       }
+
       await submitFlagAsyncMutate({ body: submitFlagBody })
       toast.success("Flag submitted successfully", { position: 'top-right' })
     } catch (error: any) {
@@ -575,14 +576,14 @@ export default function CoursePage() {
     }
   };
   const moduleProgressMap = useMemo(() => {
-  const map = new Map();
+    const map = new Map();
 
-  moduleProgressData?.forEach((m: any) => {
-    map.set(m.moduleId, m);
-  });
+    moduleProgressData?.forEach((m: any) => {
+      map.set(m.moduleId, m);
+    });
 
-  return map;
-}, [moduleProgressData]);
+    return map;
+  }, [moduleProgressData]);
 
 
 
@@ -680,7 +681,7 @@ export default function CoursePage() {
       try {
         // Stop current item immediately
         if (itemContainerRef.current) {
-          await itemContainerRef.current.stopCurrentItem();
+          // await itemContainerRef.current.stopCurrentItem();
           // Small delay for API/callback cleanup
           await new Promise(resolve => setTimeout(resolve, 50));
         }
@@ -1477,16 +1478,16 @@ export default function CoursePage() {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div className="flex gap-4 items-center justify-between">
-                                   
-                                <div className="font-medium text-xs truncate">
-                                  {module.name.length > 34 ? `${module.name.substring(0, 31)}...` : module.name}
-                                </div>
-                                 <div className={`text-[10px] ${(progress?.completedItems===progress?.totalItems && progress?.totalItems>0) ?`dark:text-green-500 text-green-600 `:` text-muted-foreground` }`}>
+
+                                  <div className="font-medium text-xs truncate">
+                                    {module.name.length > 34 ? `${module.name.substring(0, 31)}...` : module.name}
+                                  </div>
+                                  <div className={`text-[10px] ${(progress?.completedItems === progress?.totalItems && progress?.totalItems > 0) ? `dark:text-green-500 text-green-600 ` : ` text-muted-foreground`}`}>
                                     {moduleProgressLoading
                                       ? "..."
                                       : `${progress?.completedItems ?? 0}/${progress?.totalItems ?? 0} completed`
                                     }
-                              </div>
+                                  </div>
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent side="right" align="center">
@@ -1496,7 +1497,7 @@ export default function CoursePage() {
                             <div className="text-[10px] text-muted-foreground truncate">
                               {module.sections?.length || 0} sections
                             </div>
-                            
+
                           </div>
                         </SidebarMenuButton>
 
@@ -1574,12 +1575,12 @@ export default function CoursePage() {
                                                         return itemName.length > 18 ? `${itemName.substring(0, 15)}...` : itemName;
                                                       })()}
                                                     </div>
-                                                    {item.isCompleted && (
+                                                    {/* {item.isCompleted && (
                                                       <div className={`text-[10px] dark:text-green-500 text-green-600 font-medium mt-0.5 flex items-center gap-1 ${selectedItemId === itemId ? "text-green-900" : ""} `}>
                                                         <CheckCircle className="h-3 w-3" />
                                                         Completed
                                                       </div>
-                                                    )}
+                                                    )} */}
                                                   </div>
                                                 </div>
                                               </SidebarMenuSubButton>
@@ -1631,8 +1632,8 @@ export default function CoursePage() {
                   setRewindVid={setRewindVid}
                   pauseVid={pauseVid}
                   setPauseVid={setPauseVid}
-                />:
-                <FloatingVideoPlaceholder/>}
+                /> :
+                <FloatingVideoPlaceholder />}
             </SidebarFooter>
             {/* Navigation Footer */}
             <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">

@@ -15,7 +15,7 @@ export interface ISubmitFeedbackBody {
   courseVersionId: string;
   // isSkipped?: boolean;
 }
-const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, onPrevVideo, isProgressUpdating,readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson,keyboardLockEnabled,setIsQuizSkipped, linearProgressionEnabled, seekForwardEnabled, courseId,versionId}, ref) => {
+const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, onPrevVideo, isProgressUpdating, readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson, keyboardLockEnabled, setIsQuizSkipped, linearProgressionEnabled, seekForwardEnabled, courseId, versionId }, ref) => {
   const articleRef = useRef<ArticleRef>(null);
   const quizRef = useRef<QuizRef>(null);
 
@@ -27,13 +27,19 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
       } else if (quizRef.current) {
         await quizRef.current.stopItem();
       }
+    },
+    getCurrentDetails: () => {
+      if (quizRef.current?.getCurrentDetails) {
+        return quizRef.current.getCurrentDetails();
+      }
+      return {};
     }
   }));
   const submitFeedback = useSubmitFeedback(item._id.toString())
-  
-   const handleFeedbackSubmit = async (formData: any) => {
 
-    
+  const handleFeedbackSubmit = async (formData: any) => {
+
+
   };
 
   const renderContent = () => {
@@ -85,7 +91,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           displayNextLesson={displayNextLesson}
           setQuizPassed={setQuizPassed}
           rewindVid={rewindVid}
-          setIsQuizSkipped = {setIsQuizSkipped}
+          setIsQuizSkipped={setIsQuizSkipped}
           linearProgressionEnabled={linearProgressionEnabled}
         />;
 
@@ -109,22 +115,22 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
             type: 'PROJECT',
             description: item.details?.description || item.description || ''
           }}
-          onSave={() => {}} // Not used in student view
-          onCancel={() => {}} // Not used in student view
+          onSave={() => { }} // Not used in student view
+          onCancel={() => { }} // Not used in student view
           isInstructor={false}
           onNext={onNext}
           isProgressUpdating={isProgressUpdating}
         />;
       case 'feedback':
         return <FeedbackForm
-        title={item.name}
-        description={item.description}
-        isOptional={item.isOptional}
-        jsonSchema={item?.details?.jsonSchema}
-        uiSchema={item?.details?.uiSchema}
-        onSubmit={handleFeedbackSubmit}
-        isSubmitting={isProgressUpdating}
-        onNext={onNext}
+          title={item.name}
+          description={item.description}
+          isOptional={item.isOptional}
+          jsonSchema={item?.details?.jsonSchema}
+          uiSchema={item?.details?.uiSchema}
+          onSubmit={handleFeedbackSubmit}
+          isSubmitting={isProgressUpdating}
+          onNext={onNext}
         />
 
       default:

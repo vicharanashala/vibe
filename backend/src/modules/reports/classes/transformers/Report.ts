@@ -110,6 +110,17 @@ class Report implements IReport {
 
   @Expose()
   @JSONSchema({
+    title: 'Question ID',
+    description: 'Identifier of the question being reported (if applicable)',
+    example: '60d5ec49b3f1c8e4a8f8b8c5',
+    type: 'string',
+  })
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  questionId?: ID;
+
+  @Expose()
+  @JSONSchema({
     title: 'Entity Type',
     description: 'Type of the reported entity',
     example: EntityTypeEnum.QUIZ,
@@ -191,6 +202,9 @@ class Report implements IReport {
       this.entityId = new ObjectId(reportBody.entityId);
       this.entityType = reportBody.entityType;
       this.reason = reportBody.reason;
+      if (reportBody.questionId) {
+        this.questionId = new ObjectId(reportBody.questionId);
+      }
       if (!reportedBy) {
         throw new UnauthorizedError('Missing reporter ID');
       }

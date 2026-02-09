@@ -258,6 +258,61 @@ export class EnrollmentService extends BaseService {
     });
   }
 
+  async bulkUnenrollUsers(
+    userIds: string[],
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<{
+    successCount: number;
+    failureCount: number;
+    errors: string[];
+  }> {
+    const results = {
+      successCount: 0,
+      failureCount: 0,
+      errors: [] as string[],
+    };
+
+    // Process unenrollments in parallel with error handling
+    await Promise.allSettled(
+      userIds.map(async (userId) => {
+        try {
+          const enrollment = await this.findActiveEnrollment(
+            userId,
+            courseId,
+            courseVersionId,
+          );
+
+          if (!enrollment) {
+            results.failureCount++;
+            results.errors.push(
+              `User ${userId}: No active enrollment found`,
+            );
+            return;
+          }
+
+          await this.unenrollUser(
+            userId,
+            courseId,
+            courseVersionId,
+            enrollment,
+          );
+
+          results.successCount++;
+        } catch (error) {
+          results.failureCount++;
+          results.errors.push(
+            `User ${userId}: ${error.message || 'Unknown error'}`,
+          );
+          console.error(`Failed to unenroll user ${userId}:`, error);
+        }
+      }),
+    );
+
+    return results;
+  }
+
+
   private filterCourseVersions(course: any, enrolledVersionIds: Set<string>) {
     return {
       ...course,
@@ -413,9 +468,9 @@ export class EnrollmentService extends BaseService {
             enrollmentDate: new Date(enr.enrollmentDate),
             course: this.filterCourseVersions(enr.course, enrolledVersionIds),
             percentCompleted: enr.percentCompleted || 0,
-            moduleNumber:enr.moduleNumber,
-            sectionNumber:enr.sectionNumber,
-            itemType:enr.itemType,
+            moduleNumber: enr.moduleNumber,
+            sectionNumber: enr.sectionNumber,
+            itemType: enr.itemType,
             contentCounts: {
               totalItems: enr.totalItems ?? 0,
               videos: itemCounts.VIDEO ?? itemCounts.videos ?? 0,
@@ -486,7 +541,7 @@ export class EnrollmentService extends BaseService {
         courseVersionId,
         session,
       );
-      if (!courseVersion || courseVersion.courseId.toString() !== courseId) {
+      if (!courseVersion || courseVersion?.courseId?.toString() !== courseId) {
         // return empty result instead of throwing error
         return {
           enrollments: [],
@@ -532,7 +587,7 @@ export class EnrollmentService extends BaseService {
 
         // NEW: reuse getEnrollments()
         const studentUserIds = enrollmentsData.enrollments.map(e =>
-          e.userId.toString(),
+          e.userId?.toString(),
         );
 
         // call getEnrollments for each student (parallel)

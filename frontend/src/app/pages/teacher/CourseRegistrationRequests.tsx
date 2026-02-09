@@ -215,6 +215,11 @@ useEffect(() => {
     setIsUnsavedChanges(false)
   }
 
+  const pendingRegistrations = registrations.filter(
+  (item) => item.status === "PENDING"
+);
+
+
   if (showFormBuilder) {
     return (
       <>
@@ -527,13 +532,14 @@ useEffect(() => {
                     <TableHead className="w-[40px] pl-6">
                       <Checkbox
                         checked={
-                          selectedIds?.length === registrations?.length &&
-                          registrations?.length > 0
-                        }
-                        disabled={registrations.filter((item)=> item.status==="PENDING")?.length===0}
-                        onCheckedChange={checked =>
-                          handleSelectAll(checked as boolean)
-                        }
+                            pendingRegistrations.length > 0 &&
+                            selectedIds.length === pendingRegistrations.length
+                          }
+                          disabled={pendingRegistrations.length === 0}
+                          onCheckedChange={(checked) =>
+                            handleSelectAll(checked === true)
+                       }
+                        
                       />
                     </TableHead>
 
@@ -610,7 +616,7 @@ useEffect(() => {
                             checked={selectedIds.includes(reg._id)}
                             disabled={reg.status !== "PENDING"}
                             onCheckedChange={checked =>
-                              handleSelectRow(reg._id, checked as boolean)
+                              handleSelectRow(reg._id, checked === true)
                             }
                           />
                         </TableCell>
@@ -848,9 +854,14 @@ export function RegistrationDetailsDialog({
                     <span className="text-xs text-muted-foreground">
                       {formatKey(key)}
                     </span>
-                    <span className="font-medium break-words">
-                      {value as string}
-                    </span>
+                    {typeof value === "boolean" ? (
+                          <Checkbox checked={value} disabled />
+                        ) : (
+                          <span className="font-medium break-words">
+                            {String(value)}
+                          </span>
+                        )
+                    }
                   </div>
                 ))}
               </div>
