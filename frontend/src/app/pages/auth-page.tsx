@@ -363,7 +363,7 @@ export default function AuthPage() {
                   <button onClick={() => window.open(links.DEMO_VIDEO, '_blank')} className="text-base px-7 py-3 rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
                     Explore Demo
                   </button>
-                  <button onClick={() => {navigate({ to: "/select-role" })}} className="text-base px-7 py-3 rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
+                  <button onClick={() => {navigate({ to: "/student/login" })}} className="text-base px-7 py-3 rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
                     Get Started
                   </button>
                 </div>
@@ -432,7 +432,7 @@ export default function AuthPage() {
                     <div>
                       <button
                         onClick={() => {
-                          navigate({ to: "/select-role" })
+                          navigate({ to: "/student/login" })
                         }}
                         className="text-base px-7 py-3 rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
                         Continue To Login
