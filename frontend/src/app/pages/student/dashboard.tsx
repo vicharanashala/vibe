@@ -84,6 +84,24 @@ function DashboardContent() {
   const enrollments = enrollmentsData?.enrollments || [];
   const totalEnrollments = enrollmentsData?.totalDocuments || 0;
   const { data: watchtimeData } = useWatchtimeTotal();
+  
+  // Check if student is already registered to Gurusetu course
+  const gurusetuCourseId = "6981df886e100cfe04f9c4ad";
+  const isRegisteredToGurusetu = enrollments.some(enrollment => {
+    const courseId = enrollment.course?._id;
+    // Handle MongoDB ObjectId conversion
+    let courseIdStr: string | undefined = undefined;
+    
+    if (courseId?.type === 'Buffer') {
+      // Convert Buffer to hex string
+      courseIdStr = Buffer.from(courseId.data).toString('hex');
+    } else if (courseId && typeof courseId === 'object') {
+      // Handle ObjectId object - try different methods
+      courseIdStr = courseId._id || courseId.id || courseId.toString() || JSON.stringify(courseId);
+    }
+    return enrollment.courseId === gurusetuCourseId || courseIdStr === gurusetuCourseId ;
+  });
+  
   // const filteredEnrollement = enrollments.filter(enrollment=>enrollment.role == "STUDENT");
   const [completion, setCompletion] = useState<CoursePctCompletion[]>([]);
   const totalProgress = useMemo(() => {
@@ -125,6 +143,49 @@ function DashboardContent() {
         )}
       </div> */}
       {/* Main content and sidebar */}
+     <div className="mb-6 px-0 sm:px-6 lg:px-8 xl:px-0">
+ {!isRegisteredToGurusetu && <div className="relative overflow-hidden rounded-xl">
+    
+    {/* Glow effect */}
+    <div className="absolute -inset-1 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400 opacity-30 blur-lg animate-pulse" />
+
+    <a
+      href="https://vibe.vicharanashala.ai/student/course-registration/6981df886e100cfe04f9c4ae"
+      target="_blank"
+      className="relative flex items-center justify-between gap-3 rounded-xl 
+  bg-amber-100 dark:bg-[#4b341e4b] 
+  border border-amber-300 dark:border-amber-600
+  px-5 py-4 font-semibold
+  text-lg sm:text-xl lg:text-2xl
+  text-amber-900 dark:text-amber-200
+  transition-all duration-300
+  hover:-translate-y-1 hover:shadow-xl hover:shadow-amber-500/30
+  group"
+    >
+      <span className="flex items-center gap-3 text-base text-lg">
+        🎓 
+        <span>
+          Join the <span className="font-bold underline decoration-amber-400">GURUSETU PILOT</span> now
+        </span>
+      </span>
+
+      <svg
+        className="w-5 h-5 transform transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M14 4h6m0 0v6m0-6L10 14"
+        />
+      </svg>
+    </a>
+  </div>}
+</div>
+
       <div className="container mx-auto px-0 sm:px-6 lg:px-8 xl:px-0 py-6 flex flex-col lg:flex-row gap-6 transition-all duration-300">
         <main className="flex-1">
           <CourseSection

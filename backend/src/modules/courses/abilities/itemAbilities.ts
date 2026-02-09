@@ -55,6 +55,7 @@ export async function setupItemAbilities(
         case 'STUDENT':
           can(ItemActions.ViewAll, 'Item', versionBounded);
 
+
           // true if linearProgressionEnabled field is not available
           const linearProgressionEnabled = await courseSettingService.isLinearProgressionEnabled(
             enrollment.courseId,

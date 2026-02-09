@@ -237,7 +237,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
             >
               {progress === 0 ? 'Start' : progress >= 100 ? 'Completed' : 'Continue'}
             </Button>
-            <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
+          {enrollment.courseVersionId!=="6981df886e100cfe04f9c4ae"&&  <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full sm:w-auto">
                   <Trophy className="h-4 w-4 mr-2" />
@@ -245,8 +245,8 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 </Button>
               </DialogTrigger>
               <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} />
-            </Dialog>
-            <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+            </Dialog>}
+           {enrollment.courseVersionId!=="6981df886e100cfe04f9c4ae"&& <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full sm:w-auto">View Details</Button>
               </DialogTrigger>
@@ -369,7 +369,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   </div>
                 </ScrollArea>
               </DialogContent>
-            </Dialog>
+            </Dialog>}
 
             {supportLink && (() => {
               const isEmail = supportLink.startsWith('mailto:') || (!supportLink.startsWith('http://') && !supportLink.startsWith('https://') && !supportLink.startsWith('//') && supportLink.includes('@'));

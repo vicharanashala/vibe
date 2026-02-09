@@ -110,7 +110,7 @@ export default function LoginPage() {
     auth?: string;
     recaptcha?: string;
   }>({});
-  const [showAuthForm, setShowAuthForm] = useState(false);
+  const [showAuthForm, setShowAuthForm] = useState(true);
 
   const isRecaptchaEnabled:boolean= import.meta.env.VITE_IS_RECAPTCHA_ENABLED==="true";
 
@@ -455,7 +455,7 @@ export default function LoginPage() {
             <div className="w-full max-w-lg">
               <div className="text-center mb-6">
                 <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                  A Collaboration Between
+                 Generously funded by
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-6">
@@ -494,9 +494,9 @@ export default function LoginPage() {
                   />
                   <div className="relative p-2 flex items-center hover:scale-110 duration-300 justify-center h-28 bg-white">
                     <img
-                      src="https://annam.ai/wp-content/uploads/2025/01/4-1-768x768.png"
+                      src="https://res.cloudinary.com/dgwhmqdhr/image/upload/v1769143826/annam-color-with-icon_jsaz3l.png"
                       alt="Annam Logo"
-                      style={{ scale: 2.3, transform: 'translateY(5px)' }}
+                      style={{  transform: 'translateY(5px)' }}
                       className="h-full w-full object-contain group-hover:scale-110 transition-transform duration-300"
                     />
                   </div>
