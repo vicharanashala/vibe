@@ -1087,6 +1087,15 @@ export default function CoursePage() {
           });
           return;
         }
+        // set the current item as completed
+        setSectionItems(prev => ({
+          ...prev,
+          [selectedSectionId!]: prev[selectedSectionId!].map(item =>
+            item._id === selectedItemId
+              ? { ...item, isCompleted: true }
+              : item
+          )
+        }));
 
         // 3️⃣ If next section requires loading
         if ((nextItem as any).needsLoading) {
@@ -1587,12 +1596,12 @@ export default function CoursePage() {
                                                         return itemName.length > 18 ? `${itemName.substring(0, 15)}...` : itemName;
                                                       })()}
                                                     </div>
-                                                    {/* {item.isCompleted && (
+                                                    {item.isCompleted && (
                                                       <div className={`text-[10px] dark:text-green-500 text-green-600 font-medium mt-0.5 flex items-center gap-1 ${selectedItemId === itemId ? "text-green-900" : ""} `}>
                                                         <CheckCircle className="h-3 w-3" />
                                                         Completed
                                                       </div>
-                                                    )} */}
+                                                    )}
                                                   </div>
                                                 </div>
                                               </SidebarMenuSubButton>
