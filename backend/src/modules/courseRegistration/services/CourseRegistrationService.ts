@@ -638,4 +638,23 @@ export class CourseRegistrationService extends BaseService {
       return await this.settingsRepo.readSettingsSchema(versionId, session);
     });
   }
+
+
+  async getPendingRegistrations(instructorId: string) {
+    return this._withTransaction(async session => {
+      return await this.courseRegistrationRepo.getPendingRegistrations(instructorId, session);
+    });
+  }
+
+  async getUnreadApprovedRegistrations(studentId: string) {
+    return this._withTransaction(async session => {
+      return await this.courseRegistrationRepo.getUnreadApprovedRegistrations(studentId, session);
+    });
+  }
+
+  async markNotificationAsRead(registrationId: string) {
+    return this._withTransaction(async session => {
+      return await this.courseRegistrationRepo.markNotificationAsRead(registrationId, session);
+    });
+  }
 }
