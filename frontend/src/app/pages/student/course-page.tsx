@@ -41,7 +41,7 @@ import {
   X,
   CircleCheckIcon,
   Headphones,
-  ExternalLink
+  ExternalLink,Menu
 } from "lucide-react";
 import FloatingVideo, { FloatingVideoPlaceholder } from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
@@ -106,6 +106,8 @@ export default function CoursePage() {
   const [closing, setClosing] = useState(false);
   const [allProctorsDisabled, setAllProctorsDisabled] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
+
+  
 
   // Check for microphone and camera access, otherwise redirect to dashboard
   useEffect(() => {
@@ -1740,7 +1742,14 @@ export default function CoursePage() {
           {/* Main Content Area */}
           <SidebarInset className="flex-1  bg-gradient-to-br from-background via-background to-background/95 peer-data-[variant=inset]:!m-0">
             <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border/20 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 px-4">
-              <SidebarTrigger className="-ml-1 h-8 w-8 rounded-md hover:bg-accent/10 transition-colors" />
+              <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsDesktopSidebarVisible((p) => !p)}
+                  className="hidden md:inline-flex"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
               <Separator orientation="vertical" className="mr-2 h-4" />
               <Button
                 variant="ghost"
