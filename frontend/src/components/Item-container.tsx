@@ -15,7 +15,7 @@ export interface ISubmitFeedbackBody {
   courseVersionId: string;
   // isSkipped?: boolean;
 }
-const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, onPrevVideo, isProgressUpdating,readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson,keyboardLockEnabled,setIsQuizSkipped, linearProgressionEnabled,courseId,versionId}, ref) => {
+const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, onPrevVideo, isProgressUpdating,readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson,keyboardLockEnabled,setIsQuizSkipped, linearProgressionEnabled, seekForwardEnabled, courseId,versionId}, ref) => {
   const articleRef = useRef<ArticleRef>(null);
   const quizRef = useRef<QuizRef>(null);
 
@@ -54,6 +54,8 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           readyToDetect={readyToDetect}
           anomalies={anomalies}
           linearProgressionEnabled={linearProgressionEnabled}
+          seekForwardEnabled={seekForwardEnabled}
+          isCompleted={item.isCompleted || false}
         />;
 
       case 'quiz':

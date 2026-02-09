@@ -19,6 +19,7 @@ import {
   useGetReportDetails
 } from "@/hooks/hooks"
 import { useFlagStore } from "@/store/flag-store"
+import { useCourseStore } from "@/store/course-store"
 import { useQueryClient } from "@tanstack/react-query"
 import { FlagModal } from "@/components/FlagModal"
 import { ReportStatus } from "@/types/reports.types"
@@ -45,6 +46,7 @@ export default function FlaggedList() {
 
   // Get course info from store
   const { currentCourseFlag } = useFlagStore()
+  const { setCurrentCourse } = useCourseStore()
   const courseId = currentCourseFlag?.courseId
   const versionId = currentCourseFlag?.versionId
   // Sorting state
@@ -188,6 +190,37 @@ export default function FlaggedList() {
       setSelectedReport(null)
       setIsUpdatingStatus(false)
     }
+  };
+
+  // Navigation handler for flagged items
+  const handleItemClick = () => {
+    if (!selectedFlagData) return;
+
+
+
+    // Extract courseId - handle both string and object types
+    const extractedCourseId = typeof selectedFlagData.courseId === 'string'
+      ? selectedFlagData.courseId
+      : selectedFlagData.courseId._id;
+
+
+
+    // Set course context for navigation
+    const courseInfo = {
+      courseId: extractedCourseId,
+      versionId: selectedFlagData.versionId,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: selectedFlagData.entityId, // Navigate to the flagged item
+      questionId: selectedFlagData.questionId || null, // Include questionId for flagged questions
+    };
+
+
+    setCurrentCourse(courseInfo);
+
+    // Navigate to course view
+    navigate({ to: '/teacher/courses/view' });
   };
 
   // Loading state
@@ -377,7 +410,7 @@ export default function FlaggedList() {
                               <p className="font-semibold text-foreground text-base md:text-lg overflow-hidden text-ellipsis whitespace-nowrap max-w-[180px]"
                                 title={`${report.reportedBy.firstName} ${report.reportedBy.lastName}`}
                               >
-                                {report.reportedBy.firstName + " " + report.reportedBy.lastName || "Unknown User"}
+                                {[report.reportedBy?.firstName, report.reportedBy?.lastName].filter(Boolean).join(" ") || "Unknown User"}
                               </p>
                             </div>
                           </div>
@@ -524,10 +557,28 @@ export default function FlaggedList() {
                           )}
                           {selectedFlagData.itemName && (
                             <>
-                              <span className="text-muted-foreground font-medium">Item:</span>
-                              <Badge variant="secondary" className="font-medium px-3 py-1">
+                              <span className="text-muted-foreground font-medium">
+                                {selectedFlagData.entityType === 'QUESTION' ? 'Question in:' : 'Item:'}
+                              </span>
+                              <Badge
+                                variant="secondary"
+                                className="font-medium px-3 py-1 cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors duration-200"
+                                onClick={handleItemClick}
+                                title={selectedFlagData.entityType === 'QUESTION'
+                                  ? `Navigate to question in ${selectedFlagData.itemName}`
+                                  : `Navigate to ${selectedFlagData.itemName}`}
+                              >
                                 {selectedFlagData.itemName}
                               </Badge>
+                              {selectedFlagData.entityType === 'QUESTION' && selectedFlagData.questionId && (
+                                <>
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                  <span className="text-muted-foreground font-medium">Question ID:</span>
+                                  <Badge variant="outline" className="font-mono text-xs px-2 py-1">
+                                    {selectedFlagData.questionId.slice(-8)}
+                                  </Badge>
+                                </>
+                              )}
                             </>
                           )}
                         </div>

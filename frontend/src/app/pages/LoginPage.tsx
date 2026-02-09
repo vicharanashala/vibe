@@ -112,6 +112,8 @@ export default function LoginPage() {
   }>({});
   const [showAuthForm, setShowAuthForm] = useState(false);
 
+  const isRecaptchaEnabled:boolean= import.meta.env.VITE_IS_RECAPTCHA_ENABLED==="true";
+
   // reCAPTCHA state
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
@@ -218,7 +220,7 @@ export default function LoginPage() {
       if (!validateForm()) return;
 
       // Validate reCAPTCHA
-      if (!recaptchaToken) {
+      if (!recaptchaToken && isRecaptchaEnabled) {
         setFormErrors({
           ...formErrors,
           recaptcha: "Please complete the reCAPTCHA verification"
@@ -239,7 +241,7 @@ export default function LoginPage() {
         body: JSON.stringify({
           email,
           password,
-          recaptchaToken,
+          recaptchaToken: isRecaptchaEnabled?recaptchaToken:"NO_CAPTCHA",
         }),
       });
 
@@ -311,7 +313,7 @@ export default function LoginPage() {
       return;
     }
 
-    if (!recaptchaToken) {
+    if (!recaptchaToken && isRecaptchaEnabled) {
       setFormErrors({ ...formErrors, recaptcha: "Please complete the reCAPTCHA" });
       return;
     }
@@ -333,7 +335,7 @@ export default function LoginPage() {
           password: password,
           firstName: firstName,
           lastName: lastName,
-          recaptchaToken: recaptchaToken
+          recaptchaToken: isRecaptchaEnabled?recaptchaToken:"NO_CAPTCHA"
         } as any
       });
       const result = await loginWithEmail(email, password);
@@ -668,34 +670,36 @@ export default function LoginPage() {
                         </div>
 
                         {/* reCAPTCHA */}
-                        <div className="flex justify-center scale-[0.95] origin-left">
-                          <ReCAPTCHA
-                            ref={recaptchaRef}
-                            sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-                            theme="dark"
-                            onChange={(token) => {
-                              setRecaptchaToken(token);
-                              setFormErrors({ ...formErrors, recaptcha: undefined });
-                            }}
-                            onExpired={() => setRecaptchaToken(null)}
-                            onErrored={() => {
-                              setRecaptchaToken(null);
-                              setFormErrors({
-                                ...formErrors,
-                                recaptcha: "reCAPTCHA error. Please try again."
-                              });
-                            }}
-                          />
-                          {formErrors.recaptcha && (
-                            <p className="text-xs text-destructive">{formErrors.recaptcha}</p>
-                          )}
-                        </div>
+                        {isRecaptchaEnabled ?
+                          <div className="flex justify-center scale-[0.95] origin-left">
+                            <ReCAPTCHA
+                              ref={recaptchaRef}
+                              sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                              theme="dark"
+                              onChange={(token) => {
+                                setRecaptchaToken(token);
+                                setFormErrors({ ...formErrors, recaptcha: undefined });
+                              }}
+                              onExpired={() => setRecaptchaToken(null)}
+                              onErrored={() => {
+                                setRecaptchaToken(null);
+                                setFormErrors({
+                                  ...formErrors,
+                                  recaptcha: "reCAPTCHA error. Please try again."
+                                });
+                              }}
+                            />
+                            {formErrors.recaptcha && (
+                              <p className="text-xs text-destructive">{formErrors.recaptcha}</p>
+                            )}
+                          </div>: 
+                          <></>}
 
                         {/* Login Button */}
                         <Button
                           className="w-full h-11 font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
                           onClick={handleEmailLogin}
-                          disabled={loading || !recaptchaToken}
+                          disabled={loading || (!recaptchaToken && isRecaptchaEnabled)}
                         >
                           {loading ? "Signing in..." : `Sign in as ${activeRole}`}
                         </Button>
@@ -908,29 +912,31 @@ export default function LoginPage() {
                         </div>
 
                         {/* reCAPTCHA */}
-                        <div className="flex justify-center scale-[0.95] origin-left">
-                          <ReCAPTCHA
-                            ref={recaptchaRef}
-                            sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-                            theme="dark"
-                            onChange={(token) => {
-                              setRecaptchaToken(token);
-                              setFormErrors({ ...formErrors, recaptcha: undefined });
-                            }}
-                          />
-                        </div>
-                        {formErrors.recaptcha && (
-                          <div className="flex items-center space-x-2 text-destructive justify-center">
-                            <AlertCircle className="h-4 w-4" />
-                            <p className="text-xs">{formErrors.recaptcha}</p>
+                        {isRecaptchaEnabled ?
+                          <div className="flex justify-center scale-[0.95] origin-left">
+                            <ReCAPTCHA
+                              ref={recaptchaRef}
+                              sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                              theme="dark"
+                              onChange={(token) => {
+                                setRecaptchaToken(token);
+                                setFormErrors({ ...formErrors, recaptcha: undefined });
+                              }}
+                            />
+                            {formErrors.recaptcha && (
+                            <div className="flex items-center space-x-2 text-destructive justify-center">
+                              <AlertCircle className="h-4 w-4" />
+                              <p className="text-xs">{formErrors.recaptcha}</p>
+                            </div>
+                          )}
                           </div>
-                        )}
+                        :<></>}
 
                         {/* Sign Up Button */}
                         <Button
                           className="w-full h-11 font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-200"
                           onClick={handleEmailSignup}
-                          disabled={!passwordsMatch || passwordStrength.value < 50 || loading || !recaptchaToken}
+                          disabled={!passwordsMatch || passwordStrength.value < 50 || loading || (!recaptchaToken && isRecaptchaEnabled)}
                         >
                           {loading ? "Creating account..." : "Create Account"}
                         </Button>

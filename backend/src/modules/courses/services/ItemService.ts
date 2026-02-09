@@ -331,70 +331,91 @@ export class ItemService extends BaseService {
         return itemsGroup.items;
       }
 
-      // All items completed if module is before current module
-      if (moduleIndex < currentModuleIndex) {
-        itemsGroup.items = itemsGroup.items.map(item => ({
-          ...item,
-          isCompleted: true,
-        }));
-        return itemsGroup.items;
-      }
+      const completionEntries = await Promise.all(
+        itemsGroup.items.map(async (item) => {
+          const isCompleted = await this.progressRepo.isItemCompleted(
+            userId,
+            course.courseId.toString(),
+            versionId,
+            item._id.toString()
+          );
 
-      const currentSectionIndex = course.modules[
-        currentModuleIndex
-      ]?.sections.findIndex(
-        sec => sec.sectionId.toString() === progress.currentSection?.toString(),
+          return [item._id.toString(), isCompleted] as const;
+        })
       );
+      const completionMap = new Map<string, boolean>(completionEntries);
 
-      const sectionIndex = course.modules[moduleIndex]?.sections.findIndex(
-        sec => sec.sectionId.toString() === sectionId.toString(),
-      );
+      itemsGroup.items = itemsGroup.items.map(item => ({
+        ...item,
+        // isCompleted: true,
+        isCompleted:completionMap.get(item._id.toString()) ?? false
+      }));
+      return itemsGroup.items;
 
-      // Guard against invalid section indices
-      if (currentSectionIndex === -1 || sectionIndex === -1) {
-        return itemsGroup.items;
-      }
+      // // All items completed if module is before current module
+      // if (moduleIndex < currentModuleIndex) {
+      //   itemsGroup.items = itemsGroup.items.map(item => ({
+      //     ...item,
+      //     isCompleted: true,
+      //   }));
+      //   return itemsGroup.items;
+      // }
 
-      // All items completed if section is before current section in same module
-      if (
-        moduleIndex === currentModuleIndex &&
-        sectionIndex < currentSectionIndex
-      ) {
-        itemsGroup.items = itemsGroup.items.map(item => ({
-          ...item,
-          isCompleted: true,
-        }));
-        return itemsGroup.items;
-      }
+      // const currentSectionIndex = course.modules[
+      //   currentModuleIndex
+      // ]?.sections.findIndex(
+      //   sec => sec.sectionId.toString() === progress.currentSection?.toString(),
+      // );
 
-      const currentItemIndex = itemsGroup.items.findIndex(
-        itm => itm._id.toString() === progress.currentItem?.toString(),
-      );
+      // const sectionIndex = course.modules[moduleIndex]?.sections.findIndex(
+      //   sec => sec.sectionId.toString() === sectionId.toString(),
+      // );
 
-      // If current item belongs to another section, nothing here is completed
-      if (currentItemIndex === -1) {
-        return itemsGroup.items;
-      }
+      // // Guard against invalid section indices
+      // if (currentSectionIndex === -1 || sectionIndex === -1) {
+      //   return itemsGroup.items;
+      // }
 
-      itemsGroup.items = itemsGroup.items.map((item, index) => {
-        if (
-          moduleIndex === currentModuleIndex &&
-          sectionIndex === currentSectionIndex &&
-          index < currentItemIndex
-        ) {
-          return {...item, isCompleted: true};
-        }
+      // // All items completed if section is before current section in same module
+      // if (
+      //   moduleIndex === currentModuleIndex &&
+      //   sectionIndex < currentSectionIndex
+      // ) {
+      //   itemsGroup.items = itemsGroup.items.map(item => ({
+      //     ...item,
+      //     isCompleted: true,
+      //   }));
+      //   return itemsGroup.items;
+      // }
 
-        if (
-          moduleIndex === currentModuleIndex &&
-          sectionIndex === currentSectionIndex &&
-          index === currentItemIndex
-        ) {
-          return {...item, isCompleted: progress.completed};
-        }
+      // const currentItemIndex = itemsGroup.items.findIndex(
+      //   itm => itm._id.toString() === progress.currentItem?.toString(),
+      // );
 
-        return {...item, isCompleted: false};
-      });
+      // // If current item belongs to another section, nothing here is completed
+      // if (currentItemIndex === -1) {
+      //   return itemsGroup.items;
+      // }
+
+      // itemsGroup.items = itemsGroup.items.map((item, index) => {
+      //   if (
+      //     moduleIndex === currentModuleIndex &&
+      //     sectionIndex === currentSectionIndex &&
+      //     index < currentItemIndex
+      //   ) {
+      //     return {...item, isCompleted: true};
+      //   }
+
+      //   if (
+      //     moduleIndex === currentModuleIndex &&
+      //     sectionIndex === currentSectionIndex &&
+      //     index === currentItemIndex
+      //   ) {
+      //     return {...item, isCompleted: progress.completed};
+      //   }
+
+      //   return {...item, isCompleted: false};
+      // });
     }
 
     console.log(
@@ -726,29 +747,27 @@ export class ItemService extends BaseService {
     });
   }
 
-  public async exportFeedbackSubmissions(
-    courseId: string,
-    itemId: string,
-  ) {
+  public async exportFeedbackSubmissions(courseId: string, itemId: string) {
     return await this._withTransaction(async (session: ClientSession) => {
-      const submissions = await this.feedbackRepo.getAllSubmissions(
+      console.log('USING LABEL EXPORT');
+
+      const submissions = await this.feedbackRepo.getAllSubmissionsWithLabels(
         itemId,
         courseId,
       );
 
       return submissions.map(sub => {
         const details = sub.details || {};
-        const userInfo = sub.user || {};
         const previousItem = sub.previousItem || {};
+        const { Name, Email, ...otherDetails } = details;
 
         return {
-          'First Name': userInfo.firstName || '',
-          'Last Name': userInfo.lastName || '',
-          'Email': userInfo.email || '',
+          'Username': Name || 'Anonymous',
+          'Email': Email || 'N/A',
           'Item Type': sub.previousItemType || 'FEEDBACK',
           'Item Name': previousItem.name || 'N/A',
           'Submitted At': sub.createdAt ? new Date(sub.createdAt).toLocaleString() : 'N/A',
-          ...details
+          ...otherDetails
         };
       });
     });
@@ -1057,10 +1076,10 @@ export class ItemService extends BaseService {
               firstQuestion['Question Timestamp [mm:ss]'] ||
               (Object.keys(firstQuestion).find(k => k.includes('Timestamp'))
                 ? firstQuestion[
-                Object.keys(firstQuestion).find(k =>
-                  k.includes('Timestamp'),
-                )!
-                ]
+                    Object.keys(firstQuestion).find(k =>
+                      k.includes('Timestamp'),
+                    )!
+                  ]
                 : undefined);
           }
 

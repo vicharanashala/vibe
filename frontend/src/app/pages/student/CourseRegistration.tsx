@@ -96,6 +96,8 @@ const CourseRegistration: React.FC = () => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
+
+  const isRecaptchaEnabled:boolean= import.meta.env.VITE_IS_RECAPTCHA_ENABLED==="true";
   // const [showModules, setShowModules] = useState(false);
 
   const { data: versionData, isLoading: isLoadingVersionData } = useGetCourseRegistration(versionId);
@@ -116,7 +118,7 @@ const CourseRegistration: React.FC = () => {
   const onSubmit = async (data: IChangeEvent<any>) => {
     try {
 
-      let body: any = { ...data.formData, recaptchaToken };
+      let body: any = { ...data.formData, recaptchaToken:isRecaptchaEnabled?recaptchaToken:"NO_CAPTCHA" };
 
       const hasFiles = Object.values(data.formData).some(v => v instanceof File);
       if (hasFiles) {
@@ -128,8 +130,11 @@ const CourseRegistration: React.FC = () => {
             formDataObj.append(key, String(value));
           }
         });
-        if (recaptchaToken) {
+        if (recaptchaToken && isRecaptchaEnabled) {
           formDataObj.append('recaptchaToken', recaptchaToken);
+        }
+        else{
+          formDataObj.append('recaptchaToken',"NO_CAPTCHA")
         }
         body = formDataObj;
       }
@@ -322,13 +327,15 @@ const CourseRegistration: React.FC = () => {
                       disabled={isSubmitting}
                     >
                       <div className="flex flex-col items-center justify-center mt-6 mb-6 gap-4">
-                        <ReCAPTCHA
-                          ref={recaptchaRef}
-                          sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-                          theme="dark"
-                          onChange={(token) => setRecaptchaToken(token)}
-                        />
-                        <Button type="submit" disabled={isSubmitting || !recaptchaToken}>
+                        {isRecaptchaEnabled?
+                          <ReCAPTCHA
+                            ref={recaptchaRef}
+                            sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                            theme="dark"
+                            onChange={(token) => setRecaptchaToken(token)}
+                          />:
+                          <></>}
+                        <Button type="submit" disabled={isSubmitting || (!recaptchaToken && isRecaptchaEnabled)}>
                           {isSubmitting ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -18,7 +18,7 @@ import {registerStream, unRegisterStream} from "@/lib/MediaRegistry";
 
 // let flag = 0;
 function FloatingVideo({
-  isVisible = true,
+  isVisible,
   setDoGesture,
   settings,
   rewindVid,
@@ -109,7 +109,7 @@ function FloatingVideo({
       (detector) => detector.detectorName === componentName
     );
     
-    return detector?.settings?.enabled ?? true;
+    return detector?.settings?.enabled ?? false;
   }, [settings]);
 
   // Check which components are enabled
@@ -1402,3 +1402,21 @@ const lastCalledRef = useRef<number>(0);
 };
 
 export default FloatingVideo;
+
+
+export function FloatingVideoPlaceholder() {
+  const height:number=196;
+  return (
+    <div
+      className="w-full bg-black rounded-lg shadow-lg overflow-hidden"
+      style={{ height }}
+    >
+      <div className="bg-red-600 text-white px-3 py-1 text-sm flex items-center">
+        <span className="font-medium truncate">Accept the declaration</span>
+      </div>
+      <div className="flex flex-col items-center justify-center" style={{height:height-34}}>
+          <div className="w-14 h-14 rounded-full bg-gray-500 animate-pulse" />
+        </div>
+    </div>
+  );
+}

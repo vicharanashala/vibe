@@ -75,12 +75,14 @@ export interface CourseInfo {
   sectionId: string | null;
   itemId: string | null;
   watchItemId: string | null;
+  questionId?: string | null;
 }
 
 export interface CourseState {
   currentCourse: CourseInfo | null;
   setCurrentCourse: (courseInfo: CourseInfo) => void;
   setWatchItemId: (watchItemId: string) => void;
+  setQuestionId: (questionId: string) => void;
   clearCurrentCourse: () => void;
 }
 
