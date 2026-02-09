@@ -84,6 +84,24 @@ function DashboardContent() {
   const enrollments = enrollmentsData?.enrollments || [];
   const totalEnrollments = enrollmentsData?.totalDocuments || 0;
   const { data: watchtimeData } = useWatchtimeTotal();
+  
+  // Check if student is already registered to Gurusetu course
+  const gurusetuCourseId = "6981df886e100cfe04f9c4ad";
+  const isRegisteredToGurusetu = enrollments.some(enrollment => {
+    const courseId = enrollment.course?._id;
+    // Handle MongoDB ObjectId conversion
+    let courseIdStr: string | undefined = undefined;
+    
+    if (courseId?.type === 'Buffer') {
+      // Convert Buffer to hex string
+      courseIdStr = Buffer.from(courseId.data).toString('hex');
+    } else if (courseId && typeof courseId === 'object') {
+      // Handle ObjectId object - try different methods
+      courseIdStr = courseId._id || courseId.id || courseId.toString() || JSON.stringify(courseId);
+    }
+    return enrollment.courseId === gurusetuCourseId || courseIdStr === gurusetuCourseId ;
+  });
+  
   // const filteredEnrollement = enrollments.filter(enrollment=>enrollment.role == "STUDENT");
   const [completion, setCompletion] = useState<CoursePctCompletion[]>([]);
   const totalProgress = useMemo(() => {
@@ -126,7 +144,7 @@ function DashboardContent() {
       </div> */}
       {/* Main content and sidebar */}
      <div className="mb-6 px-0 sm:px-6 lg:px-8 xl:px-0">
-  <div className="relative overflow-hidden rounded-xl">
+ {!isRegisteredToGurusetu && <div className="relative overflow-hidden rounded-xl">
     
     {/* Glow effect */}
     <div className="absolute -inset-1 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400 opacity-30 blur-lg animate-pulse" />
@@ -165,7 +183,7 @@ function DashboardContent() {
         />
       </svg>
     </a>
-  </div>
+  </div>}
 </div>
 
       <div className="container mx-auto px-0 sm:px-6 lg:px-8 xl:px-0 py-6 flex flex-col lg:flex-row gap-6 transition-all duration-300">
