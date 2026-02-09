@@ -956,13 +956,24 @@ class ProgressRepository {
     videoId: string,
     page: number,
     limit: number,
-    search?: string
+    search?: string,
+    sortBy: 'name' | 'views' | 'watchHours' = 'name',
+    sortOrder: 'asc' | 'desc' = 'asc'
   ): Promise<VideoUserAnalyticsResponse> {
     await this.init();
 
     const safePage = Math.max(1, page || 1);
     const safeLimit = Math.min(Math.max(1, limit || 10), 200);
     const skip = (safePage - 1) * safeLimit;
+
+    // Map sortBy to MongoDB field names
+    const sortFieldMap = {
+      name: 'user.firstName',
+      views: 'viewCount',
+      watchHours: 'totalWatchMs'
+    };
+    const sortField = sortFieldMap[sortBy] || 'user.firstName';
+    const sortDirection = sortOrder === 'asc' ? 1 : -1;
 
     const [result] = await this.watchTimeCollection
       .aggregate([
@@ -1010,7 +1021,8 @@ class ProgressRepository {
         },
         { $unwind: "$user" },
 
-        { $sort: { totalWatchMs: -1 } },
+        // Apply dynamic sorting
+        { $sort: { [sortField]: sortDirection } },
 
         ...(search
           ? [
