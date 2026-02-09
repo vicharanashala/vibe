@@ -43,8 +43,8 @@ import CourseIssueReports from '../pages/student/FlagResponse'
 import FeedbackFormEditor from '../pages/teacher/FeedbackFormEditor'
 import Leaderboard from '../pages/student/leaderboard'
 import StudentLogin from '../pages/student/StudentLogin'
-import LoginDecisionPage from '../pages/LoginDecisionPage'
 import TeacherLogin from '../pages/teacher/TeacherLogin'
+import SelectRolePage from '../pages/SelectRolePage'
 
 
 // Root route with error and notFound handling
@@ -457,11 +457,11 @@ export const teacherLoginRoute = new Route({
   component: TeacherLogin
 })
 
-//decision login route
-export const loginDecisionRoute = new Route({
+//select role route
+export const selectRoleRoute = new Route({
   getParentRoute: ()=> rootRoute,
-  path: '/login-decision',
-  component: LoginDecisionPage
+  path: '/select-role',
+  component: SelectRolePage
 })
 
 // Create the router with the route tree
@@ -469,7 +469,7 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   authRoute,
   // loginRoute,
-  loginDecisionRoute,
+  selectRoleRoute,
   studentLoginRoute,
   teacherLoginRoute,
   teacherLayoutRoute.addChildren([

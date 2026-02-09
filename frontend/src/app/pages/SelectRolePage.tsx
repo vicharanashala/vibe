@@ -5,7 +5,7 @@ import { cn } from "@/utils/utils";
 import { LeftHeroSection } from "@/components/Auth/LeftHeroSection";
 
 
-const LoginDecisionPage = () => {
+const SelectRolePage = () => {
     const navigate = useNavigate()
     return (
         <div className="relative min-h-screen overflow-hidden bg-background">
@@ -84,4 +84,4 @@ const LoginDecisionPage = () => {
     )
 }
 
-export default LoginDecisionPage
+export default SelectRolePage

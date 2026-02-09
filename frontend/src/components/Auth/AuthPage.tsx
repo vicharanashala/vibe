@@ -352,7 +352,7 @@ export default function AuthPage({role}: AuthPageProps) {
                   variant="ghost"
                   size="sm"
                   className="text-muted-foreground hover:bg-transparent -ml-2"
-                  onClick={() => navigate({to:"/login-decision"})}
+                  onClick={() => navigate({to:"/select-role"})}
                 >
                   ← Back
                 </Button>
