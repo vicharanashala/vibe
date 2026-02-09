@@ -675,6 +675,7 @@ export interface ICourseRegistration {
   userId: ID;
   detail: Record<string, any>;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  read?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }

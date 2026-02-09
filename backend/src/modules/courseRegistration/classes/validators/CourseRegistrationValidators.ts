@@ -184,6 +184,87 @@ export class UpdateRegistrationSchemasBody {
   uiSchema: Record<string, any>;
 }
 
+export class PendingRegistrationResponse {
+  @IsString()
+  _id: string;
+
+  @IsString()
+  userId: string;
+
+  @IsString()
+  courseId: string;
+
+  @IsString()
+  versionId: string;
+
+  @IsString()
+  status: string;
+
+  @IsString()
+  createdAt: string;
+
+  @IsObject()
+  @JSONSchema({ description: "User information" })
+  user: {
+    email: string;
+    firstName: string;
+    lastName: string;
+  };
+
+  @IsObject()
+  @JSONSchema({ description: "Course information" })
+  course: {
+    name: string;
+  };
+
+  @IsObject()
+  @JSONSchema({ description: "Version information" })
+  version: {
+    version: string;
+  };
+}
+
+export class ApprovedRegistrationResponse {
+  @IsString()
+  _id: string;
+
+  @IsString()
+  userId: string;
+
+  @IsString()
+  courseId: string;
+
+  @IsString()
+  versionId: string;
+
+  @IsString()
+  status: string;
+
+  @IsObject()
+  @JSONSchema({ description: "Course information" })
+  course: {
+    name: string;
+  };
+}
+
+export class GetPendingRegistrationsParams {
+  @IsString()
+  instructorId: string;
+}
+
+export class GetUnreadApprovedRegistrationsParams {
+  @IsString()
+  studentId: string;
+}
+
+export class markNotificationAsReadResponse {
+  @IsString()
+  message: string;
+
+  @IsBoolean()
+  success: boolean;
+}
+
 class CourseVersionDetailsObject {
   @IsString()
   id: string;

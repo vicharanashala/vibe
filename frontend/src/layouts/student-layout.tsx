@@ -12,23 +12,31 @@ import { LogOut, UserRoundCheck, Menu, X } from "lucide-react"
 import { AuroraText } from "@/components/magicui/aurora-text"
 import { useState } from "react"
 import InviteDropdown from "@/components/inviteDropDown"
-import { useInvites } from "@/hooks/hooks"
-import { useRef, useEffect } from "react"
-// import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator, BreadcrumbPage } from "@/components/ui/breadcrumb"
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal"
-// import FloatingVideo from "@/components/floating-video";
+import { useInvites, useGetUnreadApprovedRegistrations } from "@/hooks/hooks"
+import { ApprovedRegistrationNotification } from "@/types/notification.types"
+import { useRef, useEffect } from "react"
 import logo from "../../public/img/vibe_logo_img.ico"
 
 export default function StudentLayout() {
   const { user, isAuthReady } = useAuthStore()
   const navigate = useNavigate()
-  const { getInvites, loading, error } = useInvites(); // run after login
+  const { getInvites } = useInvites(); // run after login
+  const { data: approvedNotifications } = useGetUnreadApprovedRegistrations(user?.uid || '');
   const hasShownToast = useRef(false);
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
+  const [approvedNotificationsList, setApprovedNotificationsList] = useState<any[]>([]);
   const [showInvites, setShowInvites] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const invitesRef = useRef<HTMLDivElement | null>(null);
+
+  // Sync local state with hook data
+  useEffect(() => {
+    if (approvedNotifications && approvedNotifications.length !== approvedNotificationsList.length) {
+      setApprovedNotificationsList(approvedNotifications);
+    }
+  }, [approvedNotifications]);
 
   const handleLogout = () => {
     logout()
@@ -43,25 +51,38 @@ export default function StudentLayout() {
     if (!isAuthReady || !user) return;
 
     const toastShown = sessionStorage.getItem("inviteToastShown");
+    const notificationToastShown = sessionStorage.getItem("notificationToastShown");
 
     const getUserInvites = async () => {
-      getInvites().then(result => {
-        if (result.invites.length > 0) {
-          console.log(result);
-          setPendingInvites(result.invites)
+      const result = await getInvites();
+      if (result.invites.length > 0) {
+        setPendingInvites(result.invites)
 
-          if (!toastShown) {
-            toast.info("You have a new invite! Check the invites dropdown.", {
-              richColors: true,
-            });
-            sessionStorage.setItem("inviteToastShown", "true");
-          }
+        if (!toastShown) {
+          toast.info("You have a new invite! Check invites dropdown.", {
+            richColors: true,
+          });
+          sessionStorage.setItem("inviteToastShown", "true");
         }
-      })
+      }
+    };
 
+    const checkNotifications = async () => {
+      if (approvedNotifications && approvedNotifications.length > approvedNotificationsList.length && !notificationToastShown) {
+        toast.info("You have new course approvals! Check notifications.", {
+          richColors: true,
+        });
+        sessionStorage.setItem("notificationToastShown", "true");
+      }
+      
+      // Clear flag if no notifications exist (allows toast to show next time)
+      if (approvedNotifications && approvedNotifications.length === 0) {
+        sessionStorage.removeItem("notificationToastShown");
+      }
+    };
 
-    }
     getUserInvites();
+    checkNotifications();
 
   }, [user, isAuthReady]);
 
@@ -191,10 +212,15 @@ export default function StudentLayout() {
                 >
                   <UserRoundCheck className="h-4 w-4" />
                   <span className="hidden sm:block ml-2">Invites</span>
-                  {pendingInvites.length > 0 && <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500" />}
+                  {(pendingInvites.length > 0 || approvedNotificationsList.length > 0) && <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500" />}
                 </Button>
 
-                {showInvites && <InviteDropdown setPendingInvites={setPendingInvites} pendingInvites={pendingInvites} />}
+                {showInvites && <InviteDropdown 
+                  setPendingInvites={setPendingInvites} 
+                  pendingInvites={pendingInvites} 
+                  approvedNotifications={approvedNotificationsList}
+                  setApprovedNotifications={setApprovedNotificationsList}
+                />}
               </div>
 
               <Button
