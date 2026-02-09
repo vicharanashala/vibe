@@ -15,7 +15,7 @@ export function FocusableSelectWidget(props: any) {
       onValueChange={onChange}
       disabled={disabled}
     >
-      <SelectTrigger className="w-full h-9">
+      <SelectTrigger className="w-full h-9 bg-background text-foreground border border-input focus-visible:ring-2 focus-visible:ring-ring">
         <SelectValue placeholder={placeholder || "Select an option"} />
       </SelectTrigger>
 
