@@ -375,7 +375,7 @@ Access control logic:
     // @Ability(getItemAbility) { ability },
   ) {
     const { courseId, feedbackId } = params;
-    const { search = '', page = 1, limit = 1 } = query;
+    const { search = '', page = 1, limit = 20 } = query;
     return await this.itemService.getFeedbackSubmissions(
       courseId,
       feedbackId,
