@@ -31,7 +31,7 @@ const SelectRolePage = () => {
                             Welcome to Vibe
                         </h2>
                         <p className="text-muted-foreground">
-                            Select your role to continue
+                            Choose how you want to continue
                         </p>
                     </div>
 
@@ -47,7 +47,7 @@ const SelectRolePage = () => {
                                 <svg width="20" height="20" fill="none" viewBox="0 0 24 24" className="text-primary">
                                     <path d="M12 12c2.7 0 8 1.34 8 4v2H4v-2c0-2.66 5.3-4 8-4Zm0-2a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z" fill="currentColor" />
                                 </svg>
-                                Continue as Student
+                               Join to Learn
                             </span>
                         </Button>
 
@@ -73,7 +73,7 @@ const SelectRolePage = () => {
                                 <svg width="20" height="20" fill="none" viewBox="0 0 24 24" className="text-primary">
                                     <path d="M12 12c2.7 0 8 1.34 8 4v2H4v-2c0-2.66 5.3-4 8-4Zm0-2a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm6-2V7a6 6 0 1 0-12 0v1a2 2 0 0 0-2 2v2h16V9a2 2 0 0 0-2-2Z" fill="currentColor" />
                                 </svg>
-                                Continue as Instructor
+                               Join to Teach
                             </span>
                         </Button>
                     </div>
