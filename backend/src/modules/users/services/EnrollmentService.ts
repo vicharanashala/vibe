@@ -258,6 +258,61 @@ export class EnrollmentService extends BaseService {
     });
   }
 
+  async bulkUnenrollUsers(
+    userIds: string[],
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<{
+    successCount: number;
+    failureCount: number;
+    errors: string[];
+  }> {
+    const results = {
+      successCount: 0,
+      failureCount: 0,
+      errors: [] as string[],
+    };
+
+    // Process unenrollments in parallel with error handling
+    await Promise.allSettled(
+      userIds.map(async (userId) => {
+        try {
+          const enrollment = await this.findActiveEnrollment(
+            userId,
+            courseId,
+            courseVersionId,
+          );
+
+          if (!enrollment) {
+            results.failureCount++;
+            results.errors.push(
+              `User ${userId}: No active enrollment found`,
+            );
+            return;
+          }
+
+          await this.unenrollUser(
+            userId,
+            courseId,
+            courseVersionId,
+            enrollment,
+          );
+
+          results.successCount++;
+        } catch (error) {
+          results.failureCount++;
+          results.errors.push(
+            `User ${userId}: ${error.message || 'Unknown error'}`,
+          );
+          console.error(`Failed to unenroll user ${userId}:`, error);
+        }
+      }),
+    );
+
+    return results;
+  }
+
+
   private filterCourseVersions(course: any, enrolledVersionIds: Set<string>) {
     return {
       ...course,
