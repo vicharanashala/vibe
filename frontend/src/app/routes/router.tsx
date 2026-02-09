@@ -39,9 +39,12 @@ import CourseInstructors from '../pages/teacher/course-instructors'
 import RegisteredUsers from '../pages/teacher/CourseRegistrationRequests'
 import CourseRegistration from '../pages/student/CourseRegistration'
 import CourseIssueReports from '../pages/student/FlagResponse'
-import LoginPage from '../pages/LoginPage'
+// import LoginPage from '../pages/LoginPage'
 import FeedbackFormEditor from '../pages/teacher/FeedbackFormEditor'
 import Leaderboard from '../pages/student/leaderboard'
+import StudentLogin from '../pages/student/StudentLogin'
+import LoginDecisionPage from '../pages/LoginDecisionPage'
+import TeacherLogin from '../pages/teacher/TeacherLogin'
 
 
 // Root route with error and notFound handling
@@ -380,7 +383,7 @@ export const studentCourseInviteRegistration = new Route({
     // ❌ Not logged in → go to student login
     if (!isAuthenticated) {
       throw redirect({
-        to: '/login',
+        to: '/student/login',
         search: {
           redirect: window.location.pathname, // optional: come back after login
         },
@@ -434,17 +437,41 @@ const testAISectionModalRoute = new Route({
   path: '/test-ai-section-modal',
   component: AISectionPage,
 });
-export const loginRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: '/login',
-  component: LoginPage,
+// export const loginRoute = new Route({
+//   getParentRoute: () => rootRoute,
+//   path: '/login',
+//   component: LoginPage,
+// })
+
+//student login route
+export const studentLoginRoute = new Route({
+  getParentRoute: ()=> rootRoute,
+  path: '/student/login',
+  component: StudentLogin
+})
+
+//teacher login route
+export const teacherLoginRoute = new Route({
+  getParentRoute: ()=> rootRoute,
+  path: '/teacher/login',
+  component: TeacherLogin
+})
+
+//decision login route
+export const loginDecisionRoute = new Route({
+  getParentRoute: ()=> rootRoute,
+  path: '/login-decision',
+  component: LoginDecisionPage
 })
 
 // Create the router with the route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
   authRoute,
-  loginRoute,
+  // loginRoute,
+  loginDecisionRoute,
+  studentLoginRoute,
+  teacherLoginRoute,
   teacherLayoutRoute.addChildren([
     // teacherDashboardRoute,
     teacherCreateArticleRoute,
