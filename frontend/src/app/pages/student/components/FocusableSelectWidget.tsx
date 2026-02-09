@@ -1,23 +1,31 @@
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 
 export function FocusableSelectWidget(props: any) {
-  const { options, value, onChange, disabled } = props;
+  const { options, value, onChange, disabled, placeholder } = props;
 
   return (
-    <select
-      className="w-full border rounded-md p-2"
-      value={value ?? ""}
+    <Select
+      value={value ?? undefined}
+      onValueChange={onChange}
       disabled={disabled}
-      tabIndex={0}         
-      onChange={(e) => onChange(e.target.value)}
     >
-      <option value="" disabled hidden>
-        Select an option
-      </option>
-      {options.enumOptions?.map((opt) => (
-        <option key={opt.value} value={opt.value}>
-          {opt.label}
-        </option>
-      ))}
-    </select>
+      <SelectTrigger className="w-full h-9">
+        <SelectValue placeholder={placeholder || "Select an option"} />
+      </SelectTrigger>
+
+      <SelectContent>
+        {options?.enumOptions?.map((opt: any) => (
+          <SelectItem key={opt.value} value={opt.value}>
+            {opt.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
