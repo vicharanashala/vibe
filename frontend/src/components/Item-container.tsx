@@ -143,7 +143,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
   };
 
   return (
-    <div className="h-full w-full overflow-auto">
+    <div className={`${item.type.toLowerCase()==="video" ? "h-[85vh]" : "h-full" } w-full overflow-auto`}>
       {renderContent()}
     </div>
   );
