@@ -320,6 +320,8 @@ export default function AuthPage({role}: AuthPageProps) {
     }
   }, [isAuthenticated, user, navigate]);
 
+ 
+
   // Return the new beautiful auth page with Magic UI
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
@@ -349,7 +351,7 @@ export default function AuthPage({role}: AuthPageProps) {
               <>
                 {/* Back Button */}
                           <div className="inline-flex items-center gap-3 px-4 py-2">
-                              <span className="text-md text-muted-foreground">Not a {role}?</span>
+                              <span className="text-md text-muted-foreground">Want to teach on ViBe?</span>
                               <button
                                   onClick={() => navigate({ to: "/select-role" })}
                                   className="cursor-pointer text-md font-medium text-primary hover:text-primary/80 hover:underline hover:underline-offset-4 transition-colors"

@@ -16,14 +16,17 @@ export const LeftHeroSection =()=>{
 
           {/* Top Section with Brand - Positioned Absolutely */}
           <div className="absolute top-8 left-8 flex items-center space-x-4">
-            <Button
+           {![
+      'vibe.devabhasha.live',
+      'vibe.gurusetu.org',
+    ].includes(window.location.hostname)&& <Button
               variant="ghost"
               size="sm"
               className="text-muted-foreground hover:!bg-[#C393E2] "
               onClick={() => navigate({ to: "/auth" })}
             >
               ← Back
-            </Button>
+            </Button>}
             <div className="h-12 w-12 rounded-lg overflow-hidden">
               <img
                 src={collabration}
