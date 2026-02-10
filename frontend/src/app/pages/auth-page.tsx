@@ -11,10 +11,6 @@ import { useSignup } from "@/hooks/hooks.ts";
 import classroom from "../../../public/img/classroom.svg";
 import learningImg from "../../../public/img/learning-img.svg";
 import innovators from "../../../public/img/innovators.svg";
-import iitClear from "../../../public/img/iit-clear.png";
-import vledLogo from "../../../public/img/vled-logo.png";
-import ugcLogo from "../../../public/img/ugc_logo.png";
-import annam from "../../../public/img/annam.png";
 import logos from "../../../public/img/logos.png";
 
 // Create a context for tab state management
@@ -43,7 +39,6 @@ const Tabs = ({ defaultValue, className, children, value, onValueChange }: {
 
   // Determine which value to use (controlled or uncontrolled)
   const activeValue = value !== undefined ? value : internalValue;
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Handle value change
   const handleValueChange = (newValue: string) => {
