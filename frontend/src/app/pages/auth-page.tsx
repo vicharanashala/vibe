@@ -330,6 +330,17 @@ export default function AuthPage() {
     }
   }, [isAuthenticated, user, navigate]);
 
+    useEffect(() => {
+    const host = window.location.hostname
+
+    if (host === 'vibe.devabasha.live') {
+       navigate({ to: `/student/login` });
+          } else  {
+      navigate({ to: `/auth` });
+    }
+  }, [])
+
+
   // Return the new beautiful auth page with Magic UI
   return (
     <div className="relative min-h-screen overflow-x-hidden">
