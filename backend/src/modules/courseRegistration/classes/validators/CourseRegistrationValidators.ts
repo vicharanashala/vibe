@@ -182,6 +182,11 @@ export class UpdateRegistrationSchemasBody {
   @IsObject()
   @JSONSchema({ description: "Dynamic UI Schema for the form" })
   uiSchema: Record<string, any>;
+
+  @IsBoolean()
+  @IsOptional()
+  @JSONSchema({ description: "Active status of course registration" })
+  isActive?: boolean;
 }
 
 export class ToggleRegistrationBody {
@@ -252,7 +257,7 @@ export class AllRegistrationsResponse {
 
 
 export class updateStatusResponse {
-  @JSONSchema({description: 'Message',example:'Registration status updated successfully'})
+  @JSONSchema({ description: 'Message', example: 'Registration status updated successfully' })
   @IsString()
   message: string;
 
@@ -262,10 +267,10 @@ export class updateStatusResponse {
 }
 
 export class updateStatusBulkResponse {
-  @JSONSchema({description: 'Message',example:'Registration status updated successfully'})
+  @JSONSchema({ description: 'Message', example: 'Registration status updated successfully' })
   @IsString()
   message: string;
 
   @IsNumber()
-  registration:number;
+  registration: number;
 }

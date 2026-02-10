@@ -565,7 +565,7 @@ export class CourseRegistrationService extends BaseService {
 
   async getSettings(
     versionId: string,
-  ): Promise<{ jsonSchema: any; uiSchema: any }> {
+  ): Promise<{ jsonSchema: any; uiSchema: any; isActive: boolean }> {
     return this._withTransaction(async session => {
       try {
         const version = await this.courseRepo.readVersion(versionId, session);
@@ -589,7 +589,7 @@ export class CourseRegistrationService extends BaseService {
           );
         }
 
-        let { jsonSchema, uiSchema } =
+        let { jsonSchema, uiSchema, isActive } =
           courseSettings.settings?.registration || {};
 
         //   // const defaultUiSchema = {
@@ -610,7 +610,7 @@ export class CourseRegistrationService extends BaseService {
         //   //   ],
         //   // };
 
-        return { jsonSchema, uiSchema };
+        return { jsonSchema, uiSchema, isActive: isActive ?? true };
 
         // return registrationSettings;
       } catch (error) {
