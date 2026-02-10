@@ -4,7 +4,7 @@ import { createLocalBackup } from '#root/utils/backup-cron.js';
 import cron from 'node-cron';
 
 cron.schedule(
-    '0 2 * * *',
+    '0 3 * * *',
     async () => {
         console.log('🚀 Cron Job Started: Creating MongoDB Backup...');
 
