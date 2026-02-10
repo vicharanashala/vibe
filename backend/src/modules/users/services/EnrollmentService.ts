@@ -641,6 +641,10 @@ export class EnrollmentService extends BaseService {
             articles: 0,
             projects: 0,
           };
+          console.log(
+            'completedByType-----------------------------',
+            completedByType,
+          );
 
           return {
             _id: enr._id.toString(),

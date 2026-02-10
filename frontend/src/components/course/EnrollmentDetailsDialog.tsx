@@ -7,7 +7,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "../ui/button";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle2, Clock } from "lucide-react";
-import { formatDateTime } from "@/utils/utils";
+
+const formatDate = (dateString: string) => {
+  try {
+    return new Date(dateString).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (error) {
+    return 'N/A';
+  }
+};
 
 
 interface EnrollmentDetailsDialogProps {
@@ -21,6 +34,8 @@ export function EnrollmentDetailsDialog({
   onOpenChange, 
   enrollment 
 }: EnrollmentDetailsDialogProps) {
+  console.log('----------------------------enrollment', enrollment);
+
   // Hook is only called when this component is mounted
   const { 
     data: enrollmentDetails, 
@@ -28,159 +43,178 @@ export function EnrollmentDetailsDialog({
     error 
   } = useUserEnrollmentsDetails(1, 100, true, "", "STUDENT");
 
-  // Extract data from enrollment prop (same as your CourseCard)
-  const contentCounts = enrollment.contentCounts as { 
-    totalItems?: number; 
-    videos?: number; 
-    quizzes?: number; 
-    articles?: number; 
-    project?: number; 
-    totalQuizScore?: number; 
-    totalQuizMaxScore?: number; 
-    completedVideos?: number; 
-    completedQuizzes?: number; 
-    completedArticles?: number; 
-    completedProjects?: number;
-  } || {};
+  console.log('----------------------------enrollmentDetails', enrollmentDetails);
+
+  const enroll1=enrollmentDetails?.enrollments?.[1];
+
   
+  // Extract data from enrollment prop
+  const contentCounts = enroll1?.contentCounts || {};
+  
+  // Get values with fallbacks
   const totalLessons = contentCounts.totalItems || 0;
-  const completedLessons = enrollment.completedItems as number || 0;
-  const isCompleted = (typeof enrollment.percentCompleted === 'number' && enrollment.percentCompleted >= 100) || false;
-  const totalQuizScore = contentCounts.totalQuizScore as number || 0;
-  const totalQuizMaxScore = contentCounts.totalQuizMaxScore as number || 0;
-  const videoCount: number = contentCounts.videos || 0;
-  const quizCount: number = contentCounts.quizzes || 0;
-  const articleCount: number = contentCounts.articles || 0;
-  const projectCount: number = contentCounts.project || 0;
-  const completedVideos: number = contentCounts.completedVideos || 0;
-  const completedQuizzes: number = contentCounts.completedQuizzes || 0;
-  const completedArticles: number = contentCounts.completedArticles || 0;
-  const completedProjects: number = contentCounts.completedProjects || 0;
+  const completedLessons = enroll1?.completedItems || 0;
+  const isCompleted = (enroll1?.percentCompleted >= 100) || false;
+  
+  const totalQuizScore = contentCounts.totalQuizScore || 0;
+  const totalQuizMaxScore = contentCounts.totalQuizMaxScore || 0;
+  
+  const videoCount = contentCounts.videos || 0;
+  const quizCount = contentCounts.quizzes || 0;
+  const articleCount = contentCounts.articles || 0;
+  const projectCount = contentCounts.project || 0;
+  
+  const completedVideos = contentCounts.completedVideos || 0;
+  const completedQuizzes = contentCounts.completedQuizzes || 0;
+  const completedArticles = contentCounts.completedArticles || 0;
+  const completedProjects = contentCounts.completedProjects || 0;
+
+  // Debug: Check if contentCounts is empty
+  console.log('contentCounts:', contentCounts);
+  console.log('Is contentCounts empty?', Object.keys(contentCounts).length === 0);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="w-full sm:w-auto">View Details</Button>
-              </DialogTrigger>
-              <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 max-h-full flex flex-col">
-                <DialogHeader className="mb-3 text-left">
-                  <DialogTitle>Course Details</DialogTitle>
-                </DialogHeader>
-                <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[700px] overflow-y-auto">
-                  <div className="space-y-6 py-2">
-                    <div>
-                      <div className="grid grid-cols-2 gap-4 mt-2">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-muted-foreground">Course Name</p>
-                          <p>{enrollment?.course?.name || 'N/A'}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-muted-foreground">Version</p>
-                          <p>{enrollment?.courseVersion?.name || 'N/A'}</p>
-                        </div>
-                        <div className="space-y-1 col-span-2">
-                          <p className="text-sm font-medium text-muted-foreground">Description</p>
-                          <p className="text-sm">{enrollment?.course?.description || 'No description available'}</p>
-                        </div>
-                        <div className="space-y-1 col-span-2">
-                          <p className="text-sm font-medium text-muted-foreground">Version Description</p>
-                          <p className="text-sm">{enrollment?.courseVersion?.description || 'No version description available'}</p>
-                        </div>
-                      </div>
-                    </div>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="w-full sm:w-auto">View Details</Button>
+      </DialogTrigger>
+      
+      <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 max-h-full flex flex-col">
+        <DialogHeader className="mb-3 text-left">
+          <DialogTitle>Course Details</DialogTitle>
+        </DialogHeader>
+        
+        <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[700px] overflow-y-auto">
+          <div className="space-y-6 py-2">
+            {/* Course Information */}
+            <div>
+              <div className="grid grid-cols-2 gap-4 mt-2">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Course Name</p>
+                  <p>{enroll1?.course?.name || 'N/A'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Version</p>
+                  <p>{enroll1?.courseVersion?.name || 'N/A'}</p>
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <p className="text-sm font-medium text-muted-foreground">Description</p>
+                  <p className="text-sm">{enroll1?.course?.description || 'No description available'}</p>
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <p className="text-sm font-medium text-muted-foreground">Version Description</p>
+                  <p className="text-sm">{enroll1?.courseVersion?.description || 'No version description available'}</p>
+                </div>
+              </div>
+            </div>
 
-                    <Separator />
+            <Separator />
 
-                    <div>
-                      <h3 className="text-lg font-semibold">Content Summary</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Contents</p>
-                          <p className="text-xl font-semibold">{totalLessons}</p>
-                        </div>
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Videos</p>
-                          <p className="text-xl font-semibold">{videoCount}</p>
-                        </div>
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Quizzes</p>
-                          <p className="text-xl font-semibold">{quizCount}</p>
-                        </div>
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Articles</p>
-                          <p className="text-xl font-semibold">{articleCount}</p>
-                        </div>
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Project</p>
-                          <p className="text-xl font-semibold">{projectCount}</p>
-                        </div>
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Quiz Scores</p>
-                          <p className="text-xl font-semibold">{totalQuizScore} / {totalQuizMaxScore}</p>
-                        </div>
-                      </div>
-                    </div>
+            {/* Content Summary */}
+            <div>
+              <h3 className="text-lg font-semibold">Content Summary</h3>
+              
+              {/* Show warning if contentCounts is empty */}
+              {Object.keys(contentCounts).length === 0 && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg mb-3">
+                  <p className="text-sm text-yellow-800">
+                    Content details are not available for this enrollment.
+                  </p>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+                <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground">Total Items</p>
+                  <p className="text-xl font-semibold">{totalLessons}</p>
+                </div>
+                <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground">Videos</p>
+                  <p className="text-xl font-semibold">{videoCount}</p>
+                </div>
+                <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground">Quizzes</p>
+                  <p className="text-xl font-semibold">{quizCount}</p>
+                </div>
+                <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground">Articles</p>
+                  <p className="text-xl font-semibold">{articleCount}</p>
+                </div>
+                <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground">Projects</p>
+                  <p className="text-xl font-semibold">{projectCount}</p>
+                </div>
+                <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground">Quiz Scores</p>
+                  <p className="text-xl font-semibold">{totalQuizScore} / {totalQuizMaxScore}</p>
+                </div>
+              </div>
+            </div>
 
-                    <Separator />
+            <Separator />
 
-                    <div>
-                      <h3 className="text-lg font-semibold">Completion Details</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-2">
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Total Completed</p>
-                          <p className="text-xl font-semibold">{completedLessons} / {totalLessons}</p>
-                        </div>
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Videos Watched</p>
-                          <p className="text-xl font-semibold">{completedVideos} / {videoCount}</p>
-                        </div>
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Quizzes Completed</p>
-                          <p className="text-xl font-semibold">{completedQuizzes} / {quizCount}</p>
-                        </div>
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Articles Read</p>
-                          <p className="text-xl font-semibold">{completedArticles} / {articleCount}</p>
-                        </div>
-                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-medium text-muted-foreground">Projects Done</p>
-                          <p className="text-xl font-semibold">{completedProjects} / {projectCount}</p>
-                        </div>
-                      </div>
-                    </div>
+            {/* Completion Details */}
+            <div>
+              <h3 className="text-lg font-semibold">Completion Details</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-2">
+                <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground">Total Completed</p>
+                  <p className="text-xl font-semibold">{completedLessons} / {totalLessons}</p>
+                </div>
+                <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground">Videos Watched</p>
+                  <p className="text-xl font-semibold">{completedVideos} / {videoCount}</p>
+                </div>
+                <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground">Quizzes Completed</p>
+                  <p className="text-xl font-semibold">{completedQuizzes} / {quizCount}</p>
+                </div>
+                <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground">Articles Read</p>
+                  <p className="text-xl font-semibold">{completedArticles} / {articleCount}</p>
+                </div>
+                <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground">Projects Done</p>
+                  <p className="text-xl font-semibold">{completedProjects} / {projectCount}</p>
+                </div>
+                <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground">Progress</p>
+                  <p className="text-xl font-semibold">{enroll1?.percentCompleted?.toFixed(2) || 0}%</p>
+                </div>
+              </div>
+            </div>
 
-                    <Separator />
+            <Separator />
 
-                    <div>
-                      <h3 className="text-lg font-semibold">Enrollment Details</h3>
-                      <div className="grid grid-cols-2 gap-4 mt-2">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-muted-foreground">Enrolled On</p>
-                          <p>{enrollment?.enrollmentDate ? formatDateTime(enrollment.enrollmentDate as string) : 'N/A'}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-muted-foreground">Status</p>
-                          <div className="flex items-center gap-1">
-                            {isCompleted ? (
-                              <>
-                                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                <span>Completed</span>
-                              </>
-                            ) : (
-                              <>
-                                <Clock className="h-4 w-4 text-yellow-500" />
-                                <span>In Progress</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-
+            {/* Enrollment Details */}
+            <div>
+              <h3 className="text-lg font-semibold">Enrollment Details</h3>
+              <div className="grid grid-cols-2 gap-4 mt-2">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Enrolled On</p>
+                  <p>{enroll1?.enrollmentDate ? formatDate(enroll1.enrollmentDate) : 'N/A'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Status</p>
+                  <div className="flex items-center gap-1">
+                    {isCompleted ? (
+                      <>
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                        <span>Completed</span>
+                      </>
+                    ) : (
+                      <>
+                        <Clock className="h-4 w-4 text-yellow-500" />
+                        <span>In Progress</span>
+                      </>
+                    )}
                   </div>
-                </ScrollArea>
-              </DialogContent>
-            </Dialog>
+                </div>
+              </div>
+            </div>
+          </div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
   );
 }
