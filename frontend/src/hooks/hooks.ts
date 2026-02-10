@@ -28,6 +28,7 @@ import { Field } from '@/app/pages/teacher/components/course-registration-modal'
 import { IssueSort, IssueStatus } from '@/app/pages/student/FlagResponse';
 import { ISubmitFeedbackBody } from '@/components/Item-container';
 import { TranscriptResponse } from '@/types/ai.types';
+import { WatchTimeTrackData } from '@/types/user_activity_event.types';
 
 // Add missing ObjectId type
 type ObjectId = string;
@@ -4016,3 +4017,24 @@ export const useExportFeedbackSubmissions = ({ courseId, feedbackId }: ExportFee
 export const useBulkUnenrollUsers = () => {
   return api.useMutation('post', '/users/enrollments/courses/{courseId}/versions/{versionId}/bulk-unenroll');
 };
+
+
+
+export function useStoreWatchTimeTrack(): {
+  mutate: (variables: { body: WatchTimeTrackData }) => void,
+  mutateAsync: (variables: { body: WatchTimeTrackData }) => Promise<{ success: boolean; watchTimeTrack?: any }>,
+  data: { success: boolean; watchTimeTrack?: any } | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/users/user-activity-events/");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to store watch time track') : null
+  };
+}
