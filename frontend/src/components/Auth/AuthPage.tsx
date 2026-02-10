@@ -387,7 +387,7 @@ export default function AuthPage({role}: AuthPageProps) {
 
                         {/* Email Field */}
                         <div className="space-y-2">
-                          <Label htmlFor="email" className="text-sm font-medium">
+                          <Label htmlFor="email" className="font-medium">
                             Email Address
                           </Label>
                           <Input
@@ -408,7 +408,7 @@ export default function AuthPage({role}: AuthPageProps) {
 
                         {/* Password Field */}
                         <div className="space-y-2">
-                          <Label htmlFor="password" className="text-sm font-medium">
+                          <Label htmlFor="password" className="font-medium">
                             Password
                           </Label>
                           <div className="relative">
@@ -534,7 +534,7 @@ export default function AuthPage({role}: AuthPageProps) {
 
                         {/* Full Name */}
                         <div className="space-y-2">
-                          <Label htmlFor="fullName" className="text-sm font-medium">
+                          <Label htmlFor="fullName" className="font-medium">
                             Full Name
                           </Label>
                           <Input
@@ -554,7 +554,7 @@ export default function AuthPage({role}: AuthPageProps) {
 
                         {/* Email */}
                         <div className="space-y-2">
-                          <Label htmlFor="signup-email" className="text-sm font-medium">
+                          <Label htmlFor="signup-email" className="font-medium">
                             Email Address
                           </Label>
                           <Input
@@ -575,7 +575,7 @@ export default function AuthPage({role}: AuthPageProps) {
 
                         {/* Password with Strength Indicator */}
                         <div className="space-y-2">
-                          <Label htmlFor="signup-password" className="text-sm font-medium">
+                          <Label htmlFor="signup-password" className="font-medium">
                             Password
                           </Label>
                           <Input
@@ -651,7 +651,7 @@ export default function AuthPage({role}: AuthPageProps) {
 
                         {/* Confirm Password */}
                         <div className="space-y-2">
-                          <Label htmlFor="confirmPassword" className="text-sm font-medium">
+                          <Label htmlFor="confirmPassword" className="font-medium">
                             Confirm Password
                           </Label>
                           <div className="relative">
