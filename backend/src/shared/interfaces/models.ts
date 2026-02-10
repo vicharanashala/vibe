@@ -495,10 +495,12 @@ export interface ISettings {
   proctors: IProctoringSettings;
   linearProgressionEnabled: boolean;
   seekForwardEnabled: boolean;
+  isPublic?: boolean;
   // registration_settings?: IRegistrationSettings[];
   registration?: {
     jsonSchema?: any;
     uiSchema?: any;
+    isActive?: boolean;
   };
   // jsonSchema?: any;
   // uiSchema?: any;

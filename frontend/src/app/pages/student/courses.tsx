@@ -2,7 +2,8 @@ import { useState, useMemo, useEffect } from "react";
 import { Search, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useUserEnrollments } from "@/hooks/hooks";
+import { useNavigate } from "@tanstack/react-router";
+import { useUserEnrollments, usePublicCourses } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 
 // Import new components
@@ -16,6 +17,7 @@ export default function StudentCourses() {
   useEffect(() => {
     setTimeout(stopAllStreams, 1000);
   }, []);
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("enrolled");
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("")
@@ -45,6 +47,13 @@ export default function StudentCourses() {
   
   const { data: enrollmentsData, isLoading, error, refetch } = useUserEnrollments(
     currentPage, 10, !!token, debouncedSearch
+  );
+
+  const { data: publicCoursesData, isLoading: loadingPublic, refetch: refetchPublic } = usePublicCourses(
+    currentPage,
+    10,
+    !!token,
+    debouncedSearch
   );
 
   const enrollments = enrollmentsData?.enrollments || [];
@@ -139,7 +148,9 @@ export default function StudentCourses() {
               <TabsTrigger value="enrolled" className="cursor-pointer">
                 Enrolled ({isLoading ? "..." : activeEnrollments.length})
               </TabsTrigger>
-              <TabsTrigger value="available" className="cursor-pointer">Available</TabsTrigger>
+              <TabsTrigger value="available" className="cursor-pointer">
+                Available ({loadingPublic ? "..." : (publicCoursesData?.totalDocuments || 0)})
+              </TabsTrigger>
               <TabsTrigger value="completed" className="cursor-pointer">
                 Completed ({isLoading ? "..." : completedEnrollments.length})
               </TabsTrigger>
@@ -183,11 +194,54 @@ export default function StudentCourses() {
             )}
           </TabsContent>
           <TabsContent value="available" className="space-y-4">
-            <EmptyState
-              title="Available courses coming soon"
-              description="Browse and enroll in new courses"
-              actionText="Coming Soon"
-            />
+            {loadingPublic || isSearching ? (
+              <div className="space-y-2">
+                {Array.from({ length: 4 }, (_, i) => (
+                  <Card key={i}>
+                    <CardContent className="p-4">
+                      <div className="h-4 bg-muted rounded animate-pulse mb-2" />
+                      <div className="h-3 bg-muted rounded animate-pulse w-2/3 mb-4" />
+                      <div className="h-2 bg-muted rounded animate-pulse mb-4" />
+                      <div className="h-10 bg-muted rounded animate-pulse" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : publicCoursesData?.courses && publicCoursesData.courses.length > 0 ? (
+              <>
+                <div className="space-y-4">
+                  {publicCoursesData.courses.map((course: any, index: number) => (
+                    <CourseCard
+                      key={index}
+                      index={index}
+                      isLoading={loadingPublic}
+                      variant="available"
+                      enrollment={{
+                        courseId: course.courseId,
+                        courseVersionId: course.courseVersionId,
+                        course: {
+                          name: course.courseName,
+                          description: course.courseDescription
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={publicCoursesData.totalPages}
+                  totalDocuments={publicCoursesData.totalDocuments}
+                  onPageChange={handlePageChange}
+                />
+              </>
+            ) : (
+              <EmptyState
+                title="No public courses available"
+                description="There are currently no public courses to enroll in"
+                actionText="Refresh"
+                onAction={() => refetchPublic()}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="completed" className="space-y-4">
