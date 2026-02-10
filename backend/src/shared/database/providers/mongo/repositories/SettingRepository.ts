@@ -268,6 +268,7 @@ export class SettingRepository implements ISettingRepository {
     detectors: DetectorSettingsDto[],
     linearProgressionEnabled: boolean,
     seekForwardEnabled: boolean,
+    isPublic: boolean,
     audit: AuditingDto,
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
@@ -323,6 +324,7 @@ export class SettingRepository implements ISettingRepository {
           'settings.proctors.detectors': detectors,
           'settings.linearProgressionEnabled': linearProgressionEnabled,
           'settings.seekForwardEnabled': seekForwardEnabled,
+          'settings.isPublic': isPublic,
         },
         $push: {
           'settings.audit': audit,
@@ -508,5 +510,132 @@ export class SettingRepository implements ISettingRepository {
     }
 
     return courseSettings.settings.linearProgressionEnabled;
+  }
+
+  async getPublicCourses(
+    excludeCourseIds: string[],
+    skip: number,
+    limit: number,
+    search: string,
+    session?: ClientSession,
+  ): Promise<any[]> {
+    await this.init();
+
+    // Build aggregation pipeline
+    const pipeline: any[] = [
+      // Filter for public courses
+      {
+        $match: {
+          'settings.isPublic': true,
+        }
+      },
+      // Lookup to join with newCourse collection
+      {
+        $lookup: {
+          from: 'newCourse',
+          localField: 'courseId',
+          foreignField: '_id',
+          as: 'courseData'
+        }
+      },
+      // Unwind the courseData array
+      {
+        $unwind: {
+          path: '$courseData',
+          preserveNullAndEmptyArrays: false // Skip if no matching course
+        }
+      },
+    ];
+
+    // Add filter for excluded courses
+    if (excludeCourseIds.length > 0) {
+      pipeline.push({
+        $match: {
+          courseId: { $nin: excludeCourseIds.map(id => new ObjectId(id)) }
+        }
+      });
+    }
+
+    // Add search filter if provided
+    if (search) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { 'courseData.name': { $regex: search, $options: 'i' } },
+            { 'courseData.description': { $regex: search, $options: 'i' } },
+          ]
+        }
+      });
+    }
+
+    // Project the fields we need
+    pipeline.push({
+      $project: {
+        _id: 0,
+        courseId: { $toString: '$courseId' },
+        courseVersionId: { $toString: '$courseVersionId' },
+        courseName: '$courseData.name',
+        courseDescription: '$courseData.description',
+        isPublic: '$settings.isPublic'
+      }
+    });
+
+    // Add pagination
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: limit });
+
+    const result = await this.courseSettingsCollection
+      .aggregate(pipeline, { session })
+      .toArray();
+
+    return result;
+  }
+
+  async countPublicCourses(
+    excludeCourseIds: string[],
+    search: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+
+    // Build filter for public courses
+    const filter: any = {
+      'settings.isPublic': true,
+    };
+
+    // Exclude already enrolled courses
+    if (excludeCourseIds.length > 0) {
+      filter.courseId = { $nin: excludeCourseIds.map(id => new ObjectId(id)) };
+    }
+
+    // Add search filter
+    if (search) {
+      const coursesCollection = await this.db.getCollection('newCourse');
+
+      // Get course IDs matching the search
+      const matchingCourses = await coursesCollection
+        .find(
+          {
+            $or: [
+              { name: { $regex: search, $options: 'i' } },
+              { description: { $regex: search, $options: 'i' } },
+            ]
+          },
+          { projection: { _id: 1 }, session }
+        )
+        .toArray();
+
+      const matchingCourseIds = matchingCourses.map(c => c._id);
+      filter.courseId = filter.courseId
+        ? { ...filter.courseId, $in: matchingCourseIds }
+        : { $in: matchingCourseIds };
+    }
+
+    const count = await this.courseSettingsCollection.countDocuments(
+      filter,
+      { session }
+    );
+
+    return count;
   }
 }

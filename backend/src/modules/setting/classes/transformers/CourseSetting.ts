@@ -423,6 +423,7 @@ class CourseSetting implements ICourseSetting {
     };
     linearProgressionEnabled: boolean;
     seekForwardEnabled: boolean;
+    isPublic?: boolean;
     registration?: {
       jsonSchema?: any;
       uiSchema?: any;
@@ -453,6 +454,7 @@ class CourseSetting implements ICourseSetting {
         courseSettingsBody?.settings?.linearProgressionEnabled ?? false,
       seekForwardEnabled:
         courseSettingsBody?.settings?.seekForwardEnabled ?? false,
+      isPublic: courseSettingsBody?.settings?.isPublic ?? false,
       registration: {
         jsonSchema: courseSettingsBody?.settings?.registration?.jsonSchema,
         uiSchema: courseSettingsBody?.settings?.registration?.uiSchema,

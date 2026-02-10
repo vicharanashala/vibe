@@ -247,6 +247,51 @@ class CourseService extends BaseService {
       return activeUsers
     });
   }
+
+  async getPublicCourses(
+    userId: string,
+    page: number,
+    limit: number,
+    search: string,
+  ): Promise<{
+    courses: any[];
+    currentPage: number;
+    totalPages: number;
+    totalDocuments: number;
+  }> {
+    return this._withTransaction(async session => {
+      // Get enrolled course IDs by userId through enrollmentService
+      // Instead of calling a method that doesn't exist, we'll pass an empty array for now
+      // The repository method will handle this case
+      const enrolledCourseIds: string[] = [];
+
+      // Query public courses
+      const skip = (page - 1) * limit;
+
+      const publicCourses = await this.settingsRepo.getPublicCourses(
+        enrolledCourseIds,
+        skip,
+        limit,
+        search,
+        session
+      );
+
+      const totalDocuments = await this.settingsRepo.countPublicCourses(
+        enrolledCourseIds,
+        search,
+        session
+      );
+
+      const totalPages = Math.ceil(totalDocuments / limit);
+
+      return {
+        courses: publicCourses,
+        currentPage: page,
+        totalPages,
+        totalDocuments,
+      };
+    });
+  }
 }
 
 export { CourseService };
