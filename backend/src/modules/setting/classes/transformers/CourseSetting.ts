@@ -426,6 +426,7 @@ class CourseSetting implements ICourseSetting {
     registration?: {
       jsonSchema?: any;
       uiSchema?: any;
+      isActive?: boolean;
     };
   };
 
@@ -455,6 +456,7 @@ class CourseSetting implements ICourseSetting {
       registration: {
         jsonSchema: courseSettingsBody?.settings?.registration?.jsonSchema,
         uiSchema: courseSettingsBody?.settings?.registration?.uiSchema,
+        isActive: courseSettingsBody?.settings?.registration?.isActive ?? true,
       },
     };
   }

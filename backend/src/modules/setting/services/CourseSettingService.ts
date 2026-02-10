@@ -127,6 +127,7 @@ class CourseSettingService extends BaseService {
         settings.proctors.detectors = [];
         settings.linearProgressionEnabled = true;
         settings.seekForwardEnabled = false;
+        settings.registration = { isActive: true };
 
         const created = await this.createCourseSettings(
           new CourseSetting({

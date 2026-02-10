@@ -63,6 +63,13 @@ export class RegistrationSchema {
   })
   jsonSchema?: any;
 
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Indicates whether the registration form is active',
+  })
+  isActive?: boolean;
+
   @JSONSchema({
     description: 'UI schema for Registration form',
     type: 'object',

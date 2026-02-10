@@ -499,6 +499,7 @@ export interface ISettings {
   registration?: {
     jsonSchema?: any;
     uiSchema?: any;
+    isActive?: boolean;
   };
   // jsonSchema?: any;
   // uiSchema?: any;

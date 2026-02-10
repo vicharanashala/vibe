@@ -391,7 +391,7 @@ export class SettingRepository implements ISettingRepository {
   async updateRegistrationSettings(
     courseId: string,
     versionId: string,
-    schemas: { jsonSchema: any; uiSchema: any },
+    schemas: { jsonSchema: any; uiSchema: any; isActive: boolean },
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
     await this.init();
@@ -405,6 +405,7 @@ export class SettingRepository implements ISettingRepository {
         $set: {
           'settings.registration.jsonSchema': schemas.jsonSchema,
           'settings.registration.uiSchema': schemas.uiSchema,
+          'settings.registration.isActive': schemas.isActive,
         },
       },
       { session },
@@ -415,10 +416,21 @@ export class SettingRepository implements ISettingRepository {
   async updateRegistrationSchemas(
     courseId: string,
     versionId: string,
-    schemas: { jsonSchema?: any; uiSchema?: any }, // Partial update for schemas only
+    schemas: { jsonSchema?: any; uiSchema?: any; isActive?: boolean }, // Partial update for schemas only
     session?: ClientSession,
   ): Promise<UpdateResult> {
     await this.init();
+
+    const updateFields: any = {};
+    if (schemas.jsonSchema !== undefined) {
+      updateFields['settings.registration.jsonSchema'] = schemas.jsonSchema;
+    }
+    if (schemas.uiSchema !== undefined) {
+      updateFields['settings.registration.uiSchema'] = schemas.uiSchema;
+    }
+    if (schemas.isActive !== undefined) {
+      updateFields['settings.registration.isActive'] = schemas.isActive;
+    }
 
     const result = await this.courseSettingsCollection.updateOne(
       {
@@ -426,10 +438,7 @@ export class SettingRepository implements ISettingRepository {
         courseVersionId: new ObjectId(versionId),
       },
       {
-        $set: {
-          'settings.registration.jsonSchema': schemas.jsonSchema,
-          'settings.registration.uiSchema': schemas.uiSchema,
-        },
+        $set: updateFields,
       },
       { session },
     );
@@ -449,9 +458,11 @@ export class SettingRepository implements ISettingRepository {
       { courseVersionId: new ObjectId(versionId) },
       { session },
     );
-    const jsonSchema = result.settings.registration.jsonSchema;
-    const uiSchema = result.settings.registration.uiSchema;
-    return { jsonSchema, uiSchema };
+    const registration = result.settings.registration || {};
+    const jsonSchema = registration.jsonSchema;
+    const uiSchema = registration.uiSchema;
+    const isActive = registration.isActive;
+    return { jsonSchema, uiSchema, isActive };
   }
 
   async deleteCourseSettingsbyVersionId(
