@@ -1594,7 +1594,8 @@ export function useEditProctoringSettings() {
     detectors: { name: string; enabled: boolean }[],
     isNew: boolean,
     linearProgressionEnabled: boolean,
-    seekForwardEnabled: boolean
+    seekForwardEnabled: boolean,
+    isPublic: boolean
   ) => {
     setLoading(true);
     setError(null);
@@ -1611,7 +1612,8 @@ export function useEditProctoringSettings() {
           settings: { enabled: d.enabled },
         })),
         linearProgressionEnabled,
-        seekForwardEnabled
+        seekForwardEnabled,
+        isPublic
       };
 
       const res = await fetch(url, {
@@ -1633,6 +1635,39 @@ export function useEditProctoringSettings() {
   };
 
   return { editSettings, loading, error };
+}
+
+export function usePublicCourses(
+  page: number,
+  limit: number,
+  enabled: boolean,
+  search: string = ''
+): {
+  data: { courses: any[]; currentPage: number; totalPages: number; totalDocuments: number } | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery(
+    "get",
+    "/courses/public",
+    {
+      params: {
+        query: { page, limit, search }
+      }
+    },
+    {
+      enabled,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    }
+  );
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch public courses') : null,
+    refetch: result.refetch
+  };
 }
 
 export function useInviteUsers(): {

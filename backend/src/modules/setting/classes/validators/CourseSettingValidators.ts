@@ -132,6 +132,15 @@ export class SettingsDto {
   })
   @IsBoolean()
   seekForwardEnabled: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Indicates whether the course is publicly visible',
+    examples: [true, false],
+    default: false,
+  })
+  isPublic?: boolean;
   // jsonSchema?:any
   // uiSchema?:any
   @IsOptional()
@@ -318,6 +327,15 @@ export class AddCourseProctoringBody {
     description: 'Allow students to seek forward in all videos if this is enabled'
   })
   seekForwardEnabled: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Indicates whether the course is publicly visible',
+    examples: [true, false],
+    default: false,
+  })
+  isPublic?: boolean;
 
 }
 

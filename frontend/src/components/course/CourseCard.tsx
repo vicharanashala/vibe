@@ -106,6 +106,14 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   };
 
   const handleContinue = () => {
+    if (variant === 'available') {
+      navigate({
+        to: "/student/course-registration/$versionId",
+        params: { versionId: versionId }
+      });
+      return;
+    }
+
     console.log("Setting course store:", {
       courseId: courseId,
       versionId: versionId
@@ -128,7 +136,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
     return <CourseCardSkeleton variant={variant} />;
   }
 
-  if (variant === 'dashboard') {
+  if (variant === 'dashboard' || variant === 'available') {
     return (
       <Card className={`dark:bg-[#4b341e4b] border border-border overflow-hidden flex flex-col sm:flex-row student-card-hover p-0 ${className || ''}`}>
         <div className="w-full h-40 sm:h-auto sm:w-32 flex-shrink-0 flex items-center justify-center">
@@ -171,43 +179,47 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   </Tooltip>
                   <span>Ongoing training — subject to change</span>
                 </div>
-                <div className="flex items-center gap-2 mb-1 xl:mb-0">
-                  <span>Completion Percentage</span>
+              {variant !== 'available' && (
                   <div className="flex items-center gap-2">
-                    <div className="w-16 h-2 bg-secondary rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span>{progress.toFixed(2)}%</span>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="h-3.5 w-3.5 text-muted-foreground cursor-pointer hover:text-foreground transition-colors" />
-                        </TooltipTrigger>
-                        <TooltipContent side="top" sideOffset={8}>
-                          <p>Percentage of course items you have completed</p>
-                        </TooltipContent>
-                      </Tooltip>
+                    <span>Completion Percentage</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 h-2 bg-secondary rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span>{progress.toFixed(2)}%</span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-3.5 w-3.5 text-muted-foreground cursor-pointer hover:text-foreground transition-colors" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" sideOffset={8}>
+                            <p>Percentage of course items you have completed</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span>Enrolled</span>
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4 text-green-500" />
-                    <span className="text-green-500">
-                      {enrollment.enrollmentDate && typeof enrollment.enrollmentDate === 'string'
-                        ? new Date(enrollment.enrollmentDate).toLocaleDateString('en-GB', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                        })
-                        : 'Recently'}
-                    </span>
+                )}
+                {variant !== 'available' && (
+                  <div className="flex items-center gap-2">
+                    <span>Enrolled</span>
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-4 w-4 text-green-500" />
+                      <span className="text-green-500">
+                        {enrollment.enrollmentDate && typeof enrollment.enrollmentDate === 'string'
+                          ? new Date(enrollment.enrollmentDate).toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                          })
+                          : 'Recently'}
+                      </span>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
@@ -226,18 +238,20 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           </p>
           <div className="mt-auto flex flex-col sm:flex-row gap-2">
             <Button
-              variant={progress === 0 ? "default" : isCompleted ? "default" : "default"}
-              className={`${progress === 0
+              variant={variant === 'available' ? "default" : progress === 0 ? "default" : isCompleted ? "default" : "default"}
+              className={`${variant === 'available'
                 ? ""
-                : isCompleted
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
-                  : ""
+                : progress === 0
+                  ? ""
+                  : isCompleted
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
+                    : ""
                 } w-full sm:w-auto transition-all duration-200`}
               onClick={handleContinue}
             >
-              {progress === 0 ? 'Start' : progress >= 100 ? 'Completed' : 'Continue'}
+              {variant === 'available' ? 'Register' : progress === 0 ? 'Start' : progress >= 100 ? 'Completed' : 'Continue'}
             </Button>
-          {enrollment.courseVersionId!=="6981df886e100cfe04f9c4ae"&&  <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
+            {variant !== 'available' && enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full sm:w-auto">
                   <Trophy className="h-4 w-4 mr-2" />
@@ -246,7 +260,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               </DialogTrigger>
               <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} />
             </Dialog>}
-           {enrollment.courseVersionId!=="6981df886e100cfe04f9c4ae"&& <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+            {variant !== 'available' && enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full sm:w-auto">View Details</Button>
               </DialogTrigger>
@@ -371,7 +385,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               </DialogContent>
             </Dialog>}
 
-            {supportLink && (() => {
+            {variant !== 'available' && supportLink && (() => {
               const isEmail = supportLink.startsWith('mailto:') || (!supportLink.startsWith('http://') && !supportLink.startsWith('https://') && !supportLink.startsWith('//') && supportLink.includes('@'));
               const href = supportLink.startsWith('mailto:')
                 ? supportLink
@@ -400,7 +414,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
             })()}
 
             {/* JUST ADD THIS FOR MERN CASE STUDY COURSE ONLY */}
-            {enrollment.courseId === "692f030a945e82ec875e9116" && (
+            {variant !== 'available' && enrollment.courseId === "692f030a945e82ec875e9116" && (
               <Dialog open={isForumOpen} onOpenChange={setIsForumOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="w-full sm:w-auto">
