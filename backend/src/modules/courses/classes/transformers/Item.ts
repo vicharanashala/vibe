@@ -446,6 +446,24 @@ class ItemsGroup {
   }
 }
 
+// class AuditTrail {
+//   @Expose()
+//   @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+//   @Transform(StringToObjectId.transformer, { toClassOnly: true })
+//   _id?: ID;
+
+//   @Expose()
+//   itemId: ID;
+
+//   @Expose()
+//   action: string;
+
+//   constructor(itemId: ID, action: string) {
+//     this.itemId = itemId;
+//     this.action = action;
+//   }
+// }
+
 export {
   ItemBase,
   ItemsGroup,
