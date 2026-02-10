@@ -330,15 +330,21 @@ export default function AuthPage() {
     }
   }, [isAuthenticated, user, navigate]);
 
-    useEffect(() => {
-    const host = window.location.hostname
+  useEffect(() => {
+  const host = window.location.hostname;
 
-    if (host === 'vibe.devabasha.live') {
-       navigate({ to: `/student/login` });
-          } else  {
-      navigate({ to: `/auth` });
-    }
-  }, [])
+  const studentSites = [
+    'vibe.devabhasha.live',
+    'vibe.gurusetu.org',
+  ];
+
+  if (studentSites.includes(host)) {
+    navigate({ to: '/student/login' });
+  } else {
+    navigate({ to: '/auth' });
+  }
+}, []);
+
 
 
   // Return the new beautiful auth page with Magic UI
