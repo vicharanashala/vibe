@@ -528,7 +528,7 @@ const FeedbackFormBuilder = ({
                           onClick={() => addField(fieldType.type)}
                         >
                           <Icon className="w-4 h-4" />
-                          <span className="text-sm">{fieldType.label}</span>
+                          <span className="text-xs">{fieldType.label}</span>
                         </Button>
                       );
                     })}
@@ -640,7 +640,7 @@ const FeedbackFormBuilder = ({
                             </div>
 
                             <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-                              <label className="text-sm font-medium flex items-center gap-1">
+                              <label className="text-xs font-medium flex items-center gap-1">
                                 {field.label}
                                 {field.validation.required && <span className="text-destructive">*</span>}
                               </label>
@@ -692,7 +692,7 @@ const FeedbackFormBuilder = ({
                                     checked={formData[field.id] || false}
                                     onCheckedChange={(checked) => setFormData({ ...formData, [field.id]: checked })}
                                   />
-                                  <label htmlFor={field.id} className="text-sm cursor-pointer">
+                                  <label htmlFor={field.id} className="text-xs cursor-pointer">
                                     {field.placeholder || "Check this box"}
                                   </label>
                                 </div>
@@ -729,7 +729,7 @@ const FeedbackFormBuilder = ({
                                         onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
                                         className="w-4 h-4"
                                       />
-                                      <label htmlFor={`${field.id}_${option.value}`} className="text-sm cursor-pointer">
+                                      <label htmlFor={`${field.id}_${option.value}`} className="text-xs cursor-pointer">
                                         {option.label}
                                       </label>
                                     </div>
