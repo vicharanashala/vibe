@@ -1,20 +1,17 @@
-import { loginWithGoogle, loginWithEmail, createUserWithEmail } from "@/lib/firebase";
+import { loginWithGoogle, loginWithEmail } from "@/lib/firebase";
 import { useAuthStore } from "@/store/auth-store";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { useState, createContext, useContext, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Check, AlertCircle, TimerOff , Eye, EyeOff} from "lucide-react";
+import { Check, AlertCircle,  Eye, EyeOff} from "lucide-react";
 import { ShineBorder } from "@/components/magicui/shine-border";
 import { AnimatedGridPattern } from "@/components/magicui/animated-grid-pattern";
-import { AuroraText } from "@/components/magicui/aurora-text";
 import { cn } from "@/utils/utils";
-import { useSignup, useLoginWithGoogle } from "@/hooks/hooks.ts";
-import collabration from "../../../public/img/collabration.svg";
-import vledLogo from "../../../public/img/vled-logo-login.png";
+import { useSignup } from "@/hooks/hooks.ts";
 import ReCAPTCHA from "react-google-recaptcha";
 import { LeftHeroSection } from "@/components/Auth/LeftHeroSection";
 
