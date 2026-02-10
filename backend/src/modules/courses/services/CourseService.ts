@@ -85,25 +85,24 @@ class CourseService extends BaseService {
         session,
       );
 
-      const defaultSettingsPayload: CreateCourseSettingBody = {
-        courseId,
-        courseVersionId: versionId,
-        settings: {
-          proctors: {
-            detectors: Object.values(ProctoringComponent).map(detector => ({
-              detectorName: detector,
-              settings: { enabled: false, options: {} },
-            })),
-          },
-          linearProgressionEnabled: false,
-          seekForwardEnabled: false,
-        },
-      };
-      const courseSettings = new CourseSetting(defaultSettingsPayload);
-      const settingsPromise = this.settingsRepo.createCourseSettings(courseSettings, session);
+      // const defaultSettingsPayload: CreateCourseSettingBody = {
+      //   courseId,
+      //   courseVersionId: versionId,
+      //   settings: {
+      //     proctors: {
+      //       detectors: Object.values(ProctoringComponent).map(detector => ({
+      //         detectorName: detector,
+      //         settings: { enabled: false, options: {} },
+      //       })),
+      //     },
+      //     linearProgressionEnabled: false,
+      //     seekForwardEnabled: false,
+      //   },
+      // };
+      // const courseSettings = new CourseSetting(defaultSettingsPayload);
+      // const settingsPromise = this.settingsRepo.createCourseSettings(courseSettings, session);
 
-      // Run them in parallel
-      await Promise.all([enrollPromise, settingsPromise]);
+      await enrollPromise;
 
       return createdCourse;
     });
