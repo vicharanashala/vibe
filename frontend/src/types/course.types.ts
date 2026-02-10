@@ -41,7 +41,7 @@ export interface CourseCardProps {
   };
   isLoading: boolean;
   index: number;
-  variant?: 'dashboard' | 'courses';
+  variant?: 'dashboard' | 'courses' | 'available';
   className?: string;
   completion?: CoursePctCompletion[];
   setCompletion?: (completion: CoursePctCompletion[]) => void;
