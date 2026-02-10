@@ -1,5 +1,4 @@
 import { Clock, FileText, CheckCircle2, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play } from "lucide-react";
-import { } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +18,13 @@ import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
 import { Pagination } from "../ui/Pagination";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { lazy, Suspense } from "react";
+
+const EnrollmentDetailsDialog = lazy(() => 
+  import("./EnrollmentDetailsDialog").then(mod => ({ 
+    default: mod.EnrollmentDetailsDialog 
+  }))
+);
 
 export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard', className, completion, setCompletion }: CourseCardProps) => {
   // Add null checks to prevent errors when enrollment data is incomplete
@@ -58,19 +64,19 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const totalLessons = contentCounts.totalItems || 0;
   const completedLessons = enrollment.completedItems as number || 0;
   const isCompleted = (typeof enrollment.percentCompleted === 'number' && enrollment.percentCompleted >= 100) || false;
-  const totalQuizScore = contentCounts.totalQuizScore as number || 0;
-  const totalQuizMaxScore = contentCounts.totalQuizMaxScore as number || 0;
+  // const totalQuizScore = contentCounts.totalQuizScore as number || 0;
+  // const totalQuizMaxScore = contentCounts.totalQuizMaxScore as number || 0;
 
-  const videoCount: number = contentCounts.videos || 0;
-  const quizCount: number = contentCounts.quizzes || 0;
-  const articleCount: number = contentCounts.articles || 0;
-  const projectCount: number = contentCounts.project || 0;
+  // const videoCount: number = contentCounts.videos || 0;
+  // const quizCount: number = contentCounts.quizzes || 0;
+  // const articleCount: number = contentCounts.articles || 0;
+  // const projectCount: number = contentCounts.project || 0;
 
 
-  const completedVideos: number = contentCounts.completedVideos || 0;
-  const completedQuizzes: number = contentCounts.completedQuizzes || 0;
-  const completedArticles: number = contentCounts.completedArticles || 0;
-  const completedProjects: number = contentCounts.completedProjects || 0;
+  // const completedVideos: number = contentCounts.completedVideos || 0;
+  // const completedQuizzes: number = contentCounts.completedQuizzes || 0;
+  // const completedArticles: number = contentCounts.completedArticles || 0;
+  // const completedProjects: number = contentCounts.completedProjects || 0;
 
 
   // Find if this courseVersionId is already in completion
@@ -246,7 +252,19 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               </DialogTrigger>
               <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} />
             </Dialog>}
-           {enrollment.courseVersionId!=="6981df886e100cfe04f9c4ae"&& <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+            {
+              enrollment.courseVersionId!=="6981df886e100cfe04f9c4ae" && isDetailsOpen && (
+        <Suspense fallback={null}>
+          <EnrollmentDetailsDialog
+            isOpen={isDetailsOpen}
+            onOpenChange={setIsDetailsOpen}
+            enrollment={enrollment}
+          />
+        </Suspense>
+      )
+            }
+            {enrollment.courseVersionId!=="6981df886e100cfe04f9c4ae"&& <Button onClick={()=>setIsDetailsOpen(true)} variant="outline" className="w-full sm:w-auto">View Details</Button> }
+           {/* {enrollment.courseVersionId!=="6981df886e100cfe04f9c4ae"&& <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full sm:w-auto">View Details</Button>
               </DialogTrigger>
@@ -369,7 +387,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   </div>
                 </ScrollArea>
               </DialogContent>
-            </Dialog>}
+            </Dialog>} */}
 
             {supportLink && (() => {
               const isEmail = supportLink.startsWith('mailto:') || (!supportLink.startsWith('http://') && !supportLink.startsWith('https://') && !supportLink.startsWith('//') && supportLink.includes('@'));

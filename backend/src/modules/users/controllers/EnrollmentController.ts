@@ -177,7 +177,7 @@ export class EnrollmentController {
   @OpenAPI({
     summary: 'Bulk unenroll users from a course version',
     description:
-      'Removes multiple users\' enrollments and progress from a specific course version.',
+      "Removes multiple users' enrollments and progress from a specific course version.",
   })
   @Authorized()
   @Post('/enrollments/courses/:courseId/versions/:versionId/bulk-unenroll')
@@ -194,12 +194,14 @@ export class EnrollmentController {
     @Param('courseId') courseId: string,
     @Param('versionId') versionId: string,
     @Body() body: BulkUnenrollBody,
-    @Ability(getEnrollmentAbility) { ability },
+    @Ability(getEnrollmentAbility) {ability},
   ): Promise<BulkUnenrollResponse> {
-    const { userIds } = body;
+    const {userIds} = body;
 
     if (!userIds || userIds.length === 0) {
-      throw new BadRequestError('User IDs array is required and cannot be empty');
+      throw new BadRequestError(
+        'User IDs array is required and cannot be empty',
+      );
     }
 
     // Check permissions for bulk unenroll
@@ -272,7 +274,7 @@ export class EnrollmentController {
         message: 'No enrollments found for the user',
       };
     }
-    
+
     return {
       totalDocuments,
       totalPages: Math.ceil(totalDocuments / limit),
@@ -419,8 +421,8 @@ export class EnrollmentController {
           status: enrollment.status,
           isDeleted: enrollment.isDeleted || false,
           enrollmentDate: enrollment.enrollmentDate,
-         unenrolledAt: enrollment.unenrolledAt,
-          user: { ...enrollment.userInfo, _id: enrollment.userId },
+          unenrolledAt: enrollment.unenrolledAt,
+          user: {...enrollment.userInfo, _id: enrollment.userId},
           progress: enrollment.percentCompleted,
           completedItemsCount: enrollment.completedItemsCount || 0,
           totalQuizScore: enrollment.totalQuizScore || 0,
@@ -504,7 +506,7 @@ export class EnrollmentController {
         averageProgressPercent: 0,
       };
     }
-    
+
     return stats;
   }
   // @Authorized()
@@ -651,5 +653,63 @@ export class EnrollmentController {
         error.message || 'Failed to bulk update watchtime and progress',
       );
     }
+  }
+
+  @OpenAPI({
+    summary: 'Get all detailed enrollments for a user',
+    description:
+      'Retrieves a paginated list of all course enrollments for a user.',
+  })
+  @Authorized()
+  @Get('/enrollments/details')
+  @HttpCode(200)
+  @ResponseSchema(EnrollmentResponse, {
+    description: 'Paginated list of user enrollments',
+  })
+  @ResponseSchema(EnrollmentNotFoundErrorResponse, {
+    description: 'No enrollments found for the user',
+    statusCode: 404,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid page or limit parameters',
+    statusCode: 400,
+  })
+  async getUserEnrollmentsDetails(
+    @QueryParams() query: EnrollmentFilterQuery,
+    @Ability(getEnrollmentAbility) {user},
+    @Req() req: any,
+  ): Promise<EnrollmentResponse> {
+    const {page, limit, search = '', role} = query;
+    const userId = user._id.toString();
+    const skip = (page - 1) * limit;
+
+    // 🚀 Run DB queries in parallel
+    const [enrollments, totalDocuments] = await Promise.all([
+      this.enrollmentService.getDetailedEnrollments(
+        userId,
+        skip,
+        limit,
+        role,
+        search,
+      ),
+      this.enrollmentService.countEnrollments(userId, role, search),
+    ]);
+
+    if (!enrollments || enrollments.length === 0) {
+      return {
+        totalDocuments: 0,
+        totalPages: 0,
+        currentPage: page,
+        enrollments: [],
+        message: 'No enrollments found for the user',
+      };
+    }
+
+    return {
+      totalDocuments,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page,
+      enrollments,
+    };
   }
 }
