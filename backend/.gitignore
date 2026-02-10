@@ -79,3 +79,5 @@ client/
 build/
 
 *txt
+
+/gcp-service-account.json
