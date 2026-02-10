@@ -66,7 +66,7 @@ export interface ISettingRepository {
   updateRegistrationSchemas(
     courseId: string,
     versionId: string,
-    schemas: { jsonSchema?: any; uiSchema?: any }, // Partial update for schemas only
+    schemas: { jsonSchema?: any; uiSchema?: any; isActive?: boolean }, // Partial update for schemas only
     session?: ClientSession,
   ): Promise<UpdateResult>
 
@@ -97,7 +97,7 @@ export interface ISettingRepository {
   updateRegistrationSettings(
     courseId: string,
     versionId: string,
-    schemas: { jsonSchema: any; uiSchema: any },
+    schemas: { jsonSchema: any; uiSchema: any; isActive: boolean },
     session?: ClientSession,
   ): Promise<UpdateResult | null>;
 
@@ -113,7 +113,10 @@ export interface ISettingRepository {
     session?: ClientSession,
   ): Promise<IUserSetting | null>;
 
-  readSettingsSchema(versionId: string, session?: ClientSession)
+  readSettingsSchema(
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<{ jsonSchema: any; uiSchema: any; isActive: boolean }>;
 
   /**
    * Reads user settings for a specific student, course and version.

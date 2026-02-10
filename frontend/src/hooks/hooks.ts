@@ -3346,6 +3346,78 @@ export const useGetRegistrationFields = (
 };
 
 
+// Get registration status (isActive)
+export const useGetRegistrationStatus = (
+  versionId: string,
+): {
+  data: { jsonSchema: RJSFSchema; uiSchema: Record<string, any>; isActive: boolean } | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} => {
+  const result = api.useQuery(
+    'get',
+    '/course/registration/build-form/version/{versionId}' as any,
+    {
+      params: {
+        path: { versionId },
+      },
+    },
+    {
+      enabled: !!versionId,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    }
+  );
+
+  return {
+    data: result.data as { jsonSchema: RJSFSchema; uiSchema: Record<string, any>; isActive: boolean } | undefined,
+    isLoading: result.isLoading,
+    error: result.error
+      ? result.error.message || 'Failed to fetch registration status'
+      : null,
+    refetch: result.refetch,
+  };
+};
+
+// Toggle registration status (isActive)
+export const useToggleRegistrationStatus = (versionId: string): {
+  mutate: (params: { isActive: boolean }) => void;
+  mutateAsync: (params: { isActive: boolean }) => Promise<any>;
+  data: any | undefined;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} => {
+  const result = api.useMutation('patch', `/course/registration/registration/version/${versionId}/toggle` as any);
+
+  return {
+    mutate: (params: { isActive: boolean }) =>
+      result.mutate({
+        body: params,
+      }),
+
+    mutateAsync: (params: { isActive: boolean }) =>
+      result.mutateAsync({
+        body: params,
+      }),
+
+    data: result.data,
+    error: result.error
+      ? result.error.message || 'Failed to toggle registration status'
+      : null,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+  };
+};
 
 
 export const useGetDynamicFields = (

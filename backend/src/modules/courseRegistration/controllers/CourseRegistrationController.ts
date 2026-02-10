@@ -26,6 +26,7 @@ import {
   CourseVersionDetailsResponse,
   RegistrationFilterQuery,
   RegistrationParams,
+  ToggleRegistrationBody,
   UpdateRegistrationSchemasBody,
   UpdateStatusBody,
   updateStatusBulkResponse,
@@ -320,6 +321,41 @@ class CourseRegistrationController {
       throw new ForbiddenError('You do not have permission to modify settings');
     }
     return this.courseRegistrationService.updateSettings(versionId, body);
+  }
+
+  @OpenAPI({
+    summary: 'Toggle Course Registration Active Status',
+    description: 'Enable or disable course registration without needing to send schema data',
+  })
+  @Patch('/registration/version/:versionId/toggle')
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(UpdateSettingResponse, {
+    description: 'Registration status toggled successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async toggleRegistration(
+    @Params() params: CourseVersionIdParams,
+    @Body() body: ToggleRegistrationBody,
+    @Ability(getCourseRegistrationAbility) { ability },
+  ) {
+    const { versionId } = params;
+    const { isActive } = body;
+
+    if (
+      !ability.can(
+        CourseRegistrationActions.Modify,
+        subject(courseRegistrationSubject, { versionId }),
+      )
+    ) {
+      throw new ForbiddenError('You do not have permission to modify settings');
+    }
+
+    return this.courseRegistrationService.toggleRegistrationStatus(versionId, isActive);
   }
 
   @OpenAPI({

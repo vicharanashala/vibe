@@ -184,6 +184,16 @@ export class UpdateRegistrationSchemasBody {
   uiSchema: Record<string, any>;
 }
 
+export class ToggleRegistrationBody {
+  @IsBoolean()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: "Active status of course registration",
+    example: true
+  })
+  isActive: boolean;
+}
+
 class CourseVersionDetailsObject {
   @IsString()
   id: string;
