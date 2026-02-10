@@ -11,6 +11,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1041,25 +1047,37 @@ export const RegistrationActions = ({
           : `Approve Selected (${selectedIds.length})`}
       </Button>
 
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleToggleRegistration}
-        disabled={isTogglingStatus}
-        className={`gap-2 ${!isActive
-          ? "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950 dark:hover:text-green-300 dark:hover:border-green-700"
-          : "hover:bg-red-50 hover:text-red-700 hover:border-red-300 dark:hover:bg-red-950 dark:hover:text-red-300 dark:hover:border-red-700"
-          } transition-colors`}
-      >
-        {isTogglingStatus ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : isActive ? (
-          <Lock className="h-4 w-4" />
-        ) : (
-          <Unlock className="h-4 w-4" />
-        )}
-        {isActive ? "Disable" : "Enable"}
-      </Button>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleToggleRegistration}
+              disabled={isTogglingStatus}
+              className={`gap-2 ${!isActive
+                  ? "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950 dark:hover:text-green-300 dark:hover:border-green-700"
+                  : "hover:bg-red-50 hover:text-red-700 hover:border-red-300 dark:hover:bg-red-950 dark:hover:text-red-300 dark:hover:border-red-700"
+                } transition-colors`}
+            >
+              {isTogglingStatus ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : isActive ? (
+                <Lock className="h-4 w-4" />
+              ) : (
+                <Unlock className="h-4 w-4" />
+              )}
+              {isActive ? "Disable" : "Enable"}
+            </Button>
+          </TooltipTrigger>
+
+          <TooltipContent>
+            {isActive
+              ? "Disabling will restrict student registration"
+              : "Enabling will allow student registration"}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       <Button
         variant="outline"
