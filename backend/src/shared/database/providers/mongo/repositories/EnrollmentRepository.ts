@@ -1608,17 +1608,24 @@ export class EnrollmentRepository {
     userId: string,
     role: EnrollmentRole,
     search?: string,
+    courseVersionId?: string,
   ) {
     await this.init();
+    const matchStage: any = {
+      userId: new ObjectId(userId),
+      role,
+      isDeleted: {$ne: true},
+      status: {$regex: /^active$/i},
+    };
+
+    // Add courseVersionId filter if provided
+    if (courseVersionId) {
+      matchStage.courseVersionId = new ObjectId(courseVersionId);
+    }
 
     const pipeline: any[] = [
       {
-        $match: {
-          userId: new ObjectId(userId),
-          role,
-          isDeleted: {$ne: true},
-          status: {$regex: /^active$/i},
-        },
+        $match: matchStage,
       },
 
       {
@@ -2986,17 +2993,34 @@ export class EnrollmentRepository {
     limit: number,
     role: EnrollmentRole,
     search: string,
+    courseVersionId?: string,
   ) {
     await this.init();
     const userObjectId = new ObjectId(userId);
+    console.log(
+      '🔍🔍 getDetailedEnrollments called with:;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;',
+      {
+        userId,
+        role,
+        search,
+        courseVersionId,
+      },
+    );
+    const matchStage: any = {
+      userId: userObjectId,
+      role,
+      isDeleted: {$ne: true},
+      status: {$regex: /^active$/i},
+    };
+
+    // ✅ Add courseVersionId filter if provided
+    if (courseVersionId) {
+      matchStage.courseVersionId = new ObjectId(courseVersionId);
+    }
+
     const pipeline: any[] = [
       {
-        $match: {
-          userId: userObjectId,
-          role,
-          isDeleted: {$ne: true},
-          status: {$regex: /^active$/i},
-        },
+        $match: matchStage,
       },
 
       {$sort: {enrollmentDate: -1}},

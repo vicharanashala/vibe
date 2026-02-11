@@ -1,6 +1,6 @@
-import { ObjectId } from 'mongodb';
-import { ProctoringComponent } from '../database/index.js';
-import { Type } from 'class-transformer';
+import {ObjectId} from 'mongodb';
+import {ProctoringComponent} from '../database/index.js';
+import {Type} from 'class-transformer';
 import {
   IsOptional,
   IsInt,
@@ -10,7 +10,7 @@ import {
   isString,
   IsEnum,
 } from 'class-validator';
-import { Priority } from './quiz.js';
+import {Priority} from './quiz.js';
 
 export interface IUser {
   _id?: string | ObjectId | null;
@@ -411,9 +411,9 @@ export interface IProgress {
 }
 
 export interface ICurrentProgressPath {
-  module: { id: string; name: string } | null;
-  section: { id: string; name: string } | null;
-  item: { id: string; name: string; type: string } | null;
+  module: {id: string; name: string} | null;
+  section: {id: string; name: string} | null;
+  item: {id: string; name: string; type: string} | null;
   message?: string;
 }
 
@@ -479,14 +479,14 @@ export interface IRegistrationSettings {
   _id?: ID;
   label: string;
   type:
-  | 'TEXT'
-  | 'TEXTAREA'
-  | 'EMAIL'
-  | 'TEL'
-  | 'DATE'
-  | 'NUMBER'
-  | 'URL'
-  | 'SELECT';
+    | 'TEXT'
+    | 'TEXTAREA'
+    | 'EMAIL'
+    | 'TEL'
+    | 'DATE'
+    | 'NUMBER'
+    | 'URL'
+    | 'SELECT';
   isDefault: boolean;
   required: boolean;
   options?: string[];
@@ -574,6 +574,10 @@ export class EnrollmentFilterQuery {
   @IsString()
   @IsIn(['STUDENT', 'INSTRUCTOR', 'MANAGER', 'TA', 'STAFF'])
   role: EnrollmentRole;
+
+  @IsOptional()
+  @IsString()
+  courseVersionId?: string;
 }
 
 export class EnrollmentsQuery {
@@ -595,7 +599,8 @@ export class EnrollmentsQuery {
 
   @IsOptional()
   @IsIn(['name', 'enrollmentDate', 'progress', 'unenrolledAt'])
-  sortBy: 'name' | 'enrollmentDate' | 'progress' | 'unenrolledAt' = 'enrollmentDate';
+  sortBy: 'name' | 'enrollmentDate' | 'progress' | 'unenrolledAt' =
+    'enrollmentDate';
 
   @IsOptional()
   @IsIn(['asc', 'desc'])
@@ -608,7 +613,6 @@ export class EnrollmentsQuery {
   @IsOptional()
   @IsIn(['ACTIVE', 'INACTIVE'])
   statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE';
-
 }
 
 export class BulkEnrollmentsQuery {

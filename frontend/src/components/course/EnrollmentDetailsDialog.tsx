@@ -35,17 +35,17 @@ export function EnrollmentDetailsDialog({
   enrollment 
 }: EnrollmentDetailsDialogProps) {
   console.log('----------------------------enrollment', enrollment);
-
+    const courseVersionId = enrollment.courseVersionId;
   // Hook is only called when this component is mounted
   const { 
     data: enrollmentDetails, 
     isLoading, 
     error 
-  } = useUserEnrollmentsDetails(1, 100, true, "", "STUDENT");
+  } = useUserEnrollmentsDetails(1, 100, true, "", "STUDENT",courseVersionId);
 
   console.log('----------------------------enrollmentDetails', enrollmentDetails);
 
-  const enroll1=enrollmentDetails?.enrollments?.[1];
+  const enroll1=enrollmentDetails?.enrollments?.[0];
 
   
   // Extract data from enrollment prop

@@ -679,7 +679,7 @@ export class EnrollmentController {
     @Ability(getEnrollmentAbility) {user},
     @Req() req: any,
   ): Promise<EnrollmentResponse> {
-    const {page, limit, search = '', role} = query;
+    const {page, limit, search = '', role, courseVersionId} = query;
     const userId = user._id.toString();
     const skip = (page - 1) * limit;
 
@@ -691,8 +691,14 @@ export class EnrollmentController {
         limit,
         role,
         search,
+        courseVersionId,
       ),
-      this.enrollmentService.countEnrollments(userId, role, search),
+      this.enrollmentService.countEnrollments(
+        userId,
+        role,
+        search,
+        courseVersionId,
+      ),
     ]);
 
     if (!enrollments || enrollments.length === 0) {

@@ -530,6 +530,7 @@ export class EnrollmentService extends BaseService {
     limit: number,
     role: EnrollmentRole,
     search: string,
+    courseVersionId?: string,
   ): Promise<EnrollmentDataResponse[]> {
     let enrollments = [];
     if (role === 'INSTRUCTOR') {
@@ -547,10 +548,18 @@ export class EnrollmentService extends BaseService {
         limit,
         role,
         search,
+        courseVersionId,
       );
     }
 
     if (!enrollments.length) return [];
+
+    //  If courseVersionId is provided, filter to only that version
+    if (courseVersionId) {
+      enrollments = enrollments.filter(
+        e => e.courseVersionId.toString() === courseVersionId,
+      );
+    }
 
     const enrolledVersionIds: Set<string> = new Set(
       enrollments.map(e => e.courseVersionId.toString()),
@@ -963,12 +972,18 @@ export class EnrollmentService extends BaseService {
     }
   }
 
-  async countEnrollments(userId: string, role: EnrollmentRole, search: string) {
+  async countEnrollments(
+    userId: string,
+    role: EnrollmentRole,
+    search: string,
+    courseVersionId?: string,
+  ) {
     return this._withTransaction(async (session: ClientSession) => {
       const result = await this.enrollmentRepo.countEnrollments(
         userId,
         role,
         search,
+        courseVersionId,
       );
       return result;
     });
