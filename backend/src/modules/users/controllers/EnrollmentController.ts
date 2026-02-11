@@ -685,16 +685,14 @@ export class EnrollmentController {
 
     // 🚀 Run DB queries in parallel
     const [enrollments, totalDocuments] = await Promise.all([
-      this.enrollmentService.getDetailedEnrollments(
+      this.enrollmentService.getDetailedEnrollment(
         userId,
         role,
-        search,
         courseVersionId,
       ),
-      this.enrollmentService.countEnrollments(
+      this.enrollmentService.detailedCountEnrollment(
         userId,
         role,
-        search,
         courseVersionId,
       ),
     ]);

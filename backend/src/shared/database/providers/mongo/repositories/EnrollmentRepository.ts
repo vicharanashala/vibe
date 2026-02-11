@@ -2987,10 +2987,9 @@ export class EnrollmentRepository {
     return submission;
   }
 
-  async getDetailedEnrollments(
+  async getDetailedEnrollment(
     userId: string,
     role: EnrollmentRole,
-    search: string,
     courseVersionId?: string,
   ) {
     await this.init();
@@ -3000,7 +2999,6 @@ export class EnrollmentRepository {
       {
         userId,
         role,
-        search,
         courseVersionId,
       },
     );
@@ -3257,5 +3255,55 @@ export class EnrollmentRepository {
       .toArray();
 
     return enrollments;
+  }
+  async detailedCountEnrollment(
+    userId: string,
+    role: EnrollmentRole,
+    courseVersionId?: string,
+  ) {
+    await this.init();
+    const matchStage: any = {
+      userId: new ObjectId(userId),
+      role,
+      isDeleted: {$ne: true},
+      status: {$regex: /^active$/i},
+    };
+
+    // Add courseVersionId filter if provided
+    if (courseVersionId) {
+      matchStage.courseVersionId = new ObjectId(courseVersionId);
+    }
+
+    const pipeline: any[] = [
+      {
+        $match: matchStage,
+      },
+
+      {
+        $lookup: {
+          from: 'newCourse',
+          let: {courseId: '$courseId'},
+          pipeline: [
+            {
+              $match: {
+                $expr: {$eq: ['$_id', '$$courseId']},
+              },
+            },
+          ],
+          as: 'course',
+        },
+      },
+
+      // remove enrollments whose course did not match search
+      {$unwind: '$course'},
+
+      {$count: 'total'},
+    ];
+
+    const result = await this.enrollmentCollection
+      .aggregate(pipeline)
+      .toArray();
+
+    return result[0]?.total || 0;
   }
 }

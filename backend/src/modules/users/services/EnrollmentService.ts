@@ -524,18 +524,16 @@ export class EnrollmentService extends BaseService {
     }));
   }
 
-  public async getDetailedEnrollments(
+  public async getDetailedEnrollment(
     userId: string,
     role: EnrollmentRole,
-    search: string,
     courseVersionId?: string,
   ): Promise<EnrollmentDataResponse[]> {
     let enrollments = [];
 
-    enrollments = await this.enrollmentRepo.getDetailedEnrollments(
+    enrollments = await this.enrollmentRepo.getDetailedEnrollment(
       userId,
       role,
-      search,
       courseVersionId,
     );
 
@@ -646,10 +644,6 @@ export class EnrollmentService extends BaseService {
             articles: 0,
             projects: 0,
           };
-          console.log(
-            'completedByType-----------------------------',
-            completedByType,
-          );
 
           return {
             _id: enr._id.toString(),
@@ -700,6 +694,20 @@ export class EnrollmentService extends BaseService {
       enrollmentDate: new Date(enr.enrollmentDate),
       course: this.filterCourseVersions(enr.course, enrolledVersionIds),
     }));
+  }
+  async detailedCountEnrollment(
+    userId: string,
+    role: EnrollmentRole,
+    courseVersionId?: string,
+  ) {
+    return this._withTransaction(async (session: ClientSession) => {
+      const result = await this.enrollmentRepo.detailedCountEnrollment(
+        userId,
+        role,
+        courseVersionId,
+      );
+      return result;
+    });
   }
 
   async getAllEnrollments(userId: string) {
@@ -962,7 +970,7 @@ export class EnrollmentService extends BaseService {
   async countEnrollments(
     userId: string,
     role: EnrollmentRole,
-    search: string,
+    search?: string,
     courseVersionId?: string,
   ) {
     return this._withTransaction(async (session: ClientSession) => {
