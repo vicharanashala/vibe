@@ -506,7 +506,7 @@ export class EnrollmentRepository {
         .aggregate(aggregationPipeline, {session})
         .toArray();
     } catch (error) {
-      console.log(error);
+      console.error(error);
       throw new InternalServerError(`Failed to get enrollments /More ${error}`);
     }
   }
@@ -1186,7 +1186,6 @@ export class EnrollmentRepository {
       const key = `${doc._id.userId.toString()}-${doc._id.courseId.toString()}-${doc._id.courseVersionId.toString()}`;
       map.set(key, doc.count);
     }
-    console.log('MAPPP============getWatchedItemCountsBatch', map);
 
     return map;
   }
@@ -1232,41 +1231,26 @@ export class EnrollmentRepository {
       ])
       .toArray();
 
-    console.log('📊 watchedItems count:', watchedItems.length); // ADD THIS
-    console.log('📊 Sample watchedItem:', watchedItems[0]); // ADD THIS
-
     if (watchedItems.length === 0) {
       return new Map();
     }
 
     const allItemIds = [...new Set(watchedItems.map(w => w._id.itemId))];
-    console.log('📊 allItemIds sample:', allItemIds.slice(0, 3));
 
-    console.log(
-      '📊 allItemIds type check:',
-      allItemIds[0],
-      typeof allItemIds[0],
-    );
-
-    console.log('📊 Unique itemIds to lookup:', allItemIds.length);
     const itemsGroupCollection = await this.db.getCollection('itemsGroup');
 
     // ADD THIS: Check what format items._id is actually stored in
     const sampleDirectQuery = await itemsGroupCollection.findOne({
       'items._id': allItemIds[0],
     });
-    console.log('📊 Direct ObjectId match:', sampleDirectQuery?._id);
+
     const sampleStringQuery = await itemsGroupCollection.findOne({
       'items._id': allItemIds[0].toString(),
     });
-    console.log('📊 Direct String match:', sampleStringQuery?._id);
+
     // Check what the actual structure looks like
     const sampleItem = await itemsGroupCollection.findOne({});
-    console.log('📊 Sample itemsGroup structure:', {
-      _id: sampleItem?._id,
-      firstItem: sampleItem?.items?.[0],
-      itemIdType: typeof sampleItem?.items?.[0]?._id,
-    });
+
     const itemTypeResults = await itemsGroupCollection
       .aggregate([
         {$unwind: '$items'},
@@ -1281,18 +1265,12 @@ export class EnrollmentRepository {
         {$project: {itemId: {$toString: '$items._id'}, type: '$items.type'}},
       ])
       .toArray();
-    console.log('📊 itemTypeResults found:', itemTypeResults.length); // ADD THIS
-    console.log('📊 Sample itemTypeResult:', itemTypeResults[0]); // ADD THIS
 
     const itemTypeMap = new Map<string, string>();
     for (const item of itemTypeResults) {
       itemTypeMap.set(item.itemId, item.type);
     }
-    console.log('📊 itemTypeMap size:', itemTypeMap.size); // ADD THIS
-    console.log(
-      '📊 Sample types:',
-      Array.from(itemTypeMap.entries()).slice(0, 3),
-    );
+
     const map = new Map<
       string,
       {videos: number; quizzes: number; articles: number; projects: number}
@@ -1324,10 +1302,6 @@ export class EnrollmentRepository {
           break;
       }
     }
-    console.log('📊 Final map keys:', Array.from(map.keys())); // ADD THIS
-    console.log('📊 Final map values:', Array.from(map.values())); // ADD THIS
-
-    console.log('MAPPP============getWatchedItemCountsBatch', map);
 
     return map;
   }
@@ -1716,7 +1690,7 @@ export class EnrollmentRepository {
       // await this.enrollmentCollection.createIndex({ courseVersionId: 1 });
       // await this.enrollmentCollection.createIndex({ enrollmentDate: -1 });
     } catch (err) {
-      console.log(err);
+      console.error(err);
     }
   }
 
@@ -2994,14 +2968,6 @@ export class EnrollmentRepository {
   ) {
     await this.init();
     const userObjectId = new ObjectId(userId);
-    console.log(
-      '🔍🔍 getDetailedEnrollments called with:;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;',
-      {
-        userId,
-        role,
-        courseVersionId,
-      },
-    );
     const matchStage: any = {
       userId: userObjectId,
       role,

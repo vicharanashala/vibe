@@ -376,7 +376,7 @@ export class EnrollmentService extends BaseService {
       const allItemGroupIds = Array.from(versionToItemGroups.values()).flat();
 
       const quizInfo = await this.itemRepo.getQuizInfo(allItemGroupIds);
-      console.log(quizInfo[0]);
+
       // Extract actual quiz item IDs from quizInfo
       const allQuizIds = quizInfo
         .filter(quiz => quiz.items?._id)
@@ -435,7 +435,6 @@ export class EnrollmentService extends BaseService {
         // ratio is calculated as (watchedItems / totalItems) * 100
 
         const completedCount = watchedItemsMap.get(watchedKey) || 0;
-        console.log('completedCount==========================', completedCount);
 
         const ratio = completedCount / (enr.totalItems || 1); // avoid division by zero
         // const calculatedPercent = Math.floor(ratio * 100);
@@ -458,13 +457,10 @@ export class EnrollmentService extends BaseService {
 
           enr.percentCompleted = calculatedPercent;
           enr.completedItemsCount = completedCount;
-          console.log('enr=============== 1', enr);
         }
-        console.log('enr=============== 2', enr);
 
         if (enr.percentCompleted >= 0) {
           const itemCounts = enr.itemCounts || {};
-          console.log('enr=============== 3', enr);
 
           // const completedByType = {
           //   videos: 0,
@@ -571,7 +567,7 @@ export class EnrollmentService extends BaseService {
       const allItemGroupIds = Array.from(versionToItemGroups.values()).flat();
 
       const quizInfo = await this.itemRepo.getQuizInfo(allItemGroupIds);
-      console.log(quizInfo[0]);
+
       // Extract actual quiz item IDs from quizInfo
       const allQuizIds = quizInfo
         .filter(quiz => quiz.items?._id)

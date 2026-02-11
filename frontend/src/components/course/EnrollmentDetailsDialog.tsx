@@ -8,6 +8,7 @@ import { Button } from "../ui/button";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle2, Clock } from "lucide-react";
 
+
 const formatDate = (dateString: string) => {
   try {
     return new Date(dateString).toLocaleDateString('en-GB', {
@@ -26,7 +27,7 @@ const formatDate = (dateString: string) => {
 interface EnrollmentDetailsDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  enrollment: any; // Use your proper type
+  enrollment: any; 
 }
 
 export function EnrollmentDetailsDialog({ 
@@ -34,7 +35,7 @@ export function EnrollmentDetailsDialog({
   onOpenChange, 
   enrollment 
 }: EnrollmentDetailsDialogProps) {
-  console.log('----------------------------enrollment', enrollment);
+  
     const courseVersionId = enrollment.courseVersionId;
   // Hook is only called when this component is mounted
   const { 
@@ -43,7 +44,7 @@ export function EnrollmentDetailsDialog({
     error 
   } = useUserEnrollmentsDetails( true, "", "STUDENT",courseVersionId);
 
-  console.log('----------------------------enrollmentDetails', enrollmentDetails);
+ 
 
   const enroll1=enrollmentDetails?.enrollments?.[0];
 
@@ -70,11 +71,10 @@ export function EnrollmentDetailsDialog({
   const completedProjects = contentCounts.completedProjects || 0;
 
   // Debug: Check if contentCounts is empty
-  console.log('contentCounts:', contentCounts);
-  console.log('Is contentCounts empty?', Object.keys(contentCounts).length === 0);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
+        {isLoading ?<Skeleton/>:<>
       <DialogTrigger asChild>
         <Button variant="outline" className="w-full sm:w-auto">View Details</Button>
       </DialogTrigger>
@@ -215,6 +215,7 @@ export function EnrollmentDetailsDialog({
           </div>
         </ScrollArea>
       </DialogContent>
+      </> }
     </Dialog>
   );
 }
