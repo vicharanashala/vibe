@@ -261,9 +261,8 @@ class CourseService extends BaseService {
   }> {
     return this._withTransaction(async session => {
       // Get enrolled course IDs by userId through enrollmentService
-      // Instead of calling a method that doesn't exist, we'll pass an empty array for now
-      // The repository method will handle this case
-      const enrolledCourseIds: string[] = [];
+      const userEnrollments = await this.enrollmentService.getAllEnrollments(userId);
+      const enrolledCourseIds = userEnrollments.map(enrollment => enrollment.courseId.toString());
 
       // Query public courses
       const skip = (page - 1) * limit;
