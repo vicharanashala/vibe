@@ -16,6 +16,7 @@ import { usersContainerModule } from '../users/container.js';
 import { quizzesContainerModule } from '../quizzes/container.js';
 import { COURSE_VALIDATORS, COURSEVERSION_VALIDATORS, ITEM_VALIDATORS, MODULE_VALIDATORS, SECTION_VALIDATORS } from './classes/validators/index.js';
 import { notificationsContainerModule } from '../notifications/container.js';
+import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 
 export const coursesContainerModules: ContainerModule[] = [
   coursesContainerModule,
@@ -43,7 +44,7 @@ export async function setupCoursesContainer(): Promise<void> {
 
 export const coursesModuleOptions: RoutingControllersOptions = {
   controllers: coursesModuleControllers,
-  middlewares: [HttpErrorHandler],
+  middlewares: [AuditTrailsHandler, HttpErrorHandler],
   defaultErrorHandler: false,
   authorizationChecker: authorizationChecker,
   validation: true,

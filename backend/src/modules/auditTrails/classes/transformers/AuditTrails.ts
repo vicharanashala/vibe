@@ -121,11 +121,10 @@ export class AuditTrails implements InstructorAuditTrail {
         format: "date-time",
     })
     createdAt: Date;
-    constructor(data) {
-        this._id = new ObjectId();
+    constructor(userId?: string) {
         this.category = "";
         this.action = "";
-        this.actor = data?.userId;
+        this.actor = userId;
         this.context = {};
         this.changes = {};
         this.outcome = { status: "PARTIAL" };
