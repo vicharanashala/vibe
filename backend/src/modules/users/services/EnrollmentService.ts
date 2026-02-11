@@ -629,7 +629,7 @@ export class EnrollmentService extends BaseService {
             status: enr.status,
             enrollmentDate: new Date(enr.enrollmentDate),
             course: this.filterCourseVersions(enr.course, enrolledVersionIds),
-            courseVersion: enr.courseVersion,
+            // courseVersion: enr.courseVersion,
             percentCompleted: enr.percentCompleted || 0,
             moduleNumber: enr.moduleNumber,
             sectionNumber: enr.sectionNumber,

@@ -3233,7 +3233,7 @@ export class EnrollmentRepository {
           sectionNumber: '$sectionNumber',
           itemType: '$currentItemObj.type',
 
-          // 🔥 pulled from courseVersion
+          // pulled from courseVersion
           totalItems: {$ifNull: ['$courseVersion.totalItems', 0]},
           itemCounts: {$ifNull: ['$courseVersion.itemCounts', {}]},
 
