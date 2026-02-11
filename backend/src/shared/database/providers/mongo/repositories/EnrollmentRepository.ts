@@ -2989,8 +2989,6 @@ export class EnrollmentRepository {
 
   async getDetailedEnrollments(
     userId: string,
-    skip: number,
-    limit: number,
     role: EnrollmentRole,
     search: string,
     courseVersionId?: string,
@@ -3105,12 +3103,8 @@ export class EnrollmentRepository {
       },
 
       {$unwind: {path: '$courseVersion', preserveNullAndEmptyArrays: true}},
-      {$skip: skip},
-      {$limit: limit},
+
       /* ---------------- SEARCH ---------------- */
-      ...(search?.trim()
-        ? [{$match: {'course.name': {$regex: search, $options: 'i'}}}]
-        : []),
       //i have converted the id(object form right) to string
       {
         $addFields: {

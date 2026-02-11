@@ -687,8 +687,6 @@ export class EnrollmentController {
     const [enrollments, totalDocuments] = await Promise.all([
       this.enrollmentService.getDetailedEnrollments(
         userId,
-        skip,
-        limit,
         role,
         search,
         courseVersionId,

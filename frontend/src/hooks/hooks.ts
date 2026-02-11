@@ -4088,7 +4088,7 @@ export const useBulkUnenrollUsers = () => {
 };
 
 // GET /users/enrollments
-export function useUserEnrollmentsDetails(page?: number, limit?: number, enabled: boolean = true, search?: string, role = "STUDENT", courseVersionId?: string, ): {
+export function useUserEnrollmentsDetails( enabled: boolean = true, search?: string, role = "STUDENT", courseVersionId?: string, ): {
   data: components['schemas']['EnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -4096,7 +4096,7 @@ export function useUserEnrollmentsDetails(page?: number, limit?: number, enabled
 } {
   const result = api.useQuery("get", "/users/enrollments/details", {
     params: {
-      query: { page, limit, search, role, courseVersionId  }
+      query: {  search, role, courseVersionId  }
     },
     enabled: enabled
   });

@@ -526,31 +526,18 @@ export class EnrollmentService extends BaseService {
 
   public async getDetailedEnrollments(
     userId: string,
-    skip: number,
-    limit: number,
     role: EnrollmentRole,
     search: string,
     courseVersionId?: string,
   ): Promise<EnrollmentDataResponse[]> {
     let enrollments = [];
-    if (role === 'INSTRUCTOR') {
-      enrollments = await this.enrollmentRepo.getBasicInstructorEnrollments(
-        userId,
-        skip,
-        limit,
-        role,
-        search,
-      );
-    } else {
-      enrollments = await this.enrollmentRepo.getDetailedEnrollments(
-        userId,
-        skip,
-        limit,
-        role,
-        search,
-        courseVersionId,
-      );
-    }
+
+    enrollments = await this.enrollmentRepo.getDetailedEnrollments(
+      userId,
+      role,
+      search,
+      courseVersionId,
+    );
 
     if (!enrollments.length) return [];
 

@@ -41,7 +41,7 @@ export function EnrollmentDetailsDialog({
     data: enrollmentDetails, 
     isLoading, 
     error 
-  } = useUserEnrollmentsDetails(1, 100, true, "", "STUDENT",courseVersionId);
+  } = useUserEnrollmentsDetails( true, "", "STUDENT",courseVersionId);
 
   console.log('----------------------------enrollmentDetails', enrollmentDetails);
 
