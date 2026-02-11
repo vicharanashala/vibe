@@ -651,11 +651,56 @@ export class CourseRegistrationService extends BaseService {
   }
 
   async getRegistrationForm(versionId: string) {
+    const defaultJsonSchema = {
+      type: 'object',
+      properties: {
+        Name: {
+          type: 'string',
+          title: 'Name',
+          minLength: 1,
+        },
+        Email: {
+          type: 'string',
+          format: 'email',
+          title: 'Email',
+        },
+        Phone: {
+          type: 'string',
+          title: 'Phone',
+        },
+      },
+      required: ['Name', 'Email'],
+    };
+
+    const defaultUiSchema = {
+      Name: {
+        'ui:placeholder': 'Enter your Name',
+      },
+      Email: {
+        'ui:placeholder': 'Enter your Email',
+      },
+      Phone: {
+        'ui:options': {
+          inputType: 'tel',
+        },
+        'ui:placeholder': 'Enter your Phone Number',
+      },
+    };
+
     return this._withTransaction(async session => {
       const result = await this.settingsRepo.readSettingsSchema(
         versionId,
         session,
       );
+
+      // If no schema is configured, return the defaults
+      if (!result.jsonSchema || Object.keys(result.jsonSchema).length === 0) {
+        return {
+          jsonSchema: defaultJsonSchema,
+          uiSchema: defaultUiSchema,
+          isActive: result.isActive ?? true
+        };
+      }
 
       return result;
     });
