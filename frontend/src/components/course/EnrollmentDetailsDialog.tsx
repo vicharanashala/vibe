@@ -95,7 +95,7 @@ export function EnrollmentDetailsDialog({
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-muted-foreground">Version</p>
-                  <p>{enroll1?.courseVersion?.name || 'N/A'}</p>
+                  <p>{enroll1?.course?.versionDetails?.[0]?.version || 'N/A'}</p>
                 </div>
                 <div className="space-y-1 col-span-2">
                   <p className="text-sm font-medium text-muted-foreground">Description</p>
@@ -103,7 +103,7 @@ export function EnrollmentDetailsDialog({
                 </div>
                 <div className="space-y-1 col-span-2">
                   <p className="text-sm font-medium text-muted-foreground">Version Description</p>
-                  <p className="text-sm">{enroll1?.courseVersion?.description || 'No version description available'}</p>
+                  <p className="text-sm">{enroll1?.course?.versionDetails?.[0]?.description || 'No version description available'}</p>
                 </div>
               </div>
             </div>

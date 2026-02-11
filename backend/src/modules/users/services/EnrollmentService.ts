@@ -313,10 +313,17 @@ export class EnrollmentService extends BaseService {
   private filterCourseVersions(course: any, enrolledVersionIds: Set<string>) {
     return {
       ...course,
-      versions:
-        course?.versions?.filter((versionId: string) =>
-          enrolledVersionIds.has(versionId.toString()),
-        ) || [],
+      versions: course?.versions
+        ? course.versions
+            .map((versionId: any) => {
+              // Convert ObjectId to string if needed
+              const versionIdStr = versionId.toString
+                ? versionId.toString()
+                : versionId;
+              return enrolledVersionIds.has(versionIdStr) ? versionIdStr : null;
+            })
+            .filter(Boolean) // Remove null values
+        : [],
     };
   }
 
@@ -481,7 +488,6 @@ export class EnrollmentService extends BaseService {
         }
       });
     }
-
     // Non-student
     return enrollments.map(enr => ({
       _id: enr._id.toString(),
@@ -623,6 +629,7 @@ export class EnrollmentService extends BaseService {
             status: enr.status,
             enrollmentDate: new Date(enr.enrollmentDate),
             course: this.filterCourseVersions(enr.course, enrolledVersionIds),
+            courseVersion: enr.courseVersion,
             percentCompleted: enr.percentCompleted || 0,
             moduleNumber: enr.moduleNumber,
             sectionNumber: enr.sectionNumber,
@@ -653,17 +660,6 @@ export class EnrollmentService extends BaseService {
         }
       });
     }
-
-    // Non-student
-    return enrollments.map(enr => ({
-      _id: enr._id.toString(),
-      courseId: enr.courseId.toString(),
-      courseVersionId: enr.courseVersionId.toString(),
-      role: enr.role,
-      status: enr.status,
-      enrollmentDate: new Date(enr.enrollmentDate),
-      course: this.filterCourseVersions(enr.course, enrolledVersionIds),
-    }));
   }
   async detailedCountEnrollment(
     userId: string,

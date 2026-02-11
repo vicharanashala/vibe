@@ -3037,12 +3037,37 @@ export class EnrollmentRepository {
                 name: 1,
                 description: 1,
                 updatedAt: 1,
+                versions: 1,
               },
             },
           ],
         },
       },
       {$unwind: '$course'},
+      /* ---------------- ADD NEW LOOKUP FOR VERSION DETAILS ---------------- */
+      {
+        $lookup: {
+          from: 'newCourseVersion',
+          let: {versionIds: '$course.versions'},
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: ['$_id', '$$versionIds'],
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 1,
+                version: 1,
+                description: 1,
+              },
+            },
+          ],
+          as: 'course.versionDetails',
+        },
+      },
 
       /* ---------------- COURSE VERSION LOOKUP (NEW) ---------------- */
       {
