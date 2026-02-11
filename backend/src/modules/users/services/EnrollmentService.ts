@@ -460,15 +460,6 @@ export class EnrollmentService extends BaseService {
         }
 
         if (enr.percentCompleted >= 0) {
-          const itemCounts = enr.itemCounts || {};
-
-          // const completedByType = {
-          //   videos: 0,
-          //   quizzes: 0,
-          //   articles: 0,
-          //   projects: 0,
-          // };
-
           return {
             _id: enr._id.toString(),
             courseId: enr.courseId.toString(),
@@ -483,23 +474,6 @@ export class EnrollmentService extends BaseService {
             itemType: enr.itemType,
             contentCounts: {
               totalItems: enr.totalItems ?? 0,
-              videos: itemCounts.VIDEO ?? itemCounts.videos ?? 0,
-              quizzes: itemCounts.QUIZ ?? itemCounts.quizzes ?? 0,
-              articles: itemCounts.BLOG ?? itemCounts.articles ?? 0,
-              project: itemCounts.PROJECT ?? itemCounts.project ?? 0,
-              // totalQuizScore: enrollmentQuizGrades.reduce(
-              //   (sum, grade) => sum + (grade.totalScore || 0),
-              //   0,
-              // ),
-              // totalQuizMaxScore: enrollmentQuizGrades.reduce(
-              //   (sum, grade) => sum + (grade.totalMaxScore || 0),
-              //   0,
-              // ),
-              // Completed counts by type
-              // completedVideos: completedByType.videos,
-              // completedQuizzes: completedByType.quizzes,
-              // completedArticles: completedByType.articles,
-              // completedProjects: completedByType.projects,
             },
 
             completedItems: watchedItemsMap.get(watchedKey) || 0,
