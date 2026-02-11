@@ -134,7 +134,7 @@ jobs:
             NODE_ENV=production
             APP_PORT=${{ secrets.APP_PORT }}
             APP_URL=${{ secrets.APP_URL }}
-            APP_ORIGINS=${{ secrets.APP_ORIGINS }}
+            APP_ORIGINS="${{ secrets.APP_ORIGINS }}"
             APP_MODULE=${{ secrets.APP_MODULE }}
             APP_ROUTE_PREFIX=${{ secrets.APP_ROUTE_PREFIX }}
             FRONTEND_URL=${{ secrets.FRONTEND_URL }}
