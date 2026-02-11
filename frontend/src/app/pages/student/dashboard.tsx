@@ -228,7 +228,7 @@ function DashboardContent() {
                 value="available"
                 className="py-3 px-6 text-lg font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200 cursor-pointer"
               >
-                Available
+                Available {(publicCoursesData?.totalDocuments || 0) > 0 && <span className="ml-2 text-sm opacity-80 bg-primary-foreground/20 px-2 py-0.5 rounded-full">{publicCoursesData?.totalDocuments || 0}</span>}
               </TabsTrigger>
               <TabsTrigger
                 value="enrolled"
