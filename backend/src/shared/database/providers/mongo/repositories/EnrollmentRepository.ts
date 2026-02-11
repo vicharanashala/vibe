@@ -2739,6 +2739,7 @@ export class EnrollmentRepository {
             courseVersionId: versionObjectId,
             role: 'STUDENT',
             status: { $regex: /^active$/i },
+            isDeleted: { $ne: true },
           },
           { session },
         )
