@@ -427,6 +427,30 @@ export interface IWatchTime {
   endTime?: Date;
 }
 
+export interface IUserActivityEvent {
+  _id?: string | ObjectId | null;
+  userId: string | ObjectId;
+  courseId: string | ObjectId;
+  courseVersionId: string | ObjectId;
+  videoId: ObjectId; // itemId from the system, stored as ObjectId
+  rewinds: number;
+  fastForwards: number;
+  rewindData: Array<{
+    from: string; // HH:MM:SS format
+    to: string;   // HH:MM:SS format
+    createdAt: Date;
+  }>;
+  fastForwardData: Array<{
+    from: string; // HH:MM:SS format
+    to: string;   // HH:MM:SS format
+    createdAt: Date;
+  }>;
+  createdAt: Date;
+  updatedAt: Date;
+  isDeleted?: boolean;
+  deletedAt?: Date;
+}
+
 export enum InviteActionType {
   SIGNUP = 'SIGNUP',
   ENROLL = 'ENROLL',
@@ -495,10 +519,12 @@ export interface ISettings {
   proctors: IProctoringSettings;
   linearProgressionEnabled: boolean;
   seekForwardEnabled: boolean;
+  isPublic?: boolean;
   // registration_settings?: IRegistrationSettings[];
   registration?: {
     jsonSchema?: any;
     uiSchema?: any;
+    isActive?: boolean;
   };
   // jsonSchema?: any;
   // uiSchema?: any;
