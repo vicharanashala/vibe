@@ -389,48 +389,53 @@ export class EnrollmentService extends BaseService {
       }));
 
       // Batch all async operations together
-      const [watchedItemsMap, watchedItemsByTypeMap, quizSubmissionGrades]: [
+      const [
+        watchedItemsMap,
+        // watchedItemsByTypeMap,
+        quizSubmissionGrades,
+      ]: [
         Map<string, number>,
-        Map<
-          string,
-          {videos: number; quizzes: number; articles: number; projects: number}
-        >,
+        // Map<
+        //   string,
+        //   {videos: number; quizzes: number; articles: number; projects: number}
+        // >,
         ISubmission[],
       ] = await Promise.all([
         this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
-        this.enrollmentRepo.getWatchedItemCountsByTypeBatch(watchedKeys),
+        // this.enrollmentRepo.getWatchedItemCountsByTypeBatch(watchedKeys),
         allQuizIds.length > 0
           ? this.enrollmentRepo.getQuizSubmissionGrade(userId, allQuizIds)
           : Promise.resolve([]),
       ]);
 
       // Create a map for quick quiz grade lookup
-      const quizGradeMap: Map<string, IGradingResult> = new Map(
-        quizSubmissionGrades.map(grade => [
-          grade.quizId.toString(),
-          grade.gradingResult,
-        ]),
-      );
+      // const quizGradeMap: Map<string, IGradingResult> = new Map(
+      //   quizSubmissionGrades.map(grade => [
+      //     grade.quizId.toString(),
+      //     grade.gradingResult,
+      //   ]),
+      // );
 
       return enrollments.map(enr => {
         const versionIdStr = enr.courseVersionId.toString();
         const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}`;
-        const versionItemGroups = versionToItemGroups.get(versionIdStr) || [];
-        const versionQuizIds = quizInfo.filter(quiz =>
-          versionItemGroups.includes(quiz._id.toString()),
-        );
+        // const versionItemGroups = versionToItemGroups.get(versionIdStr) || [];
+        // const versionQuizIds = quizInfo.filter(quiz =>
+        //   versionItemGroups.includes(quiz._id.toString()),
+        // );
 
         // Get quiz grades for this enrollment's quizzes
-        const enrollmentQuizGrades = versionQuizIds
-          .map(q =>
-            q.items?._id ? quizGradeMap.get(q.items._id.toString()) : null,
-          )
-          .filter(Boolean) as IGradingResult[];
+        // const enrollmentQuizGrades = versionQuizIds
+        //   .map(q =>
+        //     q.items?._id ? quizGradeMap.get(q.items._id.toString()) : null,
+        //   )
+        //   .filter(Boolean) as IGradingResult[];
 
         // update percentage if contentCountsMap / watchedItemsMap has different value from enrollment.percentCompleted
         // ratio is calculated as (watchedItems / totalItems) * 100
 
         const completedCount = watchedItemsMap.get(watchedKey) || 0;
+        console.log('completedCount==========================', completedCount);
 
         const ratio = completedCount / (enr.totalItems || 1); // avoid division by zero
         // const calculatedPercent = Math.floor(ratio * 100);
@@ -453,16 +458,20 @@ export class EnrollmentService extends BaseService {
 
           enr.percentCompleted = calculatedPercent;
           enr.completedItemsCount = completedCount;
+          console.log('enr=============== 1', enr);
         }
+        console.log('enr=============== 2', enr);
 
         if (enr.percentCompleted >= 0) {
           const itemCounts = enr.itemCounts || {};
-          const completedByType = watchedItemsByTypeMap.get(watchedKey) || {
-            videos: 0,
-            quizzes: 0,
-            articles: 0,
-            projects: 0,
-          };
+          console.log('enr=============== 3', enr);
+
+          // const completedByType = {
+          //   videos: 0,
+          //   quizzes: 0,
+          //   articles: 0,
+          //   projects: 0,
+          // };
 
           return {
             _id: enr._id.toString(),
@@ -482,19 +491,19 @@ export class EnrollmentService extends BaseService {
               quizzes: itemCounts.QUIZ ?? itemCounts.quizzes ?? 0,
               articles: itemCounts.BLOG ?? itemCounts.articles ?? 0,
               project: itemCounts.PROJECT ?? itemCounts.project ?? 0,
-              totalQuizScore: enrollmentQuizGrades.reduce(
-                (sum, grade) => sum + (grade.totalScore || 0),
-                0,
-              ),
-              totalQuizMaxScore: enrollmentQuizGrades.reduce(
-                (sum, grade) => sum + (grade.totalMaxScore || 0),
-                0,
-              ),
+              // totalQuizScore: enrollmentQuizGrades.reduce(
+              //   (sum, grade) => sum + (grade.totalScore || 0),
+              //   0,
+              // ),
+              // totalQuizMaxScore: enrollmentQuizGrades.reduce(
+              //   (sum, grade) => sum + (grade.totalMaxScore || 0),
+              //   0,
+              // ),
               // Completed counts by type
-              completedVideos: completedByType.videos,
-              completedQuizzes: completedByType.quizzes,
-              completedArticles: completedByType.articles,
-              completedProjects: completedByType.projects,
+              // completedVideos: completedByType.videos,
+              // completedQuizzes: completedByType.quizzes,
+              // completedArticles: completedByType.articles,
+              // completedProjects: completedByType.projects,
             },
 
             completedItems: watchedItemsMap.get(watchedKey) || 0,

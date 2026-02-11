@@ -1186,6 +1186,7 @@ export class EnrollmentRepository {
       const key = `${doc._id.userId.toString()}-${doc._id.courseId.toString()}-${doc._id.courseVersionId.toString()}`;
       map.set(key, doc.count);
     }
+    console.log('MAPPP============getWatchedItemCountsBatch', map);
 
     return map;
   }
@@ -1212,7 +1213,7 @@ export class EnrollmentRepository {
       courseVersionId: e.courseVersionId,
       isHidden: {$ne: true},
       isDeleted: {$ne: true},
-      // endTime: {$exists: true, $ne: null},
+      endTime: {$exists: true, $ne: null},
     }));
 
     const watchedItems = await this.watchTimeCollection
@@ -1325,6 +1326,8 @@ export class EnrollmentRepository {
     }
     console.log('📊 Final map keys:', Array.from(map.keys())); // ADD THIS
     console.log('📊 Final map values:', Array.from(map.values())); // ADD THIS
+
+    console.log('MAPPP============getWatchedItemCountsBatch', map);
 
     return map;
   }
