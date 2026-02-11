@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuthStore } from "@/store/auth-store";
-import { useUserEnrollments, useWatchtimeTotal } from "@/hooks/hooks";
+import { useUserEnrollments, useWatchtimeTotal, usePublicCourses } from "@/hooks/hooks";
 import { useNavigate } from "@tanstack/react-router";
 
 // Import components
@@ -88,6 +88,12 @@ function DashboardContent() {
   // Explicitly casting here to be safe given previous type errors.
   const enrollments = (enrollmentsData?.enrollments || []) as unknown as CourseCardProps['enrollment'][];
   const totalEnrollments = enrollmentsData?.totalDocuments || 0;
+
+  const {
+    data: publicCoursesData,
+    isLoading: publicCoursesLoading
+  } = usePublicCourses(1, 5, !!token);
+
   useWatchtimeTotal();
 
   // Check if student is already registered to Gurusetu course
@@ -241,11 +247,20 @@ function DashboardContent() {
             <TabsContent value="available" className="mt-6 space-y-4 animate-in fade-in-50 duration-300 slide-in-from-left-2">
               <CourseSection
                 title="Recommended for you"
-                enrollments={[]}
-                isLoading={false}
+                enrollments={publicCoursesData?.courses?.map((course: any) => ({
+                  courseId: course.courseId,
+                  courseVersionId: course.courseVersionId,
+                  course: {
+                    name: course.courseName,
+                    description: course.courseDescription,
+                    instructors: course.instructors
+                  }
+                })) || []}
+                isLoading={publicCoursesLoading}
                 showViewAll
                 onViewAll={() => navigate({ to: '/student/courses' })}
                 variant="dashboard"
+                cardVariant="available"
                 emptyStateConfig={{
                   title: "Discover new courses",
                   description: "Explore our course catalog to find your next learning adventure",

@@ -545,6 +545,12 @@ export class SettingRepository implements ISettingRepository {
           preserveNullAndEmptyArrays: false // Skip if no matching course
         }
       },
+      // Filter out deleted courses
+      {
+        $match: {
+          'courseData.isDeleted': { $ne: true }
+        }
+      },
     ];
 
     // Add filter for excluded courses
@@ -598,44 +604,60 @@ export class SettingRepository implements ISettingRepository {
   ): Promise<number> {
     await this.init();
 
-    // Build filter for public courses
-    const filter: any = {
-      'settings.isPublic': true,
-    };
+    const pipeline: any[] = [
+      {
+        $match: {
+          'settings.isPublic': true,
+        },
+      },
+      {
+        $lookup: {
+          from: 'newCourse',
+          localField: 'courseId',
+          foreignField: '_id',
+          as: 'courseData',
+        },
+      },
+      {
+        $unwind: {
+          path: '$courseData',
+          preserveNullAndEmptyArrays: false,
+        },
+      },
+      {
+        $match: {
+          'courseData.isDeleted': { $ne: true },
+        },
+      },
+    ];
 
-    // Exclude already enrolled courses
     if (excludeCourseIds.length > 0) {
-      filter.courseId = { $nin: excludeCourseIds.map(id => new ObjectId(id)) };
+      pipeline.push({
+        $match: {
+          courseId: { $nin: excludeCourseIds.map(id => new ObjectId(id)) },
+        },
+      });
     }
 
-    // Add search filter
     if (search) {
-      const coursesCollection = await this.db.getCollection('newCourse');
-
-      // Get course IDs matching the search
-      const matchingCourses = await coursesCollection
-        .find(
-          {
-            $or: [
-              { name: { $regex: search, $options: 'i' } },
-              { description: { $regex: search, $options: 'i' } },
-            ]
-          },
-          { projection: { _id: 1 }, session }
-        )
-        .toArray();
-
-      const matchingCourseIds = matchingCourses.map(c => c._id);
-      filter.courseId = filter.courseId
-        ? { ...filter.courseId, $in: matchingCourseIds }
-        : { $in: matchingCourseIds };
+      pipeline.push({
+        $match: {
+          $or: [
+            { 'courseData.name': { $regex: search, $options: 'i' } },
+            { 'courseData.description': { $regex: search, $options: 'i' } },
+          ],
+        },
+      });
     }
 
-    const count = await this.courseSettingsCollection.countDocuments(
-      filter,
-      { session }
-    );
+    pipeline.push({
+      $count: 'total',
+    });
 
-    return count;
+    const result = await this.courseSettingsCollection
+      .aggregate(pipeline, { session })
+      .toArray();
+
+    return result.length > 0 ? result[0].total : 0;
   }
 }
