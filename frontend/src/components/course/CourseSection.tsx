@@ -20,7 +20,8 @@ export const CourseSection = ({
   emptyStateConfig,
   className,
   completion,
-  setCompletion
+  setCompletion,
+  cardVariant
 }: CourseSectionProps) => {
   const renderContent = () => {
     if (isLoading) {
@@ -75,22 +76,22 @@ export const CourseSection = ({
           {enrollments
             .filter((enrollment: any) => enrollment && enrollment.courseVersionId)
             .map((enrollment: any, index) => {
-            const courseId = enrollment.courseVersionId as string;
+              const courseId = enrollment.courseVersionId as string;
 
-            return (
-              <CourseCard
-                key={courseId}
-                enrollment={enrollment}
-                index={index}
-                variant={variant}
-                completion={completion}
-                isLoading={isLoading}
-                setCompletion={setCompletion}
-              />
-            );
-          })}
+              return (
+                <CourseCard
+                  key={courseId}
+                  enrollment={enrollment}
+                  index={index}
+                  variant={cardVariant || variant}
+                  completion={completion}
+                  isLoading={isLoading}
+                  setCompletion={setCompletion}
+                />
+              );
+            })}
         </div>
-        
+
         {/* Show pagination info for dashboard variant */}
         {variant === 'dashboard' && totalEnrollments > enrollments.length && (
           <Card className="border border-border p-4 mt-2">
@@ -123,11 +124,11 @@ export const CourseSection = ({
             </TooltipTrigger>
             <TooltipContent>
               <p>
-                {title === "In progress learning content" 
+                {title === "In progress learning content"
                   ? "Courses you're currently enrolled in and actively learning"
                   : title === "Recommended for you"
-                  ? "Personalized course recommendations based on your learning history and interests"
-                  : "View detailed information about this section"
+                    ? "Personalized course recommendations based on your learning history and interests"
+                    : "View detailed information about this section"
                 }
               </p>
             </TooltipContent>
@@ -143,7 +144,7 @@ export const CourseSection = ({
           </Button>
         )}
       </div>
-      
+
       {renderContent()}
     </div>
   );
