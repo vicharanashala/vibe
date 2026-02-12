@@ -4195,8 +4195,27 @@ export const useBulkUnenrollUsers = () => {
   return api.useMutation('post', '/users/enrollments/courses/{courseId}/versions/{versionId}/bulk-unenroll');
 };
 
+// GET /users/enrollments
+export function useUserEnrollmentsDetails( enabled: boolean = true, search?: string, role = "STUDENT", courseVersionId?: string, ): {
+  data: components['schemas']['EnrollmentResponse'] | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery("get", "/users/enrollments/details", {
+    params: {
+      query: {  search, role, courseVersionId  }
+    },
+    enabled: enabled
+  });
 
-
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch user enrollments') : null,
+    refetch: result.refetch
+  };
+}
 export function useStoreWatchTimeTrack(): {
   mutate: (variables: { body: WatchTimeTrackData }) => void,
   mutateAsync: (variables: { body: WatchTimeTrackData }) => Promise<{ success: boolean; watchTimeTrack?: any }>,
