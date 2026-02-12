@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Captions, Loader2, XCircle, Maximize, Minimize } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Captions, Loader2, XCircle, Maximize, Minimize, FastForward } from 'lucide-react';
 import { useSkipOptionalItem, useStartItem, useStopItem } from '../hooks/hooks';
 
 import { useCourseStore } from '../store/course-store';
@@ -1538,9 +1538,10 @@ const handleStopItem = useCallback(async (watchItemId: string, debounceMs: numbe
 
                 {/* Speed Control */}
                 <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
-                  <span className="text-md font-bold text-foreground min-w-[24px]">
+                  <span className="hidden md:block text-md font-bold text-foreground min-w-[24px]">
                     Speed
                   </span>
+                  <FastForward className="flex md:hidden h-3 w-3 text-accent flex-shrink-0 scale-160"/>
                   <Slider
                     value={[playbackRate]}
                     min={0.25}
