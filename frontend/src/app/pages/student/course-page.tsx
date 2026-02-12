@@ -6,7 +6,7 @@ import {
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
   SidebarInset, SidebarProvider, SidebarTrigger, SidebarFooter
 } from "@/components/ui/sidebar";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup, SidebarResizablePanel } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -54,6 +54,8 @@ import ItemContainer from "@/components/Item-container";
 import logo from "../../../../public/img/vibe_logo_img.ico"
 import { registerStream, unRegisterStream } from "@/lib/MediaRegistry";
 import { useModuleProgress } from "@/hooks/hooks";
+import { isMobile } from "react-device-detect";
+import MobileFallbackScreen from "@/components/MobileFallbackScreen";
 
 // Helper function to get icon for item type
 const getItemIcon = (type: string) => {
@@ -1396,6 +1398,9 @@ export default function CoursePage() {
     );
   }
 
+  if(isMobile && !allProctorsDisabled)
+    return <MobileFallbackScreen/>
+
   const modules = (courseVersionData as any)?.modules || [];
 
   return (
@@ -1429,12 +1434,12 @@ export default function CoursePage() {
       <SidebarProvider defaultOpen={true}>
          <ResizablePanelGroup direction="horizontal" className="h-screen w-full">
           {/* Enhanced Course Navigation Sidebar */}
-          {isDesktopSidebarVisible && (
-            <ResizablePanel
-              defaultSize={20}
-              minSize={5}
-              maxSize={40}
-              className="hidden md:block "
+          {/* {isDesktopSidebarVisible && ( */}
+            <SidebarResizablePanel
+              // defaultSize={20}
+              // minSize={useSidebar().state=="collapsed"?0:5}
+              // maxSize={useSidebar().state=="collapsed"?0:40}
+              // className="hidden md:block "
             >
               <div className="h-full overflow-hidden border-r border-border/40 bg-sidebar/50">
           {/* <Sidebar variant="inset" className="border-r border-border/40 bg-sidebar/50 backdrop-blur-sm"> */}
@@ -1745,20 +1750,24 @@ export default function CoursePage() {
             </SidebarFooter>
           </Sidebar>
           </div>
-          </ResizablePanel>)}
-{isDesktopSidebarVisible && <ResizableHandle className="hidden md:flex h-screen" />}
+          </SidebarResizablePanel>
+        {/* // )} */}
+{/* {isDesktopSidebarVisible &&  */}
+<ResizableHandle className="hidden md:flex h-screen" />
+{/* } */}
  <ResizablePanel defaultSize={80} className="min-w-0 min-h-screen">
           {/* Main Content Area */}
           <SidebarInset className="flex-1  bg-gradient-to-br from-background via-background to-background/95 peer-data-[variant=inset]:!m-0">
             <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border/20 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 px-4">
-              <Button
+              {/* <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsDesktopSidebarVisible((p) => !p)}
                   className="hidden md:inline-flex"
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
+                > */}
+                  {/* <Menu className="h-5 w-5" /> */}
+                  <SidebarTrigger />
+                {/* </Button> */}
               <Separator orientation="vertical" className="mr-2 h-4" />
               <Button
                 variant="ghost"
