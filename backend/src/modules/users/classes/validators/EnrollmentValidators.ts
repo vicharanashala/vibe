@@ -21,8 +21,8 @@ import {
   ICourse,
   ID,
 } from '#root/shared/interfaces/models.js';
-import { CourseDataResponse } from '#root/modules/courses/classes/index.js';
-import { ContentCountsValidator } from './ContentCountsValidators.js';
+import {CourseDataResponse} from '#root/modules/courses/classes/index.js';
+import {ContentCountsValidator} from './ContentCountsValidators.js';
 
 export class EnrollmentParams {
   @JSONSchema({
@@ -70,13 +70,13 @@ export class BulkUnenrollBody {
     description: 'Array of user IDs to unenroll (maximum 50)',
     example: ['60d5ec49b3f1c8e4a8f8b8d2', '60d5ec49b3f1c8e4a8f8b8d3'],
     type: 'array',
-    items: { type: 'string' },
+    items: {type: 'string'},
     maxItems: 50,
   })
   @IsArray()
   @IsNotEmpty()
-  @ArrayMaxSize(50, { message: 'Cannot unenroll more than 50 students at once' })
-  @IsMongoId({ each: true })
+  @ArrayMaxSize(50, {message: 'Cannot unenroll more than 50 students at once'})
+  @IsMongoId({each: true})
   userIds: string[];
 }
 export class EnrollmentDataResponse {
@@ -185,7 +185,7 @@ export class EnrollUserResponseData {
   @JSONSchema({
     description: 'Enrollment data for the user',
     type: 'object',
-    items: { $ref: '#/components/schemas/EnrollmentDataResponse' },
+    items: {$ref: '#/components/schemas/EnrollmentDataResponse'},
   })
   @ValidateNested()
   @Type(() => EnrollmentDataResponse)
@@ -195,7 +195,7 @@ export class EnrollUserResponseData {
   @JSONSchema({
     description: 'Progress data for the user',
     type: 'object',
-    items: { $ref: '#/components/schemas/ProgressDataResponse' },
+    items: {$ref: '#/components/schemas/ProgressDataResponse'},
   })
   @IsNotEmpty()
   @ValidateNested()
@@ -366,7 +366,7 @@ class AllEnrollmentsResponse {
   @JSONSchema({
     description: 'User data associated with the enrollment',
     type: 'object',
-    items: { $ref: '#/components/schemas/EnrolledUserResponseData' },
+    items: {$ref: '#/components/schemas/EnrolledUserResponseData'},
   })
   @IsNotEmpty()
   @ValidateNested()
@@ -468,7 +468,7 @@ export class BulkUnenrollResponse {
   @JSONSchema({
     description: 'Array of error messages for failed unenrollments',
     type: 'array',
-    items: { type: 'string' },
+    items: {type: 'string'},
   })
   @IsArray()
   @IsOptional()
@@ -521,5 +521,5 @@ export const ENROLLMENT_VALIDATORS = [
   EnrollmentNotFoundErrorResponse,
   UpdateEnrollmentProgressResponse,
   BulkUnenrollBody,
-  BulkUnenrollResponse
+  BulkUnenrollResponse,
 ];
