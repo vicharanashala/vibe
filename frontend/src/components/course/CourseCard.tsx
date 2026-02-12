@@ -20,9 +20,9 @@ import { Pagination } from "../ui/Pagination";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { lazy, Suspense } from "react";
 
-const EnrollmentDetailsDialog = lazy(() => 
-  import("./EnrollmentDetailsDialog").then(mod => ({ 
-    default: mod.EnrollmentDetailsDialog 
+const EnrollmentDetailsDialog = lazy(() =>
+  import("./EnrollmentDetailsDialog").then(mod => ({
+    default: mod.EnrollmentDetailsDialog
   }))
 );
 
@@ -35,9 +35,9 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
   const courseId = bufferToHex(enrollment.courseId as string);
   const versionId = bufferToHex(enrollment.courseVersionId as string) || "";
-  const module_number=enrollment.moduleNumber||"";
-  const section_number=enrollment.sectionNumber || "";
-  const item_type=enrollment.itemType||"VIDEO";
+  const module_number = enrollment.moduleNumber || "";
+  const section_number = enrollment.sectionNumber || "";
+  const item_type = enrollment.itemType || "VIDEO";
 
   // Fetch course version to get supportLink
   const { data: courseVersionData } = useCourseVersionById(versionId, variant !== 'available');
@@ -240,7 +240,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 : 'Continue Learning'}
 
             &nbsp;&nbsp;&nbsp;
-                {isCompleted?"":(progress==0)?"":<span>&bull; MOD {module_number} &bull; SEC {section_number} &bull; {item_type}</span> }
+            {isCompleted ? "" : (progress == 0) ? "" : <span>&bull; MOD {module_number} &bull; SEC {section_number} &bull; {item_type}</span>}
           </p>
           <div className="mt-auto flex flex-col sm:flex-row gap-2">
             <Button
@@ -248,10 +248,10 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               className={`${variant === 'available'
                 ? ""
                 : progress === 0
-                  ? ""
+                  ? "bg-green-600 hover:bg-green-700 text-white shadow-md border-0"
                   : isCompleted
                     ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
-                    : ""
+                    : "bg-blue-600 hover:bg-blue-700 text-white shadow-md border-0"
                 } w-full sm:w-auto transition-all duration-200`}
               onClick={handleContinue}
             >
@@ -267,18 +267,18 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} />
             </Dialog>}
             {
-              enrollment.courseVersionId!=="6981df886e100cfe04f9c4ae" && isDetailsOpen && (
-        <Suspense fallback={null}>
-          <EnrollmentDetailsDialog
-            isOpen={isDetailsOpen}
-            onOpenChange={setIsDetailsOpen}
-            enrollment={enrollment}
-          />
-        </Suspense>
-      )
+              enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && isDetailsOpen && (
+                <Suspense fallback={null}>
+                  <EnrollmentDetailsDialog
+                    isOpen={isDetailsOpen}
+                    onOpenChange={setIsDetailsOpen}
+                    enrollment={enrollment}
+                  />
+                </Suspense>
+              )
             }
-            {enrollment.courseVersionId!=="6981df886e100cfe04f9c4ae"&& <Button onClick={()=>setIsDetailsOpen(true)} variant="outline" className="w-full sm:w-auto">View Details</Button> }
-           {/* {enrollment.courseVersionId!=="6981df886e100cfe04f9c4ae"&& <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+            {enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && <Button onClick={() => setIsDetailsOpen(true)} variant="outline" className="w-full sm:w-auto">View Details</Button>}
+            {/* {enrollment.courseVersionId!=="6981df886e100cfe04f9c4ae"&& <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full sm:w-auto">View Details</Button>
               </DialogTrigger>
