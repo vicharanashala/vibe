@@ -268,6 +268,7 @@ export class SettingRepository implements ISettingRepository {
     detectors: DetectorSettingsDto[],
     linearProgressionEnabled: boolean,
     seekForwardEnabled: boolean,
+    isPublic: boolean,
     audit: AuditingDto,
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
@@ -323,6 +324,7 @@ export class SettingRepository implements ISettingRepository {
           'settings.proctors.detectors': detectors,
           'settings.linearProgressionEnabled': linearProgressionEnabled,
           'settings.seekForwardEnabled': seekForwardEnabled,
+          'settings.isPublic': isPublic,
         },
         $push: {
           'settings.audit': audit,
@@ -391,7 +393,7 @@ export class SettingRepository implements ISettingRepository {
   async updateRegistrationSettings(
     courseId: string,
     versionId: string,
-    schemas: { jsonSchema: any; uiSchema: any },
+    schemas: { jsonSchema: any; uiSchema: any; isActive: boolean },
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
     await this.init();
@@ -405,6 +407,7 @@ export class SettingRepository implements ISettingRepository {
         $set: {
           'settings.registration.jsonSchema': schemas.jsonSchema,
           'settings.registration.uiSchema': schemas.uiSchema,
+          'settings.registration.isActive': schemas.isActive,
         },
       },
       { session },
@@ -415,10 +418,21 @@ export class SettingRepository implements ISettingRepository {
   async updateRegistrationSchemas(
     courseId: string,
     versionId: string,
-    schemas: { jsonSchema?: any; uiSchema?: any }, // Partial update for schemas only
+    schemas: { jsonSchema?: any; uiSchema?: any; isActive?: boolean }, // Partial update for schemas only
     session?: ClientSession,
   ): Promise<UpdateResult> {
     await this.init();
+
+    const updateFields: any = {};
+    if (schemas.jsonSchema !== undefined) {
+      updateFields['settings.registration.jsonSchema'] = schemas.jsonSchema;
+    }
+    if (schemas.uiSchema !== undefined) {
+      updateFields['settings.registration.uiSchema'] = schemas.uiSchema;
+    }
+    if (schemas.isActive !== undefined) {
+      updateFields['settings.registration.isActive'] = schemas.isActive;
+    }
 
     const result = await this.courseSettingsCollection.updateOne(
       {
@@ -426,10 +440,7 @@ export class SettingRepository implements ISettingRepository {
         courseVersionId: new ObjectId(versionId),
       },
       {
-        $set: {
-          'settings.registration.jsonSchema': schemas.jsonSchema,
-          'settings.registration.uiSchema': schemas.uiSchema,
-        },
+        $set: updateFields,
       },
       { session },
     );
@@ -449,9 +460,11 @@ export class SettingRepository implements ISettingRepository {
       { courseVersionId: new ObjectId(versionId) },
       { session },
     );
-    const jsonSchema = result.settings.registration.jsonSchema;
-    const uiSchema = result.settings.registration.uiSchema;
-    return { jsonSchema, uiSchema };
+    const registration = result.settings.registration || {};
+    const jsonSchema = registration.jsonSchema;
+    const uiSchema = registration.uiSchema;
+    const isActive = registration.isActive;
+    return { jsonSchema, uiSchema, isActive };
   }
 
   async deleteCourseSettingsbyVersionId(
@@ -497,5 +510,154 @@ export class SettingRepository implements ISettingRepository {
     }
 
     return courseSettings.settings.linearProgressionEnabled;
+  }
+
+  async getPublicCourses(
+    excludeCourseIds: string[],
+    skip: number,
+    limit: number,
+    search: string,
+    session?: ClientSession,
+  ): Promise<any[]> {
+    await this.init();
+
+    // Build aggregation pipeline
+    const pipeline: any[] = [
+      // Filter for public courses
+      {
+        $match: {
+          'settings.isPublic': true,
+        }
+      },
+      // Lookup to join with newCourse collection
+      {
+        $lookup: {
+          from: 'newCourse',
+          localField: 'courseId',
+          foreignField: '_id',
+          as: 'courseData'
+        }
+      },
+      // Unwind the courseData array
+      {
+        $unwind: {
+          path: '$courseData',
+          preserveNullAndEmptyArrays: false // Skip if no matching course
+        }
+      },
+      // Filter out deleted courses
+      {
+        $match: {
+          'courseData.isDeleted': { $ne: true }
+        }
+      },
+    ];
+
+    // Add filter for excluded courses
+    if (excludeCourseIds.length > 0) {
+      pipeline.push({
+        $match: {
+          courseId: { $nin: excludeCourseIds.map(id => new ObjectId(id)) }
+        }
+      });
+    }
+
+    // Add search filter if provided
+    if (search) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { 'courseData.name': { $regex: search, $options: 'i' } },
+            { 'courseData.description': { $regex: search, $options: 'i' } },
+          ]
+        }
+      });
+    }
+
+    // Project the fields we need
+    pipeline.push({
+      $project: {
+        _id: 0,
+        courseId: { $toString: '$courseId' },
+        courseVersionId: { $toString: '$courseVersionId' },
+        courseName: '$courseData.name',
+        courseDescription: '$courseData.description',
+        isPublic: '$settings.isPublic'
+      }
+    });
+
+    // Add pagination
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: limit });
+
+    const result = await this.courseSettingsCollection
+      .aggregate(pipeline, { session })
+      .toArray();
+
+    return result;
+  }
+
+  async countPublicCourses(
+    excludeCourseIds: string[],
+    search: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+
+    const pipeline: any[] = [
+      {
+        $match: {
+          'settings.isPublic': true,
+        },
+      },
+      {
+        $lookup: {
+          from: 'newCourse',
+          localField: 'courseId',
+          foreignField: '_id',
+          as: 'courseData',
+        },
+      },
+      {
+        $unwind: {
+          path: '$courseData',
+          preserveNullAndEmptyArrays: false,
+        },
+      },
+      {
+        $match: {
+          'courseData.isDeleted': { $ne: true },
+        },
+      },
+    ];
+
+    if (excludeCourseIds.length > 0) {
+      pipeline.push({
+        $match: {
+          courseId: { $nin: excludeCourseIds.map(id => new ObjectId(id)) },
+        },
+      });
+    }
+
+    if (search) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { 'courseData.name': { $regex: search, $options: 'i' } },
+            { 'courseData.description': { $regex: search, $options: 'i' } },
+          ],
+        },
+      });
+    }
+
+    pipeline.push({
+      $count: 'total',
+    });
+
+    const result = await this.courseSettingsCollection
+      .aggregate(pipeline, { session })
+      .toArray();
+
+    return result.length > 0 ? result[0].total : 0;
   }
 }

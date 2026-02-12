@@ -1,20 +1,17 @@
-import { loginWithGoogle, loginWithEmail, createUserWithEmail } from "@/lib/firebase";
+import { loginWithGoogle, loginWithEmail } from "@/lib/firebase";
 import { useAuthStore } from "@/store/auth-store";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { useState, createContext, useContext, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Check, AlertCircle, TimerOff , Eye, EyeOff} from "lucide-react";
+import { Check, AlertCircle,  Eye, EyeOff} from "lucide-react";
 import { ShineBorder } from "@/components/magicui/shine-border";
 import { AnimatedGridPattern } from "@/components/magicui/animated-grid-pattern";
-import { AuroraText } from "@/components/magicui/aurora-text";
 import { cn } from "@/utils/utils";
-import { useSignup, useLoginWithGoogle } from "@/hooks/hooks.ts";
-import collabration from "../../../public/img/collabration.svg";
-import vledLogo from "../../../public/img/vled-logo-login.png";
+import { useSignup } from "@/hooks/hooks.ts";
 import ReCAPTCHA from "react-google-recaptcha";
 import { LeftHeroSection } from "@/components/Auth/LeftHeroSection";
 
@@ -320,6 +317,8 @@ export default function AuthPage({role}: AuthPageProps) {
     }
   }, [isAuthenticated, user, navigate]);
 
+ 
+
   // Return the new beautiful auth page with Magic UI
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
@@ -349,7 +348,7 @@ export default function AuthPage({role}: AuthPageProps) {
               <>
                 {/* Back Button */}
                           <div className="inline-flex items-center gap-3 px-4 py-2">
-                              <span className="text-md text-muted-foreground">Not a {role}?</span>
+                              <span className="text-md text-muted-foreground">Want to teach on ViBe?</span>
                               <button
                                   onClick={() => navigate({ to: "/select-role" })}
                                   className="cursor-pointer text-md font-medium text-primary hover:text-primary/80 hover:underline hover:underline-offset-4 transition-colors"
@@ -387,7 +386,7 @@ export default function AuthPage({role}: AuthPageProps) {
 
                         {/* Email Field */}
                         <div className="space-y-2">
-                          <Label htmlFor="email" className="text-sm font-medium">
+                          <Label htmlFor="email" className="font-medium">
                             Email Address
                           </Label>
                           <Input
@@ -408,7 +407,7 @@ export default function AuthPage({role}: AuthPageProps) {
 
                         {/* Password Field */}
                         <div className="space-y-2">
-                          <Label htmlFor="password" className="text-sm font-medium">
+                          <Label htmlFor="password" className="font-medium">
                             Password
                           </Label>
                           <div className="relative">
@@ -534,7 +533,7 @@ export default function AuthPage({role}: AuthPageProps) {
 
                         {/* Full Name */}
                         <div className="space-y-2">
-                          <Label htmlFor="fullName" className="text-sm font-medium">
+                          <Label htmlFor="fullName" className="font-medium">
                             Full Name
                           </Label>
                           <Input
@@ -554,7 +553,7 @@ export default function AuthPage({role}: AuthPageProps) {
 
                         {/* Email */}
                         <div className="space-y-2">
-                          <Label htmlFor="signup-email" className="text-sm font-medium">
+                          <Label htmlFor="signup-email" className="font-medium">
                             Email Address
                           </Label>
                           <Input
@@ -575,7 +574,7 @@ export default function AuthPage({role}: AuthPageProps) {
 
                         {/* Password with Strength Indicator */}
                         <div className="space-y-2">
-                          <Label htmlFor="signup-password" className="text-sm font-medium">
+                          <Label htmlFor="signup-password" className="font-medium">
                             Password
                           </Label>
                           <Input
@@ -651,7 +650,7 @@ export default function AuthPage({role}: AuthPageProps) {
 
                         {/* Confirm Password */}
                         <div className="space-y-2">
-                          <Label htmlFor="confirmPassword" className="text-sm font-medium">
+                          <Label htmlFor="confirmPassword" className="font-medium">
                             Confirm Password
                           </Label>
                           <div className="relative">

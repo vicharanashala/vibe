@@ -16,8 +16,8 @@ export class WebhookService {
     const agent = appConfig.isProduction || appConfig.isStaging ? new SocksProxyAgent(aiConfig.proxyAddress) : undefined;
 
     this.httpClient = axios.create({
-      httpAgent: agent,
-      httpsAgent: agent,
+      // httpAgent: agent,
+      // httpsAgent: agent,
       baseURL: this.aiServerUrl,
       timeout: 30000,
       headers: {
