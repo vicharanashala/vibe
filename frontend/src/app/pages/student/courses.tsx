@@ -146,7 +146,7 @@ export default function StudentCourses() {
             </div>
             <TabsList className="md:w-fit w-full">
               <TabsTrigger value="enrolled" className="cursor-pointer">
-                Enrolled ({isLoading ? "..." : activeEnrollments.length})
+                Enrolled ({isLoading ? "..." : totalDocuments})
               </TabsTrigger>
               <TabsTrigger value="available" className="cursor-pointer">
                 Available ({loadingPublic ? "..." : (publicCoursesData?.totalDocuments || 0)})
