@@ -1,7 +1,9 @@
 import { GripVertical } from "lucide-react"
 import * as ResizablePrimitive from "react-resizable-panels"
+import { useSidebar } from "./sidebar"
 
 import { cn } from "@/utils/utils"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 const ResizablePanelGroup = ({
   className,
@@ -40,4 +42,28 @@ const ResizableHandle = ({
   </ResizablePrimitive.PanelResizeHandle>
 )
 
-export { ResizablePanelGroup, ResizablePanel, ResizableHandle }
+function SidebarResizablePanel({ 
+  children,
+  defaultSize = 20,
+  minSize = 20,
+  maxSize=40,
+  ...props 
+}: React.ComponentProps<typeof ResizablePanel>) {
+  const { state,openMobile } = useSidebar();
+  const isMobile=useIsMobile();
+  const shouldClose=(!isMobile && state==="collapsed")||(isMobile && !openMobile)
+  
+  return (
+    <ResizablePanel
+      defaultSize={shouldClose?0:defaultSize}
+      minSize={shouldClose?0:minSize}
+      maxSize={shouldClose?0:maxSize}
+      className="hidden md:block"
+      {...props}
+    >
+      {children}
+    </ResizablePanel>
+  );
+}
+
+export { ResizablePanelGroup, SidebarResizablePanel,ResizablePanel, ResizableHandle }
