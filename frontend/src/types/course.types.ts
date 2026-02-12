@@ -57,6 +57,7 @@ export interface CourseSectionProps {
   onViewAll?: () => void;
   onRetry?: () => void;
   variant?: 'dashboard' | 'courses';
+  cardVariant?: 'dashboard' | 'courses' | 'available';
   skeletonCount?: number;
   emptyStateConfig?: {
     title: string;
