@@ -14,6 +14,8 @@ import {
   ForbiddenError,
   Authorized,
   Patch,
+  UseInterceptor,
+  Req,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {COURSES_TYPES} from '#courses/types.js';
@@ -42,6 +44,10 @@ import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {response} from 'express';
 import {CourseActions} from '../abilities/courseAbilities.js';
+import { AuditTrailsHandler } from '#root/shared/index.js';
+import { setAuditTrail } from '#root/utils/setAuditTrail.js';
+import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
+import { ObjectId } from 'mongodb';
 
 @OpenAPI({
   tags: ['Course Versions'],
@@ -64,6 +70,7 @@ Accessible to:
   })
   @Authorized()
   @Post('/:courseId/versions', {transformResponse: true})
+  @UseInterceptor(AuditTrailsHandler)
   @HttpCode(201)
   @ResponseSchema(CreateCourseVersionResponse, {
     description: 'Course version created successfully',
@@ -80,6 +87,7 @@ Accessible to:
     @Params() params: CreateCourseVersionParams,
     @Body() body: CreateCourseVersionBody,
     @Ability(getCourseVersionAbility) {ability, user},
+    @Req() req: Request
   ): Promise<CourseVersion> {
     const {courseId} = params;
     const userId = user._id.toString();
@@ -106,6 +114,26 @@ Accessible to:
       String(createdCourseVersion._id), // only convert here
       'INSTRUCTOR',
     );
+
+    setAuditTrail(req, {
+      category: AuditCategory.COURSE_VERSION,
+      action: AuditAction.COURSE_VERSION_CREATE,
+      actor: ObjectId.createFromHexString(userId),
+      context:{
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: ObjectId.createFromHexString(createdCourseVersion._id.toString()),
+      },
+      changes:{
+        after: {
+          version: createdCourseVersion.version,
+          description: createdCourseVersion.description,
+          totalItems: createdCourseVersion.totalItems,
+        }
+      },
+      outcome:{
+        status: OutComeStatus.SUCCESS,
+      }
+    })
 
     return createdCourseVersion;
   }
@@ -157,6 +185,7 @@ Accessible to:
   })
   @Authorized()
   @Patch('/:courseId/versions/:versionId', {transformResponse: true})
+  @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(CourseVersionDataResponse, {
     description: 'Course version updated successfully',
   })
@@ -171,7 +200,8 @@ Accessible to:
   async update(
     @Params() params: UpdateCourseVersionParams,
     @Body() body: UpdateCourseVersionBody,
-    @Ability(getCourseVersionAbility) {ability},
+    @Ability(getCourseVersionAbility) {ability, user},
+    @Req() req: Request
   ): Promise<CourseVersion> {
     const {courseId, versionId} = params;
 
@@ -186,8 +216,34 @@ Accessible to:
       );
     }
 
+    const existingVersion = await this.courseVersionService.readCourseVersion(versionId, user._id);
     const updatedCourseVersion =
       await this.courseVersionService.updateCourseVersion(versionId, body);
+
+      setAuditTrail(req,{
+      category: AuditCategory.COURSE_VERSION,
+      action: AuditAction.COURSE_VERSION_UPDATE,
+      actor: ObjectId.createFromHexString(user._id.toString()),
+      context:{
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: ObjectId.createFromHexString(versionId),
+      },
+      changes:{
+        before: {
+          version: existingVersion.version,
+          description: existingVersion.description,
+          totalItems: existingVersion.totalItems,
+        },
+        after: {
+          version: updatedCourseVersion.version,
+          description: updatedCourseVersion.description,
+          totalItems: updatedCourseVersion.totalItems,
+        }
+      },
+      outcome:{
+        status: OutComeStatus.SUCCESS, 
+      }
+  })
     return updatedCourseVersion;
   }
 
@@ -199,6 +255,7 @@ Accessible to:
   })
   @Authorized()
   @Delete('/:courseId/versions/:versionId')
+  @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(DeleteCourseVersionParams, {
     description: 'Course version deleted successfully',
   })
@@ -212,7 +269,8 @@ Accessible to:
   })
   async delete(
     @Params() params: DeleteCourseVersionParams,
-    @Ability(getCourseVersionAbility) {ability},
+    @Ability(getCourseVersionAbility) {ability, user},
+    @Req() req: Request
   ): Promise<{message: string}> {
     const {courseId, versionId} = params;
     if (!versionId || !courseId) {
@@ -235,6 +293,8 @@ Accessible to:
       throw new BadRequestError(`You can't delete this version!`);
     }
 
+    const courseVersionToDelete = await this.courseVersionService.readCourseVersion(versionId, user._id);
+
     const deletedVersion = await this.courseVersionService.deleteCourseVersion(
       courseId,
       versionId,
@@ -244,6 +304,26 @@ Accessible to:
         'Failed to Delete Version, Please try again later',
       );
     }
+
+    setAuditTrail(req, {
+      category: AuditCategory.COURSE_VERSION,
+      action: AuditAction.COURSE_VERSION_DELETE,
+      actor: ObjectId.createFromHexString(user._id.toString()),
+      context:{
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: ObjectId.createFromHexString(versionId),
+      },
+      changes:{
+        before: {
+          version: courseVersionToDelete.version,
+          description: courseVersionToDelete.description,
+          totalItems: courseVersionToDelete.totalItems,
+        }
+      },
+      outcome:{
+        status: OutComeStatus.SUCCESS, 
+      }
+    })
     return {
       message: `Version with the ID ${versionId} has been deleted successfully.`,
     };
@@ -257,6 +337,7 @@ Accessible to:
   })
   @Authorized()
   @Post('/:courseId/version/:versionId/copy')
+  @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(CopyCourseVersionResponse, {
     description: 'Course version copied successfully',
   })
@@ -270,7 +351,8 @@ Accessible to:
   })
   async copy(
     @Params() params: CopyCourseVersionParams,
-    @Ability(getCourseVersionAbility) {ability},
+    @Ability(getCourseVersionAbility) {ability, user},
+    @Req() req: Request
   ): Promise<{message: string}> {
     const {courseId, versionId} = params;
 
@@ -299,6 +381,19 @@ Accessible to:
         'Failed to copy version, please try again later',
       );
     }
+
+    setAuditTrail(req, {
+      category: AuditCategory.COURSE_VERSION,
+      action: AuditAction.COURSE_VERSION_CLONE,
+      actor: ObjectId.createFromHexString(user._id.toString()),
+      context:{
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: ObjectId.createFromHexString(versionId),
+      },
+      outcome:{
+        status: OutComeStatus.SUCCESS, 
+      }
+    });
 
     return {
       message: `Version copied successfully.`,
