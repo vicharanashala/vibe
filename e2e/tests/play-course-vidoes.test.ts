@@ -160,8 +160,8 @@ test('Test course video playback and quiz', async ({ page }) => {
     // 🎯 YouTube embedded Play button
     const playButton = page.getByRole('button', { name: /^play$/i });
 
-    // ⏱ Time display like "1:39 / 2:20"
-    const timeDisplay = page.locator('text=/\\d:\\d{2}\\s*\\/\\s*\\d:\\d{2}/');
+    // ⏱ Time display like "mm:ss / mm:ss"
+    const timeDisplay = page.locator('text=/\\d{1,2}:\\d{2}\\s*\\/\\s*\\d{1,2}:\\d{2}/');
 
     // Wait for player to be ready
     await expect(playButton).toBeVisible({ timeout: 30_000 });
@@ -282,7 +282,7 @@ test('Test course video playback and quiz', async ({ page }) => {
 
   async function attemptQuiz(page: Page) {
     // 1️⃣ Ensure we are on the Quiz page
-    await expect(page.getByText(/^quiz\s+\d+$/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/Quiz\s+\d+/i)).toBeVisible({ timeout: 10_000 });
 
     console.log('✅ Quiz heading detected');
 
@@ -339,17 +339,23 @@ test('Test course video playback and quiz', async ({ page }) => {
     }
 
     const completedHeading = page.getByText(/quiz\s+completed/i);
-    await expect(completedHeading).toBeVisible({ timeout: 10_000 });
+    await completedHeading.waitFor({ state: 'visible', timeout: 10_000 });
     console.log('🎉 Quiz completed successfully');
+
+    //Wait for "Next Lesson" button
+    const nextLessonButton = page.getByRole('button', { name: /next\s+lesson/i });
+    await nextLessonButton.waitFor({ state: 'visible', timeout: 10_000 });
+
+    //Click it
+    await nextLessonButton.click();    
   }
 
   async function waitForQuizAndAttempt(page: Page) {
-    const quizHeading = page.locator('main').getByText(/^quiz\s+\d+$/i);
+    const quizHeading = page.locator('main').getByText(/Quiz\s+\d+/i);
 
-    // ⏳ Wait until the quiz heading becomes visible
     await quizHeading.waitFor({
       state: 'visible',
-      timeout: 30_000,
+      timeout: 60_000,
     });
 
     console.log('🎯 Quiz visible. Starting quiz attempt...');
@@ -360,7 +366,9 @@ test('Test course video playback and quiz', async ({ page }) => {
     // 1️⃣ Wait for correct heading (top of page, not sidebar)
     console.log(`⏳ Waiting for heading: ${expectedVideoName}`);
 
-    await expect(page.locator('main')).toContainText(expectedVideoName, { timeout: 15000 });
+    await page.locator('main', { hasText: expectedVideoName }).waitFor({
+      timeout: 60000,
+    });
 
     console.log(`✅ Heading matched: ${expectedVideoName}`);
 

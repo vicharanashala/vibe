@@ -72,10 +72,12 @@ If the frontend is not running, start it with:
 vibe start frontend
 ```
 
-The following environment variables need to set in front end
-$env:TEST_STUDENT_EMAIL="vibe.user.25@gmail.com"
-$env:TEST_STUDENT_PASSWORD="30122025"
-$env:VITE_E2E_TESTING="true"
+The following environment variables need to set in test application
+TEST_STUDENT_EMAIL=
+TEST_STUDENT_PASSWORD=
+
+The following environment variables need to set in front end env file
+VITE_E2E_TESTING=true
 
 ---
 
