@@ -1,4 +1,4 @@
-import { ComponentPropsWithoutRef } from "react";
+import { ComponentPropsWithoutRef, ReactNode } from "react";
 
 import { motion, MotionProps, Transition } from "motion/react";
 
@@ -67,7 +67,7 @@ export interface BorderBeamProps {
 
 export interface LineShadowTextProps
   extends Omit<React.HTMLAttributes<HTMLElement>, keyof MotionProps>,
-    MotionProps {
+  MotionProps {
   shadowColor?: string;
   as?: React.ElementType;
 }
@@ -125,7 +125,7 @@ export interface PaginationProps {
 }
 
 export interface StatCardProps {
-  icon: string;
+  icon: string | ReactNode;
   value: string;
   label: string;
   className?: string;
