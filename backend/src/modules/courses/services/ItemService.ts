@@ -120,7 +120,7 @@ export class ItemService extends BaseService {
         `Section ${sectionId} not found in module ${moduleId}.`,
       );
     const itemsGroup = await this.itemRepo.readItemsGroup(
-      section?.itemsGroupId?.toString(),
+      typeof section?.itemsGroupId === 'string' ? section.itemsGroupId : section.itemsGroupId.toString(),
       session,
     );
     if (!itemsGroup) {
@@ -172,7 +172,7 @@ export class ItemService extends BaseService {
       // Check if any previous "learning item" exists before making the feedback form in the db
       if (body.type === ItemType.FEEDBACK) {
         const dbItemsGroup = await this.itemRepo.readItemsGroup(
-          section.itemsGroupId.toString(),
+          typeof section.itemsGroupId === 'string' ? section.itemsGroupId : section.itemsGroupId.toString(),
           session,
         );
 
@@ -659,7 +659,7 @@ export class ItemService extends BaseService {
         s => s.sectionId?.toString() === sectionId,
       )!;
       const itemsGroup = await this.itemRepo.readItemsGroup(
-        section.itemsGroupId.toString(),
+        typeof section.itemsGroupId === 'string' ? section.itemsGroupId : section.itemsGroupId.toString(),
         session,
       );
 
