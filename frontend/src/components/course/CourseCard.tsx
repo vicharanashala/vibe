@@ -211,7 +211,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 )}
                 {variant !== 'available' && (
                   <div className="flex items-center gap-2">
-                    <span>Enrolled</span>
+                    <span>Enrolled At</span>
                     <div className="flex items-center gap-1">
                       <Clock className="h-4 w-4 text-green-500" />
                       <span className="text-green-500">
