@@ -1,7 +1,7 @@
 import { Expose, Transform, Type } from 'class-transformer';
 import { ObjectId } from 'mongodb';
 import { ObjectIdToString, StringToObjectId } from '#root/shared/index.js';
-import { AuditAction, AuditCategory, InstructorAuditTrail } from '../../interfaces/IAuditTrails.js';
+import { AuditAction, AuditCategory, InstructorAuditTrail, OutComeStatus } from '../../interfaces/IAuditTrails.js';
 import { JSONSchema } from 'class-validator-jsonschema';
 
 export class AuditTrails implements InstructorAuditTrail {
@@ -99,14 +99,14 @@ export class AuditTrails implements InstructorAuditTrail {
         title: "Outcome of the action",
         description: "Outcome of the action",
         example: {
-            status: "FAILED",
+            status: OutComeStatus.SUCCESS,
             errorCode: "500",
             errorMessage: "Unable to create audit logs for this action"
         },
         type: "object",
     })
     outcome: {
-        status: "SUCCESS" | "FAILED" | "PARTIAL";
+        status: OutComeStatus;
         errorCode?: string;
         errorMessage?: string;
     }
@@ -122,12 +122,12 @@ export class AuditTrails implements InstructorAuditTrail {
     })
     createdAt: Date;
     constructor(userId?: string) {
-        this.category = "";
-        this.action = "";
+        this.category = AuditCategory.COURSE;
+        this.action = AuditAction.COURSE_CREATE;
         this.actor = userId;
         this.context = {};
         this.changes = {};
-        this.outcome = { status: "PARTIAL" };
+        this.outcome = { status: OutComeStatus.PARTIAL };
         this.createdAt = new Date();
     }
 }

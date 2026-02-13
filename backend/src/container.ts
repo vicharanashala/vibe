@@ -4,6 +4,7 @@ import {
   UserRepository,
   HttpErrorHandler,
   SettingRepository,
+  AuditTrailsHandler,
 } from '#shared/index.js';
 import {GLOBAL_TYPES} from './types.js';
 import {dbConfig} from './config/db.js';
@@ -38,5 +39,6 @@ export const sharedContainerModule = new ContainerModule(options => {
 
   // Other
   options.bind(HttpErrorHandler).toSelf().inSingletonScope();
+  options.bind(AuditTrailsHandler).toSelf().inSingletonScope();
 }); 
 

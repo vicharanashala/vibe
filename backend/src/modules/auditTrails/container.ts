@@ -15,6 +15,6 @@ export const auditTrailsContainerModule = new ContainerModule(options => {
     options.bind(AUDIT_TRAILS_TYPES.AuditTrailsService).to(AuditTrailsService).inSingletonScope();
     
     // Controllers
-
     options.bind(AuditTrailsController).toSelf().inSingletonScope();
+
 })

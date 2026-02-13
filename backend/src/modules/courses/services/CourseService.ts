@@ -74,6 +74,7 @@ class CourseService extends BaseService {
       );
 
       const versionId = newVersion._id.toString();
+      createdCourse.versions.push(new ObjectId(versionId));
 
       // Prepare independent tasks
       const enrollPromise = this.enrollmentService.enrollUser(

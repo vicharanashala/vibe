@@ -1,7 +1,10 @@
-import { AuditCategory } from "./IAuditTrails.js";
+import { AuditCategory, InstructorAuditTrail } from "./IAuditTrails.js";
 import { AuditAction } from "./IAuditTrails.js";
 import { ClientSession } from "mongodb";
 
 export interface IAuditTrailsRepository{
-    // getAudittrails();
+    createAuditTrail(
+        data: InstructorAuditTrail,
+        session?: ClientSession
+    ): Promise<string>;
 }
