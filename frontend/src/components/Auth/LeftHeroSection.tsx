@@ -6,6 +6,7 @@ import { ShineBorder } from "@/components/magicui/shine-border";
 import { AuroraText } from "@/components/magicui/aurora-text";
 import collabration from "../../../public/img/collabration.svg";
 import vledLogo from "../../../public/img/vled-logo-login.png";
+import iitClear from "../../../public/img/iit-clear.png";
 
 export const LeftHeroSection =()=>{
     const navigate = useNavigate();
@@ -16,14 +17,17 @@ export const LeftHeroSection =()=>{
 
           {/* Top Section with Brand - Positioned Absolutely */}
           <div className="absolute top-8 left-8 flex items-center space-x-4">
-            <Button
+           {![
+      'vibe.devabhasha.live',
+      'vibe.gurusetu.org',
+    ].includes(window.location.hostname)&& <Button
               variant="ghost"
               size="sm"
               className="text-muted-foreground hover:!bg-[#C393E2] "
               onClick={() => navigate({ to: "/auth" })}
             >
               ← Back
-            </Button>
+            </Button>}
             <div className="h-12 w-12 rounded-lg overflow-hidden">
               <img
                 src={collabration}
@@ -66,7 +70,7 @@ export const LeftHeroSection =()=>{
                   />
                   <div className="relative p-2 flex items-center justify-center h-28 bg-white">
                     <img
-                      src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQIMLYKMDSyb-jHjoXCgqylITmmVNGIxwMfKg&s"
+                      src={iitClear}
                       alt="IIT Ropar"
                       className="h-full w-full object-contain group-hover:scale-110 transition-transform duration-300"
                     />
