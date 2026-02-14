@@ -12,6 +12,9 @@ import {
   Authorized,
   QueryParams,
   Res,
+  UseInterceptor,
+  Req,
+  BadRequestError,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { COURSES_TYPES } from '#courses/types.js';
@@ -45,6 +48,13 @@ import { ItemType } from '#shared/interfaces/models.js';
 import { HideModuleBody } from '../classes/index.js';
 import { createObjectCsvStringifier } from 'csv-writer';
 import { Response } from 'express';
+import { AuditTrailsHandler } from '#root/shared/index.js';
+import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
+import { setAuditTrail } from '#root/utils/setAuditTrail.js';
+import { ObjectId } from 'mongodb';
+import { before } from 'node:test';
+import { get } from 'http';
+import { number } from 'mathjs';
 
 @OpenAPI({
   tags: ['Course Items'],
@@ -66,6 +76,7 @@ export class ItemController {
   })
   @Authorized()
   @Post('/versions/:versionId/modules/:moduleId/sections/:sectionId/items')
+  @UseInterceptor(AuditTrailsHandler)
   @HttpCode(201)
   @ResponseSchema(ItemDataResponse, {
     description: 'Item created successfully',
@@ -81,7 +92,8 @@ export class ItemController {
   async create(
     @Params() params: VersionModuleSectionParams,
     @Body() body: CreateItemBody,
-    @Ability(getItemAbility) { ability },
+    @Ability(getItemAbility) { ability, user },
+    @Req() req: Request,
   ) {
     const { versionId, moduleId, sectionId } = params;
 
@@ -94,12 +106,47 @@ export class ItemController {
         'You do not have permission to create items in this section',
       );
     }
-    return await this.itemService.createItem(
+
+    const result = await this.itemService.createItem(
       versionId,
       moduleId,
       sectionId,
       body,
     );
+
+    const createdItem = result.createdItem;
+
+    setAuditTrail(req, {
+      category: AuditCategory.ITEM,
+      action: AuditAction.ITEM_ADD,
+      actor: ObjectId.createFromHexString(user._id.toString()),
+      context: {
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        moduleId: ObjectId.createFromHexString(moduleId),
+        sectionId: ObjectId.createFromHexString(sectionId),
+        relatedIds:{
+          afterItemId: body.afterItemId ? ObjectId.createFromHexString(body.afterItemId) : null,
+          beforeItemId: body.beforeItemId ? ObjectId.createFromHexString(body.beforeItemId) : null
+        }
+      },
+      changes:{
+        after:{
+          itemId: createdItem._id,
+          title: body.name,
+          description: body.description,
+          type: body.type,
+          videoDetails: body.videoDetails,
+          quizDetails: body.quizDetails,
+          blogDetails: body.blogDetails,
+          feedbackDetails: body.feedbackFormDetails,
+          isOptional: body.isOptional,
+        }
+      },
+      outcome:{
+        status: OutComeStatus.SUCCESS
+      }
+    })
+    return result;
   }
 
   @OpenAPI({
@@ -196,6 +243,7 @@ export class ItemController {
   })
   @Authorized()
   @Put('/versions/:versionId/items/:itemId')
+  @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(ItemDataResponse, {
     description: 'Item updated successfully',
   })
@@ -210,7 +258,8 @@ export class ItemController {
   async update(
     @Params() params: VersionItemParams,
     @Body() body: UpdateItemBody,
-    @Ability(getItemAbility) { ability },
+    @Ability(getItemAbility) { ability, user },
+    @Req() req: Request,
   ) {
     const { versionId, itemId } = params;
 
@@ -224,7 +273,45 @@ export class ItemController {
       );
     }
 
-    return await this.itemService.updateItem(versionId, itemId, body);
+    const getItemBeforeUpdate = await this.itemService.readItem(versionId, itemId);
+
+    const itemData = await this.itemService.updateItem(versionId, itemId, body)
+
+
+    setAuditTrail(req, {
+      category: AuditCategory.ITEM,
+      action: AuditAction.ITEM_UPDATE,
+      actor: ObjectId.createFromHexString(user._id.toString()),
+      context: {
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        itemId: ObjectId.createFromHexString(itemId),
+      },
+      changes:{
+        before:{
+          title: getItemBeforeUpdate.name,
+          description: getItemBeforeUpdate.description,
+          type: getItemBeforeUpdate.type,
+          videoDetails: getItemBeforeUpdate.type === ItemType.VIDEO ? getItemBeforeUpdate.details : null,
+          quizDetails: getItemBeforeUpdate.type === ItemType.QUIZ ? getItemBeforeUpdate.details : null,
+          blogDetails: getItemBeforeUpdate.type === ItemType.BLOG ? getItemBeforeUpdate.details : null,
+          projectDetails: getItemBeforeUpdate.type === ItemType.PROJECT ? getItemBeforeUpdate.details : null,
+        },
+        after:{
+          title: body.name,
+          description: body.description,
+          type: body.type,
+          videoDetails: body.type === ItemType.VIDEO ? body.details : null,
+          quizDetails: body.type === ItemType.QUIZ ? body.details : null,
+          blogDetails: body.type === ItemType.BLOG ? body.details : null,
+          projectDetails: body.type === ItemType.PROJECT ? body.details : null,
+        },
+      },
+      outcome:{
+        status: OutComeStatus.SUCCESS
+      }
+  })
+
+    return itemData;
   }
 
   @OpenAPI({
@@ -235,6 +322,7 @@ export class ItemController {
   })
   @Authorized()
   @Delete('/itemGroups/:itemsGroupId/items/:itemId')
+  @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(DeletedItemResponse, {
     description: 'Item deleted successfully',
   })
@@ -248,7 +336,8 @@ export class ItemController {
   })
   async delete(
     @Params() params: DeleteItemParams,
-    @Ability(getItemAbility) { ability },
+    @Ability(getItemAbility) { ability, user },
+    @Req() req: Request,
   ) {
     const { itemsGroupId, itemId } = params;
     const version = await this.itemService.findVersion(itemsGroupId);
@@ -260,6 +349,32 @@ export class ItemController {
         'You do not have permission to delete this item',
       );
     }
+
+    const getItemBeforeDelete = await this.itemService.readItem(version._id.toString(), itemId);
+
+    setAuditTrail(req, {
+      category: AuditCategory.ITEM,
+      action: AuditAction.ITEM_DELETE,
+      actor: ObjectId.createFromHexString(user._id.toString()),
+      context: {
+        courseVersionId: ObjectId.createFromHexString(version._id.toString()),
+        itemId: ObjectId.createFromHexString(itemId),
+      },
+      changes:{
+        before:{
+          title: getItemBeforeDelete.name,
+          description: getItemBeforeDelete.description,
+          type: getItemBeforeDelete.type,
+          videoDetails: getItemBeforeDelete.type === ItemType.VIDEO ? getItemBeforeDelete.details : null,
+          quizDetails: getItemBeforeDelete.type === ItemType.QUIZ ? getItemBeforeDelete.details : null,
+          blogDetails: getItemBeforeDelete.type === ItemType.BLOG ? getItemBeforeDelete.details : null,
+          projectDetails: getItemBeforeDelete.type === ItemType.PROJECT ? getItemBeforeDelete.details : null,
+        }
+      },
+      outcome:{
+        status: OutComeStatus.SUCCESS
+      }
+    })
 
     return await this.itemService.deleteItem(itemsGroupId, itemId);
   }
@@ -274,6 +389,7 @@ Accessible to:
   @Put(
     '/versions/:versionId/modules/:moduleId/sections/:sectionId/items/:itemId/move',
   )
+  @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(ItemDataResponse, {
     description: 'Item moved successfully',
   })
@@ -288,7 +404,8 @@ Accessible to:
   async move(
     @Params() params: VersionModuleSectionItemParams,
     @Body() body: MoveItemBody,
-    @Ability(getItemAbility) { ability },
+    @Ability(getItemAbility) { ability, user },
+    @Req() req: Request,
   ) {
     const { versionId, moduleId, sectionId, itemId } = params;
 
@@ -300,13 +417,92 @@ Accessible to:
       throw new ForbiddenError('You do not have permission to move this item');
     }
 
-    return await this.itemService.moveItem(
+    const getItemsBeforeMove = await this.itemService.readAllItems(
+      versionId,
+      moduleId,
+      sectionId,
+      user._id,
+    );
+
+    const sortedItemsbeforeMove = getItemsBeforeMove.sort((a, b)=> a.order.localeCompare(b.order));
+    const positionOfItemBeforeMove = sortedItemsbeforeMove.findIndex(item => item._id.toString() === itemId);
+    const beforeItemIdBeforeMove = sortedItemsbeforeMove[positionOfItemBeforeMove - 1]?._id;
+    const afterItemIdBeforeMove = sortedItemsbeforeMove[positionOfItemBeforeMove + 1]?._id;
+    const orderBeforeMove = sortedItemsbeforeMove[positionOfItemBeforeMove].order;
+
+    const updatedItems = await this.itemService.moveItem(
       versionId,
       moduleId,
       sectionId,
       itemId,
       body,
     );
+
+    if(!updatedItems){
+      setAuditTrail(req, {
+        category: AuditCategory.ITEM,
+        action: AuditAction.ITEM_REORDER,
+        actor: ObjectId.createFromHexString(user._id.toString()),
+        context: {
+          courseVersionId: ObjectId.createFromHexString(versionId),
+          moduleId: ObjectId.createFromHexString(moduleId),
+          sectionId: ObjectId.createFromHexString(sectionId),
+          itemId: ObjectId.createFromHexString(itemId),
+          relatedIds:{
+            beforeItemId: body.beforeItemId ? ObjectId.createFromHexString(body.beforeItemId.toString()) : null,
+            afterItemId: body.afterItemId ? ObjectId.createFromHexString(body.afterItemId.toString()) : null,
+          }
+        },
+        outcome: {
+          status: OutComeStatus.FAILED,
+          errorMessage: 'Failed to move the item. Please try again.'
+        }
+      })
+
+      throw new BadRequestError('Failed to move the item. Please try again.');
+    }
+
+    const getItemsAfterMove = await this.itemService.readAllItems(
+      versionId,
+      moduleId,
+      sectionId,
+      user._id,
+    );
+
+    const sortedItemsAfterMove = getItemsAfterMove.sort((a, b)=> a.order.localeCompare(b.order));
+    const positionOfItemAfterMove = sortedItemsAfterMove.findIndex(item => item._id.toString() === itemId);
+    const afterItemIdAfterMove = sortedItemsAfterMove[positionOfItemAfterMove + 1]?._id;
+    const beforeItemIdAfterMove = sortedItemsAfterMove[positionOfItemAfterMove - 1]?._id;
+    const orderAfterMove = sortedItemsAfterMove[positionOfItemAfterMove].order;
+
+    setAuditTrail(req, {
+      category: AuditCategory.ITEM,
+      action: AuditAction.ITEM_REORDER,
+      actor: ObjectId.createFromHexString(user._id.toString()),
+      context: {
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        moduleId: ObjectId.createFromHexString(moduleId),
+        sectionId: ObjectId.createFromHexString(sectionId),
+        itemId: ObjectId.createFromHexString(itemId),
+        relatedIds:{
+          beforeItemId: body.beforeItemId ? ObjectId.createFromHexString(body.beforeItemId.toString()) : null,
+          afterItemId: body.afterItemId ? ObjectId.createFromHexString(body.afterItemId.toString()) : null,
+        }
+      },
+      changes: {
+        before: {
+          order: orderBeforeMove,
+          beforeItemId: beforeItemIdBeforeMove ? ObjectId.createFromHexString(beforeItemIdBeforeMove.toString()) : null,
+          afterItemId: afterItemIdBeforeMove ? ObjectId.createFromHexString(afterItemIdBeforeMove.toString()) : null,
+        },
+        after:{
+          order: orderAfterMove,
+          beforeItemId: beforeItemIdAfterMove ? ObjectId.createFromHexString(beforeItemIdAfterMove.toString()) : null,
+          afterItemId: afterItemIdAfterMove ? ObjectId.createFromHexString(afterItemIdAfterMove.toString()) : null,
+        }
+      }
+    })
+    return updatedItems;
   }
 
   @OpenAPI({
@@ -434,6 +630,7 @@ Accessible to:
   @Authorized()
   @HttpCode(200)
   @Put('/versions/:versionId/items/:itemId/optional')
+  @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(ItemDataResponse, {
     description: 'Item optional status updated successfully',
   })
@@ -448,7 +645,8 @@ Accessible to:
   async updateOptionalStatus(
     @Params() params: VersionItemParams,
     @Body() body: { isOptional: boolean },
-    @Ability(getItemAbility) { ability },
+    @Ability(getItemAbility) { ability, user },
+    @Req() req: Request,
   ) {
     const { versionId, itemId } = params;
     // Check permission
@@ -458,6 +656,30 @@ Accessible to:
         'You do not have permission to modify this item',
       );
     }
+
+    const getItemBeforeUpdate = await this.itemService.readItem(versionId, itemId);
+
+    setAuditTrail(req, {
+      category: AuditCategory.ITEM,
+      action: AuditAction.ITEM_MAKE_OPTIONAL,
+      actor: ObjectId.createFromHexString(user._id.toString()),
+      context: {
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        itemId: ObjectId.createFromHexString(itemId),
+        itemType: getItemBeforeUpdate.type,
+      },
+      changes: {
+        before: {
+          isOptional: !(body.isOptional), // Assuming the status is being toggled
+        },
+        after: {
+          isOptional: body.isOptional,
+        },
+      },
+      outcome: {
+        status: OutComeStatus.SUCCESS,
+      },
+    })
 
     return await this.itemService.updateItemOptionalStatus(
       versionId,
@@ -474,6 +696,7 @@ Accessible to:
   })
   @Authorized()
   @Put('/versions/:versionId/items/:itemId/toggle-visibility')
+  @UseInterceptor(AuditTrailsHandler)
   @HttpCode(200)
   @ResponseSchema(ItemDataResponse, {
     description: 'Item visibility toggled successfully',
@@ -489,7 +712,8 @@ Accessible to:
   async toggleItemVisibility(
     @Params() params: VersionItemParams,
     @Body() body: HideModuleBody,
-    @Ability(getItemAbility) { ability },
+    @Ability(getItemAbility) { ability, user },
+    @Req() req: Request,
   ) {
     const { versionId, itemId } = params;
     const { hide } = body;
@@ -505,7 +729,31 @@ Accessible to:
       );
     }
 
+    const getItemBeforeUpdate = await this.itemService.readItem(versionId, itemId);
+
     await this.itemService.toggleItemVisibility(versionId, itemId, hide);
+
+    setAuditTrail(req, {
+      category: AuditCategory.ITEM,
+      action: AuditAction.ITEM_HIDE,
+      actor: ObjectId.createFromHexString(user._id.toString()),
+      context: {
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        itemId: ObjectId.createFromHexString(itemId),
+        itemType: getItemBeforeUpdate.type,
+      },
+      changes: {
+        before: {
+          isHidden: !hide, // Assuming the status is being toggled
+        },
+        after: {
+          isHidden: hide,
+        },
+      },
+      outcome: {
+        status: OutComeStatus.SUCCESS,
+      },
+    })
 
     return { itemId: itemId, isHidden: hide };
   }
@@ -518,6 +766,7 @@ Accessible to:
   })
   @Authorized()
   @Post("/:courseId/versions/:versionId/module/:moduleId/section/:sectionId/items/csv")
+  @UseInterceptor(AuditTrailsHandler)
   @HttpCode(200)
   @ResponseSchema(csvResponse,{
     description: 'CSV processed successfully',
@@ -535,6 +784,7 @@ Accessible to:
     @Params() params: CourseVersionModuleSectionParams,
     @Body() body: CSVItemBody,
     @Ability(getItemAbility) { user, ability },
+    @Req() req: Request,
   ) {
     const { courseId, versionId, moduleId, sectionId } = params;
     const userId = user.userId || user._id;
@@ -549,6 +799,29 @@ Accessible to:
       userId,
       data
     );
+
+    const createdItems = result.createdItems || [];
+
+    setAuditTrail(req, {
+      category: AuditCategory.ITEM,
+      action: AuditAction.ITEM_BULK_PROCESS,
+      actor: ObjectId.createFromHexString(user._id.toString()),
+      context: {
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        moduleId: ObjectId.createFromHexString(moduleId),
+        sectionId: ObjectId.createFromHexString(sectionId),
+      },
+      changes: {
+        after:{
+          numberOfItemsCreated: result.createdItems ? result.createdItems.length : 0,
+          data: createdItems
+        }
+      },
+      outcome: {
+        status: OutComeStatus.SUCCESS,
+      },
+    });
+
     return result;
   }
 }

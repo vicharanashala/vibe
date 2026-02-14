@@ -52,6 +52,7 @@ export enum AuditAction {
   ITEM_HIDE = "ITEM_HIDE",
   ITEM_REORDER = "ITEM_REORDER",
   ITEM_MAKE_OPTIONAL = "ITEM_MAKE_OPTIONAL",
+  ITEM_BULK_PROCESS = "ITEM_BULK_PROCESS",
 
   // Question / Bank
   QUESTION_ADD = "QUESTION_ADD",
@@ -62,6 +63,7 @@ export enum AuditAction {
   QUESTION_BANK_DELETE = "QUESTION_BANK_DELETE",
 
   // Flags
+  FLAG_CREATE = "FLAG_CREATE",
   FLAG_STATUS_UPDATE = "FLAG_STATUS_UPDATE",
 
   // Enrollment / Progress
@@ -112,6 +114,7 @@ export interface InstructorAuditTrail {
     moduleId?: string | ObjectId;
     sectionId?: string | ObjectId;
     itemId?: string | ObjectId;
+    itemType?: string;
     quizId?: string | ObjectId;
     questionId?: string | ObjectId;
     questionBankId?: string | ObjectId;
