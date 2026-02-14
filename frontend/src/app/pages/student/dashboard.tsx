@@ -14,6 +14,7 @@ import { stopAllStreams } from "@/lib/MediaRegistry";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { CourseCard } from "@/components/course/CourseCard";
+import { BookOpen, TrendingUp } from "lucide-react";
 
 export default function Page() {
   useEffect(() => {
@@ -96,7 +97,7 @@ function DashboardContent() {
 
   useWatchtimeTotal();
 
- 
+
 
   // const filteredEnrollement = enrollments.filter(enrollment=>enrollment.role == "STUDENT");
   const [completion, setCompletion] = useState<CoursePctCompletion[]>([]);
@@ -152,18 +153,19 @@ function DashboardContent() {
         {/* Right: Stat Cards */}
         <div className="flex flex-col sm:flex-row gap-4 items-stretch w-full sm:w-auto">
           <StatCard
-            icon="🏆"
+            icon={<BookOpen className="h-5 w-5" />}
             value={enrollmentsLoading ? "—" : `${totalEnrollments}`}
             label="Enrolled Courses"
           />
-          <StatCard icon="🎓" value={`${totalProgress}%`} label="Completion Percentage" />
+          <StatCard icon={<TrendingUp className="h-5 w-5 text-green-500" />}
+            value={`${totalProgress}%`} label="Completion Percentage" />
         </div>
       </div>
 
       {/* Main content and sidebar */}
       <div className="mb-6 px-0 sm:px-6 lg:px-8 xl:px-0">
-    
-    
+
+
       </div>
 
       <div className="container mx-auto px-0 sm:px-6 lg:px-8 xl:px-0 py-6 flex flex-col lg:flex-row gap-6 transition-all duration-300">
