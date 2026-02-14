@@ -211,7 +211,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 )}
                 {variant !== 'available' && (
                   <div className="flex items-center gap-2">
-                    <span>Enrolled</span>
+                    <span>Enrolled At</span>
                     <div className="flex items-center gap-1">
                       <Clock className="h-4 w-4 text-green-500" />
                       <span className="text-green-500">
@@ -249,9 +249,10 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 ? ""
                 : progress === 0
                   ? "bg-green-600 hover:bg-green-700 text-white shadow-md border-0"
-                  : isCompleted
-                    ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
-                    : "bg-blue-600 hover:bg-blue-700 text-white shadow-md border-0"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
+                // : isCompleted
+                //   ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
+                //   : "bg-blue-600 hover:bg-blue-700 text-white shadow-md border-0"
                 } w-full sm:w-auto transition-all duration-200`}
               onClick={handleContinue}
             >
