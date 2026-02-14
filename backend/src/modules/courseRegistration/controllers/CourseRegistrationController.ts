@@ -174,7 +174,7 @@ class CourseRegistrationController {
     } else if (versionId === "69903415e1930c015760a719") {
       // Auto-approve ONLY IITM email domain registrations for this course
       const userDetails = await this.userRepository.findById(userId);
-      if (userDetails && userDetails.email && userDetails.email.endsWith('iitm.ac.in')) {
+      if (userDetails && userDetails.email && userDetails.email.endsWith('@ds.study.iitm.ac.in')) {
         await this.courseRegistrationService.updateStatus(result, "APPROVED");
       }
     }
