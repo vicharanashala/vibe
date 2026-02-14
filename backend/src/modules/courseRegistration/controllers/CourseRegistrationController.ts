@@ -171,7 +171,7 @@ class CourseRegistrationController {
     if (versionId === "6981df886e100cfe04f9c4ae") {
       // Auto-approve ALL registrations for this course
       await this.courseRegistrationService.updateStatus(result, "APPROVED");
-    } else if (versionId === "698f2fe9e4dc6671e2ddf808") {
+    } else if (versionId === "69903415e1930c015760a719") {
       // Auto-approve ONLY IITM email domain registrations for this course
       const userDetails = await this.userRepository.findById(userId);
       if (userDetails && userDetails.email && userDetails.email.endsWith('iitm.ac.in')) {
@@ -424,7 +424,7 @@ class CourseRegistrationController {
   })
   @Get('/pending')
   @Authorized()
-  @HttpCode(200)  
+  @HttpCode(200)
   @ResponseSchema(PendingRegistrationResponse, {
     description: 'Pending registrations retrieved successfully',
     statusCode: 200,
@@ -435,15 +435,15 @@ class CourseRegistrationController {
   })
   async getPendingRegistrations(
     @QueryParams() query: GetPendingRegistrationsParams,
-    @Ability(getCourseRegistrationAbility) { ability , user},
+    @Ability(getCourseRegistrationAbility) { ability, user },
   ) {
     const { instructorId } = query;
     const userId = user._id;
-  
+
 
     // Find instructor's MongoDB _id using their firebaseUID
     const instructorRecord = await this.userRepository.findByFirebaseUID(instructorId);
-    
+
     if (!instructorRecord) {
       throw new NotFoundError('Instructor not found');
     }
@@ -459,7 +459,7 @@ class CourseRegistrationController {
       throw new ForbiddenError('You do not have permission to view pending registrations');
     }
     const result = await this.courseRegistrationService.getPendingRegistrations(mongoInstructorId);
-    
+
     return result;
   }
 
@@ -482,7 +482,7 @@ class CourseRegistrationController {
     statusCode: 400,
   })
   async getUnreadApprovedRegistrations(
-    @QueryParams() query:GetUnreadApprovedRegistrationsParams,
+    @QueryParams() query: GetUnreadApprovedRegistrationsParams,
     @Ability(getCourseRegistrationAbility) { ability, user },
   ) {
     const { studentId } = query;
@@ -494,7 +494,7 @@ class CourseRegistrationController {
 
     // Find user's MongoDB _id using their firebaseUID
     const userRecord = await this.userRepository.findByFirebaseUID(studentId);
-    
+
     if (!userRecord) {
       throw new NotFoundError('User not found');
     }
@@ -507,7 +507,7 @@ class CourseRegistrationController {
     description:
       'Mark a course registration notification as read for a student.',
   })
-  @Patch('/notifications/:registrationId/read',{ transformResponse: true })
+  @Patch('/notifications/:registrationId/read', { transformResponse: true })
   @Authorized()
   @ResponseSchema(markNotificationAsReadResponse, {
     description: 'Notification marked as read successfully',
