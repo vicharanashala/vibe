@@ -24,9 +24,8 @@ class FeedbackRepository {
         'feedback_submission',
       );
 
-    this.feedbackFormCollection = await this.db.getCollection<FeedBackFormItem>(
-      'feedback_forms',
-    );
+    this.feedbackFormCollection =
+      await this.db.getCollection<FeedBackFormItem>('feedback_forms');
   }
 
   /* ------------------------------------------------------
@@ -106,6 +105,20 @@ class FeedbackRepository {
     return result ?? null;
   }
 
+  async deleteSubmissionsByFormId(
+    formId: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+
+    const result = await this.feedbackSubmissionCollection.deleteMany(
+      {feedbackFormId: new ObjectId(formId)},
+      {session},
+    );
+
+    return result.deletedCount ?? 0;
+  }
+
   async findByPreviousItemId(
     previousItemId: string,
     session?: ClientSession,
@@ -143,6 +156,44 @@ class FeedbackRepository {
   ) {
     await this.init();
     const skip = (page - 1) * limit;
+    // --------------------------
+    // GET FORM SCHEMA
+    // --------------------------
+    const feedbackForm = await this.feedbackFormCollection.findOne({
+      _id: new ObjectId(feedbackFormId),
+    });
+
+    const schema = feedbackForm?.details?.jsonSchema;
+
+    // Build value -> label map
+    const labelMap: Record<string, Record<string, string>> = {};
+
+    if (schema?.properties) {
+      Object.entries(schema.properties).forEach(
+        ([fieldName, fieldSchema]: any) => {
+          labelMap[fieldName] = {};
+
+          // NEW FORMAT — oneOf
+          if (fieldSchema.oneOf) {
+            fieldSchema.oneOf.forEach((opt: any) => {
+              labelMap[fieldName][opt.const] = opt.title;
+            });
+            return;
+          }
+
+          // OLD FORMAT — enum only - for backward compatibility
+          if (fieldSchema.enum) {
+            fieldSchema.enum.forEach((val: string) => {
+              const pretty = val
+                .replace(/[_-]/g, ' ')
+                .replace(/\b\w/g, (l: string) => l.toUpperCase());
+
+              labelMap[fieldName][val] = pretty;
+            });
+          }
+        },
+      );
+    }
 
     try {
       const pipeline: any[] = [
@@ -270,6 +321,21 @@ class FeedbackRepository {
         .aggregate(paginatedPipeline)
         .toArray();
 
+      // --------------------------
+      // REPLACE VALUES WITH LABELS
+      // --------------------------
+      submissions.forEach(sub => {
+        if (!sub.details) return;
+
+        Object.entries(sub.details).forEach(([field, value]) => {
+          const map = labelMap[field];
+          const stringValue = String(value);
+          if (map && map[stringValue]) {
+            sub.details[field] = map[stringValue];
+          }
+        });
+      });
+
       return {
         submissions,
         total,
@@ -282,6 +348,160 @@ class FeedbackRepository {
         `Failed to get Feedback submission for form ${feedbackFormId}`,
       );
     }
+  }
+
+  async getAllSubmissions(feedbackFormId: string, courseId: string) {
+    await this.init();
+
+    try {
+      const pipeline: any[] = [
+        {
+          $match: {
+            feedbackFormId: new ObjectId(feedbackFormId),
+            courseId: new ObjectId(courseId),
+          },
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'userId',
+            foreignField: '_id',
+            as: 'user',
+          },
+        },
+        {$unwind: '$user'},
+        {
+          $lookup: {
+            from: 'videos',
+            localField: 'previousItemId',
+            foreignField: '_id',
+            as: 'videoItem',
+          },
+        },
+        {
+          $lookup: {
+            from: 'quizzes',
+            localField: 'previousItemId',
+            foreignField: '_id',
+            as: 'quizItem',
+          },
+        },
+        {
+          $lookup: {
+            from: 'blogs',
+            localField: 'previousItemId',
+            foreignField: '_id',
+            as: 'blogItem',
+          },
+        },
+        {
+          $lookup: {
+            from: 'projects',
+            localField: 'previousItemId',
+            foreignField: '_id',
+            as: 'projectItem',
+          },
+        },
+        {
+          $addFields: {
+            previousItem: {
+              $switch: {
+                branches: [
+                  {
+                    case: {$eq: ['$previousItemType', 'VIDEO']},
+                    then: {$arrayElemAt: ['$videoItem', 0]},
+                  },
+                  {
+                    case: {$eq: ['$previousItemType', 'QUIZ']},
+                    then: {$arrayElemAt: ['$quizItem', 0]},
+                  },
+                  {
+                    case: {$eq: ['$previousItemType', 'BLOG']},
+                    then: {$arrayElemAt: ['$blogItem', 0]},
+                  },
+                  {
+                    case: {$eq: ['$previousItemType', 'PROJECT']},
+                    then: {$arrayElemAt: ['$projectItem', 0]},
+                  },
+                ],
+                default: null,
+              },
+            },
+          },
+        },
+        {
+          $project: {
+            videoItem: 0,
+            quizItem: 0,
+            blogItem: 0,
+            projectItem: 0,
+          },
+        },
+        // Sort by submission date
+        {$sort: {createdAt: -1}},
+      ];
+
+      return await this.feedbackSubmissionCollection
+        .aggregate(pipeline)
+        .toArray();
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed to get all Feedback submissions for form ${feedbackFormId}`,
+      );
+    }
+  }
+
+  async getAllSubmissionsWithLabels(feedbackFormId: string, courseId: string) {
+    await this.init();
+
+    const submissions = await this.getAllSubmissions(feedbackFormId, courseId);
+
+    const feedbackForm = await this.feedbackFormCollection.findOne({
+      _id: new ObjectId(feedbackFormId),
+    });
+
+    const schema = feedbackForm?.details?.jsonSchema;
+
+    const labelMap: Record<string, Record<string, string>> = {};
+
+    if (schema?.properties) {
+      Object.entries(schema.properties).forEach(
+        ([fieldName, fieldSchema]: any) => {
+          labelMap[fieldName] = {};
+
+          if (fieldSchema.oneOf) {
+            fieldSchema.oneOf.forEach((opt: any) => {
+              labelMap[fieldName][opt.const] = opt.title;
+            });
+            return;
+          }
+
+          if (fieldSchema.enum) {
+            fieldSchema.enum.forEach((val: string) => {
+              const pretty = val
+                .replace(/[_-]/g, ' ')
+                .replace(/\b\w/g, l => l.toUpperCase());
+
+              labelMap[fieldName][val] = pretty;
+            });
+          }
+        },
+      );
+    }
+
+    submissions.forEach(sub => {
+      if (!sub.details) return;
+
+      Object.entries(sub.details).forEach(([field, value]) => {
+        const map = labelMap[field];
+        const stringValue = String(value);
+        if (map && map[stringValue]) {
+          sub.details[field] = map[stringValue];
+        }
+      });
+    });
+
+    return submissions;
   }
 
   /* ------------------------------------------------------

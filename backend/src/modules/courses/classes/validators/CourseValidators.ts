@@ -1,5 +1,5 @@
 import { ICourse, ID } from '#root/shared/interfaces/models.js';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -10,6 +10,7 @@ import {
   IsMongoId,
   IsEmpty,
   IsArray,
+  ValidateNested,
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 import { ObjectId } from 'mongodb';
@@ -115,6 +116,63 @@ export class CourseVersionQuery {
   @IsOptional()
   @IsString()
   courseVersionId?: string;
+}
+
+export class ActiveUserDto {
+  @IsString()
+  firstName: string;
+
+  @IsString()
+  email: string;
+
+  @IsString()
+  lastActiveTime: string;
+}
+
+export class ActiveUsersResponseDto {
+  @ValidateNested({ each: true })
+  @Type(() => ActiveUserDto)
+  activeUsers: ActiveUserDto[];
+}
+
+export class CourseVersionQueryWithTime extends CourseVersionQuery {
+  @IsOptional()
+  @IsString()
+  startTimeStamp: string;
+
+
+  @IsOptional()
+  @IsString()
+  endTimeStamp: string;
+}
+
+export class PublicCoursesQuery {
+  @JSONSchema({
+    description: 'Page number for pagination',
+    example: 1,
+    type: 'number',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  page?: number;
+
+  @JSONSchema({
+    description: 'Number of items per page',
+    example: 10,
+    type: 'number',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  limit?: number;
+
+  @JSONSchema({
+    description: 'Search term for course name or description',
+    example: 'programming',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
 }
 
 export class CourseVersionParams {

@@ -1,7 +1,7 @@
 import 'reflect-metadata';
-import {Collection, ObjectId, UpdateResult, ClientSession} from 'mongodb';
-import {injectable, inject} from 'inversify';
-import {MongoDatabase} from '../MongoDatabase.js';
+import { Collection, ObjectId, UpdateResult, ClientSession } from 'mongodb';
+import { injectable, inject } from 'inversify';
+import { MongoDatabase } from '../MongoDatabase.js';
 import {
   ICourseSetting,
   IRegistrationSettings,
@@ -13,14 +13,15 @@ import {
   ProctoringComponent,
 } from '#shared/database/index.js';
 import {
+  AuditingDto,
   CourseSetting,
   DetectorOptionsDto,
   DetectorSettingsDto,
   ProctoringSettingsDto,
   UserSetting,
 } from '#root/modules/setting/classes/index.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {NotFoundError} from 'routing-controllers';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { NotFoundError } from 'routing-controllers';
 
 /**
  * Implementation of the Settings Repository for MongoDB.
@@ -33,7 +34,7 @@ export class SettingRepository implements ISettingRepository {
   private courseSettingsCollection: Collection<CourseSetting>;
   private userSettingsCollection: Collection<UserSetting>;
 
-  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
+  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) { }
   private initialized = false;
 
   private async init() {
@@ -70,8 +71,8 @@ export class SettingRepository implements ISettingRepository {
 
     if (result.acknowledged) {
       const createdSettings = await this.userSettingsCollection.findOne(
-        {_id: result.insertedId},
-        {session},
+        { _id: result.insertedId },
+        { session },
       );
 
       return Object.assign(new UserSetting(), createdSettings) as UserSetting;
@@ -93,7 +94,7 @@ export class SettingRepository implements ISettingRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      {session},
+      { session },
     );
 
     if (!userSettings) {
@@ -208,20 +209,22 @@ export class SettingRepository implements ISettingRepository {
     await this.init();
     const result = await this.courseSettingsCollection.insertOne(
       courseSettings,
-      {session},
+      { session },
     );
     if (result.acknowledged) {
       const createdSettings = await this.courseSettingsCollection.findOne(
         {
           _id: result.insertedId,
         },
-        {session},
+        { session },
       );
 
-      return Object.assign(
-        new CourseSetting(),
-        createdSettings,
-      ) as CourseSetting;
+      // Create a proper CourseSetting instance without Object.assign
+      return new CourseSetting({
+        courseId: createdSettings.courseId.toString(),
+        courseVersionId: createdSettings.courseVersionId.toString(),
+        settings: createdSettings.settings
+      });
     } else {
       return null;
     }
@@ -233,13 +236,12 @@ export class SettingRepository implements ISettingRepository {
     session?: ClientSession,
   ): Promise<ICourseSetting | null> {
     await this.init();
-
     const courseSettings = await this.courseSettingsCollection.findOne(
       {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      {session},
+      { session },
     );
 
     if (!courseSettings) {
@@ -265,6 +267,9 @@ export class SettingRepository implements ISettingRepository {
     courseVersionId: string,
     detectors: DetectorSettingsDto[],
     linearProgressionEnabled: boolean,
+    seekForwardEnabled: boolean,
+    isPublic: boolean,
+    audit: AuditingDto,
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
     await this.init();
@@ -318,6 +323,11 @@ export class SettingRepository implements ISettingRepository {
         $set: {
           'settings.proctors.detectors': detectors,
           'settings.linearProgressionEnabled': linearProgressionEnabled,
+          'settings.seekForwardEnabled': seekForwardEnabled,
+          'settings.isPublic': isPublic,
+        },
+        $push: {
+          'settings.audit': audit,
         },
       },
       {
@@ -375,7 +385,7 @@ export class SettingRepository implements ISettingRepository {
           'settings.registration_settings': settings,
         },
       },
-      {session},
+      { session },
     );
     return result;
   }
@@ -383,7 +393,7 @@ export class SettingRepository implements ISettingRepository {
   async updateRegistrationSettings(
     courseId: string,
     versionId: string,
-    schemas: {jsonSchema: any; uiSchema: any},
+    schemas: { jsonSchema: any; uiSchema: any; isActive: boolean },
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
     await this.init();
@@ -397,9 +407,10 @@ export class SettingRepository implements ISettingRepository {
         $set: {
           'settings.registration.jsonSchema': schemas.jsonSchema,
           'settings.registration.uiSchema': schemas.uiSchema,
+          'settings.registration.isActive': schemas.isActive,
         },
       },
-      {session},
+      { session },
     );
     return result;
   }
@@ -407,10 +418,21 @@ export class SettingRepository implements ISettingRepository {
   async updateRegistrationSchemas(
     courseId: string,
     versionId: string,
-    schemas: {jsonSchema?: any; uiSchema?: any}, // Partial update for schemas only
+    schemas: { jsonSchema?: any; uiSchema?: any; isActive?: boolean }, // Partial update for schemas only
     session?: ClientSession,
   ): Promise<UpdateResult> {
     await this.init();
+
+    const updateFields: any = {};
+    if (schemas.jsonSchema !== undefined) {
+      updateFields['settings.registration.jsonSchema'] = schemas.jsonSchema;
+    }
+    if (schemas.uiSchema !== undefined) {
+      updateFields['settings.registration.uiSchema'] = schemas.uiSchema;
+    }
+    if (schemas.isActive !== undefined) {
+      updateFields['settings.registration.isActive'] = schemas.isActive;
+    }
 
     const result = await this.courseSettingsCollection.updateOne(
       {
@@ -418,12 +440,9 @@ export class SettingRepository implements ISettingRepository {
         courseVersionId: new ObjectId(versionId),
       },
       {
-        $set: {
-          'settings.registration.jsonSchema': schemas.jsonSchema,
-          'settings.registration.uiSchema': schemas.uiSchema,
-        },
+        $set: updateFields,
       },
-      {session},
+      { session },
     );
 
     if (result.matchedCount === 0) {
@@ -438,12 +457,14 @@ export class SettingRepository implements ISettingRepository {
   async readSettingsSchema(versionId: string, session?: ClientSession) {
     await this.init();
     const result = await this.courseSettingsCollection.findOne(
-      {courseVersionId: new ObjectId(versionId)},
-      {session},
+      { courseVersionId: new ObjectId(versionId) },
+      { session },
     );
-    const jsonSchema = result.settings.registration.jsonSchema;
-    const uiSchema = result.settings.registration.uiSchema;
-    return {jsonSchema, uiSchema};
+    const registration = result.settings.registration || {};
+    const jsonSchema = registration.jsonSchema;
+    const uiSchema = registration.uiSchema;
+    const isActive = registration.isActive;
+    return { jsonSchema, uiSchema, isActive };
   }
 
   async deleteCourseSettingsbyVersionId(
@@ -452,9 +473,191 @@ export class SettingRepository implements ISettingRepository {
   ) {
     await this.init();
     const result = await this.courseSettingsCollection.deleteOne(
-      {courseVersionId: new ObjectId(versionId)},
-      {session},
+      { courseVersionId: new ObjectId(versionId) },
+      { session },
     );
     return result.deletedCount > 0;
+  }
+
+  /**
+   * Checks if linear progression is enabled for a specific course and version.
+   * @param courseId - The ID of the course
+   * @param courseVersionId - The ID of the course version
+   * @param session - Optional MongoDB session for transactions
+   * @returns False if linear progression field is false, true otherwise
+   */
+  async isLinearProgressionEnabled(
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+    const courseSettings = await this.courseSettingsCollection.findOne(
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+      },
+      {
+        projection: {
+          'settings.linearProgressionEnabled': 1, _id: 0
+        },
+        session,
+      },
+    );
+
+    if (courseSettings?.settings?.linearProgressionEnabled == null) {
+      return true;
+    }
+
+    return courseSettings.settings.linearProgressionEnabled;
+  }
+
+  async getPublicCourses(
+    excludeCourseIds: string[],
+    skip: number,
+    limit: number,
+    search: string,
+    session?: ClientSession,
+  ): Promise<any[]> {
+    await this.init();
+
+    // Build aggregation pipeline
+    const pipeline: any[] = [
+      // Filter for public courses
+      {
+        $match: {
+          'settings.isPublic': true,
+        }
+      },
+      // Lookup to join with newCourse collection
+      {
+        $lookup: {
+          from: 'newCourse',
+          localField: 'courseId',
+          foreignField: '_id',
+          as: 'courseData'
+        }
+      },
+      // Unwind the courseData array
+      {
+        $unwind: {
+          path: '$courseData',
+          preserveNullAndEmptyArrays: false // Skip if no matching course
+        }
+      },
+      // Filter out deleted courses
+      {
+        $match: {
+          'courseData.isDeleted': { $ne: true }
+        }
+      },
+    ];
+
+    // Add filter for excluded courses
+    if (excludeCourseIds.length > 0) {
+      pipeline.push({
+        $match: {
+          courseId: { $nin: excludeCourseIds.map(id => new ObjectId(id)) }
+        }
+      });
+    }
+
+    // Add search filter if provided
+    if (search) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { 'courseData.name': { $regex: search, $options: 'i' } },
+            { 'courseData.description': { $regex: search, $options: 'i' } },
+          ]
+        }
+      });
+    }
+
+    // Project the fields we need
+    pipeline.push({
+      $project: {
+        _id: 0,
+        courseId: { $toString: '$courseId' },
+        courseVersionId: { $toString: '$courseVersionId' },
+        courseName: '$courseData.name',
+        courseDescription: '$courseData.description',
+        isPublic: '$settings.isPublic'
+      }
+    });
+
+    // Add pagination
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: limit });
+
+    const result = await this.courseSettingsCollection
+      .aggregate(pipeline, { session })
+      .toArray();
+
+    return result;
+  }
+
+  async countPublicCourses(
+    excludeCourseIds: string[],
+    search: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+
+    const pipeline: any[] = [
+      {
+        $match: {
+          'settings.isPublic': true,
+        },
+      },
+      {
+        $lookup: {
+          from: 'newCourse',
+          localField: 'courseId',
+          foreignField: '_id',
+          as: 'courseData',
+        },
+      },
+      {
+        $unwind: {
+          path: '$courseData',
+          preserveNullAndEmptyArrays: false,
+        },
+      },
+      {
+        $match: {
+          'courseData.isDeleted': { $ne: true },
+        },
+      },
+    ];
+
+    if (excludeCourseIds.length > 0) {
+      pipeline.push({
+        $match: {
+          courseId: { $nin: excludeCourseIds.map(id => new ObjectId(id)) },
+        },
+      });
+    }
+
+    if (search) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { 'courseData.name': { $regex: search, $options: 'i' } },
+            { 'courseData.description': { $regex: search, $options: 'i' } },
+          ],
+        },
+      });
+    }
+
+    pipeline.push({
+      $count: 'total',
+    });
+
+    const result = await this.courseSettingsCollection
+      .aggregate(pipeline, { session })
+      .toArray();
+
+    return result.length > 0 ? result[0].total : 0;
   }
 }

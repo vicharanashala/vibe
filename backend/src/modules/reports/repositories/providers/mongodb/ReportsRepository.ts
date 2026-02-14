@@ -1,13 +1,13 @@
-import {IReport, IStatus} from '#shared/interfaces/index.js';
-import {MongoDatabase} from '#shared/database/providers/mongo/MongoDatabase.js';
-import {injectable, inject} from 'inversify';
-import {Collection, ClientSession, ObjectId, Filter} from 'mongodb';
+import { IReport, IStatus } from '#shared/interfaces/index.js';
+import { MongoDatabase } from '#shared/database/providers/mongo/MongoDatabase.js';
+import { injectable, inject } from 'inversify';
+import { Collection, ClientSession, ObjectId, Filter } from 'mongodb';
 import {
   BadRequestError,
   InternalServerError,
   NotFoundError,
 } from 'routing-controllers';
-import {GLOBAL_TYPES} from '#root/types.js';
+import { GLOBAL_TYPES } from '#root/types.js';
 import {
   IssueSortEnum,
   IssueStatusEnum,
@@ -15,14 +15,15 @@ import {
   ReportFiltersQuery,
   ReportResponse,
 } from '#root/modules/reports/classes/index.js';
-import {instanceToPlain, plainToInstance} from 'class-transformer';
+import { instanceToPlain, plainToInstance } from 'class-transformer';
+import { SORT_FIELD_MAP } from '#root/modules/reports/constants.js';
 @injectable()
 class ReportRepository {
   private reportCollection: Collection<IReport>;
   constructor(
     @inject(GLOBAL_TYPES.Database)
     private db: MongoDatabase,
-  ) {}
+  ) { }
 
   private async init() {
     this.reportCollection = await this.db.getCollection<IReport>('reports');
@@ -35,7 +36,7 @@ class ReportRepository {
     session?: ClientSession,
   ): Promise<ReportResponse | null> {
     await this.init();
-    const {entityType, status, limit = 10, currentPage = 1} = filters;
+    const { entityType, status, limit = 10, currentPage = 1 } = filters;
     const query: Filter<IReport> = {
       courseId: new ObjectId(courseId),
       versionId: new ObjectId(versionId),
@@ -44,7 +45,7 @@ class ReportRepository {
     // if (status) query['status.0.status'] = status;
     const skip = (currentPage - 1) * limit;
 
-    const matchStage = {$match: query};
+    const matchStage = { $match: query };
 
     const sortStatusStages = [
       {
@@ -52,25 +53,37 @@ class ReportRepository {
           status: {
             $sortArray: {
               input: '$status',
-              sortBy: {createdAt: -1},
+              sortBy: { createdAt: -1 },
             },
           },
         },
       },
       {
         $addFields: {
-          latestStatus: {$arrayElemAt: ['$status.status', 0]},
+          latestStatus: { $arrayElemAt: ['$status.status', 0] },
         },
       },
     ];
 
+    const sortStage: any = {};
+
+    const sortField =
+      filters.sortBy && SORT_FIELD_MAP[filters.sortBy]
+        ? SORT_FIELD_MAP[filters.sortBy]
+        : 'createdAt';
+
+    sortStage[sortField] = filters.sortOrder === 'asc' ? 1 : -1;
+
+
+
+
     const aggregationPipeline = [
       matchStage,
       ...sortStatusStages,
-      ...(status ? [{$match: {latestStatus: status}}] : []),
-      {$sort: {createdAt: -1}},
-      {$skip: skip},
-      {$limit: limit},
+      ...(status ? [{ $match: { latestStatus: status } }] : []),
+      { $sort: sortStage },
+      { $skip: skip },
+      { $limit: limit },
       {
         $lookup: {
           from: 'users',
@@ -88,12 +101,12 @@ class ReportRepository {
 
       {
         $addFields: {
-          _id: {$toString: '$_id'},
-          courseId: {$toString: '$courseId'},
-          versionId: {$toString: '$versionId'},
-          entityId: {$toString: '$entityId'},
+          _id: { $toString: '$_id' },
+          courseId: { $toString: '$courseId' },
+          versionId: { $toString: '$versionId' },
+          entityId: { $toString: '$entityId' },
           reportedBy: {
-            _id: {$toString: '$reportedByUser._id'},
+            _id: { $toString: '$reportedByUser._id' },
             firstName: '$reportedByUser.firstName',
             lastName: '$reportedByUser.lastName',
           },
@@ -109,13 +122,13 @@ class ReportRepository {
     const countPipeline = [
       matchStage,
       ...sortStatusStages,
-      ...(status ? [{$match: {latestStatus: status}}] : []),
-      {$count: 'total'},
+      ...(status ? [{ $match: { latestStatus: status } }] : []),
+      { $count: 'total' },
     ];
 
     const [countResult, reports] = await Promise.all([
-      this.reportCollection.aggregate(countPipeline, {session}).toArray(),
-      this.reportCollection.aggregate(aggregationPipeline, {session}).toArray(),
+      this.reportCollection.aggregate(countPipeline, { session }).toArray(),
+      this.reportCollection.aggregate(aggregationPipeline, { session }).toArray(),
     ]);
 
     const totalDocuments = countResult[0]?.total ?? 0;
@@ -135,7 +148,7 @@ class ReportRepository {
   ): Promise<IReport | null> {
     await this.init();
     const aggregationPipeline = [
-      {$match: {_id: new ObjectId(reportId)}},
+      { $match: { _id: new ObjectId(reportId) } },
       {
         $lookup: {
           from: 'users',
@@ -166,21 +179,226 @@ class ReportRepository {
         },
       },
 
+      // Lookup course version to get module/section structure
+      {
+        $lookup: {
+          from: 'newCourseVersion',
+          localField: 'versionId',
+          foreignField: '_id',
+          as: 'versionData',
+        },
+      },
+      {
+        $unwind: {
+          path: '$versionData',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // Lookup ItemsGroup collection to find which itemsGroup contains this item
+      // We use string conversion for IDs to be robust against ObjectId/String mismatches
+      // We check both _id and itemId fields just in case
+      {
+        $lookup: {
+          from: 'itemsGroup',
+          let: { entityIdVar: '$entityId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $or: [
+                    {
+                      $in: [
+                        { $toString: '$$entityIdVar' },  // Convert to string to match
+                        {
+                          $map: {
+                            input: { $ifNull: ['$items', []] },
+                            as: 'item',
+                            in: { $toString: '$$item._id' },
+                          },
+                        },
+                      ],
+                    },
+                    {
+                      $in: [
+                        { $toString: '$$entityIdVar' },  // Convert to string to match
+                        {
+                          $map: {
+                            input: { $ifNull: ['$items', []] },
+                            as: 'item',
+                            in: { $toString: '$$item.itemId' },
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+            { $limit: 1 },
+            {
+              $project: {
+                _id: 1,
+              },
+            },
+          ],
+          as: 'itemsGroupData',
+        },
+      },
+      {
+        $unwind: {
+          path: '$itemsGroupData',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // Separate Lookups to get Item Name from specific collections
+      {
+        $lookup: {
+          from: 'videos',
+          localField: 'entityId',
+          foreignField: '_id',
+          pipeline: [{ $project: { name: 1 } }],
+          as: 'videoData'
+        }
+      },
+      {
+        $unwind: { path: '$videoData', preserveNullAndEmptyArrays: true }
+      },
+      {
+        $lookup: {
+          from: 'quizzes',
+          localField: 'entityId',
+          foreignField: '_id',
+          pipeline: [{ $project: { name: 1 } }],
+          as: 'quizData'
+        }
+      },
+      {
+        $unwind: { path: '$quizData', preserveNullAndEmptyArrays: true }
+      },
+      {
+        $lookup: {
+          from: 'blogs',
+          localField: 'entityId',
+          foreignField: '_id',
+          pipeline: [{ $project: { name: 1 } }],
+          as: 'blogData'
+        }
+      },
+      {
+        $unwind: { path: '$blogData', preserveNullAndEmptyArrays: true }
+      },
+      {
+        $lookup: {
+          from: 'projects',
+          localField: 'entityId',
+          foreignField: '_id',
+          pipeline: [{ $project: { name: 1 } }],
+          as: 'projectData'
+        }
+      },
+      {
+        $unwind: { path: '$projectData', preserveNullAndEmptyArrays: true }
+      },
+
       {
         $addFields: {
-          _id: {$toString: '$_id'}, // Convert main _id to string
+          _id: { $toString: '$_id' },
           reportedBy: {
-            _id: {$toString: '$reportedByUser._id'},
+            _id: { $toString: '$reportedByUser._id' },
             firstName: '$reportedByUser.firstName',
             lastName: '$reportedByUser.lastName',
           },
           courseId: {
-            _id: {$toString: '$courseData._id'},
+            _id: { $toString: '$courseData._id' },
             name: '$courseData.name',
             description: '$courseData.description',
           },
-          versionId: {$toString: '$versionId'},
-          entityId: {$toString: '$entityId'},
+          versionId: { $toString: '$versionId' },
+          entityId: { $toString: '$entityId' },
+          questionId: {
+            $cond: {
+              if: { $ifNull: ['$questionId', false] },
+              then: { $toString: '$questionId' },
+              else: '$$REMOVE'
+            }
+          },
+
+          // Resolve Item Name
+          itemName: {
+            $ifNull: [
+              '$videoData.name',
+              {
+                $ifNull: [
+                  '$quizData.name',
+                  {
+                    $ifNull: [
+                      '$blogData.name',
+                      '$projectData.name'
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+
+          // Find module and section that contain this itemsGroup
+          moduleInfo: {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: {
+                    $map: {
+                      input: { $ifNull: ['$versionData.modules', []] },
+                      as: 'module',
+                      in: {
+                        moduleName: '$$module.name',
+                        moduleId: '$$module.moduleId',
+                        sectionInfo: {
+                          $arrayElemAt: [
+                            {
+                              $filter: {
+                                input: {
+                                  $map: {
+                                    input: { $ifNull: ['$$module.sections', []] },
+                                    as: 'section',
+                                    in: {
+                                      sectionName: '$$section.name',
+                                      sectionId: '$$section.sectionId',
+                                      itemsGroupId: '$$section.itemsGroupId',
+                                    },
+                                  },
+                                },
+                                as: 'sec',
+                                cond: {
+                                  $eq: [
+                                    { $toString: '$$sec.itemsGroupId' },
+                                    { $toString: '$itemsGroupData._id' },
+                                  ],
+                                },
+                              },
+                            },
+                            0,
+                          ],
+                        },
+                      },
+                    },
+                  },
+                  as: 'mod',
+                  cond: { $ne: ['$$mod.sectionInfo', null] },
+                },
+              },
+              0,
+            ],
+          },
+        },
+      },
+
+      {
+        $addFields: {
+          moduleName: '$moduleInfo.moduleName',
+          sectionName: '$moduleInfo.sectionInfo.sectionName',
         },
       },
 
@@ -188,12 +406,20 @@ class ReportRepository {
         $project: {
           reportedByUser: 0,
           courseData: 0,
+          versionData: 0,
+          moduleInfo: 0,
+          itemsGroupData: 0,
+          videoData: 0,
+          quizData: 0,
+          blogData: 0,
+          projectData: 0,
+          matchedItem: 0,
         },
       },
     ];
 
     const result = await this.reportCollection
-      .aggregate(aggregationPipeline, {session})
+      .aggregate(aggregationPipeline, { session })
       .toArray();
 
     const report = result[0];
@@ -213,7 +439,7 @@ class ReportRepository {
         entityId: report.entityId,
         entityType: report.entityType,
       },
-      {session},
+      { session },
     );
 
     // if (existingReport) {
@@ -221,7 +447,7 @@ class ReportRepository {
     //     `You have already submitted a report for this ${report.entityType.toLowerCase()}.`,
     //   );
     // }
-    const result = await this.reportCollection.insertOne(report, {session});
+    const result = await this.reportCollection.insertOne(report, { session });
     if (result.acknowledged && result.insertedId) {
       return result.insertedId.toString();
     }
@@ -235,12 +461,12 @@ class ReportRepository {
     }
 
     const result = await this.reportCollection.findOneAndUpdate(
-      {_id: new ObjectId(reportId)},
+      { _id: new ObjectId(reportId) },
       {
-        $push: {status: updateData},
-        $set: {updatedAt: new Date()},
+        $push: { status: updateData },
+        $set: { updatedAt: new Date() },
       },
-      {returnDocument: 'after', session},
+      { returnDocument: 'after', session },
     );
     return result;
   }
@@ -253,14 +479,14 @@ class ReportRepository {
 
   async findReportsByUser(
     userId: string,
-    filter: {status?: IssueStatusEnum; search?: string; sort?: IssueSortEnum},
+    filter: { status?: IssueStatusEnum; search?: string; sort?: IssueSortEnum },
     skip: number,
     limit: number,
     session?: ClientSession,
-  ): Promise<{issues: IReport[]; totalDocuments: number}> {
+  ): Promise<{ issues: IReport[]; totalDocuments: number }> {
     await this.init();
 
-    const query: any = {reportedBy: new ObjectId(userId)};
+    const query: any = { reportedBy: new ObjectId(userId) };
 
     // status filter
     if (filter.status && filter.status !== 'ALL') {
@@ -270,13 +496,18 @@ class ReportRepository {
 
     // search filter (on reason field)
     if (filter.search) {
-      query.reason = {$regex: filter.search, $options: 'i'};
+      query.reason = { $regex: filter.search, $options: 'i' };
     }
 
     // sort filter (by entityType)
-    const sortQuery: any = {createdAt: -1}; // default newest first
-    if (filter.sort && filter.sort !== 'ALL') {
-      query.entityType = filter.sort;
+    let sortQuery: any = { createdAt: -1 }; // default
+
+    if (filter.sort) {
+      const [field, order] = filter.sort.split(':');
+
+      sortQuery = {
+        [field]: order === 'asc' ? 1 : -1,
+      };
     }
 
     // const results = await this.reportCollection
@@ -288,7 +519,7 @@ class ReportRepository {
 
     const results = await this.reportCollection
       .aggregate([
-        {$match: query},
+        { $match: query },
         {
           $lookup: {
             from: 'newCourse',
@@ -297,10 +528,10 @@ class ReportRepository {
             as: 'courseInfo',
           },
         },
-        {$unwind: {path: '$courseInfo', preserveNullAndEmptyArrays: true}},
-        {$sort: sortQuery},
-        {$skip: skip},
-        {$limit: limit},
+        { $unwind: { path: '$courseInfo', preserveNullAndEmptyArrays: true } },
+        { $sort: sortQuery },
+        { $skip: skip },
+        { $limit: limit },
       ])
       .toArray();
     const issues: IReport[] = results.map(item => ({
@@ -316,15 +547,15 @@ class ReportRepository {
       session,
     });
 
-    return {issues, totalDocuments};
+    return { issues, totalDocuments };
   }
 
   async updateInterest(id: string, interest: string, session?: ClientSession) {
     await this.init();
     const result = await this.reportCollection.findOneAndUpdate(
-      {_id: new ObjectId(id)},
-      {$set: {satisfied: interest}},
-      {upsert: true, session},
+      { _id: new ObjectId(id) },
+      { $set: { satisfied: interest } },
+      { upsert: true, session },
     );
     return result;
   }
@@ -332,11 +563,11 @@ class ReportRepository {
   async deleteReportByVersionId(versionId: string, session?: ClientSession) {
     await this.init();
     const result = await this.reportCollection.deleteMany(
-      {versionId: new ObjectId(versionId)},
-      {session},
+      { versionId: new ObjectId(versionId) },
+      { session },
     );
     return result;
   }
 }
 
-export {ReportRepository};
+export { ReportRepository };

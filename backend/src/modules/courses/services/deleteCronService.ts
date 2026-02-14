@@ -46,5 +46,53 @@ export class DeleteCronService extends BaseService {
     console.log('Delete cron job scheduled for 1:00 AM daily');
   }
 
+  // public scheduleProgressUpdateCron() {
+  //   const courseVersionMap = [
+  //     { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af" },
+  //     {
+  //       courseId: "6970f87e30644cbc74b6714f", versionId:
+  //         "6970f87e30644cbc74b67150"
+  //     },
+
+  //   ];
+
+  //   cron.schedule('0 * * * *', async () => {
+  //     console.log(
+  //       `⏰ Running parallel progress cron for ${courseVersionMap.length} course versions`,
+  //     );
+
+  //     const results = await Promise.allSettled(
+  //       courseVersionMap.map(({ courseId, versionId }) =>
+  //         this.enrollmentService.bulkUpdateWatchTimeAndRecalculateProgress(
+  //           courseId,
+  //           versionId,
+  //         ),
+  //       ),
+  //     );
+
+  //     results.forEach((result, index) => {
+  //       const { courseId, versionId } = courseVersionMap[index];
+
+  //       if (result.status === 'fulfilled') {
+  //         console.log(
+  //           `✅ Course ${courseId} | Version ${versionId} completed`,
+  //           result.value.summary,
+  //         );
+  //       } else {
+  //         console.error(
+  //           `❌ Course ${courseId} | Version ${versionId} failed`,
+  //           result.reason?.message || result.reason,
+  //         );
+  //       }
+  //     });
+
+  //     console.log('🎉 Parallel progress cron completed');
+  //   });
+
+  //   console.log('🗓️ Progress update cron scheduled (hourly, parallel)');
+  // }
+
+
+
 
 }

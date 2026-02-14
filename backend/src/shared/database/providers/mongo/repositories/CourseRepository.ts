@@ -179,17 +179,25 @@ export class CourseRepository implements ICourseRepository {
     //    - Extract all itemsGroupId values from its modules/sections
     //    - Call deleteVersion(...) to delete the version and its items
     const versionIds: string[] = Array.isArray((courseDoc as any).versions)
-      ? (courseDoc as any).versions.map((v: any) => v.toString())
+      ? (courseDoc as any).versions
+        .map((v: any) => v?.toString())
+        .filter((id: string) => id != null && id !== '' && ObjectId.isValid(id))
       : [];
 
     for (const versionId of versionIds) {
+      if (!ObjectId.isValid(versionId)) {
+        console.warn(`Skipping invalid versionId: ${versionId}`);
+        continue;
+      }
+
       // 2a. Fetch the raw CourseVersion document
       const rawVersion = await this.courseVersionCollection.findOne(
         { _id: new ObjectId(versionId) },
         { session },
       );
       if (!rawVersion) {
-        throw new NotFoundError(`CourseVersion with ID ${versionId} not found`);
+        console.warn(`CourseVersion with ID ${versionId} not found, skipping`);
+        continue;
       }
 
       // 2b. Walk through modules → sections → collect all itemsGroupId
@@ -198,7 +206,9 @@ export class CourseRepository implements ICourseRepository {
         for (const mod of (rawVersion as any).modules as any[]) {
           if (Array.isArray(mod.sections)) {
             for (const sec of mod.sections as any[]) {
-              itemGroupsIds.push(new ObjectId(sec.itemsGroupId));
+              if (sec.itemsGroupId && ObjectId.isValid(sec.itemsGroupId)) {
+                itemGroupsIds.push(new ObjectId(sec.itemsGroupId));
+              }
             }
           }
         }
@@ -356,6 +366,7 @@ export class CourseRepository implements ICourseRepository {
 
     return result.length > 0 ? result[0] : null;
   }
+
   async getActiveVersion(
     versionId: string,
     session?: ClientSession,
@@ -421,6 +432,110 @@ export class CourseRepository implements ICourseRepository {
     ) as CourseVersion;
   }
 
+  async getActiveVersions(
+    versionIds: string[],
+    session?: ClientSession,
+  ): Promise<ICourseVersion[]> {
+    await this.init();
+
+    const objectIdArray = versionIds.map(id => new ObjectId(id));
+
+    const courseVersionPipeline = [
+      {
+        $match: {
+          _id: { $in: objectIdArray },
+        },
+      },
+      {
+        $set: {
+          modules: {
+            $map: {
+              input: {
+                $filter: {
+                  input: '$modules',
+                  as: 'mod',
+                  cond: { $ne: ['$$mod.isDeleted', true] },
+                },
+              },
+              as: 'mod',
+              in: {
+                moduleId: '$$mod.moduleId',
+                name: '$$mod.name',
+                description: '$$mod.description',
+                order: '$$mod.order',
+                createdAt: '$$mod.createdAt',
+                updatedAt: '$$mod.updatedAt',
+                isDeleted: '$$mod.isDeleted',
+                deletedAt: '$$mod.deletedAt',
+                isHidden: '$$mod.isHidden',
+                sections: {
+                  $filter: {
+                    input: '$$mod.sections',
+                    as: 'sec',
+                    cond: { $ne: ['$$sec.isDeleted', true] },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    ];
+
+    const courseVersions = await this.courseVersionCollection
+      .aggregate(courseVersionPipeline, { session })
+      .toArray();
+
+    return courseVersions as ICourseVersion[];
+  }
+
+  async getModulebyId(
+    versionId: string,
+    moduleId: string,
+    session?: ClientSession,
+  ): Promise<IModule | null> {
+    await this.init();
+    try {
+      // Convert versionId and moduleId to ObjectId
+      const versionObjectId = new ObjectId(versionId);
+      const moduleObjectId = new ObjectId(moduleId);
+
+      // Find the course version
+      const courseVersion = await this.courseVersionCollection.findOne(
+        {
+          _id: versionObjectId,
+        },
+        { session },
+      );
+
+      if (!courseVersion) {
+        throw new NotFoundError('Course Version not found');
+      }
+
+      // Find the module to delete
+      const module = courseVersion.modules.find(m =>
+        new ObjectId(m.moduleId).equals(moduleObjectId),
+      );
+
+      if (!module) {
+        throw new NotFoundError('Module not found');
+      }
+
+      return module;
+
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      if (error instanceof InternalServerError) {
+        throw error;
+      }
+      throw new InternalServerError(
+        'Failed to delete module.\n More Details: ' + error,
+      );
+    }
+  }
+
   async updateVersion(
     versionId: string,
     courseVersion: CourseVersion,
@@ -429,7 +544,6 @@ export class CourseRepository implements ICourseRepository {
     await this.init();
     try {
       const { _id: _, ...fields } = courseVersion;
-
 
       const isExistVersion = await this.courseVersionCollection.findOne({
         _id: new ObjectId(versionId),
@@ -464,6 +578,7 @@ export class CourseRepository implements ICourseRepository {
       );
     }
   }
+
   async deleteVersion(
     courseId: string,
     versionId: string,
@@ -1005,6 +1120,4 @@ export class CourseRepository implements ICourseRepository {
       );
     }
   }
-
-
 }

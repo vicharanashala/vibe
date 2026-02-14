@@ -7,25 +7,34 @@ import {
   Get,
   HttpCode,
   JsonController,
+  NotFoundError,
   Params,
   Patch,
   Post,
   Put,
+  QueryParam,
   QueryParams,
   Req,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
+import { GLOBAL_TYPES } from '#root/types.js';
 import { COURSE_REGISTRATION_TYPES } from '../types.js';
 import { CourseRegistrationService } from '../services/CourseRegistrationService.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
-import { BadRequestErrorResponse } from '#root/shared/index.js';
+import { BadRequestErrorResponse, IUserRepository } from '#root/shared/index.js';
 import { CourseVersionIdParams } from '#root/modules/notifications/index.js';
 import {
   AllRegistrationsResponse,
+  ApprovedRegistrationResponse,
   BulkUpdateStatusBody,
   CourseVersionDetailsResponse,
+  GetPendingRegistrationsParams,
+  GetUnreadApprovedRegistrationsParams,
+  markNotificationAsReadResponse,
+  PendingRegistrationResponse,
   RegistrationFilterQuery,
   RegistrationParams,
+  ToggleRegistrationBody,
   UpdateRegistrationSchemasBody,
   UpdateStatusBody,
   updateStatusBulkResponse,
@@ -38,6 +47,7 @@ import {
 } from '../abilities/CourseRegistrationAbilities.js';
 import { subject } from '@casl/ability';
 import { UpdateCourseSettingResponse, UpdateSettingResponse } from '#root/modules/setting/index.js';
+import { query } from 'winston';
 
 @OpenAPI({
   tags: ['CourseRegistration'],
@@ -50,6 +60,8 @@ class CourseRegistrationController {
   constructor(
     @inject(COURSE_REGISTRATION_TYPES.CourseRegistrationService)
     private readonly courseRegistrationService: CourseRegistrationService,
+    @inject(GLOBAL_TYPES.UserRepo)
+    private readonly userRepository: IUserRepository,
   ) { }
 
   @OpenAPI({
@@ -60,7 +72,6 @@ class CourseRegistrationController {
   @Authorized()
   @Get('/version/:versionId')
   @HttpCode(200)
-  @Authorized()
   @ResponseSchema(CourseVersionDetailsResponse, {
     description: 'Course details retrieved successfully',
     statusCode: 200,
@@ -91,9 +102,10 @@ class CourseRegistrationController {
             schema: {
               type: 'object',
               properties: {
-              result:{type:'String',
-                example:'60d5ec49b3f1c8e4a8f8b8d1'
-              }
+                result: {
+                  type: 'String',
+                  example: '60d5ec49b3f1c8e4a8f8b8d1'
+                }
 
               },
             },
@@ -101,7 +113,7 @@ class CourseRegistrationController {
         },
       },
     },
-  
+
   })
   @Authorized()
   @Post('/version/:versionId')
@@ -118,16 +130,55 @@ class CourseRegistrationController {
   ) {
     const userId = user._id;
     const { versionId } = params;
+
+    // Extract and verify reCAPTCHA token
+    const recaptchaToken = body.recaptchaToken;
+
+    if (!recaptchaToken) {
+      throw new BadRequestError('reCAPTCHA verification is required');
+    }
+
+    // Import and verify reCAPTCHA
+    const { verifyRecaptcha } = await import('#root/shared/functions/verifyRecaptcha.js');
+
+    try {
+      const isValidRecaptcha = await verifyRecaptcha(recaptchaToken);
+      if (!isValidRecaptcha) {
+        throw new BadRequestError('reCAPTCHA verification failed. Please try again.');
+      }
+    } catch (error) {
+      if (error instanceof BadRequestError) {
+        throw error;
+      }
+      throw new BadRequestError('Failed to verify reCAPTCHA. Please try again.');
+    }
+
+    // Remove recaptchaToken from body before processing
+    const { recaptchaToken: _, ...registrationBody } = body;
+
     const registrationData = {
       userId,
       versionId,
-      detail: body,
+      detail: registrationBody,
       status: 'PENDING' as const,
     };
 
     const result = await this.courseRegistrationService.create(
       registrationData,
     );
+
+    // Auto-approve for specific course versions
+    if (versionId === "6981df886e100cfe04f9c4ae") {
+      // Auto-approve ALL registrations for this course
+      await this.courseRegistrationService.updateStatus(result, "APPROVED");
+    } else if (versionId === "698f2fe9e4dc6671e2ddf808") {
+      // Auto-approve ONLY IITM email domain registrations for this course
+      const userDetails = await this.userRepository.findById(userId);
+      if (userDetails && userDetails.email && userDetails.email.endsWith('iitm.ac.in')) {
+        await this.courseRegistrationService.updateStatus(result, "APPROVED");
+      }
+    }
+
     return result;
   }
 
@@ -294,6 +345,41 @@ class CourseRegistrationController {
   }
 
   @OpenAPI({
+    summary: 'Toggle Course Registration Active Status',
+    description: 'Enable or disable course registration without needing to send schema data',
+  })
+  @Patch('/registration/version/:versionId/toggle')
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(UpdateSettingResponse, {
+    description: 'Registration status toggled successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async toggleRegistration(
+    @Params() params: CourseVersionIdParams,
+    @Body() body: ToggleRegistrationBody,
+    @Ability(getCourseRegistrationAbility) { ability },
+  ) {
+    const { versionId } = params;
+    const { isActive } = body;
+
+    if (
+      !ability.can(
+        CourseRegistrationActions.Modify,
+        subject(courseRegistrationSubject, { versionId }),
+      )
+    ) {
+      throw new ForbiddenError('You do not have permission to modify settings');
+    }
+
+    return this.courseRegistrationService.toggleRegistrationStatus(versionId, isActive);
+  }
+
+  @OpenAPI({
     summary: 'Get Data for student registration form',
     description:
       'Get all the Data to load in the register form page for student registration.',
@@ -329,6 +415,120 @@ class CourseRegistrationController {
       versionId,
     );
     return result;
+  }
+
+  @OpenAPI({
+    summary: 'Get pending registrations',
+    description:
+      'Get all pending registrations for an instructor.',
+  })
+  @Get('/pending')
+  @Authorized()
+  @HttpCode(200)  
+  @ResponseSchema(PendingRegistrationResponse, {
+    description: 'Pending registrations retrieved successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async getPendingRegistrations(
+    @QueryParams() query: GetPendingRegistrationsParams,
+    @Ability(getCourseRegistrationAbility) { ability , user},
+  ) {
+    const { instructorId } = query;
+    const userId = user._id;
+  
+
+    // Find instructor's MongoDB _id using their firebaseUID
+    const instructorRecord = await this.userRepository.findByFirebaseUID(instructorId);
+    
+    if (!instructorRecord) {
+      throw new NotFoundError('Instructor not found');
+    }
+
+    const mongoInstructorId = instructorRecord._id.toString();
+
+    if (
+      !ability.can(
+        CourseRegistrationActions.View,
+        subject(courseRegistrationSubject, { instructorId: mongoInstructorId }),
+      )
+    ) {
+      throw new ForbiddenError('You do not have permission to view pending registrations');
+    }
+    const result = await this.courseRegistrationService.getPendingRegistrations(mongoInstructorId);
+    
+    return result;
+  }
+
+
+  @OpenAPI({
+    summary: 'Get unread approved registrations for students',
+    description:
+      'Get all unread approved course registrations for a student to show notifications.',
+  })
+  @Get('/notifications/unread')
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(ApprovedRegistrationResponse, {
+    description: 'Unread approved registrations retrieved successfully',
+    statusCode: 200,
+    isArray: true
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async getUnreadApprovedRegistrations(
+    @QueryParams() query:GetUnreadApprovedRegistrationsParams,
+    @Ability(getCourseRegistrationAbility) { ability, user },
+  ) {
+    const { studentId } = query;
+
+    // Students can only view their own notifications - compare firebaseUID
+    if (user.firebaseUID !== studentId && user.role !== 'ADMIN') {
+      throw new ForbiddenError('You can only view your own notifications');
+    }
+
+    // Find user's MongoDB _id using their firebaseUID
+    const userRecord = await this.userRepository.findByFirebaseUID(studentId);
+    
+    if (!userRecord) {
+      throw new NotFoundError('User not found');
+    }
+
+    return this.courseRegistrationService.getUnreadApprovedRegistrations(userRecord._id.toString());
+  }
+
+  @OpenAPI({
+    summary: 'Mark notification as read',
+    description:
+      'Mark a course registration notification as read for a student.',
+  })
+  @Patch('/notifications/:registrationId/read',{ transformResponse: true })
+  @Authorized()
+  @ResponseSchema(markNotificationAsReadResponse, {
+    description: 'Notification marked as read successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async markNotificationAsRead(
+    @Params() params: RegistrationParams,
+    @Ability(getCourseRegistrationAbility) { ability, user },
+  ) {
+    const { registrationId } = params;
+
+    const result = await this.courseRegistrationService.markNotificationAsRead(registrationId);
+
+    return {
+      message: 'Notification marked as read successfully',
+      success: result
+    };
   }
 }
 

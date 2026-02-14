@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/store/auth-store"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
-import { useEditUser, useUserEnrollments, useWatchtimeTotal } from "@/hooks/hooks"
+import { useEditUser, useUserEnrollments } from "@/hooks/hooks"
 import { logout } from "@/utils/auth"
 import { useNavigate } from "@tanstack/react-router"
 import { LogOut } from "lucide-react"
@@ -28,17 +28,16 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
   // Fetch user data and statistics
   const { token } = useAuthStore();
   const { data: enrollmentsData, isLoading: enrollmentsLoading } = useUserEnrollments(1, 100, !!token);
-  const { data: watchtimeData, isLoading: watchtimeLoading } = useWatchtimeTotal();
 
   // Calculate statistics
   const totalEnrollments = enrollmentsData?.totalDocuments || 0;
-  
+
   const enrollments = enrollmentsData?.enrollments || [];
-  
+
   // Calculate progress including all enrolled courses
   const totalProgress = React.useMemo(() => {
     if (enrollments.length === 0) return 0;
-    
+
     // Calculate total completed items and total items across all enrollments
     const { totalCompleted, totalItems } = enrollments.reduce((acc, enrollment) => {
       const completed = typeof enrollment.completedItems === 'number' ? enrollment.completedItems : 0;
@@ -48,9 +47,9 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
         totalItems: acc.totalItems + (total > 0 ? total : 1) // Avoid division by zero
       };
     }, { totalCompleted: 0, totalItems: 0 });
-    
+
     // Calculate overall progress percentage
-    return Math.round((totalCompleted / totalItems) * 100) || 0;
+    return Number(((totalCompleted / totalItems) * 100).toFixed(2)) || 0;
   }, [enrollments]);
 
   // Fallback data if user is not available
@@ -258,7 +257,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
         </div>
 
         {/* Learning Stats */}
-        
+
         {role === "student" && (
           <Card>
             <CardHeader>
@@ -279,19 +278,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                   )}
                   <p className="text-sm text-muted-foreground">Enrolled Courses</p>
                 </div>
-                {/* Study Time */}
-                <div className="text-center">
-                  {watchtimeLoading ? (
-                    <Skeleton className="h-8 w-16 mx-auto mb-1" />
-                  ) : (
-                    <div className="text-2xl font-bold text-primary flex items-center justify-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      {(watchtimeData / 3600 || 0).toFixed(2)}h
-                    </div>
-                  )}
-                  <p className="text-sm text-muted-foreground">Study Time</p>
-                </div>
-                
+
                 {/* Overall Progress */}
                 <div className="text-center">
                   {enrollmentsLoading ? (
@@ -312,8 +299,8 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
             </CardContent>
           </Card>
         )
-       } 
-       {/* : (
+        }
+        {/* : (
           <Card>
             <CardHeader>
               <CardTitle>Teaching Statistics</CardTitle>
@@ -341,7 +328,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
               </div>
             </CardContent>
           </Card> */}
-        
+
       </div>
     </div>
   )

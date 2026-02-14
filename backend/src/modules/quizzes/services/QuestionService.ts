@@ -142,6 +142,52 @@ class QuestionService extends BaseService {
       };
     });
   }
+  public async getByIdWithoutExplanation(
+    questionId: string,
+    raw?: boolean,
+    parameterMap?: ParameterMap,
+  ): Promise<BaseQuestion | IQuestionRenderView> {
+    return this._withTransaction(async session => {
+      const question = await this.questionRepository.getByIdWithoutExplanation(
+        questionId,
+        session,
+      );
+
+      if (!question) {
+        throw new NotFoundError(`Question with ID ${questionId} not found`);
+      }
+
+      const [attemptCount, attemptedByUsersCount] = await Promise.all([
+        this.attemptRepository.countByQuestionId(questionId, session),
+        this.attemptRepository.countDistinctUsersByQuestionId(
+          questionId,
+          session,
+        ),
+      ]);
+
+      if (raw) {
+        const skipCount = await this._getQuestionSkipCount(questionId, session);
+
+        return {
+          ...(question as BaseQuestion),
+          attemptCount,
+          attemptedByUsersCount,
+          skipCount,
+        } as unknown as BaseQuestion;
+      }
+
+      const questionProcessor = new QuestionProcessor(question);
+      const rendered = questionProcessor.render(
+        parameterMap,
+      ) as IQuestionRenderView;
+
+      return {
+        ...rendered,
+        attemptCount,
+        attemptedByUsersCount,
+      };
+    });
+  }
 
   public async update(
     questionId: string,

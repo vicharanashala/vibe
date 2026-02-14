@@ -7,6 +7,7 @@ import {usersContainerModule} from './container.js';
 import {EnrollmentController} from './controllers/EnrollmentController.js';
 import {ProgressController} from './controllers/ProgressController.js';
 import {UserController} from './controllers/UserController.js';
+import {UserActivityEventController} from './controllers/UserActivityEventController.js';
 import { CourseController } from '../courses/controllers/CourseController.js';
 import { coursesContainerModule } from '../courses/container.js';
 import { ENROLLMENT_VALIDATORS, PROGRESS_VALIDATORS, USER_VALIDATORS } from './classes/validators/index.js';
@@ -23,6 +24,7 @@ export const usersModuleControllers: Function[] = [
   EnrollmentController,
   ProgressController,
   UserController,
+  UserActivityEventController,
   CourseController,
 ];
 

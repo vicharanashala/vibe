@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Video } from "@/types/video.types";
 import Loader from "@/components/Loader";
+import ConfirmationModal from "./confirmation-modal";
 
 function getYouTubeId(url: string): string | null {
     const match = url.match(/(?:v=|youtu\.be\/?)([\w-]{11})/);
@@ -24,21 +25,18 @@ interface VideoModalProps {
 
 function formatTime(seconds: number): string {
     if (isNaN(seconds) || seconds < 0) {
-        return "00:00:00";
+        return "00:00";
     }
 
     const totalSeconds = Math.floor(seconds);
-    const hours = Math.floor(totalSeconds / 3600);
     const mins = Math.floor((totalSeconds % 3600) / 60);
     const secs = totalSeconds % 60;
 
-    const formattedHours = hours.toString().padStart(2, "0");
     const formattedMins = mins.toString().padStart(2, "0");
     const formattedSecs = secs.toString().padStart(2, "0");
 
-    return `${formattedHours}:${formattedMins}:${formattedSecs}`;
+    return `${formattedMins}:${formattedSecs}`;
 }
-
 
 function parseTimeToSeconds(time: string | undefined): number {
     if (!time || time.trim() === "") {
@@ -50,14 +48,13 @@ function parseTimeToSeconds(time: string | undefined): number {
     const timeParts = normalizedTime.split(":");
 
     if (timeParts.length === 3) {
-        // Format: HH:MM:SS
         const [hours, minutes, seconds] = timeParts;
 
         const h = Math.max(0, parseInt(hours, 10) || 0);
         const m = Math.min(59, Math.max(0, parseInt(minutes, 10) || 0));
         const s = Math.min(59, Math.max(0, parseInt(seconds, 10) || 0));
 
-        return h * 3600 + m * 60 + s;
+        return (h * 60 + m) * 60 + s;
     }
 
     if (timeParts.length === 2) {
@@ -97,26 +94,26 @@ const VideoModal: React.FC<VideoModalProps> = ({
     const [playerReady, setPlayerReady] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [showOverlay, setShowOverlay] = useState(false);
+    const [showDeleteVideoModal, setShowDeleteVideoModal]=useState(false)
     const [errors, setErrors] = useState({
         startTime: "",
         endTime: ""
     });
 
     const [range, setRange] = useState<[number, number]>([
-        item?.details?.startTime ? parseTimeToSeconds(item.details?.startTime) : 0,
-        item?.details?.endTime ? parseTimeToSeconds(item.details?.endTime) : 0,
+        item?.details?.startTime ? parseTimeToSeconds(String(item.details?.startTime)) : 0,
+        item?.details?.endTime ? parseTimeToSeconds(String(item.details?.endTime)) : 0,
     ]);
-    const [videoId, setVideoId] = useState<string | null>(getYouTubeId(item?.details?.URL+"?rel=0" || ""));
+    const [videoId, setVideoId] = useState<string | null>(getYouTubeId(item?.details?.URL + "?rel=0" || ""));
     const [points, setPoints] = useState<number>(item?.details?.points ?? 0);
     const [timeInputs, setTimeInputs] = useState({
-        start: item?.details?.startTime || "0:00:00",
-        end: item?.details?.endTime || "0:00:00",
+        start: formatTime(item?.details?.startTime ? parseTimeToSeconds(String(item.details?.startTime)) : 0),
+        end: formatTime(item?.details?.endTime ? parseTimeToSeconds(String(item.details?.endTime)) : 0),
     });
 
     const playerRef = useRef<any>(null);
     const iframeRef = useRef<HTMLDivElement>(null);
 
-    // Load YouTube IFrame API
     useEffect(() => {
         if (window.YT && window.YT.Player) return;
         const tag = document.createElement("script");
@@ -124,7 +121,6 @@ const VideoModal: React.FC<VideoModalProps> = ({
         document.body.appendChild(tag);
     }, []);
 
-    // Reset state on URL change
     useEffect(() => {
         setPlayerReady(false);
         setDuration(0);
@@ -133,39 +129,38 @@ const VideoModal: React.FC<VideoModalProps> = ({
         setVideoId(id);
         if (!id) {
             setRange([0, 0]);
-            setTimeInputs({ start: "0:00:00", end: "0:00:00" });
+            setTimeInputs({ start: "0:00", end: "0:00" });
         }
     }, [url]);
 
-    // Refresh state when item changes
     useEffect(() => {
         setName(item?.name || "");
         setDescription(item?.description || "");
         setUrl(item?.details?.URL || "");
         setPoints(item?.details?.points ?? 0);
-        
-        const startTime = item?.details?.startTime || "0:00:00";
-        const endTime = item?.details?.endTime || "0:00:00";
-        
+
+        const startTime = item?.details?.startTime || "0:00";
+        const endTime = item?.details?.endTime || "0:00";
+
         setRange([
             parseTimeToSeconds(startTime),
             parseTimeToSeconds(endTime),
         ]);
-        
+
         setTimeInputs({
-            start: startTime,
-            end: endTime,
+            start: formatTime(parseTimeToSeconds(startTime)),
+            end: formatTime(parseTimeToSeconds(endTime)),
         });
-        
+
         setVideoId(getYouTubeId((item?.details.URL ?? "") + "?rel=0"));
-        // setPlayerReady(false);
+        setPlayerReady(false);
         setDuration(0);
         setCurrentTime(0);
     }, [item]);
 
     
 // useEffect(() => {
-//   setPlayerReady(false);   // ✅ move it here
+//   setPlayerReady(false);   // move it here
 // }, [videoId]);
     // Create/destroy player on videoId change
     useEffect(() => {
@@ -188,13 +183,13 @@ const VideoModal: React.FC<VideoModalProps> = ({
 
                     const currentEnd = parseTimeToSeconds(timeInputs.end);
                     const newEnd = currentEnd > 0 ? Math.min(currentEnd, dur) : dur;
-                    
+
                     const startSeconds = parseTimeToSeconds(timeInputs.start);
-                    
+
                     setRange([startSeconds, newEnd]);
-                    
+
                     const formattedEnd = formatTime(newEnd);
-                    
+
                     setTimeInputs(prev => {
                         const updated = {
                             ...prev,
@@ -202,10 +197,10 @@ const VideoModal: React.FC<VideoModalProps> = ({
                         };
                         return updated;
                     });
-                    
+
                     validateTimeAgainstDuration(timeInputs.start, 'startTime', dur);
                     validateTimeAgainstDuration(timeInputs.end, 'endTime', dur);
-                    
+
                     setPlayerReady(true);
                     setShowOverlay(false);
                 },
@@ -226,7 +221,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                 playerRef.current = null;
             }
         };
-    },[videoId]);
+    }, [videoId]);
 
     // Poll current time
     useEffect(() => {
@@ -241,7 +236,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
 
     const validateTimeAgainstDuration = (timeValue: string, field: 'startTime' | 'endTime', maxDuration: number) => {
         const seconds = parseTimeToSeconds(timeValue);
-        
+
         if (seconds > maxDuration) {
             setErrors(prev => ({
                 ...prev,
@@ -257,16 +252,38 @@ const VideoModal: React.FC<VideoModalProps> = ({
         }
     };
 
-   const formatTimeInput = (value: string): string => {
-    const digits = value.replace(/\D/g, '').padStart(6, '0').slice(-6);
+    const validateTimeRange = (startTime: string, endTime: string) => {
+        const startSeconds = parseTimeToSeconds(startTime);
+        const endSeconds = parseTimeToSeconds(endTime);
 
-    const hours = digits.slice(0, 2);
-    const minutes = digits.slice(2, 4);
-    const seconds = digits.slice(4, 6);
+        if (endSeconds <= startSeconds) {
+            setErrors(prev => ({
+                ...prev,
+                endTime: "End time must be greater than start time"
+            }));
+            return false;
+        } else {
+            setErrors(prev => ({
+                ...prev,
+                endTime: ""
+            }));
+            return true;
+        }
+    };
 
-    return `${hours}:${minutes}:${seconds}`;
-};
+    const formatTimeInput = (value: string): string => {
+        const digits = value.replace(/\D/g, '');
 
+        if (digits.length > 4) return value;
+
+        if (digits.length <= 2) {
+            return digits;
+        } else {
+            const minutes = digits.slice(0, -2);
+            const seconds = digits.slice(-2);
+            return `${minutes}:${seconds}`;
+        }
+    };
 
     const validateTimeInput = (value: string, maxSeconds: number): number => {
         if (!value) return 0;
@@ -288,42 +305,87 @@ const VideoModal: React.FC<VideoModalProps> = ({
             ...prev,
             [type]: value
         }));
-        
-        
     };
 
-  const handleTimeInputBlur = (type: 'start' | 'end') => {
-    const rawValue = timeInputs[type];
+    const handleTimeInputBlur = (type: 'start' | 'end') => {
+        const rawValue = timeInputs[type];
 
-    const formattedValue = formatTimeInput(rawValue); // pad to HH:mm:ss
-    const seconds = validateTimeInput(formattedValue, duration);
-    const field = type === 'start' ? 'startTime' : 'endTime';
+        // Only format if the value is not empty
+        if (rawValue.trim() === "") {
+            setTimeInputs(prev => ({
+                ...prev,
+                [type]: "0:00"
+            }));
+            // Validate after setting to 0:00
+            const otherType = type === 'start' ? 'end' : 'start';
+            validateTimeRange(
+                type === 'start' ? "0:00" : timeInputs[otherType],
+                type === 'start' ? timeInputs[otherType] : "0:00"
+            );
+            return;
+        }
 
-    // Update state with clean formatted value
-    setTimeInputs(prev => ({
-        ...prev,
-        [type]: formattedValue
-    }));
+        const formattedValue = formatTimeInput(rawValue);
+        const seconds = validateTimeInput(formattedValue, duration);
+        const field = type === 'start' ? 'startTime' : 'endTime';
 
-    validateTimeAgainstDuration(formattedValue, field, duration);
+        // Update state with clean formatted value
+        setTimeInputs(prev => ({
+            ...prev,
+            [type]: formattedValue
+        }));
 
-    // Update player range
-    if (type === 'start') {
-        setRange(prev => {
-            const newStart = Math.min(seconds, prev[1] - 1);
-            if (playerRef.current && playerReady) {
-                playerRef.current.seekTo(newStart, true);
-            }
-            return [newStart, prev[1]];
+        // Only validate against duration if video has loaded properly
+        if (duration > 0) {
+            validateTimeAgainstDuration(formattedValue, field, duration);
+        }
+
+        // Validate time range (end > start) - use updated state
+        setTimeout(() => {
+        const otherType = type === 'start' ? 'end' : 'start';
+            const currentStart = type === 'start' ? formattedValue : timeInputs[otherType];
+            const currentEnd = type === 'start' ? timeInputs[otherType] : formattedValue;
+            validateTimeRange(currentStart, currentEnd);
+        }, 0);
+
+        // Update player range
+        if (type === 'start') {
+            setRange(prev => {
+                const newStart = Math.min(seconds, prev[1] - 1);
+                if (playerRef.current && playerReady) {
+                    playerRef.current.seekTo(newStart, true);
+                }
+                return [newStart, prev[1]];
+            });
+        } else {
+            setRange(prev => {
+                const newEnd = Math.max(seconds, prev[0] + 1);
+                return [prev[0], newEnd];
+            });
+        }
+    };
+
+    // Store original values for cancel functionality
+    const [originalValues, setOriginalValues] = useState({
+        name: item?.name || "",
+        description: item?.description || "",
+        url: item?.details?.URL || "",
+        startTime: item?.details?.startTime || "0:00",
+        endTime: item?.details?.endTime || "0:00",
+        points: item?.details?.points ?? 0
+    });
+
+    // Update original values when item changes
+    useEffect(() => {
+        setOriginalValues({
+            name: item?.name || "",
+            description: item?.description || "",
+            url: item?.details?.URL || "",
+            startTime: item?.details?.startTime || "0:00",
+            endTime: item?.details?.endTime || "0:00",
+            points: item?.details?.points ?? 0
         });
-    } else {
-        setRange(prev => {
-            const newEnd = Math.max(seconds, prev[0] + 1);
-            return [prev[0], newEnd];
-        });
-    }
-};
-
+    }, [item]);
 
     // Only constrain playback to [start, end]
     useEffect(() => {
@@ -360,7 +422,26 @@ const VideoModal: React.FC<VideoModalProps> = ({
         })
     }
          },[name,description,url])
-    // Handle Save
+    // Handle Cancel with restore functionality
+    const handleCancel = () => {
+        // Restore original values
+        setName(originalValues.name);
+        setDescription(originalValues.description);
+        setUrl(originalValues.url);
+        setPoints(originalValues.points);
+        setTimeInputs({
+            start: originalValues.startTime,
+            end: originalValues.endTime
+        });
+        setRange([
+            parseTimeToSeconds(originalValues.startTime),
+            parseTimeToSeconds(originalValues.endTime)
+        ]);
+        setErrors({ startTime: "", endTime: "" });
+        setErrorList({ name: "", description: "", url: "" });
+        
+        onClose();
+    };
     const handleSave = () => {
         setSkipIntialRender(false)
         const newErrors={
@@ -379,8 +460,9 @@ const VideoModal: React.FC<VideoModalProps> = ({
         
         const startValid = validateTimeAgainstDuration(timeInputs.start, 'startTime', duration);
         const endValid = validateTimeAgainstDuration(timeInputs.end, 'endTime', duration);
+        const rangeValid = validateTimeRange(timeInputs.start, timeInputs.end);
         
-        if (!startValid || !endValid) {
+        if (!startValid || !endValid || !rangeValid) {
             return; 
         }
         
@@ -410,10 +492,29 @@ const VideoModal: React.FC<VideoModalProps> = ({
         }
     };
 
+    const modalRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (videoId) {
+            modalRef.current?.scrollTo({
+                top: 0,
+                behavior: "smooth",
+            });
+        }
+    }, [videoId]);
+
+
     return (
         <>
             {isLoading ? <Loader /> :
-                <div className={`bg-background rounded-lg border p-6 xl:min-w-[700px] backdrop-blur-md bg-background/80`}>
+                <div
+                    ref={modalRef}
+                    className="bg-background rounded-lg border p-6 xl:min-w-[700px]
+             backdrop-blur-md bg-background/80
+             max-h-[90vh] overflow-y-auto"
+                >
+
+
                     <div className="mb-4 flex justify-between items-center">
                         <h2 className="text-lg font-semibold">
                             {action === "add" && "Add Video"}
@@ -632,27 +733,56 @@ const VideoModal: React.FC<VideoModalProps> = ({
                         </div>
                         {(action === "add" || action === "edit") && (
                             <div className="flex justify-end gap-2 mt-6">
-                                <Button variant="outline" onClick={onClose}>
+                                <Button variant="outline" onClick={handleCancel}>
                                     Cancel
                                 </Button>
                                 {action === "edit" && (
                                     <Button
                                         variant="destructive"
                                         onClick={() => {
-                                            if (typeof onDelete === "function") onDelete();
+                                            if (typeof onDelete === "function") {
+                                                setShowDeleteVideoModal(true)
+                                            }
                                         }}
                                     >
-                                        Delete
+                                        Delete Video
                                     </Button>
                                 )}
+                                {(() => {
+                                    const hasTimeRangeError = () => {
+                                        const startSeconds = parseTimeToSeconds(timeInputs.start);
+                                        const endSeconds = parseTimeToSeconds(timeInputs.end);
+                                        return endSeconds <= startSeconds;
+                                    };
+                                    return (
                                 <Button
                                     onClick={handleSave}
-                                    disabled={!playerReady || !url || hasErrors()}
+                                    disabled={!playerReady || !url || hasErrors() || hasTimeRangeError()}
                                 >
-                                    {action === "add" ? "Add Item " : "Update Item"}
+                                    {action === "add" ? "Add Item " : "Update Video"}
                                 </Button>
+                                    );
+                                })()}
+                                
                             </div>
+                            
                         )}
+                         <div className="relative group">
+                            <ConfirmationModal
+                                isOpen={showDeleteVideoModal}
+                                onClose={() => setShowDeleteVideoModal(false)}
+                                onConfirm={onDelete}
+                                title="Delete Video"
+                                description="This will delete this video. Are you sure you want to delete it?"
+                                confirmText="Delete"
+                                cancelText="Cancel"
+                                isDestructive={true}
+                                // isLoading={}
+                                loadingText="Deleting..."
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                        </div>
+                       
                     </div>
                 </div>
             }

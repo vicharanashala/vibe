@@ -6,4 +6,12 @@ const TYPES = {
   ReportRepo: Symbol.for('ReportRepo'),
 };
 
+export type ReportSortColumn =
+  | 'reason'
+  | 'entityType'
+  | 'latestStatus'
+  | 'reportedBy.firstName'
+  | 'createdAt';
+
+  
 export {TYPES as REPORT_TYPES};

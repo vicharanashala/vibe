@@ -1,4 +1,4 @@
-import { Clock, FileText, CheckCircle2, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles } from "lucide-react";
+import { Clock, FileText, CheckCircle2, Trophy, Medal, Award, Crown, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, LifeBuoy, Mail, Headphones, Play } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCourseById, useUserProgressPercentage, useLeaderboard } from "@/hooks/hooks";
+import { useCourseById, useUserProgressPercentage, useLeaderboard, useCourseVersionById } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
@@ -17,7 +17,14 @@ import { bufferToHex } from "@/utils/helpers";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
 import { Pagination } from "../ui/Pagination";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { lazy, Suspense } from "react";
 
+const EnrollmentDetailsDialog = lazy(() =>
+  import("./EnrollmentDetailsDialog").then(mod => ({
+    default: mod.EnrollmentDetailsDialog
+  }))
+);
 
 export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard', className, completion, setCompletion }: CourseCardProps) => {
   // Add null checks to prevent errors when enrollment data is incomplete
@@ -28,6 +35,13 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
   const courseId = bufferToHex(enrollment.courseId as string);
   const versionId = bufferToHex(enrollment.courseVersionId as string) || "";
+  const module_number = enrollment.moduleNumber || "";
+  const section_number = enrollment.sectionNumber || "";
+  const item_type = enrollment.itemType || "VIDEO";
+
+  // Fetch course version to get supportLink
+  const { data: courseVersionData } = useCourseVersionById(versionId, variant !== 'available');
+  const supportLink = (courseVersionData as any)?.supportLink;
 
   // const { data: courseDetails, isLoading: isCourseLoading } = useCourseById(courseId);
   const { setCurrentCourse } = useCourseStore();
@@ -37,19 +51,32 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  const [isSupportOpen, setIsSupportOpen] = useState(false);
+  const supportEmail =
+    enrollment.courseId === "692f030a945e82ec875e9116"
+      ? "vibe-support@vicharanashala.zohodesk"
+      : "internship-support@vicharanashala.zohodesk";
 
   // const progress = Math.round(enrollment.percentCompleted || 0) as number 
-  const progress = Number(((enrollment.percentCompleted || 0)).toFixed(1));
+  const progress = Number(((enrollment.percentCompleted || 0)).toFixed(2));
 
-  const contentCounts = enrollment.contentCounts as { totalItems?: number; videos?: number; quizzes?: number; articles?: number; project?: number } || {};
+  const contentCounts = enrollment.contentCounts as { totalItems?: number; videos?: number; quizzes?: number; articles?: number; project?: number, totalQuizScore?: number, totalQuizMaxScore?: number, completedVideos?: number, completedQuizzes?: number, completedArticles?: number, completedProjects?: number } || {};
   const totalLessons = contentCounts.totalItems || 0;
   const completedLessons = enrollment.completedItems as number || 0;
   const isCompleted = (typeof enrollment.percentCompleted === 'number' && enrollment.percentCompleted >= 100) || false;
+  // const totalQuizScore = contentCounts.totalQuizScore as number || 0;
+  // const totalQuizMaxScore = contentCounts.totalQuizMaxScore as number || 0;
 
-  const videoCount: number = contentCounts.videos || 0;
-  const quizCount: number = contentCounts.quizzes || 0;
-  const articleCount: number = contentCounts.articles || 0;
-  const projectCount: number = contentCounts.project || 0;
+  // const videoCount: number = contentCounts.videos || 0;
+  // const quizCount: number = contentCounts.quizzes || 0;
+  // const articleCount: number = contentCounts.articles || 0;
+  // const projectCount: number = contentCounts.project || 0;
+
+
+  // const completedVideos: number = contentCounts.completedVideos || 0;
+  // const completedQuizzes: number = contentCounts.completedQuizzes || 0;
+  // const completedArticles: number = contentCounts.completedArticles || 0;
+  // const completedProjects: number = contentCounts.completedProjects || 0;
 
 
   // Find if this courseVersionId is already in completion
@@ -85,6 +112,14 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   };
 
   const handleContinue = () => {
+    if (variant === 'available') {
+      navigate({
+        to: "/student/course-registration/$versionId",
+        params: { versionId: versionId }
+      });
+      return;
+    }
+
     console.log("Setting course store:", {
       courseId: courseId,
       versionId: versionId
@@ -107,7 +142,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
     return <CourseCardSkeleton variant={variant} />;
   }
 
-  if (variant === 'dashboard') {
+  if (variant === 'dashboard' || variant === 'available') {
     return (
       <Card className={`dark:bg-[#4b341e4b] border border-border overflow-hidden flex flex-col sm:flex-row student-card-hover p-0 ${className || ''}`}>
         <div className="w-full h-40 sm:h-auto sm:w-32 flex-shrink-0 flex items-center justify-center">
@@ -140,36 +175,57 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   </div>
                 </div> */}
                 <div className="flex lg:flex-nowrap flex-wrap items-center gap-2 mb-1 xl:mb-0">
-                  <Info className="h-4 w-4" />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 cursor-pointer text-muted-foreground hover:text-foreground transition-colors" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" sideOffset={8}>
+                      <p>This course is actively updated with new content.</p>
+                    </TooltipContent>
+                  </Tooltip>
                   <span>Ongoing training — subject to change</span>
                 </div>
-                <div className="flex items-center gap-2 mb-1 xl:mb-0">
-                  <span>Completion Percentage</span>
+                {variant !== 'available' && (
                   <div className="flex items-center gap-2">
-                    <div className="w-16 h-2 bg-secondary rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
-                        style={{ width: `${progress}%` }}
-                      />
+                    <span>Completion Percentage</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 h-2 bg-secondary rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span>{progress.toFixed(2)}%</span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-3.5 w-3.5 text-muted-foreground cursor-pointer hover:text-foreground transition-colors" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" sideOffset={8}>
+                            <p>Percentage of course items you have completed</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                     </div>
-                    <span>{Math.round(progress)}% ({completedLessons}/{totalLessons})</span>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span>Enrolled</span>
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4 text-green-500" />
-                    <span className="text-green-500">
-                      {enrollment.enrollmentDate && typeof enrollment.enrollmentDate === 'string'
-                        ? new Date(enrollment.enrollmentDate).toLocaleDateString('en-GB', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                        })
-                        : 'Recently'}
-                    </span>
+                )}
+                {variant !== 'available' && (
+                  <div className="flex items-center gap-2">
+                    <span>Enrolled At</span>
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-4 w-4 text-green-500" />
+                      <span className="text-green-500">
+                        {enrollment.enrollmentDate && typeof enrollment.enrollmentDate === 'string'
+                          ? new Date(enrollment.enrollmentDate).toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                          })
+                          : 'Recently'}
+                      </span>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
@@ -182,16 +238,27 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               : progress === 0
                 ? 'Start your learning journey'
                 : 'Continue Learning'}
+
+            &nbsp;&nbsp;&nbsp;
+            {isCompleted ? "" : (progress == 0) ? "" : <span>&bull; MOD {module_number} &bull; SEC {section_number} &bull; {item_type}</span>}
           </p>
           <div className="mt-auto flex flex-col sm:flex-row gap-2">
             <Button
-              variant={progress === 0 ? "default" : isCompleted ? "secondary" : "default"}
-              className={`${progress === 0 ? "" : isCompleted ? "" : "border-accent hover:bg-accent/90"} w-full sm:w-auto`}
+              variant={variant === 'available' ? "default" : progress === 0 ? "default" : isCompleted ? "default" : "default"}
+              className={`${variant === 'available'
+                ? ""
+                : progress === 0
+                  ? "bg-green-600 hover:bg-green-700 text-white shadow-md border-0"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
+                // : isCompleted
+                //   ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
+                //   : "bg-blue-600 hover:bg-blue-700 text-white shadow-md border-0"
+                } w-full sm:w-auto transition-all duration-200`}
               onClick={handleContinue}
             >
-              {progress === 0 ? 'Start' : progress >= 100 ? 'Completed' : 'Continue'}
+              {variant === 'available' ? 'Register' : progress === 0 ? 'Start' : progress >= 100 ? 'Completed' : 'Continue'}
             </Button>
-            <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
+            {variant !== 'available' && enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full sm:w-auto">
                   <Trophy className="h-4 w-4 mr-2" />
@@ -199,8 +266,20 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 </Button>
               </DialogTrigger>
               <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} />
-            </Dialog>
-            <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+            </Dialog>}
+            {
+              enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && isDetailsOpen && (
+                <Suspense fallback={null}>
+                  <EnrollmentDetailsDialog
+                    isOpen={isDetailsOpen}
+                    onOpenChange={setIsDetailsOpen}
+                    enrollment={enrollment}
+                  />
+                </Suspense>
+              )
+            }
+            {enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && <Button onClick={() => setIsDetailsOpen(true)} variant="outline" className="w-full sm:w-auto">View Details</Button>}
+            {/* {enrollment.courseVersionId!=="6981df886e100cfe04f9c4ae"&& <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full sm:w-auto">View Details</Button>
               </DialogTrigger>
@@ -256,6 +335,38 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                           <p className="text-sm font-medium text-muted-foreground">Project</p>
                           <p className="text-xl font-semibold">{projectCount}</p>
                         </div>
+                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                          <p className="text-sm font-medium text-muted-foreground">Quiz Scores</p>
+                          <p className="text-xl font-semibold">{totalQuizScore} / {totalQuizMaxScore}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    <div>
+                      <h3 className="text-lg font-semibold">Completion Details</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-2">
+                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                          <p className="text-sm font-medium text-muted-foreground">Total Completed</p>
+                          <p className="text-xl font-semibold">{completedLessons} / {totalLessons}</p>
+                        </div>
+                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                          <p className="text-sm font-medium text-muted-foreground">Videos Watched</p>
+                          <p className="text-xl font-semibold">{completedVideos} / {videoCount}</p>
+                        </div>
+                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                          <p className="text-sm font-medium text-muted-foreground">Quizzes Completed</p>
+                          <p className="text-xl font-semibold">{completedQuizzes} / {quizCount}</p>
+                        </div>
+                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                          <p className="text-sm font-medium text-muted-foreground">Articles Read</p>
+                          <p className="text-xl font-semibold">{completedArticles} / {articleCount}</p>
+                        </div>
+                        <div className="space-y-1 p-3 bg-muted/20 rounded-lg">
+                          <p className="text-sm font-medium text-muted-foreground">Projects Done</p>
+                          <p className="text-xl font-semibold">{completedProjects} / {projectCount}</p>
+                        </div>
                       </div>
                     </div>
 
@@ -291,10 +402,38 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   </div>
                 </ScrollArea>
               </DialogContent>
-            </Dialog>
+            </Dialog>} */}
+
+            {variant !== 'available' && supportLink && (() => {
+              const isEmail = supportLink.startsWith('mailto:') || (!supportLink.startsWith('http://') && !supportLink.startsWith('https://') && !supportLink.startsWith('//') && supportLink.includes('@'));
+              const href = supportLink.startsWith('mailto:')
+                ? supportLink
+                : supportLink.startsWith('http://') || supportLink.startsWith('https://') || supportLink.startsWith('//')
+                  ? supportLink
+                  : supportLink.includes('@')
+                    ? `mailto:${supportLink}`
+                    : supportLink;
+              return (
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  asChild
+                >
+                  <a
+                    href={href}
+                    target={isEmail ? undefined : "_blank"}
+                    rel={isEmail ? undefined : "noopener noreferrer"}
+                    className="flex items-center gap-2"
+                  >
+                    <Headphones className="h-4 w-4" />
+                    Get Support
+                  </a>
+                </Button>
+              );
+            })()}
 
             {/* JUST ADD THIS FOR MERN CASE STUDY COURSE ONLY */}
-            {enrollment.courseId === "692f030a945e82ec875e9116" && (
+            {variant !== 'available' && enrollment.courseId === "692f030a945e82ec875e9116" && (
               <Dialog open={isForumOpen} onOpenChange={setIsForumOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="w-full sm:w-auto">
@@ -431,6 +570,111 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               </Dialog>
             )}
 
+            {/* Dynamic Support Link - shown if configured by instructor */}
+            {(enrollment.courseVersion as any)?.supportLink && (
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto bg-green-500/10 border-green-500/30 hover:bg-green-500/20 text-green-700 dark:text-green-400"
+                asChild
+              >
+                <a
+                  href={
+                    (enrollment.courseVersion as any).supportLink.startsWith('mailto:') || (enrollment.courseVersion as any).supportLink.includes('@')
+                      ? (enrollment.courseVersion as any).supportLink.startsWith('mailto:')
+                        ? (enrollment.courseVersion as any).supportLink
+                        : `mailto:${(enrollment.courseVersion as any).supportLink}`
+                      : (enrollment.courseVersion as any).supportLink
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2"
+                >
+                  <Headphones className="h-4 w-4" />
+                  Get Support
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </Button>
+            )}
+
+            {/* Legacy hardcoded support - only show if no dynamic supportLink is configured */}
+            {!(enrollment.courseVersion as any)?.supportLink && (
+              enrollment.courseId === "6943b2cafa4e840eb39490b6" ||
+              enrollment.courseId === "692f030a945e82ec875e9116"
+            ) && (
+                <Dialog open={isSupportOpen} onOpenChange={setIsSupportOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full sm:w-auto">
+                      Support
+                    </Button>
+                  </DialogTrigger>
+
+                  <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 max-h-full flex flex-col">
+                    <DialogHeader className="mb-3 text-left">
+                      <DialogTitle>Support Details</DialogTitle>
+                    </DialogHeader>
+
+                    <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[800px] overflow-y-auto">
+                      <>
+                        <Separator className="mb-6" />
+
+                        <div className="space-y-4">
+                          {/* Section Header */}
+                          <div className="flex items-center gap-2 mb-4">
+                            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                              <LifeBuoy className="w-4 h-4 text-primary-foreground" />
+                            </div>
+                            <h3 className="text-lg font-semibold">Internship Support</h3>
+                          </div>
+
+                          {/* Support Card */}
+                          <div className="rounded-xl border bg-primary/5 shadow-sm hover:shadow-md transition-all">
+                            <div className="p-6 space-y-5">
+                              {/* Top */}
+                              <div className="flex items-center gap-3">
+                                <div className="w-14 h-14 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-md">
+                                  <Mail className="w-7 h-7" />
+                                </div>
+
+                                <div>
+                                  <p className="font-semibold text-base">
+                                    Contact Support
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    We usually respond within 24 hours
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Description */}
+                              <p className="text-sm text-muted-foreground leading-relaxed px-4 py-3 rounded-lg border bg-primary/5">
+                                For course-related queries, guidance, or issues, feel free to
+                                reach out to our support team via email.
+                              </p>
+
+                              {/* Email */}
+                              <div className="flex items-center gap-2.5">
+                                <Button asChild className="flex-1">
+                                  <a
+                                    href={`mailto:${supportEmail}`}
+                                    className="flex items-center justify-center gap-2"
+                                  >
+                                    <Mail className="w-4 h-4" />
+                                    {supportEmail}
+                                  </a>
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    </ScrollArea>
+                  </DialogContent>
+                </Dialog>
+              )}
+
+
+
+
           </div>
         </CardContent>
       </Card>
@@ -455,7 +699,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
             </CardDescription>
           </div>
           <div className="flex flex-col items-end gap-1">
-            <Badge variant="outline">{progress}% complete</Badge>
+            <Badge variant="outline">{progress.toFixed(2)}% complete</Badge>
             {isCompleted && (
               <Badge className="bg-green-100 text-green-800 border-0 font-normal">
                 Completed
@@ -473,7 +717,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
         <div className="space-y-2">
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>{completedLessons} of {totalLessons} lessons completed</span>
-            <span>{progress}%</span>
+            <span>{progress.toFixed(2)}%</span>
           </div>
           <Progress value={progress} />
         </div>
@@ -566,121 +810,123 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { course
   };
 
   return (
-    <DialogContent className="max-w-6xl">
-      <DialogHeader>
+    <DialogContent className="max-w-6xl h-[85vh] flex flex-col overflow-hidden">
+      <DialogHeader className="flex-shrink-0 pb-4">
         <DialogTitle className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-yellow-600" />
           {courseName || 'Course'} Leaderboard
         </DialogTitle>
-        <p className="text-sm text-muted-foreground mb-4">
+        <p className="text-sm text-muted-foreground">
           Students ranked by completion percentage and completion time
         </p>
       </DialogHeader>
 
-      <ScrollArea className="h-[600px] pr-4">
-        {isLoading && (
-          <div className="space-y-3">
-            {Array.from({ length: 10 }).map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full" />
-            ))}
-          </div>
-        )}
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full pr-4">
+          {isLoading && (
+            <div className="space-y-3">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          )}
 
-        {error && !isLoading && (
-          <p className="text-muted-foreground text-center py-8">{error}</p>
-        )}
+          {error && !isLoading && (
+            <p className="text-muted-foreground text-center py-8">{error}</p>
+          )}
 
-        {!isLoading && !error && (!leaderboard || leaderboard.length === 0) && (
-          <p className="text-muted-foreground text-center py-8">
-            No students enrolled yet
-          </p>
-        )}
+          {!isLoading && !error && (!leaderboard || leaderboard.length === 0) && (
+            <p className="text-muted-foreground text-center py-8">
+              No students enrolled yet
+            </p>
+          )}
 
-        {!isLoading && !error && leaderboard && leaderboard.length > 0 && (
-          <div className="space-y-2">
-            {leaderboard.map((entry) => {
-              const rankStyle = getRankStyle(entry.rank);
-              return (
-                <div
-                  key={entry.userId}
-                  className={cn(
-                    "flex items-center gap-3 p-3 rounded-lg transition-colors",
-                    entry.rank <= 3
-                      ? "bg-muted/50 border-2"
-                      : "bg-muted/20",
-                    entry.rank === 1 && "border-yellow-400",
-                    entry.rank === 2 && "border-gray-400",
-                    entry.rank === 3 && "border-orange-400"
-                  )}
-                >
-                  {/* Rank */}
-                  <div className="flex-shrink-0 w-10 text-center">
-                    {entry.rank <= 3 ? (
-                      <div className={cn("w-8 h-8 rounded-full flex items-center justify-center mx-auto", rankStyle.bgColor)}>
-                        <span className={cn("font-bold text-sm", rankStyle.textColor)}>
-                          {entry.rank}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-base font-semibold text-muted-foreground">
-                        {entry.rank}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Avatar */}
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback
-                      className={cn(
-                        entry.rank === 1 && "bg-yellow-100 text-yellow-800",
-                        entry.rank === 2 && "bg-gray-100 text-gray-700",
-                        entry.rank === 3 && "bg-orange-100 text-orange-700",
-                        entry.rank > 3 && "bg-muted"
-                      )}
-                    >
-                      {getInitials(entry.userName)}
-                    </AvatarFallback>
-                  </Avatar>
-
-                  {/* Name and Stats */}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold truncate">{entry.userName}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {Math.round(entry.completionPercentage) === 100 ? (
-                        <>
-                          <span className="text-green-600 font-medium">
-                            ✓ Completed
-                          </span>
-                          {entry.completedAt && (
-                            <span className="ml-2">
-                              on {new Date(entry.completedAt).toLocaleString()}
-                            </span>
-                          )}
-                        </>
-                      ) : (
-                        `In Progress: ${Math.round(entry.completionPercentage)}%`
-                      )}
-                    </p>
-                  </div>
-
-                  {/* Completion Badge */}
+          {!isLoading && !error && leaderboard && leaderboard.length > 0 && (
+            <div className="space-y-2 pb-4">
+              {leaderboard.map((entry) => {
+                const rankStyle = getRankStyle(entry.rank);
+                return (
                   <div
+                    key={entry.userId}
                     className={cn(
-                      "px-3 py-1 rounded-full font-semibold text-sm",
-                      Math.round(entry.completionPercentage) === 100
-                        ? "bg-green-100 text-green-800"
-                        : "bg-blue-100 text-blue-800"
+                      "flex items-center gap-3 p-3 rounded-lg transition-colors",
+                      entry.rank <= 3
+                        ? "bg-muted/50 border-2"
+                        : "bg-muted/20",
+                      entry.rank === 1 && "border-yellow-400",
+                      entry.rank === 2 && "border-gray-400",
+                      entry.rank === 3 && "border-orange-400"
                     )}
                   >
-                    {Math.round(entry.completionPercentage)}%
+                    {/* Rank */}
+                    <div className="flex-shrink-0 w-10 text-center">
+                      {entry.rank <= 3 ? (
+                        <div className={cn("w-8 h-8 rounded-full flex items-center justify-center mx-auto", rankStyle.bgColor)}>
+                          <span className={cn("font-bold text-sm", rankStyle.textColor)}>
+                            {entry.rank}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-base font-semibold text-muted-foreground">
+                          {entry.rank}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Avatar */}
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback
+                        className={cn(
+                          entry.rank === 1 && "bg-yellow-100 text-yellow-800",
+                          entry.rank === 2 && "bg-gray-100 text-gray-700",
+                          entry.rank === 3 && "bg-orange-100 text-orange-700",
+                          entry.rank > 3 && "bg-muted"
+                        )}
+                      >
+                        {getInitials(entry.userName)}
+                      </AvatarFallback>
+                    </Avatar>
+
+                    {/* Name and Stats */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold truncate">{entry.userName}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {Math.round(entry.completionPercentage) === 100 ? (
+                          <>
+                            <span className="text-green-600 font-medium">
+                              ✓ Completed
+                            </span>
+                            {entry.completedAt && (
+                              <span className="ml-2">
+                                on {new Date(entry.completedAt).toLocaleString()}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          `In Progress: ${entry.completionPercentage.toFixed(2)}%`
+                        )}
+                      </p>
+                    </div>
+
+                    {/* Completion Badge */}
+                    <div
+                      className={cn(
+                        "px-3 py-1 rounded-full font-semibold text-sm",
+                        Math.round(entry.completionPercentage) === 100
+                          ? "bg-green-100 text-green-800"
+                          : "bg-blue-100 text-blue-800"
+                      )}
+                    >
+                      {Math.round(entry.completionPercentage)}%
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </ScrollArea>
-      <div className="p-4 border-t border-border/50 bg-gradient-card flex items-center justify-between">
+                );
+              })}
+            </div>
+          )}
+        </ScrollArea>
+      </div>
+      <div className="flex-shrink-0 pt-4 border-t border-border/50 bg-background flex items-center justify-between">
         {/* My Stats */}
         {myStats ? (
           <div className="flex items-center gap-4 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border/50">

@@ -5,16 +5,27 @@ import studentRoutesExport from "./student-routes";
 import { useAuthStore } from "@/store/auth-store";
 import { JSX } from "react";
 import React from "react";
-import LoginPage from "../pages/LoginPage";
+// import LoginPage from "../pages/LoginPage";
 
 const { studentRoutes, learnRoutes } = studentRoutesExport;
 
 // ✅ Role-Based Route Guard using Zustand
 function ProtectedRoute({ role, children }: { role: "teacher" | "student"; children: JSX.Element }) {
     const user = useAuthStore(state => state.user);
+    const isAuthReady = useAuthStore(state => state.isAuthReady);
     const hasAccess = user?.role === role;
-    
-    // Redirect if no access
+
+    console.log('[ProtectedRoute] isAuthReady:', isAuthReady, 'hasAccess:', hasAccess);
+
+    if (!isAuthReady) {
+        console.log('[ProtectedRoute] Showing loading spinner...');
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-spin h-8 w-8 border-4 border-primary rounded-full border-t-transparent"></div>
+            </div>
+        );
+    }
+
     if (!hasAccess) {
         if (user?.role) {
             return <Navigate to={`/${user.role}`} replace />;
@@ -58,7 +69,7 @@ export default function AppRoutes() {
                 <Route path={learnRoutes.path} element={<ProtectedRoute role="student">{learnRoutes.element}</ProtectedRoute>} />
 
                 <Route path="/" element={<Navigate to="/auth" />} />
-                <Route path="/login" element={<LoginPage/>}/>
+                {/* <Route path="/login" element={<LoginPage />} /> */}
             </Routes>
         </BrowserRouter>
     );

@@ -42,6 +42,7 @@ export interface ICourseVersion {
   courseId: ID;
   version: string;
   description: string;
+  supportLink?: string;
   modules: IModule[];
   totalItems?: number;
   itemCounts?: {
@@ -382,7 +383,6 @@ export type EnrollmentRole =
   | 'TA'
   | 'STAFF';
 export type EnrollmentStatus = 'ACTIVE' | 'INACTIVE';
-// New interfaces for user enrollment and progress tracking
 export interface IEnrollment {
   _id?: string | ObjectId | null;
   userId: string | ObjectId;
@@ -393,6 +393,9 @@ export interface IEnrollment {
   enrollmentDate: Date;
   percentCompleted: number;
   completedItemsCount?: number;
+  isDeleted?: boolean;
+  deletedAt?: Date;
+  unenrolledAt?: Date;
 }
 
 export interface IProgress {
@@ -407,6 +410,13 @@ export interface IProgress {
   completedAt?: Date;
 }
 
+export interface ICurrentProgressPath {
+  module: {id: string; name: string} | null;
+  section: {id: string; name: string} | null;
+  item: {id: string; name: string; type: string} | null;
+  message?: string;
+}
+
 export interface IWatchTime {
   _id?: string | ObjectId | null;
   userId: string | ObjectId;
@@ -415,6 +425,30 @@ export interface IWatchTime {
   itemId: string | ObjectId;
   startTime: Date;
   endTime?: Date;
+}
+
+export interface IUserActivityEvent {
+  _id?: string | ObjectId | null;
+  userId: string | ObjectId;
+  courseId: string | ObjectId;
+  courseVersionId: string | ObjectId;
+  videoId: ObjectId; // itemId from the system, stored as ObjectId
+  rewinds: number;
+  fastForwards: number;
+  rewindData: Array<{
+    from: string; // HH:MM:SS format
+    to: string;   // HH:MM:SS format
+    createdAt: Date;
+  }>;
+  fastForwardData: Array<{
+    from: string; // HH:MM:SS format
+    to: string;   // HH:MM:SS format
+    createdAt: Date;
+  }>;
+  createdAt: Date;
+  updatedAt: Date;
+  isDeleted?: boolean;
+  deletedAt?: Date;
 }
 
 export enum InviteActionType {
@@ -484,10 +518,13 @@ export interface IRegistrationSettings {
 export interface ISettings {
   proctors: IProctoringSettings;
   linearProgressionEnabled: boolean;
+  seekForwardEnabled: boolean;
+  isPublic?: boolean;
   // registration_settings?: IRegistrationSettings[];
   registration?: {
     jsonSchema?: any;
     uiSchema?: any;
+    isActive?: boolean;
   };
   // jsonSchema?: any;
   // uiSchema?: any;
@@ -563,6 +600,10 @@ export class EnrollmentFilterQuery {
   @IsString()
   @IsIn(['STUDENT', 'INSTRUCTOR', 'MANAGER', 'TA', 'STAFF'])
   role: EnrollmentRole;
+
+  @IsOptional()
+  @IsString()
+  courseVersionId?: string;
 }
 
 export class EnrollmentsQuery {
@@ -583,8 +624,9 @@ export class EnrollmentsQuery {
   search?: string;
 
   @IsOptional()
-  @IsIn(['name', 'enrollmentDate', 'progress'])
-  sortBy: 'name' | 'enrollmentDate' | 'progress' = 'enrollmentDate';
+  @IsIn(['name', 'enrollmentDate', 'progress', 'unenrolledAt'])
+  sortBy: 'name' | 'enrollmentDate' | 'progress' | 'unenrolledAt' =
+    'enrollmentDate';
 
   @IsOptional()
   @IsIn(['asc', 'desc'])
@@ -593,12 +635,20 @@ export class EnrollmentsQuery {
   @IsOptional()
   @IsIn(['STUDENT', 'OTHER'])
   filter?: 'STUDENT' | 'OTHER';
+
+  @IsOptional()
+  @IsIn(['ACTIVE', 'INACTIVE'])
+  statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE';
 }
 
 export class BulkEnrollmentsQuery {
   @IsOptional()
   @IsString()
   courseId?: string;
+
+  @IsOptional()
+  @IsString()
+  versionId?: string;
 
   @IsOptional()
   @IsString()
@@ -655,6 +705,7 @@ export interface ICourseRegistration {
   userId: ID;
   detail: Record<string, any>;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  read?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }

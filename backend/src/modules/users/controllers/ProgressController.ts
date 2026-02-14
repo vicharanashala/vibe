@@ -1,4 +1,5 @@
 import {Progress} from '#users/classes/transformers/Progress.js';
+import {ICurrentProgressPath} from '#shared/interfaces/models.js';
 import {
   GetUserProgressParams,
   StartItemParams,
@@ -41,6 +42,7 @@ import {
   Param,
   QueryParams,
   CurrentUser,
+  Req,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {UserNotFoundErrorResponse} from '../classes/validators/UserValidators.js';
@@ -57,6 +59,7 @@ import {InternalServerErrorResponse} from '../../../shared/middleware/errorHandl
 import {COURSES_TYPES} from '#root/modules/courses/types.js';
 import {ItemService} from '#root/modules/courses/services/ItemService.js';
 import {SuccessResponse} from '#root/modules/projects/classes/validators/ProjectValidators.js';
+import {CourseVersionQuery} from '#root/modules/courses/classes/index.js';
 
 @OpenAPI({
   tags: ['Progress'],
@@ -117,6 +120,44 @@ class ProgressController {
   }
 
   @OpenAPI({
+    summary: 'Get current progress path for a user',
+    description:
+      'Retrieves the current learning position (module, section, item) for a specific user in a course version',
+  })
+  @Authorized()
+  @Get('/progress/courses/:courseId/versions/:versionId/current-path')
+  @HttpCode(200)
+  async getCurrentProgressPath(
+    @Params() params: GetUserProgressParams,
+    @Ability(getProgressAbility) {user},
+    @Req() request: any,
+  ): Promise<ICurrentProgressPath> {
+    const {courseId, versionId} = params;
+
+    // Validate and extract userId with proper error handling
+    const queryUserId = request.query?.userId as string;
+    const userId =
+      queryUserId && queryUserId.trim() ? queryUserId : user._id.toString();
+
+    if (!userId) {
+      return {
+        module: null,
+        section: null,
+        item: null,
+        message: 'Invalid user ID',
+      };
+    }
+
+    const result = await this.progressService.getCurrentProgressPath(
+      userId,
+      courseId,
+      versionId,
+    );
+
+    return result;
+  }
+
+  @OpenAPI({
     summary: 'Get %age progress in a course version',
     description:
       'Retrieves the progress of a user in a specific course version.',
@@ -141,20 +182,15 @@ class ProgressController {
     // Create a progress resource object for permission checking
     const progressResource = subject('Progress', {userId, courseId, versionId});
 
-    // Check permission using ability.can() with the actual progress resource
     if (!ability.can(ProgressActions.View, progressResource)) {
-      throw new ForbiddenError(
-        'You do not have permission to view this progress',
-      );
+      throw new ForbiddenError('You do not have permission');
     }
 
-    const progress = await this.progressService.getUserProgressPercentage(
+    return await this.progressService.getUserProgressPercentage(
       userId,
       courseId,
       versionId,
     );
-
-    return progress;
   }
 
   @OpenAPI({
@@ -235,8 +271,15 @@ class ProgressController {
     @Ability(getProgressAbility) {ability, user},
   ): Promise<void> {
     const {courseId, versionId} = params;
-    const {itemId, sectionId, moduleId, watchItemId, attemptId, isSkipped} =
-      body;
+    const {
+      itemId,
+      sectionId,
+      moduleId,
+      watchItemId,
+      attemptId,
+      isSkipped,
+      seekForwardEnabled,
+    } = body;
 
     const userId = String(user._id);
 
@@ -252,28 +295,18 @@ class ProgressController {
       );
     }
 
-    await Promise.all([
-      this.progressService.stopItem(
-        userId,
-        courseId,
-        versionId,
-        itemId,
-        sectionId,
-        moduleId,
-        watchItemId,
-      ),
-      this.progressService.updateProgress(
-        userId,
-        courseId,
-        versionId,
-        moduleId,
-        sectionId,
-        itemId,
-        watchItemId,
-        attemptId,
-        isSkipped,
-      ),
-    ]);
+    await this.progressService.stopItem(
+      userId,
+      courseId,
+      versionId,
+      itemId,
+      sectionId,
+      moduleId,
+      watchItemId,
+      attemptId,
+      isSkipped,
+      seekForwardEnabled,
+    );
   }
 
   @OpenAPI({
@@ -441,9 +474,8 @@ It returns an empty body with a 200 status code.
   ): Promise<number> {
     const userId = user._id.toString();
 
-    const totalWatchTime = await this.progressService.getTotalWatchtimeOfUser(
-      userId,
-    );
+    const totalWatchTime =
+      await this.progressService.getTotalWatchtimeOfUser(userId);
     return totalWatchTime;
   }
 
@@ -520,22 +552,101 @@ It returns an empty body with a 200 status code.
     );
   }
 
-  ///////////////////////////////////////////////////// TO CORRECT THE WATCHTIME DOC COUNT OF STUDENTS ////////////////////////////////////////////
-    @Post('/progress/watch-time/bulk')
-    @HttpCode(201)
-    @OpenAPI({
-      summary: 'Create bulk watch-time records',
-      description:
-        'Creates multiple watch-time entries in a single request for better performance',
-    })
-    @ResponseSchema(InternalServerErrorResponse, {
-      description: 'Failed to create watch-time records',
-      statusCode: 500,
-    })
-    async createBulkWatchiTimeDocs(@Body() body: any): Promise<any> {
-      const {courseId, versionId,userId} = body;
-      return this.progressService.createBulkWatchiTimeDocs(courseId, versionId,userId ?? null);
+  @Post('/progress/recalculate')
+  @HttpCode(200)
+  @OpenAPI({
+    summary: 'Recalculate student progress',
+    description:
+      'Recalculates and updates the progress of a student for a given course and course version.',
+  })
+  @Authorized()
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Failed to recalculate student progress',
+    statusCode: 500,
+  })
+  async recalculateStudentProgress(
+    @Body() body: CourseVersionQuery,
+    @CurrentUser() user: IUser,
+  ): Promise<string> {
+    const {courseId, courseVersionId} = body;
+    const userId = user._id?.toString();
+    return this.progressService.recalculateStudentProgress(
+      userId,
+      courseId,
+      courseVersionId,
+    );
+  }
+
+  @OpenAPI({
+    summary: 'Get module wise progress',
+    description:
+      'Returns total items and completed items for each module in a course version for the current user.',
+  })
+  @Authorized()
+  @Get('/progress/courses/:courseId/versions/:versionId/modules')
+  @HttpCode(200)
+  @ResponseSchema(ProgressDataResponse, {
+    description: 'Module wise progress retrieved successfully',
+    isArray: true,
+  })
+  @ResponseSchema(ProgressNotFoundErrorResponse, {
+    description: 'Progress not found',
+    statusCode: 404,
+  })
+  async getModuleWiseProgress(
+    @Params() params: GetUserProgressParams,
+    @Ability(getProgressAbility) {ability, user},
+  ): Promise<
+    Array<{
+      moduleId: string;
+      moduleName: string;
+      totalItems: number;
+      completedItems: number;
+    }>
+  > {
+    const {courseId, versionId} = params;
+    const userId = user._id.toString();
+
+    // Permission check
+    const progressResource = subject('Progress', {
+      userId,
+      courseId,
+      versionId,
+    });
+
+    if (!ability.can(ProgressActions.View, progressResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to view this progress',
+      );
     }
+
+    return await this.progressService.getModuleWiseProgress(
+      userId,
+      courseId,
+      versionId,
+    );
+  }
+
+  ///////////////////////////////////////////////////// TO CORRECT THE WATCHTIME DOC COUNT OF STUDENTS ////////////////////////////////////////////
+  @Post('/progress/watch-time/bulk')
+  @HttpCode(201)
+  @OpenAPI({
+    summary: 'Create bulk watch-time records',
+    description:
+      'Creates multiple watch-time entries in a single request for better performance',
+  })
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Failed to create watch-time records',
+    statusCode: 500,
+  })
+  async createBulkWatchiTimeDocs(@Body() body: any): Promise<any> {
+    const {courseId, versionId, userId} = body;
+    return this.progressService.createBulkWatchiTimeDocs(
+      courseId,
+      versionId,
+      userId ?? null,
+    );
+  }
 
   /////////////////////////////// TEMP ENDPOINT WITHOUT AUTH //////////////////////////////////
   @Get('/progress/courses/:courseId/versions/:versionId/leaderboard/no-auth')

@@ -39,11 +39,14 @@ import CourseInstructors from '../pages/teacher/course-instructors'
 import RegisteredUsers from '../pages/teacher/CourseRegistrationRequests'
 import CourseRegistration from '../pages/student/CourseRegistration'
 import CourseIssueReports from '../pages/student/FlagResponse'
-import LoginPage from '../pages/LoginPage'
+// import LoginPage from '../pages/LoginPage'
 import FeedbackFormEditor from '../pages/teacher/FeedbackFormEditor'
 import Leaderboard from '../pages/student/leaderboard'
 import ForgotPasswordPage from '../pages/ForgotPasswordPage'
 import ResetPasswordPage from '../pages/ResetPasswordPage'
+import StudentLogin from '../pages/student/StudentLogin'
+import TeacherLogin from '../pages/teacher/TeacherLogin'
+import SelectRolePage from '../pages/SelectRolePage'
 
 
 // Root route with error and notFound handling
@@ -152,19 +155,37 @@ const teacherLayoutRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/teacher',
   notFoundComponent: NotFoundComponent,
-  beforeLoad: () => {
-    // Auth and role check
-    const { isAuthenticated, user } = useAuthStore.getState();
-    if (!isAuthenticated) {
+  beforeLoad: async () => {
+    const { isAuthReady } = useAuthStore.getState();
+
+    // If auth isn't ready, wait for it (max 5 seconds)
+    if (!isAuthReady) {
+      await new Promise<void>((resolve) => {
+        const unsubscribe = useAuthStore.subscribe((state) => {
+          if (state.isAuthReady) {
+            unsubscribe();
+            resolve();
+          }
+        });
+        setTimeout(() => {
+          unsubscribe();
+          resolve();
+        }, 5000);
+      });
+    }
+
+    // Re-check auth state after waiting
+    const currentState = useAuthStore.getState();
+    if (!currentState.isAuthenticated) {
       throw redirect({ to: '/auth' });
     }
 
     // Role check - must be a teacher
-    if (user?.role !== 'teacher') {
-      if (user?.role === 'student') {
-        throw redirect({ to: '/student' }); // Redirect students to their dashboard
+    if (currentState.user?.role !== 'teacher') {
+      if (currentState.user?.role === 'student') {
+        throw redirect({ to: '/student' });
       } else {
-        throw redirect({ to: '/auth' }); // Redirect others to auth
+        throw redirect({ to: '/auth' });
       }
     }
   },
@@ -176,26 +197,40 @@ const studentLayoutRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/student',
   notFoundComponent: NotFoundComponent,
-  beforeLoad: () => {
-    // Auth and role check
-    const { isAuthenticated, user } = useAuthStore.getState();
-    if (!isAuthenticated) {
+  beforeLoad: async () => {
+    const { isAuthReady } = useAuthStore.getState();
+
+    // If auth isn't ready, wait for it (max 5 seconds)
+    if (!isAuthReady) {
+      await new Promise<void>((resolve) => {
+        const unsubscribe = useAuthStore.subscribe((state) => {
+          if (state.isAuthReady) {
+            unsubscribe();
+            resolve();
+          }
+        });
+        setTimeout(() => {
+          unsubscribe();
+          resolve();
+        }, 5000);
+      });
+    }
+
+    // Re-check auth state after waiting
+    const currentState = useAuthStore.getState();
+    if (!currentState.isAuthenticated) {
       throw redirect({ to: '/auth' });
     }
     // Role check - must be a student
-    if (user?.role !== 'student') {
-      if (user?.role === 'teacher') {
+    if (currentState.user?.role !== 'student') {
+      if (currentState.user?.role === 'teacher') {
         throw redirect({ to: '/teacher' }); // Redirect teachers to their dashboard
       } else {
         throw redirect({ to: '/auth' }); // Redirect others to auth
       }
     }
   },
-  component: ()=> (
-    <StudentRouteGuard>
-      <StudentLayout/>
-    </StudentRouteGuard>
-  )
+  component: StudentLayout
   ,
 });
 
@@ -271,9 +306,9 @@ const teacherCourseInstructorsRoute = new Route({
 
 // Teacher Course Regstration requests
 const teacherCourseRegistrationRequests = new Route({
-  getParentRoute:() => teacherLayoutRoute,
-  path:'/courses/registration-requests',
-  component:RegisteredUsers
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/registration-requests',
+  component: RegisteredUsers
 })
 
 
@@ -308,9 +343,9 @@ const teacherAddCourseRoute = new Route({
 
 //Teacher feedback form route 
 const teacherFeedBackEditorRoute = new Route({
-  getParentRoute:() => teacherLayoutRoute,
-  path:'editor/feedback',
-  component:FeedbackFormEditor
+  getParentRoute: () => teacherLayoutRoute,
+  path: 'editor/feedback',
+  component: FeedbackFormEditor
 })
 
 // Teacher generate section route
@@ -351,9 +386,9 @@ const studentCoursesRoute = new Route({
 // student issues routes 
 
 const studentIssuesRoute = new Route({
-  getParentRoute:() => studentLayoutRoute,
-  path:'/issues',
-  component:CourseIssueReports,
+  getParentRoute: () => studentLayoutRoute,
+  path: '/issues',
+  component: CourseIssueReports,
 })
 
 // Student leaderboard route
@@ -370,16 +405,45 @@ const studentProfileRoute = new Route({
   component: StudentProfile,
 });
 
-export  const studentCourseInviteRegistration = new Route({
-  getParentRoute: () => studentLayoutRoute,
-  path:"/course-registration/$versionId",
+// export const studentCourseInviteRegistration = new Route({
+//   getParentRoute: () => studentLayoutRoute,
+//   path: "/course-registration/$versionId",
+//   component: CourseRegistration,
+// })
+
+export const studentCourseInviteRegistration = new Route({
+  getParentRoute: () => rootRoute, // 👈 IMPORTANT: NOT studentLayoutRoute
+  path: "/student/course-registration/$versionId",
   component: CourseRegistration,
-})
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+
+    // ❌ Not logged in → go to student login
+    if (!isAuthenticated) {
+      throw redirect({
+        to: '/student/login',
+        search: {
+          redirect: window.location.pathname, // optional: come back after login
+        },
+      });
+    }
+
+    // ❌ Logged in but not a student
+    if (user?.role !== 'student') {
+      throw redirect({ to: '/auth' });
+    }
+  },
+});
+
 
 const coursePageRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/student/learn',
-  component: CoursePage,
+  component: () => (
+    <StudentRouteGuard>
+      <CoursePage />
+    </StudentRouteGuard>
+  ),
   beforeLoad: () => {
     const { isAuthenticated, user } = useAuthStore.getState();
     if (!isAuthenticated) {
@@ -411,24 +475,49 @@ const testAISectionModalRoute = new Route({
   path: '/test-ai-section-modal',
   component: AISectionPage,
 });
-export const loginRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: '/login',
-  component: LoginPage,
+// export const loginRoute = new Route({
+//   getParentRoute: () => rootRoute,
+//   path: '/login',
+//   component: LoginPage,
+// })
+
+//student login route
+export const studentLoginRoute = new Route({
+  getParentRoute: ()=> rootRoute,
+  path: '/student/login',
+  component: StudentLogin
+})
+
+//teacher login route
+export const teacherLoginRoute = new Route({
+  getParentRoute: ()=> rootRoute,
+  path: '/teacher/login',
+  component: TeacherLogin
+})
+
+//select role route
+export const selectRoleRoute = new Route({
+  getParentRoute: ()=> rootRoute,
+  path: '/select-role',
+  component: SelectRolePage
 })
 
 // Create the router with the route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
   authRoute,
-  loginRoute,
+//   loginRoute,
   forgotPasswordRoute,
   resetPasswordRoute,
+  // loginRoute,
+  selectRoleRoute,
+  studentLoginRoute,
+  teacherLoginRoute,
   teacherLayoutRoute.addChildren([
     // teacherDashboardRoute,
     teacherCreateArticleRoute,
     teacherCoursesPageRoute,
-    teacherViewCourseRoute,teacherCourseFlagsRoute,
+    teacherViewCourseRoute, teacherCourseFlagsRoute,
     teacherProfileRoute,
     teacherCourseEnrollmentsRoute,
     teacherAudioManagerRoute,

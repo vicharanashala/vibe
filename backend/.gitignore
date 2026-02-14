@@ -77,3 +77,7 @@ client/
 tsconfig.tsbuildinfo
 client/
 build/
+
+*txt
+
+/gcp-service-account.json

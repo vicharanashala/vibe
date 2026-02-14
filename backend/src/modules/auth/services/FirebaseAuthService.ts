@@ -4,22 +4,22 @@ import {
   ChangePasswordBody,
   GoogleSignUpBody,
 } from '#auth/classes/index.js';
-import { IAuthService } from '#auth/interfaces/IAuthService.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { injectable, inject } from 'inversify';
-import { InternalServerError } from 'routing-controllers';
+import {IAuthService} from '#auth/interfaces/IAuthService.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {injectable, inject} from 'inversify';
+import {InternalServerError} from 'routing-controllers';
 import admin from 'firebase-admin';
-import { IUser } from '#root/shared/interfaces/models.js';
-import { BaseService } from '#root/shared/classes/BaseService.js';
-import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
-import { InviteRepository } from '#root/shared/index.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import { InviteResult, MailService } from '#root/modules/notifications/index.js';
-import { appConfig } from '#root/config/app.js';
-import { USERS_TYPES } from '#root/modules/users/types.js';
-import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
-import { NOTIFICATIONS_TYPES } from '#root/modules/notifications/types.js';
-import { InviteService } from '#root/modules/notifications/services/InviteService.js';
+import {IUser} from '#root/shared/interfaces/models.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
+import {InviteRepository} from '#root/shared/index.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {InviteResult, MailService} from '#root/modules/notifications/index.js';
+import {appConfig} from '#root/config/app.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
+import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
+import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
+import {InviteService} from '#root/modules/notifications/services/InviteService.js';
 
 /**
  * Custom error thrown during password change operations.
@@ -77,7 +77,6 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     // Verify the token and decode it to get the Firebase UID
     const decodedToken = await this.auth.verifyIdToken(token);
     const firebaseUID = decodedToken.uid;
-
     // Retrieve the user from our database using the Firebase UID
     const user = await this.userRepository.findByFirebaseUID(firebaseUID);
     if (!user) {
@@ -182,6 +181,8 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     let enrolledInvites: InviteResult[] = [];
 
     const invites = await this.inviteRepository.findInvitesByEmail(body.email);
+    await this.inviteRepository.updateUserToNotNewUser(body.email);
+
     for (const invite of invites) {
       if (invite.inviteStatus === 'ACCEPTED') {
         const result = await this.enrollmentService.enrollUser(
@@ -209,12 +210,12 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
 
     return enrolledInvites.length > 0
       ? {
-        userId: createdUserId,
-        invites: enrolledInvites,
-      }
+          userId: createdUserId,
+          invites: enrolledInvites,
+        }
       : {
-        userId: createdUserId,
-      };
+          userId: createdUserId,
+        };
   }
 
   async googleSignup(body: GoogleSignUpBody, token: string): Promise<any> {
@@ -226,7 +227,9 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     // ==========================================================
     // FIX: Check if user already exists before creating
     // ==========================================================
-    const existingUserByEmail = await this.userRepository.findByEmail(body.email);
+    const existingUserByEmail = await this.userRepository.findByEmail(
+      body.email,
+    );
     if (existingUserByEmail) {
       // User already exists, return existing user ID
       return {
@@ -234,7 +237,9 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       };
     }
 
-    const existingUserByUID = await this.userRepository.findByFirebaseUID(firebaseUID);
+    const existingUserByUID = await this.userRepository.findByFirebaseUID(
+      firebaseUID,
+    );
     if (existingUserByUID) {
       // User already exists, return existing user ID
       return {
@@ -263,6 +268,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     let enrolledInvites: InviteResult[] = [];
 
     const invites = await this.inviteRepository.findInvitesByEmail(body.email);
+    await this.inviteRepository.updateUserToNotNewUser(body.email);
     for (const invite of invites) {
       if (invite.inviteStatus === 'ACCEPTED') {
         const result = await this.enrollmentService.enrollUser(
@@ -290,18 +296,18 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
 
     return enrolledInvites.length > 0
       ? {
-        userId: createdUserId,
-        invites: enrolledInvites,
-      }
+          userId: createdUserId,
+          invites: enrolledInvites,
+        }
       : {
-        userId: createdUserId,
-      };
+          userId: createdUserId,
+        };
   }
 
   async changePassword(
     body: ChangePasswordBody,
     requestUser: IUser,
-  ): Promise<{ success: boolean; message: string }> {
+  ): Promise<{success: boolean; message: string}> {
     // Verify user exists in Firebase
     const firebaseUser = await this.auth.getUser(requestUser.firebaseUID);
     if (!firebaseUser) {
@@ -318,7 +324,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       password: body.newPassword,
     });
 
-    return { success: true, message: 'Password updated successfully' };
+    return {success: true, message: 'Password updated successfully'};
   }
 
   async updateFirebaseUser(

@@ -13,7 +13,7 @@ interface IStatus {
     comment: string;
     createdBy?: string | ObjectId;
     createdAt?: Date;
-    response?:string
+    response?: string
 }
 
 interface IReport {
@@ -22,12 +22,16 @@ interface IReport {
     versionId?: string | ObjectId;
     entityId?: string | ObjectId;
     entityType?: EntityType;
+    questionId?: string | ObjectId;
     reportedBy?: string | ObjectId;
     reason?: string;
-    satisfied?:string;
+    satisfied?: string;
     status?: IStatus[];
     createdAt?: Date;
     updatedAt?: Date;
+    moduleName?: string;
+    sectionName?: string;
+    itemName?: string;
 }
 
 

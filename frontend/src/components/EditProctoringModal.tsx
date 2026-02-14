@@ -51,12 +51,13 @@ export function ProctoringModal({
   const { editSettings, loading, error } = useEditProctoringSettings()
   const { getSettings, settingLoading, settingError } = useGetProcotoringSettings();
 
-  console.log("Course id: ", courseId, "CourseVersionId: ", courseVersionId)
   const allComponents = Object.values(ProctoringComponent)
   const [detectors, setDetectors] = useState(
     allComponents.map((name) => ({ name, enabled: false }))
   )
   const [linearProgressionEnabled, setLinearProgressionEnabled] = useState(true);
+  const [seekForwardEnabled, setSeekForwardEnabled] = useState(false);
+  const [isPublic, setIsPublic] = useState(false);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -65,6 +66,8 @@ export function ProctoringModal({
         if (result) {
           setDetectors(result.settings?.proctors?.detectors?.map((d: any) => ({ name: d.detectorName, enabled: d.settings.enabled })))
           setLinearProgressionEnabled(result.settings?.linearProgressionEnabled)
+          setSeekForwardEnabled(result.settings?.seekForwardEnabled ?? false)
+          setIsPublic(result.settings?.isPublic ?? false)
         }
       } catch (err) {
         console.error("Failed to fetch proctoring settings:", err)
@@ -85,10 +88,9 @@ export function ProctoringModal({
   }
 
   const handleSubmit = async () => {
-    try{
-      const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled)
-      console.log("Proctoring settings updated:", result)
-      if(result != undefined) {
+    try {
+      const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled, seekForwardEnabled, isPublic)
+      if (result != undefined) {
         onClose();
       }
       toast.success("Settings updated!")
@@ -158,6 +160,22 @@ export function ProctoringModal({
                   <p className="text-xs text-muted-foreground">Students must follow lessons sequentially</p>
                 </div>
                 <Switch checked={linearProgressionEnabled} onCheckedChange={()=>setLinearProgressionEnabled(prev=>!prev)} />
+              </div>
+
+              <div className="flex items-center justify-between space-x-3">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Seek Forward</Label>
+                  <p className="text-xs text-muted-foreground">Allow students to seek forward in all videos</p>
+                </div>
+                <Switch checked={seekForwardEnabled} onCheckedChange={()=>setSeekForwardEnabled(prev=>!prev)} />
+              </div>
+
+              <div className="flex items-center justify-between space-x-3">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Make Public</Label>
+                  <p className="text-xs text-muted-foreground">Make this course available to all students</p>
+                </div>
+                <Switch checked={isPublic} onCheckedChange={() => setIsPublic(prev => !prev)} />
               </div>
             </div>
           </div>

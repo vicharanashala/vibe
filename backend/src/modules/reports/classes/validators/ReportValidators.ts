@@ -10,19 +10,20 @@ import {
   IsArray,
   IsIn,
 } from 'class-validator';
-import {Type} from 'class-transformer';
-import {JSONSchema} from 'class-validator-jsonschema';
-import {ID} from '#root/shared/interfaces/models.js';
-import {EntityType, IReport, ReportStatus} from '#root/shared/index.js';
+import { ReportSortColumn } from '../../types.js';
+import { Type } from 'class-transformer';
+import { JSONSchema } from 'class-validator-jsonschema';
+import { ID } from '#root/shared/interfaces/models.js';
+import { EntityType, IReport, ReportStatus } from '#root/shared/index.js';
 import {
   ENTITY_TYPE_VALUES,
   EntityTypeEnum,
   REPORT_STATUS_VALUES,
   ReportStatusEnum,
 } from '../../constants.js';
-import {ReportStatusEntry} from '../transformers/Report.js';
-import {Course} from '#root/modules/courses/classes/index.js';
-import {User} from '#root/modules/auth/classes/index.js';
+import { ReportStatusEntry } from '../transformers/Report.js';
+import { Course } from '#root/modules/courses/classes/index.js';
+import { User } from '#root/modules/auth/classes/index.js';
 
 class ReportBody implements Partial<IReport> {
   @JSONSchema({
@@ -51,6 +52,15 @@ class ReportBody implements Partial<IReport> {
   })
   @IsNotEmpty()
   entityId: ID;
+
+  @JSONSchema({
+    title: 'Question ID',
+    description: 'ID of the question being reported (optional)',
+    example: '64bfcb05e13e3547e90c8766',
+    type: 'string',
+  })
+  @IsOptional()
+  questionId?: ID;
 
   @JSONSchema({
     title: 'Entity Type',
@@ -97,7 +107,7 @@ class UpdateReportStatusBody {
   comment: string;
 }
 
-export class ResponseIntersetBody{
+export class ResponseIntersetBody {
   @JSONSchema({
     title: 'Flag report Id',
     description: 'ID ofthe report',
@@ -115,7 +125,7 @@ export class ResponseIntersetBody{
   })
   @IsNotEmpty()
   @IsString()
-  interest:"yes" | "no";
+  interest: "yes" | "no";
 }
 
 class ReportUpdateParams {
@@ -188,25 +198,35 @@ export class ReportFiltersQuery {
   @IsInt()
   @Min(0)
   currentPage?: number = 1;
+
+  @IsOptional()
+  sortBy?: ReportSortColumn;
+
+  @IsOptional()
+  @IsEnum(['asc', 'desc'])
+  sortOrder?: 'asc' | 'desc' = 'desc';
 }
 
 class ReportDataResponse {
-  @JSONSchema({description: 'Report ID', type: 'string', readOnly: true})
+  @JSONSchema({ description: 'Report ID', type: 'string', readOnly: true })
   _id: ID;
 
   @ValidateNested()
   @Type(() => Course)
-  @JSONSchema({$ref: '#/components/schemas/Course'})
+  @JSONSchema({ $ref: '#/components/schemas/Course' })
   courseId: Course;
   // @JSONSchema({description: 'Course ID', type: 'string'})
   // @IsString()
   // courseId: ID;
 
-  @JSONSchema({description: 'Course Version ID', type: 'string'})
+  @JSONSchema({ description: 'Course Version ID', type: 'string' })
   versionId: ID;
 
-  @JSONSchema({description: 'Reported Entity ID', type: 'string'})
+  @JSONSchema({ description: 'Reported Entity ID', type: 'string' })
   entityId: ID;
+
+  @JSONSchema({ description: 'Reported Question ID', type: 'string' })
+  questionId?: ID;
 
   @JSONSchema({
     description: 'Entity Type',
@@ -217,16 +237,16 @@ class ReportDataResponse {
 
   @ValidateNested()
   @Type(() => User)
-  @JSONSchema({$ref: '#/components/schemas/User'})
+  @JSONSchema({ $ref: '#/components/schemas/User' })
   reportedBy: User;
   // @JSONSchema({description: 'Reported User ID', type: 'string'})
   // @IsString()
   // reportedBy: ID;
 
-  @JSONSchema({description: 'Reason for the report', type: 'string'})
+  @JSONSchema({ description: 'Reason for the report', type: 'string' })
   reason: string;
 
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @Type(() => ReportStatusEntry)
   @JSONSchema({
     title: 'Status History',
@@ -239,8 +259,8 @@ class ReportDataResponse {
           type: 'string',
           enum: REPORT_STATUS_VALUES,
         },
-        comment: {type: 'string'},
-        timestamp: {type: 'string', format: 'date-time'},
+        comment: { type: 'string' },
+        timestamp: { type: 'string', format: 'date-time' },
       },
     },
   })
@@ -292,11 +312,11 @@ export class ReportResponse {
   @JSONSchema({
     description: 'Array of report data',
     type: 'array',
-    items: {$ref: '#/components/schemas/ReportDataResponse'},
+    items: { $ref: '#/components/schemas/ReportDataResponse' },
   })
   @IsNotEmpty()
   @IsArray()
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @Type(() => ReportDataResponse)
   reports: ReportDataResponse[];
 }
@@ -333,18 +353,12 @@ export class IssueFilterQuery {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @JSONSchema({
-    description:'number of pages to be shown'
-  })
   page: number = 1;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @JSONSchema({
-    description:'limit of entries displayed in single page'
-  })
   limit: number = 10;
 
   @IsOptional()
@@ -356,18 +370,19 @@ export class IssueFilterQuery {
   search: string = '';
 
   @IsOptional()
-  @IsEnum(IssueSortEnum)
-  sort: IssueSortEnum = IssueSortEnum.ALL;
+  @IsString()
+  sort?: string;
 }
 
-class IssueReportResponse{
+
+class IssueReportResponse {
   @JSONSchema({
     description: 'Array of issue reports',
- 
+
   })
   @IsNotEmpty()
   @IsArray()
-  @ValidateNested({each: true})
+  @ValidateNested({ each: true })
   @Type(() => Array<IReport>)
   issues: IReport[];
 

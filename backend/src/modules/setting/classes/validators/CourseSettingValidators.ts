@@ -20,6 +20,7 @@ import {
 import { Type } from 'class-transformer';
 import {
   ICourseSetting,
+  ID,
   IDetectorOptions,
   IDetectorSettings,
   ISettings,
@@ -54,13 +55,20 @@ export class ProctoringSettingsDto {
   detectors: DetectorSettingsDto[];
 }
 
-export class RegistrationSchema{
+export class RegistrationSchema {
   @IsOptional()
   @JSONSchema({
     description: 'Json Schema for Registrstion form',
     type: 'object',
   })
   jsonSchema?: any;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Indicates whether the registration form is active',
+  })
+  isActive?: boolean;
 
   @JSONSchema({
     description: 'UI schema for Registration form',
@@ -69,7 +77,42 @@ export class RegistrationSchema{
   uiSchema?: any;
 }
 
+export class AuditingChangeDto {
+  @JSONSchema({
+    description: 'State before modification',
+    type: 'object',
+  })
+  before: Record<string, any>;
 
+  @JSONSchema({
+    description: 'State after modification',
+    type: 'object',
+  })
+  after: Record<string, any>;
+}
+
+export class AuditingDto {
+  @JSONSchema({
+    description: 'User who modified the settings',
+    example: 'user_123',
+  })
+  userId: ID;
+
+  @JSONSchema({
+    description: 'Modification timestamp',
+    example: '2026-01-24T10:30:00.000Z',
+  })
+  @Type(() => Date)
+  modifiedAt: Date;
+
+  @ValidateNested()
+  @Type(() => AuditingChangeDto)
+  changes: AuditingChangeDto;
+
+  @IsString()
+  @IsOptional()
+  timestamp: string;
+}
 
 export class SettingsDto {
   @ValidateNested()
@@ -78,10 +121,26 @@ export class SettingsDto {
 
   @JSONSchema({
     description: 'Indicates whether linear progression is enabled',
-    examples:[true,false],
+    examples: [true, false],
   })
   @IsBoolean()
   linearProgressionEnabled: boolean;
+
+  @JSONSchema({
+    description: 'Indicates whether seek forward is enabled for all videos',
+    examples: [true, false],
+  })
+  @IsBoolean()
+  seekForwardEnabled: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Indicates whether the course is publicly visible',
+    examples: [true, false],
+    default: false,
+  })
+  isPublic?: boolean;
   // jsonSchema?:any
   // uiSchema?:any
   @IsOptional()
@@ -92,6 +151,15 @@ export class SettingsDto {
     type: 'object',
   })
   registration?: RegistrationSchema;
+
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => AuditingDto)
+  @JSONSchema({
+    description: 'Auditing information for settings modification',
+    type: 'object',
+  })
+  audit?: AuditingDto[];
 }
 
 @ValidatorConstraint({ async: false })
@@ -233,9 +301,9 @@ export class AddCourseProctoringParams {
 
 // This class represents the validation schema of body for adding proctoring to a course.
 export class AddCourseProctoringBody {
-  
+
   @IsNotEmpty()
-  @ValidateNested({each:true})
+  @ValidateNested({ each: true })
   @containsAllDetectors()
   @JSONSchema({
     title: 'Proctoring Component',
@@ -243,15 +311,31 @@ export class AddCourseProctoringBody {
     enum: Object.values(ProctoringComponent),
   })
   @Type(() => DetectorSettingsDto)
-  detectors:IDetectorSettings[];
+  detectors: IDetectorSettings[];
 
 
   @IsDefined()
   @IsBoolean()
   @JSONSchema({
-    description:'Student should follow the cours linearly if this is enabled'
+    description: 'Student should follow the cours linearly if this is enabled'
   })
   linearProgressionEnabled: boolean;
+
+  @IsDefined()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Allow students to seek forward in all videos if this is enabled'
+  })
+  seekForwardEnabled: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Indicates whether the course is publicly visible',
+    examples: [true, false],
+    default: false,
+  })
+  isPublic?: boolean;
 
 }
 
@@ -469,7 +553,7 @@ export class RemoveUserProctoringBody {
 }
 
 export class UpdateSettingResponse {
-  
+
   @JSONSchema({
     description: 'Indicates whether the update was successful',
     type: 'boolean',

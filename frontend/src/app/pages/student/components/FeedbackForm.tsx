@@ -8,7 +8,11 @@ import { useStartItem, useStopItem, useSubmitFeedback } from "@/hooks/hooks";
 import { useEffect, useRef } from "react";
 import { ISubmitFeedbackBody } from "@/components/Item-container";
 import Form from "@rjsf/shadcn";
-
+import { toast } from "sonner";
+import { buildEmptyFormData, normalizeSchemaOptions } from "@/utils/utils";
+import { FocusableSelectWidget } from "./FocusableSelectWidget";
+import { AlignedFieldTemplate } from "./AlignedFieldTemplate";
+import { CustomSubmitButton } from "./CustomSubmitButton";
 
 interface FeedbackFormProps {
   title: string;
@@ -21,10 +25,6 @@ interface FeedbackFormProps {
   isSubmitting?: boolean;
   onNext: () => void
 }
-
-
-
-
 
 const FeedbackForm = ({
   title,
@@ -118,13 +118,14 @@ const FeedbackForm = ({
       details: formData,
       courseId: currentCourse?.courseId || "",
       courseVersionId: currentCourse?.versionId || "",
-      isSkipped: false,
+      // isSkipped: false,
     };
 
 
     try {
       // 1️⃣ If this fails, it immediately goes to catch
-      await submitFeedback.mutateAsync(payload);
+       const result = await submitFeedback.mutateAsync(payload);
+       toast.success(result.message);
 
       // 2️⃣ Only runs if submitFeedback succeeded
       await stopItem.mutateAsync({
@@ -146,7 +147,7 @@ const FeedbackForm = ({
       onNext();
 
     } catch (err) {
-      console.error("Feedback submit or stop failed:", err);
+      console.error("Feedback submit or stopItem failed:", err);
     }
   };
 
@@ -172,6 +173,8 @@ const FeedbackForm = ({
     onNext()
 
   };
+ 
+
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6">
@@ -217,13 +220,25 @@ const FeedbackForm = ({
         </CardHeader>
 
         <CardContent className="pt-6">
-          <div className="max-h-[60vh] overflow-y-auto pr-4">
+          <div className="max-h-[60vh] overflow-y-auto pr-4">            
             <Form
-              schema={jsonSchema}
+              // schema={jsonSchema}
+              schema={normalizeSchemaOptions(jsonSchema)}
               validator={validator}
               uiSchema={uiSchema}
               onSubmit={handleSubmit}
               disabled={isSubmitting}
+              formData={buildEmptyFormData(jsonSchema)}
+              templates={{
+                  FieldTemplate: AlignedFieldTemplate,
+                  ButtonTemplates: {
+                    SubmitButton: CustomSubmitButton,
+                  },
+                }}
+              widgets={{
+                SelectWidget: FocusableSelectWidget, 
+              }}
+             
             />
           </div>
         </CardContent>

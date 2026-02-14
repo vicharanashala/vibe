@@ -26,7 +26,6 @@ export function WatchTimeDisplay({
 }) {
   console.log(`Fetching watch time for User: ${userId}, Item: ${itemId}, Course: ${courseId}, Version: ${courseVersionId}, Type: ${itemType}`)
   const { data: watchTimeData, isLoading, error} = useWatchTimeByItemId(userId, courseId, courseVersionId, itemId, itemType?.toUpperCase() || "");
-  console.log("Watch Time Data:", watchTimeData)
 
   if (isLoading) {
     return (
@@ -57,7 +56,6 @@ export function WatchTimeDisplay({
     ? watchTimeData.watchTime 
     : (watchTimeData.watchTime ? [watchTimeData.watchTime] : []);
 
-  console.log("Watch Time Array:", watchTimeArray, "Length:", watchTimeArray.length);
 
   const totalAttempts = watchTimeArray.length
 

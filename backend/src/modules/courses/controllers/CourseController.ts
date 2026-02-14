@@ -27,6 +27,9 @@ import {
   CourseIdParams,
   CourseVersionQuery,
   EditCourseBody,
+  CourseVersionQueryWithTime,
+  ActiveUsersResponseDto,
+  PublicCoursesQuery,
 } from '#courses/classes/validators/CourseValidators.js';
 import { CourseActions, getCourseAbility } from '../abilities/courseAbilities.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
@@ -47,6 +50,69 @@ export class CourseController {
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
   ) { }
+
+
+
+
+  @OpenAPI({
+    summary: 'Get Active Users by Course',
+    description:
+      'Fetches the list of active users enrolled in a specific course by course ID.',
+  })
+  // @Authorized()
+  @Get('/active-users', { transformResponse: true })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(CourseNotFoundErrorResponse, {
+    description: 'Course not found',
+    statusCode: 404,
+  })
+  async getActiveUsersByCourse(
+    @QueryParams() query: CourseVersionQueryWithTime,
+  ) {
+    const { courseId, courseVersionId, startTimeStamp, endTimeStamp } = query;
+
+    const activeUsers = await this.courseService.getActiveUsersByCourse(courseId, courseVersionId, startTimeStamp, endTimeStamp );
+
+    return activeUsers;
+  }
+
+  @OpenAPI({
+    summary: 'Get public courses',
+    description: 'Fetches the list of public courses available for enrollment.',
+  })
+  @Authorized()
+  @Get('/public', { transformResponse: true })
+  @HttpCode(200)
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async getPublicCourses(
+    @QueryParams() query: PublicCoursesQuery,
+    @Ability(getCourseAbility) { user },
+  ) {
+    const { page = 1, limit = 10, search = '' } = query;
+    const userId = user._id.toString();
+
+    const publicCourses = await this.courseService.getPublicCourses(
+      userId,
+      page,
+      limit,
+      search
+    );
+
+    return publicCourses;
+  }
+
+
+
+
+
+
+
 
   @OpenAPI({
     summary: 'Create a new course',
@@ -223,6 +289,7 @@ Accessible to:
   })
   @Authorized()
   @Patch('/version/total-item-count', { transformResponse: true })
+  @ResponseSchema(ActiveUsersResponseDto, { statusCode: 200 })
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
@@ -240,6 +307,10 @@ Accessible to:
     const updatedVersion = await this.courseService.updateCourseVersionTotalItemCount(courseId, courseVersionId);
     return updatedVersion;
   }
+
+
+
+
 }
 
 const schemas = validationMetadatasToSchemas({

@@ -13,9 +13,9 @@ export interface ISubmitFeedbackBody {
   details: Record<string, any>;
   courseId: string;
   courseVersionId: string;
-  isSkipped?: boolean;
+  // isSkipped?: boolean;
 }
-const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, onPrevVideo, isProgressUpdating,readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson,keyboardLockEnabled,setIsQuizSkipped, linearProgressionEnabled,courseId,versionId}, ref) => {
+const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, onPrevVideo, isProgressUpdating, readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson, keyboardLockEnabled, setIsQuizSkipped, linearProgressionEnabled, seekForwardEnabled, courseId, versionId }, ref) => {
   const articleRef = useRef<ArticleRef>(null);
   const quizRef = useRef<QuizRef>(null);
 
@@ -27,18 +27,23 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
       } else if (quizRef.current) {
         await quizRef.current.stopItem();
       }
+    },
+    getCurrentDetails: () => {
+      if (quizRef.current?.getCurrentDetails) {
+        return quizRef.current.getCurrentDetails();
+      }
+      return {};
     }
   }));
   const submitFeedback = useSubmitFeedback(item._id.toString())
-  
-   const handleFeedbackSubmit = async (formData: any) => {
 
-    
+  const handleFeedbackSubmit = async (formData: any) => {
+
+
   };
 
   const renderContent = () => {
     const itemType = item.type.toLowerCase();
-    console.log("itemType ",itemType)
     switch (itemType) {
       case 'video':
         return <Video
@@ -55,6 +60,8 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           readyToDetect={readyToDetect}
           anomalies={anomalies}
           linearProgressionEnabled={linearProgressionEnabled}
+          seekForwardEnabled={seekForwardEnabled}
+          isCompleted={item.isCompleted || false}
         />;
 
       case 'quiz':
@@ -84,7 +91,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           displayNextLesson={displayNextLesson}
           setQuizPassed={setQuizPassed}
           rewindVid={rewindVid}
-          setIsQuizSkipped = {setIsQuizSkipped}
+          setIsQuizSkipped={setIsQuizSkipped}
           linearProgressionEnabled={linearProgressionEnabled}
         />;
 
@@ -108,22 +115,22 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
             type: 'PROJECT',
             description: item.details?.description || item.description || ''
           }}
-          onSave={() => {}} // Not used in student view
-          onCancel={() => {}} // Not used in student view
+          onSave={() => { }} // Not used in student view
+          onCancel={() => { }} // Not used in student view
           isInstructor={false}
           onNext={onNext}
           isProgressUpdating={isProgressUpdating}
         />;
       case 'feedback':
         return <FeedbackForm
-        title={item.name}
-        description={item.description}
-        isOptional={item.isOptional}
-        jsonSchema={item?.details?.jsonSchema}
-        uiSchema={item?.details?.uiSchema}
-        onSubmit={handleFeedbackSubmit}
-        isSubmitting={isProgressUpdating}
-        onNext={onNext}
+          title={item.name}
+          description={item.description}
+          isOptional={item.isOptional}
+          jsonSchema={item?.details?.jsonSchema}
+          uiSchema={item?.details?.uiSchema}
+          onSubmit={handleFeedbackSubmit}
+          isSubmitting={isProgressUpdating}
+          onNext={onNext}
         />
 
       default:
@@ -136,7 +143,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
   };
 
   return (
-    <div className="h-full w-full overflow-auto">
+    <div className={`${item.type.toLowerCase()==="video" ? "h-[85vh]" : "h-full" } w-full overflow-auto`}>
       {renderContent()}
     </div>
   );

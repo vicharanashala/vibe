@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useNavigate } from "@tanstack/react-router"
-import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown } from 'lucide-react'
+import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare } from 'lucide-react'
 import { Pagination } from "@/components/ui/Pagination"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,8 +12,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { QuizSubmissionDisplay } from "./QuizSubmissionDisplay"
 import { WatchTimeDisplay } from "./WatchTimeDisplay"
+import { useStudentCurrentProgressPath } from "@/hooks/hooks"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Checkbox } from "@/components/ui/checkbox"
+import { MoreVertical, Trash2 } from "lucide-react"
 
 // Import hooks - including the new quiz hooks
 import {
@@ -25,7 +30,8 @@ import {
   useUnenrollUser,
   useCourseEnrollmentsStats,
   useCourseQuizScores,
-  useRecalculateProgress
+  useRecalculateProgress,
+  useBulkUnenrollUsers,
 } from "@/hooks/hooks"
 import { toast } from "sonner"
 import { useCourseStore } from "@/store/course-store"
@@ -87,13 +93,13 @@ function EnrollmentProgress(props: { progress: number }) {
         <div
           className={`h-full rounded-full bg-gradient-to-r ${getProgressColor(progress)}`}
           style={{
-            width: `${progress.toFixed(1)}%`,
+            width: `${progress.toFixed(2)}%`,
             transition: "width 0.4s cubic-bezier(0.4,0,0.2,1)",
           }}
         />
       </div>
       <span className="text-sm font-bold text-foreground min-w-[3rem] text-right">
-        {progress.toFixed(1)}%
+        {progress.toFixed(2)}%
       </span>
     </div>
   )
@@ -126,7 +132,6 @@ const getRoleBadge = (role: EnrollmentRole) => {
     </Badge>
   )
 }
-
 
 export default function CourseEnrollments() {
   const navigate = useNavigate()
@@ -174,8 +179,101 @@ export default function CourseEnrollments() {
   const [selectedViewItemName, setSelectedViewItemName] = useState<string>("")
 
   // Sorting state
-  const [sortBy, setSortBy] = useState<'name' | 'enrollmentDate' | 'progress'>('name')
+  const [sortBy, setSortBy] = useState<'name' | 'enrollmentDate' | 'progress' | 'unenrolledAt'>('name')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+
+  // Bulk Selection State
+  const [isSelectionMode, setIsSelectionMode] = useState(false)
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set())
+  const [isBulkUnenrollDialogOpen, setIsBulkUnenrollDialogOpen] = useState(false)
+
+  const toggleSelectionMode = () => {
+    setIsSelectionMode((prev) => {
+      if (prev) {
+        // Clearing selection when turning off mode
+        setSelectedUsers(new Set())
+      }
+      return !prev
+    })
+  }
+
+  const handleSelectAll = (checked: boolean) => {
+    const visibleUserIds = studentEnrollments.map((e: any) => e.user?._id || e.user?.id).filter(Boolean)
+
+    if (checked) {
+      // Add all visible students to existing selections
+      setSelectedUsers((prev) => {
+        const newSet = new Set(prev)
+        visibleUserIds.forEach((id: string) => newSet.add(id))
+        return newSet
+      })
+    } else {
+      // Remove all visible students from selections
+      setSelectedUsers((prev) => {
+        const newSet = new Set(prev)
+        visibleUserIds.forEach((id: string) => newSet.delete(id))
+        return newSet
+      })
+    }
+  }
+
+  const handleSelectUser = (userId: string, checked: boolean) => {
+    const newSelected = new Set(selectedUsers)
+    if (checked) {
+      newSelected.add(userId)
+    } else {
+      newSelected.delete(userId)
+    }
+    setSelectedUsers(newSelected)
+  }
+
+  const handleBulkUnenroll = () => {
+    if (selectedUsers.size > 50) {
+      toast.error('Cannot unenroll more than 50 students at once. Please select fewer students.')
+      return
+    }
+    setIsBulkUnenrollDialogOpen(true)
+  }
+
+  const confirmBulkUnenroll = async () => {
+    if (!courseId || !versionId) {
+      toast.error('Course or version information missing')
+      return
+    }
+
+    try {
+      const userIds = Array.from(selectedUsers)
+
+      await bulkUnenrollMutation.mutateAsync({
+        params: {
+          path: {
+            courseId,
+            versionId,
+          },
+        },
+        body: {
+          userIds,
+        },
+      })
+
+      toast.success(`Successfully unenrolled ${selectedUsers.size} students`)
+      setSelectedUsers(new Set())
+      setIsBulkUnenrollDialogOpen(false)
+      setIsSelectionMode(false)
+
+      // Refetch enrollments to update the UI
+      refetchEnrollments()
+    } catch (error: any) {
+      console.error('Bulk unenroll error:', error)
+      console.error('Error details:', {
+        message: error?.message,
+        response: error?.response,
+        data: error?.data,
+        status: error?.status,
+      })
+      toast.error(error?.message || error?.data?.message || 'Failed to unenroll students')
+    }
+  }
 
 
 
@@ -186,13 +284,30 @@ export default function CourseEnrollments() {
   const [isSearching, setIsSearching] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
+  const [showContentSummary, setShowContentSummary] = useState(false)
+  function SummaryRow({
+    label,
+    value,
+  }: {
+    label: string
+    value: string | number
+  }) {
+    return (
+      <div className="flex justify-between items-center">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-semibold text-right min-w-16">{value ?? 0}</span>
+      </div>
+    )
+  }
+
+
   // Quiz scores hook - using the hook directly with enabled: false to control when to fetch
-  const {
-    data: quizScores,
-    isLoading: isLoadingQuizScores,
-    error: quizScoresError,
-    refetch: fetchQuizScores,
-  } = useCourseQuizScores(courseId, versionId, isExporting);
+  // const {
+  //   data: quizScores,
+  //   isLoading: isLoadingQuizScores,
+  //   error: quizScoresError,
+  //   refetch: fetchQuizScores,
+  // } = useCourseQuizScores(courseId, versionId, isExporting,enrollmentTab);
 
   interface QuizScore {
     moduleId?: string;
@@ -216,26 +331,26 @@ export default function CourseEnrollments() {
   }
 
   // Handle fetch and export quiz scores
- const handleFetchQuizScores = async () => {
-  if (!courseId || !versionId) {
-    toast.error('Course ID or Version ID is missing');
-    return;
-  }
+  const handleFetchQuizScores = async () => {
+    if (!courseId || !versionId) {
+      toast.error('Course ID or Version ID is missing');
+      return;
+    }
 
-  if (!quizScores?.data?.length || isLoadingQuizScores) {
-    toast.warning('No quiz scores available');
-    return;
-  }
+    if (!quizScores?.data?.length || isLoadingQuizScores) {
+      toast.warning('No quiz scores available');
+      return;
+    }
 
-  try {
-    // ⚡ FAST: single-pass formatting, no unused maps
-    const formattedData = quizScores.data.map(
-      (student: any, index: number) => ({
-        studentId: student.studentId ?? `student-${index}`,
-        name: student.name ?? 'Unknown Student',
-        email: student.email ?? '',
-        quizScores: Array.isArray(student.quizScores)
-          ? student.quizScores.map((quiz: any) => ({
+    try {
+      // ⚡ FAST: single-pass formatting, no unused maps
+      const formattedData = quizScores.data.map(
+        (student: any, index: number) => ({
+          studentId: student.studentId ?? `student-${index}`,
+          name: student.name ?? 'Unknown Student',
+          email: student.email ?? '',
+          quizScores: Array.isArray(student.quizScores)
+            ? student.quizScores.map((quiz: any) => ({
               moduleId: quiz.moduleId ?? 'unknown',
               sectionId: quiz.sectionId ?? 'unknown',
               quizId: quiz.quizId ?? 'unknown',
@@ -246,38 +361,39 @@ export default function CourseEnrollments() {
               attempts: Number(quiz.attempts) || 0,
               questionScores: Array.isArray(quiz.questionScores)
                 ? quiz.questionScores.map((q: any) => ({
-                    questionId: String(q.questionId ?? ''),
-                    score: Number(q.score) || 0,
-                  }))
+                  questionId: String(q.questionId ?? ''),
+                  score: Number(q.score) || 0,
+                }))
                 : [],
             }))
-          : [],
-      }),
-    );
+            : [],
+        }),
+      );
 
-    if (!formattedData.length) {
-      toast.warning('No quiz scores found to export');
-      return;
+      if (!formattedData.length) {
+        toast.warning('No quiz scores found to export');
+        return;
+      }
+
+      // ⏱️ Stable filename (no locale overhead)
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '_');
+      const statusLabel = enrollmentTab === 'ACTIVE' ? 'active' : 'inactive';
+      const filename = `quiz_scores_${statusLabel}_${timestamp}.xlsx`;
+
+      // 🧠 Let UI breathe before heavy Excel generation
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      generateExcel(formattedData, filename);
+      toast.success(`${enrollmentTab.toLowerCase()} quiz scores exported successfully`);
+    } catch (error) {
+      console.error('Error exporting quiz scores:', error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to export quiz scores',
+      );
     }
-
-    // ⏱️ Stable filename (no locale overhead)
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '_');
-    const filename = `quiz_scores_${timestamp}.xlsx`;
-
-    // 🧠 Let UI breathe before heavy Excel generation
-    await new Promise(resolve => setTimeout(resolve, 0));
-
-    generateExcel(formattedData, filename);
-    toast.success('Quiz scores exported successfully');
-  } catch (error) {
-    console.error('Error exporting quiz scores:', error);
-    toast.error(
-      error instanceof Error
-        ? error.message
-        : 'Failed to export quiz scores',
-    );
-  }
-};
+  };
 
 
   useEffect(() => {
@@ -294,6 +410,17 @@ export default function CourseEnrollments() {
     };
   }, [searchQuery]);
 
+  // Active / Inactive tab
+  const [enrollmentTab, setEnrollmentTab] = useState<"ACTIVE" | "INACTIVE">("ACTIVE")
+  const statusTab: "ACTIVE" | "INACTIVE" = enrollmentTab
+  const {
+    data: quizScores,
+    isLoading: isLoadingQuizScores,
+    error: quizScoresError,
+    refetch: fetchQuizScores,
+  } = useCourseQuizScores(courseId, versionId, isExporting, enrollmentTab);
+
+
   // Fetch enrollments data
   const {
     data: enrollmentsData,
@@ -309,14 +436,24 @@ export default function CourseEnrollments() {
     sortBy,
     sortOrder,
     !!(courseId && versionId),
-    'STUDENT'
+    'STUDENT',
+    statusTab,
   );
 
-  const studentEnrollments = enrollmentsData?.enrollments || [];
+  // Active / Inactive tab
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [enrollmentTab])
+
+
+  // const studentEnrollments = enrollmentsData?.enrollments || [];
+  const studentEnrollments = enrollmentsData?.enrollments || []
+
 
   // API Hooks
   const resetProgressMutation = useResetProgress()
   const unenrollMutation = useUnenrollUser()
+  const bulkUnenrollMutation = useBulkUnenrollUsers()
   const recalculateMutation = useRecalculateProgress()
 
   // Pagination state
@@ -325,8 +462,8 @@ export default function CourseEnrollments() {
 
 
   // Sorting handler
-  const handleSort = (column: 'name' | 'enrollmentDate' | 'progress') => {
-    // if(column== "progress" ) return;
+  const handleSort = (column: 'name' | 'enrollmentDate' | 'progress' | "scoreObtained" | "unenrolledAt") => {
+    if (column === "scoreObtained") return;
     if (sortBy === column) {
       setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
     } else {
@@ -376,9 +513,26 @@ export default function CourseEnrollments() {
   }
 
   const handleViewProgress = (user: EnrolledUser) => {
-    setSelectedUser(user)
+    setSelectedUser({
+      ...user,
+      contentCounts: user.contentCounts || {
+        totalItems: 0,
+        videos: 0,
+        quizzes: 0,
+        articles: 0,
+        project: 0,
+        completedVideos: 0,
+        completedQuizzes: 0,
+        completedArticles: 0,
+        completedProjects: 0,
+        totalQuizScore: 0,
+        totalQuizMaxScore: 0,
+      },
+    })
+
     setIsViewProgressDialogOpen(true)
   }
+
 
   const handleRemoveStudent = (user: EnrolledUser) => {
     setUserToRemove(user)
@@ -572,12 +726,28 @@ export default function CourseEnrollments() {
     },
     {
       title: "Avg. Progress",
-      value: `${enrollmentStats?.averageProgressPercent}%`,
+      value: `${Number(enrollmentStats?.averageProgressPercent || 0).toFixed(2)}%`,
       icon: TrendingUp,
       color: "text-purple-600",
       bgColor: "bg-purple-50",
     },
   ]
+  const {
+    data: currentPath,
+    error: pathError,
+  } = useStudentCurrentProgressPath(
+    selectedUser?.id,
+    courseId,
+    versionId,
+    isViewProgressDialogOpen
+  )
+
+  // ===== Derived progress helpers =====
+  const totalItems = version?.totalItems ?? 0
+
+  const completedItems = selectedUser?.completedItemsCount ?? 0
+
+  const hasCompletedCourse = totalItems > 0 && completedItems >= totalItems
 
   // Loading state
   if ((courseLoading || versionLoading) && !course && !version) {
@@ -693,255 +863,90 @@ export default function CourseEnrollments() {
 
 
         {/* Students Table */}
-        <Card className="border-0 shadow-lg overflow-hidden">
-          <CardHeader className="pb-4 bg-gradient-to-r from-card to-muted/20 flex items-center justify-between lg:flex-nowrap flex-wrap">
-            <CardTitle className="text-xl font-medium text-card-foreground">Enrolled Students</CardTitle>
-            <div className="flex items-center space-x-4 lg:flex-nowrap flex-wrap gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsExporting(true)}
-                disabled={isLoadingQuizScores}
-                className="flex items-center gap-2"
+        {/* Students Table + Tabs */}
+        <Tabs
+          value={enrollmentTab}
+          onValueChange={(v) => setEnrollmentTab(v as "ACTIVE" | "INACTIVE")}
+          className="w-full"
+        >
+          {/* Tabs Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <TabsList className="grid w-full sm:w-[420px] grid-cols-2 h-11 bg-muted/30 p-1 rounded-xl">
+              <TabsTrigger
+                value="ACTIVE"
+                className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
               >
-                {isLoadingQuizScores ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <FileDown className="h-4 w-4" />
-                )}
-                <span>{isLoadingQuizScores ? 'Exporting...' : 'Export Quiz Scores'}</span>
-              </Button>
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-muted-foreground">Show</span>
-                <select
-                  value={limit}
-                  onChange={handleLimitChange}
-                  className="h-8 rounded-md border border-input bg-background px-3 py-1 text-sm"
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                </select>
-                <span className="text-sm text-muted-foreground">per page</span>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            {enrollmentsData?.enrollments?.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
-                  <Users className="h-10 w-10 text-muted-foreground" />
-                </div>
-                <p className="text-foreground text-xl font-semibold mb-2">No students found</p>
-                <p className="text-muted-foreground">
-                  {searchQuery ? "Try adjusting your search terms" : "No students are enrolled in this course version"}
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border bg-muted/30">
-                      {[
-                        { key: 'name', label: 'Student', className: 'pl-6 w-[300px]' },
-                        { key: 'enrollmentDate', label: 'Enrolled', className: 'w-[120px]' },
-                        { key: 'progress', label: 'Completion Percentage', className: 'w-[200px]' },
-                        // { key: 'status', label: 'Status', className: 'w-[200px]' },
-                      ].map(({ key, label, className }) => (
-                        <TableHead
-                          key={key}
-                          className={`font-bold text-foreground cursor-pointer select-none ${className}`}
-                          onClick={() => handleSort(key as 'name' | 'enrollmentDate' | 'progress')}
-                        >
-                          <span className="flex items-center gap-1" >
-                            {label}
-                            {sortBy === key && (
-                              sortOrder === 'asc'
-                                ? <ArrowUp size={16} className="text-foreground" />
-                                : <ArrowDown size={16} className="text-foreground" />
-                            )}
-                          </span>
-                        </TableHead>
-                      ))}
-                      <TableHead className="font-bold text-foreground pr-6 w-[200px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(enrollmentsLoading || isSearching) ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-16">
-                          <div className="flex items-center justify-center">
-                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                            <span className="ml-2 text-muted-foreground">
-                              Loading enrollments...
-                            </span>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : studentEnrollments?.length > 0 ? (
-                      studentEnrollments?.map((enrollment: any) => (
-                        <TableRow
-                          key={enrollment._id}
-                          className={`border-border hover:bg-muted/20 transition-colors duration-200 group ${enrollment.isDeleted ? "opacity-50" : ""}`}
-                        >
-                          <TableCell className="pl-6 py-6">
-                            <div className="flex items-center gap-4">
-                              <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
-                                <AvatarImage src="/placeholder.svg" alt={enrollment.email || enrollment.user?.email || ""} />
-                                <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
-                                  {[enrollment?.user?.firstName?.[0], enrollment?.user?.lastName?.[0]]
-                                    .filter(Boolean)
-                                    .map((ch) => ch.toUpperCase())
-                                    .join("") ||
-                                    enrollment?.user?.firstName?.[0]?.toUpperCase() ||
-                                    enrollment?.user?.lastName?.[0]?.toUpperCase() ||
-                                    "?"}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2">
-                                  <p className="font-semibold text-foreground truncate text-base md:text-lg">
-                                    {enrollment?.user?.firstName || enrollment?.user?.lastName
-                                      ? `${enrollment?.user?.firstName ?? ""} ${enrollment?.user?.lastName ?? ""}`.trim()
-                                      : "Unknown User"}
+                Active Students
+              </TabsTrigger>
 
-                                  </p>
-                                  <span>{getRoleBadge(enrollment?.role)}</span>
-                                </div>
-                                <p className="text-xs md:text-sm text-muted-foreground truncate">{enrollment?.user?.email || ""}</p>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-6">
-                            <div className="text-muted-foreground font-medium">
-                              {new Date(enrollment.enrollmentDate).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                              })}
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-6">
-                            <div className="space-y-1">
-                              <EnrollmentProgress progress={Math.round(enrollment.progress || 0)} />
-                              {/* {version?.totalItems !== undefined && (
-                                <p className="text-xs text-muted-foreground">
-                                  {enrollment.completedItemsCount || 0} / {version.totalItems} items
-                                </p>
-                              )} */}
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-6 pr-6">
-                            <div className="flex items-center gap-3">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  handleViewProgress({
-                                    id: enrollment.user?._id,
-                                    name:
-                                      `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
-                                    email: enrollment.userId,
-                                    enrolledDate: enrollment.enrollmentDate,
-                                    progress: Math.round(enrollment.progress || 0),
-                                    completedItemsCount: enrollment.completedItemsCount || 0,
-                                  })
-                                }
-                                disabled={enrollment.role !== "STUDENT" || Math.round(enrollment.progress || 0) == 0 || enrollment?.isDeleted}
-                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
-                              >
-                                <Eye className="h-4 w-4 mr-2" />
-                                View Progress
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  handleResetProgress({
-                                    id: enrollment.user?._id,
-                                    name:
-                                      `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
-                                    email: enrollment.userId,
-                                    enrolledDate: enrollment.enrollmentDate,
-                                    progress: 0,
-                                  })
-                                }
-                                className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
-                                disabled={resetProgressMutation.isPending || /*Math.round(enrollment.progress || 0 ) == 0 ||*/ enrollment?.isDeleted}
-                              >
-                                {resetProgressMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                ) : (
-                                  <RotateCcw className="h-4 w-4 mr-2" />
-                                )}
-                                Reset
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  handleRemoveStudent({
-                                    id: enrollment.user?._id,
-                                    name:
-                                      `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
-                                    email: enrollment.user?.email,
-                                    enrolledDate: enrollment.enrollmentDate,
-                                    progress: 0,
-                                  })
-                                }
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
-                                disabled={unenrollMutation.isPending || user?.email == enrollment?.user?.email || enrollment?.isDeleted}
-                              >
-                                {unenrollMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                ) : (
-                                  <UserX className="h-4 w-4 mr-2" />
-                                )}
-                                Remove
-                              </Button>
+              <TabsTrigger
+                value="INACTIVE"
+                className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
+              >
+                Inactive Students
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          {/* Active Tab */}
+          <TabsContent value="ACTIVE" className="mt-4">
+            <EnrollmentsTable
+              totalDocuments={totalDocuments}
+              studentEnrollments={studentEnrollments}
+              enrollmentsLoading={enrollmentsLoading}
+              isSearching={isSearching}
+              enrollmentTab={enrollmentTab}
+              searchQuery={searchQuery}
+              limit={limit}
+              handleLimitChange={handleLimitChange}
+              handleSort={handleSort}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              isLoadingQuizScores={isLoadingQuizScores}
+              setIsExporting={setIsExporting}
+              unenrollMutation={unenrollMutation}
+              user={user}
+              handleViewProgress={handleViewProgress}
+              handleRemoveStudent={handleRemoveStudent}
+              getRoleBadge={getRoleBadge}
+              isSelectionMode={isSelectionMode}
+              selectedUsers={selectedUsers}
+              onSelectUser={handleSelectUser}
+              onSelectAll={handleSelectAll}
+              toggleSelectionMode={toggleSelectionMode}
+              handleBulkUnenroll={handleBulkUnenroll}
+            />
+          </TabsContent>
 
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  handleRecalculateProgress({
-                                    id: enrollment.user?._id,
-                                    name:
-                                      `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
-                                    email: enrollment.user?.email,
-                                    enrolledDate: enrollment.enrollmentDate,
-                                    progress: 0,
-                                  })
-                                }
-                                className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
-                                disabled={unenrollMutation.isPending || user?.email == enrollment?.user?.email || enrollment?.isDeleted}
-                              >
-                                {unenrollMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                ) : (
-                                  <RotateCcw className="h-4 w-4 mr-2" />
-                                )}
-                                Recalculate
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-4">
-                          No enrollments found.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          {/* Inactive Tab */}
+          <TabsContent value="INACTIVE" className="mt-4">
+            <EnrollmentsTable
+              totalDocuments={totalDocuments}
+              studentEnrollments={studentEnrollments}
+              enrollmentsLoading={enrollmentsLoading}
+              isSearching={isSearching}
+              enrollmentTab={enrollmentTab}
+              searchQuery={searchQuery}
+              limit={limit}
+              handleLimitChange={handleLimitChange}
+              handleSort={handleSort}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              isLoadingQuizScores={isLoadingQuizScores}
+              setIsExporting={setIsExporting}
+              unenrollMutation={unenrollMutation}
+              user={user}
+              handleViewProgress={handleViewProgress}
+              handleRemoveStudent={handleRemoveStudent}
+              getRoleBadge={getRoleBadge}
+            />
+          </TabsContent>
+
+
+        </Tabs>
+
 
         {/* Enhanced View Progress Modal */}
+
         {isViewProgressDialogOpen && selectedUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
             {/* Enhanced Backdrop */}
@@ -978,20 +983,215 @@ export default function CourseEnrollments() {
                 <div className="flex-1">
                   <p className="font-medium text-card-foreground truncate text-base md:text-lg">{selectedUser.name}</p>
                   <p className="text-muted-foreground truncate">{selectedUser.email}</p>
+
+
+
                 </div>
-                <div className="text-right sm:w-auto w-full">
-                  <p className="text-sm text-muted-foreground mb-2">Completion Percentage</p>
-                  <EnrollmentProgress progress={(selectedUser.progress || 0)} />
-                  {version?.totalItems !== undefined && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {selectedUser.completedItemsCount || 0} / {version.totalItems} items completed
-                    </p>
-                  )}
-                </div>
+
+                {/* Content Summary Dropdown */}
+                {selectedUser?.contentCounts && (
+                  <div className="border border-border rounded-lg ml-auto p-2">
+
+                    {/* Header */}
+                    {/* <button
+                      onClick={() => setShowContentSummary(prev => !prev)}
+                      className="flex items-center gap-2 px-3 py-2 text-sm font-medium hover:bg-muted/20 rounded-md"
+                    > */}
+                     <p>Content Summary</p> 
+                      {/* {showContentSummary ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )} */}
+                    {/* </button> */}
+                      <div className= "flex justify-between items-center mt-2 mb-2">
+                    <p className="text-sm text-muted-foreground mb-2">Completion Percentage</p>
+                    <EnrollmentProgress progress={(selectedUser.progress || 0)} />
+                        </div>
+                    {/* Body */}
+                    {
+                      // showContentSummary &&
+                      (
+                        <div className=" grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+
+                          <SummaryRow label="Total Items" value={selectedUser.contentCounts.totalItems} />
+
+                          <SummaryRow
+                            label="Videos"
+                            value={`${selectedUser.contentCounts.completedVideos} / ${selectedUser.contentCounts.videos}`}
+                          />
+
+                          <SummaryRow
+                            label="Quizzes"
+                            value={`${selectedUser.contentCounts.completedQuizzes} / ${selectedUser.contentCounts.quizzes}`}
+                          />
+
+                          <SummaryRow
+                            label="Articles"
+                            value={`${selectedUser.contentCounts.completedArticles} / ${selectedUser.contentCounts.articles}`}
+                          />
+
+                          <SummaryRow
+                            label="Projects"
+                            value={`${selectedUser.contentCounts.completedProjects} / ${selectedUser.contentCounts.project}`}
+                          />
+
+                          <SummaryRow
+                            label="Quiz Score"
+                            value={`${selectedUser.contentCounts.totalQuizScore || 0} / ${selectedUser.contentCounts.totalQuizMaxScore || 0}`}
+                          />
+
+                          <SummaryRow
+                            label="Items Completed"
+                            value={`${selectedUser.completedItemsCount || 0} / ${version?.totalItems ?? 0}`}
+                          />
+
+
+
+
+                        </div>
+                      )}
+                  </div>
+                )}
+
               </div>
+
+              <div className="mt-4">
+                {/* {hasCompletedCourse ? (
+    <div className="p-4 rounded-lg bg-green-50 border border-green-200 text-green-700 font-medium">
+      🎉 Student has completed the course
+    </div>
+  ) : (
+    <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 font-medium">
+      ⏳ Course is still in progress
+    </div>
+  )} */}
+              </div>
+
+              {/* Current Learning Position */}
+              <div className="space-y-2 p-4 rounded-lg border border-border bg-muted/20">
+                <h4 className="text-sm font-semibold text-muted-foreground">
+                  Current Learning Position
+                </h4>
+
+                {pathError && (
+                  <div className="text-sm text-destructive">
+                    <p>Failed to load current progress</p>
+                    <p className="text-xs mt-1">Error: {pathError.message || 'Unknown error'}</p>
+                  </div>
+                )}
+
+                {!currentPath && !pathError && (
+                  <p className="text-sm text-muted-foreground">
+                    Progress not started yet
+                  </p>
+                )}
+
+                {currentPath && currentPath.message && (
+                  <div className="text-sm text-muted-foreground">
+                    <p>{currentPath.message}</p>
+                  </div>
+                )}
+
+                {currentPath && currentPath.module && (
+                  <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                    <span className="px-2 py-1 rounded bg-blue-100 text-blue-700">
+                      {currentPath.module.name}
+                    </span>
+
+                    <span className="text-muted-foreground">›</span>
+
+                    <span className="px-2 py-1 rounded bg-emerald-100 text-emerald-700">
+                      {currentPath.section.name}
+                    </span>
+
+                    <span className="text-muted-foreground">›</span>
+
+                    <span className="px-2 py-1 rounded bg-purple-100 text-purple-700">
+                      {currentPath.item.name}
+                    </span>
+
+                    <span className="ml-2 text-xs px-2 py-0.5 rounded border">
+                      {currentPath.item.type}
+                    </span>
+                  </div>
+                )}
+              </div>
+
 
               {/* Course Structure */}
               <div className="space-y-4">
+                {enrollmentTab === "ACTIVE" && (
+                  <div className="flex justify-between">
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleResetProgress({
+                                id: selectedUser.id,
+                                name: `${selectedUser.name || ""}`.trim() || "Unknown User",
+                                email: selectedUser.email,
+                                enrolledDate: selectedUser.enrolledDate,
+                                progress: 0,
+                              })
+                            }
+                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
+                            disabled={resetProgressMutation.isPending || selectedUser.isDeleted}
+                          >
+                            {resetProgressMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <RotateCcw className="h-4 w-4 mr-2" />
+                            )}
+                            Reset
+                          </Button>
+                        </TooltipTrigger>
+
+                        <TooltipContent>
+                          <p>Reset student progress</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleRecalculateProgress({
+                                id: selectedUser.id,
+                                name: `${selectedUser.name || ""}`.trim() || "Unknown User",
+                                email: selectedUser.email,
+                                enrolledDate: selectedUser.enrolledDate,
+                                progress: 0,
+                              })
+                            }
+                            className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+                            disabled={
+                              unenrollMutation.isPending ||
+                              user?.email == selectedUser.email ||
+                              selectedUser.isDeleted
+                            }
+                          >
+                            {unenrollMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <RotateCcw className="h-4 w-4 mr-2" />
+                            )}
+                            Recalculate
+                          </Button>
+                        </TooltipTrigger>
+
+                        <TooltipContent>Recalculate student progress</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                )}
+                {/* add the code here */}
                 <h3 className="text-lg font-semibold text-foreground">Course Structure</h3>
                 <div className="space-y-2 max-h-96 overflow-y-auto border border-border rounded-lg p-4">
                   {getAvailableModules().map((module: any) => (
@@ -1044,13 +1244,18 @@ export default function CourseEnrollments() {
                                 />
                               )}
                             </div>
-                          )) || <p className="text-sm text-muted-foreground ml-6">No sections in this module</p>}
+                          )) || (
+                              <p className="text-sm text-muted-foreground ml-6">
+                                No sections in this module
+                              </p>
+                            )}
                         </div>
                       )}
                     </div>
                   ))}
                 </div>
               </div>
+
 
               {/* Item Details Display */}
               {selectedViewItem && (
@@ -1258,7 +1463,7 @@ export default function CourseEnrollments() {
                 . This action cannot be undone.
               </p>
 
-              <div className="space-y-8">
+              <div className="space-y-8 flex justify-around flex-wrap">
                 <div className="space-y-3">
                   <Label htmlFor="reset-scope" className="text-sm font-bold text-foreground">
                     Reset Scope
@@ -1409,6 +1614,58 @@ export default function CourseEnrollments() {
             totalDocuments={totalDocuments}
             onPageChange={handlePageChange}
           />
+        )}
+
+        {/* Bulk Unenroll Confirmation Dialog */}
+        {isBulkUnenrollDialogOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
+            <div
+              className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+              onClick={() => setIsBulkUnenrollDialogOpen(false)}
+            />
+            <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Bulk Unenroll</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsBulkUnenrollDialogOpen(false)}
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-lg text-card-foreground">
+                  Are you sure you want to unenroll <strong>{selectedUsers.size}</strong> students?
+                </p>
+                <div className="flex gap-4 p-6 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl">
+                  <div><AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" /></div>
+                  <div className="text-sm text-red-800 dark:text-red-200">
+                    <strong>Warning:</strong> This action cannot be undone. Selected students will lose access to the course version and all their progress data.
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsBulkUnenrollDialogOpen(false)}
+                  className="min-w-[100px] cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={confirmBulkUnenroll}
+                  className="min-w-[100px] shadow-lg cursor-pointer"
+                >
+                  Unenroll Selected
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -1570,5 +1827,465 @@ function SectionItems({
         </div>
       ))}
     </div>
+  )
+}
+
+
+function EnrollmentsTable({
+  studentEnrollments,
+  totalDocuments,
+  enrollmentsLoading,
+  isSearching,
+  enrollmentTab,
+  searchQuery,
+  limit,
+  handleLimitChange,
+  handleSort,
+  sortBy,
+  sortOrder,
+  isLoadingQuizScores,
+  setIsExporting,
+  unenrollMutation,
+  user,
+  handleViewProgress,
+  handleRemoveStudent,
+  getRoleBadge,
+  isSelectionMode,
+  selectedUsers,
+  onSelectUser,
+  onSelectAll,
+  toggleSelectionMode,
+  handleBulkUnenroll,
+}: any) {
+  const isInactiveTab = enrollmentTab === "INACTIVE"
+
+  return (
+    <Card className="border-0 shadow-lg overflow-hidden">
+      <CardHeader className="pb-4 bg-gradient-to-r from-card to-muted/20 flex items-center justify-between lg:flex-nowrap flex-wrap">
+        <CardTitle className="text-xl font-medium text-card-foreground">
+          {isInactiveTab
+            ? `Inactive Students (${totalDocuments})`
+            : `Active Students (${totalDocuments})`}
+        </CardTitle>
+
+        {/* SAME header functionality for both tabs */}
+        <div className="flex items-center space-x-4 lg:flex-nowrap flex-wrap gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsExporting(true)}
+            disabled={isLoadingQuizScores}
+            className="flex items-center gap-2"
+          >
+            {isLoadingQuizScores ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileDown className="h-4 w-4" />
+            )}
+            <span>{isLoadingQuizScores ? "Exporting..." : "Export Quiz Scores"}</span>
+          </Button>
+
+          {/* Select Students Button - Only for Active Students */}
+          {!isInactiveTab && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleSelectionMode}
+              className="flex items-center gap-2"
+            >
+              {isSelectionMode ? (
+                <>
+                  <X className="h-4 w-4" />
+                  <span>Exit Selection</span>
+                </>
+              ) : (
+                <>
+                  <CheckSquare className="h-4 w-4" />
+                  <span>Select Students</span>
+                </>
+              )}
+            </Button>
+          )}
+
+          {/* Bulk Actions Bar */}
+          {isSelectionMode && selectedUsers.size > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleBulkUnenroll}
+              className="flex items-center gap-2 animate-in fade-in zoom-in duration-200"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>Remove ({selectedUsers.size})</span>
+            </Button>
+          )}
+
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-muted-foreground">Show</span>
+            <select
+              value={limit}
+              onChange={handleLimitChange}
+              className="h-8 rounded-md border border-input bg-background px-3 py-1 text-sm"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+            </select>
+            <span className="text-sm text-muted-foreground">per page</span>
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="p-0">
+        {(enrollmentsLoading || isSearching) ? (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border bg-muted/30">
+                  {/* Select All Checkbox */}
+                  {isSelectionMode && (
+                    <TableHead className="w-[50px] pl-6">
+                      <Checkbox
+                        checked={
+                          studentEnrollments.length > 0 &&
+                          studentEnrollments.every((e: any) =>
+                            selectedUsers.has(e.user?._id || e.user?.id)
+                          )
+                        }
+                        onCheckedChange={onSelectAll}
+                        aria-label="Select all"
+                      />
+                    </TableHead>
+                  )}
+                  {(() => {
+                    const columns = isInactiveTab
+                      ? [
+                        { key: "name", label: "Student", className: "pl-6 w-[300px]" },
+                        { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
+                        { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
+                        { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
+                      ]
+                      : [
+                        { key: "name", label: "Student", className: "pl-6 w-[300px]" },
+                        { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
+                        { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
+                      ];
+                    return columns.map(({ key, label, className }) => (
+                      <TableHead
+                        key={key}
+                        className={`font-bold text-foreground cursor-pointer select-none ${className}`}
+                        onClick={() => handleSort(key as "name" | "enrollmentDate" | "progress" | "unenrolledAt")}
+                      >
+                        <span className="flex items-center gap-1">
+                          {label}
+                          {sortBy === key &&
+                            (sortOrder === "asc" ? (
+                              <ArrowUp size={16} className="text-foreground" />
+                            ) : (
+                              <ArrowDown size={16} className="text-foreground" />
+                            ))}
+                        </span>
+                      </TableHead>
+                    ));
+                  })()}
+                  <TableHead className="font-bold text-foreground pr-6 w-[200px]">
+                    Actions
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                <TableRow key="loading-initial">
+                  <TableCell colSpan={5} className="text-center py-16">
+                    <div className="flex items-center justify-center">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      <span className="ml-2 text-muted-foreground">Loading enrollments...</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        ) : studentEnrollments.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
+              <Users className="h-10 w-10 text-muted-foreground" />
+            </div>
+
+            <p className="text-foreground text-xl font-semibold mb-2">
+              No {isInactiveTab ? "inactive" : "active"} students found
+            </p>
+
+            <p className="text-muted-foreground">
+              {searchQuery ? "Try adjusting your search terms" : "No enrollments found"}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border bg-muted/30">
+                  {/* Select All Checkbox */}
+                  {isSelectionMode && (
+                    <TableHead className="w-[50px] pl-6 font-bold text-foreground">
+                      <Checkbox
+                        checked={
+                          studentEnrollments.length > 0 &&
+                          studentEnrollments.every((e: any) =>
+                            selectedUsers.has(e.user?._id || e.user?.id)
+                          )
+                        }
+                        onCheckedChange={onSelectAll}
+                        aria-label="Select all"
+                      />
+                    </TableHead>
+                  )}
+                  {(() => {
+                    const columns = isInactiveTab
+                      ? [
+                        { key: "name", label: "Student", className: "pl-6 w-[300px]" },
+                        { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
+                        { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
+                        { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
+                      ]
+                      : [
+                        { key: "name", label: "Student", className: "pl-6 w-[300px]" },
+                        { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
+                        { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
+                      ];
+                    return columns.map(({ key, label, className }) => (
+                      <TableHead
+                        key={key}
+                        className={`font-bold text-foreground cursor-pointer select-none ${className}`}
+                        onClick={() => handleSort(key as "name" | "enrollmentDate" | "progress" | "unenrolledAt")}
+                      >
+                        <span className="flex items-center gap-1">
+                          {label}
+                          {sortBy === key &&
+                            (sortOrder === "asc" ? (
+                              <ArrowUp size={16} className="text-foreground" />
+                            ) : (
+                              <ArrowDown size={16} className="text-foreground" />
+                            ))}
+                        </span>
+                      </TableHead>
+                    ));
+                  })()}
+                  <TableHead className="font-bold text-foreground pr-6 w-[200px]">
+                    Actions
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {(enrollmentsLoading || isSearching) ? (
+                  <TableRow key="loading-secondary">
+                    <TableCell colSpan={5} className="text-center py-16">
+                      <div className="flex items-center justify-center">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        <span className="ml-2 text-muted-foreground">Loading enrollments...</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : studentEnrollments.length === 0 ? (
+                  <TableRow key="empty-state">
+                    <TableCell colSpan={5} className="text-center py-16">
+                      <div className="flex items-center justify-center">
+                        <Users className="h-12 w-12 text-muted-foreground mb-4" />
+                        <div>
+                          <p className="text-foreground text-lg font-semibold mb-2">
+                            No {isInactiveTab ? "inactive" : "active"} students found
+                          </p>
+                          <p className="text-muted-foreground">
+                            {searchQuery ? "Try adjusting your search terms" : "No enrollments found"}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  studentEnrollments.map((enrollment: any) => (
+                    <TableRow
+                      key={enrollment._id || enrollment.user?._id || `enrollment-${Math.random()}`}
+                      className={`border-border hover:bg-muted/20 transition-colors duration-200 group ${isInactiveTab ? "opacity-80" : ""
+                        }`}
+                    >
+                      {/* Selection Checkbox */}
+                      {isSelectionMode && (
+                        <TableCell className="pl-6 w-[50px]">
+                          <Checkbox
+                            checked={selectedUsers.has(enrollment.user?._id || enrollment.user?.id)}
+                            onCheckedChange={(checked) =>
+                              onSelectUser(enrollment.user?._id || enrollment.user?.id, checked === true)
+                            }
+                            aria-label={`Select ${enrollment.user?.name}`}
+                          />
+                        </TableCell>
+                      )}
+
+                      {/* Student */}
+                      <TableCell className={isSelectionMode ? "pl-2 py-6" : "pl-6 py-6"}>
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
+                            <AvatarImage src="/placeholder.svg" alt={enrollment?.user?.email || ""} />
+                            <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
+                              <span>
+                                {[enrollment?.user?.firstName, enrollment?.user?.lastName]
+                                  .map(name => name?.trim()?.[0])
+                                  .filter(Boolean)
+                                  .map(ch => ch!.toUpperCase())
+                                  .join("") || "?"}
+                              </span>
+                            </AvatarFallback>
+                          </Avatar>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold text-foreground truncate text-base md:text-lg">
+                                {enrollment?.user?.firstName || enrollment?.user?.lastName
+                                  ? `${enrollment?.user?.firstName ?? ""} ${enrollment?.user?.lastName ?? ""}`.trim()
+                                  : "Unknown User"}
+                              </p>
+                            </div>
+
+                            <p className="text-xs md:text-sm text-muted-foreground truncate">
+                              {enrollment?.user?.email || ""}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+
+                      {/* Enrolled Date */}
+                      <TableCell className="py-6">
+                        <div className="text-muted-foreground font-medium">
+                          {new Date(enrollment.enrollmentDate).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </div>
+                      </TableCell>
+
+                      {/* Unenrolled Date - Only for Inactive */}
+                      {isInactiveTab && (
+                        <TableCell className="py-6">
+                          <div className="text-muted-foreground font-medium">
+                            {enrollment.unenrolledAt ? (
+                              new Date(enrollment.unenrolledAt).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })
+                            ) : (
+                              "N/A"
+                            )}
+                          </div>
+                        </TableCell>
+                      )}
+
+                      {/* Progress */}
+                      <TableCell className="py-6">
+                        <EnrollmentProgress progress={enrollment.progress || 0} />
+                      </TableCell>
+
+                      {/* Score obtained */}
+                      <TableCell className="py-6">
+                        <div className="text-muted-foreground font-medium">
+                          {enrollment.totalQuizScore !== undefined
+                            ? `${enrollment.totalQuizScore} / ${enrollment.totalQuizMaxScore || 0}`
+                            : "N/A"}
+                        </div>
+                      </TableCell>
+
+                      {/* Actions */}
+                      <TableCell className="py-6 pr-6">
+                        <div className="flex items-center gap-3">
+                          {/* View Progress - Always enabled in both tabs */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              handleViewProgress({
+                                id: enrollment.user?._id,
+                                name:
+                                  `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() ||
+                                  "Unknown User",
+                                email: enrollment.user?.email,
+                                enrolledDate: enrollment.enrollmentDate,
+                                progress: enrollment.progress || 0,
+                                completedItemsCount: enrollment.completedItemsCount || 0,
+
+                                contentCounts: {
+                                  totalItems: enrollment.contentCounts?.totalItems || 0,
+                                  videos: enrollment.contentCounts?.videos || 0,
+                                  quizzes: enrollment.contentCounts?.quizzes || 0,
+                                  articles: enrollment.contentCounts?.articles || 0,
+                                  project: enrollment.contentCounts?.project || 0,
+                                  completedVideos: enrollment.contentCounts?.completedVideos || 0,
+                                  completedQuizzes: enrollment.contentCounts?.completedQuizzes || 0,
+                                  completedArticles: enrollment.contentCounts?.completedArticles || 0,
+                                  completedProjects: enrollment.contentCounts?.completedProjects || 0,
+                                  totalQuizScore: enrollment.contentCounts?.totalQuizScore || 0,
+                                  totalQuizMaxScore: enrollment.contentCounts?.totalQuizMaxScore || 0,
+                                },
+
+                                isDeleted: enrollment.isDeleted,
+                              })
+                            }
+
+                            // disabled={
+                            //   Math.round(enrollment.progress || 0) === 0 ||
+                            //   enrollment?.isDeleted
+                            // }
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Progress
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              handleRemoveStudent({
+                                id: enrollment.user?._id,
+                                name:
+                                  `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() ||
+                                  "Unknown User",
+                                email: enrollment.user?.email,
+                                enrolledDate: enrollment.enrollmentDate,
+                                progress: 0,
+                              })
+                            }
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
+                            disabled={
+                              unenrollMutation.isPending ||
+                              user?.email === enrollment?.user?.email ||
+                              enrollment?.isDeleted
+                            }
+                          >
+                            {unenrollMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <UserX className="h-4 w-4 mr-2" />
+                            )}
+                            Remove
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }

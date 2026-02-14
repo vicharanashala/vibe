@@ -1,4 +1,4 @@
-import {ClientSession, UpdateResult} from 'mongodb';
+import { ClientSession, UpdateResult } from 'mongodb';
 import {
   ICourseSetting,
   IRegistrationSettings,
@@ -6,6 +6,7 @@ import {
   IUserSetting,
 } from '../../interfaces/models.js';
 import {
+  AuditingDto,
   DetectorOptionsDto,
   DetectorSettingsDto,
   ProctoringSettingsDto,
@@ -57,15 +58,18 @@ export interface ISettingRepository {
     courseVersionId: string,
     detectors: DetectorSettingsDto[],
     linearProgressionEnabled: boolean,
+    seekForwardEnabled: boolean,
+    isPublic: boolean,
+    audit: AuditingDto,
     session?: ClientSession,
   ): Promise<UpdateResult | null>;
 
   updateRegistrationSchemas(
-  courseId: string,
-  versionId: string,
-  schemas: { jsonSchema?: any; uiSchema?: any }, // Partial update for schemas only
-  session?: ClientSession,
-): Promise<UpdateResult>
+    courseId: string,
+    versionId: string,
+    schemas: { jsonSchema?: any; uiSchema?: any; isActive?: boolean }, // Partial update for schemas only
+    session?: ClientSession,
+  ): Promise<UpdateResult>
 
   /**
    * Reads course settings for a specific course and version.
@@ -94,7 +98,7 @@ export interface ISettingRepository {
   updateRegistrationSettings(
     courseId: string,
     versionId: string,
-    schemas: { jsonSchema: any; uiSchema: any },
+    schemas: { jsonSchema: any; uiSchema: any; isActive: boolean },
     session?: ClientSession,
   ): Promise<UpdateResult | null>;
 
@@ -110,7 +114,10 @@ export interface ISettingRepository {
     session?: ClientSession,
   ): Promise<IUserSetting | null>;
 
-  readSettingsSchema(versionId:string,session?:ClientSession)
+  readSettingsSchema(
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<{ jsonSchema: any; uiSchema: any; isActive: boolean }>;
 
   /**
    * Reads user settings for a specific student, course and version.
@@ -151,4 +158,47 @@ export interface ISettingRepository {
     courseVersionId: string,
     session?: ClientSession,
   ): Promise<boolean>;
+
+  /**
+   * Checks if linear progression is enabled for a specific course and version.
+   * @param courseId - The ID of the course
+   * @param courseVersionId - The ID of the course version
+   * @param session - Optional MongoDB session for transactions
+   * @returns True if linear progression is enabled, false otherwise
+   */
+  isLinearProgressionEnabled(
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<boolean>;
+
+  /**
+   * Gets public courses that are available for enrollment.
+   * @param excludeCourseIds - Course IDs to exclude (user's enrolled courses)
+   * @param skip - Number of documents to skip for pagination
+   * @param limit - Maximum number of documents to return
+   * @param search - Search query for course name/description
+   * @param session - Optional MongoDB session for transactions
+   * @returns Array of public courses with course details
+   */
+  getPublicCourses(
+    excludeCourseIds: string[],
+    skip: number,
+    limit: number,
+    search: string,
+    session?: ClientSession,
+  ): Promise<any[]>;
+
+  /**
+   * Counts public courses available for enrollment.
+   * @param excludeCourseIds - Course IDs to exclude (user's enrolled courses)
+   * @param search - Search query for course name/description
+   * @param session - Optional MongoDB session for transactions
+   * @returns Total count of public courses
+   */
+  countPublicCourses(
+    excludeCourseIds: string[],
+    search: string,
+    session?: ClientSession,
+  ): Promise<number>;
 }

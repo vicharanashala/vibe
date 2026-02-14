@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
 import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, userParseCSVtoItems, useUpdateItemOptional } from '@/hooks/hooks';
-import { Download, Upload } from 'lucide-react';
+import { Download, LogOut, Upload, UserRoundCheck } from 'lucide-react';
 import { useHideItem } from '@/hooks/hooks';
 
 const MAX_DESCRIPTION_LENGTH = 1000;
@@ -9,7 +9,8 @@ const MAX_DESCRIPTION_LENGTH = 1000;
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
-  SidebarInset, SidebarProvider, SidebarFooter, useSidebar
+  SidebarInset, SidebarProvider, SidebarFooter, useSidebar,
+  SidebarTrigger
 } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -34,7 +35,7 @@ import {
   Loader2
 } from "lucide-react";
 
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Home, GraduationCap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -50,15 +51,32 @@ import { toast } from "sonner";
 import Loader from "@/components/Loader";
 import { Label } from "@/components/ui/label";
 import ProjectItem from "./components/ProjectItem";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup, SidebarResizablePanel } from "@/components/ui/resizable";
 import FeedbackFormEditor from "./FeedbackFormEditor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/utils/utils";
 import { QuestionUploadDialog } from "@/components/question-upload-dialog";
+import ConfirmationModal from "./components/confirmation-modal";
+import { useMatches, Link } from "@tanstack/react-router";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import type { BreadcrumbItemment } from "@/types/layout.types";
+import AiWorkflow from "./AiWorkflow";
+import AISectionPage from "./AISectionPage";
+type Mode = "default" | "wizard" | "custom";
+import { logout } from "@/utils/auth";
+import InviteDropdown from "@/components/inviteDropDown";
+import { useQueryClient } from "@tanstack/react-query"
 
 
-// ✅ Icons per item type
+// ? Icons per item type
 const getItemIcon = (type: string) => {
   switch (type) {
     case "BLOG": return <FileText className="h-3 w-3" />;
@@ -103,32 +121,75 @@ type CSVRow = {
 };
 
 function TeacherCourseContent() {
+  const [mode, setMode] = useState<Mode>("default");
+  const matches = useMatches();
+  const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]);
+  const [showInvites, setShowInvites] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [pendingInvites, setPendingInvites] = useState<any[]>([]);
+  const invitesRef = useRef<HTMLDivElement | null>(null);
+
+  const handleLogout = () => {
+    logout();
+    navigate({ to: "/auth" });
+  };
   const createQuestion = useCreateQuestion();
   const user = useAuthStore().user;
   const { currentCourse, setCurrentCourse } = useCourseStore();
   // Use correct keys for course/version IDs
   const courseId = currentCourse?.courseId;
   const versionId = currentCourse?.versionId;
+  useEffect(() => {
+    const items: BreadcrumbItem[] = [];
+    items.push({
+      label: "Dashboard",
+      path: "/teacher",
+      isCurrentPage: matches.length === 1,
+    });
+    items.push({
+      label: "Teacher",
+      path: "/teacher",
+      isCurrentPage: matches.length === 1,
+    });
+    if (matches.length > 1) {
+      for (let i = 1; i < matches.length; i++) {
+        const match = matches[i];
+        const path = match.pathname;
+        const segments = path.split("/").filter(Boolean);
+        let label = segments[segments.length - 1] || "";
+        label = label.replace(/-/g, " ");
+        label = label.charAt(0).toUpperCase() + label.slice(1);
 
-  const { setOpen, setOpenMobile } = useSidebar();
+        items.push({
+          label,
+          path,
+          isCurrentPage: i === matches.length - 1,
+        });
+      }
+    }
+
+    setBreadcrumbs(items);
+  }, [matches]);
+  // const { setOpen, setOpenMobile } = useSidebar();
+  // const [isDesktopSidebarVisible, setIsDesktopSidebarVisible] = useState(true);
 
   const checkScreenSize = () => {
     return window.innerWidth <= 425;
   };
 
-  useEffect(() => {
-    const handleResize = () => {
-      const width = window.innerWidth;
-      if (width >= 768) {
-        setOpen(true);
-      }
-    };
+  // useEffect(() => {
+  //   const handleResize = () => {
+  //     const width = window.innerWidth;
+  //     if (width >= 768) {
+  //       setOpen(true);
+  //     }
+  //   };
 
-    window.addEventListener('resize', handleResize);
-    handleResize();
+  //   window.addEventListener('resize', handleResize);
+  //   handleResize();
 
-    return () => window.removeEventListener('resize', handleResize);
-  }, [setOpen]);
+  //   return () => window.removeEventListener('resize', handleResize);
+  // }, [setOpen]);
 
   // Fetch course version data (modules, sections, items)
   const { data: versionData, refetch: refetchVersion, isLoading } = useCourseVersionById(versionId || "");
@@ -168,8 +229,10 @@ function TeacherCourseContent() {
   const [isEditingSection, setIsEditingSection] = useState(false);
   const [originalModuleData, setOriginalModuleData] = useState<ModuleData | null>(null);
   const [originalSectionData, setOriginalSectionData] = useState<{ name: string; description: string } | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [hidingModuleId, setHidingModuleId] = useState<string | null>(null);
   const [hidingSectionId, setHidingSectionId] = useState<string | null>(null);
   const [hidingItemId, setHidingItemId] = useState<string | null>(null);
@@ -189,6 +252,8 @@ function TeacherCourseContent() {
   }, [currentTextIndex, aiMessages]);
 
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
+  const [autoSelectSectionsToLoad, setAutoSelectSectionsToLoad] = useState<Array<{ moduleId: string, sectionId: string }>>([]);
+  const [autoSelectCurrentIndex, setAutoSelectCurrentIndex] = useState(0);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [selectedEntity, setSelectedEntity] = useState<{
     type: "module" | "section" | "item";
@@ -232,7 +297,7 @@ function TeacherCourseContent() {
   const safeVersionId = versionId && versionId.trim() ? versionId : "SKIP";
   const safeModuleId = activeSectionInfo?.moduleId && activeSectionInfo.moduleId.trim() ? activeSectionInfo.moduleId : "SKIP";
   const safeSectionId = activeSectionInfo?.sectionId && activeSectionInfo.sectionId.trim() ? activeSectionInfo.sectionId : "SKIP";
-  
+
   const {
     data: currentSectionItems,
     isLoading: itemsLoading,
@@ -254,7 +319,6 @@ function TeacherCourseContent() {
     shouldFetchItem ? versionId : '',
     shouldFetchItem ? selectedEntity?.data?._id : ''
   );
-  console.log("selectedItemData", selectedItemData)
   // Sync controlled state with selectedItemData for PROJECT edit
   useEffect(() => {
     if (selectedEntity?.type === 'item' && selectedEntity.data.type === 'PROJECT') {
@@ -282,7 +346,7 @@ function TeacherCourseContent() {
   // CRUD hooks
 
   // --- MODULES ---
-  const { mutateAsync: createModuleAsync, isSuccess: isCreateModuleSuccess, isError: isCreateModuleError, error: createModuleError,  } = useCreateModule();
+  const { mutateAsync: createModuleAsync, isSuccess: isCreateModuleSuccess, isError: isCreateModuleError, error: createModuleError, } = useCreateModule();
   const { mutateAsync: updateModuleAsync, isSuccess: isUpdateModuleSuccess, isError: isUpdateModuleError, error: updateModuleError } = useUpdateModule();
   const { mutateAsync: deleteModuleAsync, isSuccess: isDeleteModuleSuccess, isError: isDeleteModuleError, error: deleteModuleError } = useDeleteModule();
   const { mutateAsync: moveModuleAsync } = useMoveModule();
@@ -308,6 +372,7 @@ function TeacherCourseContent() {
   const [showCSVUpload, setShowCSVUpload] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const userCSVtoItem = userParseCSVtoItems();
+  const queryClient = useQueryClient()
 
 
   const updateItemOptional = useUpdateItemOptional();
@@ -386,54 +451,54 @@ function TeacherCourseContent() {
       },
     },
     errorFlags: {
-      isCreateModuleError: {
-        flag: isCreateModuleError,
-        message: createModuleError?.message,
-        fallback: "Failed to create module",
-      },
+      // isCreateModuleError: {
+      //   flag: isCreateModuleError,
+      //   message: createModuleError?.response?.data?.message || createModuleError?.message,
+      //   fallback: "Failed to create module",
+      // },
       isUpdateModuleError: {
         flag: isUpdateModuleError,
-        message: updateModuleError?.message,
+        message: updateModuleError?.toString(),
         fallback: "Failed to update module",
       },
       isDeleteModuleError: {
         flag: isDeleteModuleError,
-        message: deleteModuleError?.message,
+        message: deleteModuleError?.toString(),
         fallback: "Failed to delete module",
       },
       isCreateSectionError: {
         flag: isCreateSectionError,
-        message: createSectionError?.message,
+        message: createSectionError?.toString(),
         fallback: "Failed to create section",
       },
       isUpdateSectionError: {
         flag: isUpdateSectionError,
-        message: updateSectionError?.message,
+        message: updateSectionError?.toString(),
         fallback: "Failed to update section",
       },
       isDeleteSectionError: {
         flag: isDeleteSectionError,
-        message: deleteSectionError?.message,
+        message: deleteSectionError?.toString(),
         fallback: "Failed to delete section",
       },
       isCreateItemError: {
         flag: isCreateItemError,
-        message: createItemError?.message,
+        message: createItemError?.toString(),
         fallback: "Failed to create item",
       },
       isUpdateItemError: {
         flag: isUpdateItemError,
-        message: updateItemError?.message,
+        message: updateItemError?.toString(),
         fallback: "Failed to update item",
       },
       isDeleteItemError: {
         flag: isDeleteItemError,
-        message: deleteItemError?.message,
+        message: deleteItemError?.toString(),
         fallback: "Failed to delete item",
       },
       isMoveItemError: {
         flag: isMoveItemError,
-        message: moveItemError?.message,
+        message: moveItemError?.toString(),
         fallback: "Failed to move item",
       },
     },
@@ -462,32 +527,223 @@ function TeacherCourseContent() {
     ) {
 
       const itemsArray = (currentSectionItems as any)?.items || (Array.isArray(currentSectionItems) ? currentSectionItems : []);
+
+
       setSectionItems(prev => ({
         ...prev,
         [activeSectionInfo.sectionId]: itemsArray
       }));
+
+      // If we're in auto-select mode and have a watchItemId, check if the target item is in this newly loaded section
+      const watchItemId = currentCourse?.watchItemId;
+
+
+      if (watchItemId && itemsArray.length > 0) {
+
+        const targetItem = itemsArray.find((item: any) => item._id === watchItemId);
+        if (targetItem) {
+
+
+          // Find the module for this section
+          const targetModule = modules?.find(module =>
+            module.sections?.some(section => section.sectionId === activeSectionInfo.sectionId)
+          );
+
+          if (targetModule) {
+            const targetSection = targetModule.sections?.find(section => section.sectionId === activeSectionInfo.sectionId);
+
+            if (targetSection) {
+
+
+              // Show toast notification for successful navigation
+              const questionId = currentCourse?.questionId;
+              if (questionId) {
+                toast.success(`Navigated to flagged question in "${targetItem.name}"`);
+              } else {
+                toast.success(`Navigated to flagged item: "${targetItem.name}"`);
+              }
+
+              // Expand the module and section
+              setExpandedModules(prev => ({ ...prev, [targetModule.moduleId]: true }));
+              setExpandedSections(prev => ({ ...prev, [targetSection.sectionId]: true }));
+
+              // Select the item
+              setSelectedEntity({
+                type: 'item',
+                data: targetItem,
+                parentIds: {
+                  moduleId: targetModule.moduleId,
+                  sectionId: targetSection.sectionId
+                }
+              });
+
+              // Clear watchItemId and questionId after navigation
+              setCurrentCourse({
+                ...currentCourse,
+                watchItemId: null,
+                // questionId: null // Keep questionId for EnhancedQuizEditor to use
+              });
+              setAutoSelectSectionsToLoad([]);
+              setAutoSelectCurrentIndex(0);
+
+
+            } else {
+
+            }
+          } else {
+
+          }
+        } else {
+
+        }
+      }
     }
-  }, [currentSectionItems, itemsLoading, activeSectionInfo, shouldFetchItems]);
+  }, [currentSectionItems, itemsLoading, activeSectionInfo, shouldFetchItems, currentCourse, modules]);
+
+  // Auto-select item when navigating from flagged list
+  useEffect(() => {
+    const watchItemId = currentCourse?.watchItemId;
+    const questionId = currentCourse?.questionId;
+
+    // Wait for version data to load before attempting auto-select
+    if (isLoading) {
+
+      return;
+    }
+
+    if (!watchItemId || !modules || modules.length === 0) return;
+
+
+
+    if (questionId) {
+
+    }
+
+    // First, try to find the item in already-loaded sectionItems
+    for (const module of modules) {
+
+      for (const section of module.sections || []) {
+
+        const items = sectionItems[section.sectionId] || [];
+
+
+        const targetItem = items.find((item: any) => item._id === watchItemId);
+
+        if (targetItem) {
+
+
+          // Show toast notification for successful navigation
+          if (questionId) {
+            toast.success(`Navigated to flagged question in "${targetItem.name}"`);
+          } else {
+            toast.success(`Navigated to flagged item: "${targetItem.name}"`);
+          }
+
+          // Expand the module and section
+          setExpandedModules(prev => ({ ...prev, [module.moduleId]: true }));
+          setExpandedSections(prev => ({ ...prev, [section.sectionId]: true }));
+
+          // Select the item
+          setSelectedEntity({
+            type: 'item',
+            data: targetItem,
+            parentIds: {
+              moduleId: module.moduleId,
+              sectionId: section.sectionId
+            }
+          });
+
+          // Clear watchItemId and questionId after navigation
+          setCurrentCourse({
+            ...currentCourse,
+            watchItemId: null,
+            // questionId: null // Keep questionId for EnhancedQuizEditor to use
+          });
+          setAutoSelectSectionsToLoad([]);
+          setAutoSelectCurrentIndex(0);
+
+          return;
+        }
+      }
+    }
+
+    // If not found and we haven't started loading sections yet, prepare the list
+    if (autoSelectSectionsToLoad.length === 0) {
+
+
+      const sectionsToLoad: Array<{ moduleId: string, sectionId: string }> = [];
+      modules.forEach(module => {
+
+        module.sections?.forEach(section => {
+
+          sectionsToLoad.push({ moduleId: module.moduleId, sectionId: section.sectionId });
+        });
+      });
+
+
+      setAutoSelectSectionsToLoad(sectionsToLoad);
+      setAutoSelectCurrentIndex(0);
+
+      // Expand all modules and sections
+      const newExpandedModules: Record<string, boolean> = {};
+      const newExpandedSections: Record<string, boolean> = {};
+      modules.forEach(module => {
+        newExpandedModules[module.moduleId] = true;
+        module.sections?.forEach(section => {
+          newExpandedSections[section.sectionId] = true;
+        });
+      });
+      setExpandedModules(newExpandedModules);
+      setExpandedSections(newExpandedSections);
+    }
+  }, [currentCourse?.watchItemId, modules, sectionItems, autoSelectSectionsToLoad.length, isLoading]);
+
+  // Load sections one by one for auto-selection
+  useEffect(() => {
+    // If not in auto-select mode or no item to watch, do nothing
+    if (autoSelectSectionsToLoad.length === 0 || !currentCourse?.watchItemId) return;
+
+    const currentTarget = autoSelectSectionsToLoad[autoSelectCurrentIndex];
+
+    // If we've run out of sections to check, stop
+    if (!currentTarget) {
+      setAutoSelectSectionsToLoad([]);
+      setAutoSelectCurrentIndex(0);
+      return;
+    }
+
+    // If the active section doesn't match our target, switch to it
+    if (activeSectionInfo?.sectionId !== currentTarget.sectionId) {
+      setActiveSectionInfo(currentTarget);
+      return;
+    }
+
+    // If the active section matches AND we've finished loading:
+    // We can assume the item wasn't found (because the other useEffect would have cleared the state)
+    // So we move to the next section
+    if (!itemsLoading && currentSectionItems) {
+      setAutoSelectCurrentIndex(prev => prev + 1);
+    }
+  }, [
+    autoSelectCurrentIndex,
+    autoSelectSectionsToLoad,
+    currentCourse?.watchItemId,
+    activeSectionInfo,
+    itemsLoading,
+    currentSectionItems
+  ]);
+
+
+
+
+
+
+
+
 
   const getItemLabel = ({ itemId, itemType, sectionItems, sectionId }: LabelOptions): string => {
-    const index = (sectionItems[sectionId] || [])
-      .filter(i => i.type === itemType)
-      .findIndex(i => i._id === itemId) + 1;
-
-    switch (itemType) {
-      case "VIDEO":
-        return `Video ${index}`;
-      case "QUIZ":
-        return `Quiz ${index}`;
-      case "BLOG":
-        return `Article ${index}`;
-      case "PROJECT":
-        return `Project ${index}`;
-      case 'FEEDBACK':
-        return `Feedback ${index}`
-      default:
-        return "Unknown";
-    }
+    const item = (sectionItems[sectionId] || []).find(i => i._id === itemId);
+    return item?.name || item?.title || 'Untitled';
   };
 
   // Add Module
@@ -506,39 +762,75 @@ function TeacherCourseContent() {
   //   });
   // };
 
-    const handleAddModule = async () => {
-      if (!versionId) return;
+  const handleAddModule = async () => {
+    if (!versionId) return;
 
-      try {
-        await createModuleAsync({
-          params: { path: { versionId } },
-          body: {
-            name: "Untitled Module",
-            description: "Module description",
-          },
-        });
-
-        refetchVersion();
-        if (shouldFetchItems) {
-          refetchItems();
-        }
-
-        setIsEditingModule(true);
-        setOriginalModuleData({
+    try {
+      await createModuleAsync({
+        params: { path: { versionId } },
+        body: {
           name: "Untitled Module",
           description: "Module description",
-        });
+        },
+      });
 
-      } catch (error: any) {
-        const message =
-          error?.response?.data?.message ||
-          error?.message ||
-          "Failed to create module";
+    } catch (error: any) {
+      // Enhanced error message extraction for backend validation errors
+      let message = "Failed to create module";
 
-        toast.error(message);
+      if (error?.response?.data?.message) {
+        message = error.response.data.message;
+      } else if (error?.response?.data?.error) {
+        message = error.response.data.error;
+      } else if (error?.message) {
+        message = error.message;
+      } else if (typeof error === 'string') {
+        message = error;
       }
-    };
 
+      toast.error(message);
+    }
+
+    setIsEditingModule(true);
+    setOriginalModuleData({
+      name: "Untitled Module",
+      description: "Module description",
+    });
+
+
+  };
+
+
+  // Invalidate all related queries
+  const invalidateAllQueries = async () => {
+    // Invalidate section items queries as in refetchitems
+    await queryClient.invalidateQueries({
+      queryKey: ["get", "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items"]
+    })
+
+    // Invalidate all item detail queries as in refetchitem
+    await queryClient.invalidateQueries({
+      queryKey: ["get", "/courses/{courseId}/versions/{versionId}/item/{itemId}"]
+    })
+
+    // // Invalidate all course version queries
+    await queryClient.invalidateQueries({
+      queryKey: ["get", "/courses/versions/{id}"]
+    })
+  }
+
+  // invalidated as sometimes questions are not fetched properly
+  const handleinvalidateItemQueries = async () => {
+    // Invalidate all related queries for question banks
+    await queryClient.invalidateQueries({
+      queryKey: ["get", "/quizzes/question-bank/{questionBankId}"]
+    })
+
+    // Invalidate all related queries for questions
+    await queryClient.invalidateQueries({
+      queryKey: ["get", "/quizzes/questions/{questionId}"]
+    })
+  }
 
 
   // Process CSV file and create items
@@ -547,7 +839,11 @@ function TeacherCourseContent() {
     try {
       setShowCSVUpload(false);
       const text = await file.text();
-      const result = Papa.parse<CSVRow>(text, { header: true, skipEmptyLines: true });
+      const result = Papa.parse<CSVRow>(text, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (h) => h.trim()
+      });
 
       // Validate CSV structure
       if (!result.data.length) {
@@ -574,16 +870,16 @@ function TeacherCourseContent() {
 
 
       const response = await userCSVtoItem.mutateAsync({
-        params: { path: { courseId: courseId!, versionId:versionId!, moduleId, sectionId } },
+        params: { path: { courseId: courseId!, versionId: versionId!, moduleId, sectionId } },
         body: { youtubeurl: youtubeUrl, data: result.data }
-      }).then((res) => {
-        if(res.success){
-           toast.success('Successfully created items from CSV');
-        }
-        refetchVersion()
-        refetchItems()
-        setIsProcessingCSV(false);
       });
+
+      if (response.success) {
+        toast.success('Successfully created items from CSV');
+      }
+
+      await invalidateAllQueries();
+      setIsProcessingCSV(false);
     } catch (error) {
       console.error('Error processing CSV:', error);
       toast.error(`Failed to process CSV: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -650,7 +946,6 @@ function TeacherCourseContent() {
     if (!versionId) return;
     setHidingItemId(itemId);
     try {
-      console.log("🔄 Starting hide item:", itemId, hide);
       await updateItemVisibilityAsync({
         params: { path: { versionId, itemId } },
         body: { hide: hide }
@@ -658,9 +953,8 @@ function TeacherCourseContent() {
 
       refetchVersion();
       refetchItems();
-      console.log("✅ RefetchVersion completed");
     } catch (error) {
-      console.error("❌ Error in handleHideItem:", error);
+      console.error("? Error in handleHideItem:", error);
     } finally {
       setHidingItemId(null);
     }
@@ -847,7 +1141,7 @@ function TeacherCourseContent() {
           }
         })
         .catch((err) => {
-          toast.error("Failed to create feedback form");
+          toast.error("Failed to create feedback form: ", err.message);
           console.error(err);
         });
     }
@@ -967,13 +1261,68 @@ function TeacherCourseContent() {
             ? { afterItemId: after._id }
             : {}),
       },
-    }).then((res) => { 
+    }).then((res) => {
       if (shouldFetchItems) {
         refetchItems();
       }
     })
 
   };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedEntity || !versionId) return;
+
+    const { type, data, parentIds } = selectedEntity;
+
+    try {
+      if (type === "module") {
+        await deleteModuleAsync({
+          params: {
+            path: {
+              versionId,
+              moduleId: data.moduleId,
+            },
+          },
+        });
+
+        setExpandedModules(prev => ({
+          ...prev,
+          [data.moduleId]: false,
+        }));
+        setIsEditingModule(false);
+      }
+
+      if (type === "section" && parentIds?.moduleId) {
+        if (activeSectionInfo?.sectionId === data.sectionId) {
+          setActiveSectionInfo(null);
+        }
+
+        await deleteSectionAsync({
+          params: {
+            path: {
+              versionId,
+              moduleId: parentIds.moduleId,
+              sectionId: data.sectionId,
+            },
+          },
+        });
+
+        setExpandedSections(prev => ({
+          ...prev,
+          [data.sectionId]: false,
+        }));
+        setIsEditingSection(false);
+      }
+
+      refetchVersion();
+      if (shouldFetchItems) refetchItems();
+    } finally {
+      setIsDeleteModalOpen(false);
+      setSelectedEntity(null);
+      setErrors({ title: "", description: "" });
+    }
+  };
+
 
 
   useEffect(() => {
@@ -1149,625 +1498,652 @@ function TeacherCourseContent() {
         }}
       />
       {/* Mobile Sidebar Overlay */}
-      {isMobileSidebarOpen && (
+      {/* {isMobileSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={() => setIsMobileSidebarOpen(false)}
         />
-      )}
-      <ResizablePanel
+      )} */}
+      {/* {isDesktopSidebarVisible && ( */}
+        <SidebarResizablePanel
+          defaultSize={20}
+          minSize={20}
+          maxSize={50}
+          // className={`${isMobileSidebarOpen ? 'fixed inset-y-0 left-0 z-50 w-[280px]' : 'hidden md:block'}`}
+        >
+          {/* sidebar content */}
+          <div className="h-full overflow-hidden border-r border-border/40 bg-sidebar/50">
+            <Sidebar variant="sidebar" collapsible="none" className="h-screen w-full">
+              <SidebarHeader>
+                <div className="flex items-center gap-3 px-3 py-2">
+                  <BookOpen className="text-primary" />
+                  <div>
+                    <h1 className="text-base font-bold">Vibe (Teacher)</h1>
+                    <p className="text-xs text-muted-foreground">Course Editor</p>
+                  </div>
+                </div>
+                <Separator className="opacity-50" />
+              </SidebarHeader>
+
+              <SidebarContent
+                className="bg-card/50 pl-2"
+
+              >
+                <ScrollArea className="flex-1">
+                  <Reorder.Group
+                    axis="y"
+                    onReorder={(newOrder) => {
+                      pendingOrder.current = newOrder;
+                    }}
+                    values={initialModules}
+                  >
+                    <SidebarMenu className="space-y-2 text-sm pr-1 pt-2">
+                      {initialModules
+                        .slice()
+                        .sort((a: any, b: any) => a.order.localeCompare(b.order))
+                        .map((module: any) => (
+                          <SidebarMenuItem key={module.moduleId}>
+                            <Reorder.Item
+                              key={module.moduleId}
+                              value={module}
+                              as="div"
+                              drag
+                              className={module.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
+                              whileDrag={{ scale: 1.02 }}
+                              onDragEnd={() => {
+                                setInitialModules(pendingOrder.current);
+                                handleMoveModule(module.moduleId, versionId);
+                              }}
+                            >
+                              <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideModule(module.moduleId, !module.isHidden)} disabled={hidingModuleId === module.moduleId}>
+                                {hidingModuleId === module.moduleId ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : !module.isHidden ? (
+                                  <Eye className="h-4 w-4" />
+                                ) : (
+                                  <EyeOff className="h-4 w-4" />
+                                )}
+                                <span className="sr-only">Hide Module</span>
+                              </Button>
+                              <SidebarMenuButton
+                                onClick={() => {
+                                  toggleModule(module.moduleId);
+                                  setSelectedEntity({ type: "module", data: module });
+                                  setIsEditingModule(false);
+                                  setOriginalModuleData({
+                                    name: module.name,
+                                    description: module.description || ""
+                                  });
+                                }}
+                              >
+                                <ChevronRight
+                                  className={`h-3.5 w-3.5 transition-transform ${expandedModules[module.moduleId] ? "rotate-90" : ""
+                                    }`}
+                                />
+                                <span className="ml-2 max-w-[35ch] truncate" title={module.name}>{module.name}</span>
+                              </SidebarMenuButton>
+                            </Reorder.Item>
+
+                            {expandedModules[module.moduleId] && (
+                              <Reorder.Group
+                                axis="y"
+                                values={module.sections}
+                                onReorder={(newSectionOrder) => {
+                                  pendingOrder.current[module.moduleId] = newSectionOrder;
+                                }}
+                              >
+                                <SidebarMenuSub className="ml-2">
+                                  {module.sections?.map((section: any) => (
+                                    <Reorder.Item
+                                      key={section.sectionId}
+                                      value={section}
+                                      drag
+                                      className={section.isHidden || module.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
+                                      whileDrag={{ scale: 1.02 }}
+                                      onDragEnd={() => {
+                                        setInitialModules((prev) =>
+                                          prev.map((mod) =>
+                                            mod.moduleId === module.moduleId
+                                              ? { ...mod, sections: pendingOrder.current[module.moduleId] }
+                                              : mod
+                                          )
+                                        );
+                                        handleMoveSection(module.moduleId, section.sectionId, versionId);
+                                      }}
+                                    >
+
+                                      <div
+                                        data-slot="sidebar-menu-sub-item"
+                                        data-sidebar="menu-sub-item"
+                                        className="group/menu-sub-item relative"
+                                      >
+                                        <SidebarMenuSubButton
+                                          onClick={() => {
+                                            setMode("default");
+                                            toggleSection(module.moduleId, section.sectionId);
+                                            setSelectedEntity({
+                                              type: "section",
+                                              data: section,
+                                              parentIds: { moduleId: module.moduleId },
+                                            });
+                                            setIsEditingSection(false);
+                                            setOriginalSectionData({
+                                              name: section.name,
+                                              description: section.description || ""
+                                            });
+                                          }}
+                                        >
+                                          <ChevronRight
+                                            className={`h-3 w-3 transition-transform ${expandedSections[section.sectionId] ? "rotate-90" : ""
+                                              }`}
+                                          />
+                                          <span className="ml-2 truncate  max-w-[25ch] truncate block" title={section.name}
+                                          >{section.name} </span>
+                                        </SidebarMenuSubButton>
+                                        <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideSection(module.moduleId, section.sectionId, !section.isHidden)} disabled={module.isHidden || hidingSectionId === section.sectionId}>
+                                          {hidingSectionId === section.sectionId ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                          ) : !section.isHidden ? (
+                                            <Eye className="h-4 w-4" />
+                                          ) : (
+                                            <EyeOff className="h-4 w-4" />
+                                          )}
+                                          <span className="sr-only">Hide Section</span>
+                                        </Button>
+
+                                        {expandedSections[section.sectionId] && (
+                                          <Reorder.Group
+                                            axis="y"
+                                            values={sectionItems[section.sectionId] || []}
+                                            onReorder={(newItemOrder) => {
+                                              pendingOrderItems.current[section.sectionId] = newItemOrder;
+                                            }}
+                                          >
+                                            <SidebarMenuSub className="ml-4 space-y-1 pt-1">
+                                              {itemsLoading && activeSectionInfo?.sectionId === section.sectionId ? (
+                                                <div className="flex items-center justify-center py-4">
+                                                  <Loader />
+                                                </div>
+                                              ) : (sectionItems[section.sectionId] || [])
+                                                .slice()
+                                                .sort((a: any, b: any) => a.order.localeCompare(b.order))
+                                                .map((item: any) => (
+                                                  <Reorder.Item
+                                                    key={item._id}
+                                                    value={item}
+                                                    drag
+                                                    className={section.isHidden || module.isHidden || item.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
+                                                    whileDrag={{ scale: 1.02 }}
+                                                    onDragEnd={() => {
+
+                                                      setSectionItems((prev) => {
+                                                        const items = pendingOrderItems.current[section.sectionId] || prev[section.sectionId];
+
+                                                        // Sort by LexoRank-compatible `order` string
+                                                        const sortedItems = [...items].sort((a, b) => a.order.localeCompare(b.order));
+
+                                                        return {
+                                                          ...prev,
+                                                          [section.sectionId]: sortedItems
+                                                        };
+                                                      });
+
+                                                      handleMoveItem(module.moduleId, section.sectionId, item._id, versionId);
+                                                    }}
+                                                  >
+                                                    <SidebarMenuSubItem key={item._id}>
+                                                      <SidebarMenuSubButton
+                                                        className={`justify-start ${selectedItem.name === getItemLabel({
+                                                          itemId: item._id,
+                                                          itemType: item.type,
+                                                          sectionItems,
+                                                          sectionId: section.sectionId
+                                                        }) && selectedItem.id == item._id
+                                                          ? "bg-zinc-600 text-gray-200"
+                                                          : "bg-transparent transition-none"
+                                                          }`}
+                                                        onClick={async () => {
+                                                          await handleinvalidateItemQueries();
+                                                          setMode("default");
+                                                          const label = getItemLabel({
+                                                            itemId: item._id,
+                                                            itemType: item.type,
+                                                            sectionItems,
+                                                            sectionId: section.sectionId
+                                                          });
+
+                                                          setSelectedItem({ id: item._id, name: label });
+
+                                                          // Patch: For PROJECT, ensure name/description are always present at root
+                                                          let patchedItem = item;
+                                                          if (item.type === 'PROJECT') {
+                                                            const details = item.details || {};
+                                                            const name = (details.name && details.name.trim()) ? details.name : (item.name || '');
+                                                            const description = (details.description && details.description.trim()) ? details.description : (item.description || '');
+                                                            patchedItem = {
+                                                              ...item,
+                                                              name,
+                                                              description
+                                                            };
+                                                          }
+                                                          setSelectedEntity({
+                                                            type: "item",
+                                                            data: patchedItem,
+                                                            parentIds: {
+                                                              moduleId: module.moduleId,
+                                                              sectionId: section.sectionId,
+                                                              itemsGroupId: section.itemsGroupId,
+                                                            },
+                                                          });
+
+                                                          if (checkScreenSize() && (item.type === 'VIDEO' || item.type === 'QUIZ' || item.type === 'BLOG')) {
+                                                            setOpenMobile(false);
+                                                            setOpen(false);
+                                                          }
+                                                        }
+                                                        }
+                                                      >
+                                                        {getItemIcon(item.type)}
+                                                        <span className={`ml-1 text-xs ${selectedItem.name === getItemLabel({
+                                                          itemId: item._id,
+                                                          itemType: item.type,
+                                                          sectionItems,
+                                                          sectionId: section.sectionId
+                                                        }) && selectedItem.id == item._id
+                                                          ? "text-gray-200"
+                                                          : "text-muted-foreground"
+                                                          }`}>
+                                                          {getItemLabel({
+                                                            itemId: item._id,
+                                                            itemType: item.type,
+                                                            sectionItems,
+                                                            sectionId: section.sectionId
+                                                          })}
+                                                        </span>
+                                                      </SidebarMenuSubButton>
+                                                      <Button className="absolute  top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideItem(item._id, !item.isHidden)} disabled={section.isHidden || module.isHidden || hidingItemId === item._id}>
+                                                        {hidingItemId === item._id ? (
+                                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                                        ) : !item.isHidden ? (
+                                                          <Eye className={`h-4 w-4 ${selectedItem.id == item._id
+                                                            ? "text-gray-200"
+                                                            : "text-muted-foreground"}`} />
+                                                        ) : (
+                                                          <EyeOff className={`h-4 w-4 ${selectedItem.id == item._id
+                                                            ? "text-gray-200"
+                                                            : "text-muted-foreground"}`} />
+                                                        )}
+                                                        <span className="sr-only">Hide Item</span>
+                                                      </Button>
+                                                    </SidebarMenuSubItem>
+                                                  </Reorder.Item>
+                                                ))}
+                                              <div className="ml-6 mt-2">
+
+                                                <select
+
+                                                  className="text-xs border rounded px-2 py-1 bg-background text-foreground"
+
+                                                  defaultValue=""
+
+                                                  disabled={module.isHidden || section.isHidden}
+
+                                                  onChange={(e) => {
+
+                                                    const type = e.target.value;
+
+                                                    if (type) {
+
+                                                      if (type === "VIDEO") {
+
+                                                        setShowAddVideoModal({
+
+                                                          moduleId: module.moduleId,
+
+                                                          sectionId: section.sectionId,
+
+                                                        });
+
+                                                      } else if (type === "quiz") {
+
+                                                        setQuizModuleId(module.moduleId);
+
+                                                        setQuizSectionId(section.sectionId);
+
+                                                        // Update course store with current context
+
+                                                        if (currentCourse) {
+
+                                                          setCurrentCourse({
+
+                                                            ...currentCourse,
+
+                                                            moduleId: module.moduleId,
+
+                                                            sectionId: section.sectionId
+
+                                                          });
+
+                                                        }
+
+                                                        setQuizWizardOpen(true);
+
+
+                                                      }
+                                                      else if (type === "project") {
+
+                                                        createItemAsync({
+                                                          params: {
+                                                            path: {
+                                                              versionId: versionId!,
+                                                              moduleId: module.moduleId,
+                                                              sectionId: section.sectionId,
+                                                            },
+                                                          },
+                                                          body: {
+                                                            type: "PROJECT",
+                                                            name: `Project name`,
+                                                            description: `Project description`
+                                                          },
+                                                        })
+                                                          .then((created) => {
+                                                            const newItem = created?.createdItem || created?.item || created?.data || created;
+                                                            const itemsGroupId = created?.itemsGroup?._id || section.itemsGroupId;
+
+                                                            if (newItem && newItem._id) {
+                                                              setSelectedItem({ id: newItem._id, name: newItem.name });
+                                                              setSelectedEntity({
+                                                                type: "item",
+                                                                data: newItem,
+                                                                parentIds: {
+                                                                  moduleId: module.moduleId,
+                                                                  sectionId: section.sectionId,
+                                                                  itemsGroupId,
+                                                                },
+                                                              });
+                                                            } else {
+                                                              refetchVersion();
+                                                              if (shouldFetchItems) {
+                                                                refetchItems();
+                                                              }
+                                                            }
+                                                          });
+                                                      }
+                                                      else if (type === "feedback") {
+                                                        createItemAsync({
+                                                          params: {
+                                                            path: {
+                                                              versionId: versionId!,
+                                                              moduleId: module.moduleId,
+                                                              sectionId: section.sectionId,
+                                                            },
+                                                          },
+                                                          body: {
+                                                            type: "FEEDBACK",
+                                                            name: "Feedback Form",
+                                                            description: "Submit your feedback about the previous video/quiz",
+                                                            feedbackFormDetails: {
+                                                              jsonSchema: {
+                                                                type: 'object',
+                                                                properties: {
+                                                                  Name: {
+                                                                    type: 'string',
+                                                                    title: 'Name',
+                                                                    minLength: 1,
+                                                                  },
+                                                                  Email: {
+                                                                    type: 'string',
+                                                                    format: 'email',
+                                                                    title: 'Email',
+                                                                  },
+                                                                  Feedback: {
+                                                                    type: 'string',
+                                                                    title: 'Feedback',
+                                                                    minLength: 10
+                                                                  },
+                                                                },
+                                                                required: ['Name', 'Email', 'Feedback'],
+                                                              },
+                                                              uiSchema: {
+                                                                Name: {
+                                                                  'ui:placeholder': 'Enter your Name',
+                                                                },
+                                                                Email: {
+                                                                  'ui:placeholder': 'Enter your Email',
+                                                                },
+                                                                Feedback: {
+                                                                  'ui:placeholder': 'Enter your feedback here...',
+                                                                  'ui:widget': 'textarea',
+                                                                },
+                                                              }
+                                                            },
+                                                          }
+                                                        })
+                                                          .then((created) => {
+                                                            const newItem = created?.createdItem || created?.item || created?.data || created;
+                                                            const itemsGroupId = created?.itemsGroup?._id || section.itemsGroupId;
+
+                                                            if (newItem && newItem._id) {
+                                                              // Auto-select the newly created feedback form
+                                                              setSelectedItem({ id: newItem._id, name: "Feedback Form 1" });
+                                                              setSelectedEntity({
+                                                                type: "item",
+                                                                data: newItem,
+                                                                parentIds: {
+                                                                  moduleId: module.moduleId,
+                                                                  sectionId: section.sectionId,
+                                                                  itemsGroupId,
+                                                                },
+                                                              });
+                                                            } else {
+                                                              refetchVersion();
+                                                              if (shouldFetchItems) {
+                                                                refetchItems();
+                                                              }
+                                                            }
+                                                          })
+                                                          .catch((err) => {
+                                                            toast.error("Failed to create feedback form");
+                                                            console.error(err);
+                                                          });
+                                                      }
+                                                      else if (type === "csv_upload") {
+                                                        setActiveSectionInfo({ moduleId: module.moduleId, sectionId: section.sectionId });
+                                                        setShowCSVUpload(true);
+                                                      }
+                                                      else {
+                                                        setActiveSectionInfo({ moduleId: module.moduleId, sectionId: section.sectionId });
+                                                        handleAddItem(module.moduleId, section.sectionId, type);
+
+                                                      }
+
+                                                      e.target.value = "";
+
+                                                    }
+
+                                                  }}
+
+                                                >
+
+                                                  <option value="" disabled>Add Item</option>
+
+                                                  <option value="article">Article</option>
+
+                                                  <option value="VIDEO">Video</option>
+
+                                                  <option value="quiz">Quiz</option>
+
+                                                  <option value="feedback">Feedback Form</option>
+
+                                                  <option
+                                                    value="project"
+                                                    disabled={hasExistingProject}
+                                                    className={hasExistingProject ? 'text-gray-400' : ''}
+                                                  >
+                                                    {hasExistingProject ? 'Project (Limit 1 per course)' : 'Project'}
+                                                  </option>
+                                                  <option value="csv_upload">Upload CSV</option>
+
+                                                </select>
+                                                <TooltipProvider>
+                                                  <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                      <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                          <Button
+                                                            type="button"
+                                                            className="inline-flex items-center justify-center px-1.5 py-0 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold text-[10px] gap-0.5 shadow transition-all duration-200 hover:scale-105 hover:shadow-lg hover:from-purple-600 hover:to-indigo-600 focus:outline-none focus:ring-2 focus:ring-purple-400 ml-3"
+                                                            style={{ minWidth: 'unset', height: '1.5rem' }}
+                                                          >
+                                                            <Sparkles className="h-2 w-2" />
+                                                            <span>AI</span>
+                                                          </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="start" className="w-40">
+                                                          <DropdownMenuItem
+                                                            className="text-xs cursor-pointer"
+                                                            onClick={() => {
+                                                              setCurrentCourse({
+                                                                courseId,
+                                                                versionId,
+                                                                moduleId: module.moduleId,
+                                                                sectionId: section.sectionId,
+                                                                itemId: null,
+                                                                watchItemId: null,
+                                                              });
+                                                              setMode('custom')
+                                                              // navigate({ to: '/teacher/ai-section' });
+                                                            }}
+                                                          >
+                                                            Custom mode
+                                                          </DropdownMenuItem>
+                                                          <DropdownMenuItem
+                                                            className="text-xs cursor-pointer"
+                                                            onClick={() => {
+                                                              setCurrentCourse({
+                                                                courseId,
+                                                                versionId,
+                                                                moduleId: module.moduleId,
+                                                                sectionId: section.sectionId,
+                                                                itemId: null,
+                                                                watchItemId: null,
+                                                              });
+                                                              setMode('wizard')
+                                                              // navigate({ to: '/teacher/ai-workflow' });
+                                                            }}
+                                                          >
+                                                            Wizard mode
+                                                          </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                      </DropdownMenu>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="right" align="center">
+                                                      Generate Section with AI
+                                                    </TooltipContent>
+                                                  </Tooltip>
+                                                </TooltipProvider>
+                                              </div>
+
+                                            </SidebarMenuSub>
+                                          </Reorder.Group>
+                                        )}
+                                      </div>
+                                    </Reorder.Item>
+                                  ))}
+
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="ml-4 mt-2 w-[220px] h-6 text-xs"
+                                    onClick={() => handleAddSection(module.moduleId)}
+                                  >
+                                    <Plus className="h-3 w-3 mr-1" />
+                                    Add Section
+                                  </Button>
+                                </SidebarMenuSub>
+                              </Reorder.Group>
+                            )}
+                          </SidebarMenuItem>
+                        ))}
+
+                      <div className="px-2 pt-3">
+                        <Button size="sm" className="w-[250px]  text-xs" onClick={handleAddModule}>
+                          <Plus className="h-3 w-3 mr-1" />
+                          Add Module
+                        </Button>
+                      </div>
+                    </SidebarMenu>
+                  </Reorder.Group>
+
+
+                </ScrollArea>
+              </SidebarContent>
+              <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
+                <SidebarMenu className="space-y-1 pl-2 py-3">
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                    >
+                      <Link to="/teacher" className="flex items-center gap-3">
+                        <div className="p-1 rounded-md bg-accent/15">
+                          <Home className="h-4 w-4 text-accent-foreground" />
+                        </div>
+                        <span className="text-sm font-medium">Dashboard</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                    >
+                      <Link to="/teacher" className="flex items-center gap-3">
+                        <div className="p-1 rounded-md bg-accent/15">
+                          <GraduationCap className="h-4 w-4 text-accent-foreground" />
+                        </div>
+                        <span className="text-sm font-medium">Courses</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+
+                  <Separator className="my-2 opacity-50" />
+
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      className="h-10 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                    >
+                      <Link to="/teacher/profile" className="flex items-center gap-3">
+                        <Avatar className="h-6 w-6 border border-border/20">
+                          <AvatarImage src={user?.avatar} alt={user?.name} />
+                          <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/5 text-primary font-bold text-xs">
+                            {user?.name?.charAt(0).toUpperCase() || 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 text-left min-w-0">
+                          <div className="text-sm font-medium truncate" title={user?.name || 'Profile'}>{user?.name || 'Profile'}</div>
+                          <div className="text-xs text-muted-foreground">View Profile</div>
+                        </div>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarFooter>
+            </Sidebar>
+          </div>
+        </SidebarResizablePanel>
+      {/* )} */}
+
+      {/* <ResizablePanel
         defaultSize={20}
         minSize={20}
         maxSize={50}
         className={`${isMobileSidebarOpen ? 'fixed inset-y-0 left-0 z-50 w-[280px]' : 'hidden md:block'}`}
       >
-        <div className="h-full overflow-hidden border-r border-border/40 bg-sidebar/50">
-          <Sidebar variant="sidebar" collapsible="none" className="h-screen w-full">
-            <SidebarHeader>
-              <div className="flex items-center gap-3 px-3 py-2">
-                <BookOpen className="text-primary" />
-                <div>
-                  <h1 className="text-base font-bold">Vibe (Teacher)</h1>
-                  <p className="text-xs text-muted-foreground">Course Editor</p>
-                </div>
-              </div>
-              <Separator className="opacity-50" />
-            </SidebarHeader>
-
-            <SidebarContent
-              className="bg-card/50 pl-2"
-
-            >
-              <ScrollArea className="flex-1">
-                <Reorder.Group
-                  axis="y"
-                  onReorder={(newOrder) => {
-                    pendingOrder.current = newOrder;
-                  }}
-                  values={initialModules}
-                >
-                  <SidebarMenu className="space-y-2 text-sm pr-1 pt-2">
-                    {initialModules
-                      .slice()
-                      .sort((a: any, b: any) => a.order.localeCompare(b.order))
-                      .map((module: any) => (
-                        <SidebarMenuItem key={module.moduleId}>
-                          <Reorder.Item
-                            key={module.moduleId}
-                            value={module}
-                            drag
-                            className={module.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
-                            whileDrag={{ scale: 1.02 }}
-                            onDragEnd={() => {
-                              setInitialModules(pendingOrder.current);
-                              handleMoveModule(module.moduleId, versionId);
-                            }}
-                          >
-                            <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideModule(module.moduleId, !module.isHidden)} disabled={hidingModuleId === module.moduleId}>
-                              {hidingModuleId === module.moduleId ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : !module.isHidden ? (
-                                <Eye className="h-4 w-4" />
-                              ) : (
-                                <EyeOff className="h-4 w-4" />
-                              )}
-                              <span className="sr-only">Hide Module</span>
-                            </Button>
-                            <SidebarMenuButton
-                              onClick={() => {
-                                toggleModule(module.moduleId);
-                                setSelectedEntity({ type: "module", data: module });
-                                setIsEditingModule(false);
-                                setOriginalModuleData({
-                                  name: module.name,
-                                  description: module.description || ""
-                                });
-                              }}
-                            >
-                              <ChevronRight
-                                className={`h-3.5 w-3.5 transition-transform ${expandedModules[module.moduleId] ? "rotate-90" : ""
-                                  }`}
-                              />
-                              <span className="ml-2 max-w-[35ch] truncate"title={module.name}>{module.name}</span>
-                            </SidebarMenuButton>
-                          </Reorder.Item>
-
-                          {expandedModules[module.moduleId] && (
-                            <Reorder.Group
-                              axis="y"
-                              values={module.sections}
-                              onReorder={(newSectionOrder) => {
-                                pendingOrder.current[module.moduleId] = newSectionOrder;
-                              }}
-                            >
-                              <SidebarMenuSub className="ml-2">
-                                {module.sections?.map((section: any) => (
-                                  <Reorder.Item
-                                    key={section.sectionId}
-                                    value={section}
-                                    drag
-                                    className={section.isHidden || module.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
-                                    whileDrag={{ scale: 1.02 }}
-                                    onDragEnd={() => {
-                                      setInitialModules((prev) =>
-                                        prev.map((mod) =>
-                                          mod.moduleId === module.moduleId
-                                            ? { ...mod, sections: pendingOrder.current[module.moduleId] }
-                                            : mod
-                                        )
-                                      );
-                                      handleMoveSection(module.moduleId, section.sectionId, versionId);
-                                    }}
-                                  >
-                                    <SidebarMenuSubItem>
-                                      <SidebarMenuSubButton
-                                        onClick={() => {
-                                          toggleSection(module.moduleId, section.sectionId);
-                                          setSelectedEntity({
-                                            type: "section",
-                                            data: section,
-                                            parentIds: { moduleId: module.moduleId },
-                                          });
-                                          setIsEditingSection(false);
-                                          setOriginalSectionData({
-                                            name: section.name,
-                                            description: section.description || ""
-                                          });
-                                        }}
-                                      >
-                                        <ChevronRight
-                                          className={`h-3 w-3 transition-transform ${expandedSections[section.sectionId] ? "rotate-90" : ""
-                                            }`}
-                                        />
-                                        <span className="ml-2 truncate  max-w-[25ch] truncate block" title={section.name}
-                                        >{section.name} </span>
-                                      </SidebarMenuSubButton>
-                                      <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideSection(module.moduleId, section.sectionId, !section.isHidden)} disabled={module.isHidden || hidingSectionId === section.sectionId}>
-                                        {hidingSectionId === section.sectionId ? (
-                                          <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : !section.isHidden ? (
-                                          <Eye className="h-4 w-4" />
-                                        ) : (
-                                          <EyeOff className="h-4 w-4" />
-                                        )}
-                                        <span className="sr-only">Hide Section</span>
-                                      </Button>
-
-                                      {expandedSections[section.sectionId] && (
-                                        <Reorder.Group
-                                          axis="y"
-                                          values={sectionItems[section.sectionId] || []}
-                                          onReorder={(newItemOrder) => {
-                                            pendingOrderItems.current[section.sectionId] = newItemOrder;
-                                          }}
-                                        >
-                                          <SidebarMenuSub className="ml-4 space-y-1 pt-1">
-                                            {itemsLoading && activeSectionInfo?.sectionId === section.sectionId ? (
-                                              <div className="flex items-center justify-center py-4">
-                                                <Loader />
-                                              </div>
-                                            ) : (sectionItems[section.sectionId] || [])
-                                              .slice()
-                                              .sort((a: any, b: any) => a.order.localeCompare(b.order))
-                                              .map((item: any) => (
-                                                <Reorder.Item
-                                                  key={item._id}
-                                                  value={item}
-                                                  drag
-                                                  className={section.isHidden || module.isHidden || item.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
-                                                  whileDrag={{ scale: 1.02 }}
-                                                  onDragEnd={() => {
-
-                                                    setSectionItems((prev) => {
-                                                      const items = pendingOrderItems.current[section.sectionId] || prev[section.sectionId];
-
-                                                      // Sort by LexoRank-compatible `order` string
-                                                      const sortedItems = [...items].sort((a, b) => a.order.localeCompare(b.order));
-
-                                                      return {
-                                                        ...prev,
-                                                        [section.sectionId]: sortedItems
-                                                      };
-                                                    });
-
-                                                    handleMoveItem(module.moduleId, section.sectionId, item._id, versionId);
-                                                  }}
-                                                >
-                                                  <SidebarMenuSubItem key={item._id}>
-                                                    <SidebarMenuSubButton
-                                                      className={`justify-start ${selectedItem.name === getItemLabel({
-                                                        itemId: item._id,
-                                                        itemType: item.type,
-                                                        sectionItems,
-                                                        sectionId: section.sectionId
-                                                      }) && selectedItem.id == item._id
-                                                        ? "bg-zinc-600 text-gray-200"
-                                                        : "bg-transparent transition-none"
-                                                        }`}
-                                                      onClick={() => {
-                                                        const label = getItemLabel({
-                                                          itemId: item._id,
-                                                          itemType: item.type,
-                                                          sectionItems,
-                                                          sectionId: section.sectionId
-                                                        });
-
-                                                        setSelectedItem({ id: item._id, name: label });
-
-                                                        // Patch: For PROJECT, ensure name/description are always present at root
-                                                        let patchedItem = item;
-                                                        if (item.type === 'PROJECT') {
-                                                          const details = item.details || {};
-                                                          const name = (details.name && details.name.trim()) ? details.name : (item.name || '');
-                                                          const description = (details.description && details.description.trim()) ? details.description : (item.description || '');
-                                                          patchedItem = {
-                                                            ...item,
-                                                            name,
-                                                            description
-                                                          };
-                                                        }
-                                                        setSelectedEntity({
-                                                          type: "item",
-                                                          data: patchedItem,
-                                                          parentIds: {
-                                                            moduleId: module.moduleId,
-                                                            sectionId: section.sectionId,
-                                                            itemsGroupId: section.itemsGroupId,
-                                                          },
-                                                        });
-
-                                                        if (checkScreenSize() && (item.type === 'VIDEO' || item.type === 'QUIZ' || item.type === 'BLOG')) {
-                                                          setOpenMobile(false);
-                                                          setOpen(false);
-                                                        }
-                                                      }
-                                                      }
-                                                    >
-                                                      {getItemIcon(item.type)}
-                                                      <span className={`ml-1 text-xs ${selectedItem.name === getItemLabel({
-                                                        itemId: item._id,
-                                                        itemType: item.type,
-                                                        sectionItems,
-                                                        sectionId: section.sectionId
-                                                      }) && selectedItem.id == item._id
-                                                        ? "text-gray-200"
-                                                        : "text-muted-foreground"
-                                                        }`}>
-                                                        {getItemLabel({
-                                                          itemId: item._id,
-                                                          itemType: item.type,
-                                                          sectionItems,
-                                                          sectionId: section.sectionId
-                                                        })}
-                                                      </span>
-                                                    </SidebarMenuSubButton>
-                                                    <Button className="absolute top-0 right-0" size="icon" variant="ghost" onClick={(e) => handleHideItem(item._id, !item.isHidden)} disabled={section.isHidden || module.isHidden || hidingItemId === item._id}>
-                                                      {hidingItemId === item._id ? (
-                                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                                      ) : !item.isHidden ? (
-                                                        <Eye className="h-4 w-4" />
-                                                      ) : (
-                                                        <EyeOff className="h-4 w-4" />
-                                                      )}
-                                                      <span className="sr-only">Hide Item</span>
-                                                    </Button>
-                                                  </SidebarMenuSubItem>
-                                                </Reorder.Item>
-                                              ))}
-                                            <div className="ml-6 mt-2">
-
-                                              <select
-
-                                                className="text-xs border rounded px-2 py-1 bg-background text-foreground"
-
-                                                defaultValue=""
-
-                                                disabled={module.isHidden || section.isHidden}
-
-                                                onChange={(e) => {
-
-                                                  const type = e.target.value;
-
-                                                  if (type) {
-
-                                                    if (type === "VIDEO") {
-
-                                                      setShowAddVideoModal({
-
-                                                        moduleId: module.moduleId,
-
-                                                        sectionId: section.sectionId,
-
-                                                      });
-
-                                                    } else if (type === "quiz") {
-
-                                                      setQuizModuleId(module.moduleId);
-
-                                                      setQuizSectionId(section.sectionId);
-
-                                                      // Update course store with current context
-
-                                                      if (currentCourse) {
-
-                                                        setCurrentCourse({
-
-                                                          ...currentCourse,
-
-                                                          moduleId: module.moduleId,
-
-                                                          sectionId: section.sectionId
-
-                                                        });
-
-                                                      }
-
-                                                      setQuizWizardOpen(true);
-
-
-                                                    }
-                                                    else if (type === "project") {
-
-                                                      createItemAsync({
-                                                        params: {
-                                                          path: {
-                                                            versionId: versionId!,
-                                                            moduleId: module.moduleId,
-                                                            sectionId: section.sectionId,
-                                                          },
-                                                        },
-                                                        body: {
-                                                          type: "PROJECT",
-                                                          name: `Project name`,
-                                                          description: `Project description`
-                                                        },
-                                                      })
-                                                        .then((created) => {
-                                                          const newItem = created?.createdItem || created?.item || created?.data || created;
-                                                          const itemsGroupId = created?.itemsGroup?._id || section.itemsGroupId;
-
-                                                          if (newItem && newItem._id) {
-                                                            setSelectedItem({ id: newItem._id, name: newItem.name });
-                                                            setSelectedEntity({
-                                                              type: "item",
-                                                              data: newItem,
-                                                              parentIds: {
-                                                                moduleId: module.moduleId,
-                                                                sectionId: section.sectionId,
-                                                                itemsGroupId,
-                                                              },
-                                                            });
-                                                          } else {
-                                                            refetchVersion();
-                                                            if (shouldFetchItems) {
-                                                              refetchItems();
-                                                            }
-                                                          }
-                                                        });
-                                                    }
-                                                    else if (type === "feedback") {
-                                                      createItemAsync({
-                                                        params: {
-                                                          path: {
-                                                            versionId: versionId!,
-                                                            moduleId: module.moduleId,
-                                                            sectionId: section.sectionId,
-                                                          },
-                                                        },
-                                                        body: {
-                                                          type: "FEEDBACK",
-                                                          name: "Feedback Form",
-                                                          description: "Submit your feedback about the previous video/quiz",
-                                                          feedbackFormDetails: {
-                                                            jsonSchema: {
-                                                              type: 'object',
-                                                              properties: {
-                                                                Name: {
-                                                                  type: 'string',
-                                                                  title: 'Name',
-                                                                  minLength: 1,
-                                                                },
-                                                                Email: {
-                                                                  type: 'string',
-                                                                  format: 'email',
-                                                                  title: 'Email',
-                                                                },
-                                                                Feedback: {
-                                                                  type: 'string',
-                                                                  title: 'Feedback',
-                                                                  minLength: 10
-                                                                },
-                                                              },
-                                                              required: ['Name', 'Email', 'Feedback'],
-                                                            },
-                                                            uiSchema: {
-                                                              Name: {
-                                                                'ui:placeholder': 'Enter your Name',
-                                                              },
-                                                              Email: {
-                                                                'ui:placeholder': 'Enter your Email',
-                                                              },
-                                                              Feedback: {
-                                                                'ui:placeholder': 'Enter your feedback here...',
-                                                                'ui:widget': 'textarea',
-                                                              },
-                                                            }
-                                                          },
-                                                        }
-                                                      })
-                                                        .then((created) => {
-                                                          const newItem = created?.createdItem || created?.item || created?.data || created;
-                                                          const itemsGroupId = created?.itemsGroup?._id || section.itemsGroupId;
-
-                                                          if (newItem && newItem._id) {
-                                                            // Auto-select the newly created feedback form
-                                                            setSelectedItem({ id: newItem._id, name: "Feedback Form 1" });
-                                                            setSelectedEntity({
-                                                              type: "item",
-                                                              data: newItem,
-                                                              parentIds: {
-                                                                moduleId: module.moduleId,
-                                                                sectionId: section.sectionId,
-                                                                itemsGroupId,
-                                                              },
-                                                            });
-                                                          } else {
-                                                            refetchVersion();
-                                                            if (shouldFetchItems) {
-                                                              refetchItems();
-                                                            }
-                                                          }
-                                                        })
-                                                        .catch((err) => {
-                                                          toast.error("Failed to create feedback form");
-                                                          console.error(err);
-                                                        });
-                                                    }
-                                                    else if (type === "csv_upload") {
-                                                      setActiveSectionInfo({ moduleId: module.moduleId, sectionId: section.sectionId });
-                                                      setShowCSVUpload(true);
-                                                    }
-                                                    else {
-                                                      setActiveSectionInfo({ moduleId: module.moduleId, sectionId: section.sectionId });
-                                                      handleAddItem(module.moduleId, section.sectionId, type);
-
-                                                    }
-
-                                                    e.target.value = "";
-
-                                                  }
-
-                                                }}
-
-                                              >
-
-                                                <option value="" disabled>Add Item</option>
-
-                                                <option value="article">Article</option>
-
-                                                <option value="VIDEO">Video</option>
-
-                                                <option value="quiz">Quiz</option>
-
-                                                <option value="feedback">Feedback Form</option>
-
-                                                <option
-                                                  value="project"
-                                                  disabled={hasExistingProject}
-                                                  className={hasExistingProject ? 'text-gray-400' : ''}
-                                                >
-                                                  {hasExistingProject ? 'Project (Limit 1 per course)' : 'Project'}
-                                                </option>
-                                                <option value="csv_upload">Upload CSV</option>
-
-                                              </select>
-                                              <TooltipProvider>
-                                                <Tooltip>
-                                                  <TooltipTrigger asChild>
-                                                    <DropdownMenu>
-                                                      <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                          type="button"
-                                                          className="inline-flex items-center justify-center px-1.5 py-0 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold text-[10px] gap-0.5 shadow transition-all duration-200 hover:scale-105 hover:shadow-lg hover:from-purple-600 hover:to-indigo-600 focus:outline-none focus:ring-2 focus:ring-purple-400 ml-3"
-                                                          style={{ minWidth: 'unset', height: '1.5rem' }}
-                                                        >
-                                                          <Sparkles className="h-2 w-2" />
-                                                          <span>AI</span>
-                                                        </Button>
-                                                      </DropdownMenuTrigger>
-                                                      <DropdownMenuContent align="start" className="w-40">
-                                                        <DropdownMenuItem
-                                                          className="text-xs cursor-pointer"
-                                                          onClick={() => {
-                                                            setCurrentCourse({
-                                                              courseId,
-                                                              versionId,
-                                                              moduleId: module.moduleId,
-                                                              sectionId: section.sectionId,
-                                                              itemId: null,
-                                                              watchItemId: null,
-                                                            });
-                                                            navigate({ to: '/teacher/ai-section' });
-                                                          }}
-                                                        >
-                                                          Custom mode
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                          className="text-xs cursor-pointer"
-                                                          onClick={() => {
-                                                            setCurrentCourse({
-                                                              courseId,
-                                                              versionId,
-                                                              moduleId: module.moduleId,
-                                                              sectionId: section.sectionId,
-                                                              itemId: null,
-                                                              watchItemId: null,
-                                                            });
-                                                            navigate({ to: '/teacher/ai-workflow' });
-                                                          }}
-                                                        >
-                                                          Wizard mode
-                                                        </DropdownMenuItem>
-                                                      </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                  </TooltipTrigger>
-                                                  <TooltipContent side="right" align="center">
-                                                    Generate Section with AI
-                                                  </TooltipContent>
-                                                </Tooltip>
-                                              </TooltipProvider>
-                                            </div>
-
-                                          </SidebarMenuSub>
-                                        </Reorder.Group>
-                                      )}
-                                    </SidebarMenuSubItem>
-                                  </Reorder.Item>
-                                ))}
-
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="ml-4 mt-2 w-[220px] h-6 text-xs"
-                                  onClick={() => handleAddSection(module.moduleId)}
-                                >
-                                  <Plus className="h-3 w-3 mr-1" />
-                                  Add Section
-                                </Button>
-                              </SidebarMenuSub>
-                            </Reorder.Group>
-                          )}
-                        </SidebarMenuItem>
-                      ))}
-
-                    <div className="px-2 pt-3">
-                      <Button size="sm" className="w-[250px]  text-xs" onClick={handleAddModule}>
-                        <Plus className="h-3 w-3 mr-1" />
-                        Add Module
-                      </Button>
-                    </div>
-                  </SidebarMenu>
-                </Reorder.Group>
-
-
-              </ScrollArea>
-            </SidebarContent>
-            <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
-              <SidebarMenu className="space-y-1 pl-2 py-3">
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
-                  >
-                    <Link to="/teacher" className="flex items-center gap-3">
-                      <div className="p-1 rounded-md bg-accent/15">
-                        <Home className="h-4 w-4 text-accent-foreground" />
-                      </div>
-                      <span className="text-sm font-medium">Dashboard</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
-                  >
-                    <Link to="/teacher" className="flex items-center gap-3">
-                      <div className="p-1 rounded-md bg-accent/15">
-                        <GraduationCap className="h-4 w-4 text-accent-foreground" />
-                      </div>
-                      <span className="text-sm font-medium">Courses</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <Separator className="my-2 opacity-50" />
-
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    className="h-10 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
-                  >
-                    <Link to="/teacher/profile" className="flex items-center gap-3">
-                      <Avatar className="h-6 w-6 border border-border/20">
-                        <AvatarImage src={user?.avatar} alt={user?.name} />
-                        <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/5 text-primary font-bold text-xs">
-                          {user?.name?.charAt(0).toUpperCase() || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 text-left min-w-0">
-                        <div className="text-sm font-medium truncate" title={user?.name || 'Profile'}>{user?.name || 'Profile'}</div>
-                        <div className="text-xs text-muted-foreground">View Profile</div>
-                      </div>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarFooter>
-          </Sidebar>
-        </div>
-      </ResizablePanel>
+      
+      </ResizablePanel> */}
 
 
 
@@ -1779,21 +2155,111 @@ function TeacherCourseContent() {
 
 
       <ResizableHandle className="hidden md:flex" />
+      {/* {isDesktopSidebarVisible && <ResizableHandle className="hidden md:flex" />} */}
+
+
       <ResizablePanel defaultSize={80} className="min-w-0">
         {/* Course Editor Area */}
-        <SidebarInset className="flex-1 bg-background overflow-y-auto">
-          <div className="w-full p-4 sm:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-              <div className="flex items-center gap-2 min-w-0 flex-1">
+        <SidebarInset className="max-w-full overflow-hidden flex flex-col">
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear sticky top-0 z-50 bg-background">
+            <div className="flex w-full items-center justify-between px-4">
+              <div className="flex items-center gap-2">
+                {/* Add Toggle Button */}
+                {/* <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsDesktopSidebarVisible((p) => !p)}
+                  className="hidden md:inline-flex"
+                > */}
+                  <SidebarTrigger/>
+                {/* </Button> */}
+
+                <Separator orientation="vertical" className="mx-2 h-4" />
+                <Breadcrumb className="hidden md:flex">
+                  <BreadcrumbList>
+
+                    {breadcrumbs.map((item, index) => (
+                      <React.Fragment key={index}>
+
+                        {index > 0 && breadcrumbs.length - 1 && <BreadcrumbSeparator />}
+                        <BreadcrumbItem>
+                          {item.isCurrentPage ? (
+                            <BreadcrumbPage className="lg:flex md:hidden">{item.label}</BreadcrumbPage>
+                          ) : (
+                            <BreadcrumbLink href={item.path} asChild>
+                              <Link to={item.path}>{item.label}</Link>
+                            </BreadcrumbLink>
+                          )}
+                        </BreadcrumbItem>
+                      </React.Fragment>
+                    ))}
+                  </BreadcrumbList>
+                </Breadcrumb>
+                <Link to="/teacher" className="block md:hidden font-medium text-muted-foreground hover:text-foreground">Dashboard</Link>
+              </div>
+
+              <div className="flex items-center gap-3">
+
+                <div className="relative" ref={invitesRef}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowInvites((prev) => !prev)}
+                    className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+                  >
+                    <UserRoundCheck className="h-4 w-4" />
+                    <span className="hidden sm:block ml-2">Invites</span>
+                  </Button>
+
+                  {showInvites && <InviteDropdown setPendingInvites={setPendingInvites} pendingInvites={pendingInvites} />}
+                </div>
+
+                <ConfirmationModal isOpen={confirmLogout}
+                  onClose={() => setConfirmLogout(false)}
+                  onConfirm={handleLogout}
+                  title={`Confirm Logout`}
+                  description="Are you sure you want to log out? You will need to sign in again to access your dashboard."
+                />
+
                 <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setConfirmLogout(true)}
+                  className="relative  h-10 px-4 text-sm font-medium transition-all duration-300  hover:text-red-600 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:shadow-red-500/10 dark:hover:text-red-400  dark:hover:bg-gradient-to-r dark:over:from-red-500/10 dark:hover:to-red-400/5"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span className="hidden sm:block ml-2">Logout</span>
+                </Button>
+
+                <ThemeToggle />
+
+                <Link to="/teacher/profile" className="group relative">
+                  <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-primary/10 via-transparent to-secondary/10 opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:scale-110 blur-sm" />
+                  <Avatar className="relative h-9 w-9 cursor-pointer border-2 border-transparent transition-all duration-300 group-hover:border-primary/20 group-hover:shadow-xl group-hover:shadow-primary/20 group-hover:scale-105">
+                    <AvatarImage
+                      src={user?.avatar || "/placeholder.svg"}
+                      alt={user?.name}
+                      className="transition-all duration-300"
+                    />
+                    <AvatarFallback className="bg-gradient-to-br from-primary/15 via-primary/10 to-primary/5 text-primary font-bold text-sm transition-all duration-300 group-hover:from-primary/25 group-hover:to-primary/10">
+                      {user?.name?.charAt(0).toUpperCase() || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                </Link>
+              </div>
+            </div>
+          </header>
+          <div className="w-full p-4 sm:p-6">
+            {mode === "default" && <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                {/* <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
                   className="md:hidden shrink-0"
-                >
-                  <Menu className="h-7 w-7" />
+                > */}
                   <span className="sr-only">Toggle Menu</span>
-                </Button>
+                {/* </Button> */}
 
                 <div className="flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-lg border min-w-0 flex-1 sm:flex-none sm:min-w-[200px]">
                   <GraduationCap className="h-4 w-4 text-primary flex-shrink-0" />
@@ -1820,296 +2286,350 @@ function TeacherCourseContent() {
                   </Badge>
                 </div>
               )}
-            </div>
+            </div>}
 
-            {selectedEntity ? (
-              <div className="bg-white dark:bg-background rounded-2xl shadow-lg border border-slate-200 dark:border-gray-700 overflow-hidden">
-                <div className="p-4 md:p-6 lg:p-8">
-                  {/* Header with breadcrumb */}
-                  <div className="mb-6 pb-4 border-b border-slate-200 dark:border-gray-700">
-                    <div className="flex items-center justify-between mb-2">
-                      <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-slate-900 dark:text-gray-100">
-                        {selectedEntity.data?.name}
-                      </h2>
-                      <div className="flex items-center gap-2">
-                        {selectedEntity.type === "item" && (
-                          // <div className="items-center gap-2 bg-muted/40 px-2 py-1 rounded-md border text-sm">
-                          //   <div className="flex items-center justify-center gap-1.5">
-                          //     <Switch
-                          //       id={`optional-${selectedItemData?.item?._id}`}
-                          //       checked={selectedItemData?.item?.isOptional || false}
-                          //       disabled={updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id}
-                          //       onCheckedChange={async (checked) => {
-                          //         if (versionId && selectedItemData?.item?._id) {
-                          //           setTogglingItemId(selectedItemData.item._id);
-                          //           try {
-                          //             await updateItemOptional.mutateAsync({
-                          //               params: {
-                          //                 path: {
-                          //                   versionId: versionId,
-                          //                   itemId: selectedEntity?.data?._id
-                          //                 }
-                          //               },
-                          //               body: { isOptional: checked }
-                          //             });
-                          //             refetchItem();
-                          //           } catch (error) {
-                          //             toast.error('Failed to update item optional status');
-                          //           } finally {
-                          //             setTogglingItemId(null);
-                          //           }
-                          //         }
-                          //       }}
-                          //       className={cn(
-                          //         "data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
-                          //         "h-4 w-8",
-                          //         "relative",
-                          //         "cursor-pointer",
-                          //         updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id
-                          //           ? "opacity-70"
-                          //           : "opacity-100"
-                          //       )}
-                          //     >
-                          //       {(updateItemOptional.isPending || togglingItemId === selectedItemData?.item?._id) && (
-                          //         <Loader2 className="h-2 w-2 animate-spin absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-primary-foreground" />
-                          //       )}
-                          //     </Switch>
-                          //     <Label
-                          //       htmlFor={`optional-${selectedEntity?.data?._id}`}
-                          //       className="text-lg text-white cursor-pointer"
-                          //       title="Students can skip this item if enabled"
-                          //     >
-                          //       Optional
-                          //     </Label>
-                          //   </div>
-                          //   <div>
-                          //     <p className="text-[10px] text-muted-foreground/80">Students can skip this item if enabled</p>
-                          //   </div>
-                          // </div>
-                          <div className="inline-flex items-center gap-2 px-3 py-2 rounded-md border bg-card">
-                            <Switch
-                              id={`optional-${selectedItemData?.item?._id}`}
-                              checked={selectedItemData?.item?.isOptional || false}
-                              disabled={updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id}
-                              onCheckedChange={async (checked) => {
-                                if (versionId && selectedItemData?.item?._id) {
-                                  setTogglingItemId(selectedItemData.item._id);
-                                  try {
-                                    await updateItemOptional.mutateAsync({
-                                      params: {
-                                        path: {
-                                          versionId: versionId,
-                                          itemId: selectedEntity?.data?._id
-                                        }
-                                      },
-                                      body: { isOptional: checked }
-                                    });
-                                    refetchItem();
-                                  } catch (error) {
-                                    toast.error('Failed to update item optional status');
-                                  } finally {
-                                    setTogglingItemId(null);
+            {mode === "wizard" ? (
+              <AiWorkflow />
+            ) : mode === "custom" ? (
+              <AISectionPage />
+            ) : (
+              selectedEntity ? (
+                <div className="bg-white dark:bg-background rounded-2xl shadow-lg border border-slate-200 dark:border-gray-700 overflow-hidden">
+                  <div className="p-4 md:p-6 lg:p-8">
+                    {/* Header with breadcrumb */}
+                    <div className="mb-6 pb-4 border-b border-slate-200 dark:border-gray-700">
+                      <div className="flex items-center justify-between mb-2">
+                        <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-slate-900 dark:text-gray-100">
+                          {selectedEntity.data?.name}
+                        </h2>
+                        <div className="flex items-center gap-2">
+                          {selectedEntity.type === "item" && (
+                            // <div className="items-center gap-2 bg-muted/40 px-2 py-1 rounded-md border text-sm">
+                            //   <div className="flex items-center justify-center gap-1.5">
+                            //     <Switch
+                            //       id={`optional-${selectedItemData?.item?._id}`}
+                            //       checked={selectedItemData?.item?.isOptional || false}
+                            //       disabled={updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id}
+                            //       onCheckedChange={async (checked) => {
+                            //         if (versionId && selectedItemData?.item?._id) {
+                            //           setTogglingItemId(selectedItemData.item._id);
+                            //           try {
+                            //             await updateItemOptional.mutateAsync({
+                            //               params: {
+                            //                 path: {
+                            //                   versionId: versionId,
+                            //                   itemId: selectedEntity?.data?._id
+                            //                 }
+                            //               },
+                            //               body: { isOptional: checked }
+                            //             });
+                            //             refetchItem();
+                            //           } catch (error) {
+                            //             toast.error('Failed to update item optional status');
+                            //           } finally {
+                            //             setTogglingItemId(null);
+                            //           }
+                            //         }
+                            //       }}
+                            //       className={cn(
+                            //         "data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
+                            //         "h-4 w-8",
+                            //         "relative",
+                            //         "cursor-pointer",
+                            //         updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id
+                            //           ? "opacity-70"
+                            //           : "opacity-100"
+                            //       )}
+                            //     >
+                            //       {(updateItemOptional.isPending || togglingItemId === selectedItemData?.item?._id) && (
+                            //         <Loader2 className="h-2 w-2 animate-spin absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-primary-foreground" />
+                            //       )}
+                            //     </Switch>
+                            //     <Label
+                            //       htmlFor={`optional-${selectedEntity?.data?._id}`}
+                            //       className="text-lg text-white cursor-pointer"
+                            //       title="Students can skip this item if enabled"
+                            //     >
+                            //       Optional
+                            //     </Label>
+                            //   </div>
+                            //   <div>
+                            //     <p className="text-[10px] text-muted-foreground/80">Students can skip this item if enabled</p>
+                            //   </div>
+                            // </div>
+                            <div className="inline-flex items-center gap-2 px-3 py-2 rounded-md border bg-card">
+                              <Switch
+                                id={`optional-${selectedItemData?.item?._id}`}
+                                checked={selectedItemData?.item?.isOptional || false}
+                                disabled={updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id}
+                                onCheckedChange={async (checked) => {
+                                  if (versionId && selectedItemData?.item?._id) {
+                                    setTogglingItemId(selectedItemData.item._id);
+                                    try {
+                                      await updateItemOptional.mutateAsync({
+                                        params: {
+                                          path: {
+                                            versionId: versionId,
+                                            itemId: selectedEntity?.data?._id
+                                          }
+                                        },
+                                        body: { isOptional: checked }
+                                      });
+                                      refetchItem();
+                                    } catch (error) {
+                                      toast.error('Failed to update item optional status');
+                                    } finally {
+                                      setTogglingItemId(null);
+                                    }
                                   }
-                                }
-                              }}
-                              className={cn(
-                                "data-[state=checked]:bg-primary",
-                                updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id
-                                  ? "opacity-50"
-                                  : ""
-                              )}
-                            >
-                              {(updateItemOptional.isPending || togglingItemId === selectedItemData?.item?._id) && (
-                                <Loader2 className="h-3 w-3 animate-spin absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
-                              )}
-                            </Switch>
-                            <div className="flex flex-col gap-0.5">
-                              <Label
-                                htmlFor={`optional-${selectedEntity?.data?._id}`}
-                                className="text-sm font-medium cursor-pointer leading-none"
+                                }}
+                                className={cn(
+                                  "data-[state=checked]:bg-primary",
+                                  updateItemOptional.isPending && togglingItemId === selectedItemData?.item?._id
+                                    ? "opacity-50"
+                                    : ""
+                                )}
                               >
-                                Optional
-                              </Label>
-                              <p className="text-xs text-muted-foreground">Students can skip this item</p>
+                                {(updateItemOptional.isPending || togglingItemId === selectedItemData?.item?._id) && (
+                                  <Loader2 className="h-3 w-3 animate-spin absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
+                                )}
+                              </Switch>
+                              <div className="flex flex-col gap-0.5">
+                                <Label
+                                  htmlFor={`optional-${selectedEntity?.data?._id}`}
+                                  className="text-sm font-medium cursor-pointer leading-none"
+                                >
+                                  Optional
+                                </Label>
+                                <p className="text-xs text-muted-foreground">Students can skip this item</p>
+                              </div>
                             </div>
-                          </div>
-                        )}
-                        {/* <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600">
+                          )}
+                          {/* <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600">
                           {selectedEntity.type.charAt(0).toUpperCase() + selectedEntity.type.slice(1)}
                         </Badge> */}
-                      </div>
-                    </div>
-                    <div className="text-sm text-slate-500 dark:text-gray-400 flex items-center gap-2">
-                      <BookOpen className="h-4 w-4" />
-                      <span>Course › Module › {selectedEntity.type}</span>
-                    </div>
-                  </div>
-
-                  {/* Content */}
-                  <div className="space-y-3">
-                    {(selectedEntity.type !== "item") && (
-                      <>
-                        <Label className="text-sm font-bold text-foreground">Title *</Label>
-                        <Input
-                          value={
-                            selectedEntity.type === "item"
-                              ? selectedItemData?.item?.name ?? ""
-                              : selectedEntity.data?.name ?? ""
-                          }
-                          disabled={
-                            (selectedEntity.type === "module" && !isEditingModule) ||
-                            (selectedEntity.type === "section" && !isEditingSection)
-                          }
-                          onChange={e => {
-                            const value = e.target.value;
-                            setSelectedEntity({
-                              ...selectedEntity,
-                              data: { ...selectedEntity.data, name: value }
-                            })
-                            if (selectedEntity.type === "module") {
-                              if (!value.trim()) {
-                                setErrors(errors => ({ ...errors, title: "Module name is required." }));
-                              } else {
-                                setErrors(errors => ({ ...errors, title: "" }));
-                              }
-                            }
-                            if (selectedEntity.type === "section") {
-                              if (!value.trim()) {
-                                setErrors(errors => ({ ...errors, title: "Section name is required." }));
-                              } else {
-                                setErrors(errors => ({ ...errors, title: "" }));
-                              }
-                            }
-                          }
-                          }
-                        />
-                        {errors.title && (
-                          <div className="text-xs text-red-500">{errors.title}</div>
-                        )}
-                      </>
-                    )}
-
-                    {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
-                      <div className="flex gap-6 text-xs text-muted-foreground">
-                        <div>
-                          <span className="font-semibold">Created:</span>{" "}
-                          {selectedEntity.data?.createdAt
-                            ? new Date(selectedEntity.data.createdAt).toLocaleString()
-                            : "N/A"}
-                        </div>
-                        <div>
-                          <span className="font-semibold">Updated:</span>{" "}
-                          {selectedEntity.data?.updatedAt
-                            ? new Date(selectedEntity.data.updatedAt).toLocaleString()
-                            : "N/A"}
                         </div>
                       </div>
-                    )}
+                      <div className="text-sm text-slate-500 dark:text-gray-400 flex items-center gap-2">
+                        <BookOpen className="h-4 w-4" />
+                        <span>Course � Module � {selectedEntity.type}</span>
+                      </div>
+                    </div>
 
-                    {(selectedEntity.type !== "item") && (
-                      <>
-                        <div className="space-y-2">
-                          <Label className="text-sm font-bold text-foreground">Description *</Label>
-                          <div className="relative">
-                            <textarea
-                              value={
-                                selectedEntity.type === "item"
-                                  ? selectedItemData?.item?.description ?? ""
-                                  : selectedEntity.data?.description ?? ""
+                    {/* Content */}
+                    <div className="space-y-3">
+                      {(selectedEntity.type !== "item") && (
+                        <>
+                          <Label className="text-sm font-bold text-foreground">Title *</Label>
+                          <Input
+                            value={
+                              selectedEntity.type === "item"
+                                ? selectedItemData?.item?.name ?? ""
+                                : selectedEntity.data?.name ?? ""
+                            }
+                            disabled={
+                              (selectedEntity.type === "module" && !isEditingModule) ||
+                              (selectedEntity.type === "section" && !isEditingSection)
+                            }
+                            onChange={e => {
+                              const value = e.target.value;
+                              setSelectedEntity({
+                                ...selectedEntity,
+                                data: { ...selectedEntity.data, name: value }
+                              })
+                              if (selectedEntity.type === "module") {
+                                if (!value.trim()) {
+                                  setErrors(errors => ({ ...errors, title: "Module name is required." }));
+                                } else {
+                                  setErrors(errors => ({ ...errors, title: "" }));
+                                }
                               }
-                              disabled={
-                                (selectedEntity.type === "module" && !isEditingModule) ||
-                                (selectedEntity.type === "section" && !isEditingSection)
+                              if (selectedEntity.type === "section") {
+                                if (!value.trim()) {
+                                  setErrors(errors => ({ ...errors, title: "Section name is required." }));
+                                } else {
+                                  setErrors(errors => ({ ...errors, title: "" }));
+                                }
                               }
-                              onChange={e => {
-                                const value = e.target.value;
-
-                                // Only update if within limit or deleting characters
-                                if (value.length <= MAX_DESCRIPTION_LENGTH) {
-                                  setSelectedEntity({
-                                    ...selectedEntity,
-                                    data: { ...selectedEntity.data, description: value }
-                                  });
-                                }
-
-                                // Validation
-                                if (selectedEntity.type === "module") {
-                                  if (!value.trim()) {
-                                    setErrors(errors => ({ ...errors, description: "Module description is required." }));
-                                  } else if (value.length >= MAX_DESCRIPTION_LENGTH) {
-                                    setErrors(errors => ({ ...errors, description: `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` }));
-                                  } else {
-                                    setErrors(errors => ({ ...errors, description: "" }));
-                                  }
-                                }
-                                if (selectedEntity.type === "section") {
-                                  if (!value.trim()) {
-                                    setErrors(errors => ({ ...errors, description: "Section description is required." }));
-                                  } else if (value.length >= MAX_DESCRIPTION_LENGTH) {
-                                    setErrors(errors => ({ ...errors, description: `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` }));
-                                  } else {
-                                    setErrors(errors => ({ ...errors, description: "" }));
-                                  }
-                                }
-                              }}
-                              placeholder={`Description (max ${MAX_DESCRIPTION_LENGTH} characters)`}
-                              rows={5}
-                              maxLength={MAX_DESCRIPTION_LENGTH}
-                              className={`w-full rounded border px-3 py-2 pr-16 text-sm ${(selectedEntity.type === "module" && !isEditingModule) ||
-                                (selectedEntity.type === "section" && !isEditingSection)
-                                ? 'bg-muted/50 border-transparent'
-                                : ''
-                                }`}
-                            />
-                            <div className={`absolute bottom-2 right-2 text-xs ${(selectedEntity.data?.description?.length || 0) >= (MAX_DESCRIPTION_LENGTH * 0.9)
-                              ? 'text-destructive'
-                              : 'text-muted-foreground'
-                              }`}>
-                              {selectedEntity.data?.description?.length || 0}/{MAX_DESCRIPTION_LENGTH}
-                            </div>
-                          </div>
-                          {errors.description && (
-                            <div className="text-xs text-red-500">{errors.description}</div>
+                            }
+                            }
+                          />
+                          {errors.title && (
+                            <div className="text-xs text-red-500">{errors.title}</div>
                           )}
-                        </div>
-                      </>
-                    )}
-                    <div className="flex items-center gap-2">
-                      {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
-                        <Button
-                          onClick={() => {
-                            const moduleName = selectedEntity.data.name?.trim();
-                            const moduleDescription = selectedEntity.data.description?.trim() ?? "";
-                            const sectionName = selectedEntity.data.name?.trim();
-                            const sectionDescription = selectedEntity.data.description?.trim() ?? "";
-                            if (selectedEntity.type === "module") {
-                              if (!isEditingModule) {
-                                setIsEditingModule(true);
-                                setOriginalModuleData({
-                                  name: selectedEntity.data.name,
-                                  description: selectedEntity.data.description || ""
-                                });
-                                return;
-                              }
+                        </>
+                      )}
 
+                      {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
+                        <div className="flex gap-6 text-xs text-muted-foreground">
+                          <div>
+                            <span className="font-semibold">Created:</span>{" "}
+                            {selectedEntity.data?.createdAt
+                              ? new Date(selectedEntity.data.createdAt).toLocaleString()
+                              : "N/A"}
+                          </div>
+                          <div>
+                            <span className="font-semibold">Updated:</span>{" "}
+                            {selectedEntity.data?.updatedAt
+                              ? new Date(selectedEntity.data.updatedAt).toLocaleString()
+                              : "N/A"}
+                          </div>
+                        </div>
+                      )}
+
+                      {(selectedEntity.type !== "item") && (
+                        <>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-bold text-foreground">Description *</Label>
+                            <div className="relative">
+                              <textarea
+                                value={
+                                  selectedEntity.type === "item"
+                                    ? selectedItemData?.item?.description ?? ""
+                                    : selectedEntity.data?.description ?? ""
+                                }
+                                disabled={
+                                  (selectedEntity.type === "module" && !isEditingModule) ||
+                                  (selectedEntity.type === "section" && !isEditingSection)
+                                }
+                                onChange={e => {
+                                  const value = e.target.value;
+
+                                  // Only update if within limit or deleting characters
+                                  if (value.length <= MAX_DESCRIPTION_LENGTH) {
+                                    setSelectedEntity({
+                                      ...selectedEntity,
+                                      data: { ...selectedEntity.data, description: value }
+                                    });
+                                  }
+
+                                  // Validation
+                                  if (selectedEntity.type === "module") {
+                                    if (!value.trim()) {
+                                      setErrors(errors => ({ ...errors, description: "Module description is required." }));
+                                    } else if (value.length >= MAX_DESCRIPTION_LENGTH) {
+                                      setErrors(errors => ({ ...errors, description: `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` }));
+                                    } else {
+                                      setErrors(errors => ({ ...errors, description: "" }));
+                                    }
+                                  }
+                                  if (selectedEntity.type === "section") {
+                                    if (!value.trim()) {
+                                      setErrors(errors => ({ ...errors, description: "Section description is required." }));
+                                    } else if (value.length >= MAX_DESCRIPTION_LENGTH) {
+                                      setErrors(errors => ({ ...errors, description: `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` }));
+                                    } else {
+                                      setErrors(errors => ({ ...errors, description: "" }));
+                                    }
+                                  }
+                                }}
+                                placeholder={`Description (max ${MAX_DESCRIPTION_LENGTH} characters)`}
+                                rows={5}
+                                maxLength={MAX_DESCRIPTION_LENGTH}
+                                className={`w-full rounded border px-3 py-2 pr-16 text-sm ${(selectedEntity.type === "module" && !isEditingModule) ||
+                                  (selectedEntity.type === "section" && !isEditingSection)
+                                  ? 'bg-muted/50 border-transparent'
+                                  : ''
+                                  }`}
+                              />
+                              <div className={`absolute bottom-2 right-2 text-xs ${(selectedEntity.data?.description?.length || 0) >= (MAX_DESCRIPTION_LENGTH * 0.9)
+                                ? 'text-destructive'
+                                : 'text-muted-foreground'
+                                }`}>
+                                {selectedEntity.data?.description?.length || 0}/{MAX_DESCRIPTION_LENGTH}
+                              </div>
+                            </div>
+                            {errors.description && (
+                              <div className="text-xs text-red-500">{errors.description}</div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                      <div className="flex items-center gap-2">
+                        {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
+                          <Button
+                            onClick={() => {
                               const moduleName = selectedEntity.data.name?.trim();
                               const moduleDescription = selectedEntity.data.description?.trim() ?? "";
-                              if (!moduleName || !moduleDescription) {
-                                setErrors({
-                                  title: !moduleName ? "Module name is required." : "",
-                                  description: !moduleDescription
-                                    ? "Module description is required."
-                                    : moduleDescription.length >= MAX_DESCRIPTION_LENGTH
-                                      ? `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.`
-                                      : ""
-                                });
+                              const sectionName = selectedEntity.data.name?.trim();
+                              const sectionDescription = selectedEntity.data.description?.trim() ?? "";
+                              if (selectedEntity.type === "module") {
+                                if (!isEditingModule) {
+                                  setIsEditingModule(true);
+                                  setOriginalModuleData({
+                                    name: selectedEntity.data.name,
+                                    description: selectedEntity.data.description || ""
+                                  });
+                                  return;
+                                }
+
+                                const moduleName = selectedEntity.data.name?.trim();
+                                const moduleDescription = selectedEntity.data.description?.trim() ?? "";
+                                if (!moduleName || !moduleDescription) {
+                                  setErrors({
+                                    title: !moduleName ? "Module name is required." : "",
+                                    description: !moduleDescription
+                                      ? "Module description is required."
+                                      : moduleDescription.length >= MAX_DESCRIPTION_LENGTH
+                                        ? `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.`
+                                        : ""
+                                  });
+                                  return;
+                                }
+
+                                setErrors({ title: "", description: "" });
+                                if (versionId) {
+                                  updateModuleAsync({
+                                    params: { path: { versionId, moduleId: selectedEntity.data.moduleId } },
+                                    body: {
+                                      name: selectedEntity.data.name,
+                                      description: selectedEntity.data.description || ""
+                                    }
+                                  }).then((res) => {
+                                    refetchVersion();
+                                    if (shouldFetchItems) {
+                                      refetchItems();
+                                    }
+                                    setIsEditingModule(false);
+                                  });
+                                }
                                 return;
                               }
 
+                              if (selectedEntity.type === "section") {
+                                if (!isEditingSection) {
+                                  setIsEditingSection(true);
+                                  setOriginalSectionData({
+                                    name: selectedEntity.data.name,
+                                    description: selectedEntity.data.description || ""
+                                  });
+                                  return;
+                                }
+                                const sectionName = selectedEntity.data.name?.trim();
+                                const sectionDescription = selectedEntity.data.description?.trim() ?? "";
+
+                                if (!sectionName || !sectionDescription) {
+                                  setErrors({
+                                    title: !sectionName ? "Section name is required." : "",
+                                    description: !sectionDescription
+                                      ? "Section description is required."
+                                      : sectionDescription.length >= MAX_DESCRIPTION_LENGTH
+                                        ? `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.`
+                                        : ""
+                                  });
+                                  return;
+                                }
+                              }
                               setErrors({ title: "", description: "" });
-                              if (versionId) {
-                                updateModuleAsync({
-                                  params: { path: { versionId, moduleId: selectedEntity.data.moduleId } },
+                              if (selectedEntity.type === "section" && versionId && selectedEntity.parentIds?.moduleId) {
+                                updateSectionAsync({
+                                  params: {
+                                    path: {
+                                      versionId,
+                                      moduleId: selectedEntity.parentIds.moduleId,
+                                      sectionId: selectedEntity.data.sectionId
+                                    }
+                                  },
                                   body: {
                                     name: selectedEntity.data.name,
                                     description: selectedEntity.data.description || ""
@@ -2119,212 +2639,157 @@ function TeacherCourseContent() {
                                   if (shouldFetchItems) {
                                     refetchItems();
                                   }
-                                  setIsEditingModule(false);
+                                  setIsEditingSection(false);
                                 });
                               }
-                              return;
-                            }
+                              if (selectedEntity.type === "item" && versionId && selectedEntity.parentIds?.moduleId && selectedEntity.parentIds?.sectionId) {
+                                updateItemAsync({
+                                  params: {
+                                    path: {
+                                      versionId,
+                                      moduleId: selectedEntity.parentIds.moduleId,
+                                      sectionId: selectedEntity.parentIds.sectionId,
+                                      itemId: selectedEntity.data._id
+                                    }
+                                  },
+                                  body: {
+                                    name: selectedEntity.data.name,
+                                    description: selectedEntity.data.description || ""
+                                  }
+                                }).then((res) => {
+                                  refetchVersion();
+                                  refetchItems(); refetchItem()
+                                });
+                              }
+                            }}
+                            className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
+                          >
+                            {selectedEntity.type === "module"
+                              ? (isEditingModule ? 'Save Changes' : `Update ${selectedEntity.type}`)
+                              : (isEditingSection ? 'Save Changes' : `Update ${selectedEntity.type}`)}
+                          </Button>
+                        )}
 
-                            if (selectedEntity.type === "section") {
-                              if (!isEditingSection) {
-                                setIsEditingSection(true);
-                                setOriginalSectionData({
-                                  name: selectedEntity.data.name,
-                                  description: selectedEntity.data.description || ""
+                        {((selectedEntity.type === "module" && isEditingModule) || (selectedEntity.type === "section" && isEditingSection)) && (
+                          <Button
+                            variant="outline"
+                            className="border-border bg-background"
+                            onClick={() => {
+                              if (selectedEntity.type === 'module' && originalModuleData) {
+                                setSelectedEntity({
+                                  ...selectedEntity,
+                                  data: {
+                                    ...selectedEntity.data,
+                                    name: originalModuleData.name,
+                                    description: originalModuleData.description
+                                  }
                                 });
-                                return;
+                                setIsEditingModule(false);
+                              } else if (selectedEntity.type === 'section' && originalSectionData) {
+                                setSelectedEntity({
+                                  ...selectedEntity,
+                                  data: {
+                                    ...selectedEntity.data,
+                                    name: originalSectionData.name,
+                                    description: originalSectionData.description
+                                  }
+                                });
+                                setIsEditingSection(false);
                               }
-                              const sectionName = selectedEntity.data.name?.trim();
-                              const sectionDescription = selectedEntity.data.description?.trim() ?? "";
+                              setErrors({ title: "", description: "" });
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        )}
 
-                              if (!sectionName || !sectionDescription) {
-                                setErrors({
-                                  title: !sectionName ? "Section name is required." : "",
-                                  description: !sectionDescription
-                                    ? "Section description is required."
-                                    : sectionDescription.length >= MAX_DESCRIPTION_LENGTH
-                                      ? `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.`
-                                      : ""
-                                });
-                                return;
+                        {(selectedEntity?.type === "module" || selectedEntity?.type === "section") && (
+                          <Button
+                            variant="outline"
+                            className="border-border bg-background"
+                            onClick={() => setIsDeleteModalOpen(true)}
+                          >
+                            <X className="h-3 w-3 mr-1" />
+                            Delete {selectedEntity.type}
+                          </Button>
+                        )}
+                      </div>
+                      <div className="relative group">
+
+                        <ConfirmationModal
+                          isOpen={isDeleteModalOpen}
+                          onClose={() => setIsDeleteModalOpen(false)}
+                          onConfirm={handleConfirmDelete}
+                          title={
+                            selectedEntity?.type === "module"
+                              ? "Delete Module"
+                              : "Delete Section"
+                          }
+                          description={
+                            selectedEntity?.type === "module"
+                              ? "This will delete this module and all its sections/items. Are you sure?"
+                              : "This will delete this section and all its items. Are you sure?"
+                          }
+                          confirmText="Delete"
+                          cancelText="Cancel"
+                          isDestructive
+                          // isLoading={isDeleting}
+                          loadingText="Deleting..."
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                      </div>
+
+
+
+                      {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
+
+                        <VideoModal
+                          isLoading={isItemLoading}
+                          selectedItemName={selectedItem.name}
+                          action={isEditingItem ? "edit" : "view"}
+                          item={selectedItemData?.item}
+                          onClose={() => setIsEditingItem(false)}
+                          onSave={video => {
+                            const formattedVideo = {
+                              ...video,
+                              type: "VIDEO",
+                              details: {
+                                ...video.details,
+                                startTime: video.details.startTime,
+                                endTime: video.details.endTime,
                               }
-                            }
-                            setErrors({ title: "", description: "" });
-                            if (selectedEntity.type === "section" && versionId && selectedEntity.parentIds?.moduleId) {
-                              updateSectionAsync({
+                            };
+                            if (
+                              selectedEntity.parentIds?.moduleId &&
+                              selectedEntity.parentIds?.sectionId &&
+                              selectedEntity.data?._id &&
+                              versionId
+                            ) {
+                              updateVideoAsync({
                                 params: {
                                   path: {
                                     versionId,
-                                    moduleId: selectedEntity.parentIds.moduleId,
-                                    sectionId: selectedEntity.data.sectionId
+                                    itemId: selectedEntity.data._id,
                                   }
                                 },
-                                body: {
-                                  name: selectedEntity.data.name,
-                                  description: selectedEntity.data.description || ""
-                                }
+                                body: formattedVideo,
                               }).then((res) => {
                                 refetchVersion();
                                 if (shouldFetchItems) {
                                   refetchItems();
                                 }
-                                setIsEditingSection(false);
+                                refetchItem();
                               });
-                            }
-                            if (selectedEntity.type === "item" && versionId && selectedEntity.parentIds?.moduleId && selectedEntity.parentIds?.sectionId) {
-                              updateItemAsync({
-                                params: {
-                                  path: {
-                                    versionId,
-                                    moduleId: selectedEntity.parentIds.moduleId,
-                                    sectionId: selectedEntity.parentIds.sectionId,
-                                    itemId: selectedEntity.data._id
-                                  }
-                                },
-                                body: {
-                                  name: selectedEntity.data.name,
-                                  description: selectedEntity.data.description || ""
-                                }
-                              }).then((res) => {
-                                refetchVersion();
-                                refetchItems(); refetchItem()
-                              });
+                              toast.success("Video details saved successfully");
+                              setIsEditingItem(false);
                             }
                           }}
-                          className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
-                        >
-                          {selectedEntity.type === "module"
-                            ? (isEditingModule ? 'Save Changes' : `Update ${selectedEntity.type}`)
-                            : (isEditingSection ? 'Save Changes' : `Update ${selectedEntity.type}`)}
-                        </Button>
-                      )}
+                          onDelete={() => {
+                            if (
+                              selectedEntity.parentIds?.sectionId &&
+                              selectedEntity.data?._id
+                            ) {
 
-                      {((selectedEntity.type === "module" && isEditingModule) || (selectedEntity.type === "section" && isEditingSection)) && (
-                        <Button
-                          variant="outline"
-                          className="border-border bg-background"
-                          onClick={() => {
-                            if (selectedEntity.type === 'module' && originalModuleData) {
-                              setSelectedEntity({
-                                ...selectedEntity,
-                                data: {
-                                  ...selectedEntity.data,
-                                  name: originalModuleData.name,
-                                  description: originalModuleData.description
-                                }
-                              });
-                              setIsEditingModule(false);
-                            } else if (selectedEntity.type === 'section' && originalSectionData) {
-                              setSelectedEntity({
-                                ...selectedEntity,
-                                data: {
-                                  ...selectedEntity.data,
-                                  name: originalSectionData.name,
-                                  description: originalSectionData.description
-                                }
-                              });
-                              setIsEditingSection(false);
-                            }
-                            setErrors({ title: "", description: "" });
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                      )}
-                      {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
-                        <Button
-                          variant="outline"
-                          className="border-border bg-background"
-                          onClick={() => {
-                            const { type, parentIds } = selectedEntity;
-                            if (type === "module" && versionId) {
-                              if (window.confirm("Are you sure you want to delete this module and all its sections/items?")) {
-                                deleteModuleAsync({
-                                  params: { path: { versionId, moduleId: selectedEntity.data.moduleId } }
-                                }).then((res) => {
-                                  refetchVersion();
-                                  if (shouldFetchItems) {
-                                    refetchItems();
-                                  }
-                                });
-                                setSelectedEntity(null);
-                                setExpandedModules(prev => ({ ...prev, [selectedEntity.data.moduleId]: false }));
-                                setIsEditingModule(false);
-                              }
-                            }
-                            if (type === "section" && versionId && parentIds?.moduleId) {
-                              if (window.confirm("Are you sure you want to delete this section and all its items?")) {
-                                deleteSectionAsync({
-                                  params: { path: { versionId, moduleId: parentIds.moduleId, sectionId: selectedEntity.data.sectionId } }
-                                }).then((res) => {
-                                  refetchVersion();
-                                  if (shouldFetchItems) {
-                                    refetchItems();
-                                  }
-                                });
-                                setSelectedEntity(null);
-                                setExpandedSections(prev => ({ ...prev, [selectedEntity.data.sectionId]: false }));
-                                setIsEditingSection(false);
-                              }
-                            }
-                            setErrors({ title: "", description: "" });
-                          }}
-                        >
-                          <X className="h-3 w-3 mr-1" />
-                          Delete {selectedEntity.type}
-                        </Button>
-                      )}
-                    </div>
-
-                    {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
-
-                      <VideoModal
-                        isLoading={isItemLoading}
-                        selectedItemName={selectedItem.name}
-                        action={isEditingItem ? "edit" : "view"}
-                        item={selectedItemData?.item}
-                        onClose={() => setIsEditingItem(false)}
-                        onSave={video => {
-                          const formattedVideo = {
-                            ...video,
-                            type: "VIDEO",
-                            details: {
-                              ...video.details,
-                              startTime: video.details.startTime,
-                              endTime: video.details.endTime,
-                            }
-                          };
-                          if (
-                            selectedEntity.parentIds?.moduleId &&
-                            selectedEntity.parentIds?.sectionId &&
-                            selectedEntity.data?._id &&
-                            versionId
-                          ) {
-                            updateVideoAsync({
-                              params: {
-                                path: {
-                                  versionId,
-                                  itemId: selectedEntity.data._id,
-                                }
-                              },
-                              body: formattedVideo,
-                            }).then((res) => {
-                              refetchVersion();
-                              if (shouldFetchItems) {
-                                refetchItems();
-                              }
-                              refetchItem();
-                            });
-                            toast.success("Video details saved successfully");
-                            setIsEditingItem(false);
-                          }
-                        }}
-                        onDelete={() => {
-                          if (
-                            selectedEntity.parentIds?.sectionId &&
-                            selectedEntity.data?._id
-                          ) {
-                            if (window.confirm("Are you sure you want to delete this item?")) {
                               deleteItemAsync({
                                 params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
                               }).then((res) => {
@@ -2336,67 +2801,68 @@ function TeacherCourseContent() {
                               });
                               setSelectedEntity(null);
                               setIsEditingItem(false);
+
                             }
-                          }
-                        }}
-                        onEdit={() => setIsEditingItem(true)}
-                      />
-                    )}
-                    {/* <CreateArticle/> */}
-                    {selectedEntity.type === "item" && selectedEntity.data.type === "QUIZ" && courseId && versionId && (
-                      <EnhancedQuizEditor
-                        isLoading={isLoading}
-                        selectedItemName={selectedItem.name}
-                        quizId={selectedQuizId}
-                        moduleId={selectedEntity.parentIds?.moduleId || ""}
-                        sectionId={selectedEntity.parentIds?.sectionId || ""}
-                        courseId={courseId}
-                        courseVersionId={versionId}
-                        details={quizDetails}
-                        analytics={quizAnalytics}
-                        // submissions={quizSubmissions}
-                        performance={quizPerformance}
-                        onDelete={() => {
-                          deleteItemAsync({
-                            params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedQuizId } }
-                          }).then((res) => {
-                            refetchVersion();
-                            refetchItems();
-                          });
-                          setSelectedEntity(null);
-                        }}
-                      />
-                    )}
-                    {selectedEntity.type === "item" && selectedEntity.data.type === "PROJECT" && courseId && versionId && (
-                      <ProjectItem
-                        mode="edit"
-                        name={projectEditName}
-                        description={projectEditDescription}
-                        onNameChange={setProjectEditName}
-                        onDescriptionChange={setProjectEditDescription}
-                        onSave={async () => {
-                          const projectId = selectedEntity.data._id;
-                          const name = projectEditName;
-                          const description = projectEditDescription;
-                          if (projectId && versionId) {
-                            try {
-                              await updateCourseItemAsync({
-                                params: { path: { versionId, itemId: projectId } },
-                                body: { name, description, details: { name, description }, type: 'PROJECT' }
-                              });
+                          }}
+                          onEdit={() => setIsEditingItem(true)}
+                        />
+                      )}
+                      {/* <CreateArticle/> */}
+                      {selectedEntity.type === "item" && selectedEntity.data.type === "QUIZ" && courseId && versionId && (
+                        <EnhancedQuizEditor
+                          isLoading={isLoading}
+                          selectedItemName={selectedItem.name}
+                          quizId={selectedQuizId}
+                          moduleId={selectedEntity.parentIds?.moduleId || ""}
+                          sectionId={selectedEntity.parentIds?.sectionId || ""}
+                          courseId={courseId}
+                          courseVersionId={versionId}
+                          details={quizDetails}
+                          analytics={quizAnalytics}
+                          // submissions={quizSubmissions}
+                          performance={quizPerformance}
+                          questionId={currentCourse?.questionId || null}
+                          onDelete={() => {
+                            deleteItemAsync({
+                              params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedQuizId } }
+                            }).then((res) => {
                               refetchVersion();
-                              refetchItems(); ``
-                              refetchItem();
-                              toast.success("Project updated successfully");
-                            } catch (err) {
-                              toast.error('Failed to update project: ' + (err?.message || 'Unknown error'));
+                              refetchItems();
+                            });
+                            setSelectedEntity(null);
+                          }}
+                        />
+                      )}
+                      {selectedEntity.type === "item" && selectedEntity.data.type === "PROJECT" && courseId && versionId && (
+                        <ProjectItem
+                          mode="edit"
+                          name={projectEditName}
+                          description={projectEditDescription}
+                          onNameChange={setProjectEditName}
+                          onDescriptionChange={setProjectEditDescription}
+                          onSave={async () => {
+                            const projectId = selectedEntity.data._id;
+                            const name = projectEditName;
+                            const description = projectEditDescription;
+                            if (projectId && versionId) {
+                              try {
+                                await updateCourseItemAsync({
+                                  params: { path: { versionId, itemId: projectId } },
+                                  body: { name, description, details: { name, description }, type: 'PROJECT' }
+                                });
+                                refetchVersion();
+                                refetchItems();
+                                refetchItem();
+                                toast.success("Project updated successfully");
+                              } catch (err) {
+                                toast.error('Failed to update project: ' + (err?.message || 'Unknown error'));
+                              }
                             }
-                          }
-                        }}
-                        onDelete={async () => {
-                          const projectId = selectedEntity.data._id;
-                          if (selectedEntity.parentIds?.itemsGroupId && projectId) {
-                            if (window.confirm("Are you sure you want to delete this item?")) {
+                          }}
+                          onDelete={async () => {
+                            const projectId = selectedEntity.data._id;
+                            if (selectedEntity.parentIds?.itemsGroupId && projectId) {
+
                               await deleteItemAsync({
                                 params: { path: { itemsGroupId: selectedEntity.parentIds.itemsGroupId, itemId: projectId } },
                               });
@@ -2405,143 +2871,146 @@ function TeacherCourseContent() {
                               refetchItem();
                               setSelectedEntity(null);
                               toast.success("Project deleted successfully");
+
                             }
-                          }
-                        }}
-                        onClose={() => {
-                          refetchItem();
-                        }}
-                      />
-                    )}
-                    {selectedEntity.type === "item" && selectedEntity.data.type === "BLOG" && courseId && versionId && (
-                      <EnhancedBlogEditor
-                        isLoading={isLoading}
-                        selectedItemName={selectedItem.name}
-                        blogId={selectedEntity.data._id}
-                        moduleId={selectedEntity.parentIds?.moduleId || ""}
-                        sectionId={selectedEntity.parentIds?.sectionId || ""}
-                        courseId={courseId}
-                        courseVersionId={versionId}
-                        details={selectedItemData}
-                        onRefetch={() => {
-                          refetchVersion();
-                          refetchItems();
-                          refetchItem();
-                        }}
-                        onDelete={() => {
-                          deleteItemAsync({
-                            params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
-                          }).then((res) => {
+                          }}
+                          onClose={() => {
+                            refetchItem();
+                          }}
+                        />
+                      )}
+                      {selectedEntity.type === "item" && selectedEntity.data.type === "BLOG" && courseId && versionId && (
+                        <EnhancedBlogEditor
+                          isLoading={isLoading}
+                          selectedItemName={selectedItem.name}
+                          blogId={selectedEntity.data._id}
+                          moduleId={selectedEntity.parentIds?.moduleId || ""}
+                          sectionId={selectedEntity.parentIds?.sectionId || ""}
+                          courseId={courseId}
+                          courseVersionId={versionId}
+                          details={selectedItemData}
+                          onRefetch={() => {
                             refetchVersion();
                             refetchItems();
-                          });
-                          setSelectedEntity(null);
-                        }}
-                      />
-                    )}
+                            refetchItem();
+                          }}
+                          onDelete={() => {
+                            deleteItemAsync({
+                              params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
+                            }).then((res) => {
+                              refetchVersion();
+                              refetchItems();
+                            });
+                            setSelectedEntity(null);
+                          }}
+                        />
+                      )}
 
-                    {/* {selectedEntity.type === "item" && selectedEntity.data.type === "FEEDBACK" && (
+                      {/* {selectedEntity.type === "item" && selectedEntity.data.type === "FEEDBACK" && (
                     
   <FeedbackFormEditor  />
 )} */}
 
 
-                    {selectedEntity.type === "item" && selectedEntity.data.type === "FEEDBACK" && (
-                      <FeedbackFormEditor
-                        isLoading={isLoading}
-                        selectedItemName={selectedItem.name}
-                        feedbackId={selectedEntity.data._id}
-                        moduleId={selectedEntity.parentIds?.moduleId || ""}
-                        sectionId={selectedEntity.parentIds?.sectionId || ""}
-                        courseId={courseId!}
-                        courseVersionId={versionId!}
-                        details={selectedItemData}
-                        onRefetch={() => {
-                          refetchVersion();
-                          refetchItems();
-                          refetchItem();
-                        }}
-                        onDelete={() => {
-                          deleteItemAsync({
-                            params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
-                          }).then(() => {
+                      {selectedEntity.type === "item" && selectedEntity.data.type === "FEEDBACK" && (
+                        <FeedbackFormEditor
+                          isLoading={isLoading}
+                          selectedItemName={selectedItem.name}
+                          feedbackId={selectedEntity.data._id}
+                          moduleId={selectedEntity.parentIds?.moduleId || ""}
+                          sectionId={selectedEntity.parentIds?.sectionId || ""}
+                          courseId={courseId!}
+                          courseVersionId={versionId!}
+                          details={selectedItemData}
+                          onRefetch={() => {
                             refetchVersion();
                             refetchItems();
-                          });
-                          setSelectedEntity(null);
-                        }}
-                      />
-                    )}
+                            refetchItem();
+                          }}
+                          onDelete={() => {
+                            deleteItemAsync({
+                              params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
+                            }).then(() => {
+                              refetchVersion();
+                              refetchItems();
+                            });
+                            setSelectedEntity(null);
+                          }}
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-[80vh] text-center relative">
-                {/* Animated Glow */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0">
-                  <div className="w-60 h-60 rounded-full bg-gradient-to-br from-primary/20 via-accent/10 to-primary/20 blur-3xl opacity-70 animate-pulse"></div>
-                </div>
-
-                {/* Animated Icon */}
-                <div className="relative z-10 mb-8">
-                  <div className="w-28 h-28 rounded-full bg-gradient-to-br from-primary/10 to-accent/10 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center shadow-lg animate-float">
-                    <BookOpen className="h-16 w-16 text-primary dark:text-primary drop-shadow-lg" />
+              ) : (
+                // Render the content according to the wizard mode or custome mode
+                <div className="flex flex-col items-center justify-center h-[80vh]  text-center relative">
+                  {/* Animated Glow */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0">
+                    <div className="w-60 h-60 rounded-full bg-gradient-to-br from-primary/20 via-accent/10 to-primary/20 blur-3xl opacity-70 animate-pulse"></div>
                   </div>
-                </div>
 
-                {/* ViBe Branded Heading */}
-                <h3 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-slate-100 mb-3 tracking-tight animate-fade-in">
-                  Welcome to <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">ViBe</span>
-                </h3>
+                  {/* Animated Icon */}
+                  <div className="relative z-10 mb-8">
+                    <div className="w-28 h-28 rounded-full bg-gradient-to-br from-primary/10 to-accent/10 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center shadow-lg animate-float">
+                      <BookOpen className="h-16 w-16 text-primary dark:text-primary drop-shadow-lg" />
+                    </div>
+                  </div>
 
-                {/* Subtitle */}
-                <p className="text-base md:text-lg lg:text-xl text-slate-600 dark:text-slate-300 mb-2 animate-fade-in">
-                  Ready to Edit Your Course
-                </p>
+                  {/* ViBe Branded Heading */}
+                  <h3 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-slate-100 mb-3 tracking-tight animate-fade-in">
+                    Welcome to <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">ViBe</span>
+                  </h3>
 
-                {/* Animated AI tagline */}
-                <p className="mb-2 max-w-xl mx-auto text-sm md:text-base lg:text-lg font-medium bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-gradient-x">
-                  Let AI help you build your course faster and smarter!
-                </p>
-
-                {/* Animated message */}
-                <div className="h-12 mb-3 flex items-center justify-center">
-                  <p
-                    className={`max-w-md text-sm md:text-base lg:text-lg text-center font-medium leading-relaxed transition-all duration-500 ease-in-out text-primary animate-fade-in ${isVisible ? 'opacity-100' : 'opacity-0'}`}
-                    style={{
-                      textShadow: '0 2px 8px hsl(var(--primary) / 0.3)',
-                    }}
-                  >
-                    {displayedMessage}
+                  {/* Subtitle */}
+                  <p className="text-base md:text-lg lg:text-xl text-slate-600 dark:text-slate-300 mb-2 animate-fade-in">
+                    Ready to Edit Your Course
                   </p>
-                </div>
 
-                {/* CTA Button */}
-                <Button
-                  onClick={handleAddModule}
-                  className="bg-gradient-to-r from-primary to-accent hover:from-accent hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 text-sm md:text-base lg:text-lg flex items-center gap-3 animate-bounce-slow group"
-                >
-                  <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
-                  Add new module
-                </Button>
+                  {/* Animated AI tagline */}
+                  <p className="mb-2 max-w-xl mx-auto text-sm md:text-base lg:text-lg font-medium bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-gradient-x">
+                    Let AI help you build your course faster and smarter!
+                  </p>
 
-                {/* ViBe Features */}
-                <div className="mt-8 md:flex items-center gap-6 text-sm text-slate-500 dark:text-slate-400">
-                  <div className="flex items-center gap-2 mb-2 md:mb-0">
-                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                    <span>AI-Powered Content</span>
+                  {/* Animated message */}
+                  <div className="h-12 mb-3 flex items-center justify-center">
+                    <p
+                      className={`max-w-md text-sm md:text-base lg:text-lg text-center font-medium leading-relaxed transition-all duration-500 ease-in-out text-primary animate-fade-in ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+                      style={{
+                        textShadow: '0 2px 8px hsl(var(--primary) / 0.3)',
+                      }}
+                    >
+                      {displayedMessage}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2 mb-2 md:mb-0">
-                    <div className="w-2 h-2 bg-accent rounded-full animate-pulse" style={{ animationDelay: '0.5s' }}></div>
-                    <span>Smart Course Builder</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
-                    <span>Interactive Learning</span>
+
+                  {/* CTA Button */}
+                  <Button
+                    onClick={handleAddModule}
+                    className="bg-gradient-to-r from-primary to-accent hover:from-accent hover:to-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 text-sm md:text-base lg:text-lg flex items-center gap-3 animate-bounce-slow group"
+                  >
+                    <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
+                    Add new module
+                  </Button>
+
+                  {/* ViBe Features */}
+                  <div className="mt-8 md:flex items-center gap-6 text-sm text-slate-500 dark:text-slate-400">
+                    <div className="flex items-center gap-2 mb-2 md:mb-0">
+                      <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                      <span>AI-Powered Content</span>
+                    </div>
+                    <div className="flex items-center gap-2 mb-2 md:mb-0">
+                      <div className="w-2 h-2 bg-accent rounded-full animate-pulse" style={{ animationDelay: '0.5s' }}></div>
+                      <span>Smart Course Builder</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-primary rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
+                      <span>Interactive Learning</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              ))}
+
+
           </div>
         </SidebarInset>
       </ResizablePanel>
@@ -2655,3 +3124,13 @@ export function useStatusToasts({
 }
 
 // 4. ADD A SIMPLE FEEDBACK EDITOR COMPONENT (Hello World for now)
+
+
+
+
+
+
+
+
+
+

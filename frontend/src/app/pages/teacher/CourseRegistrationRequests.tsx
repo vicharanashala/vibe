@@ -11,17 +11,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Users, Eye, User, CheckCircle, XCircle, Share2, Check, Copy, Share, RefreshCw,  ListChecks, Hash, Calendar, Settings, FileText, Search, X, FilterIcon } from "lucide-react";
+import { Loader2, Users, Eye, User, CheckCircle, XCircle, Share2, Check, Copy, Share, RefreshCw, ListChecks, Hash, Calendar, Settings, FileText, Search, X, FilterIcon, Lock, Unlock } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCourseStore } from "@/store/course-store";
 import { toast } from "sonner";
-import {useBulkUpdateRegistrationStatus, useGetCourseRegistrationRequests, useUpdateRegistrationStatus } from "@/hooks/hooks";
+import { useBulkUpdateRegistrationStatus, useGetCourseRegistrationRequests, useUpdateRegistrationStatus, useGetRegistrationStatus, useToggleRegistrationStatus } from "@/hooks/hooks";
 import { Pagination } from "@/components/ui/Pagination";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import ConfirmationModal from "./components/confirmation-modal";
@@ -42,6 +48,7 @@ export default function CourseRegistrationRequests() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedRegistration, setSelectedRegistration] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [filterStatus, setFilterStatus] = useState<RegistrationStatus>('ALL');
   const [sortOrder, setSortOrder] = useState<'older' | 'latest'>('latest');
   const [currentPage, setCurrentPage] = useState(1);
@@ -54,8 +61,12 @@ export default function CourseRegistrationRequests() {
   const [singleRegistrationId, setSingleRegistrationId] = useState<string | null>(null);
   const [isUnsavedChanges, setIsUnsavedChanges] = useState(false);
   const [isRefresh, setIsRefresh] = useState(false);
+  const [isActive, setIsActive] = useState<boolean>(true);
   const { currentCourse } = useCourseStore()
   const versionId = currentCourse?.versionId
+  const [initialFetchDone, setInitialFetchDone] = useState(false);
+  const [hasAnyRegistrations, setHasAnyRegistrations] = useState(true);
+  const shouldFetch = !initialFetchDone || hasAnyRegistrations;
 
   const PAGE_LIMIT = 15;
 
@@ -66,7 +77,13 @@ export default function CourseRegistrationRequests() {
     page: currentPage,
     limit: PAGE_LIMIT,
   }), [filterStatus, searchTerm, sortOrder, currentPage]);
-  const { data: registrationsData, isLoading, refetch: registrationsRefetch } = useGetCourseRegistrationRequests(versionId as string, params);
+
+ const { data: registrationsData, isLoading, refetch: registrationsRefetch,} = useGetCourseRegistrationRequests(versionId as string, params, shouldFetch);
+
+  const { data: statusData, refetch: statusRefetch } = useGetRegistrationStatus(versionId as string);
+  const { mutateAsync: toggleStatus, isPending: isTogglingStatus } = useToggleRegistrationStatus(versionId as string);
+
+
   const { mutateAsync: updateStatus, isPending: isUpdatingStatus } = useUpdateRegistrationStatus();
   const { mutateAsync: updateBulkStatus, isPending: isUpdatingBulkStatus } = useBulkUpdateRegistrationStatus();
   const registrations = registrationsData?.registrations || []
@@ -82,10 +99,29 @@ Register for the course using the link below:
 
 ${registrationUrl}`;
 
+useEffect(() => {
+  const t = setTimeout(() => {
+    setSearchTerm(searchInput);
+  }, 1000);
+
+  return () => clearTimeout(t);
+  }, [searchInput]);
+
+useEffect(() => {
+  if (!isLoading && registrationsData && !initialFetchDone) {
+    setInitialFetchDone(true);
+
+    const total = registrationsData.totalDocuments ?? 0;
+    setHasAnyRegistrations(total > 0);
+  }
+  }, [isLoading, registrationsData, initialFetchDone]);
 
   useEffect(() => {
-    registrationsRefetch();
-  }, [params, registrationsRefetch]);
+    if (statusData?.isActive !== undefined) {
+      setIsActive(statusData.isActive);
+    }
+  }, [statusData]);
+
 
   const handleSelectRow = (id: string, checked: boolean) => {
     setSelectedIds(prev =>
@@ -180,6 +216,21 @@ ${registrationUrl}`;
     }
   };
 
+  const handleToggleRegistration = async () => {
+    if (isTogglingStatus) return;
+
+    try {
+      const newStatus = !isActive;
+      await toggleStatus({
+        isActive: newStatus,
+      });
+      setIsActive(newStatus);
+      toast.success(newStatus ? 'Course registration activated successfully' : 'Course registration deactivated successfully');
+      statusRefetch();
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to toggle registration status. Please try again.');
+    }
+  };
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
@@ -193,6 +244,11 @@ ${registrationUrl}`;
     setShowFormBuilder(false);
     setIsUnsavedChanges(false)
   }
+
+  const pendingRegistrations = registrations.filter(
+  (item) => item.status === "PENDING"
+);
+
 
   if (showFormBuilder) {
     return (
@@ -403,6 +459,9 @@ ${registrationUrl}`;
             registrationsRefetch={registrationsRefetch}
             setIsBulkApproveOpen={setIsBulkApproveOpen}
             setShowFormBuilder={setShowFormBuilder}
+            isActive={isActive}
+            handleToggleRegistration={handleToggleRegistration}
+            isTogglingStatus={isTogglingStatus}
           />
         </div>
         {/* <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
@@ -487,8 +546,8 @@ ${registrationUrl}`;
           </Select>
         </div> */}
         <RegistrationFilters
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
+          searchTerm={searchInput}
+          setSearchTerm={setSearchInput}
           filterStatus={filterStatus}
           setFilterStatus={setFilterStatus}
           sortOrder={sortOrder}
@@ -506,13 +565,14 @@ ${registrationUrl}`;
                     <TableHead className="w-[40px] pl-6">
                       <Checkbox
                         checked={
-                          selectedIds?.length === registrations?.length &&
-                          registrations?.length > 0
-                        }
-                        disabled={registrations.filter((item)=> item.status==="PENDING")?.length===0}
-                        onCheckedChange={checked =>
-                          handleSelectAll(checked as boolean)
-                        }
+                            pendingRegistrations.length > 0 &&
+                            selectedIds.length === pendingRegistrations.length
+                          }
+                          disabled={pendingRegistrations.length === 0}
+                          onCheckedChange={(checked) =>
+                            handleSelectAll(checked === true)
+                       }
+                        
                       />
                     </TableHead>
 
@@ -589,7 +649,7 @@ ${registrationUrl}`;
                             checked={selectedIds.includes(reg._id)}
                             disabled={reg.status !== "PENDING"}
                             onCheckedChange={checked =>
-                              handleSelectRow(reg._id, checked as boolean)
+                              handleSelectRow(reg._id, checked === true)
                             }
                           />
                         </TableCell>
@@ -827,9 +887,14 @@ export function RegistrationDetailsDialog({
                     <span className="text-xs text-muted-foreground">
                       {formatKey(key)}
                     </span>
-                    <span className="font-medium break-words">
-                      {value as string}
-                    </span>
+                    {typeof value === "boolean" ? (
+                          <Checkbox checked={value} disabled />
+                        ) : (
+                          <span className="font-medium break-words">
+                            {String(value)}
+                          </span>
+                        )
+                    }
                   </div>
                 ))}
               </div>
@@ -867,6 +932,9 @@ interface RegistrationActionsProps {
   registrationsRefetch: () => void;
   setIsBulkApproveOpen: (val: boolean) => void;
   setShowFormBuilder: (val: boolean) => void;
+  isActive: boolean;
+  handleToggleRegistration: () => void;
+  isTogglingStatus: boolean;
 }
 
 export const RegistrationActions = ({
@@ -881,6 +949,9 @@ export const RegistrationActions = ({
   registrationsRefetch,
   setIsBulkApproveOpen,
   setShowFormBuilder,
+  isActive,
+  handleToggleRegistration,
+  isTogglingStatus,
 }: RegistrationActionsProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isRefresh, setIsRefresh] = useState(false);
@@ -975,6 +1046,38 @@ export const RegistrationActions = ({
           ? "Approve All"
           : `Approve Selected (${selectedIds.length})`}
       </Button>
+
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleToggleRegistration}
+              disabled={isTogglingStatus}
+              className={`gap-2 ${!isActive
+                  ? "hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-950 dark:hover:text-green-300 dark:hover:border-green-700"
+                  : "hover:bg-red-50 hover:text-red-700 hover:border-red-300 dark:hover:bg-red-950 dark:hover:text-red-300 dark:hover:border-red-700"
+                } transition-colors`}
+            >
+              {isTogglingStatus ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : isActive ? (
+                <Lock className="h-4 w-4" />
+              ) : (
+                <Unlock className="h-4 w-4" />
+              )}
+              {isActive ? "Disable" : "Enable"}
+            </Button>
+          </TooltipTrigger>
+
+          <TooltipContent>
+            {isActive
+              ? "Disabling will restrict student registration"
+              : "Enabling will allow student registration"}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       <Button
         variant="outline"

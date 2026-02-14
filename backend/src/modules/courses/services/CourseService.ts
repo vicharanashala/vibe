@@ -6,6 +6,7 @@ import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDataba
 import {
   IItemRepository,
   ProctoringComponent,
+  ProgressRepository,
   SettingRepository,
 } from '#root/shared/index.js';
 import { GLOBAL_TYPES } from '#root/types.js';
@@ -13,7 +14,7 @@ import { injectable, inject } from 'inversify';
 import { ObjectId } from 'mongodb';
 import { InternalServerError, NotFoundError } from 'routing-controllers';
 import { CourseVersionService } from './CourseVersionService.js';
-import { CreateCourseVersionBody } from '../classes/index.js';
+import { ActiveUserDto, CreateCourseVersionBody } from '../classes/index.js';
 import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
 import { SETTING_TYPES } from '#root/modules/setting/types.js';
 import {
@@ -37,6 +38,9 @@ class CourseService extends BaseService {
 
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
+
+    @inject(USERS_TYPES.ProgressRepo)
+    private progressRepo: ProgressRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly mongoDatabase: MongoDatabase,
@@ -81,24 +85,24 @@ class CourseService extends BaseService {
         session,
       );
 
-      const defaultSettingsPayload: CreateCourseSettingBody = {
-        courseId,
-        courseVersionId: versionId,
-        settings: {
-          proctors: {
-            detectors: Object.values(ProctoringComponent).map(detector => ({
-              detectorName: detector,
-              settings: { enabled: false, options: {} },
-            })),
-          },
-          linearProgressionEnabled: false,
-        },
-      };
-      const courseSettings = new CourseSetting(defaultSettingsPayload);
-      const settingsPromise = this.settingsRepo.createCourseSettings(courseSettings, session);
+      // const defaultSettingsPayload: CreateCourseSettingBody = {
+      //   courseId,
+      //   courseVersionId: versionId,
+      //   settings: {
+      //     proctors: {
+      //       detectors: Object.values(ProctoringComponent).map(detector => ({
+      //         detectorName: detector,
+      //         settings: { enabled: false, options: {} },
+      //       })),
+      //     },
+      //     linearProgressionEnabled: false,
+      //     seekForwardEnabled: false,
+      //   },
+      // };
+      // const courseSettings = new CourseSetting(defaultSettingsPayload);
+      // const settingsPromise = this.settingsRepo.createCourseSettings(courseSettings, session);
 
-      // Run them in parallel
-      await Promise.all([enrollPromise, settingsPromise]);
+      await enrollPromise;
 
       return createdCourse;
     });
@@ -232,9 +236,61 @@ class CourseService extends BaseService {
     };
   }
 
+  async getActiveUsersByCourse(
+    courseId?: string,
+    courseVersionId?: string,
+    startTimeStamp?: string,
+    endTimeStamp?: string,
+  ): Promise<{ activeUsers: ActiveUserDto[] }> {
+    return this._withTransaction(async session => {
+      const activeUsers = await this.progressRepo.getActiveUsers(courseId, courseVersionId, startTimeStamp, endTimeStamp);
+      return activeUsers
+    });
+  }
 
+  async getPublicCourses(
+    userId: string,
+    page: number,
+    limit: number,
+    search: string,
+  ): Promise<{
+    courses: any[];
+    currentPage: number;
+    totalPages: number;
+    totalDocuments: number;
+  }> {
+    return this._withTransaction(async session => {
+      // Get enrolled course IDs by userId through enrollmentService
+      const userEnrollments = await this.enrollmentService.getAllEnrollments(userId);
+      const enrolledCourseIds = userEnrollments.map(enrollment => enrollment.courseId.toString());
 
+      // Query public courses
+      const skip = (page - 1) * limit;
 
+      const publicCourses = await this.settingsRepo.getPublicCourses(
+        enrolledCourseIds,
+        skip,
+        limit,
+        search,
+        session
+      );
+
+      const totalDocuments = await this.settingsRepo.countPublicCourses(
+        enrolledCourseIds,
+        search,
+        session
+      );
+
+      const totalPages = Math.ceil(totalDocuments / limit);
+
+      return {
+        courses: publicCourses,
+        currentPage: page,
+        totalPages,
+        totalDocuments,
+      };
+    });
+  }
 }
 
 export { CourseService };

@@ -9,13 +9,19 @@ export const useFlagStore = create<FlagState>()(
     (set) => ({
       currentCourseFlag: null,
       setCurrentCourseFlag: (courseInfo) => {
-        console.log("Setting course in flag store:", courseInfo);
         set({ currentCourseFlag: courseInfo });
       },
       setWatchItemId: (watchItemId) => {
         set((state) => ({
           currentCourseFlag: state.currentCourseFlag
             ? { ...state.currentCourseFlag, watchItemId }
+            : null,
+        }));
+      },
+      setQuestionId: (questionId) => {
+        set((state) => ({
+          currentCourseFlag: state.currentCourseFlag
+            ? { ...state.currentCourseFlag, questionId }
             : null,
         }));
       },

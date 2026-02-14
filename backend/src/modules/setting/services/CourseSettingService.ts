@@ -1,6 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { GLOBAL_TYPES } from '#root/types.js';
 import {
+  AuditingDto,
   CourseSetting,
   DetectorOptionsDto,
   DetectorSettingsDto,
@@ -18,6 +19,8 @@ import {
   ISettingRepository,
   ICourseRepository,
 } from '#shared/index.js';
+import { getISTFormattedTimestamp } from '#root/utils/toISOFormat.js';
+import { ObjectId } from 'mongodb';
 
 
 /**
@@ -116,13 +119,16 @@ class CourseSettingService extends BaseService {
         session,
       );
 
-      
+
       if (!courseSettings) {
         // Create new settings as in updateCourseSettings
         const settings = new SettingsDto();
         settings.proctors = new ProctoringSettingsDto();
         settings.proctors.detectors = [];
-        settings.linearProgressionEnabled= true;
+        settings.linearProgressionEnabled = true;
+        settings.seekForwardEnabled = false;
+        settings.isPublic = false;
+        settings.registration = { isActive: true };
 
         const created = await this.createCourseSettings(
           new CourseSetting({
@@ -148,7 +154,10 @@ class CourseSettingService extends BaseService {
     courseId: string,
     courseVersionId: string,
     detectors: DetectorSettingsDto[],
-    linearProgressionEnabled: boolean
+    linearProgressionEnabled: boolean,
+    seekForwardEnabled: boolean,
+    isPublic: boolean,
+    userId: string,
   ): Promise<boolean> {
     return this._withTransaction(async session => {
       // Check if the course settings exist
@@ -162,7 +171,26 @@ class CourseSettingService extends BaseService {
         const settings = new SettingsDto();
         settings.proctors = new ProctoringSettingsDto();
         settings.proctors.detectors = detectors;
+        settings.linearProgressionEnabled = linearProgressionEnabled;
+        settings.seekForwardEnabled = seekForwardEnabled;
+        settings.isPublic = isPublic;
 
+        settings.audit = [
+          {
+            userId: new ObjectId(userId),
+            modifiedAt: new Date(),
+            timestamp: getISTFormattedTimestamp(),
+            changes: {
+              before: null,
+              after: {
+                detectors,
+                linearProgressionEnabled,
+                seekForwardEnabled,
+                isPublic,
+              },
+            },
+          },
+        ];
         // for linear progression
         settings.linearProgressionEnabled = linearProgressionEnabled;
 
@@ -172,7 +200,7 @@ class CourseSettingService extends BaseService {
           settings,
         }))
 
-        if (!result) { 
+        if (!result) {
           throw new InternalServerError(
             'Failed to create course settings. Please try again later.',
           );
@@ -180,11 +208,41 @@ class CourseSettingService extends BaseService {
         return result._id ? true : false;
       }
 
+      const beforeState = {
+        detectors: courseSettings.settings?.proctors?.detectors,
+        linearProgressionEnabled:
+          courseSettings.settings?.linearProgressionEnabled,
+        seekForwardEnabled:
+          courseSettings.settings?.seekForwardEnabled,
+        isPublic:
+          courseSettings.settings?.isPublic,
+      };
+
+      const afterState = {
+        detectors,
+        linearProgressionEnabled,
+        seekForwardEnabled,
+        isPublic,
+      };
+
+      const audit: AuditingDto = {
+        userId: new ObjectId(userId),
+        changes: {
+          before: beforeState,
+          after: afterState,
+        },
+        timestamp: getISTFormattedTimestamp(),
+        modifiedAt: new Date(),
+      };
+
       const result = await this.settingsRepo.updateCourseSettings(
         courseId,
         courseVersionId,
         detectors,
         linearProgressionEnabled,
+        seekForwardEnabled,
+        isPublic,
+        audit,
         session,
       );
 
@@ -236,6 +294,27 @@ class CourseSettingService extends BaseService {
     });
   }
     */
+
+
+  /**   
+   * Checks if linear progression is enabled for a specific course and version.
+   * @param courseId - The ID of the course
+   * @param courseVersionId - The ID of the course version
+   * @returns False if linear progression field is false, true otherwise
+   */
+  async isLinearProgressionEnabled(
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<boolean> {
+    return this._withTransaction(async session => {
+      const isCourseEnabled = await this.settingsRepo.isLinearProgressionEnabled(
+        courseId,
+        courseVersionId,
+        session,
+      );
+      return isCourseEnabled;
+    });
+  }
 }
 
 export { CourseSettingService };

@@ -108,6 +108,7 @@ export class CourseVersionService extends BaseService {
             })),
           },
           linearProgressionEnabled: false,
+          seekForwardEnabled: false,
         },
       };
       const courseSettings = new CourseSetting(defaultSettingsPayload);
@@ -193,6 +194,8 @@ export class CourseVersionService extends BaseService {
 
       if (body.version) existingVersion.version = body.version;
       if (body.description) existingVersion.description = body.description;
+      // Handle supportLink - allow setting, updating, or clearing
+      if (body.supportLink !== undefined) existingVersion.supportLink = body.supportLink;
       existingVersion.updatedAt = new Date();
 
       const updatedVersion = await this.courseRepo.updateVersion(
@@ -265,7 +268,6 @@ export class CourseVersionService extends BaseService {
         throw new BadRequestError('Invalid courseId or courseVersionId');
       }
 
-      // 🔹 Parallel reads (no session)
       const [existingVersion, existingCourse] = await Promise.all([
         this.courseRepo.readVersion(courseVersionId),
         this.courseRepo.read(courseId),
@@ -278,7 +280,6 @@ export class CourseVersionService extends BaseService {
         throw new NotFoundError(`Course ${courseId} not found`);
       }
 
-      // 🔹 Create new course
       const newCourse = await this.courseRepo.create({
         name: getCopyCourseName(existingCourse.name),
         description: existingCourse.description,
@@ -288,11 +289,11 @@ export class CourseVersionService extends BaseService {
         updatedAt: new Date(),
       });
 
-      // 🔹 Create new version
       const newCourseVersion = await this.courseRepo.createVersion({
         courseId: new ObjectId(newCourse._id.toString()),
         version: existingVersion.version,
         description: existingVersion.description,
+        supportLink: existingVersion.supportLink,
         totalItems: existingVersion.totalItems,
         modules: [],
         createdAt: new Date(),
@@ -301,32 +302,92 @@ export class CourseVersionService extends BaseService {
 
       const newVersionId = newCourseVersion._id.toString();
 
-      // 🔹 Clone modules + fetch enrollments in parallel
-      const [newModules, existingEnrollments] = await Promise.all([
-        cloneModules(
-          existingVersion.modules as Module[],
-          newVersionId,
-          this.itemRepo,
-          this.questionBankRepo,
-          this.questionRepository,
-          newCourse._id.toString(),
-        ),
-        this.enrollmentService.getNonStudentEnrollmentsByCourseVersion(
-          courseId,
-          courseVersionId,
-        ),
-      ]);
+      const USE_WORKERS = false;
 
-      // 🔹 Attach modules
+      let newModules: Module[];
+      let existingEnrollments;
+
+      const cloneStartTime = Date.now();
+      console.log(`\n=== Course Clone Started ===`);
+      console.log(`Started at: ${new Date().toISOString()}`);
+      console.log(`Source Course: ${existingCourse.name}`);
+      console.log(`Modules to clone: ${existingVersion.modules.length}`);
+
+      if (USE_WORKERS) {
+        const { startCourseCloneProcessing } = await import('#root/workers/clone-course.pool.js');
+
+        [newModules, existingEnrollments] = await Promise.all([
+          startCourseCloneProcessing(
+            existingVersion.modules as Module[],
+            newVersionId,
+            newCourse._id.toString(),
+          ),
+          this.enrollmentService.getNonStudentEnrollmentsByCourseVersion(
+            courseId,
+            courseVersionId,
+          ),
+        ]);
+      } else {
+        [newModules, existingEnrollments] = await Promise.all([
+          cloneModules(
+            existingVersion.modules as Module[],
+            newVersionId,
+            this.itemRepo,
+            this.questionBankRepo,
+            this.questionRepository,
+            newCourse._id.toString(),
+          ),
+          this.enrollmentService.getNonStudentEnrollmentsByCourseVersion(
+            courseId,
+            courseVersionId,
+          ),
+        ]);
+      }
+
+      const cloneEndTime = Date.now();
+      const durationMs = cloneEndTime - cloneStartTime;
+      const durationSec = (durationMs / 1000).toFixed(2);
+
+      const totalSections = newModules.reduce((sum, mod) => sum + mod.sections.length, 0);
+      const totalItemGroups = newModules.reduce(
+        (sum, mod) => sum + mod.sections.reduce((s, sec) => s + (sec.itemsGroupId ? 1 : 0), 0),
+        0,
+      );
+
+      let totalItems = 0;
+      for (const module of newModules) {
+        for (const section of module.sections) {
+          if (section.itemsGroupId) {
+            try {
+              const itemsGroup = await this.itemRepo.readItemsGroup(section.itemsGroupId.toString());
+              if (itemsGroup?.items) {
+                totalItems += itemsGroup.items.length;
+              }
+            } catch (error) {
+              console.error(`Error reading items group ${section.itemsGroupId}:`, error);
+            }
+          }
+        }
+      }
+
+      console.log(`\n=== Course Clone Completed ===`);
+      console.log(`Finished at: ${new Date().toISOString()}`);
+      console.log(`Duration: ${durationMs}ms (${durationSec}s)`);
+      console.log(`Summary:`);
+      console.log(`  - Modules cloned: ${newModules.length}`);
+      console.log(`  - Sections cloned: ${totalSections}`);
+      console.log(`  - Item groups cloned: ${totalItemGroups}`);
+      console.log(`  - Items cloned: ${totalItems}`);
+      console.log(`  - New course: ${newCourse.name}`);
+      console.log(`=============================\n`);
+
       await this.courseRepo.addModulesToVersion(newVersionId, newModules);
 
-      // 🔹 Attach version to course
       await this.courseRepo.addNewCourseVersionToCourse(
         newCourse._id.toString(),
         newVersionId,
       );
 
-      // 🔹 Copy enrollments
       if (existingEnrollments?.length) {
         await this.enrollmentService.bulkEnrollUsers(
           existingEnrollments.map(e => ({
@@ -338,13 +399,26 @@ export class CourseVersionService extends BaseService {
         );
       }
 
+      const defaultSettingsPayload: CreateCourseSettingBody = {
+        courseId: newCourse._id.toString(),
+        courseVersionId: newVersionId,
+        settings: {
+          proctors: {
+            detectors: Object.values(ProctoringComponent).map(detector => ({
+              detectorName: detector,
+              settings: { enabled: false, options: {} },
+            })),
+          },
+          linearProgressionEnabled: false,
+          seekForwardEnabled: false,
+        },
+      };
+      const courseSettings = new CourseSetting(defaultSettingsPayload);
+      await this.settingsRepo.createCourseSettings(courseSettings);
+
       return true;
     } catch (err) {
       console.error('Failed to copy course version:', err);
-
-      // OPTIONAL: cleanup partially created course/version
-      // await this.courseRepo.delete(newCourseId);
-
       return false;
     }
   }

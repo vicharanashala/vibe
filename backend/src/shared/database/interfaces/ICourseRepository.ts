@@ -1,4 +1,4 @@
-import {Module} from '#root/modules/courses/classes/index.js';
+import { Module } from '#root/modules/courses/classes/index.js';
 import {
   ICourse,
   ICourseVersion,
@@ -51,6 +51,17 @@ export interface ICourseRepository {
     versionId: string,
     session?: ClientSession,
   ): Promise<ICourseVersion | null>;
+
+  getActiveVersions(
+    versionIds: string[],
+    session?: ClientSession,
+  ): Promise<ICourseVersion[]>;
+
+  getModulebyId(
+    versionId: string,
+    moduleId: string,
+    session?: ClientSession,
+  ): Promise<IModule | null>;
 
   updateVersion(
     versionId: string,

@@ -14,6 +14,9 @@ import FeedbackFormBuilder from '../student/components/FeedbackFormBuilder';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FeedbackSubmissionsTable } from './FeedbackSubmissionTable';
+import ConfirmationModal from './components/confirmation-modal';
+import { buildEmptyFormData, normalizeSchemaOptions } from "@/utils/utils";
+
 
 interface FeedbackFormEditorProps {
   isLoading?: boolean;
@@ -38,12 +41,11 @@ export default function FeedbackFormEditor({
   onRefetch,
   onDelete,
 }: FeedbackFormEditorProps) {
-  console.log('details ', details)
-  console.log("json ", details?.item?.details?.jsonSchema)
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formBuilder, setFormBuilder] = useState(false)
+  const [showDeleteFormModal, setShowDeleteFormModal]=useState(false)
   const [selectedTab, setSelectedTab] = useState<'create' | 'submissions'>('create');
   const [form, setForm] = useState({
     name: '',
@@ -71,7 +73,6 @@ export default function FeedbackFormEditor({
       });
     }
   }, [details]);
-  console.log('details ', details)
   const handleEdit = () => setIsEditMode(true);
 
   const handleCancel = () => {
@@ -207,7 +208,7 @@ export default function FeedbackFormEditor({
                   </Button>
                 )}
                 <Button
-                  onClick={onDelete}
+                  onClick={()=>setShowDeleteFormModal(true)}
                   variant="outline"
                   className="border-border bg-background"
                   disabled={isEditMode}
@@ -216,6 +217,22 @@ export default function FeedbackFormEditor({
                   Delete Form
                 </Button>
               </div>
+               <div className="relative group">
+      <ConfirmationModal
+        isOpen={showDeleteFormModal}
+        onClose={() => setShowDeleteFormModal(false)}
+        onConfirm={onDelete}
+        title="Delete Form"
+        description="This will delete this form. Are you sure you want to delete it?"
+        confirmText="Delete"
+        cancelText="Cancel"
+        isDestructive={true}
+        // isLoading={}
+        loadingText="Deleting..."
+      />
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+      </div>
+        
             </div>
           </div>
 
@@ -306,13 +323,18 @@ export default function FeedbackFormEditor({
                     {details &&
                       <div className="overflow-y-auto max-h-[70vh] pr-2">
                         <div className="max-w-lg mx-auto w-full space-y-4">
+                          <div className="text-left items-start">
                           <Form
-                            schema={details?.item?.details?.jsonSchema}
+                            // schema={details?.item?.details?.jsonSchema}
+                            schema={normalizeSchemaOptions(details?.item?.details?.jsonSchema)}
                             validator={validator}
                             uiSchema={details?.item?.details?.uiSchema}
                             onSubmit={onSubmit}
                             disabled={isSubmitting}
+                           formData={buildEmptyFormData(details?.item?.details?.jsonSchema)}
+                            
                           />
+                          </div>
                         </div>
                       </div>
                     }
@@ -353,10 +375,10 @@ export default function FeedbackFormEditor({
             {/* Sticky Header */}
             <DialogHeader className="p-5 border-b sticky top-0 bg-card z-20 flex items-center justify-between relative">
               <div>
-                <DialogTitle className="text-xl font-semibold">
+                <DialogTitle className="text-xl text-center font-semibold">
                   Build Feedback Form
                 </DialogTitle>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-center text-muted-foreground">
                   Customize your form layout and fields.
                 </p>
               </div>

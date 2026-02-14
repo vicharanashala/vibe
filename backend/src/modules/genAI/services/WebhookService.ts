@@ -9,16 +9,17 @@ import { appConfig } from '#root/config/index.js';
 export class WebhookService {
   private readonly httpClient: AxiosInstance;
   private readonly aiServerUrl: string;
-  
+
   constructor() {
     this.aiServerUrl = 'http://' + aiConfig.serverIP + ':' + aiConfig.serverPort;
 
     const agent = appConfig.isProduction || appConfig.isStaging ? new SocksProxyAgent(aiConfig.proxyAddress) : undefined;
 
     this.httpClient = axios.create({
-      httpAgent: agent,
-      httpsAgent: agent,
-      baseURL: this.aiServerUrl,
+      // httpAgent: agent,
+      // httpsAgent: agent,
+      // baseURL: this.aiServerUrl,
+      baseURL: "http://34.131.48.163:8017",
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
@@ -43,7 +44,6 @@ export class WebhookService {
    * @returns Updated job data from AI server
    */
   async approveTaskStart(jobId: string, jobState: JobState): Promise<any> {
-    console.log(jobState);
     const response = await this.httpClient.post(`/jobs/${jobId}/tasks/approve/start`, jobState);
     return response.data;
   }
@@ -58,14 +58,13 @@ export class WebhookService {
     const response = await this.httpClient.post(`/jobs/${jobId}/tasks/approve/continue`);
     return response.data;
   }
-  
+
   /**
    * Request to rerun current task on AI server
    * @param jobId The job ID
    * @returns Updated job data from AI server
    */
   async rerunTask(jobId: string, jobState: JobState): Promise<any> {
-    console.log(jobState);
     const response = await this.httpClient.post(`/jobs/${jobId}/tasks/rerun`, jobState);
     return response.data;
   }

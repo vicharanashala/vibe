@@ -20,22 +20,25 @@ export const cloneModules = async (
 
   const questionBankMap = new Map<string, string>();
 
-  const cloneQuestionBank = async (oldBankId: string) => {
+  const cloneQuestionBank = async (oldBankId: string): Promise<string> => {
     if (questionBankMap.has(oldBankId)) {
       return questionBankMap.get(oldBankId)!;
     }
 
     const originalBank = await questionBankRepo.getById(oldBankId, session);
     if (!originalBank) {
-      throw new Error(`Question bank ${oldBankId} not found`);
+      throw new NotFoundError(`Question bank ${oldBankId} not found`);
     }
 
+    const { _id, createdAt, updatedAt, ...bankData } = originalBank;
+
     const newBank = new QuestionBank({
-      ...originalBank,
-      _id: undefined,
+      ...bankData,
       courseId: newCourseId,
       courseVersionId: newVersionId,
       questions: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     const newBankId = await questionBankRepo.create(newBank, session);
@@ -62,7 +65,6 @@ export const cloneModules = async (
   for (const module of existingModules) {
     const newModuleId = new ObjectId().toString();
 
-    // 🔹 Clone sections in parallel
     const newSections = await Promise.all(
       module.sections.map(async section => {
         if (!section.itemsGroupId) {
@@ -73,62 +75,103 @@ export const cloneModules = async (
           section.itemsGroupId.toString(),
           session,
         );
+
         if (!oldItemGroup) {
           throw new NotFoundError('ItemGroup not found');
         }
 
-        // 🔹 Parallel item reads
-        const fullItems = await Promise.all(
-          oldItemGroup.items.map(i =>
-            itemRepo.readItemById(i._id.toString()),
+        /** 🔑 CREATE sectionId ONCE */
+        const newSectionId = new ObjectId().toString();
+
+        /** Read original items */
+        const originalItems = await Promise.all(
+          oldItemGroup.items.map(ref =>
+            itemRepo.readItemById(ref._id.toString(), session),
           ),
         );
 
-        // 🔹 Clone items
-        const clonedItems = await Promise.all(
-          fullItems.map(async item => {
-            if (!item) return null;
-            const cloned = { ...item, _id: undefined };
+        /** Clone items safely */
+        const clonedItemPayloads: {
+          oldItemId: string;
+          payload: any;
+        }[] = [];
 
-            if (
-              cloned.type === 'QUIZ' &&
-              cloned.details?.questionBankRefs?.length
-            ) {
-              const newRefs = await Promise.all(
+        for (const item of originalItems) {
+          if (!item) continue;
+
+          const oldItemId = item._id.toString();
+          const { _id, ...rest } = item;
+
+          const cloned: any = {
+            ...rest,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+
+          if (
+            cloned.type === 'QUIZ' &&
+            cloned.details?.questionBankRefs?.length
+          ) {
+            cloned.details = {
+              ...cloned.details,
+              questionBankRefs: await Promise.all(
                 cloned.details.questionBankRefs.map(async ref => ({
                   ...ref,
                   bankId: await cloneQuestionBank(ref.bankId.toString()),
                 })),
-              );
-              cloned.details = {
-                ...cloned.details,
-                questionBankRefs: newRefs,
-              };
-            }
+              ),
+            };
+          }
 
-            return cloned;
-          }),
-        );
+          clonedItemPayloads.push({ oldItemId, payload: cloned });
+        }
 
+        if (!clonedItemPayloads.length) {
+          throw new Error('No items cloned for section');
+        }
+
+        /** Insert items */
         const createdItems = await itemRepo.createItems(
-          clonedItems.filter(Boolean),
+          clonedItemPayloads.map(i => i.payload),
           session,
         );
 
+        /** Build itemId map */
+        const itemIdMap = new Map<string, string>();
+        createdItems.forEach((created, idx) => {
+          if (!created || !ObjectId.isValid(created._id.toString())) {
+            throw new Error(`Invalid created item ID at index ${idx}: ${created?._id}`);
+          }
+          itemIdMap.set(
+            clonedItemPayloads[idx].oldItemId,
+            created._id.toString(),
+          );
+        });
+
+        /** Create items group using SAME sectionId */
         const newItemGroup = await itemRepo.createItemsGroup(
           {
-            sectionId: new ObjectId().toString(),
-            items: oldItemGroup.items.map((itemRef, idx) => ({
-              ...itemRef,
-              _id: new ObjectId(createdItems[idx]._id.toString()),
-            })),
+            sectionId: newSectionId,
+            items: oldItemGroup.items.map(ref => {
+              const newItemId = itemIdMap.get(ref._id.toString());
+              if (!newItemId) {
+                throw new Error(
+                  `Missing cloned item for ${ref._id.toString()}`,
+                );
+              }
+
+              return {
+                ...ref,
+                _id: new ObjectId(newItemId),
+              };
+            }),
           },
           session,
         );
 
         return {
           ...section,
-          sectionId: new ObjectId().toString(),
+          sectionId: newSectionId,
           itemsGroupId: new ObjectId(newItemGroup._id.toString()),
         };
       }),
@@ -143,4 +186,5 @@ export const cloneModules = async (
 
   return newModules;
 };
+
 
