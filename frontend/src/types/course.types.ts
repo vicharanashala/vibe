@@ -41,7 +41,7 @@ export interface CourseCardProps {
   };
   isLoading: boolean;
   index: number;
-  variant?: 'dashboard' | 'courses';
+  variant?: 'dashboard' | 'courses' | 'available';
   className?: string;
   completion?: CoursePctCompletion[];
   setCompletion?: (completion: CoursePctCompletion[]) => void;
@@ -57,6 +57,7 @@ export interface CourseSectionProps {
   onViewAll?: () => void;
   onRetry?: () => void;
   variant?: 'dashboard' | 'courses';
+  cardVariant?: 'dashboard' | 'courses' | 'available';
   skeletonCount?: number;
   emptyStateConfig?: {
     title: string;

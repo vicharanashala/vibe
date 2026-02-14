@@ -42,6 +42,8 @@ import CourseIssueReports from '../pages/student/FlagResponse'
 // import LoginPage from '../pages/LoginPage'
 import FeedbackFormEditor from '../pages/teacher/FeedbackFormEditor'
 import Leaderboard from '../pages/student/leaderboard'
+import ForgotPasswordPage from '../pages/ForgotPasswordPage'
+import ResetPasswordPage from '../pages/ResetPasswordPage'
 import StudentLogin from '../pages/student/StudentLogin'
 import TeacherLogin from '../pages/teacher/TeacherLogin'
 import SelectRolePage from '../pages/SelectRolePage'
@@ -79,6 +81,42 @@ const authRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/auth',
   component: AuthPage,
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+    // Redirect to appropriate dashboard if already authenticated
+    if (isAuthenticated && user?.role) {
+      if (user.role === 'teacher') {
+        throw redirect({ to: '/teacher' });
+      } else if (user.role === 'student') {
+        throw redirect({ to: '/student' });
+      }
+    }
+  },
+});
+
+// Forgot Password route - accessible only when NOT authenticated
+const forgotPasswordRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/forgot-password',
+  component: ForgotPasswordPage,
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+    // Redirect to appropriate dashboard if already authenticated
+    if (isAuthenticated && user?.role) {
+      if (user.role === 'teacher') {
+        throw redirect({ to: '/teacher' });
+      } else if (user.role === 'student') {
+        throw redirect({ to: '/student' });
+      }
+    }
+  },
+});
+
+// Reset Password route - accessible only when NOT authenticated
+const resetPasswordRoute = new Route({
+  getParentRoute: () => rootRoute,
+ path: '/reset-password',
+  component: ResetPasswordPage,
   beforeLoad: () => {
     const { isAuthenticated, user } = useAuthStore.getState();
     // Redirect to appropriate dashboard if already authenticated
@@ -468,6 +506,9 @@ export const selectRoleRoute = new Route({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   authRoute,
+//   loginRoute,
+  forgotPasswordRoute,
+  resetPasswordRoute,
   // loginRoute,
   selectRoleRoute,
   studentLoginRoute,

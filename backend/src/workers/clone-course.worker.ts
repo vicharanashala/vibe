@@ -155,7 +155,10 @@ const feedbackRepo = new FeedbackRepository(database);
                             throw new Error("ItemGroup not found");
                         }
 
-                        // Parallel item reads
+                        // Create sectionId once and reuse
+                        const newSectionId = new ObjectId().toString();
+
+                        // Parallel item reads - maintain order
                         const fullItems = await Promise.all(
                             oldItemGroup.items.map(i =>
                                 itemRepo.readItemById(i._id.toString()),
@@ -211,7 +214,6 @@ const feedbackRepo = new FeedbackRepository(database);
                             );
                         });
 
-                        const newSectionId = new ObjectId().toString();
 
                         const newItemGroup = await itemRepo.createItemsGroup({
                             sectionId: newSectionId,

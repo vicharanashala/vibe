@@ -702,4 +702,63 @@ export class EnrollmentController {
 
     return { modules: moduleProgress };
   }
+
+  @OpenAPI({
+    summary: 'Get all detailed enrollments for a user',
+    description:
+      'Retrieves a paginated list of all course enrollments for a user.',
+  })
+  @Authorized()
+  @Get('/enrollments/details')
+  @HttpCode(200)
+  @ResponseSchema(EnrollmentResponse, {
+    description: 'Paginated list of user enrollments',
+  })
+  @ResponseSchema(EnrollmentNotFoundErrorResponse, {
+    description: 'No enrollments found for the user',
+    statusCode: 404,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid page or limit parameters',
+    statusCode: 400,
+  })
+  async getUserEnrollmentsDetails(
+    @QueryParams() query: EnrollmentFilterQuery,
+    @Ability(getEnrollmentAbility) { user },
+    @Req() req: any,
+  ): Promise<EnrollmentResponse> {
+    const { page, limit, search = '', role, courseVersionId } = query;
+    const userId = user._id.toString();
+    const skip = (page - 1) * limit;
+
+    const [enrollments, totalDocuments] = await Promise.all([
+      this.enrollmentService.getDetailedEnrollment(
+        userId,
+        role,
+        courseVersionId,
+      ),
+      this.enrollmentService.detailedCountEnrollment(
+        userId,
+        role,
+        courseVersionId,
+      ),
+    ]);
+
+    if (!enrollments || enrollments.length === 0) {
+      return {
+        totalDocuments: 0,
+        totalPages: 0,
+        currentPage: page,
+        enrollments: [],
+        message: 'No enrollments found for the user',
+      };
+    }
+
+    return {
+      totalDocuments,
+      totalPages: Math.ceil(totalDocuments / limit),
+      currentPage: page,
+      enrollments,
+    };
+  }
 }

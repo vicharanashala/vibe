@@ -91,7 +91,7 @@ export class CourseSettingController {
   ): Promise<{ success: boolean }> {
     // This method updates proctoring settings for a course version.
     const { courseId, versionId } = params;
-    const { detectors, linearProgressionEnabled, seekForwardEnabled } = body;
+    const { detectors, linearProgressionEnabled, seekForwardEnabled, isPublic } = body;
     const userId = user._id.toString();
     
     const result = await this.courseSettingService.updateCourseSettings(
@@ -100,6 +100,7 @@ export class CourseSettingController {
       detectors,
       linearProgressionEnabled,
       seekForwardEnabled,
+      isPublic ?? false,
       userId
     );
 

@@ -1070,7 +1070,7 @@ const lastCalledRef = useRef<number>(0);
       {!isAnomaliesDetected && (
         <div className="bg-green-600 text-white px-3 py-1 flex justify-between items-center text-sm">
           <div className="flex items-center space-x-2 flex-1">
-            <span className="font-medium">✅ {isCollapsed ? `All Clear (${penaltyPoints})` : 'All Clear'}</span>
+            <span className="font-medium">☑️ {isCollapsed ? `All Clear (${penaltyPoints})` : 'All Clear'}</span>
             {/* Face Recognition Status */}
             {!isCollapsed && recognizedFaces.length > 0 && (
               <span className="text-xs opacity-90">
