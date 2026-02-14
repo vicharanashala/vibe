@@ -937,7 +937,7 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { course
             <div className="w-px h-6 bg-border" />
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground uppercase tracking-wider">Progress</span>
-              <span className="font-semibold text-foreground">{myStats.completionPercentage}%</span>
+              <span className="font-semibold text-foreground">{Math.round(myStats.completionPercentage*1000)/1000}%</span>
             </div>
           </div>
         ) : (
