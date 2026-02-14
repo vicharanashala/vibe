@@ -166,8 +166,19 @@ class CourseRegistrationController {
     const result = await this.courseRegistrationService.create(
       registrationData,
     );
-    if (versionId === "6981df886e100cfe04f9c4ae")
+
+    // Auto-approve for specific course versions
+    if (versionId === "6981df886e100cfe04f9c4ae") {
+      // Auto-approve ALL registrations for this course
       await this.courseRegistrationService.updateStatus(result, "APPROVED");
+    } else if (versionId === "698f2fe9e4dc6671e2ddf808") {
+      // Auto-approve ONLY IITM email domain registrations for this course
+      const userDetails = await this.userRepository.findById(userId);
+      if (userDetails && userDetails.email && userDetails.email.endsWith('iitm.ac.in')) {
+        await this.courseRegistrationService.updateStatus(result, "APPROVED");
+      }
+    }
+
     return result;
   }
 
