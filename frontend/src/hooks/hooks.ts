@@ -3851,46 +3851,6 @@ export function useModuleProgress(
 }
 
 
-// Hook for instructors to get module progress for a specific user
-export function useUserModuleProgress(
-  userId: string,
-  courseId: string,
-  versionId: string
-): {
-  data: {
-    modules: {
-      moduleId: string;
-      moduleName: string;
-      totalItems: number;
-      completedItems: number;
-    }[];
-  } | undefined;
-  isLoading: boolean;
-  error: string | null;
-  refetch: () => void;
-} {
-  const result = api.useQuery(
-    'get',
-    `/users/${userId}/enrollments/courses/${courseId}/versions/${versionId}/modules/progress` as any,
-    {
-      params: {
-        path: { userId, courseId, versionId }
-      }
-    },
-    {
-      enabled: !!userId && !!courseId && !!versionId
-    }
-  );
-
-  return {
-    data: result.data as any,
-    isLoading: result.isLoading,
-    error: result.error ? (result.error.message || "Failed to fetch module progress") : null,
-    refetch: result.refetch
-  };
-}
-
-
 export const useHideModule = (): {
   mutate: (variables: { params: { path: { versionId: string, moduleId: string } }, body: { hide: boolean } }) => void,
   mutateAsync: (variables: { params: { path: { versionId: string, moduleId: string } }, body: { hide: boolean } }) => Promise<void>,
@@ -4222,7 +4182,7 @@ export function useMarkNotificationAsRead(): {
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
   const result = api.useMutation("patch", "/course/registration/notifications/{registrationId}/read");
-
+  
   return {
     ...result,
     error: result.error ? (result.error.message || 'Failed to mark notification as read') : null

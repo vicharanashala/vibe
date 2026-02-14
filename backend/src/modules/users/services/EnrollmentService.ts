@@ -1350,22 +1350,4 @@ export class EnrollmentService extends BaseService {
 
     return {totalCount, updatedCount};
   }
-
-  async getModuleProgressForUser(
-    userId: string,
-    courseId: string,
-    versionId: string,
-  ): Promise<Array<{
-    moduleId: string;
-    moduleName: string;
-    totalItems: number;
-    completedItems: number;
-  }>> {
-
-    return await this.progressService.getModuleWiseProgress(
-      userId,
-      courseId,
-      versionId,
-    );
-  }
 }
