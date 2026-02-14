@@ -60,6 +60,8 @@ import {COURSES_TYPES} from '#root/modules/courses/types.js';
 import {ItemService} from '#root/modules/courses/services/ItemService.js';
 import {SuccessResponse} from '#root/modules/projects/classes/validators/ProjectValidators.js';
 import {CourseVersionQuery} from '#root/modules/courses/classes/index.js';
+import { ne } from '@faker-js/faker';
+import { nextTick } from 'process';
 
 @OpenAPI({
   tags: ['Progress'],
@@ -279,6 +281,7 @@ class ProgressController {
       attemptId,
       isSkipped,
       seekForwardEnabled,
+      nextItemId,
     } = body;
 
     const userId = String(user._id);
@@ -306,6 +309,7 @@ class ProgressController {
       attemptId,
       isSkipped,
       seekForwardEnabled,
+      nextItemId,
     );
   }
 

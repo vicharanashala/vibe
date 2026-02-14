@@ -847,7 +847,6 @@ export class EnrollmentService extends BaseService {
 
     // 3. Get all user IDs from enrollments
     const userIds = enrollments.map(e => e.userId);
-    console.log('🔍 User IDs for quiz lookup:', enrollments);
 
     // 4. Batch fetch quiz submissions for all users
     const quizSubmissions =

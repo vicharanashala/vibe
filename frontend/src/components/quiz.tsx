@@ -44,6 +44,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   doGesture = false,
   onNext,
   isProgressUpdating,
+  isNavigatingToPrev,
   attemptId,
   setAttemptId,
   displayNextLesson,
@@ -51,7 +52,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   setQuizPassed,
   rewindVid,
   setIsQuizSkipped,
-  linearProgressionEnabled
+  linearProgressionEnabled,
+  isAlreadyWatched,
+  completedItemIdsRef,
+  nextItemId
 }, ref) => {
   // console.log('Quiz component rendered with props:', {});
   // ===== CORE STATE =====
@@ -383,30 +387,32 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const handleSendStartItem = useCallback(async () => {
     if (!currentCourse?.itemId) return;
     try {
-      const response = await startItem.mutateAsync({
-        params: {
-          path: {
-            courseId: currentCourse.courseId,
-            courseVersionId: currentCourse.versionId ?? '',
+      if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
+        const response = await startItem.mutateAsync({
+          params: {
+            path: {
+              courseId: currentCourse.courseId,
+              courseVersionId: currentCourse.versionId ?? '',
+            },
           },
-        },
-        body: {
-          itemId: currentCourse.itemId,
-          moduleId: currentCourse.moduleId ?? '',
-          sectionId: currentCourse.sectionId ?? '',
-        }
-      });
+          body: {
+            itemId: currentCourse.itemId,
+            moduleId: currentCourse.moduleId ?? '',
+            sectionId: currentCourse.sectionId ?? '',
+          }
+        });
 
-      if (!response?.watchItemId) {
-        console.error('No watchItemId returned from startItem');
-        return;
+        if (!response?.watchItemId) {
+          console.error('No watchItemId returned from startItem');
+          return;
+        }
+        if (response?.watchItemId) setWatchItemId(response.watchItemId);
       }
-      if (response?.watchItemId) setWatchItemId(response.watchItemId);
       itemStartedRef.current = true;
     } catch (error) {
       console.error('Failed to start item:', error);
     }
-  }, [currentCourse, startItem, setWatchItemId]);
+  }, [currentCourse, startItem, setWatchItemId, isAlreadyWatched, completedItemIdsRef]);
 
   const handleStopItem = useCallback(async (isSkipped?: boolean) => {
     if (!currentCourse?.itemId || !currentCourse.watchItemId) {
@@ -415,6 +421,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     }
 
     if (!itemStartedRef.current) {
+      return;
+    }
+
+    if( !isSkipped && (isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId)) ){
       return;
     }
 
@@ -431,11 +441,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         moduleId: currentCourse.moduleId ?? '',
         sectionId: currentCourse.sectionId ?? '',
         attemptId,
-        isSkipped
+        isSkipped,
+        nextItemId,
       }
     });
     itemStartedRef.current = false;
-  }, [currentCourse, stopItem, attemptId]);
+  }, [currentCourse, stopItem, attemptId, isAlreadyWatched, completedItemIdsRef]);
 
 
   const stopItemAsync = useCallback(
@@ -463,6 +474,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           sectionId: currentCourse.sectionId ?? '',
           attemptId,
           isSkipped,
+          nextItemId,
         },
       });
 
@@ -638,15 +650,17 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         setNoAttemptsLeft(true);
 
         await handleSendStartItem();
-        setTimeout(() => {
-          handleStopItem(true);
+        await handleStopItem(true);
 
-          setTimeout(() => {
-            if (onNext) {
-              onNext();
-            }
-          }, 1500);
-        }, 500);
+        // setTimeout(() => {
+        //   handleStopItem(true);
+
+        //   setTimeout(() => {
+        //     if (onNext) {
+        //       onNext();
+        //     }
+        //   }, 1500);
+        // }, 500);
 
         return;
       }
@@ -723,6 +737,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           console.error('Failed to update progress after quiz failure:', stopError);
         }
       }
+      completedItemIdsRef.current.add(processedQuizId);
 
       setQuizCompleted(true);
 
@@ -1005,20 +1020,22 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }, [handleStopItem]);
 
   // Early detection for empty quizzes (all types)
-  useEffect(() => {
-    if (!quizStarted && !quizAttemptedRef.current && !isEmptyQuiz && !noAttemptsLeft && !isPending) {
-      if (!questionBankRefs || questionBankRefs.length === 0) {
-        quizAttemptedRef.current = true; // Prevent other start attempts
-        handleEmptyQuiz();
-      }
-    }
-  }, [questionBankRefs, quizStarted, isEmptyQuiz, noAttemptsLeft, isPending, handleEmptyQuiz]);
+  // useEffect(() => {
+  //   if (!quizStarted && !quizAttemptedRef.current && !isEmptyQuiz && !noAttemptsLeft && !isPending) {
+  //     if (!questionBankRefs || questionBankRefs.length === 0) {
+  //       quizAttemptedRef.current = true; // Prevent other start attempts
+  //       handleEmptyQuiz();
+  //     }
+  //   }
+  // }, [questionBankRefs, quizStarted, isEmptyQuiz, noAttemptsLeft, isPending, handleEmptyQuiz]);
 
   // ===== IMPERATIVE HANDLE =====
   useImperativeHandle(ref, () => ({
     stopItem: async () => {
       if (!currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
-
+      if( isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId) ){
+        return;
+      }
       try {
         await stopItem.mutateAsync({
           params: {
@@ -1033,7 +1050,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             moduleId: currentCourse.moduleId ?? '',
             sectionId: currentCourse.sectionId ?? '',
             attemptId,
-            isSkipped: false
+            isSkipped: false,
+            nextItemId,
           }
         });
         itemStartedRef.current = false;
@@ -1250,7 +1268,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                     className="min-w-[180px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
                     size="lg"
                   >
-                    {isProgressUpdating ? (
+                    {isNavigatingToPrev ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2" />
                         Processing
@@ -1373,7 +1391,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                       className="min-w-[180px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
                       size="lg"
                     >
-                      {isProgressUpdating ? (
+                      {isNavigatingToPrev ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2" />
                           Processing

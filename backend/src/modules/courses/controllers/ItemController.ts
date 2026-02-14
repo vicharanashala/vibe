@@ -12,6 +12,7 @@ import {
   Authorized,
   QueryParams,
   Res,
+  CurrentUser
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { COURSES_TYPES } from '#courses/types.js';
@@ -332,20 +333,22 @@ Access control logic:
   })
   async getItem(
     @Params() params: GetItemParams,
-    @Ability(getItemAbility) { ability },
+    // @Ability(getItemAbility) { ability, user },
+    @CurrentUser() user: {_id: string},
   ) {
     const { versionId, itemId, courseId } = params;
+    const { _id: userId } = user;
 
     // Create an item resource object for permission checking
     const itemResource = subject('Item', { courseId, versionId, itemId });
 
     // Check permission using ability.can() with the actual item resource
-    if (!ability.can(ItemActions.View, itemResource)) {
-      throw new ForbiddenError('You do not have permission to view this item');
-    }
+    // if (!ability.can(ItemActions.View, itemResource)) {
+    //  throw new ForbiddenError('You do not have permission to view this item');
+    // }
 
     return {
-      item: await this.itemService.readItem(versionId, itemId),
+      item: await this.itemService.readItem(userId?.toString(), courseId, versionId, itemId),
     };
   }
 

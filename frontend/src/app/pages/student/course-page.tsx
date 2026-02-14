@@ -183,6 +183,8 @@ export default function CoursePage() {
   const [anomalies, setAnomalies] = useState<string[]>([]);
   const [isQuizSkipped, setIsQuizSkipped] = useState(false);
   const [readyToDetect, setReadyToDetect] = useState(false);
+  const [isNavigatingToPrev, setIsNavigatingToPrev] = useState<boolean>(false);
+  const completedItemIdsRef = useRef<Set<string>>(new Set());
    // State for sidebar visibility
   const [isDesktopSidebarVisible, setIsDesktopSidebarVisible] = useState(true);
 
@@ -1263,7 +1265,7 @@ export default function CoursePage() {
   // Handle navigation to previous video (used by quiz component)
   const handlePrevVideo = useCallback(async () => {
     // Set loading state
-    setIsNavigatingToNext(true);
+    setIsNavigatingToPrev(true);
 
     try {
       // Stop current item before moving to previous video with proper cleanup
@@ -1278,7 +1280,7 @@ export default function CoursePage() {
       const prevVideoItem = findPreviousVideoItem();
 
       if (!prevVideoItem) {
-        setIsNavigatingToNext(false);
+        setIsNavigatingToPrev(false);
         return;
       }
 
@@ -1286,7 +1288,7 @@ export default function CoursePage() {
 
       // Ensure all values are defined before switching
       if (!moduleId || !sectionId || !itemId) {
-        setIsNavigatingToNext(false);
+        setIsNavigatingToPrev(false);
         return;
       }
 
@@ -1324,12 +1326,12 @@ export default function CoursePage() {
 
       // Clear loading state after successful navigation
       setTimeout(() => {
-        setIsNavigatingToNext(false);
+        setIsNavigatingToPrev(false);
       }, 500);
     } catch (error) {
       console.error('Error navigating to previous video:', error);
       // Clear loading state on error
-      setIsNavigatingToNext(false);
+      setIsNavigatingToPrev(false);
     }
   }, [
     findPreviousVideoItem,
@@ -1957,6 +1959,8 @@ export default function CoursePage() {
                       item={currentItem}
                       onNext={handleNext}
                       isProgressUpdating={isNavigatingToNext}
+                      completedItemIdsRef={completedItemIdsRef}
+                      isAlreadyWatched={currentItem.isAlreadyWatched}
                     />
                   ) : (
                     
@@ -1967,6 +1971,7 @@ export default function CoursePage() {
                       onNext={handleNext}
                       onPrevVideo={handlePrevVideo}
                       isProgressUpdating={isNavigatingToNext}
+                      isNavigatingToPrev={isNavigatingToPrev}
                       attemptId={attemptId || undefined}
                       setAttemptId={setAttemptId}
                       rewindVid={rewindVid}
@@ -1982,6 +1987,8 @@ export default function CoursePage() {
                       courseId={COURSE_ID}
                       versionId={VERSION_ID}
                       sectionId={sectionId}
+                      completedItemIdsRef={completedItemIdsRef}
+                      nextItem={findNextItem()}
                     />
                   )}
 

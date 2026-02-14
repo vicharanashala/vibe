@@ -43,7 +43,7 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-export default function Video({ URL, startTime, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, linearProgressionEnabled, seekForwardEnabled, isCompleted = false }: VideoProps) {
+export default function Video({ URL, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef }: VideoProps) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const stopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -345,7 +345,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
   };
 
   //  function to handle stop with debouncing
-const handleStopItem = useCallback(async (watchItemId: string, debounceMs: number = 0): Promise<boolean> => {
+const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs: number = 0): Promise<boolean> => {
   // Clear any pending stop request
   if (stopTimeoutRef.current) {
     clearTimeout(stopTimeoutRef.current);
@@ -361,27 +361,33 @@ const handleStopItem = useCallback(async (watchItemId: string, debounceMs: numbe
   return new Promise((resolve) => {
     const executeStop = async () => {
       stopInFlightRef.current = true;
-
       try {
-        await stopItem.mutateAsync({
-          params: {
-            path: {
-              courseId: currentCourse!.courseId,
-              courseVersionId: currentCourse!.versionId ?? '',
+        if(watchItemId && !isAlreadyWatched && !(currentCourse!.itemId && completedItemIdsRef.current.has(currentCourse!.itemId))){
+          await stopItem.mutateAsync({
+            params: {
+              path: {
+                courseId: currentCourse!.courseId,
+                courseVersionId: currentCourse!.versionId ?? '',
+              },
             },
-          },
-          body: {
-            watchItemId,
-            itemId: currentCourse!.itemId ?? '',
-            moduleId: currentCourse!.moduleId ?? '',
-            sectionId: currentCourse!.sectionId ?? '',
-            seekForwardEnabled, 
-          },
-        });
+            body: {
+              watchItemId,
+              itemId: currentCourse!.itemId ?? '',
+              moduleId: currentCourse!.moduleId ?? '',
+              sectionId: currentCourse!.sectionId ?? '',
+              seekForwardEnabled, 
+              nextItemId,
+            },
+          });
+        }
+        
+        if (!currentCourse?.itemId) return;
+        completedItemIdsRef.current.add(currentCourse!.itemId);
 
         progressStoppedRef.current = true;
+        console.log('Progress stopped successfully for watchItemId:', watchItemId);
         resolve(true);
-        
+
       } catch (err: any) {
         console.error('Stop item failed:', err);
         progressStoppedRef.current = true; // Prevent infinite retries
@@ -401,7 +407,7 @@ const handleStopItem = useCallback(async (watchItemId: string, debounceMs: numbe
       executeStop();
     }
   });
-}, [currentCourse, stopItem]);
+}, [currentCourse, stopItem, isAlreadyWatched, completedItemIdsRef]);
 
   // Pause/resume video based on doGesture
   useEffect(() => {
@@ -563,19 +569,21 @@ const handleStopItem = useCallback(async (watchItemId: string, debounceMs: numbe
 
   function handleSendStartItem() {
     if (!currentCourse?.itemId) return;
-    startItem.mutate({
-      params: {
-        path: {
-          courseId: currentCourse.courseId,
-          courseVersionId: currentCourse.versionId ?? '',
+    if(!isAlreadyWatched && !completedItemIdsRef.current.has(currentCourse!.itemId)){
+      startItem.mutate({
+        params: {
+          path: {
+            courseId: currentCourse.courseId,
+            courseVersionId: currentCourse.versionId ?? '',
+          },
         },
-      },
-      body: {
-        itemId: currentCourse.itemId,
-        moduleId: currentCourse.moduleId ?? '',
-        sectionId: currentCourse.sectionId ?? '',
-      }
-    });
+        body: {
+          itemId: currentCourse.itemId,
+          moduleId: currentCourse.moduleId ?? '',
+          sectionId: currentCourse.sectionId ?? '',
+        }
+      });
+    }
   }
 
   // Update watchItemId when startItem succeeds
@@ -708,6 +716,7 @@ const handleStopItem = useCallback(async (watchItemId: string, debounceMs: numbe
         moduleId: currentCourse.moduleId ?? '',
         sectionId: currentCourse.sectionId ?? '',
         seekForwardEnabled,
+        nextItemId,
       },
     });
   }
@@ -787,10 +796,10 @@ const handleStopItem = useCallback(async (watchItemId: string, debounceMs: numbe
           }
 
           // Enforce endTime constraint
-          if (endTimeSeconds > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= endTimeSeconds - 1 && currentCourse) {
+          if (endTimeSeconds > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= endTimeSeconds && currentCourse) {
              const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
 
-            if (watchItemId) {
+            // if (watchItemId) {
               player?.pauseVideo();
 
               // Check if user recently seeked (within last 3 seconds)
@@ -806,7 +815,7 @@ const handleStopItem = useCallback(async (watchItemId: string, debounceMs: numbe
                 await sendWatchTimeTrackData(capturedTrackData);
                 onNext?.();
               }
-            }
+            // }
           }
 
           // Handle videos without endTime constraint that reach near completion

@@ -928,6 +928,30 @@ class ProgressRepository {
     };
   }
 
+    async isItemAttempted(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    itemId: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+
+    const existing = await this.watchTimeCollection.findOne(
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        itemId: new ObjectId(itemId),
+        isDeleted: { $ne: true },
+      },
+      { session, limit: 1 },
+    );
+
+    return existing !== null;
+  }
+
+
 }
 
 export { ProgressRepository };
