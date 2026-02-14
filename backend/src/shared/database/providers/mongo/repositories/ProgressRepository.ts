@@ -28,7 +28,7 @@ class ProgressRepository {
     if (this.initialized) {
       return;
     }
-   
+
 
     this.courseCollection = await this.db.getCollection<Course>('newCourse');
     this.courseVersionCollection = await this.db.getCollection<CourseVersion>(
@@ -107,6 +107,29 @@ class ProgressRepository {
         endTime: { $exists: true, $ne: null },
         isDeleted: { $ne: true },
 
+      },
+      { session },
+    );
+
+    return distinctItemIds.map(id => id.toString());
+  }
+
+  // Get all items with watch time records
+  async getAllDistinctCompletedItems(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<string[]> {
+    await this.init();
+
+    const distinctItemIds = await this.watchTimeCollection.distinct(
+      'itemId',
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        isDeleted: { $ne: true },
       },
       { session },
     );
@@ -226,7 +249,7 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
-    if(!this.watchTimeCollection){
+    if (!this.watchTimeCollection) {
       console.log('[ProgressRepository] watchTimeCollection not initialized');
       return;
     }
