@@ -1,8 +1,13 @@
-import {ICourseRegistration} from '#root/shared/interfaces/models.js';
-import {ClientSession} from 'mongodb';
+import { ICourseRegistration } from '#root/shared/interfaces/models.js';
+import { ClientSession } from 'mongodb';
 
 export interface ICourseRegistrationRepository {
   findByUserId(
+    userId: string,
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<ICourseRegistration>;
+  findPendingRequestsByUserId(
     userId: string,
     versionId: string,
     session?: ClientSession,
@@ -14,12 +19,12 @@ export interface ICourseRegistrationRepository {
   ): Promise<ICourseRegistration | null>;
   findAllregistrations(
     versionId: string,
-    filter: {status?: string; search?: string},
+    filter: { status?: string; search?: string },
     skip: number,
     limit: number,
     sort: 'older' | 'latest',
     session?: ClientSession,
-  ): Promise<{registrations: ICourseRegistration[]; totalDocuments: number}>;
+  ): Promise<{ registrations: ICourseRegistration[]; totalDocuments: number }>;
   updateStatus(
     registrationId: string,
     status: 'PENDING' | 'APPROVED' | 'REJECTED',
@@ -29,6 +34,18 @@ export interface ICourseRegistrationRepository {
     registrationIds: string[],
     session?: ClientSession,
   ): Promise<number>;
-  remove(userId:string,courseId:string,versionId:string,session?:ClientSession)
+  remove(userId: string, courseId: string, versionId: string, session?: ClientSession)
   deleteRegistrationByVersionId(versionId: string, session?: ClientSession)
+  getPendingRegistrations(
+    instructorId: string,
+    session?: ClientSession,
+  ): Promise<any[]>;
+  getUnreadApprovedRegistrations(
+    studentId: string,
+    session?: ClientSession,
+  ): Promise<any[]>;
+  markNotificationAsRead(
+    registrationId: string,
+    session?: ClientSession,
+  ): Promise<boolean>;
 }

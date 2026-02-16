@@ -86,25 +86,24 @@ class CourseService extends BaseService {
         session,
       );
 
-      const defaultSettingsPayload: CreateCourseSettingBody = {
-        courseId,
-        courseVersionId: versionId,
-        settings: {
-          proctors: {
-            detectors: Object.values(ProctoringComponent).map(detector => ({
-              detectorName: detector,
-              settings: { enabled: false, options: {} },
-            })),
-          },
-          linearProgressionEnabled: false,
-          seekForwardEnabled: false,
-        },
-      };
-      const courseSettings = new CourseSetting(defaultSettingsPayload);
-      const settingsPromise = this.settingsRepo.createCourseSettings(courseSettings, session);
+      // const defaultSettingsPayload: CreateCourseSettingBody = {
+      //   courseId,
+      //   courseVersionId: versionId,
+      //   settings: {
+      //     proctors: {
+      //       detectors: Object.values(ProctoringComponent).map(detector => ({
+      //         detectorName: detector,
+      //         settings: { enabled: false, options: {} },
+      //       })),
+      //     },
+      //     linearProgressionEnabled: false,
+      //     seekForwardEnabled: false,
+      //   },
+      // };
+      // const courseSettings = new CourseSetting(defaultSettingsPayload);
+      // const settingsPromise = this.settingsRepo.createCourseSettings(courseSettings, session);
 
-      // Run them in parallel
-      await Promise.all([enrollPromise, settingsPromise]);
+      await enrollPromise;
 
       return createdCourse;
     });
@@ -247,6 +246,50 @@ class CourseService extends BaseService {
     return this._withTransaction(async session => {
       const activeUsers = await this.progressRepo.getActiveUsers(courseId, courseVersionId, startTimeStamp, endTimeStamp);
       return activeUsers
+    });
+  }
+
+  async getPublicCourses(
+    userId: string,
+    page: number,
+    limit: number,
+    search: string,
+  ): Promise<{
+    courses: any[];
+    currentPage: number;
+    totalPages: number;
+    totalDocuments: number;
+  }> {
+    return this._withTransaction(async session => {
+      // Get enrolled course IDs by userId through enrollmentService
+      const userEnrollments = await this.enrollmentService.getAllEnrollments(userId);
+      const enrolledCourseIds = userEnrollments.map(enrollment => enrollment.courseId.toString());
+
+      // Query public courses
+      const skip = (page - 1) * limit;
+
+      const publicCourses = await this.settingsRepo.getPublicCourses(
+        enrolledCourseIds,
+        skip,
+        limit,
+        search,
+        session
+      );
+
+      const totalDocuments = await this.settingsRepo.countPublicCourses(
+        enrolledCourseIds,
+        search,
+        session
+      );
+
+      const totalPages = Math.ceil(totalDocuments / limit);
+
+      return {
+        courses: publicCourses,
+        currentPage: page,
+        totalPages,
+        totalDocuments,
+      };
     });
   }
 }

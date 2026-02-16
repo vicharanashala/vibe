@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
-import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, userParseCSVtoItems, useUpdateItemOptional } from '@/hooks/hooks';
-import { Download, LogOut, Upload, UserRoundCheck } from 'lucide-react';
+import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useVideoUserAnalytics } from '@/hooks/hooks';
+import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video, Clock, PlayCircle, Users, Search } from 'lucide-react';
 import { useHideItem } from '@/hooks/hooks';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 const MAX_DESCRIPTION_LENGTH = 1000;
 
@@ -32,7 +33,9 @@ import {
   MessageSquare,
   Eye,
   EyeOff,
-  Loader2
+  Loader2,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 
 import { useNavigate } from "@tanstack/react-router";
@@ -51,7 +54,7 @@ import { toast } from "sonner";
 import Loader from "@/components/Loader";
 import { Label } from "@/components/ui/label";
 import ProjectItem from "./components/ProjectItem";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup, SidebarResizablePanel } from "@/components/ui/resizable";
 import FeedbackFormEditor from "./FeedbackFormEditor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
@@ -74,6 +77,10 @@ type Mode = "default" | "wizard" | "custom";
 import { logout } from "@/utils/auth";
 import InviteDropdown from "@/components/inviteDropDown";
 import { useQueryClient } from "@tanstack/react-query"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import { Pagination } from "@/components/ui/Pagination";
 
 
 // ? Icons per item type
@@ -128,6 +135,10 @@ function TeacherCourseContent() {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
   const invitesRef = useRef<HTMLDivElement | null>(null);
+  const [videoTab, setVideoTab] = useState("video");
+
+
+
 
   const handleLogout = () => {
     logout();
@@ -139,6 +150,11 @@ function TeacherCourseContent() {
   // Use correct keys for course/version IDs
   const courseId = currentCourse?.courseId;
   const versionId = currentCourse?.versionId;
+
+
+
+
+
   useEffect(() => {
     const items: BreadcrumbItem[] = [];
     items.push({
@@ -170,26 +186,26 @@ function TeacherCourseContent() {
 
     setBreadcrumbs(items);
   }, [matches]);
-  const { setOpen, setOpenMobile } = useSidebar();
-  const [isDesktopSidebarVisible, setIsDesktopSidebarVisible] = useState(true);
+  // const { setOpen, setOpenMobile } = useSidebar();
+  // const [isDesktopSidebarVisible, setIsDesktopSidebarVisible] = useState(true);
 
   const checkScreenSize = () => {
     return window.innerWidth <= 425;
   };
 
-  useEffect(() => {
-    const handleResize = () => {
-      const width = window.innerWidth;
-      if (width >= 768) {
-        setOpen(true);
-      }
-    };
+  // useEffect(() => {
+  //   const handleResize = () => {
+  //     const width = window.innerWidth;
+  //     if (width >= 768) {
+  //       setOpen(true);
+  //     }
+  //   };
 
-    window.addEventListener('resize', handleResize);
-    handleResize();
+  //   window.addEventListener('resize', handleResize);
+  //   handleResize();
 
-    return () => window.removeEventListener('resize', handleResize);
-  }, [setOpen]);
+  //   return () => window.removeEventListener('resize', handleResize);
+  // }, [setOpen]);
 
   // Fetch course version data (modules, sections, items)
   const { data: versionData, refetch: refetchVersion, isLoading } = useCourseVersionById(versionId || "");
@@ -232,7 +248,7 @@ function TeacherCourseContent() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
 
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  // const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [hidingModuleId, setHidingModuleId] = useState<string | null>(null);
   const [hidingSectionId, setHidingSectionId] = useState<string | null>(null);
   const [hidingItemId, setHidingItemId] = useState<string | null>(null);
@@ -319,6 +335,59 @@ function TeacherCourseContent() {
     shouldFetchItem ? versionId : '',
     shouldFetchItem ? selectedEntity?.data?._id : ''
   );
+
+  const [videoAnalyticsPage, setVideoAnalyticsPage] = useState(1);
+  const [videoAnalyticsLimit, setVideoAnalyticsLimit] = useState(12);
+  const [videoAnalyticsSearch, setVideoAnalyticsSearch] = useState("");
+  const [debouncedVideoAnalyticsSearch, setDebouncedVideoAnalyticsSearch] = useState("");
+  const [videoAnalyticsSortBy, setVideoAnalyticsSortBy] = useState<'name' | 'views' | 'watchHours'>('name');
+  const [videoAnalyticsSortOrder, setVideoAnalyticsSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedVideoAnalyticsSearch(videoAnalyticsSearch);
+      setVideoAnalyticsPage(1);
+    }, 300);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [videoAnalyticsSearch]);
+
+  const {
+    data: overallAnalytics,
+    isLoading: overallLoading,
+    error: overallError,
+    refetch: refetchOverall,
+  } = useOverallVideoAnalytics(courseId!, versionId!, selectedEntity?.data?._id);
+
+  const videoUserAnalyticsQuery = useVideoUserAnalytics(
+    courseId!,
+    versionId!,
+    selectedEntity?.data?._id,
+    {
+      page: videoAnalyticsPage,
+      limit: videoAnalyticsLimit,
+      search: debouncedVideoAnalyticsSearch,
+      sortBy: videoAnalyticsSortBy,
+      sortOrder: videoAnalyticsSortOrder,
+    }
+  );
+
+  const {
+    data: userAnalyticsData,
+    totalDocuments: userAnalyticsTotalDocs,
+    totalPages: userAnalyticsTotalPages,
+    page,
+    limit,
+  } = videoUserAnalyticsQuery.data ?? {};
+
+  const {
+    isLoading: usersLoading,
+    error: usersError,
+    refetch: refetchUsers,
+  } = videoUserAnalyticsQuery;
+
   // Sync controlled state with selectedItemData for PROJECT edit
   useEffect(() => {
     if (selectedEntity?.type === 'item' && selectedEntity.data.type === 'PROJECT') {
@@ -700,47 +769,41 @@ function TeacherCourseContent() {
 
   // Load sections one by one for auto-selection
   useEffect(() => {
+    // If not in auto-select mode or no item to watch, do nothing
     if (autoSelectSectionsToLoad.length === 0 || !currentCourse?.watchItemId) return;
 
-    if (autoSelectCurrentIndex < autoSelectSectionsToLoad.length) {
-      const section = autoSelectSectionsToLoad[autoSelectCurrentIndex];
+    const currentTarget = autoSelectSectionsToLoad[autoSelectCurrentIndex];
 
-      setActiveSectionInfo(section);
-
-      // Move to next section after a delay
-      setTimeout(() => {
-        setAutoSelectCurrentIndex(prev => prev + 1);
-      }, 100);
-    } else {
-      // All sections queued for loading, reset the loading state
-
+    // If we've run out of sections to check, stop
+    if (!currentTarget) {
       setAutoSelectSectionsToLoad([]);
       setAutoSelectCurrentIndex(0);
+      return;
     }
-  }, [autoSelectCurrentIndex, autoSelectSectionsToLoad, currentCourse?.watchItemId]);
 
-
-
-  // Load sections one by one for auto-selection
-  useEffect(() => {
-    if (autoSelectSectionsToLoad.length === 0 || !currentCourse?.watchItemId) return;
-
-    if (autoSelectCurrentIndex < autoSelectSectionsToLoad.length) {
-      const section = autoSelectSectionsToLoad[autoSelectCurrentIndex];
-
-      setActiveSectionInfo(section);
-
-      // Move to next section after a delay
-      setTimeout(() => {
-        setAutoSelectCurrentIndex(prev => prev + 1);
-      }, 100);
-    } else {
-      // All sections queued for loading, reset the loading state
-
-      setAutoSelectSectionsToLoad([]);
-      setAutoSelectCurrentIndex(0);
+    // If the active section doesn't match our target, switch to it
+    if (activeSectionInfo?.sectionId !== currentTarget.sectionId) {
+      setActiveSectionInfo(currentTarget);
+      return;
     }
-  }, [autoSelectCurrentIndex, autoSelectSectionsToLoad, currentCourse?.watchItemId]);
+
+    // If the active section matches AND we've finished loading:
+    // We can assume the item wasn't found (because the other useEffect would have cleared the state)
+    // So we move to the next section
+    if (!itemsLoading && currentSectionItems) {
+      setAutoSelectCurrentIndex(prev => prev + 1);
+    }
+  }, [
+    autoSelectCurrentIndex,
+    autoSelectSectionsToLoad,
+    currentCourse?.watchItemId,
+    activeSectionInfo,
+    itemsLoading,
+    currentSectionItems
+  ]);
+
+
+
 
 
 
@@ -1504,18 +1567,18 @@ function TeacherCourseContent() {
         }}
       />
       {/* Mobile Sidebar Overlay */}
-      {isMobileSidebarOpen && (
+      {/* {isMobileSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={() => setIsMobileSidebarOpen(false)}
         />
-      )}
-      {isDesktopSidebarVisible && (
-        <ResizablePanel
+      )} */}
+      {/* {isDesktopSidebarVisible && ( */}
+        <SidebarResizablePanel
           defaultSize={20}
           minSize={20}
           maxSize={50}
-          className={`${isMobileSidebarOpen ? 'fixed inset-y-0 left-0 z-50 w-[280px]' : 'hidden md:block'}`}
+          // className={`${isMobileSidebarOpen ? 'fixed inset-y-0 left-0 z-50 w-[280px]' : 'hidden md:block'}`}
         >
           {/* sidebar content */}
           <div className="h-full overflow-hidden border-r border-border/40 bg-sidebar/50">
@@ -2139,8 +2202,8 @@ function TeacherCourseContent() {
               </SidebarFooter>
             </Sidebar>
           </div>
-        </ResizablePanel>
-      )}
+        </SidebarResizablePanel>
+      {/* )} */}
 
       {/* <ResizablePanel
         defaultSize={20}
@@ -2160,25 +2223,25 @@ function TeacherCourseContent() {
 
 
 
-      {/* <ResizableHandle className="hidden md:flex" /> */}
-      {isDesktopSidebarVisible && <ResizableHandle className="hidden md:flex" />}
+      <ResizableHandle className="hidden md:flex" />
+      {/* {isDesktopSidebarVisible && <ResizableHandle className="hidden md:flex" />} */}
 
 
       <ResizablePanel defaultSize={80} className="min-w-0">
         {/* Course Editor Area */}
         <SidebarInset className="max-w-full overflow-hidden flex flex-col">
-          <header className="hidden md:flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear sticky top-0 z-50 bg-background">
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear sticky top-0 z-50 bg-background">
             <div className="flex w-full items-center justify-between px-4">
               <div className="flex items-center gap-2">
                 {/* Add Toggle Button */}
-                <Button
+                {/* <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsDesktopSidebarVisible((p) => !p)}
                   className="hidden md:inline-flex"
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
+                > */}
+                  <SidebarTrigger/>
+                {/* </Button> */}
 
                 <Separator orientation="vertical" className="mx-2 h-4" />
                 <Breadcrumb className="hidden md:flex">
@@ -2201,9 +2264,10 @@ function TeacherCourseContent() {
                     ))}
                   </BreadcrumbList>
                 </Breadcrumb>
+                <Link to="/teacher" className="block md:hidden font-medium text-muted-foreground hover:text-foreground">Dashboard</Link>
               </div>
 
-              <div className="hidden md:flex items-center gap-3">
+              <div className="flex items-center gap-3">
 
                 <div className="relative" ref={invitesRef}>
                   <Button
@@ -2257,15 +2321,14 @@ function TeacherCourseContent() {
           <div className="w-full p-4 sm:p-6">
             {mode === "default" && <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-2 min-w-0 flex-1">
-                <Button
+                {/* <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
                   className="md:hidden shrink-0"
-                >
-                  <Menu className="h-7 w-7" />
+                > */}
                   <span className="sr-only">Toggle Menu</span>
-                </Button>
+                {/* </Button> */}
 
                 <div className="flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-lg border min-w-0 flex-1 sm:flex-none sm:min-w-[200px]">
                   <GraduationCap className="h-4 w-4 text-primary flex-shrink-0" />
@@ -2288,7 +2351,7 @@ function TeacherCourseContent() {
                     variant="outline"
                     className="bg-primary/10 border-primary/20 text-primary px-3 py-1.5 text-xs sm:text-sm font-medium whitespace-nowrap"
                   >
-                    Version: {(versionData as any)?.version || (versionData as any)?.name || 'Unknown'}
+                    Version: {(versionData as any)?.version || (versionData as any)?.name || 'Unknown'} a
                   </Badge>
                 </div>
               )}
@@ -2418,7 +2481,13 @@ function TeacherCourseContent() {
                       </div>
                       <div className="text-sm text-slate-500 dark:text-gray-400 flex items-center gap-2">
                         <BookOpen className="h-4 w-4" />
-                        <span>Course � Module � {selectedEntity.type}</span>
+                        <span className="flex items-center gap-1">
+                          Course
+                          <ChevronRight size={16} />
+                          Module
+                          <ChevronRight size={16} />
+                          {selectedEntity.type}
+                        </span>
                       </div>
                     </div>
 
@@ -2747,72 +2816,182 @@ function TeacherCourseContent() {
 
 
 
-                      {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
-
-                        <VideoModal
-                          isLoading={isItemLoading}
-                          selectedItemName={selectedItem.name}
-                          action={isEditingItem ? "edit" : "view"}
-                          item={selectedItemData?.item}
-                          onClose={() => setIsEditingItem(false)}
-                          onSave={video => {
-                            const formattedVideo = {
-                              ...video,
-                              type: "VIDEO",
-                              details: {
-                                ...video.details,
-                                startTime: video.details.startTime,
-                                endTime: video.details.endTime,
-                              }
-                            };
-                            if (
-                              selectedEntity.parentIds?.moduleId &&
-                              selectedEntity.parentIds?.sectionId &&
-                              selectedEntity.data?._id &&
-                              versionId
-                            ) {
-                              updateVideoAsync({
-                                params: {
-                                  path: {
-                                    versionId,
-                                    itemId: selectedEntity.data._id,
+                      {/* {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
+                        <>
+                        
+                          <VideoModal
+                            isLoading={isItemLoading}
+                            selectedItemName={selectedItem.name}
+                            action={isEditingItem ? "edit" : "view"}
+                            item={selectedItemData?.item}
+                            onClose={() => setIsEditingItem(false)}
+                            onSave={video => {
+                              const formattedVideo = {
+                                ...video,
+                                type: "VIDEO",
+                                details: {
+                                  ...video.details,
+                                  startTime: video.details.startTime,
+                                  endTime: video.details.endTime,
+                                }
+                              };
+                              if (
+                                selectedEntity.parentIds?.moduleId &&
+                                selectedEntity.parentIds?.sectionId &&
+                                selectedEntity.data?._id &&
+                                versionId
+                              ) {
+                                updateVideoAsync({
+                                  params: {
+                                    path: {
+                                      versionId,
+                                      itemId: selectedEntity.data._id,
+                                    }
+                                  },
+                                  body: formattedVideo,
+                                }).then((res) => {
+                                  refetchVersion();
+                                  if (shouldFetchItems) {
+                                    refetchItems();
                                   }
-                                },
-                                body: formattedVideo,
-                              }).then((res) => {
-                                refetchVersion();
-                                if (shouldFetchItems) {
-                                  refetchItems();
-                                }
-                                refetchItem();
-                              });
-                              toast.success("Video details saved successfully");
-                              setIsEditingItem(false);
-                            }
-                          }}
-                          onDelete={() => {
-                            if (
-                              selectedEntity.parentIds?.sectionId &&
-                              selectedEntity.data?._id
-                            ) {
+                                  refetchItem();
+                                });
+                                toast.success("Video details saved successfully");
+                                setIsEditingItem(false);
+                              }
+                            }}
+                            onDelete={() => {
+                              if (
+                                selectedEntity.parentIds?.sectionId &&
+                                selectedEntity.data?._id
+                              ) {
 
-                              deleteItemAsync({
-                                params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
-                              }).then((res) => {
-                                refetchVersion();
-                                if (shouldFetchItems) {
-                                  refetchItems();
-                                }
-                                refetchItem();
-                              });
-                              setSelectedEntity(null);
-                              setIsEditingItem(false);
+                                deleteItemAsync({
+                                  params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
+                                }).then((res) => {
+                                  refetchVersion();
+                                  if (shouldFetchItems) {
+                                    refetchItems();
+                                  }
+                                  refetchItem();
+                                });
+                                setSelectedEntity(null);
+                                setIsEditingItem(false);
 
-                            }
-                          }}
-                          onEdit={() => setIsEditingItem(true)}
-                        />
+                              }
+                            }}
+                            onEdit={() => setIsEditingItem(true)}
+                          />
+                        </>
+                      )} */}
+                      {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
+                        <Tabs value={videoTab} onValueChange={setVideoTab} className=" mb-4">
+
+                          <TabsList className=" overflow-x-auto no-scrollbar">
+
+                            <TabsTrigger value="video" className="flex items-center gap-2 cursor-pointer">
+                              <Video className="h-4 w-4" />
+                              Video
+                            </TabsTrigger>
+
+                            <TabsTrigger value="analytics" className="flex items-center gap-2 cursor-pointer">
+                              <BarChart3 className="h-4 w-4" />
+                              Analytics
+                            </TabsTrigger>
+
+                          </TabsList>
+
+                          {videoTab === "video" && (
+                            <VideoModal
+                              isLoading={isItemLoading}
+                              selectedItemName={selectedItem.name}
+                              action={isEditingItem ? "edit" : "view"}
+                              item={selectedItemData?.item}
+                              onClose={() => setIsEditingItem(false)}
+                              onSave={video => {
+                                const formattedVideo = {
+                                  ...video,
+                                  type: "VIDEO",
+                                  details: {
+                                    ...video.details,
+                                    startTime: video.details.startTime,
+                                    endTime: video.details.endTime,
+                                  }
+                                };
+
+                                if (
+                                  selectedEntity.parentIds?.moduleId &&
+                                  selectedEntity.parentIds?.sectionId &&
+                                  selectedEntity.data?._id &&
+                                  versionId
+                                ) {
+                                  updateVideoAsync({
+                                    params: {
+                                      path: {
+                                        versionId,
+                                        itemId: selectedEntity.data._id,
+                                      }
+                                    },
+                                    body: formattedVideo,
+                                  }).then(() => {
+                                    refetchVersion();
+                                    shouldFetchItems && refetchItems();
+                                    refetchItem();
+                                  });
+
+                                  toast.success("Video details saved successfully");
+                                  setIsEditingItem(false);
+                                }
+                              }}
+
+                              onDelete={() => {
+                                if (
+                                  selectedEntity.parentIds?.sectionId &&
+                                  selectedEntity.data?._id
+                                ) {
+                                  deleteItemAsync({
+                                    params: {
+                                      path: {
+                                        itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "",
+                                        itemId: selectedEntity.data._id
+                                      }
+                                    }
+                                  }).then(() => {
+                                    refetchVersion();
+                                    shouldFetchItems && refetchItems();
+                                    refetchItem();
+                                  });
+
+                                  setSelectedEntity(null);
+                                  setIsEditingItem(false);
+                                }
+                              }}
+
+                              onEdit={() => setIsEditingItem(true)}
+                            />
+                          )}
+
+                          {videoTab === "analytics" && (
+                            <div className="mt-4">
+                              <p className="text-sm text-muted-foreground">
+                                <UserAnalytics users={userAnalyticsData || []} overallAnalytics={overallAnalytics} currentPage={videoAnalyticsPage} limit={videoAnalyticsLimit} search={videoAnalyticsSearch} onSearchChange={(v) => {
+                                  setVideoAnalyticsSearch(v);
+                                  setVideoAnalyticsPage(1);
+                                }} sortBy={videoAnalyticsSortBy} sortOrder={videoAnalyticsSortOrder} onSortChange={(field) => {
+                                  if (videoAnalyticsSortBy === field) {
+                                    setVideoAnalyticsSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+                                  } else {
+                                    setVideoAnalyticsSortBy(field);
+                                    setVideoAnalyticsSortOrder('asc');
+                                  }
+                                }} onPageChange={setVideoAnalyticsPage} isLoading={overallLoading || usersLoading} totalDocuments={userAnalyticsTotalDocs || 0} totalPages={userAnalyticsTotalPages || 0} />
+                              </p>
+                            </div>
+                          )}
+
+                        </Tabs>
                       )}
+
                       {/* <CreateArticle/> */}
                       {selectedEntity.type === "item" && selectedEntity.data.type === "QUIZ" && courseId && versionId && (
                         <EnhancedQuizEditor
@@ -3131,7 +3310,323 @@ export function useStatusToasts({
 
 // 4. ADD A SIMPLE FEEDBACK EDITOR COMPONENT (Hello World for now)
 
+export interface VideoUserAnalytics {
+  firstName: string;
+  email: string;
+  userId: string;
+  viewCount: number;
+  totalWatchTime: number;
+}
 
+export interface VideoUserAnalyticsResponse {
+  data: VideoUserAnalytics[];
+  totalDocuments: number;
+  totalPages: number;
+  page: number;
+  limit: number;
+}
+
+export interface VideoOverallAnalytics {
+  videoId: string;
+  videoDuration: number | string;
+  totalViews: number;
+  totalWatchHours: number;
+  averageViewsPerUser: number;
+  averageWatchHoursPerUser: number;
+}
+
+export type UserAnalyticsProps = {
+  users: VideoUserAnalytics[] | null;
+  overallAnalytics?: VideoOverallAnalytics | null;
+
+  search: string;
+  onSearchChange: (value: string) => void;
+
+  currentPage: number;
+  limit: number;
+  totalDocuments: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+
+  sortBy: 'name' | 'views' | 'watchHours';
+  sortOrder: 'asc' | 'desc';
+  onSortChange: (field: 'name' | 'views' | 'watchHours') => void;
+
+  isLoading?: boolean;
+};
+
+export function UserAnalytics({
+  users,
+  overallAnalytics,
+  search,
+  onSearchChange,
+  currentPage,
+  limit,
+  totalDocuments,
+  totalPages,
+  onPageChange,
+  sortBy,
+  sortOrder,
+  onSortChange,
+  isLoading,
+}: UserAnalyticsProps) {
+  const safeUsers = users ?? [];
+
+  const totalViewsOnPage = useMemo(
+    () => safeUsers.reduce((sum, u) => sum + (u.viewCount || 0), 0),
+    [safeUsers]
+  );
+
+  const totalWatchHoursOnPage = useMemo(
+    () => safeUsers.reduce((sum, u) => sum + (u.watchHours || 0), 0),
+    [safeUsers]
+  );
+
+  const avgViewsPerUserOnPage = safeUsers.length ? totalViewsOnPage / safeUsers.length : 0;
+
+
+
+  return (
+    <div className="w-full space-y-4 p-4">
+      {/* Header */}
+      <div className="space-y-1">
+        <h1 className="text-xl font-semibold tracking-tight">User Analytics</h1>
+        <p className="text-sm text-muted-foreground">Per-student engagement for this video.</p>
+      </div>
+
+      {/* Overall Analytics (compact) */}
+      {overallAnalytics && (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
+          {/* Duration */}
+          <Card className="bg-blue-50 border-blue-100">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-medium text-blue-900">
+                Duration
+              </CardTitle>
+              <Clock className="h-4 w-4 text-blue-700" />
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-lg font-semibold text-blue-950">
+                {overallAnalytics.videoDuration}s
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Total Views */}
+          <Card className="bg-green-50 border-green-100">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-medium text-green-900">
+                Total Views
+              </CardTitle>
+              <Eye className="h-4 w-4 text-green-700" />
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-lg font-semibold text-green-950">
+                {overallAnalytics.totalViews.toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Watch Hours */}
+          <Card className="bg-purple-50 border-purple-100">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-medium text-purple-900">
+                Watch Hours
+              </CardTitle>
+              <PlayCircle className="h-4 w-4 text-purple-700" />
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-lg font-semibold text-purple-950">
+                {overallAnalytics.totalWatchHours?.toFixed(1)}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Avg Watch / User */}
+          <Card className="bg-orange-50 border-orange-100">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-medium text-orange-900">
+                Avg Watch / User
+              </CardTitle>
+              <Users className="h-4 w-4 text-orange-700" />
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-lg font-semibold text-orange-950">
+                {overallAnalytics.averageWatchHoursPerUser?.toFixed(1)}h
+              </div>
+            </CardContent>
+          </Card>
+
+        </div>
+      )}
+
+      {/* Search + Stats */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="w-full sm:max-w-sm relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+
+            <Input
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search by name or email..."
+              className="h-9 pl-9"
+            />
+          </div>
+
+
+        </div>
+
+
+      </div>
+
+      {/* Table */}
+      <Card className="bg-muted/20">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Users</CardTitle>
+          <CardDescription className="text-xs">
+            Showing{" "}
+            {totalDocuments === 0 ? 0 : (currentPage - 1) * limit + 1}–
+            {Math.min(currentPage * limit, totalDocuments)} of {totalDocuments}
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          <div className="overflow-x-auto min-h-[400px]">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border bg-muted/30">
+                  {[
+                    { key: "name", label: "Student", className: "pl-6 w-[320px]", sortable: true },
+                    { key: "views", label: "Views", className: "w-[120px] text-right", sortable: true },
+                    { key: "watchHours", label: "Watch (hrs)", className: "w-[160px] text-right", sortable: true },
+                    { key: "engagement", label: "Engagement", className: "w-[160px] text-center", sortable: false },
+                  ].map(({ key, label, className, sortable }) => (
+                    <TableHead
+                      key={key}
+                      className={`font-bold text-foreground select-none ${sortable ? 'cursor-pointer' : ''} ${className}`}
+                      onClick={() => sortable && onSortChange(key as 'name' | 'views' | 'watchHours')}
+                    >
+                      <span className="flex items-center gap-1">
+                        {label}
+                        {sortable && sortBy === key && (
+                          sortOrder === 'asc' ? (
+                            <ArrowUp size={16} className="text-foreground" />
+                          ) : (
+                            <ArrowDown size={16} className="text-foreground" />
+                          )
+                        )}
+                      </span>
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {/* Loading state */}
+                {isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="py-16 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                        <span className="text-muted-foreground">
+                          Loading user analytics…
+                        </span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+
+                {/* Empty state */}
+                {!isLoading && safeUsers.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={4}
+                      className="py-10 text-center text-sm text-muted-foreground"
+                    >
+                      No users found for the current search.
+                    </TableCell>
+                  </TableRow>
+                )}
+
+                {/* Data rows */}
+                {!isLoading &&
+                  safeUsers.map((user) => {
+                    const engagement =
+                      user.viewCount > avgViewsPerUserOnPage
+                        ? "high"
+                        : user.viewCount > avgViewsPerUserOnPage * 0.5
+                          ? "medium"
+                          : "low";
+
+                    const badgeClass = {
+                      high: "bg-primary/15 text-primary",
+                      medium: "bg-muted text-foreground",
+                      low: "bg-muted/60 text-muted-foreground",
+                    }[engagement];
+
+                    return (
+                      <TableRow
+                        key={user.userId}
+                        className="border-b border-border/60 hover:bg-muted/30"
+                      >
+                        {/* Name + Email (common pattern) */}
+                        <TableCell className="pl-6">
+                          <div className="flex items-center gap-3">
+                            {/* Avatar */}
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                              {user.firstName?.charAt(0)?.toUpperCase()}
+                            </div>
+
+                            {/* Name + Email */}
+                            <div className="flex flex-col">
+                              <span className="font-medium text-foreground leading-tight">
+                                {user.firstName}
+                              </span>
+                              <span className="text-xs text-muted-foreground leading-tight">
+                                {user.email}
+                              </span>
+                            </div>
+                          </div>
+                        </TableCell>
+
+
+                        <TableCell className="w-[120px] text-left font-medium tabular-nums">
+                          {user.viewCount.toLocaleString()}
+                        </TableCell>
+
+                        <TableCell className="w-[120px] text-left font-medium tabular-nums">
+                          {user.totalWatchTime}
+                        </TableCell>
+
+                        <TableCell className="text-left">
+                          <Badge className={badgeClass}>
+                            {engagement.charAt(0).toUpperCase() + engagement.slice(1)}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+              </TableBody>
+            </Table>
+          </div>
+
+
+
+          {/* Pagination (buttons should use bg-primary inside your Pagination component) */}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalDocuments={totalDocuments}
+            onPageChange={onPageChange}
+            className="mt-4"
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 
 

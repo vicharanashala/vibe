@@ -33,6 +33,7 @@ import {
   EditCourseBody,
   CourseVersionQueryWithTime,
   ActiveUsersResponseDto,
+  PublicCoursesQuery,
 } from '#courses/classes/validators/CourseValidators.js';
 import { CourseActions, getCourseAbility } from '../abilities/courseAbilities.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
@@ -84,6 +85,34 @@ export class CourseController {
     const activeUsers = await this.courseService.getActiveUsersByCourse(courseId, courseVersionId, startTimeStamp, endTimeStamp);
 
     return activeUsers;
+  }
+
+  @OpenAPI({
+    summary: 'Get public courses',
+    description: 'Fetches the list of public courses available for enrollment.',
+  })
+  @Authorized()
+  @Get('/public', { transformResponse: true })
+  @HttpCode(200)
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async getPublicCourses(
+    @QueryParams() query: PublicCoursesQuery,
+    @Ability(getCourseAbility) { user },
+  ) {
+    const { page = 1, limit = 10, search = '' } = query;
+    const userId = user._id.toString();
+
+    const publicCourses = await this.courseService.getPublicCourses(
+      userId,
+      page,
+      limit,
+      search
+    );
+
+    return publicCourses;
   }
 
 
