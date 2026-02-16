@@ -565,7 +565,7 @@ export class CourseRegistrationService extends BaseService {
 
   async getSettings(
     versionId: string,
-  ): Promise<{ jsonSchema: any; uiSchema: any; isActive: boolean }> {
+  ): Promise<{ jsonSchema: any; uiSchema: any; isActive: boolean, registrationsAutoApproved?: boolean, autoapproval_emails?: string[] }> {
     return this._withTransaction(async session => {
       try {
         const version = await this.courseRepo.readVersion(versionId, session);
@@ -589,7 +589,7 @@ export class CourseRegistrationService extends BaseService {
           );
         }
 
-        let { jsonSchema, uiSchema, isActive } =
+        let { jsonSchema, uiSchema, isActive, registrationsAutoApproved, autoapproval_emails } =
           courseSettings.settings?.registration || {};
 
         //   // const defaultUiSchema = {
@@ -610,7 +610,14 @@ export class CourseRegistrationService extends BaseService {
         //   //   ],
         //   // };
 
-        return { jsonSchema, uiSchema, isActive: isActive ?? true };
+        // return { jsonSchema, uiSchema, isActive: isActive ?? true };
+         return { 
+          jsonSchema, 
+          uiSchema, 
+          isActive: isActive ?? true, 
+          registrationsAutoApproved, 
+          autoapproval_emails 
+        };
 
         // return registrationSettings;
       } catch (error) {
@@ -621,7 +628,7 @@ export class CourseRegistrationService extends BaseService {
 
   async updateSettings(
     versionId: string,
-    schemas: { jsonSchema: any; uiSchema: any; isActive?: boolean },
+    schemas: { jsonSchema: any; uiSchema: any; isActive?: boolean; registrationsAutoApproved?: boolean; autoapproval_emails?: string[] },
   ) {
     return this._withTransaction(async session => {
       try {
@@ -640,6 +647,8 @@ export class CourseRegistrationService extends BaseService {
             jsonSchema: schemas.jsonSchema,
             uiSchema: schemas.uiSchema,
             isActive: schemas.isActive ?? true,
+            registrationsAutoApproved: schemas.registrationsAutoApproved,
+            autoapproval_emails: schemas.autoapproval_emails,
           },
           session,
         );

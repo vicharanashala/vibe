@@ -214,7 +214,6 @@ const feedbackRepo = new FeedbackRepository(database);
                             );
                         });
 
-
                         const newItemGroup = await itemRepo.createItemsGroup({
                             sectionId: newSectionId,
                             items: oldItemGroup.items.map(ref => {
