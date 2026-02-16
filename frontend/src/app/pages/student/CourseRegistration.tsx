@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import Form from "@rjsf/shadcn";
 import { useGetCourseRegistration, useGetDynamicFields, useSubmitCourseRegistration } from '@/hooks/hooks';
 import { useParams } from '@tanstack/react-router';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ReCAPTCHA from "react-google-recaptcha";
 import { toast } from 'sonner';
 import validator from "@rjsf/validator-ajv8";
@@ -18,7 +18,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { BookOpen, CalendarDays, ChevronDown, ChevronUp, GraduationCap, ListChecks, Loader2, NotebookText, UserPlus, Users } from 'lucide-react';
 import { AlignedFieldTemplate } from './components/AlignedFieldTemplate';
 import { CustomSubmitButton } from './components/CustomSubmitButton';
-
+import { FocusableSelectWidget } from './components/FocusableSelectWidget';
+import { useAuthStore } from '@/store/auth-store';
 
 interface IModule {
   id: string;
@@ -88,16 +89,63 @@ export interface RJSFSchema {
   required: string[];
 }
 
+export const normalizeSchemaOptions = (schema: any): any => {
+  if (!schema || typeof schema !== "object") return schema;
+
+  const clone = { ...schema };
+
+  const toTitle = (str: string) =>
+    str
+      .replace(/[_-]/g, " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase());
+
+  if (clone.properties) {
+    clone.properties = Object.fromEntries(
+      Object.entries(clone.properties).map(([key, value]: any) => {
+        let prop = { ...value };
+
+        // enum + oneOf → remove enum
+        if (prop.oneOf && prop.enum) {
+          delete prop.enum;
+        }
+
+        // enum only → convert to oneOf
+        if (!prop.oneOf && prop.enum) {
+          prop.oneOf = prop.enum.map((val: string) => ({
+            const: val,
+            title: toTitle(val),
+          }));
+          delete prop.enum;
+        }
+
+        //not adding empty option
+        if (prop.oneOf) {
+          prop["ui:placeholder"] = "Select an option";
+          prop["ui:emptyValue"] = undefined;
+        }
+
+        return [key, normalizeSchemaOptions(prop)];
+      })
+    );
+  }
+
+  return clone;
+};
+
+
 
 const CourseRegistration: React.FC = () => {
   const { versionId } = useParams({ from: studentCourseInviteRegistration.id });
+   const { user } = useAuthStore();
 
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isRegistered, setIsRegistered] = useState(false);
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
+  const [submitErrors, setSubmitErrors] = useState<string[]>([]);
 
-  const isRecaptchaEnabled:boolean= import.meta.env.VITE_IS_RECAPTCHA_ENABLED==="true";
+  const isRecaptchaEnabled: boolean = import.meta.env.VITE_IS_RECAPTCHA_ENABLED === "true";
   // const [showModules, setShowModules] = useState(false);
 
   const { data: versionData, isLoading: isLoadingVersionData } = useGetCourseRegistration(versionId);
@@ -118,7 +166,7 @@ const CourseRegistration: React.FC = () => {
   const onSubmit = async (data: IChangeEvent<any>) => {
     try {
 
-      let body: any = { ...data.formData, recaptchaToken:isRecaptchaEnabled?recaptchaToken:"NO_CAPTCHA" };
+      let body: any = { ...data.formData, recaptchaToken: isRecaptchaEnabled ? recaptchaToken : "NO_CAPTCHA" };
 
       const hasFiles = Object.values(data.formData).some(v => v instanceof File);
       if (hasFiles) {
@@ -133,8 +181,8 @@ const CourseRegistration: React.FC = () => {
         if (recaptchaToken && isRecaptchaEnabled) {
           formDataObj.append('recaptchaToken', recaptchaToken);
         }
-        else{
-          formDataObj.append('recaptchaToken',"NO_CAPTCHA")
+        else {
+          formDataObj.append('recaptchaToken', "NO_CAPTCHA")
         }
         body = formDataObj;
       }
@@ -148,25 +196,90 @@ const CourseRegistration: React.FC = () => {
         body,
       });
 
-      toast.success('You have been registered for this course version.');
+
       setIsRegistering(false);
-      setFormData({});
+      setIsRegistered(true)
+      setFormData(buildEmptyFormData(jsonSchema!));
+
     } catch (err: any) {
       toast.error(err?.message || 'Something went wrong, please try again.');
     }
   };
 
-  const resetForm = () => {
-    setFormData({});
-    setRecaptchaToken(null);
-    recaptchaRef.current?.reset();
+ const resetForm = () => {
+  if (jsonSchema) {
+    const empty = buildEmptyFormData(jsonSchema);
+
+    setFormData({
+      ...empty,
+      Name: user?.name,
+      Email: user?.email,
+    });
+  }
+
+  setRecaptchaToken(null);
+  recaptchaRef.current?.reset();
+};
+
+  const buildEmptyFormData = (schema: RJSFSchema) => {
+    if (!schema?.properties) return {};
+
+    const obj: Record<string, any> = {};
+
+    Object.entries(schema.properties).forEach(([key, prop]: any) => {
+      if (prop.type === "boolean") {
+        obj[key] = false;            // checkbox unchecked
+      } else {
+        obj[key] = undefined;        // prevents enum auto-select
+      }
+    });
+
+    return obj;
   };
+
+
+
+ useEffect(() => {
+  if (!jsonSchema?.properties||!user) return;
+
+  const emptyData = buildEmptyFormData(jsonSchema);
+
+  setFormData(prev => ({
+    ...emptyData,
+    Name: user?.name ?? "emptyData.Name",
+    Email: user?.email ?? "emptyData.Email",
+  }));
+}, [jsonSchema, user]);
+
+
+
+const computedUiSchema = React.useMemo(() => {
+  if (!uiSchema) return uiSchema;
+
+  return {
+    ...uiSchema,
+    Name: {
+      ...uiSchema?.Name,
+      "ui:disabled": true,
+    },
+    Email: {
+      ...uiSchema?.Email,
+      "ui:disabled": true,
+    },
+  };
+}, [uiSchema]);
+
+
+  useEffect(() => { setIsRegistered(false) }, [])
+
+
+
 
 
 
   if (isLoadingVersionData) {
     return (
-      <div className="min-h-screen flex  justify-center px-6">
+      <div className="min-h-screen flex  justify-center px-6  my-8">
         <div className="w-full max-w-3xl space-y-6">
           <Skeleton className="h-6 w-1/4 bg-gray-200 dark:bg-gray-600" />
           <Skeleton className="h-18 w-full bg-gray-200 dark:bg-gray-600" />
@@ -184,9 +297,9 @@ const CourseRegistration: React.FC = () => {
 
 
   return (
-    <main className="mx-auto max-w-5xl space-y-8">
+    <main className="mx-auto max-w-5xl space-y-8 my-8">
       <header className="space-y-1">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 mb-2">
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-lg blur-sm"></div>
             <div className="relative bg-gradient-to-r from-primary to-accent p-2 rounded-lg">
@@ -206,7 +319,7 @@ const CourseRegistration: React.FC = () => {
       <section className="w-full">
         <section className="space-y-4">
           {/* Registration Section */}
-          {!isRegistering ? (
+          {!isRegistering && !isRegistered ? (
             <Card className="w-full border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
               <CardHeader className="space-y-2">
                 <div className="flex items-center gap-3">
@@ -290,11 +403,11 @@ const CourseRegistration: React.FC = () => {
                 </section>
               </CardContent>
             </Card>
-          ) : (
+          ) : !isRegistered ? (
             <Card className="w-full border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-xl font-bold">
-                 Course Registration Form
+                  Course Registration Form
                 </CardTitle>
                 <Button variant="ghost" size="sm" onClick={() => setIsRegistering(false)}>
                   <ChevronUp className="h-4 w-4 mr-1" />
@@ -313,29 +426,129 @@ const CourseRegistration: React.FC = () => {
                 ) : (
                   <div className="space-y-4 max-w-2xl mx-auto py-4">
                     <Form
-                      schema={jsonSchema}
+                     
+                      schema={normalizeSchemaOptions(jsonSchema)}
                       validator={validator}
-                      uiSchema={uiSchema}
+                     uiSchema={computedUiSchema}
+                      formContext={{ formData }}
+                      showErrorList={false}
                       templates={{
                         FieldTemplate: AlignedFieldTemplate,
                         ButtonTemplates: {
                           SubmitButton: CustomSubmitButton,
-                        }, }}
+                        },
+                      }}
+                      onError={(errors) => {
+                        setSubmitErrors(errors.map(e => e.stack));
+                      }}
+                      widgets={{
+                        SelectWidget: FocusableSelectWidget,
+                      }}
                       onSubmit={onSubmit}
                       formData={formData}
                       onChange={(e) => setFormData(e.formData)}
-                      disabled={isSubmitting}
+                    // disabled={isSubmitting}
                     >
                       <div className="flex flex-col items-center justify-center mt-6 mb-6 gap-4">
-                        {isRecaptchaEnabled?
+                        {isRecaptchaEnabled && (
                           <ReCAPTCHA
                             ref={recaptchaRef}
                             sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
                             theme="dark"
                             onChange={(token) => setRecaptchaToken(token)}
-                          />:
-                          <></>}
-                        <Button type="submit" disabled={isSubmitting || (!recaptchaToken && isRecaptchaEnabled)}>
+                          />
+                        )}
+
+                        {versionId === "6981df886e100cfe04f9c4ae" && (
+                          <a
+                            href="https://chat.whatsapp.com/C9rNZGk2QM66A1SFsA0cP4"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="
+      w-full
+      flex items-center justify-between
+      rounded-lg border border-green-200 dark:border-green-800
+      bg-white/70 dark:bg-green-950/20
+      px-4 py-3
+      text-green-900 dark:text-green-100
+      hover:bg-green-50/70 dark:hover:bg-green-950/35
+      transition
+    "
+                          >
+                            <span className="flex items-center gap-3">
+                              {/* WhatsApp icon (fixed size) */}
+                              <span className="flex items-center justify-center w-9 h-9 rounded-full bg-green-500">
+                                <svg
+                                  className="w-5 h-5 text-white"
+                                  fill="currentColor"
+                                  viewBox="0 0 24 24"
+                                  aria-hidden="true"
+                                >
+                                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+                                </svg>
+                              </span>
+
+                              {/* Text */}
+                              <span className="flex flex-col leading-tight">
+                                <span className="text-base sm:text-lg font-semibold">
+                                  Join our WhatsApp channel
+                                </span>
+                                <span className="text-xs sm:text-sm text-green-700 dark:text-green-300">
+                                  Join to receive updates and  support                                </span>
+                              </span>
+                            </span>
+
+                            {/* Arrow */}
+                            <svg
+                              className="w-5 h-5 text-green-700 dark:text-green-300"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              aria-hidden="true"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M14 4h6m0 0v6m0-6L10 14"
+                              />
+                            </svg>
+                          </a>
+                        )}
+
+                        {submitErrors.length > 0 && (
+                          <div className="w-full rounded-md border border-red-200 bg-red-50 p-3">
+                            <p className="text-sm font-medium text-red-600 mb-1">
+                              Please fix the following:
+                            </p>
+                            <ul className="list-disc list-inside text-sm text-red-600 space-y-1">
+                              {submitErrors.map((err, i) => (
+                                <li key={i}>{err}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {formFieldData && (formFieldData as any).isActive === false && (
+                          <div className="w-full rounded-md border border-amber-200 bg-amber-50 p-4 mb-4">
+                            <div className="flex gap-3">
+                              <div className="text-amber-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                              <div>
+                                <h3 className="text-sm font-medium text-amber-800">Registration Closed</h3>
+                                <p className="mt-1 text-sm text-amber-700">
+                                  This course is not currently accepting new registrations.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        <Button
+                          type="submit"
+                          disabled={isSubmitting || (!recaptchaToken && isRecaptchaEnabled) || (formFieldData as any)?.isActive === false}
+                        >
                           {isSubmitting ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -347,11 +560,51 @@ const CourseRegistration: React.FC = () => {
                         </Button>
                       </div>
                     </Form>
+
+                    {/* 🔥 Hardcoded CTA link AFTER form */}
+
                   </div>
+
                 )}
               </CardContent>
             </Card>
-          )}
+          ) : (
+            <>
+
+              <Card className="w-full border border-green-300 dark:border-green-700 rounded-xl shadow-sm animate-in fade-in zoom-in-95 duration-500">
+                <CardHeader className="text-center space-y-3">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
+                    <GraduationCap className="h-7 w-7 text-green-600 dark:text-green-400" />
+                  </div>
+
+                  <CardTitle className="text-2xl font-bold text-green-700 dark:text-green-400">
+                    Registration Successful 🎉
+                  </CardTitle>
+
+                  <CardDescription className="text-base">
+                    {versionId === "6981df886e100cfe04f9c4ae" ?"You’ve been successfully registered for this course.":"Registration submitted successfully!"}
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent className="space-y-6 text-center">
+
+
+                  <div className="flex justify-center pt-2">
+                    {versionId === "6981df886e100cfe04f9c4ae" ? <Button
+                      asChild
+                      className="flex items-center gap-2 px-6 py-5 text-base sm:text-lg"
+                    >
+                      <a href={`/student`}>
+                        <BookOpen className="w-5 h-5" />
+                        Go to Course
+                      </a>
+                    </Button> : <p className="text-sm text-muted-foreground">Your registration has been received and is pending approval.
+                      Please wait for further updates.</p>}
+                  </div>
+                </CardContent>
+
+              </Card>
+            </>)}
         </section>
       </section>
 
@@ -366,67 +619,8 @@ const CourseRegistration: React.FC = () => {
               Lessons included in this version
             </p>
           </div>
-          {/* <Button 
-          variant="outline" 
-          onClick={() => setShowModules(s => !s)}
-          className="flex items-center gap-2"
-        >
-          {showModules ? (
-            <>
-              <ChevronUp className="w-4 h-4" />
-              Hide lessons
-            </>
-          ) : (
-            <>
-              <ChevronDown className="w-4 h-4" />
-              View lessons
-            </>
-          )}
-        </Button> */}
+
         </div>
-        {/* {showModules && (
-          <>
-            {(() => {
-              const allModules = versionData?.modules ?? [];
-              const preview = allModules.slice(0, 6);
-              return (
-                <ScrollArea className="min-h-48 max-h-96 w-full pr-2">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {preview.map((m, idx) => (
-                      <Card key={(m as any)._id ?? (m as any).title ?? idx}>
-                        <CardHeader className="pb-2">
-                          <div className="flex items-start gap-3">
-                            <span
-                              className="inline-flex h-7 w-7 items-center justify-center rounded-full border text-xs font-medium text-muted-foreground"
-                              aria-hidden="true"
-                            >
-                              {idx + 1}
-                            </span>
-                            <div>
-                              <CardTitle className="text-lg">
-                                {(m as any).title ?? (m as any).name}
-                              </CardTitle>
-                              {(m as any).description ? (
-                                <CardDescription className="text-pretty">
-                                  {(m as any).description}
-                                </CardDescription>
-                              ) : null}
-                            </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <Badge variant="outline">
-                            {((m as any).itemsCount ?? 0).toString()} items
-                          </Badge>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </ScrollArea>
-              );
-            })()}
-          </>
-        )} */}
 
         {versionData !== null ? (
           <>
@@ -573,3 +767,4 @@ const CourseRegistration: React.FC = () => {
 };
 
 export default CourseRegistration;
+

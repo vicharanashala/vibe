@@ -6,6 +6,7 @@ import {
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
   SidebarInset, SidebarProvider, SidebarTrigger, SidebarFooter
 } from "@/components/ui/sidebar";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup, SidebarResizablePanel } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -40,7 +41,7 @@ import {
   X,
   CircleCheckIcon,
   Headphones,
-  ExternalLink
+  ExternalLink,Menu
 } from "lucide-react";
 import FloatingVideo, { FloatingVideoPlaceholder } from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
@@ -53,6 +54,8 @@ import ItemContainer from "@/components/Item-container";
 import logo from "../../../../public/img/vibe_logo_img.ico"
 import { registerStream, unRegisterStream } from "@/lib/MediaRegistry";
 import { useModuleProgress } from "@/hooks/hooks";
+import { isMobile } from "react-device-detect";
+import MobileFallbackScreen from "@/components/MobileFallbackScreen";
 
 // Helper function to get icon for item type
 const getItemIcon = (type: string) => {
@@ -105,6 +108,8 @@ export default function CoursePage() {
   const [closing, setClosing] = useState(false);
   const [allProctorsDisabled, setAllProctorsDisabled] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
+
+  
 
   // Check for microphone and camera access, otherwise redirect to dashboard
   useEffect(() => {
@@ -178,6 +183,8 @@ export default function CoursePage() {
   const [anomalies, setAnomalies] = useState<string[]>([]);
   const [isQuizSkipped, setIsQuizSkipped] = useState(false);
   const [readyToDetect, setReadyToDetect] = useState(false);
+   // State for sidebar visibility
+  const [isDesktopSidebarVisible, setIsDesktopSidebarVisible] = useState(true);
 
 
   // State to track when we're waiting for next section items to load
@@ -278,9 +285,7 @@ export default function CoursePage() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
-      if (e.key === "Tab") {
-        e.preventDefault();
-      }
+      if (e.key === "Tab") return;
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -1084,6 +1089,15 @@ export default function CoursePage() {
           });
           return;
         }
+        // set the current item as completed
+        setSectionItems(prev => ({
+          ...prev,
+          [selectedSectionId!]: prev[selectedSectionId!].map(item =>
+            item._id === selectedItemId
+              ? { ...item, isCompleted: true }
+              : item
+          )
+        }));
 
         // 3️⃣ If next section requires loading
         if ((nextItem as any).needsLoading) {
@@ -1384,6 +1398,9 @@ export default function CoursePage() {
     );
   }
 
+  if(isMobile && !allProctorsDisabled)
+    return <MobileFallbackScreen/>
+
   const modules = (courseVersionData as any)?.modules || [];
 
   return (
@@ -1415,9 +1432,18 @@ export default function CoursePage() {
       </Dialog>
 
       <SidebarProvider defaultOpen={true}>
-        <div className="flex h-screen w-full">
+         <ResizablePanelGroup direction="horizontal" className="h-screen w-full">
           {/* Enhanced Course Navigation Sidebar */}
-          <Sidebar variant="inset" className="border-r border-border/40 bg-sidebar/50 backdrop-blur-sm">
+          {/* {isDesktopSidebarVisible && ( */}
+            <SidebarResizablePanel
+              // defaultSize={20}
+              // minSize={useSidebar().state=="collapsed"?0:5}
+              // maxSize={useSidebar().state=="collapsed"?0:40}
+              // className="hidden md:block "
+            >
+              <div className="h-full overflow-hidden border-r border-border/40 bg-sidebar/50">
+          {/* <Sidebar variant="inset" className="border-r border-border/40 bg-sidebar/50 backdrop-blur-sm"> */}
+          <Sidebar variant="inset" collapsible="none" className="h-screen w-full">
             <SidebarHeader className="border-b border-border/40 bg-gradient-to-b from-sidebar/80 to-sidebar/60">
               {/* Vibe Logo and Brand */}
               <div className="flex items-center gap-3">
@@ -1551,19 +1577,19 @@ export default function CoursePage() {
                                               <SidebarMenuSubButton
                                                 onClick={() => handleSelectItem(moduleId, sectionId, itemId)}
                                                 isActive={isCurrentItem}
-                                                className="group relative h-12 px-3 w-full  rounded-md transition-all duration-200 hover:bg-accent/10 data-[state=active]:bg-primary/10 data-[state=active]:text-primary justify-start"
+                                                className="group relative h-8 px-3 w-full rounded-md transition-all duration-200 hover:bg-accent/10 dark:data-[state=active]:bg-primary/10 data-[state=active]:bg-primary/10 data-[state=active]:text-primary justify-start"
                                                 // Assign ref only to the selected item for autoscroll
                                                 ref={isCurrentItem ? selectedItemRef : undefined}
                                               >
                                                 <div className="flex items-center gap-2 w-full min-w-0">
                                                   <div className={`p-0.5 rounded transition-colors flex-shrink-0 ${isCurrentItem
-                                                    ? "bg-primary/90 text-white/80 dark:bg-primary/15 dark:text-primary"
+                                                    ? "dark:bg-primary/15 dark:text-primary bg-primary/50 text-white/80"
                                                     : "bg-accent/15 text-accent-foreground group-hover:bg-accent/25"
                                                     }`}>
                                                     {getItemIcon(item.type)}
                                                   </div>
                                                   <div className="flex-1 text-left min-w-0">
-                                                    <div className="text-xs font-semibold truncate w-full " title={item?.name || 'Loading...'}>
+                                                    <div className="text-xs font-medium truncate w-full " title={currentItem?.name || 'Loading...'}>
                                                       {(() => {
                                                         // Show loading state if this is the selected item and it's loading
                                                         if (selectedItemId === itemId && itemLoading) {
@@ -1723,11 +1749,25 @@ export default function CoursePage() {
               </SidebarMenu>
             </SidebarFooter>
           </Sidebar>
-
+          </div>
+          </SidebarResizablePanel>
+        {/* // )} */}
+{/* {isDesktopSidebarVisible &&  */}
+<ResizableHandle className="hidden md:flex h-screen" />
+{/* } */}
+ <ResizablePanel defaultSize={80} className="min-w-0 min-h-screen">
           {/* Main Content Area */}
-          <SidebarInset className="flex-1 bg-gradient-to-br from-background via-background to-background/95 peer-data-[variant=inset]:!m-0">
+          <SidebarInset className="flex-1  bg-gradient-to-br from-background via-background to-background/95 peer-data-[variant=inset]:!m-0">
             <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border/20 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 px-4">
-              <SidebarTrigger className="-ml-1 h-8 w-8 rounded-md hover:bg-accent/10 transition-colors" />
+              {/* <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsDesktopSidebarVisible((p) => !p)}
+                  className="hidden md:inline-flex"
+                > */}
+                  {/* <Menu className="h-5 w-5" /> */}
+                  <SidebarTrigger />
+                {/* </Button> */}
               <Separator orientation="vertical" className="mr-2 h-4" />
               <Button
                 variant="ghost"
@@ -1752,7 +1792,7 @@ export default function CoursePage() {
               <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.01] via-transparent to-secondary/[0.01] pointer-events-none" />
 
               {/* Notification Stack */}
-              <div className="fixed top-6 right-6 z-50 flex flex-col gap-2 w-90">
+              <div className="fixed top-6 right-6 z-50 flex flex-col gap-2 w-90 ">
                 {/* ✅ Item Access Error Notification */}
                 {isItemForbidden && (
                   <Card className="border border-red-400/40 bg-red-600/95 text-red-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
@@ -1885,7 +1925,7 @@ export default function CoursePage() {
               />
               {currentItem ? (
                 <div className="relative z-10 h-full flex flex-col mb-2  sm:mb-1">
-                  <div className="flex justify-end mb-1 me-10 gap-2">
+                  <div className="flex justify-end mb-1 me-10 gap-2 ">
                     {!isFlagSubmitted &&
                       <Button
                         size="sm"
@@ -1919,6 +1959,7 @@ export default function CoursePage() {
                       isProgressUpdating={isNavigatingToNext}
                     />
                   ) : (
+                    
                     <ItemContainer
                       ref={itemContainerRef}
                       item={currentItem}
@@ -1972,7 +2013,8 @@ export default function CoursePage() {
               )}
             </div>
           </SidebarInset>
-        </div>
+          </ResizablePanel>
+       </ResizablePanelGroup>
       </SidebarProvider>
     </>
   );

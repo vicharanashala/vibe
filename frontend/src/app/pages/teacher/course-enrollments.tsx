@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useNavigate } from "@tanstack/react-router"
-import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown } from 'lucide-react'
+import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare } from 'lucide-react'
 import { Pagination } from "@/components/ui/Pagination"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,6 +17,8 @@ import { QuizSubmissionDisplay } from "./QuizSubmissionDisplay"
 import { WatchTimeDisplay } from "./WatchTimeDisplay"
 import { useStudentCurrentProgressPath } from "@/hooks/hooks"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Checkbox } from "@/components/ui/checkbox"
+import { MoreVertical, Trash2 } from "lucide-react"
 
 // Import hooks - including the new quiz hooks
 import {
@@ -28,7 +30,8 @@ import {
   useUnenrollUser,
   useCourseEnrollmentsStats,
   useCourseQuizScores,
-  useRecalculateProgress
+  useRecalculateProgress,
+  useBulkUnenrollUsers,
 } from "@/hooks/hooks"
 import { toast } from "sonner"
 import { useCourseStore } from "@/store/course-store"
@@ -178,6 +181,99 @@ export default function CourseEnrollments() {
   // Sorting state
   const [sortBy, setSortBy] = useState<'name' | 'enrollmentDate' | 'progress' | 'unenrolledAt'>('name')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+
+  // Bulk Selection State
+  const [isSelectionMode, setIsSelectionMode] = useState(false)
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set())
+  const [isBulkUnenrollDialogOpen, setIsBulkUnenrollDialogOpen] = useState(false)
+
+  const toggleSelectionMode = () => {
+    setIsSelectionMode((prev) => {
+      if (prev) {
+        // Clearing selection when turning off mode
+        setSelectedUsers(new Set())
+      }
+      return !prev
+    })
+  }
+
+  const handleSelectAll = (checked: boolean) => {
+    const visibleUserIds = studentEnrollments.map((e: any) => e.user?._id || e.user?.id).filter(Boolean)
+
+    if (checked) {
+      // Add all visible students to existing selections
+      setSelectedUsers((prev) => {
+        const newSet = new Set(prev)
+        visibleUserIds.forEach((id: string) => newSet.add(id))
+        return newSet
+      })
+    } else {
+      // Remove all visible students from selections
+      setSelectedUsers((prev) => {
+        const newSet = new Set(prev)
+        visibleUserIds.forEach((id: string) => newSet.delete(id))
+        return newSet
+      })
+    }
+  }
+
+  const handleSelectUser = (userId: string, checked: boolean) => {
+    const newSelected = new Set(selectedUsers)
+    if (checked) {
+      newSelected.add(userId)
+    } else {
+      newSelected.delete(userId)
+    }
+    setSelectedUsers(newSelected)
+  }
+
+  const handleBulkUnenroll = () => {
+    if (selectedUsers.size > 50) {
+      toast.error('Cannot unenroll more than 50 students at once. Please select fewer students.')
+      return
+    }
+    setIsBulkUnenrollDialogOpen(true)
+  }
+
+  const confirmBulkUnenroll = async () => {
+    if (!courseId || !versionId) {
+      toast.error('Course or version information missing')
+      return
+    }
+
+    try {
+      const userIds = Array.from(selectedUsers)
+
+      await bulkUnenrollMutation.mutateAsync({
+        params: {
+          path: {
+            courseId,
+            versionId,
+          },
+        },
+        body: {
+          userIds,
+        },
+      })
+
+      toast.success(`Successfully unenrolled ${selectedUsers.size} students`)
+      setSelectedUsers(new Set())
+      setIsBulkUnenrollDialogOpen(false)
+      setIsSelectionMode(false)
+
+      // Refetch enrollments to update the UI
+      refetchEnrollments()
+    } catch (error: any) {
+      console.error('Bulk unenroll error:', error)
+      console.error('Error details:', {
+        message: error?.message,
+        response: error?.response,
+        data: error?.data,
+        status: error?.status,
+      })
+      toast.error(error?.message || error?.data?.message || 'Failed to unenroll students')
+    }
+  }
 
 
 
@@ -357,6 +453,7 @@ export default function CourseEnrollments() {
   // API Hooks
   const resetProgressMutation = useResetProgress()
   const unenrollMutation = useUnenrollUser()
+  const bulkUnenrollMutation = useBulkUnenrollUsers()
   const recalculateMutation = useRecalculateProgress()
 
   // Pagination state
@@ -811,6 +908,12 @@ export default function CourseEnrollments() {
               handleViewProgress={handleViewProgress}
               handleRemoveStudent={handleRemoveStudent}
               getRoleBadge={getRoleBadge}
+              isSelectionMode={isSelectionMode}
+              selectedUsers={selectedUsers}
+              onSelectUser={handleSelectUser}
+              onSelectAll={handleSelectAll}
+              toggleSelectionMode={toggleSelectionMode}
+              handleBulkUnenroll={handleBulkUnenroll}
             />
           </TabsContent>
 
@@ -1512,6 +1615,58 @@ export default function CourseEnrollments() {
             onPageChange={handlePageChange}
           />
         )}
+
+        {/* Bulk Unenroll Confirmation Dialog */}
+        {isBulkUnenrollDialogOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
+            <div
+              className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+              onClick={() => setIsBulkUnenrollDialogOpen(false)}
+            />
+            <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Bulk Unenroll</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsBulkUnenrollDialogOpen(false)}
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-lg text-card-foreground">
+                  Are you sure you want to unenroll <strong>{selectedUsers.size}</strong> students?
+                </p>
+                <div className="flex gap-4 p-6 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl">
+                  <div><AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" /></div>
+                  <div className="text-sm text-red-800 dark:text-red-200">
+                    <strong>Warning:</strong> This action cannot be undone. Selected students will lose access to the course version and all their progress data.
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsBulkUnenrollDialogOpen(false)}
+                  className="min-w-[100px] cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={confirmBulkUnenroll}
+                  className="min-w-[100px] shadow-lg cursor-pointer"
+                >
+                  Unenroll Selected
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -1695,6 +1850,12 @@ function EnrollmentsTable({
   handleViewProgress,
   handleRemoveStudent,
   getRoleBadge,
+  isSelectionMode,
+  selectedUsers,
+  onSelectUser,
+  onSelectAll,
+  toggleSelectionMode,
+  handleBulkUnenroll,
 }: any) {
   const isInactiveTab = enrollmentTab === "INACTIVE"
 
@@ -1724,6 +1885,41 @@ function EnrollmentsTable({
             <span>{isLoadingQuizScores ? "Exporting..." : "Export Quiz Scores"}</span>
           </Button>
 
+          {/* Select Students Button - Only for Active Students */}
+          {!isInactiveTab && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleSelectionMode}
+              className="flex items-center gap-2"
+            >
+              {isSelectionMode ? (
+                <>
+                  <X className="h-4 w-4" />
+                  <span>Exit Selection</span>
+                </>
+              ) : (
+                <>
+                  <CheckSquare className="h-4 w-4" />
+                  <span>Select Students</span>
+                </>
+              )}
+            </Button>
+          )}
+
+          {/* Bulk Actions Bar */}
+          {isSelectionMode && selectedUsers.size > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleBulkUnenroll}
+              className="flex items-center gap-2 animate-in fade-in zoom-in duration-200"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>Remove ({selectedUsers.size})</span>
+            </Button>
+          )}
+
           <div className="flex items-center space-x-2">
             <span className="text-sm text-muted-foreground">Show</span>
             <select
@@ -1746,6 +1942,21 @@ function EnrollmentsTable({
             <Table>
               <TableHeader>
                 <TableRow className="border-border bg-muted/30">
+                  {/* Select All Checkbox */}
+                  {isSelectionMode && (
+                    <TableHead className="w-[50px] pl-6">
+                      <Checkbox
+                        checked={
+                          studentEnrollments.length > 0 &&
+                          studentEnrollments.every((e: any) =>
+                            selectedUsers.has(e.user?._id || e.user?.id)
+                          )
+                        }
+                        onCheckedChange={onSelectAll}
+                        aria-label="Select all"
+                      />
+                    </TableHead>
+                  )}
                   {(() => {
                     const columns = isInactiveTab
                       ? [
@@ -1817,6 +2028,21 @@ function EnrollmentsTable({
             <Table>
               <TableHeader>
                 <TableRow className="border-border bg-muted/30">
+                  {/* Select All Checkbox */}
+                  {isSelectionMode && (
+                    <TableHead className="w-[50px] pl-6 font-bold text-foreground">
+                      <Checkbox
+                        checked={
+                          studentEnrollments.length > 0 &&
+                          studentEnrollments.every((e: any) =>
+                            selectedUsers.has(e.user?._id || e.user?.id)
+                          )
+                        }
+                        onCheckedChange={onSelectAll}
+                        aria-label="Select all"
+                      />
+                    </TableHead>
+                  )}
                   {(() => {
                     const columns = isInactiveTab
                       ? [
@@ -1889,8 +2115,21 @@ function EnrollmentsTable({
                       className={`border-border hover:bg-muted/20 transition-colors duration-200 group ${isInactiveTab ? "opacity-80" : ""
                         }`}
                     >
+                      {/* Selection Checkbox */}
+                      {isSelectionMode && (
+                        <TableCell className="pl-6 w-[50px]">
+                          <Checkbox
+                            checked={selectedUsers.has(enrollment.user?._id || enrollment.user?.id)}
+                            onCheckedChange={(checked) =>
+                              onSelectUser(enrollment.user?._id || enrollment.user?.id, checked === true)
+                            }
+                            aria-label={`Select ${enrollment.user?.name}`}
+                          />
+                        </TableCell>
+                      )}
+
                       {/* Student */}
-                      <TableCell className="pl-6 py-6">
+                      <TableCell className={isSelectionMode ? "pl-2 py-6" : "pl-6 py-6"}>
                         <div className="flex items-center gap-4">
                           <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-md group-hover:border-primary/40 transition-colors duration-200">
                             <AvatarImage src="/placeholder.svg" alt={enrollment?.user?.email || ""} />

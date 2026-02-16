@@ -48,18 +48,23 @@ export const startCourseCloneProcessing = (
         jobs[jobId] = job;
 
         const cpuCount = os.cpus().length;
-        const MAX_WORKERS = Math.min(8, Math.max(2, Math.floor(cpuCount / 2)));
-        console.log("Mx workers", MAX_WORKERS)
+        const MAX_WORKERS = Math.min(4, Math.max(1, Math.floor(cpuCount / 2)));
+        console.log("Max workers", MAX_WORKERS)
         const CHUNK_SIZE = Math.ceil(modules.length / MAX_WORKERS);
         const chunks = chunkArray(modules, CHUNK_SIZE);
 
         const workerFile = path.join(__dirname, 'clone-course.worker.js');
 
-        job.logs.push(`Using ${MAX_WORKERS} workers (chunk ~${CHUNK_SIZE})`);
+        job.logs.push(`Using ${chunks.length} workers (chunk ~${CHUNK_SIZE})`);
 
         let completedWorkers = 0;
         let failedWorkers = 0;
-        const allClonedModules: Module[] = [];
+        const allClonedModules: (Module | null)[] = new Array(modules.length).fill(null);
+        const moduleIndexMap = new Map<string, number>();
+
+        modules.forEach((module, index) => {
+            moduleIndexMap.set(module.moduleId.toString(), index);
+        });
 
         chunks.forEach((chunk, index) => {
             let worker: Worker;
@@ -88,7 +93,12 @@ export const startCourseCloneProcessing = (
 
             worker.on('message', msg => {
                 if (msg?.clonedModules) {
-                    allClonedModules.push(...msg.clonedModules);
+                    msg.clonedModules.forEach((clonedModule: Module) => {
+                        const originalIndex = moduleIndexMap.get(clonedModule.moduleId.toString());
+                        if (originalIndex !== undefined) {
+                            allClonedModules[originalIndex] = clonedModule;
+                        }
+                    });
                     job.processed += msg.clonedModules.length;
                 }
             });
@@ -130,7 +140,8 @@ export const startCourseCloneProcessing = (
                 console.log(summary);
 
                 if (failedWorkers === 0) {
-                    resolve(allClonedModules);
+                    const validModules = allClonedModules.filter((m): m is Module => m !== null);
+                    resolve(validModules);
                 } else {
                     reject(new Error(`Clone job failed: ${failedWorkers} workers failed`));
                 }

@@ -1,6 +1,6 @@
-import { ObjectId } from 'mongodb';
-import { ProctoringComponent } from '../database/index.js';
-import { Type } from 'class-transformer';
+import {ObjectId} from 'mongodb';
+import {ProctoringComponent} from '../database/index.js';
+import {Type} from 'class-transformer';
 import {
   IsOptional,
   IsInt,
@@ -10,7 +10,7 @@ import {
   isString,
   IsEnum,
 } from 'class-validator';
-import { Priority } from './quiz.js';
+import {Priority} from './quiz.js';
 
 export interface IUser {
   _id?: string | ObjectId | null;
@@ -411,9 +411,9 @@ export interface IProgress {
 }
 
 export interface ICurrentProgressPath {
-  module: { id: string; name: string } | null;
-  section: { id: string; name: string } | null;
-  item: { id: string; name: string; type: string } | null;
+  module: {id: string; name: string} | null;
+  section: {id: string; name: string} | null;
+  item: {id: string; name: string; type: string} | null;
   message?: string;
 }
 
@@ -425,6 +425,30 @@ export interface IWatchTime {
   itemId: string | ObjectId;
   startTime: Date;
   endTime?: Date;
+}
+
+export interface IUserActivityEvent {
+  _id?: string | ObjectId | null;
+  userId: string | ObjectId;
+  courseId: string | ObjectId;
+  courseVersionId: string | ObjectId;
+  videoId: ObjectId; // itemId from the system, stored as ObjectId
+  rewinds: number;
+  fastForwards: number;
+  rewindData: Array<{
+    from: string; // HH:MM:SS format
+    to: string;   // HH:MM:SS format
+    createdAt: Date;
+  }>;
+  fastForwardData: Array<{
+    from: string; // HH:MM:SS format
+    to: string;   // HH:MM:SS format
+    createdAt: Date;
+  }>;
+  createdAt: Date;
+  updatedAt: Date;
+  isDeleted?: boolean;
+  deletedAt?: Date;
 }
 
 export enum InviteActionType {
@@ -479,14 +503,14 @@ export interface IRegistrationSettings {
   _id?: ID;
   label: string;
   type:
-  | 'TEXT'
-  | 'TEXTAREA'
-  | 'EMAIL'
-  | 'TEL'
-  | 'DATE'
-  | 'NUMBER'
-  | 'URL'
-  | 'SELECT';
+    | 'TEXT'
+    | 'TEXTAREA'
+    | 'EMAIL'
+    | 'TEL'
+    | 'DATE'
+    | 'NUMBER'
+    | 'URL'
+    | 'SELECT';
   isDefault: boolean;
   required: boolean;
   options?: string[];
@@ -495,10 +519,14 @@ export interface ISettings {
   proctors: IProctoringSettings;
   linearProgressionEnabled: boolean;
   seekForwardEnabled: boolean;
+  isPublic?: boolean;
   // registration_settings?: IRegistrationSettings[];
   registration?: {
     jsonSchema?: any;
     uiSchema?: any;
+    isActive?: boolean;
+    registrationsAutoApproved?: boolean;
+    autoapproval_emails?: string[];
   };
   // jsonSchema?: any;
   // uiSchema?: any;
@@ -574,6 +602,10 @@ export class EnrollmentFilterQuery {
   @IsString()
   @IsIn(['STUDENT', 'INSTRUCTOR', 'MANAGER', 'TA', 'STAFF'])
   role: EnrollmentRole;
+
+  @IsOptional()
+  @IsString()
+  courseVersionId?: string;
 }
 
 export class EnrollmentsQuery {
@@ -595,7 +627,8 @@ export class EnrollmentsQuery {
 
   @IsOptional()
   @IsIn(['name', 'enrollmentDate', 'progress', 'unenrolledAt'])
-  sortBy: 'name' | 'enrollmentDate' | 'progress' | 'unenrolledAt' = 'enrollmentDate';
+  sortBy: 'name' | 'enrollmentDate' | 'progress' | 'unenrolledAt' =
+    'enrollmentDate';
 
   @IsOptional()
   @IsIn(['asc', 'desc'])
@@ -608,7 +641,6 @@ export class EnrollmentsQuery {
   @IsOptional()
   @IsIn(['ACTIVE', 'INACTIVE'])
   statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE';
-
 }
 
 export class BulkEnrollmentsQuery {
@@ -675,6 +707,7 @@ export interface ICourseRegistration {
   userId: ID;
   detail: Record<string, any>;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  read?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }

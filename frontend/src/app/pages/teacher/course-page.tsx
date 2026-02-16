@@ -228,7 +228,7 @@ export default function TeacherCoursesPage() {
     )
   }
 
-  if (uniqueCourses.length === 0 && !searchQuery) {
+  if (uniqueCourses.length === 0 && !searchQuery && !enrollmentsLoading) {
     return (
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-6xl mx-auto">
@@ -339,9 +339,9 @@ export default function TeacherCoursesPage() {
         <div className="space-y-6">
           {
             enrollmentsLoading ?
-              <div className="flex items-center justify-center">
+              <div className="flex items-center justify-center md:mt-20">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                <span className="ml-2 text-muted-foreground">
+                <span className="ml-2  text-muted-foreground">
                   Loading courses...
                 </span>
               </div> :

@@ -8,9 +8,9 @@ interface Props {
 
 const StudentRouteGuard: React.FC<Props> = ({ children }) => {
 
-  if (isMobile) {
-    return <MobileFallbackScreen/>;
-  }
+  // if (isMobile) {
+  //   return <MobileFallbackScreen/>;
+  // }
   return <>{children}</>;
 };
 

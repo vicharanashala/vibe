@@ -29,7 +29,7 @@ import LinkTool, { DefaultLinkToolRender } from '@yoopta/link-tool';
 import ActionMenu, { DefaultActionMenuRender } from '@yoopta/action-menu-list';
 import Toolbar, { DefaultToolbarRender } from '@yoopta/toolbar';
 import { Bold, Italic, CodeMark, Underline, Strike, Highlight } from '@yoopta/marks';
-import { markdown } from '@yoopta/exports';
+import { markdown, html } from '@yoopta/exports';
 import ConfirmationModal from './confirmation-modal';
 
 const MARKS = [Bold, Italic, CodeMark, Underline, Strike, Highlight];
@@ -714,7 +714,10 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
           processedContent = processedContent.replace(/\]\([^)]+\)([a-zA-Z])/g, ']($1) $2');
 
           const normalizedContent = normalizeMarkdown(processedContent);
-          const deserializedValue = markdown.deserialize(editor, normalizedContent);
+          const isHTML = normalizedContent.trim().startsWith('<') || normalizedContent.includes('</');
+          const deserializedValue = isHTML
+            ? html.deserialize(editor, normalizedContent)
+            : markdown.deserialize(editor, normalizedContent);
           setEditorValue(deserializedValue);
           editor.setEditorValue(deserializedValue);
           setContentLoadKey(prev => prev + 1);
@@ -869,37 +872,37 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
 
       setRawContentBackup(rawTextContent);
 
-      let markdownContent = '';
+      let htmlContent = '';
       try {
-        markdownContent = markdown.serialize(editor, editorData);
+        htmlContent = html.serialize(editor, editorData);
 
-        if (rawTextContent.length > 0 && markdownContent.length < rawTextContent.length * 0.5) {
-          console.warn('Markdown content seems truncated, using raw content backup');
-          markdownContent = rawContentBackup || rawTextContent;
+        if (rawTextContent.length > 0 && htmlContent.length < rawTextContent.length * 0.5) {
+          console.warn('HTML content seems truncated, using raw content backup');
+          htmlContent = rawContentBackup || rawTextContent;
         }
 
-        if (rawTextContent.includes('framework') && markdownContent.length < rawTextContent.length * 0.7) {
+        if (rawTextContent.includes('framework') && htmlContent.length < rawTextContent.length * 0.7) {
           console.warn('Content with links appears truncated, using raw content');
-          markdownContent = rawContentBackup || rawTextContent;
+          htmlContent = rawContentBackup || rawTextContent;
         }
 
-        if (editorHTML.includes('<a ') && markdownContent.length < rawTextContent.length * 0.8) {
+        if (editorHTML.includes('<a ') && htmlContent.length < rawTextContent.length * 0.8) {
           console.warn('Content with HTML links appears truncated, using raw content');
-          markdownContent = rawContentBackup || rawTextContent;
+          htmlContent = rawContentBackup || rawTextContent;
         }
       } catch (error) {
-        console.error('Markdown serialization failed, using raw text:', error);
-        markdownContent = rawContentBackup || rawTextContent;
+        console.error('HTML serialization failed, using raw text:', error);
+        htmlContent = rawContentBackup || rawTextContent;
       }
 
-      markdownContent = normalizeMarkdown(markdownContent);
+      htmlContent = normalizeMarkdown(htmlContent);
 
       const updatedBlogData = {
         name: blogForm.name,
         description: blogForm.description,
         type: 'BLOG' as const,
         details: {
-          content: markdownContent,
+          content: htmlContent,
           points: blogForm.points,
           estimatedReadTimeInMinutes: blogForm.estimatedReadTimeInMinutes,
         },

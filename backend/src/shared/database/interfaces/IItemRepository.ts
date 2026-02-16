@@ -30,7 +30,7 @@ export interface IItemRepository {
   readItemsGroup(
     itemsGroupId: string,
     session?: ClientSession,
-  ): Promise<ItemsGroup | null>;
+  ): Promise<ItemsGroup>;
 
   updateItemsGroup(
     itemsGroupId: string,

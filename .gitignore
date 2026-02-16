@@ -66,6 +66,7 @@ dist/
 
 config.json
 google_credentials.json
+gcp-service-account.json
 backend/tsconfig.tsbuildinfo
 frontend/tsconfig.tsbuildinfo
 frontend/.firebase

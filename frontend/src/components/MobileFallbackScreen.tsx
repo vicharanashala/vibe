@@ -28,7 +28,7 @@ const MobileFallbackScreen = () => {
       </h1>
       
       <p className="text-lg text-gray-600 max-w-md mb-8">
-        The student portal requires a laptop or desktop computer for full functionality. 
+        The course requires a laptop or desktop computer for full functionality. 
         Please switch to a desktop or laptop with camera and mic functionality to access your learning resources.
       </p>
       

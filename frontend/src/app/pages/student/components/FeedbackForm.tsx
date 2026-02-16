@@ -10,6 +10,9 @@ import { ISubmitFeedbackBody } from "@/components/Item-container";
 import Form from "@rjsf/shadcn";
 import { toast } from "sonner";
 import { buildEmptyFormData, normalizeSchemaOptions } from "@/utils/utils";
+import { FocusableSelectWidget } from "./FocusableSelectWidget";
+import { AlignedFieldTemplate } from "./AlignedFieldTemplate";
+import { CustomSubmitButton } from "./CustomSubmitButton";
 
 interface FeedbackFormProps {
   title: string;
@@ -217,7 +220,7 @@ const FeedbackForm = ({
         </CardHeader>
 
         <CardContent className="pt-6">
-          <div className="max-h-[60vh] overflow-y-auto pr-4">
+          <div className="max-h-[60vh] overflow-y-auto pr-4">            
             <Form
               // schema={jsonSchema}
               schema={normalizeSchemaOptions(jsonSchema)}
@@ -225,7 +228,16 @@ const FeedbackForm = ({
               uiSchema={uiSchema}
               onSubmit={handleSubmit}
               disabled={isSubmitting}
-            formData={buildEmptyFormData(jsonSchema)}
+              formData={buildEmptyFormData(jsonSchema)}
+              templates={{
+                  FieldTemplate: AlignedFieldTemplate,
+                  ButtonTemplates: {
+                    SubmitButton: CustomSubmitButton,
+                  },
+                }}
+              widgets={{
+                SelectWidget: FocusableSelectWidget, 
+              }}
              
             />
           </div>

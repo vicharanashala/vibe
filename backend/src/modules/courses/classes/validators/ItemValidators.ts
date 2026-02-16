@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -18,6 +18,7 @@ import {
   ValidateNested,
   IsEnum,
   IsArray,
+  IsInt,
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 import { CourseVersion } from '../transformers/CourseVersion.js';
@@ -766,6 +767,93 @@ class ItemsGroupResponse implements ItemsGroup {
   sectionId: ID;
 }
 
+
+export class VideoUserAnalytics {
+  @IsString()
+  userName!: string;
+  @IsString()
+  email!: string;
+  @IsString()
+  userId!: string;
+  @IsNumber()
+  viewCount!: number;
+  @IsNumber()
+  watchHours!: number;
+}
+
+export class VideoUserAnalyticsResponse {
+  data: VideoUserAnalytics[];
+
+  @IsInt()
+  totalDocuments: number;
+
+  @IsInt()
+  totalPages: number;
+
+  @IsInt()
+  page: number;
+
+  @IsInt()
+  limit: number;
+}
+
+export class VideoUserAnalyticsQuery {
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(1)
+  page: number = 1;
+
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(1)
+  @Max(200)
+  limit: number = 20;
+
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    description: 'Sort field',
+    enum: ['name', 'views', 'watchHours'],
+  })
+  sortBy?: 'name' | 'views' | 'watchHours';
+
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    description: 'Sort order',
+    enum: ['asc', 'desc'],
+  })
+  sortOrder?: 'asc' | 'desc';
+}
+
+export class VideoOverallAnalytics {
+  videoId!: string;
+  videoDuration!: number | string;
+  totalViews!: number;
+  totalWatchHours!: number;
+  averageViewsPerUser!: number;
+  averageWatchHoursPerUser!: number;
+}
+
+
+export class GetVideoAnalyticsParams {
+  @IsMongoId()
+  courseId!: string;
+
+  @IsMongoId()
+  versionId!: string;
+
+  @IsMongoId()
+  itemId!: string;
+}
+
+
 class ItemDataResponse {
   @JSONSchema({
     description: 'The item data',
@@ -922,7 +1010,7 @@ class CSVQuizQuestion {
   'Expln-A'?: string;
   'Option B'?: string;
   'Expln-B'?: string;
-  'Option C'?: string; 
+  'Option C'?: string;
   'Expln-C'?: string;
   'Option D'?: string;
   'Expln-D'?: string;

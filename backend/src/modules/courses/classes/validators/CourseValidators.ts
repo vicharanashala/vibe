@@ -146,6 +146,35 @@ export class CourseVersionQueryWithTime extends CourseVersionQuery {
   endTimeStamp: string;
 }
 
+export class PublicCoursesQuery {
+  @JSONSchema({
+    description: 'Page number for pagination',
+    example: 1,
+    type: 'number',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  page?: number;
+
+  @JSONSchema({
+    description: 'Number of items per page',
+    example: 10,
+    type: 'number',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  limit?: number;
+
+  @JSONSchema({
+    description: 'Search term for course name or description',
+    example: 'programming',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
+}
+
 export class CourseVersionParams {
   @IsMongoId()
   @JSONSchema({
