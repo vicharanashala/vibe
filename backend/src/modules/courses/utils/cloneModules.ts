@@ -139,6 +139,9 @@ export const cloneModules = async (
         /** Build itemId map */
         const itemIdMap = new Map<string, string>();
         createdItems.forEach((created, idx) => {
+          if (!created || !ObjectId.isValid(created._id.toString())) {
+            throw new Error(`Invalid created item ID at index ${idx}: ${created?._id}`);
+          }
           itemIdMap.set(
             clonedItemPayloads[idx].oldItemId,
             created._id.toString(),
