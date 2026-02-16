@@ -565,11 +565,15 @@ It returns an empty body with a 200 status code.
     statusCode: 500,
   })
   async recalculateStudentProgress(
-    @Body() body: CourseVersionQuery,
-    @CurrentUser() user: IUser,
+    @Body() body: CourseVersionQuery & { userId: string },
+    @CurrentUser() currentUser: IUser,
   ): Promise<string> {
-    const {courseId, courseVersionId} = body;
-    const userId = user._id?.toString();
+    console.log("RECALCULATE METHOD HIT controller");
+
+    const {courseId, courseVersionId, userId } = body;
+
+    console.log("Recalculating for user:", userId);
+
     return this.progressService.recalculateStudentProgress(
       userId,
       courseId,

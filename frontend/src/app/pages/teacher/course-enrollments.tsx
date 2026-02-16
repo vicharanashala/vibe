@@ -32,6 +32,7 @@ import {
   useCourseQuizScores,
   useRecalculateProgress,
   useBulkUnenrollUsers,
+  useRecalculateStudentProgress
 } from "@/hooks/hooks"
 import { toast } from "sonner"
 import { useCourseStore } from "@/store/course-store"
@@ -455,6 +456,8 @@ export default function CourseEnrollments() {
   const unenrollMutation = useUnenrollUser()
   const bulkUnenrollMutation = useBulkUnenrollUsers()
   const recalculateMutation = useRecalculateProgress()
+  const recalculateStudentMutation = useRecalculateStudentProgress()
+
 
   // Pagination state
   const totalDocuments = enrollmentsData?.totalDocuments || 0
@@ -569,20 +572,21 @@ export default function CourseEnrollments() {
     if (userToRecalculate && courseId) {
       const userId = userToRecalculate?.id ?? undefined;
       try {
-        await recalculateMutation.mutateAsync({
-          params: {
-            query: {
-              courseId: courseId,
-              userId: userId,
-              courseVersionId: versionId,
-            },
+        await recalculateStudentMutation.mutateAsync({
+          body: {
+            userId: userId,
+            courseId: courseId,
+            courseVersionId: versionId,
+
           },
         })
         setIsRecalculateProgressOpen(false)
         setUsertToRecalculate(null)
         refetchEnrollments()
-      } catch (error) {
-        console.error("Failed to remove student:", error)
+        toast.success("Progress recalculated successfully")
+      } catch (error: any) {
+        console.error("Failed to recalculate progress:", error)
+        toast.error(error?.message || "Failed to recalculate progress")
       }
     }
   }
@@ -997,17 +1001,17 @@ export default function CourseEnrollments() {
                       onClick={() => setShowContentSummary(prev => !prev)}
                       className="flex items-center gap-2 px-3 py-2 text-sm font-medium hover:bg-muted/20 rounded-md"
                     > */}
-                     <p>Content Summary</p> 
-                      {/* {showContentSummary ? (
+                    <p>Content Summary</p>
+                    {/* {showContentSummary ? (
                       <ChevronDown className="h-4 w-4" />
                     ) : (
                       <ChevronRight className="h-4 w-4" />
                     )} */}
                     {/* </button> */}
-                      <div className= "flex justify-between items-center mt-2 mb-2">
-                    <p className="text-sm text-muted-foreground mb-2">Completion Percentage</p>
-                    <EnrollmentProgress progress={(selectedUser.progress || 0)} />
-                        </div>
+                    <div className="flex justify-between items-center mt-2 mb-2">
+                      <p className="text-sm text-muted-foreground mb-2">Completion Percentage</p>
+                      <EnrollmentProgress progress={(selectedUser.progress || 0)} />
+                    </div>
                     {/* Body */}
                     {
                       // showContentSummary &&
