@@ -1074,6 +1074,8 @@ export function useVideoUserAnalytics(
     search?: string;
     page?: number;
     limit?: number;
+    sortBy?: 'name' | 'views' | 'watchHours';
+    sortOrder?: 'asc' | 'desc';
   }
 ): {
   data: VideoUserAnalyticsResponse | null;
@@ -1085,6 +1087,8 @@ export function useVideoUserAnalytics(
   const page = query?.page ?? 1;
   const limit = query?.limit ?? 20;
   const search = query?.search;
+  const sortBy = query?.sortBy;
+  const sortOrder = query?.sortOrder;
 
   const result = api.useQuery(
     "get",
@@ -1094,6 +1098,8 @@ export function useVideoUserAnalytics(
         path: { courseId, versionId, itemId },
         query: {
           ...(search ? { search } : {}),
+          ...(sortBy ? { sortBy } : {}),
+          ...(sortOrder ? { sortOrder } : {}),
           page,
           limit,
         },

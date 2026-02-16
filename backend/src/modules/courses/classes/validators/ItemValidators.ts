@@ -814,6 +814,22 @@ export class VideoUserAnalyticsQuery {
   @Min(1)
   @Max(200)
   limit: number = 20;
+
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    description: 'Sort field',
+    enum: ['name', 'views', 'watchHours'],
+  })
+  sortBy?: 'name' | 'views' | 'watchHours';
+
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    description: 'Sort order',
+    enum: ['asc', 'desc'],
+  })
+  sortOrder?: 'asc' | 'desc';
 }
 
 export class VideoOverallAnalytics {
