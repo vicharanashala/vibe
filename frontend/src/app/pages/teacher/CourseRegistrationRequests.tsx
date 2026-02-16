@@ -27,11 +27,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCourseStore } from "@/store/course-store";
 import { toast } from "sonner";
-import { useBulkUpdateRegistrationStatus, useGetCourseRegistrationRequests, useUpdateRegistrationStatus, useGetRegistrationStatus, useToggleRegistrationStatus } from "@/hooks/hooks";
+import { useBulkUpdateRegistrationStatus, useGetCourseRegistrationRequests, useUpdateRegistrationStatus, useGetRegistrationStatus, useToggleRegistrationStatus, useAutoApprovalSettings } from "@/hooks/hooks";
 import { Pagination } from "@/components/ui/Pagination";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import ConfirmationModal from "./components/confirmation-modal";
 import { FormBuilder } from "./components/course-registration-modal";
+import AutoApprovalModal from "./components/auto-approval-modal";
 
 export interface Registration {
   _id: string;
@@ -62,6 +63,7 @@ export default function CourseRegistrationRequests() {
   const [isUnsavedChanges, setIsUnsavedChanges] = useState(false);
   const [isRefresh, setIsRefresh] = useState(false);
   const [isActive, setIsActive] = useState<boolean>(true);
+  const [isAutoApprovalModalOpen, setIsAutoApprovalModalOpen] = useState(false);
   const { currentCourse } = useCourseStore()
   const versionId = currentCourse?.versionId
   const [initialFetchDone, setInitialFetchDone] = useState(false);
@@ -82,7 +84,7 @@ export default function CourseRegistrationRequests() {
 
   const { data: statusData, refetch: statusRefetch } = useGetRegistrationStatus(versionId as string);
   const { mutateAsync: toggleStatus, isPending: isTogglingStatus } = useToggleRegistrationStatus(versionId as string);
-
+  const { settings: autoApprovalSettings, isLoading: isLoadingAutoApproval } = useAutoApprovalSettings(versionId as string);
 
   const { mutateAsync: updateStatus, isPending: isUpdatingStatus } = useUpdateRegistrationStatus();
   const { mutateAsync: updateBulkStatus, isPending: isUpdatingBulkStatus } = useBulkUpdateRegistrationStatus();
@@ -464,6 +466,20 @@ useEffect(() => {
             isTogglingStatus={isTogglingStatus}
           />
         </div>
+          <Dialog open={isAutoApprovalModalOpen} onOpenChange={setIsAutoApprovalModalOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Settings className="h-4 w-4" />
+                Configure Auto Approval
+              </Button>
+            </DialogTrigger>
+            <AutoApprovalModal
+              isOpen={isAutoApprovalModalOpen}
+              onOpenChange={setIsAutoApprovalModalOpen}
+              versionId={versionId!}
+              currentSettings={autoApprovalSettings}
+            />
+          </Dialog>
         {/* <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
           <div className="flex-1 relative">
             <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
