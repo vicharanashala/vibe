@@ -1021,6 +1021,48 @@ class ProgressRepository {
         },
         { $unwind: "$user" },
 
+        // Lookup user activity events for seek data
+        {
+          $lookup: {
+            from: "user_activity_events",
+            let: { 
+              userId: "$_id", 
+              videoId: new ObjectId(videoId),
+              courseId: new ObjectId(courseId),
+              courseVersionId: new ObjectId(versionId)
+            },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$userId", "$$userId"] },
+                      { $eq: ["$videoId", "$$videoId"] },
+                      { $eq: ["$courseId", "$$courseId"] },
+                      { $eq: ["$courseVersionId", "$$courseVersionId"] },
+                      { $ne: ["$isDeleted", true] }
+                    ]
+                  }
+                }
+              },
+              {
+                $group: {
+                  _id: null,
+                  totalRewinds: { $sum: "$rewinds" },
+                  totalFastForwards: { $sum: "$fastForwards" }
+                }
+              }
+            ],
+            as: "activityData"
+          }
+        },
+        {
+          $addFields: {
+            rewinds: { $ifNull: [{ $arrayElemAt: ["$activityData.totalRewinds", 0] }, 0] },
+            fastForwards: { $ifNull: [{ $arrayElemAt: ["$activityData.totalFastForwards", 0] }, 0] }
+          }
+        },
+
         // Apply dynamic sorting
         { $sort: { [sortField]: sortDirection } },
 
@@ -1070,6 +1112,8 @@ class ProgressRepository {
                   firstName: "$user.firstName",
                   email: "$user.email",
                   viewCount: 1,
+                  rewinds: 1,
+                  fastForwards: 1,
 
                   totalWatchTime: {
                     $let: {

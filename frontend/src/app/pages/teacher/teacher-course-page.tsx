@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
 import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useVideoUserAnalytics } from '@/hooks/hooks';
-import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video, Clock, PlayCircle, Users, Search } from 'lucide-react';
+import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video, Clock, PlayCircle, Users, Search, SkipBack, SkipForward } from 'lucide-react';
 import { useHideItem } from '@/hooks/hooks';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
@@ -3316,6 +3316,8 @@ export interface VideoUserAnalytics {
   userId: string;
   viewCount: number;
   totalWatchTime: number;
+  rewinds: number;
+  fastForwards: number;
 }
 
 export interface VideoUserAnalyticsResponse {
@@ -3501,14 +3503,17 @@ export function UserAnalytics({
                     { key: "name", label: "Student", className: "pl-6 w-[320px]", sortable: true },
                     { key: "views", label: "Views", className: "w-[120px] text-right", sortable: true },
                     { key: "watchHours", label: "Watch (hrs)", className: "w-[160px] text-right", sortable: true },
+                    { key: "rewinds", label: "Seek Backward", className: "w-[140px] text-center", sortable: false, icon: <SkipBack className="h-4 w-4" /> },
+                    { key: "fastForwards", label: "Seek Forward", className: "w-[140px] text-center", sortable: false, icon: <SkipForward className="h-4 w-4" /> },
                     { key: "engagement", label: "Engagement", className: "w-[160px] text-center", sortable: false },
-                  ].map(({ key, label, className, sortable }) => (
+                  ].map(({ key, label, className, sortable, icon }) => (
                     <TableHead
                       key={key}
                       className={`font-bold text-foreground select-none ${sortable ? 'cursor-pointer' : ''} ${className}`}
                       onClick={() => sortable && onSortChange(key as 'name' | 'views' | 'watchHours')}
                     >
                       <span className="flex items-center gap-1">
+                        {icon && <span className="mr-1">{icon}</span>}
                         {label}
                         {sortable && sortBy === key && (
                           sortOrder === 'asc' ? (
@@ -3527,7 +3532,7 @@ export function UserAnalytics({
                 {/* Loading state */}
                 {isLoading && (
                   <TableRow>
-                    <TableCell colSpan={4} className="py-16 text-center">
+                    <TableCell colSpan={6} className="py-16 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                         <span className="text-muted-foreground">
@@ -3542,7 +3547,7 @@ export function UserAnalytics({
                 {!isLoading && safeUsers.length === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={4}
+                      colSpan={6}
                       className="py-10 text-center text-sm text-muted-foreground"
                     >
                       No users found for the current search.
@@ -3598,6 +3603,22 @@ export function UserAnalytics({
 
                         <TableCell className="w-[120px] text-left font-medium tabular-nums">
                           {user.totalWatchTime}
+                        </TableCell>
+
+                        <TableCell className="w-[140px] text-center">
+                          <div className="flex items-center justify-center">
+                            <Badge variant={user.rewinds > 0 ? "secondary" : "outline"} className="text-xs">
+                              {user.rewinds || 0}
+                            </Badge>
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="w-[140px] text-center">
+                          <div className="flex items-center justify-center">
+                            <Badge variant={user.fastForwards > 0 ? "secondary" : "outline"} className="text-xs">
+                              {user.fastForwards || 0}
+                            </Badge>
+                          </div>
                         </TableCell>
 
                         <TableCell className="text-left">
