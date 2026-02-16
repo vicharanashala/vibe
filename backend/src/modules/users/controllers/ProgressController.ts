@@ -43,6 +43,7 @@ import {
   QueryParams,
   CurrentUser,
   Req,
+  UseInterceptor,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {UserNotFoundErrorResponse} from '../classes/validators/UserValidators.js';
@@ -54,12 +55,16 @@ import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {subject} from '@casl/ability';
 import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
 import {QuizService} from '#root/modules/quizzes/services/index.js';
-import {BadRequestErrorResponse, IUser} from '#root/shared/index.js';
+import { BadRequestErrorResponse, IUser} from '#root/shared/index.js';
+import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 import {InternalServerErrorResponse} from '../../../shared/middleware/errorHandler.js';
 import {COURSES_TYPES} from '#root/modules/courses/types.js';
 import {ItemService} from '#root/modules/courses/services/ItemService.js';
 import {SuccessResponse} from '#root/modules/projects/classes/validators/ProjectValidators.js';
 import {CourseVersionQuery} from '#root/modules/courses/classes/index.js';
+import { setAuditTrail } from '#root/utils/setAuditTrail.js';
+import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
+import { ObjectId } from 'mongodb';
 
 @OpenAPI({
   tags: ['Progress'],
@@ -313,6 +318,7 @@ It returns an empty body with a 200 status code.
   })
   @Authorized()
   @Patch('/:userId/progress/courses/:courseId/versions/:versionId/reset')
+  @UseInterceptor(()=>AuditTrailsHandler)
   @OnUndefined(200)
   @ResponseSchema(UserNotFoundErrorResponse, {
     description: 'User not found',
@@ -325,7 +331,8 @@ It returns an empty body with a 200 status code.
   async resetProgress(
     @Params() params: ResetCourseProgressParams,
     @Body() body: ResetCourseProgressBody,
-    @Ability(getProgressAbility) {ability},
+    @Ability(getProgressAbility) {ability, user},
+    @Req() req: any,
   ): Promise<void> {
     const {userId, courseId, versionId} = params;
     const {moduleId, sectionId, itemId} = body;
@@ -343,17 +350,51 @@ It returns an empty body with a 200 status code.
     // Check if only moduleId is provided
     // If so, reset progress to the beginning of the module
     if (moduleId && !sectionId && !itemId) {
+      const getmoduleProgress = await this.progressService.getUserProgressPercentage(userId, courseId, versionId);
       await this.progressService.resetCourseProgressToModule(
         userId,
         courseId,
         versionId,
         moduleId,
       );
+
+      const afterUpdateModuleProgress = await this.progressService.getUserProgressPercentage(userId, courseId, versionId);
+
+            setAuditTrail(req, {
+        category: AuditCategory.PROGRESS,
+        action: AuditAction.PROGRESS_RESET,
+        actor: ObjectId.createFromHexString(user._id.toString()),
+        context:{
+          courseId: ObjectId.createFromHexString(courseId),
+          courseVersionId: ObjectId.createFromHexString(versionId),
+          moduleId: ObjectId.createFromHexString(moduleId),
+          userId: ObjectId.createFromHexString(userId),
+        },
+        changes:{
+          before:{
+            completed: getmoduleProgress?.completed ?? 0,
+            completedItems: getmoduleProgress?.completedItems ?? 0,
+            compltedPercentage: getmoduleProgress?.percentCompleted ?? 0,
+            totalItems: getmoduleProgress?.totalItems ?? 0
+          },
+          after:{
+            completed: afterUpdateModuleProgress?.completed ?? 0,
+            completedItems: afterUpdateModuleProgress?.completedItems ?? 0,
+            compltedPercentage: afterUpdateModuleProgress?.percentCompleted ?? 0,
+            totalItems: afterUpdateModuleProgress?.totalItems ?? 0
+          }
+        },
+        outcome:{
+            status: OutComeStatus.SUCCESS
+        }
+      })
     }
 
     // Check if moduleId and sectionId are provided
     // If so, reset progress to the beginning of the section
     else if (moduleId && sectionId && !itemId) {
+      const getProgress = await this.progressService.getUserProgressPercentage(userId, courseId, versionId);
+
       await this.progressService.resetCourseProgressToSection(
         userId,
         courseId,
@@ -361,11 +402,44 @@ It returns an empty body with a 200 status code.
         moduleId,
         sectionId,
       );
+
+      const afterUpdateProgress = await this.progressService.getUserProgressPercentage(userId, courseId, versionId);
+
+      setAuditTrail(req, {
+        category: AuditCategory.PROGRESS,
+        action: AuditAction.PROGRESS_RESET,
+        actor: ObjectId.createFromHexString(user._id.toString()),
+        context:{
+          courseId: ObjectId.createFromHexString(courseId),
+          courseVersionId: ObjectId.createFromHexString(versionId),
+          moduleId: ObjectId.createFromHexString(moduleId),
+          sectionId: ObjectId.createFromHexString(sectionId),
+          userId: ObjectId.createFromHexString(userId),
+        },
+        changes:{
+          before:{
+            completed: getProgress?.completed ?? 0,
+            completedItems: getProgress?.completedItems ?? 0,
+            compltedPercentage: getProgress?.percentCompleted ?? 0,
+            totalItems: getProgress?.totalItems ?? 0
+          },
+          after:{
+            completed: afterUpdateProgress?.completed ?? 0,
+            completedItems: afterUpdateProgress?.completedItems ?? 0,
+            compltedPercentage: afterUpdateProgress?.percentCompleted ?? 0,
+            totalItems: afterUpdateProgress?.totalItems ?? 0
+          }
+        },
+        outcome:{
+          status: OutComeStatus.SUCCESS
+        }
+        })
     }
 
     // Check if moduleId, sectionId, and itemId are provided
     // If so, reset progress to the beginning of the item
     else if (moduleId && sectionId && itemId) {
+        const getProgress = await this.progressService.getUserProgressPercentage(userId, courseId, versionId);
       await this.progressService.resetCourseProgressToItem(
         userId,
         courseId,
@@ -374,15 +448,75 @@ It returns an empty body with a 200 status code.
         sectionId,
         itemId,
       );
+      const afterUpdateProgress = await this.progressService.getUserProgressPercentage(userId, courseId, versionId);
+
+      setAuditTrail(req, {
+        category: AuditCategory.PROGRESS,
+        action: AuditAction.PROGRESS_RESET,
+        actor: ObjectId.createFromHexString(user._id.toString()),
+        context:{
+          courseId: ObjectId.createFromHexString(courseId),
+          courseVersionId: ObjectId.createFromHexString(versionId),
+          moduleId: ObjectId.createFromHexString(moduleId),
+          sectionId: ObjectId.createFromHexString(sectionId),
+          itemId: ObjectId.createFromHexString(itemId),
+          userId: ObjectId.createFromHexString(userId),
+        },
+        changes:{
+          before:{
+            completed: getProgress?.completed ?? 0,
+            completedItems: getProgress?.completedItems ?? 0,
+            compltedPercentage: getProgress?.percentCompleted ?? 0,
+            totalItems: getProgress?.totalItems ?? 0
+          },
+          after:{
+            completed: afterUpdateProgress?.completed ?? 0,
+            completedItems: afterUpdateProgress?.completedItems ?? 0,
+            compltedPercentage: afterUpdateProgress?.percentCompleted ?? 0,
+            totalItems: afterUpdateProgress?.totalItems ?? 0
+          }
+        },
+        outcome:{
+          status: OutComeStatus.SUCCESS
+        }
+      })
     }
 
     // If no moduleId, sectionId, or itemId are provided, reset progress to the beginning of the course
     else {
+      const getProgress = await this.progressService.getUserProgressPercentage(userId, courseId, versionId); 
       await this.progressService.resetCourseProgress(
         userId,
         courseId,
         versionId,
       );
+      setAuditTrail(req, {
+        category: AuditCategory.PROGRESS,
+        action: AuditAction.PROGRESS_RESET,
+        actor: ObjectId.createFromHexString(user._id.toString()),
+        context:{
+          courseId: ObjectId.createFromHexString(courseId),
+          courseVersionId: ObjectId.createFromHexString(versionId),
+          userId: ObjectId.createFromHexString(userId),
+        },
+        changes:{
+          before:{
+            completed: getProgress?.completed ?? 0,
+            completedItems: getProgress?.completedItems ?? 0,
+            compltedPercentage: getProgress?.percentCompleted ?? 0,
+            totalItems: getProgress?.totalItems ?? 0
+          },
+          after:{
+            completed: 0,
+            completedItems: 0,
+            compltedPercentage: 0,
+            totalItems: getProgress?.totalItems ?? 0
+          }
+        },
+        outcome:{
+          status: OutComeStatus.SUCCESS
+        }
+      })
     }
   }
 
@@ -545,6 +679,7 @@ It returns an empty body with a 200 status code.
   }
 
   @Post('/progress/recalculate')
+  @UseInterceptor(()=>AuditTrailsHandler)
   @HttpCode(200)
   @OpenAPI({
     summary: 'Recalculate student progress',
@@ -559,14 +694,48 @@ It returns an empty body with a 200 status code.
   async recalculateStudentProgress(
     @Body() body: CourseVersionQuery,
     @CurrentUser() user: IUser,
+    @Ability(getProgressAbility) {ability, actorUser},
+    @Req() req: any,
   ): Promise<string> {
     const {courseId, courseVersionId} = body;
     const userId = user._id?.toString();
-    return this.progressService.recalculateStudentProgress(
+    const progressResource = subject('Progress', {userId, courseId, versionId: courseVersionId});
+    
+    if (!ability.can(ProgressActions.Modify, progressResource)) {
+      throw new ForbiddenError('You do not have permission to modify this progress');
+    }
+
+    const getProgress = await this.progressService.getUserProgressPercentage(userId, courseId, courseVersionId);
+      const result = await this.progressService.recalculateStudentProgress(
       userId,
       courseId,
       courseVersionId,
     );
+
+    const getnewProgress = await this.progressService.getUserProgressPercentage(userId, courseId, courseVersionId);
+
+         setAuditTrail(req, {
+        category: AuditCategory.PROGRESS,
+        action: AuditAction.PROGRESS_RECALCULATE,
+        actor: ObjectId.createFromHexString(actorUser._id.toString()),
+        context:{
+          courseId: ObjectId.createFromHexString(courseId),
+          courseVersionId: ObjectId.createFromHexString(courseVersionId),
+          userId: ObjectId.createFromHexString(userId),
+        },
+        changes:{
+          before:{
+            completedPercentage: getProgress?.percentCompleted ?? 0,
+          },
+          after:{
+            completedPercentage: getnewProgress?.percentCompleted ?? 0,
+          }
+        },
+        outcome:{
+            status: OutComeStatus.SUCCESS
+        }
+      });
+    return result;
   }
 
   @OpenAPI({

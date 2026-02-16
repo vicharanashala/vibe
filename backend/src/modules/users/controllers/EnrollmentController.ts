@@ -39,6 +39,7 @@ import {
   Patch,
   Req,
   QueryParam,
+  UseInterceptor,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {
@@ -48,8 +49,12 @@ import {
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {subject} from '@casl/ability';
 
-import {BadRequestErrorResponse} from '#root/shared/index.js';
+import { BadRequestErrorResponse} from '#root/shared/index.js';
+import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 import {QuizNotFoundErrorResponse} from '#root/modules/quizzes/classes/index.js';
+import { setAuditTrail } from '#root/utils/setAuditTrail.js';
+import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
+import { ObjectId } from 'mongodb';
 
 @OpenAPI({
   tags: ['Enrollments'],
@@ -69,6 +74,7 @@ export class EnrollmentController {
   })
   @Authorized()
   @Post('/:userId/enrollments/courses/:courseId/versions/:versionId')
+  @UseInterceptor(()=>AuditTrailsHandler)
   @HttpCode(200)
   @ResponseSchema(EnrollUserResponse, {
     description: 'User enrolled successfully',
@@ -84,7 +90,8 @@ export class EnrollmentController {
   async enrollUser(
     @Params() params: EnrollmentParams,
     @Body() body: EnrollmentBody,
-    @Ability(getEnrollmentAbility) {ability},
+    @Ability(getEnrollmentAbility) {ability, user},
+    @Req() req: Request,
   ): Promise<EnrollUserResponse> {
     const {userId, courseId, versionId} = params;
 
@@ -110,6 +117,25 @@ export class EnrollmentController {
       role,
     )) as {enrollment: IEnrollment; progress: IProgress; role: EnrollmentRole};
 
+    setAuditTrail(req,{
+      category: AuditCategory.ENROLLMENT,
+      action: AuditAction.ENROLLMENT_ADD,
+      actor: new ObjectId(user._id),
+      context: {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(versionId),
+        userId: new ObjectId(userId)
+      },
+      changes:{
+        after:{
+          role: body.role
+        }
+      },
+      outcome:{
+        status: OutComeStatus.SUCCESS
+      }
+    })
+
     return new EnrollUserResponse(
       responseData.enrollment,
       responseData.progress,
@@ -124,6 +150,7 @@ export class EnrollmentController {
   })
   @Authorized()
   @Post('/:userId/enrollments/courses/:courseId/versions/:versionId/unenroll')
+  @UseInterceptor(()=>AuditTrailsHandler)
   @HttpCode(200)
   @ResponseSchema(EnrollUserResponse, {
     description: 'User unenrolled successfully',
@@ -136,7 +163,8 @@ export class EnrollmentController {
   })
   async unenrollUser(
     @Params() params: EnrollmentParams,
-    @Ability(getEnrollmentAbility) {ability},
+    @Ability(getEnrollmentAbility) {ability, user},
+    @Req() req: Request,
   ): Promise<EnrollUserResponse> {
     const {userId, courseId, versionId} = params;
     const enrollmentData = await this.enrollmentService.findActiveEnrollment(
@@ -164,6 +192,26 @@ export class EnrollmentController {
       versionId,
       enrollmentData,
     );
+
+      setAuditTrail(req,{
+      category: AuditCategory.ENROLLMENT,
+      action: enrollmentData.role === "INSTRUCTOR" ? AuditAction.ENROLLMENT_REMOVE_INSTRUCTOR : AuditAction.ENROLLMENT_REMOVE_STUDENT,
+      actor: new ObjectId(user._id),
+      context: {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(versionId),
+        userId: new ObjectId(userId)
+      },
+      changes:{
+        before:{
+          role: enrollmentData.role
+        }
+      },
+      outcome:{
+        status: OutComeStatus.SUCCESS
+      }
+
+      })
 
     return new EnrollUserResponse(
       responseData.enrollment,
@@ -388,6 +436,7 @@ export class EnrollmentController {
   })
   @Authorized()
   @Patch('/enrollments/progress', {transformResponse: true})
+  @UseInterceptor(()=>AuditTrailsHandler)
   @ResponseSchema(UpdateEnrollmentProgressResponse, {
     description: 'Enrollment progress updated successfully',
     statusCode: 200,
@@ -397,12 +446,33 @@ export class EnrollmentController {
     statusCode: 400,
   })
   async updateAllEnrollmentsProgress(
-    @Ability(getEnrollmentAbility) {ability},
+    @Ability(getEnrollmentAbility) {ability, user},
     @QueryParams() query: BulkEnrollmentsQuery,
+    @Req() req: any,
   ) {
     const {courseId, userId} = query;
     const updatedEnrollment =
       await this.enrollmentService.bulkUpdateAllEnrollments(courseId, userId);
+
+      setAuditTrail(req, {
+        category: AuditCategory.ENROLLMENT,
+        action: AuditAction.PROGRESS_RECALCULATE,
+        actor: new ObjectId(user._id),
+        context: {
+          courseId: courseId ? new ObjectId(courseId) : undefined,
+          userId: userId ? new ObjectId(userId) : undefined,
+        },
+        changes:{
+          after:{
+            totalCount: updatedEnrollment.totalCount,
+            progressUpdatedCount: updatedEnrollment.updatedCount
+          }
+        },
+
+        outcome:{
+          status: OutComeStatus.SUCCESS
+        }
+      })
     return updatedEnrollment;
   }
 

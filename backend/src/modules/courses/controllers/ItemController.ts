@@ -48,7 +48,7 @@ import { ItemType } from '#shared/interfaces/models.js';
 import { HideModuleBody } from '../classes/index.js';
 import { createObjectCsvStringifier } from 'csv-writer';
 import { Response } from 'express';
-import { AuditTrailsHandler } from '#root/shared/index.js';
+import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
 import { setAuditTrail } from '#root/utils/setAuditTrail.js';
 import { ObjectId } from 'mongodb';

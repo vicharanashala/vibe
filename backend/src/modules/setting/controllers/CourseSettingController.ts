@@ -1,10 +1,14 @@
-import { JsonController, Post, HttpCode, Body, Authorized, Get, Params, Put, CurrentUser } from 'routing-controllers';
+import { JsonController, Post, HttpCode, Body, Authorized, Get, Params, Put, CurrentUser, UseInterceptor, Req } from 'routing-controllers';
 import { inject, injectable } from 'inversify';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { SETTING_TYPES } from '../types.js';
 import { CourseSettingService } from '../services/CourseSettingService.js';
 import { AddCourseProctoringBody, AddCourseProctoringParams, CourseSetting, CreateCourseSettingBody, ReadCourseSettingParams, SettingNotFoundErrorResponse, UpdateCourseSettingResponse } from '../classes/index.js';
 import { BadRequestErrorResponse, IUser } from '#root/shared/index.js';
+import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
+import { setAuditTrail } from '#root/utils/setAuditTrail.js';
+import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
+import { ObjectId } from 'mongodb';
 
 @OpenAPI({
   tags: ['Course Setting'],
@@ -72,6 +76,7 @@ export class CourseSettingController {
 
   @Authorized()
   @Put('/:courseId/:versionId/proctoring')
+  @UseInterceptor(AuditTrailsHandler)
   @HttpCode(200)
   @ResponseSchema(UpdateCourseSettingResponse, {
     description: 'Course settings Updated successfully'
@@ -88,6 +93,7 @@ export class CourseSettingController {
     @Params() params: AddCourseProctoringParams,
     @Body() body: AddCourseProctoringBody,
     @CurrentUser() user: IUser,
+    @Req() req: Request
   ): Promise<{ success: boolean }> {
     // This method updates proctoring settings for a course version.
     const { courseId, versionId } = params;
@@ -102,6 +108,26 @@ export class CourseSettingController {
       seekForwardEnabled,
       userId
     );
+
+    setAuditTrail(req, {
+      category: AuditCategory.COURSE_SETTINGS,
+      action: AuditAction.COURSE_SETTINGS_UPDATE,
+      actor: new ObjectId(userId),
+      context:{
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(versionId),
+      },
+      changes:{
+        after:{
+          dectors: detectors,
+          linearProgressionEnabled: linearProgressionEnabled,
+          seekForwardEnabled: seekForwardEnabled
+        }
+      }, 
+      outcome:{
+        status: OutComeStatus.SUCCESS,
+      }
+    })
 
     return { success: result };
   }

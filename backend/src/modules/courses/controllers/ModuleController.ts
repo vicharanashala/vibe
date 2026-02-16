@@ -35,7 +35,7 @@ import {
   getCourseVersionAbility,
 } from '../abilities/versionAbilities.js';
 import { subject } from '@casl/ability';
-import { AuditTrailsHandler } from '#root/shared/index.js';
+import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 import { setAuditTrail } from '#root/utils/setAuditTrail.js';
 import {
   AuditAction,

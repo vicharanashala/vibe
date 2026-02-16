@@ -40,7 +40,7 @@ import {
 } from '../abilities/versionAbilities.js';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {subject} from '@casl/ability';
-import { AuditTrailsHandler } from '#root/shared/middleware/index.js';
+import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 import { setAuditTrail } from '#root/utils/setAuditTrail.js';
 import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
 import { ObjectId } from 'mongodb';
