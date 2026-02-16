@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
 import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useVideoUserAnalytics } from '@/hooks/hooks';
-import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video } from 'lucide-react';
+import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video, Clock, PlayCircle, Users, Search } from 'lucide-react';
 import { useHideItem } from '@/hooks/hooks';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 const MAX_DESCRIPTION_LENGTH = 1000;
 
@@ -32,7 +33,9 @@ import {
   MessageSquare,
   Eye,
   EyeOff,
-  Loader2
+  Loader2,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 
 import { useNavigate } from "@tanstack/react-router";
@@ -337,6 +340,8 @@ function TeacherCourseContent() {
   const [videoAnalyticsLimit, setVideoAnalyticsLimit] = useState(12);
   const [videoAnalyticsSearch, setVideoAnalyticsSearch] = useState("");
   const [debouncedVideoAnalyticsSearch, setDebouncedVideoAnalyticsSearch] = useState("");
+  const [videoAnalyticsSortBy, setVideoAnalyticsSortBy] = useState<'name' | 'views' | 'watchHours'>('name');
+  const [videoAnalyticsSortOrder, setVideoAnalyticsSortOrder] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -364,6 +369,8 @@ function TeacherCourseContent() {
       page: videoAnalyticsPage,
       limit: videoAnalyticsLimit,
       search: debouncedVideoAnalyticsSearch,
+      sortBy: videoAnalyticsSortBy,
+      sortOrder: videoAnalyticsSortOrder,
     }
   );
 
@@ -2970,6 +2977,13 @@ function TeacherCourseContent() {
                                 <UserAnalytics users={userAnalyticsData || []} overallAnalytics={overallAnalytics} currentPage={videoAnalyticsPage} limit={videoAnalyticsLimit} search={videoAnalyticsSearch} onSearchChange={(v) => {
                                   setVideoAnalyticsSearch(v);
                                   setVideoAnalyticsPage(1);
+                                }} sortBy={videoAnalyticsSortBy} sortOrder={videoAnalyticsSortOrder} onSortChange={(field) => {
+                                  if (videoAnalyticsSortBy === field) {
+                                    setVideoAnalyticsSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+                                  } else {
+                                    setVideoAnalyticsSortBy(field);
+                                    setVideoAnalyticsSortOrder('asc');
+                                  }
                                 }} onPageChange={setVideoAnalyticsPage} isLoading={overallLoading || usersLoading} totalDocuments={userAnalyticsTotalDocs || 0} totalPages={userAnalyticsTotalPages || 0} />
                               </p>
                             </div>
@@ -3334,6 +3348,10 @@ export type UserAnalyticsProps = {
   totalPages: number;
   onPageChange: (page: number) => void;
 
+  sortBy: 'name' | 'views' | 'watchHours';
+  sortOrder: 'asc' | 'desc';
+  onSortChange: (field: 'name' | 'views' | 'watchHours') => void;
+
   isLoading?: boolean;
 };
 
@@ -3347,13 +3365,12 @@ export function UserAnalytics({
   totalDocuments,
   totalPages,
   onPageChange,
+  sortBy,
+  sortOrder,
+  onSortChange,
   isLoading,
 }: UserAnalyticsProps) {
   const safeUsers = users ?? [];
-
-  const sortedUsers = useMemo(() => {
-    return [...safeUsers].sort((a, b) => b.viewCount - a.viewCount);
-  }, [safeUsers]);
 
   const totalViewsOnPage = useMemo(
     () => safeUsers.reduce((sum, u) => sum + (u.viewCount || 0), 0),
@@ -3380,11 +3397,14 @@ export function UserAnalytics({
       {/* Overall Analytics (compact) */}
       {overallAnalytics && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
+          {/* Duration */}
           <Card className="bg-blue-50 border-blue-100">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-m font-medium text-blue-900">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-medium text-blue-900">
                 Duration
               </CardTitle>
+              <Clock className="h-4 w-4 text-blue-700" />
             </CardHeader>
             <CardContent className="pt-0">
               <div className="text-lg font-semibold text-blue-950">
@@ -3393,11 +3413,13 @@ export function UserAnalytics({
             </CardContent>
           </Card>
 
+          {/* Total Views */}
           <Card className="bg-green-50 border-green-100">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-m font-medium text-green-900">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-medium text-green-900">
                 Total Views
               </CardTitle>
+              <Eye className="h-4 w-4 text-green-700" />
             </CardHeader>
             <CardContent className="pt-0">
               <div className="text-lg font-semibold text-green-950">
@@ -3406,11 +3428,13 @@ export function UserAnalytics({
             </CardContent>
           </Card>
 
+          {/* Watch Hours */}
           <Card className="bg-purple-50 border-purple-100">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-m font-medium text-purple-900">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-medium text-purple-900">
                 Watch Hours
               </CardTitle>
+              <PlayCircle className="h-4 w-4 text-purple-700" />
             </CardHeader>
             <CardContent className="pt-0">
               <div className="text-lg font-semibold text-purple-950">
@@ -3419,11 +3443,13 @@ export function UserAnalytics({
             </CardContent>
           </Card>
 
+          {/* Avg Watch / User */}
           <Card className="bg-orange-50 border-orange-100">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-m font-medium text-orange-900">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-medium text-orange-900">
                 Avg Watch / User
               </CardTitle>
+              <Users className="h-4 w-4 text-orange-700" />
             </CardHeader>
             <CardContent className="pt-0">
               <div className="text-lg font-semibold text-orange-950">
@@ -3438,18 +3464,18 @@ export function UserAnalytics({
       {/* Search + Stats */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="w-full sm:max-w-sm">
+          <div className="w-full sm:max-w-sm relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+
             <Input
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Search by name or email..."
-              className="h-9"
+              className="h-9 pl-9"
             />
           </div>
 
-          <div className="text-xs text-muted-foreground">
-            {isLoading ? "Loading..." : `${totalDocuments.toLocaleString()} results`}
-          </div>
+
         </div>
 
 
@@ -3467,69 +3493,126 @@ export function UserAnalytics({
         </CardHeader>
 
         <CardContent>
-          <div className="overflow-x-auto min-h-[600px] relative">
-            <table className="w-full text-sm ">
-              <thead className="text-xs text-muted-foreground">
-                <tr className="border-b border-border">
-                  <th className="px-3 py-2 text-left font-medium">Name</th>
-                  <th className="px-3 py-2 text-left font-medium">Email</th>
-                  <th className="px-3 py-2 text-right font-medium">Views</th>
-                  <th className="px-3 py-2 text-right font-medium">Watch (hrs)</th>
-                  <th className="px-3 py-2 text-center font-medium">Engagement</th>
-                </tr>
-              </thead>
+          <div className="overflow-x-auto min-h-[400px]">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border bg-muted/30">
+                  {[
+                    { key: "name", label: "Student", className: "pl-6 w-[320px]", sortable: true },
+                    { key: "views", label: "Views", className: "w-[120px] text-right", sortable: true },
+                    { key: "watchHours", label: "Watch (hrs)", className: "w-[160px] text-right", sortable: true },
+                    { key: "engagement", label: "Engagement", className: "w-[160px] text-center", sortable: false },
+                  ].map(({ key, label, className, sortable }) => (
+                    <TableHead
+                      key={key}
+                      className={`font-bold text-foreground select-none ${sortable ? 'cursor-pointer' : ''} ${className}`}
+                      onClick={() => sortable && onSortChange(key as 'name' | 'views' | 'watchHours')}
+                    >
+                      <span className="flex items-center gap-1">
+                        {label}
+                        {sortable && sortBy === key && (
+                          sortOrder === 'asc' ? (
+                            <ArrowUp size={16} className="text-foreground" />
+                          ) : (
+                            <ArrowDown size={16} className="text-foreground" />
+                          )
+                        )}
+                      </span>
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
 
-              <tbody>
-                {sortedUsers.map((user) => {
-                  const engagement =
-                    user.viewCount > avgViewsPerUserOnPage
-                      ? "high"
-                      : user.viewCount > avgViewsPerUserOnPage * 0.5
-                        ? "medium"
-                        : "low";
-
-                  const badgeClass = {
-                    high: "bg-primary/15 text-primary",
-                    medium: "bg-muted text-foreground",
-                    low: "bg-muted/60 text-muted-foreground",
-                  }[engagement];
-
-                  return (
-                    <tr key={user.userId} className="border-b border-border/60 hover:bg-muted/30">
-                      <td className="px-3 py-2 font-medium">{user.firstName}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{user.email}</td>
-                      <td className="px-3 py-2 text-right font-medium tabular-nums">
-                        {user.viewCount.toLocaleString()}
-                      </td>
-                      <td className="px-3 py-2 text-right font-medium tabular-nums">
-                        {user.totalWatchTime}
-                      </td>
-                      <td className="px-3 py-2 text-center">
-                        <Badge className={badgeClass}>
-                          {engagement.charAt(0).toUpperCase() + engagement.slice(1)}
-                        </Badge>
-                      </td>
-                    </tr>
-                  );
-                })}
-
-                
+              <TableBody>
+                {/* Loading state */}
                 {isLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-background/60">
-                    Loading users…
-                  </div>
+                  <TableRow>
+                    <TableCell colSpan={4} className="py-16 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                        <span className="text-muted-foreground">
+                          Loading user analytics…
+                        </span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 )}
 
-                {!isLoading && sortedUsers.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-3 py-10 text-center text-sm text-muted-foreground">
+                {/* Empty state */}
+                {!isLoading && safeUsers.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={4}
+                      className="py-10 text-center text-sm text-muted-foreground"
+                    >
                       No users found for the current search.
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 )}
-              </tbody>
-            </table>
+
+                {/* Data rows */}
+                {!isLoading &&
+                  safeUsers.map((user) => {
+                    const engagement =
+                      user.viewCount > avgViewsPerUserOnPage
+                        ? "high"
+                        : user.viewCount > avgViewsPerUserOnPage * 0.5
+                          ? "medium"
+                          : "low";
+
+                    const badgeClass = {
+                      high: "bg-primary/15 text-primary",
+                      medium: "bg-muted text-foreground",
+                      low: "bg-muted/60 text-muted-foreground",
+                    }[engagement];
+
+                    return (
+                      <TableRow
+                        key={user.userId}
+                        className="border-b border-border/60 hover:bg-muted/30"
+                      >
+                        {/* Name + Email (common pattern) */}
+                        <TableCell className="pl-6">
+                          <div className="flex items-center gap-3">
+                            {/* Avatar */}
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                              {user.firstName?.charAt(0)?.toUpperCase()}
+                            </div>
+
+                            {/* Name + Email */}
+                            <div className="flex flex-col">
+                              <span className="font-medium text-foreground leading-tight">
+                                {user.firstName}
+                              </span>
+                              <span className="text-xs text-muted-foreground leading-tight">
+                                {user.email}
+                              </span>
+                            </div>
+                          </div>
+                        </TableCell>
+
+
+                        <TableCell className="w-[120px] text-left font-medium tabular-nums">
+                          {user.viewCount.toLocaleString()}
+                        </TableCell>
+
+                        <TableCell className="w-[120px] text-left font-medium tabular-nums">
+                          {user.totalWatchTime}
+                        </TableCell>
+
+                        <TableCell className="text-left">
+                          <Badge className={badgeClass}>
+                            {engagement.charAt(0).toUpperCase() + engagement.slice(1)}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+              </TableBody>
+            </Table>
           </div>
+
+
 
           {/* Pagination (buttons should use bg-primary inside your Pagination component) */}
           <Pagination
