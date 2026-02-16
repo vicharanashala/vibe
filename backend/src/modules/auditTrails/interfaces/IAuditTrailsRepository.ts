@@ -7,4 +7,16 @@ export interface IAuditTrailsRepository{
         data: InstructorAuditTrail,
         session?: ClientSession
     ): Promise<string>;
+
+    getAllAuditTrailsByInstructorId(
+        instructorId: string,
+        session?: ClientSession
+    ): Promise<InstructorAuditTrail[]>;
+
+    getAuditTrailsByCourseAndVersion(
+        userId: string,
+        courseId: string,
+        versionId: string,
+        session?: ClientSession
+    ): Promise<InstructorAuditTrail[]>;
 }

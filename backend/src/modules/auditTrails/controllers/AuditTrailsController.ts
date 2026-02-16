@@ -32,11 +32,33 @@ class AuditTrailsController{
         statusCode: 400,
     })
     async getAllAuditTrails(@CurrentUser() user: {_id: string},){
+        const auditTrails = await this.auditTrailsService.getAllAuditTrails(user._id);
         return {
             message: "Audit trails retrieved successfully",
-            data: {
-                user,
-            }
+            data: auditTrails
+        }
+    }
+
+    @OpenAPI({
+        summary: "Get audit trails by courseId and versionId",
+        description: "Retrieve audit trails for a specific course and version",
+    })
+    @Authorized()
+    @Get("/course/:courseId/version/:versionId")
+    @HttpCode(200)
+    @ResponseSchema(AuditTrailsResponse,{
+        description: "List of audit trails for the specified course and version",
+        statusCode: 200,
+    })
+    @ResponseSchema(BadRequestErrorResponse,{
+        description: "Bad Request",
+        statusCode: 400,
+    })
+    async getAuditTrailsByCourseAndVersion(@Param("courseId") courseId: string, @Param("versionId") versionId: string, @CurrentUser() user: {_id: string}){
+        const auditTrails = await this.auditTrailsService.getAuditTrailsByCourseAndVersion(user._id.toString(), courseId, versionId);
+        return {
+            message: "Audit trails retrieved successfully",
+            data: auditTrails
         }
     }
 }
