@@ -49,16 +49,15 @@ export class MongoDatabase implements IDatabase<Db> {
       retryWrites: true,
 
       // 🔹 CONNECTION POOL
-      maxPoolSize: 6,
-      minPoolSize: 0,
+      maxPoolSize: 50,
+      minPoolSize: 10,
       maxIdleTimeMS: 60000,
 
       // 🔹 TIMEOUTS
       connectTimeoutMS: 20000,
-      socketTimeoutMS: 20000,
+      socketTimeoutMS: 30000,
 
-      // 🔥 IMPORTANT: enable secondary reads
-      readPreference: 'secondaryPreferred',
+
     });
 
   }

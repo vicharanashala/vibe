@@ -11,11 +11,9 @@ import { useSignup } from "@/hooks/hooks.ts";
 import classroom from "../../../public/img/classroom.svg";
 import learningImg from "../../../public/img/learning-img.svg";
 import innovators from "../../../public/img/innovators.svg";
-import iitClear from "../../../public/img/iit-clear.png";
-import vledLogo from "../../../public/img/vled-logo.png";
-import ugcLogo from "../../../public/img/ugc_logo.png";
-import annam from "../../../public/img/annam.png";
 import logos from "../../../public/img/logos.png";
+import vledLogo from "../../../public/img/vled-logo-login.png";
+import iitLogo from "../../../public/img/iit-clear.png";
 
 // Create a context for tab state management
 const TabsContext = createContext<{
@@ -26,7 +24,7 @@ const TabsContext = createContext<{
 const links = {
   GITHUB: 'https://github.com/vicharanashala/vibe.git',
   DEMO_VIDEO: "https://www.youtube.com/watch?v=8ytNdYlK-BU",
-  ABOUT_US:"https://github.com/vicharanashala/vibe/blob/combined-updates/README.md"
+  ABOUT_US: "https://github.com/vicharanashala/vibe/blob/combined-updates/README.md"
 
 }
 
@@ -43,7 +41,6 @@ const Tabs = ({ defaultValue, className, children, value, onValueChange }: {
 
   // Determine which value to use (controlled or uncontrolled)
   const activeValue = value !== undefined ? value : internalValue;
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Handle value change
   const handleValueChange = (newValue: string) => {
@@ -330,6 +327,23 @@ export default function AuthPage() {
     }
   }, [isAuthenticated, user, navigate]);
 
+  useEffect(() => {
+    const host = window.location.hostname;
+
+    const studentSites = [
+      'vibe.devabhasha.live',
+      'vibe.gurusetu.org',
+    ];
+
+    if (studentSites.includes(host)) {
+      navigate({ to: '/student/login' });
+    } else {
+      navigate({ to: '/auth' });
+    }
+  }, []);
+
+
+
   // Return the new beautiful auth page with Magic UI
   return (
     <div className="relative min-h-screen overflow-x-hidden">
@@ -342,6 +356,10 @@ export default function AuthPage() {
           <div className="flex flex-col justify-center space-y-10 w-full max-w-[1280px] mx-auto py-16 px-0 sm:px-2">
             {/* Main Text Content */}
             <div className="text-center space-y-6">
+              <div className="flex justify-center items-center gap-6 mb-8">
+                <img src={vledLogo} alt="VLED Logo" className="h-[60px] md:h-[80px] w-auto object-contain" />
+                <img src={iitLogo} alt="IIT Logo" className="h-[50px] md:h-[70px] w-auto object-contain" />
+              </div>
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-[rgb(208,123,37)] font-bold tracking-tight leading-tight">
                 Welcome to the Future of Learning
               </h1>
@@ -363,7 +381,7 @@ export default function AuthPage() {
                   <button onClick={() => window.open(links.DEMO_VIDEO, '_blank')} className="text-base px-7 py-3 rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
                     Explore Demo
                   </button>
-                  <button onClick={() => {navigate({ to: "/login" })}} className="text-base px-7 py-3 rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
+                  <button onClick={() => { navigate({ to: "/student/login" }) }} className="text-base px-7 py-3 rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
                     Get Started
                   </button>
                 </div>
@@ -432,7 +450,7 @@ export default function AuthPage() {
                     <div>
                       <button
                         onClick={() => {
-                          navigate({ to: "/login" })
+                          navigate({ to: "/student/login" })
                         }}
                         className="text-base px-7 py-3 rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
                         Continue To Login
@@ -784,7 +802,7 @@ export default function AuthPage() {
         <div className="bg-[rgb(240,248,250)]">
           <div className="w-full max-w-[1280px] mx-auto py-16 px-4 sm:px-6">
             <h3 className="text-[rgb(25,90,105)] text-2xl sm:text-3xl md:text-[36px] font-bold leading-10 mb-[52px]">
-              {"A Collaboration Between".split("").map((char, i) => (
+              {"Funded by".split("").map((char, i) => (
                 <span key={i} className="inline-block transition-colors duration-300 hover:text-[rgba(228,143,57,1)] cursor-default">
                   {char === ' ' ? '\u00A0' : char}
                 </span>
@@ -812,8 +830,8 @@ export default function AuthPage() {
               <div className="flex flex-col space-y-2 text-white text-base font-semibold leading-6">
                 <a href="#">Home</a>
                 <a href={links.ABOUT_US} target="_blank">About Us</a>
-                <a href= {links.GITHUB} target="_blank">Resources</a>
-                <a href= {links.GITHUB} target="_blank">Contact Us</a>
+                <a href={links.GITHUB} target="_blank">Resources</a>
+                <a href={links.GITHUB} target="_blank">Contact Us</a>
               </div>
             </div>
             <div className="bg-[rgb(240,248,250)] p-8 rounded-[8px] w-full max-w-[608px] ml-auto">

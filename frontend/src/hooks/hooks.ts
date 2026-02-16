@@ -21,14 +21,16 @@ import type {
 import type { ProctoringSettings } from '@/types/video.types';
 import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.types';
 import { EntityType, IReport, ReportStatus } from '@/types/flag.types';
+import { PendingRegistrationNotification, ApprovedRegistrationNotification } from '@/types/notification.types';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { VersionWithCourse } from '@/app/pages/student/CourseRegistration';
 import { Registration, RegistrationStatus } from '@/app/pages/teacher/CourseRegistrationRequests';
-import { Field } from '@/app/pages/teacher/components/course-registration-modal';
+// import { Field } from '@/app/pages/teacher/components/course-registration-modal';
 import { IssueSort, IssueStatus } from '@/app/pages/student/FlagResponse';
 import { ISubmitFeedbackBody } from '@/components/Item-container';
 import { TranscriptResponse } from '@/types/ai.types';
 import { VideoOverallAnalytics, VideoUserAnalytics, VideoUserAnalyticsResponse } from '@/app/pages/teacher/teacher-course-page';
+import { WatchTimeTrackData } from '@/types/user_activity_event.types';
 
 // Add missing ObjectId type
 type ObjectId = string;
@@ -1677,7 +1679,8 @@ export function useEditProctoringSettings() {
     detectors: { name: string; enabled: boolean }[],
     isNew: boolean,
     linearProgressionEnabled: boolean,
-    seekForwardEnabled: boolean
+    seekForwardEnabled: boolean,
+    isPublic: boolean
   ) => {
     setLoading(true);
     setError(null);
@@ -1694,7 +1697,8 @@ export function useEditProctoringSettings() {
           settings: { enabled: d.enabled },
         })),
         linearProgressionEnabled,
-        seekForwardEnabled
+        seekForwardEnabled,
+        isPublic
       };
 
       const res = await fetch(url, {
@@ -1716,6 +1720,39 @@ export function useEditProctoringSettings() {
   };
 
   return { editSettings, loading, error };
+}
+
+export function usePublicCourses(
+  page: number,
+  limit: number,
+  enabled: boolean,
+  search: string = ''
+): {
+  data: { courses: any[]; currentPage: number; totalPages: number; totalDocuments: number } | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery(
+    "get",
+    "/courses/public",
+    {
+      params: {
+        query: { page, limit, search }
+      }
+    },
+    {
+      enabled,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    }
+  );
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch public courses') : null,
+    refetch: result.refetch
+  };
 }
 
 export function useInviteUsers(): {
@@ -2877,8 +2914,8 @@ export function useQuizSubmissions(quizId: string, gradeStatus: GradingSystemSta
 }
 
 export function useSubmitFlag(): {
-  mutate: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType: EntityType, reason: string } }) => void,
-  mutateAsync: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType: EntityType, reason: string } }) => Promise<void>,
+  mutate: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType: EntityType, reason: string, questionId?: string } }) => void,
+  mutateAsync: (variables: { body: { courseId: string, versionId: string, entityId: string, entityType: EntityType, reason: string, questionId?: string } }) => Promise<void>,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
@@ -3429,6 +3466,78 @@ export const useGetRegistrationFields = (
 };
 
 
+// Get registration status (isActive)
+export const useGetRegistrationStatus = (
+  versionId: string,
+): {
+  data: { jsonSchema: RJSFSchema; uiSchema: Record<string, any>; isActive: boolean } | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} => {
+  const result = api.useQuery(
+    'get',
+    '/course/registration/build-form/version/{versionId}' as any,
+    {
+      params: {
+        path: { versionId },
+      },
+    },
+    {
+      enabled: !!versionId,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    }
+  );
+
+  return {
+    data: result.data as { jsonSchema: RJSFSchema; uiSchema: Record<string, any>; isActive: boolean } | undefined,
+    isLoading: result.isLoading,
+    error: result.error
+      ? result.error.message || 'Failed to fetch registration status'
+      : null,
+    refetch: result.refetch,
+  };
+};
+
+// Toggle registration status (isActive)
+export const useToggleRegistrationStatus = (versionId: string): {
+  mutate: (params: { isActive: boolean }) => void;
+  mutateAsync: (params: { isActive: boolean }) => Promise<any>;
+  data: any | undefined;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} => {
+  const result = api.useMutation('patch', `/course/registration/registration/version/${versionId}/toggle` as any);
+
+  return {
+    mutate: (params: { isActive: boolean }) =>
+      result.mutate({
+        body: params,
+      }),
+
+    mutateAsync: (params: { isActive: boolean }) =>
+      result.mutateAsync({
+        body: params,
+      }),
+
+    data: result.data,
+    error: result.error
+      ? result.error.message || 'Failed to toggle registration status'
+      : null,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+  };
+};
 
 
 export const useGetDynamicFields = (
@@ -4094,4 +4203,117 @@ export const useExportFeedbackSubmissions = ({ courseId, feedbackId }: ExportFee
   return { exportCSV, isExporting };
 };
 
+// GET /course/registration/pending
+export function useGetPendingRegistrations(instructorId: string): {
+  data: PendingRegistrationNotification[];
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = api.useQuery("get", "/course/registration/pending", {
+    params: {
+      query: { instructorId }
+    }
+  }, {
+    enabled: !!instructorId,
+    refetchOnWindowFocus: false
+  });
 
+  return {
+    data: Array.isArray(result?.data) ? result?.data : [],
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch pending registrations') : null,
+    refetch: result.refetch
+  };
+}
+
+// GET /course/registration/notifications/unread
+export function useGetUnreadApprovedRegistrations(studentId: string): {
+  data: ApprovedRegistrationNotification[];
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = api.useQuery("get", "/course/registration/notifications/unread", {
+    params: {
+      query: { studentId }
+    }
+  }, {
+    enabled: !!studentId,
+    refetchOnWindowFocus: false
+  });
+
+  return {
+    data: Array.isArray(result?.data) ? result?.data : [],
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch unread notifications') : null,
+    refetch: result.refetch
+  };
+}
+
+// PATCH /course/registration/notifications/{registrationId}/read
+export function useMarkNotificationAsRead(): {
+  mutate: (variables: { params: { path: { registrationId: string } } }) => void,
+  mutateAsync: (variables: { params: { path: { registrationId: string } } }) => Promise<{ message: string; success: boolean }>,
+  data: { message: string; success: boolean } | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("patch", "/course/registration/notifications/{registrationId}/read");
+  
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to mark notification as read') : null
+  };
+}
+
+
+// Bulk Unenroll Users Hook
+export const useBulkUnenrollUsers = () => {
+  return api.useMutation('post', '/users/enrollments/courses/{courseId}/versions/{versionId}/bulk-unenroll');
+};
+
+// GET /users/enrollments
+export function useUserEnrollmentsDetails( enabled: boolean = true, search?: string, role = "STUDENT", courseVersionId?: string, ): {
+  data: components['schemas']['EnrollmentResponse'] | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery("get", "/users/enrollments/details", {
+    params: {
+      query: {  search, role, courseVersionId  }
+    },
+    enabled: enabled
+  });
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch user enrollments') : null,
+    refetch: result.refetch
+  };
+}
+export function useStoreWatchTimeTrack(): {
+  mutate: (variables: { body: WatchTimeTrackData }) => void,
+  mutateAsync: (variables: { body: WatchTimeTrackData }) => Promise<{ success: boolean; watchTimeTrack?: any }>,
+  data: { success: boolean; watchTimeTrack?: any } | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/users/user-activity-events/");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to store watch time track') : null
+  };
+}

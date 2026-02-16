@@ -51,7 +51,7 @@ import { toast } from "sonner";
 import Loader from "@/components/Loader";
 import { Label } from "@/components/ui/label";
 import ProjectItem from "./components/ProjectItem";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup, SidebarResizablePanel } from "@/components/ui/resizable";
 import FeedbackFormEditor from "./FeedbackFormEditor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
@@ -183,26 +183,26 @@ function TeacherCourseContent() {
 
     setBreadcrumbs(items);
   }, [matches]);
-  const { setOpen, setOpenMobile } = useSidebar();
-  const [isDesktopSidebarVisible, setIsDesktopSidebarVisible] = useState(true);
+  // const { setOpen, setOpenMobile } = useSidebar();
+  // const [isDesktopSidebarVisible, setIsDesktopSidebarVisible] = useState(true);
 
   const checkScreenSize = () => {
     return window.innerWidth <= 425;
   };
 
-  useEffect(() => {
-    const handleResize = () => {
-      const width = window.innerWidth;
-      if (width >= 768) {
-        setOpen(true);
-      }
-    };
+  // useEffect(() => {
+  //   const handleResize = () => {
+  //     const width = window.innerWidth;
+  //     if (width >= 768) {
+  //       setOpen(true);
+  //     }
+  //   };
 
-    window.addEventListener('resize', handleResize);
-    handleResize();
+  //   window.addEventListener('resize', handleResize);
+  //   handleResize();
 
-    return () => window.removeEventListener('resize', handleResize);
-  }, [setOpen]);
+  //   return () => window.removeEventListener('resize', handleResize);
+  // }, [setOpen]);
 
   // Fetch course version data (modules, sections, items)
   const { data: versionData, refetch: refetchVersion, isLoading } = useCourseVersionById(versionId || "");
@@ -245,7 +245,7 @@ function TeacherCourseContent() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
 
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  // const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [hidingModuleId, setHidingModuleId] = useState<string | null>(null);
   const [hidingSectionId, setHidingSectionId] = useState<string | null>(null);
   const [hidingItemId, setHidingItemId] = useState<string | null>(null);
@@ -643,7 +643,7 @@ function TeacherCourseContent() {
               setCurrentCourse({
                 ...currentCourse,
                 watchItemId: null,
-                questionId: null
+                // questionId: null // Keep questionId for EnhancedQuizEditor to use
               });
               setAutoSelectSectionsToLoad([]);
               setAutoSelectCurrentIndex(0);
@@ -719,7 +719,7 @@ function TeacherCourseContent() {
           setCurrentCourse({
             ...currentCourse,
             watchItemId: null,
-            questionId: null
+            // questionId: null // Keep questionId for EnhancedQuizEditor to use
           });
           setAutoSelectSectionsToLoad([]);
           setAutoSelectCurrentIndex(0);
@@ -762,47 +762,41 @@ function TeacherCourseContent() {
 
   // Load sections one by one for auto-selection
   useEffect(() => {
+    // If not in auto-select mode or no item to watch, do nothing
     if (autoSelectSectionsToLoad.length === 0 || !currentCourse?.watchItemId) return;
 
-    if (autoSelectCurrentIndex < autoSelectSectionsToLoad.length) {
-      const section = autoSelectSectionsToLoad[autoSelectCurrentIndex];
+    const currentTarget = autoSelectSectionsToLoad[autoSelectCurrentIndex];
 
-      setActiveSectionInfo(section);
-
-      // Move to next section after a delay
-      setTimeout(() => {
-        setAutoSelectCurrentIndex(prev => prev + 1);
-      }, 100);
-    } else {
-      // All sections queued for loading, reset the loading state
-
+    // If we've run out of sections to check, stop
+    if (!currentTarget) {
       setAutoSelectSectionsToLoad([]);
       setAutoSelectCurrentIndex(0);
+      return;
     }
-  }, [autoSelectCurrentIndex, autoSelectSectionsToLoad, currentCourse?.watchItemId]);
 
-
-
-  // Load sections one by one for auto-selection
-  useEffect(() => {
-    if (autoSelectSectionsToLoad.length === 0 || !currentCourse?.watchItemId) return;
-
-    if (autoSelectCurrentIndex < autoSelectSectionsToLoad.length) {
-      const section = autoSelectSectionsToLoad[autoSelectCurrentIndex];
-
-      setActiveSectionInfo(section);
-
-      // Move to next section after a delay
-      setTimeout(() => {
-        setAutoSelectCurrentIndex(prev => prev + 1);
-      }, 100);
-    } else {
-      // All sections queued for loading, reset the loading state
-
-      setAutoSelectSectionsToLoad([]);
-      setAutoSelectCurrentIndex(0);
+    // If the active section doesn't match our target, switch to it
+    if (activeSectionInfo?.sectionId !== currentTarget.sectionId) {
+      setActiveSectionInfo(currentTarget);
+      return;
     }
-  }, [autoSelectCurrentIndex, autoSelectSectionsToLoad, currentCourse?.watchItemId]);
+
+    // If the active section matches AND we've finished loading:
+    // We can assume the item wasn't found (because the other useEffect would have cleared the state)
+    // So we move to the next section
+    if (!itemsLoading && currentSectionItems) {
+      setAutoSelectCurrentIndex(prev => prev + 1);
+    }
+  }, [
+    autoSelectCurrentIndex,
+    autoSelectSectionsToLoad,
+    currentCourse?.watchItemId,
+    activeSectionInfo,
+    itemsLoading,
+    currentSectionItems
+  ]);
+
+
+
 
 
 
@@ -1566,18 +1560,18 @@ function TeacherCourseContent() {
         }}
       />
       {/* Mobile Sidebar Overlay */}
-      {isMobileSidebarOpen && (
+      {/* {isMobileSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={() => setIsMobileSidebarOpen(false)}
         />
-      )}
-      {isDesktopSidebarVisible && (
-        <ResizablePanel
+      )} */}
+      {/* {isDesktopSidebarVisible && ( */}
+        <SidebarResizablePanel
           defaultSize={20}
           minSize={20}
           maxSize={50}
-          className={`${isMobileSidebarOpen ? 'fixed inset-y-0 left-0 z-50 w-[280px]' : 'hidden md:block'}`}
+          // className={`${isMobileSidebarOpen ? 'fixed inset-y-0 left-0 z-50 w-[280px]' : 'hidden md:block'}`}
         >
           {/* sidebar content */}
           <div className="h-full overflow-hidden border-r border-border/40 bg-sidebar/50">
@@ -1614,6 +1608,7 @@ function TeacherCourseContent() {
                             <Reorder.Item
                               key={module.moduleId}
                               value={module}
+                              as="div"
                               drag
                               className={module.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
                               whileDrag={{ scale: 1.02 }}
@@ -1678,7 +1673,12 @@ function TeacherCourseContent() {
                                         handleMoveSection(module.moduleId, section.sectionId, versionId);
                                       }}
                                     >
-                                      <SidebarMenuSubItem>
+
+                                      <div
+                                        data-slot="sidebar-menu-sub-item"
+                                        data-sidebar="menu-sub-item"
+                                        className="group/menu-sub-item relative"
+                                      >
                                         <SidebarMenuSubButton
                                           onClick={() => {
                                             setMode("default");
@@ -2109,7 +2109,7 @@ function TeacherCourseContent() {
                                             </SidebarMenuSub>
                                           </Reorder.Group>
                                         )}
-                                      </SidebarMenuSubItem>
+                                      </div>
                                     </Reorder.Item>
                                   ))}
 
@@ -2195,8 +2195,8 @@ function TeacherCourseContent() {
               </SidebarFooter>
             </Sidebar>
           </div>
-        </ResizablePanel>
-      )}
+        </SidebarResizablePanel>
+      {/* )} */}
 
       {/* <ResizablePanel
         defaultSize={20}
@@ -2216,25 +2216,25 @@ function TeacherCourseContent() {
 
 
 
-      {/* <ResizableHandle className="hidden md:flex" /> */}
-      {isDesktopSidebarVisible && <ResizableHandle className="hidden md:flex" />}
+      <ResizableHandle className="hidden md:flex" />
+      {/* {isDesktopSidebarVisible && <ResizableHandle className="hidden md:flex" />} */}
 
 
       <ResizablePanel defaultSize={80} className="min-w-0">
         {/* Course Editor Area */}
         <SidebarInset className="max-w-full overflow-hidden flex flex-col">
-          <header className="hidden md:flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear sticky top-0 z-50 bg-background">
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear sticky top-0 z-50 bg-background">
             <div className="flex w-full items-center justify-between px-4">
               <div className="flex items-center gap-2">
                 {/* Add Toggle Button */}
-                <Button
+                {/* <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsDesktopSidebarVisible((p) => !p)}
                   className="hidden md:inline-flex"
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
+                > */}
+                  <SidebarTrigger/>
+                {/* </Button> */}
 
                 <Separator orientation="vertical" className="mx-2 h-4" />
                 <Breadcrumb className="hidden md:flex">
@@ -2257,9 +2257,10 @@ function TeacherCourseContent() {
                     ))}
                   </BreadcrumbList>
                 </Breadcrumb>
+                <Link to="/teacher" className="block md:hidden font-medium text-muted-foreground hover:text-foreground">Dashboard</Link>
               </div>
 
-              <div className="hidden md:flex items-center gap-3">
+              <div className="flex items-center gap-3">
 
                 <div className="relative" ref={invitesRef}>
                   <Button
@@ -2313,15 +2314,14 @@ function TeacherCourseContent() {
           <div className="w-full p-4 sm:p-6">
             {mode === "default" && <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-2 min-w-0 flex-1">
-                <Button
+                {/* <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
                   className="md:hidden shrink-0"
-                >
-                  <Menu className="h-7 w-7" />
+                > */}
                   <span className="sr-only">Toggle Menu</span>
-                </Button>
+                {/* </Button> */}
 
                 <div className="flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-lg border min-w-0 flex-1 sm:flex-none sm:min-w-[200px]">
                   <GraduationCap className="h-4 w-4 text-primary flex-shrink-0" />

@@ -182,6 +182,102 @@ export class UpdateRegistrationSchemasBody {
   @IsObject()
   @JSONSchema({ description: "Dynamic UI Schema for the form" })
   uiSchema: Record<string, any>;
+
+  @IsBoolean()
+  @IsOptional()
+  @JSONSchema({ description: "Active status of course registration" })
+  isActive?: boolean;
+}
+
+export class ToggleRegistrationBody {
+  @IsBoolean()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: "Active status of course registration",
+    example: true
+  })
+  isActive: boolean;
+}
+
+export class PendingRegistrationResponse {
+  @IsString()
+  _id: string;
+
+  @IsString()
+  userId: string;
+
+  @IsString()
+  courseId: string;
+
+  @IsString()
+  versionId: string;
+
+  @IsString()
+  status: string;
+
+  @IsString()
+  createdAt: string;
+
+  @IsObject()
+  @JSONSchema({ description: "User information" })
+  user: {
+    email: string;
+    firstName: string;
+    lastName: string;
+  };
+
+  @IsObject()
+  @JSONSchema({ description: "Course information" })
+  course: {
+    name: string;
+  };
+
+  @IsObject()
+  @JSONSchema({ description: "Version information" })
+  version: {
+    version: string;
+  };
+}
+
+export class ApprovedRegistrationResponse {
+  @IsString()
+  _id: string;
+
+  @IsString()
+  userId: string;
+
+  @IsString()
+  courseId: string;
+
+  @IsString()
+  versionId: string;
+
+  @IsString()
+  status: string;
+
+  @IsObject()
+  @JSONSchema({ description: "Course information" })
+  course: {
+    name: string;
+  };
+}
+
+export class GetPendingRegistrationsParams {
+  @IsString()
+  instructorId: string;
+}
+
+export class GetUnreadApprovedRegistrationsParams {
+  @IsString()
+  studentId: string;
+}
+
+export class markNotificationAsReadResponse {
+  @IsString()
+  message: string;
+
+  @IsBoolean()
+  success: boolean;
 }
 
 class CourseVersionDetailsObject {
@@ -242,7 +338,7 @@ export class AllRegistrationsResponse {
 
 
 export class updateStatusResponse {
-  @JSONSchema({description: 'Message',example:'Registration status updated successfully'})
+  @JSONSchema({ description: 'Message', example: 'Registration status updated successfully' })
   @IsString()
   message: string;
 
@@ -252,10 +348,10 @@ export class updateStatusResponse {
 }
 
 export class updateStatusBulkResponse {
-  @JSONSchema({description: 'Message',example:'Registration status updated successfully'})
+  @JSONSchema({ description: 'Message', example: 'Registration status updated successfully' })
   @IsString()
   message: string;
 
   @IsNumber()
-  registration:number;
+  registration: number;
 }

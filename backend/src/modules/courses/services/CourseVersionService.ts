@@ -302,7 +302,7 @@ export class CourseVersionService extends BaseService {
 
       const newVersionId = newCourseVersion._id.toString();
 
-      const USE_WORKERS = true;
+      const USE_WORKERS = false;
 
       let newModules: Module[];
       let existingEnrollments;
@@ -349,10 +349,26 @@ export class CourseVersionService extends BaseService {
       const durationSec = (durationMs / 1000).toFixed(2);
 
       const totalSections = newModules.reduce((sum, mod) => sum + mod.sections.length, 0);
-      const totalItems = newModules.reduce(
+      const totalItemGroups = newModules.reduce(
         (sum, mod) => sum + mod.sections.reduce((s, sec) => s + (sec.itemsGroupId ? 1 : 0), 0),
         0,
       );
+
+      let totalItems = 0;
+      for (const module of newModules) {
+        for (const section of module.sections) {
+          if (section.itemsGroupId) {
+            try {
+              const itemsGroup = await this.itemRepo.readItemsGroup(section.itemsGroupId.toString());
+              if (itemsGroup?.items) {
+                totalItems += itemsGroup.items.length;
+              }
+            } catch (error) {
+              console.error(`Error reading items group ${section.itemsGroupId}:`, error);
+            }
+          }
+        }
+      }
 
       console.log(`\n=== Course Clone Completed ===`);
       console.log(`Finished at: ${new Date().toISOString()}`);
@@ -360,7 +376,8 @@ export class CourseVersionService extends BaseService {
       console.log(`Summary:`);
       console.log(`  - Modules cloned: ${newModules.length}`);
       console.log(`  - Sections cloned: ${totalSections}`);
-      console.log(`  - Item groups cloned: ${totalItems}`);
+      console.log(`  - Item groups cloned: ${totalItemGroups}`);
+      console.log(`  - Items cloned: ${totalItems}`);
       console.log(`  - New course: ${newCourse.name}`);
       console.log(`=============================\n`);
 

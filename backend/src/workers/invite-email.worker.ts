@@ -79,7 +79,7 @@ const submissionRepo = new SubmissionRepository(database)
 const userQuizMetricsRepo = new UserQuizMetricsRepository(database)
 const quizRepo = new QuizRepository(database)
 const feedbackRepo = new FeedbackRepository(database)
-const progressService = new ProgressService(progressRepo, submissionRepo, courseRepo, userRepo, itemRepo, enrollmentRepo, userQuizMetricsRepo, quizRepo, projectSubmissionRepo, feedbackRepo, database)
+const progressService = new ProgressService(progressRepo, submissionRepo, courseRepo, settingsRepo, userRepo, itemRepo, enrollmentRepo, userQuizMetricsRepo, quizRepo, projectSubmissionRepo, feedbackRepo, database)
 const enrollmentService = new EnrollmentService(enrollmentRepo, courseRepo, userRepo, itemRepo, courseRegistrationRepo, progressService, inviteRepo, progressRepo, database)
 const inviteService = new InviteService(inviteRepo, userRepo, courseRepo, enrollmentRepo, mailService, itemRepo, enrollmentService, database);
 
@@ -94,9 +94,9 @@ const inviteService = new InviteService(inviteRepo, userRepo, courseRepo, enroll
     const version = await courseRepo.readVersion(courseVersionId.toString());
     const courseSettings = await settingsRepo.readCourseSettings(courseId.toString(), courseVersionId.toString());
     const allProctorsDisabled =
-    courseSettings.settings.proctors.detectors.every(
-      (detector: any) => detector.settings.enabled === false
-    );
+      courseSettings.settings.proctors.detectors.every(
+        (detector: any) => detector.settings.enabled === false
+      );
     let processed = 0;
 
     for (const inviteId of inviteIds) {

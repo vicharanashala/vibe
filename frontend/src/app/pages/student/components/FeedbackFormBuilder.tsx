@@ -465,7 +465,6 @@ const FeedbackFormBuilder = ({
     console.log('Schema built successfully:', { jsonSchema, uiSchema });
     return { jsonSchema, uiSchema };
   };
-
   if (isLoading) {
     return (
       <div className="p-6 flex items-center justify-center">
@@ -529,7 +528,7 @@ const FeedbackFormBuilder = ({
                           onClick={() => addField(fieldType.type)}
                         >
                           <Icon className="w-4 h-4" />
-                          <span className="text-sm">{fieldType.label}</span>
+                          <span className="text-xs">{fieldType.label}</span>
                         </Button>
                       );
                     })}
@@ -641,7 +640,7 @@ const FeedbackFormBuilder = ({
                             </div>
 
                             <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-                              <label className="text-sm font-medium flex items-center gap-1">
+                              <label className="text-xs font-medium flex items-center gap-1">
                                 {field.label}
                                 {field.validation.required && <span className="text-destructive">*</span>}
                               </label>
@@ -693,7 +692,7 @@ const FeedbackFormBuilder = ({
                                     checked={formData[field.id] || false}
                                     onCheckedChange={(checked) => setFormData({ ...formData, [field.id]: checked })}
                                   />
-                                  <label htmlFor={field.id} className="text-sm cursor-pointer">
+                                  <label htmlFor={field.id} className="text-xs cursor-pointer">
                                     {field.placeholder || "Check this box"}
                                   </label>
                                 </div>
@@ -730,7 +729,7 @@ const FeedbackFormBuilder = ({
                                         onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
                                         className="w-4 h-4"
                                       />
-                                      <label htmlFor={`${field.id}_${option.value}`} className="text-sm cursor-pointer">
+                                      <label htmlFor={`${field.id}_${option.value}`} className="text-xs cursor-pointer">
                                         {option.label}
                                       </label>
                                     </div>
@@ -862,6 +861,7 @@ const FeedbackFormBuilder = ({
                             <CheckSquare className="w-4 h-4 text-muted-foreground" />
                             Validation Rules
                           </h4>
+                          {/* {(selectedField.type !== "url") && (<> */}
 
                           <div className="flex items-center gap-2 mb-3">
                             <Checkbox
@@ -875,11 +875,12 @@ const FeedbackFormBuilder = ({
                                   },
                                 })
                               }
-                            />
+                              />
                             <label htmlFor="field-required" className="cursor-pointer">
                               Required field
                             </label>
                           </div>
+                              {/* </>)} */}
 
                           {(selectedField.type === "text" ||
                             selectedField.type === "email" ||
