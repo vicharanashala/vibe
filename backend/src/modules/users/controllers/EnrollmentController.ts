@@ -229,6 +229,7 @@ export class EnrollmentController {
   })
   @Authorized()
   @Post('/enrollments/courses/:courseId/versions/:versionId/bulk-unenroll')
+  @UseInterceptor(()=>AuditTrailsHandler)
   @HttpCode(200)
   @ResponseSchema(BulkUnenrollResponse, {
     description: 'Users unenrolled successfully',
@@ -242,7 +243,8 @@ export class EnrollmentController {
     @Param('courseId') courseId: string,
     @Param('versionId') versionId: string,
     @Body() body: BulkUnenrollBody,
-    @Ability(getEnrollmentAbility) {ability},
+    @Ability(getEnrollmentAbility) {ability, user},
+    @Req() req: Request,
   ): Promise<BulkUnenrollResponse> {
     const {userIds} = body;
 
@@ -264,11 +266,34 @@ export class EnrollmentController {
       );
     }
 
+
     const results = await this.enrollmentService.bulkUnenrollUsers(
       userIds,
       courseId,
       versionId,
     );
+
+    setAuditTrail(req, {
+      category: AuditCategory.ENROLLMENT,
+      action: AuditAction.BULK_ENROLLMENT_REMOVE,
+      actor: new ObjectId(user._id),
+      context:{
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(versionId),
+      },
+      changes:{
+        after:{
+          totalRequested: userIds.length,
+          successCount: results.successCount,
+          failureCount: results.failureCount,
+          errors: results.errors,
+          userId: userIds.map(id => new ObjectId(id))
+        }
+      },
+      outcome:{
+        status: OutComeStatus.SUCCESS
+      }
+    })
 
     return {
       success: true,

@@ -20,6 +20,22 @@ class AuditTrailsRepository implements IAuditTrailsRepository{
         const result = await this.auditTrailsCollection.insertOne(data, {session});
         return result.insertedId.toString();
     }
+
+    async getAllAuditTrailsByInstructorId(instructorId: string, session?: ClientSession): Promise<InstructorAuditTrail[]> {
+        await this.init();
+        const auditTrails = await this.auditTrailsCollection.find({ instructorId: new ObjectId(instructorId) }, {session}).toArray();
+        return auditTrails;
+    }
+
+    async getAuditTrailsByCourseAndVersion(userId: string, courseId: string, versionId: string, session?: ClientSession): Promise<InstructorAuditTrail[]> {
+        await this.init();
+        const auditTrails = await this.auditTrailsCollection.find({
+            userId: new ObjectId(userId),
+            courseId: new ObjectId(courseId),
+            versionId: new ObjectId(versionId)
+        }, {session}).toArray();
+        return auditTrails;
+    }
 }
 
 
