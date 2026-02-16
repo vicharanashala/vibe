@@ -39,7 +39,7 @@ import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { subject } from '@casl/ability';
 import { USERS_TYPES } from '#root/modules/users/types.js';
 import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
-import { AuditTrailsHandler } from '#root/shared/index.js';
+import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 import { setAuditTrail } from '#root/utils/setAuditTrail.js';
 import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
 import { ObjectId } from 'mongodb';

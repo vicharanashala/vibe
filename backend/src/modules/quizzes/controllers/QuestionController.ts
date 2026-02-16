@@ -38,11 +38,11 @@ import {
 } from '../abilities/questionAbilities.js';
 import {subject} from '@casl/ability';
 import {
-  AuditTrailsHandler,
   BadRequestErrorResponse,
   ForbiddenErrorResponse,
   TranscriptResponse,
 } from '#root/shared/index.js';
+import {AuditTrailsHandler} from '#root/shared/middleware/auditTrails.js';
 import {textUploadOptions} from '#root/modules/anomalies/classes/validators/fileUploadOptions.js';
 import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
 import { ObjectId } from 'mongodb';

@@ -67,6 +67,7 @@ export enum AuditAction {
   FLAG_STATUS_UPDATE = "FLAG_STATUS_UPDATE",
 
   // Enrollment / Progress
+  ENROLLMENT_ADD = "ENROLLMENT_ADD",
   ENROLLMENT_REMOVE = "ENROLLMENT_REMOVE",
   ENROLLMENT_REMOVE_INSTRUCTOR = "ENROLLMENT_REMOVE_INSTRUCTOR",
   ENROLLMENT_REMOVE_STUDENT = "ENROLLMENT_REMOVE_STUDENT",
@@ -109,6 +110,7 @@ export interface InstructorAuditTrail {
   actor: string | ObjectId;
 
   context: {
+
     courseId?: string | ObjectId;
     courseVersionId?: string | ObjectId;
     moduleId?: string | ObjectId;
@@ -123,6 +125,7 @@ export interface InstructorAuditTrail {
     registrationId?: string | ObjectId;
     inviteId?: string | ObjectId;
     relatedIds?: Record<string, ObjectId | string>;
+    userId?: string | ObjectId; 
   };
 
   changes?: {

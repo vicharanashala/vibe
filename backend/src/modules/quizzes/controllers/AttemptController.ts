@@ -11,6 +11,7 @@ import {
   Controller,
   Req,
   ContentType,
+  UseInterceptor,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
@@ -42,6 +43,8 @@ import {getCourseAbility} from '#root/modules/courses/abilities/courseAbilities.
 import {createObjectCsvStringifier} from 'csv-writer';
 import {Response, Request} from 'express';
 import {hideExplanationForStartAttempt} from '../utils/functions/hideExplanationForStartAttempt.js';
+import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
+import { setAuditTrail } from '#root/utils/setAuditTrail.js';
 
 @OpenAPI({
   tags: ['Quiz Attempts'],
@@ -320,6 +323,8 @@ class AttemptController {
   async exportQuizAttempts(
     @Params() params: ExportQuizAttemptsParams,
     @Res() res: Response,
+    @Req() req: Request,
+     @Ability(getAttemptAbility) {ability, user},
   ): Promise<void> {
     const result = await this.attemptService.exportQuizSubmissions(
       params.quizId,
