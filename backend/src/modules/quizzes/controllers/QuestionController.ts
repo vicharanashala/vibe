@@ -289,7 +289,6 @@ class QuestionController {
   })
   @Authorized()
   @Post('/:questionId/flag')
-  @UseInterceptor(AuditTrailsHandler)
   @OnUndefined(200)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid question id or reason',
@@ -307,7 +306,6 @@ class QuestionController {
     @Params() params: QuestionId,
     @Body() body: FlagQuestionBody,
     @Ability(getQuestionAbility) {ability, user},
-    @Req() req: Request
   ): Promise<void> {
     const {questionId} = params;
     const userId = user._id.toString();
@@ -320,25 +318,6 @@ class QuestionController {
         'You do not have permission to flag this question',
       );
     }
-
-    setAuditTrail(req,{
-      category: AuditCategory.QUESTION,
-      action: AuditAction.FLAG_CREATE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
-      context:{
-        courseId: ObjectId.createFromHexString(body.courseId.toString()),
-        courseVersionId: ObjectId.createFromHexString(body.versionId.toString()),
-        questionId: ObjectId.createFromHexString(questionId.toString()),
-      },
-      changes:{
-        after:{
-          reason: body.reason,
-        }
-       },
-       outcome:{
-        status: OutComeStatus.SUCCESS,
-        },
-    })
 
 
     await this.questionService.flagQuestion(
