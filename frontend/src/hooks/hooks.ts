@@ -4044,12 +4044,14 @@ export function useRecalculateStudentProgress(): {
     body: {
       courseId: string;
       courseVersionId: string;
+      userId?: string;
     };
   }) => void;
   mutateAsync: (variables: {
     body: {
       courseId: string;
       courseVersionId: string;
+      userId?: string;
     };
   }) => Promise<string>;
   data: string | undefined;
