@@ -114,6 +114,28 @@ class ProgressRepository {
     return distinctItemIds.map(id => id.toString());
   }
 
+  async getAllDistinctCompletedItems(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<string[]> {
+    await this.init();
+
+    const distinctItemIds = await this.watchTimeCollection.distinct(
+      'itemId',
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        isDeleted: { $ne: true },
+      },
+      { session },
+    );
+
+    return distinctItemIds.map(id => id.toString());
+  }
+
   async isItemCompleted(
     userId: string,
     courseId: string,
