@@ -3456,6 +3456,81 @@ export const useToggleRegistrationStatus = (versionId: string): {
   };
 };
 
+export const useUpdateAutoApprovalsettings = (
+  versionId: string,
+): {
+  mutate: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[] }) => void;
+  mutateAsync: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[] }) => Promise<any>;
+  data: any;
+  error: string | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  reset: () => void;
+  status: 'idle' | 'pending' | 'success' | 'error';
+} => {
+  const result = api.useMutation('put', '/course/registration/auto-approval/version/{versionId}' as any);
+
+  return {
+    mutate: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[] }) =>
+      result.mutate({
+        params: {
+          path: { versionId },
+        },
+        body: params,
+      }),
+
+    mutateAsync: (params: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[] }) =>
+      result.mutateAsync({
+        params: {
+          path: { versionId },
+        },
+        body: params,
+      }),
+
+    data: result.data,
+    error: result.error
+      ? result.error.message || 'Failed to update auto-approval settings'
+      : null,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+  };
+};
+
+export const useAutoApprovalSettings = (
+  versionId: string,
+): {
+  data: { registrationsAutoApproved?: boolean; autoapproval_emails?: string[] } | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} => {
+  const result = api.useQuery(
+    "get",
+    "/course/registration/build-form/version/{versionId}" as any,
+    {
+      params: {
+        path: { versionId },
+      },
+    },
+    {
+      enabled: !!versionId,
+    }
+  );
+  
+  return {
+    settings: result.data as { registrationsAutoApproved?: boolean; autoapproval_emails?: string[] } | undefined,
+    isLoading: result.isLoading,
+    error: result.error ? result.error.message || "Failed to fetch auto-approval settings" : null,
+    refetch: result.refetch,
+  };
+};
+
 
 export const useGetDynamicFields = (
   versionId: string,
