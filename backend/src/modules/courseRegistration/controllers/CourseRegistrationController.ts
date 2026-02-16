@@ -26,6 +26,7 @@ import { CourseVersionIdParams } from '#root/modules/notifications/index.js';
 import {
   AllRegistrationsResponse,
   ApprovedRegistrationResponse,
+  AutoApprovalSettingsBody,
   BulkUpdateStatusBody,
   CourseVersionDetailsResponse,
   GetPendingRegistrationsParams,
@@ -167,15 +168,29 @@ class CourseRegistrationController {
       registrationData,
     );
 
-    // Auto-approve for specific course versions
-    if (versionId === "6981df886e100cfe04f9c4ae") {
-      // Auto-approve ALL registrations for this course
-      await this.courseRegistrationService.updateStatus(result, "APPROVED");
-    } else if (versionId === "698f2fe9e4dc6671e2ddf808") {
-      // Auto-approve ONLY IITM email domain registrations for this course
-      const userDetails = await this.userRepository.findById(userId);
-      if (userDetails && userDetails.email && userDetails.email.endsWith('iitm.ac.in')) {
+    // Check for auto-approval settings
+    const courseSettings = await this.courseRegistrationService.getSettings(versionId);
+    const registrationSettings = courseSettings;
+    
+    if (registrationSettings.registrationsAutoApproved) {
+      // Auto-approval is enabled
+      if (!registrationSettings.autoapproval_emails || registrationSettings.autoapproval_emails.length === 0) {
+        // No specific emails set - auto-approve all
         await this.courseRegistrationService.updateStatus(result, "APPROVED");
+      } else {
+        // Check if user email matches any of the specified patterns
+        const userDetails = await this.userRepository.findById(userId);
+        
+        if (userDetails && userDetails.email) {
+          const userEmail = userDetails.email.toLowerCase();
+          const shouldAutoApprove = registrationSettings.autoapproval_emails.some(pattern => 
+            userEmail.includes(pattern.toLowerCase())
+          );
+          
+          if (shouldAutoApprove) {
+            await this.courseRegistrationService.updateStatus(result, "APPROVED");
+          }
+        }
       }
     }
 
@@ -288,6 +303,10 @@ class CourseRegistrationController {
     };
   }
 
+  @OpenAPI({
+    summary: 'Get Registration Settings',
+    description: 'Get the registration settings for a course version',
+  })
   @Get('/build-form/version/:versionId')
   @Authorized()
   @ResponseSchema(UpdateRegistrationSchemasBody, {
@@ -342,6 +361,48 @@ class CourseRegistrationController {
       throw new ForbiddenError('You do not have permission to modify settings');
     }
     return this.courseRegistrationService.updateSettings(versionId, body);
+  }
+
+  @OpenAPI({
+    summary: 'Update Auto-Approval Settings',
+    description: 'Update auto-approval settings for course registrations',
+  })
+  @Put('/auto-approval/version/:versionId')
+  @Authorized()
+  @ResponseSchema(UpdateSettingResponse, {
+    description: 'Auto-approval settings updated successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async updateAutoApprovalSettings(
+    @Params() params: CourseVersionIdParams,
+    @Body() body: AutoApprovalSettingsBody,
+    @Ability(getCourseRegistrationAbility) { ability },
+  ) {
+    const { versionId } = params;
+    
+    if (
+      !ability.can(
+        CourseRegistrationActions.Modify,
+        subject(courseRegistrationSubject, { versionId }),
+      )
+    ) {
+      throw new ForbiddenError('You do not have permission to modify auto-approval settings');
+    }
+
+    // Get current settings to preserve existing schema and isActive
+    const currentSettings = await this.courseRegistrationService.getSettings(versionId);
+    
+    return this.courseRegistrationService.updateSettings(versionId, {
+      jsonSchema: currentSettings.jsonSchema,
+      uiSchema: currentSettings.uiSchema,
+      isActive: currentSettings.isActive,
+      registrationsAutoApproved: body.registrationsAutoApproved,
+      autoapproval_emails: body.autoapproval_emails,
+    });
   }
 
   @OpenAPI({
