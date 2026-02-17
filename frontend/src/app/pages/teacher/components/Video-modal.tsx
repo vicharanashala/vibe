@@ -94,7 +94,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
     const [playerReady, setPlayerReady] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [showOverlay, setShowOverlay] = useState(false);
-    const [showDeleteVideoModal, setShowDeleteVideoModal]=useState(false)
+    const [showDeleteVideoModal, setShowDeleteVideoModal] = useState(false)
     const [errors, setErrors] = useState({
         startTime: "",
         endTime: ""
@@ -158,10 +158,10 @@ const VideoModal: React.FC<VideoModalProps> = ({
         setCurrentTime(0);
     }, [item]);
 
-    
-// useEffect(() => {
-//   setPlayerReady(false);   // move it here
-// }, [videoId]);
+
+    // useEffect(() => {
+    //   setPlayerReady(false);   // move it here
+    // }, [videoId]);
     // Create/destroy player on videoId change
     useEffect(() => {
         setPlayerReady(false)
@@ -296,11 +296,11 @@ const VideoModal: React.FC<VideoModalProps> = ({
     const handleTimeInputChange = (type: 'start' | 'end', value: string) => {
         const numericOnly = value.replace(/\D/g, '');
 
-    // Limit to 6 digits total (HHMMSS)
-    if (numericOnly.length > 6) return;
-        
-        
-        
+        // Limit to 6 digits total (HHMMSS)
+        if (numericOnly.length > 6) return;
+
+
+
         setTimeInputs(prev => ({
             ...prev,
             [type]: value
@@ -342,7 +342,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
 
         // Validate time range (end > start) - use updated state
         setTimeout(() => {
-        const otherType = type === 'start' ? 'end' : 'start';
+            const otherType = type === 'start' ? 'end' : 'start';
             const currentStart = type === 'start' ? formattedValue : timeInputs[otherType];
             const currentEnd = type === 'start' ? timeInputs[otherType] : formattedValue;
             validateTimeRange(currentStart, currentEnd);
@@ -405,23 +405,23 @@ const VideoModal: React.FC<VideoModalProps> = ({
     const hasErrors = () => {
         return errors.startTime !== "" || errors.endTime !== "";
     };
-    const [errorList,setErrorList]=useState({name:"",description:"",url: ""})
-    const errorMessages={
-        name:"Video name is required",
-        description:"Video description is required",
-        url:"Video url is reqired"
+    const [errorList, setErrorList] = useState({ name: "", description: "", url: "" })
+    const errorMessages = {
+        name: "Video name is required",
+        description: "Video description is required",
+        url: "Video url is reqired"
     }
-   const [skipIntialRender, setSkipIntialRender] = useState(true)
-    useEffect(()=>{
-     if (!skipIntialRender){
-        setErrorList({
-            name:name?"":errorMessages.name,
-            description: description ? "" : errorMessages.description,
-            url: url ? "" : errorMessages.url,
+    const [skipIntialRender, setSkipIntialRender] = useState(true)
+    useEffect(() => {
+        if (!skipIntialRender) {
+            setErrorList({
+                name: name ? "" : errorMessages.name,
+                description: description ? "" : errorMessages.description,
+                url: url ? "" : errorMessages.url,
 
-        })
-    }
-         },[name,description,url])
+            })
+        }
+    }, [name, description, url])
     // Handle Cancel with restore functionality
     const handleCancel = () => {
         // Restore original values
@@ -439,33 +439,31 @@ const VideoModal: React.FC<VideoModalProps> = ({
         ]);
         setErrors({ startTime: "", endTime: "" });
         setErrorList({ name: "", description: "", url: "" });
-        
+
         onClose();
     };
     const handleSave = () => {
-        setSkipIntialRender(false)
-        const newErrors={
-            name:name?"":errorMessages.name,
-            description:description?"":errorMessages.description,
-            url: url ? "" : errorMessages.url,
-        }
-        setErrorList(newErrors)
-        const isValid = Object.values(newErrors).every((err) => err === "");
-      
+        setSkipIntialRender(false);
 
-    if(isValid)
-       {
+        const newErrors = {
+            name: name ? "" : errorMessages.name,
+            description: description ? "" : errorMessages.description,
+            url: url ? "" : errorMessages.url,
+        };
+
+        setErrorList(newErrors);
+        const isValid = Object.values(newErrors).every((err) => err === "");
+        if (!isValid) return;
+
         const startSeconds = validateTimeInput(timeInputs.start, duration);
         const endSeconds = validateTimeInput(timeInputs.end, duration);
-        
-        const startValid = validateTimeAgainstDuration(timeInputs.start, 'startTime', duration);
-        const endValid = validateTimeAgainstDuration(timeInputs.end, 'endTime', duration);
+
+        const startValid = validateTimeAgainstDuration(timeInputs.start, "startTime", duration);
+        const endValid = validateTimeAgainstDuration(timeInputs.end, "endTime", duration);
         const rangeValid = validateTimeRange(timeInputs.start, timeInputs.end);
-        
-        if (!startValid || !endValid || !rangeValid) {
-            return; 
-        }
-        
+
+        if (!startValid || !endValid || !rangeValid) return;
+
         const video: Video = {
             _id: item?._id || "",
             name,
@@ -475,13 +473,13 @@ const VideoModal: React.FC<VideoModalProps> = ({
                 URL: url,
                 startTime: formatTime(startSeconds),
                 endTime: formatTime(endSeconds),
-                points: points,
+                points,
             },
         };
-        
+
         onSave(video);
-    }
     };
+
 
     // Overlay click handler
     const handleOverlayClick = () => {
@@ -509,9 +507,10 @@ const VideoModal: React.FC<VideoModalProps> = ({
             {isLoading ? <Loader /> :
                 <div
                     ref={modalRef}
-                    className="bg-background rounded-lg border p-6 xl:min-w-[700px]
-             backdrop-blur-md bg-background/80
-             max-h-[90vh] overflow-y-auto"
+                    className="bg-background rounded-lg p-6 
+             backdrop-blur-md bg-background/80 border
+              overflow-y-auto
+                min-w-4xl"
                 >
 
 
@@ -541,8 +540,8 @@ const VideoModal: React.FC<VideoModalProps> = ({
                             disabled={action === "view"}
                         />
                         {errorList.name && (
-                  <p className="text-xs text-red-500 mt-1">{errorList.name}</p>
-                )}
+                            <p className="text-xs text-red-500 mt-1">{errorList.name}</p>
+                        )}
                         <Input
                             placeholder="Paste YouTube video URL *"
                             value={url}
@@ -550,8 +549,8 @@ const VideoModal: React.FC<VideoModalProps> = ({
                             disabled={action === "view"}
                         />
                         {errorList.url && (
-                  <p className="text-xs text-red-500 mt-1">{errorList.url}</p>
-                )}
+                            <p className="text-xs text-red-500 mt-1">{errorList.url}</p>
+                        )}
                         <textarea
                             placeholder="Description *"
                             value={description}
@@ -561,8 +560,8 @@ const VideoModal: React.FC<VideoModalProps> = ({
                             className="w-full rounded border px-3 py-2 text-sm"
                         />
                         {errorList.description && (
-                  <p className="text-xs text-red-500 mt-1">{errorList.description}</p>
-                )}
+                            <p className="text-xs text-red-500 mt-1">{errorList.description}</p>
+                        )}
                         {videoId && (
                             <div
                                 style={{
@@ -755,19 +754,19 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                         return endSeconds <= startSeconds;
                                     };
                                     return (
-                                <Button
-                                    onClick={handleSave}
-                                    disabled={!playerReady || !url || hasErrors() || hasTimeRangeError()}
-                                >
-                                    {action === "add" ? "Add Item " : "Update Video"}
-                                </Button>
+                                        <Button
+                                            onClick={handleSave}
+                                            disabled={!playerReady || !url || hasErrors() || hasTimeRangeError()}
+                                        >
+                                            {action === "add" ? "Add Item " : "Update Video"}
+                                        </Button>
                                     );
                                 })()}
-                                
+
                             </div>
-                            
+
                         )}
-                         <div className="relative group">
+                        <div className="relative group">
                             <ConfirmationModal
                                 isOpen={showDeleteVideoModal}
                                 onClose={() => setShowDeleteVideoModal(false)}
@@ -782,7 +781,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                             />
                             <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                         </div>
-                       
+
                     </div>
                 </div>
             }

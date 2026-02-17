@@ -525,6 +525,8 @@ export interface ISettings {
     jsonSchema?: any;
     uiSchema?: any;
     isActive?: boolean;
+    registrationsAutoApproved?: boolean;
+    autoapproval_emails?: string[];
   };
   // jsonSchema?: any;
   // uiSchema?: any;
