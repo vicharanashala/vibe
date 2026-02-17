@@ -1,5 +1,6 @@
 import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
 import {
+  CourseVersionWatchTimeResponse,
   CreateCourseVersionBody,
   UpdateCourseVersionBody,
 } from '#courses/classes/validators/CourseVersionValidators.js';
@@ -21,6 +22,7 @@ import {
   ICourseVersion,
   IItemRepository,
   ProctoringComponent,
+  ProgressRepository,
   SettingRepository,
 } from '#root/shared/index.js';
 import { USERS_TYPES } from '#root/modules/users/types.js';
@@ -62,6 +64,8 @@ export class CourseVersionService extends BaseService {
     private readonly questionRepository: QuestionRepository,
     @inject(QUIZZES_TYPES.QuestionBankRepo)
     private readonly questionBankRepo: QuestionBankRepository,
+    @inject(USERS_TYPES.ProgressRepo)
+    private readonly progressRepository: ProgressRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
   ) {
@@ -423,6 +427,26 @@ export class CourseVersionService extends BaseService {
     }
   }
 
-
+  async getCourseVersionTotalWatchTime(
+    courseId: string,
+    versionId: string,
+  ): Promise<CourseVersionWatchTimeResponse> {
+    const totalWatchTime = await this.progressRepository.getCourseVersionTotalWatchTime(courseId, versionId);
+    if (totalWatchTime === null) {
+      throw new NotFoundError('Course version not found');
+    }
+    const courseVersion = await this.courseRepo.readVersion(versionId);
+    if (!courseVersion) {
+      throw new NotFoundError('Course version not found');
+    }
+    const course = await this.courseRepo.read(courseId);
+    if (!course) {
+      throw new NotFoundError('Course not found');
+    }
+    const response = new CourseVersionWatchTimeResponse();
+    response.totalSeconds = totalWatchTime;
+    response.message = `Watch time fetched successfully for course "${course.name}" version "${courseVersion.version}".`;
+    return response;
+  }
 
 }

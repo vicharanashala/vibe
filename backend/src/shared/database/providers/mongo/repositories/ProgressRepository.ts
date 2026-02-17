@@ -1170,6 +1170,58 @@ class ProgressRepository {
     };
   }
 
+  async getCourseVersionTotalWatchTime(
+    courseId: string,
+    versionId: string,
+  ): Promise<number> {
+    await this.init();
+
+    const MAX_MS = 10 * 60 * 1000; // 10 minutes
+
+    const result = await this.watchTimeCollection
+      .aggregate([
+        {
+          $match: {
+            courseId: new ObjectId(courseId),
+            courseVersionId: new ObjectId(versionId),
+            isDeleted: { $ne: true },
+            startTime: { $ne: null },
+            endTime: { $ne: null },
+          },
+        },
+
+        {
+          $addFields: {
+            diffMs: { $subtract: ['$endTime', '$startTime'] },
+          },
+        },
+
+        {
+          $match: {
+            $expr: {
+              $and: [
+                { $gte: ['$diffMs', 0] },
+                { $lte: ['$diffMs', MAX_MS] }, 
+              ],
+            },
+          },
+        },
+
+        {
+          $group: {
+            _id: null,
+            totalMs: { $sum: '$diffMs' },
+          },
+        },
+      ])
+      .toArray();
+
+    const totalMs = result?.[0]?.totalMs ?? 0;
+
+    return Math.floor(totalMs / 1000);
+  }
+
+
 
 }
 

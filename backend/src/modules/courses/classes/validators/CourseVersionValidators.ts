@@ -1,4 +1,4 @@
-import {ICourseVersion} from '#root/shared/interfaces/models.js';
+import { ICourseVersion } from '#root/shared/interfaces/models.js';
 import {
   IsEmpty,
   IsNotEmpty,
@@ -9,8 +9,9 @@ import {
   IsUrl,
   MinLength,
   MaxLength,
+  IsNumber,
 } from 'class-validator';
-import {JSONSchema} from 'class-validator-jsonschema';
+import { JSONSchema } from 'class-validator-jsonschema';
 
 class CreateCourseVersionBody implements Partial<ICourseVersion> {
   @JSONSchema({
@@ -262,11 +263,11 @@ class UpdateCourseVersionBody implements Partial<ICourseVersion> {
 }
 class CopyCourseVersionParams {
   @IsString()
-  @JSONSchema({description: 'The ID of the course'})
+  @JSONSchema({ description: 'The ID of the course' })
   courseId!: string;
 
   @IsString()
-  @JSONSchema({description: 'The ID of the version to copy'})
+  @JSONSchema({ description: 'The ID of the version to copy' })
   versionId!: string;
 }
 class CopyCourseVersionResponse {
@@ -277,8 +278,64 @@ class CopyCourseVersionResponse {
   })
   message!: string;
 }
+
+class GetCourseVersionWatchTimeParams {
+  @IsMongoId()
+  @JSONSchema({
+    description: 'Course ID',
+    example: '66c2b6c9b4e0a3e6c1a93f41',
+  })
+  courseId!: string;
+
+  @IsMongoId()
+  @JSONSchema({
+    description: 'Course Version ID',
+    example: '66c2b72ab4e0a3e6c1a93f8a',
+  })
+  versionId!: string;
+}
+
+class CourseVersionWatchTimeResponse {
+  @IsString()
+  @JSONSchema({
+    description: 'Success message',
+    example: 'Watch time fetched successfully',
+  })
+  message!: string;
+
+  @IsNumber()
+  @JSONSchema({
+    description: 'Total watch time in seconds',
+    example: 15432,
+  })
+  totalSeconds!: number;
+
+  @IsNumber()
+  @JSONSchema({
+    description: 'Total watch time in hours',
+    example: 4.29,
+  })
+  totalHours!: number;
+
+  @IsString()
+  @JSONSchema({
+    description: 'Total watch time in days',
+    example: 0.18,
+  })
+  readableDuration!: string;
+
+  @IsNumber()
+  @JSONSchema({
+    description: 'Rounded total hours (2 decimal)',
+    example: 4.29,
+  })
+  totalHoursRounded!: number;
+}
+
 export {
   CreateCourseVersionBody,
+  GetCourseVersionWatchTimeParams,
+  CourseVersionWatchTimeResponse,
   CopyCourseVersionResponse,
   CopyCourseVersionParams,
   CreateCourseVersionParams,
