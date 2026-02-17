@@ -565,17 +565,46 @@ It returns an empty body with a 200 status code.
     statusCode: 500,
   })
   async recalculateStudentProgress(
-    @Body() body: CourseVersionQuery & { userId: string },
+    @Body() body: CourseVersionQuery & { userId?: string },
     @CurrentUser() currentUser: IUser,
+    @Ability(getProgressAbility) { ability },
   ): Promise<string> {
     console.log("RECALCULATE METHOD HIT controller");
 
-    const {courseId, courseVersionId, userId } = body;
+    const { courseId, courseVersionId, userId: requestedUserId } = body;
 
-    console.log("Recalculating for user:", userId);
+    // Determine the target user based on role and permissions
+    let targetUserId: string;
+
+    if (requestedUserId) {
+      // If userId is provided (instructor use case), verify permissions
+      const progressResource = subject('Progress', {
+        userId: requestedUserId,
+        courseId,
+        versionId: courseVersionId,
+      });
+
+      // Check if current user can modify progress for the requested user
+      if (!ability.can(ProgressActions.Modify, progressResource)) {
+        throw new ForbiddenError(
+          'You do not have permission to recalculate progress for this user',
+        );
+      }
+
+      targetUserId = requestedUserId;
+      console.log('Instructor/Admin recalculating for user:', targetUserId);
+    } else {
+      // No userId provided - use authenticated user (student use case)
+      targetUserId = currentUser._id?.toString();
+      console.log('Student recalculating own progress:', targetUserId);
+    }
+
+    if (!targetUserId) {
+      throw new BadRequestError('Unable to determine target user');
+    }
 
     return this.progressService.recalculateStudentProgress(
-      userId,
+      targetUserId,
       courseId,
       courseVersionId,
     );
