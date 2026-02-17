@@ -76,7 +76,7 @@ export class EnrollmentController {
   })
   @Authorized()
   @Post('/:userId/enrollments/courses/:courseId/versions/:versionId')
-  @UseInterceptor(()=>AuditTrailsHandler)
+  @UseInterceptor(AuditTrailsHandler)
   @HttpCode(200)
   @ResponseSchema(EnrollUserResponse, {
     description: 'User enrolled successfully',
@@ -122,11 +122,11 @@ export class EnrollmentController {
     setAuditTrail(req,{
       category: AuditCategory.ENROLLMENT,
       action: AuditAction.ENROLLMENT_ADD,
-      actor: new ObjectId(user._id),
+      actor: ObjectId.createFromHexString(user._id.toString()),
       context: {
-        courseId: new ObjectId(courseId),
-        courseVersionId: new ObjectId(versionId),
-        userId: new ObjectId(userId)
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        userId: ObjectId.createFromHexString(userId)
       },
       changes:{
         after:{
@@ -152,7 +152,7 @@ export class EnrollmentController {
   })
   @Authorized()
   @Post('/:userId/enrollments/courses/:courseId/versions/:versionId/unenroll')
-  @UseInterceptor(()=>AuditTrailsHandler)
+  @UseInterceptor(AuditTrailsHandler)
   @HttpCode(200)
   @ResponseSchema(EnrollUserResponse, {
     description: 'User unenrolled successfully',
@@ -198,11 +198,11 @@ export class EnrollmentController {
       setAuditTrail(req,{
       category: AuditCategory.ENROLLMENT,
       action: enrollmentData.role === "INSTRUCTOR" ? AuditAction.ENROLLMENT_REMOVE_INSTRUCTOR : AuditAction.ENROLLMENT_REMOVE_STUDENT,
-      actor: new ObjectId(user._id),
+      actor: ObjectId.createFromHexString(user._id.toString()),
       context: {
-        courseId: new ObjectId(courseId),
-        courseVersionId: new ObjectId(versionId),
-        userId: new ObjectId(userId)
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        userId: ObjectId.createFromHexString(userId)
       },
       changes:{
         before:{
@@ -229,7 +229,7 @@ export class EnrollmentController {
   })
   @Authorized()
   @Post('/enrollments/courses/:courseId/versions/:versionId/bulk-unenroll')
-  @UseInterceptor(()=>AuditTrailsHandler)
+  @UseInterceptor(AuditTrailsHandler)
   @HttpCode(200)
   @ResponseSchema(BulkUnenrollResponse, {
     description: 'Users unenrolled successfully',
@@ -276,10 +276,10 @@ export class EnrollmentController {
     setAuditTrail(req, {
       category: AuditCategory.ENROLLMENT,
       action: AuditAction.BULK_ENROLLMENT_REMOVE,
-      actor: new ObjectId(user._id),
+      actor: ObjectId.createFromHexString(user._id.toString()),
       context:{
-        courseId: new ObjectId(courseId),
-        courseVersionId: new ObjectId(versionId),
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: ObjectId.createFromHexString(versionId),
       },
       changes:{
         after:{
@@ -520,7 +520,7 @@ export class EnrollmentController {
   })
   @Authorized()
   @Patch('/enrollments/progress', {transformResponse: true})
-  @UseInterceptor(()=>AuditTrailsHandler)
+  @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(UpdateEnrollmentProgressResponse, {
     description: 'Enrollment progress updated successfully',
     statusCode: 200,
@@ -541,10 +541,10 @@ export class EnrollmentController {
       setAuditTrail(req, {
         category: AuditCategory.ENROLLMENT,
         action: AuditAction.PROGRESS_RECALCULATE,
-        actor: new ObjectId(user._id),
+        actor: ObjectId.createFromHexString(user._id.toString()),
         context: {
-          courseId: courseId ? new ObjectId(courseId) : undefined,
-          userId: userId ? new ObjectId(userId) : undefined,
+          courseId: courseId ? ObjectId.createFromHexString(courseId) : undefined,
+          userId: userId ? ObjectId.createFromHexString(userId) : undefined,
         },
         changes:{
           after:{
