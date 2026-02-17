@@ -4,6 +4,7 @@ import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useC
 import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video, Clock, PlayCircle, Users, Search, SkipBack, SkipForward } from 'lucide-react';
 import { useHideItem } from '@/hooks/hooks';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { UserSeekDetailsDialog } from '@/components/UserSeekDetailsDialog';
 
 const MAX_DESCRIPTION_LENGTH = 1000;
 
@@ -56,7 +57,7 @@ import { Label } from "@/components/ui/label";
 import ProjectItem from "./components/ProjectItem";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup, SidebarResizablePanel } from "@/components/ui/resizable";
 import FeedbackFormEditor from "./FeedbackFormEditor";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/utils/utils";
 import { QuestionUploadDialog } from "@/components/question-upload-dialog";
@@ -2024,185 +2025,185 @@ function TeacherCourseContent() {
                                                         setActiveSectionInfo({ moduleId: module.moduleId, sectionId: section.sectionId });
                                                         handleAddItem(module.moduleId, section.sectionId, type);
 
-                                                      }
-
-                                                      e.target.value = "";
-
                                                     }
 
-                                                  }}
+                                                    e.target.value = "";
 
+                                                  }
+
+                                                }}
+
+                                              >
+
+                                                <option value="" disabled>Add Item</option>
+
+                                                <option value="article">Article</option>
+
+                                                <option value="VIDEO">Video</option>
+
+                                                <option value="quiz">Quiz</option>
+
+                                                <option value="feedback">Feedback Form</option>
+
+                                                <option
+                                                  value="project"
+                                                  disabled={hasExistingProject}
+                                                  className={hasExistingProject ? 'text-gray-400' : ''}
                                                 >
+                                                  {hasExistingProject ? 'Project (Limit 1 per course)' : 'Project'}
+                                                </option>
+                                                <option value="csv_upload">Upload CSV</option>
 
-                                                  <option value="" disabled>Add Item</option>
+                                              </select>
+                                              <TooltipProvider>
+                                                <Tooltip>
+                                                  <TooltipTrigger asChild>
+                                                    <DropdownMenu>
+                                                      <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                          type="button"
+                                                          className="inline-flex items-center justify-center px-1.5 py-0 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold text-[10px] gap-0.5 shadow transition-all duration-200 hover:scale-105 hover:shadow-lg hover:from-purple-600 hover:to-indigo-600 focus:outline-none focus:ring-2 focus:ring-purple-400 ml-3"
+                                                          style={{ minWidth: 'unset', height: '1.5rem' }}
+                                                        >
+                                                          <Sparkles className="h-2 w-2" />
+                                                          <span>AI</span>
+                                                        </Button>
+                                                      </DropdownMenuTrigger>
+                                                      <DropdownMenuContent align="start" className="w-40">
+                                                        <DropdownMenuItem
+                                                          className="text-xs cursor-pointer"
+                                                          onClick={() => {
+                                                            setCurrentCourse({
+                                                              courseId,
+                                                              versionId,
+                                                              moduleId: module.moduleId,
+                                                              sectionId: section.sectionId,
+                                                              itemId: null,
+                                                              watchItemId: null,
+                                                            });
+                                                            setMode('custom')
+                                                            // navigate({ to: '/teacher/ai-section' });
+                                                          }}
+                                                        >
+                                                          Custom mode
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                          className="text-xs cursor-pointer"
+                                                          onClick={() => {
+                                                            setCurrentCourse({
+                                                              courseId,
+                                                              versionId,
+                                                              moduleId: module.moduleId,
+                                                              sectionId: section.sectionId,
+                                                              itemId: null,
+                                                              watchItemId: null,
+                                                            });
+                                                            setMode('wizard')
+                                                            // navigate({ to: '/teacher/ai-workflow' });
+                                                          }}
+                                                        >
+                                                          Wizard mode
+                                                        </DropdownMenuItem>
+                                                      </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                  </TooltipTrigger>
+                                                  <TooltipContent side="right" align="center">
+                                                    Generate Section with AI
+                                                  </TooltipContent>
+                                                </Tooltip>
+                                              </TooltipProvider>
+                                            </div>
 
-                                                  <option value="article">Article</option>
+                                          </SidebarMenuSub>
+                                        </Reorder.Group>
+                                      )}
+                                    </div>
+                                  </Reorder.Item>
+                                ))}
 
-                                                  <option value="VIDEO">Video</option>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="ml-4 mt-2 w-[220px] h-6 text-xs"
+                                  onClick={() => handleAddSection(module.moduleId)}
+                                >
+                                  <Plus className="h-3 w-3 mr-1" />
+                                  Add Section
+                                </Button>
+                              </SidebarMenuSub>
+                            </Reorder.Group>
+                          )}
+                        </SidebarMenuItem>
+                      ))}
 
-                                                  <option value="quiz">Quiz</option>
+                    <div className="px-2 pt-3">
+                      <Button size="sm" className="w-[250px]  text-xs" onClick={handleAddModule}>
+                        <Plus className="h-3 w-3 mr-1" />
+                        Add Module
+                      </Button>
+                    </div>
+                  </SidebarMenu>
+                </Reorder.Group>
 
-                                                  <option value="feedback">Feedback Form</option>
 
-                                                  <option
-                                                    value="project"
-                                                    disabled={hasExistingProject}
-                                                    className={hasExistingProject ? 'text-gray-400' : ''}
-                                                  >
-                                                    {hasExistingProject ? 'Project (Limit 1 per course)' : 'Project'}
-                                                  </option>
-                                                  <option value="csv_upload">Upload CSV</option>
-
-                                                </select>
-                                                <TooltipProvider>
-                                                  <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                      <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                          <Button
-                                                            type="button"
-                                                            className="inline-flex items-center justify-center px-1.5 py-0 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold text-[10px] gap-0.5 shadow transition-all duration-200 hover:scale-105 hover:shadow-lg hover:from-purple-600 hover:to-indigo-600 focus:outline-none focus:ring-2 focus:ring-purple-400 ml-3"
-                                                            style={{ minWidth: 'unset', height: '1.5rem' }}
-                                                          >
-                                                            <Sparkles className="h-2 w-2" />
-                                                            <span>AI</span>
-                                                          </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="start" className="w-40">
-                                                          <DropdownMenuItem
-                                                            className="text-xs cursor-pointer"
-                                                            onClick={() => {
-                                                              setCurrentCourse({
-                                                                courseId,
-                                                                versionId,
-                                                                moduleId: module.moduleId,
-                                                                sectionId: section.sectionId,
-                                                                itemId: null,
-                                                                watchItemId: null,
-                                                              });
-                                                              setMode('custom')
-                                                              // navigate({ to: '/teacher/ai-section' });
-                                                            }}
-                                                          >
-                                                            Custom mode
-                                                          </DropdownMenuItem>
-                                                          <DropdownMenuItem
-                                                            className="text-xs cursor-pointer"
-                                                            onClick={() => {
-                                                              setCurrentCourse({
-                                                                courseId,
-                                                                versionId,
-                                                                moduleId: module.moduleId,
-                                                                sectionId: section.sectionId,
-                                                                itemId: null,
-                                                                watchItemId: null,
-                                                              });
-                                                              setMode('wizard')
-                                                              // navigate({ to: '/teacher/ai-workflow' });
-                                                            }}
-                                                          >
-                                                            Wizard mode
-                                                          </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                      </DropdownMenu>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent side="right" align="center">
-                                                      Generate Section with AI
-                                                    </TooltipContent>
-                                                  </Tooltip>
-                                                </TooltipProvider>
-                                              </div>
-
-                                            </SidebarMenuSub>
-                                          </Reorder.Group>
-                                        )}
-                                      </div>
-                                    </Reorder.Item>
-                                  ))}
-
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="ml-4 mt-2 w-[220px] h-6 text-xs"
-                                    onClick={() => handleAddSection(module.moduleId)}
-                                  >
-                                    <Plus className="h-3 w-3 mr-1" />
-                                    Add Section
-                                  </Button>
-                                </SidebarMenuSub>
-                              </Reorder.Group>
-                            )}
-                          </SidebarMenuItem>
-                        ))}
-
-                      <div className="px-2 pt-3">
-                        <Button size="sm" className="w-[250px]  text-xs" onClick={handleAddModule}>
-                          <Plus className="h-3 w-3 mr-1" />
-                          Add Module
-                        </Button>
+              </ScrollArea>
+            </SidebarContent>
+            <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
+              <SidebarMenu className="space-y-1 pl-2 py-3">
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                  >
+                    <Link to="/teacher" className="flex items-center gap-3">
+                      <div className="p-1 rounded-md bg-accent/15">
+                        <Home className="h-4 w-4 text-accent-foreground" />
                       </div>
-                    </SidebarMenu>
-                  </Reorder.Group>
+                      <span className="text-sm font-medium">Dashboard</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
 
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                  >
+                    <Link to="/teacher" className="flex items-center gap-3">
+                      <div className="p-1 rounded-md bg-accent/15">
+                        <GraduationCap className="h-4 w-4 text-accent-foreground" />
+                      </div>
+                      <span className="text-sm font-medium">Courses</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
 
-                </ScrollArea>
-              </SidebarContent>
-              <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
-                <SidebarMenu className="space-y-1 pl-2 py-3">
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
-                    >
-                      <Link to="/teacher" className="flex items-center gap-3">
-                        <div className="p-1 rounded-md bg-accent/15">
-                          <Home className="h-4 w-4 text-accent-foreground" />
-                        </div>
-                        <span className="text-sm font-medium">Dashboard</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                <Separator className="my-2 opacity-50" />
 
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
-                    >
-                      <Link to="/teacher" className="flex items-center gap-3">
-                        <div className="p-1 rounded-md bg-accent/15">
-                          <GraduationCap className="h-4 w-4 text-accent-foreground" />
-                        </div>
-                        <span className="text-sm font-medium">Courses</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-
-                  <Separator className="my-2 opacity-50" />
-
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      className="h-10 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
-                    >
-                      <Link to="/teacher/profile" className="flex items-center gap-3">
-                        <Avatar className="h-6 w-6 border border-border/20">
-                          <AvatarImage src={user?.avatar} alt={user?.name} />
-                          <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/5 text-primary font-bold text-xs">
-                            {user?.name?.charAt(0).toUpperCase() || 'U'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 text-left min-w-0">
-                          <div className="text-sm font-medium truncate" title={user?.name || 'Profile'}>{user?.name || 'Profile'}</div>
-                          <div className="text-xs text-muted-foreground">View Profile</div>
-                        </div>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarFooter>
-            </Sidebar>
-          </div>
-        </SidebarResizablePanel>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    className="h-10 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
+                  >
+                    <Link to="/teacher/profile" className="flex items-center gap-3">
+                      <Avatar className="h-6 w-6 border border-border/20">
+                        <AvatarImage src={user?.avatar} alt={user?.name} />
+                        <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/5 text-primary font-bold text-xs">
+                          {user?.name?.charAt(0).toUpperCase() || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 text-left min-w-0">
+                        <div className="text-sm font-medium truncate" title={user?.name || 'Profile'}>{user?.name || 'Profile'}</div>
+                        <div className="text-xs text-muted-foreground">View Profile</div>
+                      </div>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarFooter>
+          </Sidebar>
+        </div>
+      </SidebarResizablePanel>
       {/* )} */}
 
       {/* <ResizablePanel
@@ -2240,7 +2241,7 @@ function TeacherCourseContent() {
                   onClick={() => setIsDesktopSidebarVisible((p) => !p)}
                   className="hidden md:inline-flex"
                 > */}
-                  <SidebarTrigger/>
+                <SidebarTrigger />
                 {/* </Button> */}
 
                 <Separator orientation="vertical" className="mx-2 h-4" />
@@ -2327,7 +2328,7 @@ function TeacherCourseContent() {
                   onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
                   className="md:hidden shrink-0"
                 > */}
-                  <span className="sr-only">Toggle Menu</span>
+                <span className="sr-only">Toggle Menu</span>
                 {/* </Button> */}
 
                 <div className="flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-lg border min-w-0 flex-1 sm:flex-none sm:min-w-[200px]">
@@ -2973,19 +2974,17 @@ function TeacherCourseContent() {
 
                           {videoTab === "analytics" && (
                             <div className="mt-4">
-                              <p className="text-sm text-muted-foreground">
-                                <UserAnalytics users={userAnalyticsData || []} overallAnalytics={overallAnalytics} currentPage={videoAnalyticsPage} limit={videoAnalyticsLimit} search={videoAnalyticsSearch} onSearchChange={(v) => {
-                                  setVideoAnalyticsSearch(v);
-                                  setVideoAnalyticsPage(1);
-                                }} sortBy={videoAnalyticsSortBy} sortOrder={videoAnalyticsSortOrder} onSortChange={(field) => {
-                                  if (videoAnalyticsSortBy === field) {
-                                    setVideoAnalyticsSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
-                                  } else {
-                                    setVideoAnalyticsSortBy(field);
-                                    setVideoAnalyticsSortOrder('asc');
-                                  }
-                                }} onPageChange={setVideoAnalyticsPage} isLoading={overallLoading || usersLoading} totalDocuments={userAnalyticsTotalDocs || 0} totalPages={userAnalyticsTotalPages || 0} />
-                              </p>
+                              <UserAnalytics users={userAnalyticsData || []} overallAnalytics={overallAnalytics} currentPage={videoAnalyticsPage} limit={videoAnalyticsLimit} search={videoAnalyticsSearch} onSearchChange={(v) => {
+                                setVideoAnalyticsSearch(v);
+                                setVideoAnalyticsPage(1);
+                              }} sortBy={videoAnalyticsSortBy} sortOrder={videoAnalyticsSortOrder} onSortChange={(field) => {
+                                if (videoAnalyticsSortBy === field) {
+                                  setVideoAnalyticsSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+                                } else {
+                                  setVideoAnalyticsSortBy(field);
+                                  setVideoAnalyticsSortOrder('asc');
+                                }
+                              }} onPageChange={setVideoAnalyticsPage} isLoading={overallLoading || usersLoading} totalDocuments={userAnalyticsTotalDocs || 0} totalPages={userAnalyticsTotalPages || 0} selectedEntity={selectedEntity} />
                             </div>
                           )}
 
@@ -3355,6 +3354,7 @@ export type UserAnalyticsProps = {
   onSortChange: (field: 'name' | 'views' | 'watchHours') => void;
 
   isLoading?: boolean;
+  selectedEntity?: any;
 };
 
 export function UserAnalytics({
@@ -3371,8 +3371,18 @@ export function UserAnalytics({
   sortOrder,
   onSortChange,
   isLoading,
+  selectedEntity,
 }: UserAnalyticsProps) {
   const safeUsers = users ?? [];
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+
+  // Get course context for API calls
+  const { currentCourse } = useCourseStore();
+  const courseId = currentCourse?.courseId;
+  const versionId = currentCourse?.versionId;
+
+
 
   const totalViewsOnPage = useMemo(
     () => safeUsers.reduce((sum, u) => sum + (u.viewCount || 0), 0),
@@ -3380,7 +3390,7 @@ export function UserAnalytics({
   );
 
   const totalWatchHoursOnPage = useMemo(
-    () => safeUsers.reduce((sum, u) => sum + (u.watchHours || 0), 0),
+    () => safeUsers.reduce((sum, u) => sum + (u.totalWatchTime || 0), 0),
     [safeUsers]
   );
 
@@ -3503,17 +3513,15 @@ export function UserAnalytics({
                     { key: "name", label: "Student", className: "pl-6 w-[320px]", sortable: true },
                     { key: "views", label: "Views", className: "w-[120px] text-right", sortable: true },
                     { key: "watchHours", label: "Watch (hrs)", className: "w-[160px] text-right", sortable: true },
-                    { key: "rewinds", label: "Seek Backward", className: "w-[140px] text-center", sortable: false, icon: <SkipBack className="h-4 w-4" /> },
-                    { key: "fastForwards", label: "Seek Forward", className: "w-[140px] text-center", sortable: false, icon: <SkipForward className="h-4 w-4" /> },
+                    { key: "details", label: "Details", className: "w-[120px] text-center", sortable: false },
                     { key: "engagement", label: "Engagement", className: "w-[160px] text-center", sortable: false },
-                  ].map(({ key, label, className, sortable, icon }) => (
+                  ].map(({ key, label, className, sortable }) => (
                     <TableHead
                       key={key}
                       className={`font-bold text-foreground select-none ${sortable ? 'cursor-pointer' : ''} ${className}`}
                       onClick={() => sortable && onSortChange(key as 'name' | 'views' | 'watchHours')}
                     >
                       <span className="flex items-center gap-1">
-                        {icon && <span className="mr-1">{icon}</span>}
                         {label}
                         {sortable && sortBy === key && (
                           sortOrder === 'asc' ? (
@@ -3532,7 +3540,7 @@ export function UserAnalytics({
                 {/* Loading state */}
                 {isLoading && (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-16 text-center">
+                    <TableCell colSpan={5} className="py-16 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                         <span className="text-muted-foreground">
@@ -3547,7 +3555,7 @@ export function UserAnalytics({
                 {!isLoading && safeUsers.length === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={5}
                       className="py-10 text-center text-sm text-muted-foreground"
                     >
                       No users found for the current search.
@@ -3605,20 +3613,18 @@ export function UserAnalytics({
                           {user.totalWatchTime}
                         </TableCell>
 
-                        <TableCell className="w-[140px] text-center">
-                          <div className="flex items-center justify-center">
-                            <Badge variant={user.rewinds > 0 ? "secondary" : "outline"} className="text-xs">
-                              {user.rewinds || 0}
-                            </Badge>
-                          </div>
-                        </TableCell>
-
-                        <TableCell className="w-[140px] text-center">
-                          <div className="flex items-center justify-center">
-                            <Badge variant={user.fastForwards > 0 ? "secondary" : "outline"} className="text-xs">
-                              {user.fastForwards || 0}
-                            </Badge>
-                          </div>
+                        <TableCell className="w-[120px] text-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setShowDetailsDialog(true);
+                            }}
+                            disabled={!user.rewinds && !user.fastForwards}
+                          >
+                            View Details
+                          </Button>
                         </TableCell>
 
                         <TableCell className="text-left">
@@ -3633,7 +3639,15 @@ export function UserAnalytics({
             </Table>
           </div>
 
-
+          {/* User Seek Details Dialog */}
+          <UserSeekDetailsDialog
+            open={showDetailsDialog}
+            onOpenChange={setShowDetailsDialog}
+            selectedUser={selectedUser}
+            videoId={selectedEntity?.data?._id}
+            courseId={courseId}
+            versionId={versionId}
+          />
 
           {/* Pagination (buttons should use bg-primary inside your Pagination component) */}
           <Pagination
@@ -3648,6 +3662,8 @@ export function UserAnalytics({
     </div>
   );
 }
+
+
 
 
 

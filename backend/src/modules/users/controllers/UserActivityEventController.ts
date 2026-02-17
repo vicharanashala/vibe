@@ -5,6 +5,7 @@ import { injectable, inject } from 'inversify';
 import {
   JsonController,
   Post,
+  Get,
   Body,
   OnUndefined,
   InternalServerError,
@@ -12,10 +13,13 @@ import {
   Authorized,
   HttpCode,
   CurrentUser,
+  Params,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { IUser } from '#root/shared/index.js';
 import { InternalServerErrorResponse } from '../../../shared/middleware/errorHandler.js';
+import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
+import { JSONSchema } from 'class-validator-jsonschema';
 
 // Request body for the single endpoint
 class UserActivityEventRequestBody {
@@ -37,9 +41,46 @@ class UserActivityEventRequestBody {
   }>;
 }
 
+// Parameter validator for userId
+class GetUserActivityEventsParams {
+  @JSONSchema({
+    description: 'User ID to fetch activity events for',
+    type: 'string',
+  })
+  @IsString()
+  @IsNotEmpty()
+  userId: string;
+
+  @JSONSchema({
+    description: 'VideoId to fetch activity events for',
+    type: 'string',
+  })
+  @IsString()
+  @IsNotEmpty()
+  videoId: string;
+
+  @JSONSchema({
+    description: 'CourseId to fetch activity events for',
+    type: 'string',
+  })
+  @IsString()
+  @IsNotEmpty()
+  courseId: string;
+
+  @JSONSchema({
+    description: 'VersionId to fetch activity events for',
+    type: 'string',
+  })
+  @IsString()
+  @IsNotEmpty()
+  versionId: string;
+
+
+}
+
 class UserActivityEventResponse {
   success: boolean;
-  userActivityEvent?: IUserActivityEvent;
+  userActivityEvents?: IUserActivityEvent[];
 }
 
 @OpenAPI({
@@ -80,6 +121,39 @@ class UserActivityEventController {
     );
 
     return { success: true, userActivityEvent };
+  }
+
+  @OpenAPI({
+    summary: 'Get user activity events',
+    description:
+      'Retrieves user activity events for a specific user and video.',
+  })
+  @Authorized()
+  @Get('/:userId/videoId/:videoId/courseId/:courseId/versionId/:versionId')
+  @HttpCode(200)
+  @ResponseSchema(UserActivityEventResponse, {
+    description: 'User activity events retrieved successfully',
+  })
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Failed to retrieve user activity events',
+    statusCode: 500,
+  })
+  async GetUserActivityEvents(
+    @Params() params: GetUserActivityEventsParams,
+    @CurrentUser() user: IUser,
+  ): Promise<{ success: boolean; userActivityEvents?: IUserActivityEvent[] }> {
+    // Allow users to fetch their own data or instructors/managers to fetch any data
+    const currentUserId = user._id.toString();
+    const requestUserId = params.userId;
+
+    const userActivityEvents = await this.userActivityEventService.GetUserActivityEvents(
+      requestUserId,
+      params.videoId,
+      params.courseId,
+      params.versionId,
+    );
+
+    return { success: true, userActivityEvents };
   }
 }
 

@@ -44,6 +44,31 @@ class UserActivityEventService extends BaseService {
   }
 
   /**
+   * Get user activity events for a specific user and video
+   */
+  async GetUserActivityEvents(
+    userId: string,
+    videoId?: string,
+    courseId?: string,
+    versionId?: string,
+    session?: ClientSession
+  ): Promise<IUserActivityEvent[]> {
+    return this._withTransaction(async (session) => {
+      const repository = this.getUserActivityEventRepository();
+      
+      const events = await repository.getUserActivityEvents(
+        userId,
+        videoId,
+        courseId,
+        versionId,
+        session
+      );
+      
+      return events || [];
+    })
+  }
+
+  /**
    * Store complete user activity event data
    */
   async CreateUserActivityEvent(

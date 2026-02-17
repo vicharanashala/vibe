@@ -54,6 +54,31 @@ class UserActivityEventRepository {
     }
   }
 
+  async getUserActivityEvents(
+    userId: string,
+    videoId?: string,
+    courseId?: string,
+    versionId?: string,
+    session?: ClientSession
+  ): Promise<IUserActivityEvent[]> {
+    await this.init();
+    
+    const match: any = {
+      userId: new ObjectId(userId),
+      ...(videoId ? { videoId: new ObjectId(videoId) } : {}),
+      ...(courseId ? { courseId: new ObjectId(courseId) } : {}),
+      ...(versionId ? { courseVersionId: new ObjectId(versionId) } : {}),
+      isDeleted: { $ne: true }
+    };
+
+    const events = await this.userActivityEventCollection
+      .find(match, { session })
+      .sort({ createdAt: 1 })
+      .toArray();
+    
+    return events || [];
+  }
+
   async createUserActivityEvent(
     userId: string,
     courseId: string,

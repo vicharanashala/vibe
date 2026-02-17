@@ -30,7 +30,7 @@ import { IssueSort, IssueStatus } from '@/app/pages/student/FlagResponse';
 import { ISubmitFeedbackBody } from '@/components/Item-container';
 import { TranscriptResponse } from '@/types/ai.types';
 import { VideoOverallAnalytics, VideoUserAnalytics, VideoUserAnalyticsResponse } from '@/app/pages/teacher/teacher-course-page';
-import { WatchTimeTrackData } from '@/types/user_activity_event.types';
+import { WatchTimeTrackData, IUserActivityEvent } from '@/types/user_activity_event.types';
 
 // Add missing ObjectId type
 type ObjectId = string;
@@ -4380,6 +4380,40 @@ export function useUserEnrollmentsDetails( enabled: boolean = true, search?: str
     refetch: result.refetch
   };
 }
+// Hook to fetch detailed user activity events for seek timeline
+export function useUserActivityEvents(
+  userId?: string,
+  videoId?: string,
+  courseId?: string,
+  versionId?: string
+): {
+  data: IUserActivityEvent[] | null;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = api.useQuery(
+    "get",
+    "/users/user-activity-events/{userId}/videoId/{videoId}/courseId/{courseId}/versionId/{versionId}",
+    {
+      params: {
+        path: { userId,videoId,courseId,versionId},
+        
+      },
+    },
+    {
+      enabled: !!userId && !!videoId && !!courseId && !!versionId,
+    }
+  );
+
+  return {
+    data: result.data?.userActivityEvents || [],
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch user activity events') : null,
+    refetch: result.refetch,
+  };
+}
+
 export function useStoreWatchTimeTrack(): {
   mutate: (variables: { body: WatchTimeTrackData }) => void,
   mutateAsync: (variables: { body: WatchTimeTrackData }) => Promise<{ success: boolean; watchTimeTrack?: any }>,
