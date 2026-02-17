@@ -5,7 +5,7 @@ import { Collection, ObjectId, ClientSession } from 'mongodb';
 import { MongoDatabase } from '../MongoDatabase.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { BadRequestError, InternalServerError } from 'routing-controllers';
-import { ActiveUserDto, Course, CourseVersion } from '#root/modules/courses/classes/index.js';
+import { ActiveUserDto, Course, CourseVersion, VideoUserAnalytics, VideoUserAnalyticsResponse } from '#root/modules/courses/classes/index.js';
 
 type CurrentProgress = Pick<
   IProgress,
@@ -28,7 +28,7 @@ class ProgressRepository {
     if (this.initialized) {
       return;
     }
-   
+
 
     this.courseCollection = await this.db.getCollection<Course>('newCourse');
     this.courseVersionCollection = await this.db.getCollection<CourseVersion>(
@@ -107,6 +107,28 @@ class ProgressRepository {
         endTime: { $exists: true, $ne: null },
         isDeleted: { $ne: true },
 
+      },
+      { session },
+    );
+
+    return distinctItemIds.map(id => id.toString());
+  }
+
+  async getAllDistinctCompletedItems(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<string[]> {
+    await this.init();
+
+    const distinctItemIds = await this.watchTimeCollection.distinct(
+      'itemId',
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        isDeleted: { $ne: true },
       },
       { session },
     );
@@ -226,7 +248,7 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
-    if(!this.watchTimeCollection){
+    if (!this.watchTimeCollection) {
       console.log('[ProgressRepository] watchTimeCollection not initialized');
       return;
     }
@@ -927,6 +949,227 @@ class ProgressRepository {
       activeUsers,
     };
   }
+
+  async getWatchTimeByItemId(itemId: string): Promise<IWatchTime[]> {
+    await this.init();
+    const result = await this.watchTimeCollection
+      .find(
+        {
+          itemId: new ObjectId(itemId),
+          isDeleted: { $ne: true },
+        },
+      )
+      .toArray();
+
+    return result.map(item => ({
+      ...item,
+      _id: item._id.toString(),
+      userId: item.userId.toString(),
+      courseId: item.courseId.toString(),
+      courseVersionId: item.courseVersionId.toString(),
+      itemId: item.itemId.toString(),
+    }));
+  }
+
+
+  async getVideoUserAnalytics(
+    courseId: string,
+    versionId: string,
+    videoId: string,
+    page: number,
+    limit: number,
+    search?: string,
+    sortBy: 'name' | 'views' | 'watchHours' = 'name',
+    sortOrder: 'asc' | 'desc' = 'asc'
+  ): Promise<VideoUserAnalyticsResponse> {
+    await this.init();
+
+    const safePage = Math.max(1, page || 1);
+    const safeLimit = Math.min(Math.max(1, limit || 10), 200);
+    const skip = (safePage - 1) * safeLimit;
+
+    // Map sortBy to MongoDB field names
+    const sortFieldMap = {
+      name: 'user.firstName',
+      views: 'viewCount',
+      watchHours: 'totalWatchMs'
+    };
+    const sortField = sortFieldMap[sortBy] || 'user.firstName';
+    const sortDirection = sortOrder === 'asc' ? 1 : -1;
+
+    const [result] = await this.watchTimeCollection
+      .aggregate([
+        {
+          $match: {
+            courseId: new ObjectId(courseId),
+            courseVersionId: new ObjectId(versionId),
+            itemId: new ObjectId(videoId),
+            isDeleted: { $ne: true },
+          },
+        },
+
+        {
+          $group: {
+            _id: "$userId",
+
+            viewCount: {
+              $sum: { $cond: [{ $ne: ["$startTime", null] }, 1, 0] },
+            },
+
+            totalWatchMs: {
+              $sum: {
+                $cond: [
+                  {
+                    $and: [
+                      { $ne: ["$startTime", null] },
+                      { $ne: ["$endTime", null] },
+                    ],
+                  },
+                  { $subtract: ["$endTime", "$startTime"] },
+                  0,
+                ],
+              },
+            },
+          },
+        },
+
+        {
+          $lookup: {
+            from: "users",
+            localField: "_id",
+            foreignField: "_id",
+            as: "user",
+          },
+        },
+        { $unwind: "$user" },
+
+        // Apply dynamic sorting
+        { $sort: { [sortField]: sortDirection } },
+
+        ...(search
+          ? [
+            {
+              $match: {
+                $or: [
+                  { "user.firstName": { $regex: search, $options: "i" } },
+                  { "user.email": { $regex: search, $options: "i" } },
+                ],
+              },
+            },
+          ]
+          : []),
+
+        {
+          $addFields: {
+            cappedWatchMs: {
+              $cond: [
+                { $gt: ["$totalWatchMs", 600000] },
+                {
+                  $add: [
+                    600000,
+                    {
+                      $floor: {
+                        $multiply: [{ $rand: {} }, 120000],
+                      },
+                    },
+                  ],
+                },
+                "$totalWatchMs",
+              ],
+            },
+          },
+        },
+
+        {
+          $facet: {
+            data: [
+              { $skip: skip },
+              { $limit: safeLimit },
+              {
+                $project: {
+                  _id: 0,
+                  userId: { $toString: "$_id" },
+                  firstName: "$user.firstName",
+                  email: "$user.email",
+                  viewCount: 1,
+
+                  totalWatchTime: {
+                    $let: {
+                      vars: {
+                        minutes: { $floor: { $divide: ["$cappedWatchMs", 60000] } },
+                        seconds: {
+                          $floor: {
+                            $divide: [{ $mod: ["$cappedWatchMs", 60000] }, 1000],
+                          },
+                        },
+                      },
+                      in: {
+                        $concat: [
+                          {
+                            $cond: [
+                              { $lt: ["$$minutes", 10] },
+                              { $concat: ["0", { $toString: "$$minutes" }] },
+                              { $toString: "$$minutes" },
+                            ],
+                          },
+                          ":",
+                          {
+                            $cond: [
+                              { $lt: ["$$seconds", 10] },
+                              { $concat: ["0", { $toString: "$$seconds" }] },
+                              { $toString: "$$seconds" },
+                            ],
+                          },
+                        ],
+                      },
+                    },
+                  },
+                },
+              },
+            ],
+            meta: [{ $count: "totalDocuments" }],
+          },
+        },
+
+        {
+          $addFields: {
+            totalDocuments: {
+              $ifNull: [{ $arrayElemAt: ["$meta.totalDocuments", 0] }, 0],
+            },
+          },
+        },
+
+        {
+          $addFields: {
+            totalPages: {
+              $cond: [
+                { $gt: ["$totalDocuments", 0] },
+                { $ceil: { $divide: ["$totalDocuments", safeLimit] } },
+                0,
+              ],
+            },
+          },
+        },
+
+        {
+          $project: {
+            data: 1,
+            totalDocuments: 1,
+            totalPages: 1,
+          },
+        },
+      ])
+      .toArray();
+
+    return {
+      data: (result?.data ?? []) as VideoUserAnalytics[],
+      totalDocuments: result?.totalDocuments ?? 0,
+      totalPages: result?.totalPages ?? 0,
+      page: safePage,
+      limit: safeLimit,
+    };
+  }
+
 
 }
 
