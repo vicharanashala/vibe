@@ -1,5 +1,5 @@
-import {CourseVersionService} from '#courses/services/CourseVersionService.js';
-import {injectable, inject} from 'inversify';
+import { CourseVersionService } from '#courses/services/CourseVersionService.js';
+import { injectable, inject } from 'inversify';
 import {
   JsonController,
   Post,
@@ -17,11 +17,11 @@ import {
   UseInterceptor,
   Req,
 } from 'routing-controllers';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {COURSES_TYPES} from '#courses/types.js';
-import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
-import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
-import {Ability} from '#root/shared/functions/AbilityDecorator.js';
+import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
+import { COURSES_TYPES } from '#courses/types.js';
+import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
+import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
+import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import {
   CreateCourseVersionResponse,
   CourseVersionNotFoundErrorResponse,
@@ -34,6 +34,8 @@ import {
   UpdateCourseVersionBody,
   CopyCourseVersionResponse,
   CopyCourseVersionParams,
+  CourseVersionWatchTimeResponse,
+  GetCourseVersionWatchTimeParams,
 } from '#courses/classes/validators/CourseVersionValidators.js';
 import {
   CourseVersionActions,
@@ -60,7 +62,7 @@ export class CourseVersionController {
     private readonly courseVersionService: CourseVersionService,
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
-  ) {}
+  ) { }
 
   @OpenAPI({
     summary: 'Create a course version',
@@ -89,11 +91,11 @@ Accessible to:
     @Ability(getCourseVersionAbility) {ability, user},
     @Req() req: Request
   ): Promise<CourseVersion> {
-    const {courseId} = params;
+    const { courseId } = params;
     const userId = user._id.toString();
 
     // Check permissions upfront
-    const courseVersionSubject = subject('CourseVersion', {courseId});
+    const courseVersionSubject = subject('CourseVersion', { courseId });
     if (!ability.can(CourseVersionActions.Create, courseVersionSubject)) {
       throw new ForbiddenError(
         'You do not have permission to create course versions',
@@ -159,12 +161,12 @@ Accessible to:
   })
   async read(
     @Params() params: ReadCourseVersionParams,
-    @Ability(getCourseVersionAbility) {ability, user},
+    @Ability(getCourseVersionAbility) { ability, user },
   ): Promise<CourseVersion> {
-    const {versionId} = params;
+    const { versionId } = params;
 
     // Build the subject context first
-    const courseVersionSubject = subject('CourseVersion', {versionId});
+    const courseVersionSubject = subject('CourseVersion', { versionId });
 
     if (!ability.can(CourseVersionActions.View, courseVersionSubject)) {
       throw new ForbiddenError(
@@ -203,7 +205,7 @@ Accessible to:
     @Ability(getCourseVersionAbility) {ability, user},
     @Req() req: Request
   ): Promise<CourseVersion> {
-    const {courseId, versionId} = params;
+    const { courseId, versionId } = params;
 
     const courseVersionSubject = subject('CourseVersion', {
       courseId,
@@ -397,6 +399,74 @@ Accessible to:
 
     return {
       message: `Version copied successfully.`,
+    };
+  }
+
+
+
+
+  @OpenAPI({
+    summary: 'Get course version watch time',
+    description: `Returns total watch time for a specific course version`,
+  })
+  @Get('/:courseId/versions/:versionId/watch-time')
+  @ResponseSchema(CourseVersionWatchTimeResponse, {
+    description: 'Course version watch time fetched successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(CourseVersionNotFoundErrorResponse, {
+    description: 'Course or version not found',
+    statusCode: 404,
+  })
+  async getCourseVersionWatchTime(
+    @Params() params: GetCourseVersionWatchTimeParams,
+    @Ability(getCourseVersionAbility) { ability },
+  ): Promise<CourseVersionWatchTimeResponse> {
+    const { courseId, versionId } = params;
+
+    if (!courseId || !versionId) {
+      throw new BadRequestError('Course ID and Version ID are required');
+    }
+    const result = await this.courseVersionService.getCourseVersionTotalWatchTime(
+      courseId,
+      versionId,
+    );
+
+    if (!result) {
+      throw new InternalServerError(
+        'Failed to fetch watch time, please try again later',
+      );
+    }
+
+    const formatWatchTime = (totalSeconds: number): string => {
+      if (!totalSeconds || totalSeconds <= 0) return '0 minutes';
+
+      const days = Math.floor(totalSeconds / 86400);
+      const hours = Math.floor((totalSeconds % 86400) / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+      const parts: string[] = [];
+
+      if (days > 0) parts.push(`${days} ${days === 1 ? 'day' : 'days'}`);
+      if (hours > 0) parts.push(`${hours} ${hours === 1 ? 'hour' : 'hours'}`);
+      if (minutes > 0) parts.push(`${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`);
+
+      return parts.join(' ');
+    }
+
+    const totalSeconds = result.totalSeconds ?? 0;
+    const totalHours = totalSeconds / 3600;
+    const readableDuration = formatWatchTime(totalSeconds);
+
+    return {
+      message: result.message || 'Course version watch time fetched successfully',
+      totalSeconds,
+      totalHours,
+      totalHoursRounded: Number(totalHours.toFixed(2)),
+      readableDuration,
     };
   }
 }
