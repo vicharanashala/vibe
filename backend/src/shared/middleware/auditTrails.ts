@@ -67,6 +67,7 @@ export class AuditTrailsHandler implements InterceptorInterface {
 
     try {
       const auditData = action.request.auditTrail;
+      console.log("🔥 INTERCEPTOR RUNNING:", action.request.url);
       console.log('AuditTrailsHandler interceptor executed for method:');
       if (!auditData) {
         console.warn(
@@ -77,7 +78,7 @@ export class AuditTrailsHandler implements InterceptorInterface {
       console.log('Logging audit trail with data:', auditData);
 
       //To-be implemented -> implement the background queue job.
-      this.auditTrailsRepo.createAuditTrail({
+      await this.auditTrailsRepo.createAuditTrail({
         ...auditData,
         createdAt: new Date(),
       });
