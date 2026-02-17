@@ -33,6 +33,11 @@ import {
   CSVItemBody,
   CourseVersionModuleSectionParams,
   csvResponse,
+  VideoOverallAnalytics,
+  GetVideoAnalyticsParams,
+  VideoUserAnalyticsQuery,
+  VideoUserAnalytics,
+  VideoUserAnalyticsResponse,
 } from '#courses/classes/validators/ItemValidators.js';
 import { ItemService } from '#courses/services/ItemService.js';
 import { injectable, inject } from 'inversify';
@@ -310,6 +315,78 @@ Accessible to:
     );
   }
 
+
+  @OpenAPI({
+    summary: 'Get video analytics',
+    description: `Retrieves analytics for a video item.<br/>
+Access control logic:
+- Only instructors, managers, and teaching assistants can access analytics.
+- Students are restricted from viewing analytics.`,
+  })
+  @Authorized()
+  @Get('/:courseId/versions/:versionId/item/:itemId/analytics')
+  @HttpCode(200)
+  @ResponseSchema(VideoOverallAnalytics, {
+    description: 'Video analytics retrieved successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ItemNotFoundErrorResponse, {
+    description: 'Video item not found',
+    statusCode: 404,
+  })
+  async getVideoAnalytics(
+    @Params() params: GetVideoAnalyticsParams,
+  ) {
+    const { courseId, versionId, itemId: videoId } = params;
+
+    return await this.itemService.getVideoAnalytics(
+      courseId,
+      versionId,
+      videoId,
+    );
+  }
+
+
+  @OpenAPI({
+    summary: "Get video analytics per student",
+    description: `Retrieves per-student analytics for a video item, with search, pagination, and filters.<br/>
+Access control logic:
+- Only instructors, managers, and teaching assistants can access analytics.
+- Students are restricted from viewing analytics.`,
+  })
+  // @Authorized()
+  @Get("/:courseId/versions/:versionId/item/:itemId/analytics/users")
+  @HttpCode(200)
+  @ResponseSchema(VideoUserAnalytics, {
+    description: "Per-student video analytics retrieved successfully",
+    isArray: true,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: "Bad Request Error",
+    statusCode: 400,
+  })
+  @ResponseSchema(ItemNotFoundErrorResponse, {
+    description: "Video item not found",
+    statusCode: 404,
+  })
+  async getVideoAnalyticsPerStudent(
+    @Params() params: GetVideoAnalyticsParams,
+    @QueryParams() query: VideoUserAnalyticsQuery
+  ): Promise<VideoUserAnalyticsResponse> {
+    const { courseId, versionId, itemId: videoId } = params;
+    return await this.itemService.getVideoUserAnalytics(
+      courseId,
+      versionId,
+      videoId,
+      query
+    );
+  }
+
+
+
   @OpenAPI({
     summary: 'Get an item by ID',
     description: `Retrieves a specific item from a course version.<br/>
@@ -522,7 +599,7 @@ Accessible to:
   @Authorized()
   @Post("/:courseId/versions/:versionId/module/:moduleId/section/:sectionId/items/csv")
   @HttpCode(200)
-  @ResponseSchema(csvResponse,{
+  @ResponseSchema(csvResponse, {
     description: 'CSV processed successfully',
     statusCode: 200,
   })

@@ -1579,19 +1579,19 @@ export default function CoursePage() {
                                               <SidebarMenuSubButton
                                                 onClick={() => handleSelectItem(moduleId, sectionId, itemId)}
                                                 isActive={isCurrentItem}
-                                                className="group relative h-12 px-3 w-full  rounded-md transition-all duration-200 hover:bg-accent/10 data-[state=active]:bg-primary/10 data-[state=active]:text-primary justify-start"
+                                                className="group relative h-8 px-3 w-full rounded-md transition-all duration-200 hover:bg-accent/10 dark:data-[state=active]:bg-primary/10 data-[state=active]:bg-primary/10 data-[state=active]:text-primary justify-start"
                                                 // Assign ref only to the selected item for autoscroll
                                                 ref={isCurrentItem ? selectedItemRef : undefined}
                                               >
                                                 <div className="flex items-center gap-2 w-full min-w-0">
                                                   <div className={`p-0.5 rounded transition-colors flex-shrink-0 ${isCurrentItem
-                                                    ? "bg-primary/90 text-white/80 dark:bg-primary/15 dark:text-primary"
+                                                    ? "dark:bg-primary/15 dark:text-primary bg-primary/50 text-white/80"
                                                     : "bg-accent/15 text-accent-foreground group-hover:bg-accent/25"
                                                     }`}>
                                                     {getItemIcon(item.type)}
                                                   </div>
                                                   <div className="flex-1 text-left min-w-0">
-                                                    <div className="text-xs font-semibold truncate w-full " title={item?.name || 'Loading...'}>
+                                                    <div className="text-xs font-medium truncate w-full " title={currentItem?.name || 'Loading...'}>
                                                       {(() => {
                                                         // Show loading state if this is the selected item and it's loading
                                                         if (selectedItemId === itemId && itemLoading) {

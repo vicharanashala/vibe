@@ -393,7 +393,7 @@ export class SettingRepository implements ISettingRepository {
   async updateRegistrationSettings(
     courseId: string,
     versionId: string,
-    schemas: { jsonSchema: any; uiSchema: any; isActive: boolean },
+    schemas: { jsonSchema: any; uiSchema: any; isActive: boolean, registrationsAutoApproved?: boolean; autoapproval_emails?: string[] },
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
     await this.init();
@@ -408,6 +408,8 @@ export class SettingRepository implements ISettingRepository {
           'settings.registration.jsonSchema': schemas.jsonSchema,
           'settings.registration.uiSchema': schemas.uiSchema,
           'settings.registration.isActive': schemas.isActive,
+          'settings.registration.registrationsAutoApproved': schemas.registrationsAutoApproved,
+          'settings.registration.autoapproval_emails': schemas.autoapproval_emails,
         },
       },
       { session },

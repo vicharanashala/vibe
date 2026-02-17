@@ -19,6 +19,7 @@ import { BookOpen, CalendarDays, ChevronDown, ChevronUp, GraduationCap, ListChec
 import { AlignedFieldTemplate } from './components/AlignedFieldTemplate';
 import { CustomSubmitButton } from './components/CustomSubmitButton';
 import { FocusableSelectWidget } from './components/FocusableSelectWidget';
+import { useAuthStore } from '@/store/auth-store';
 
 interface IModule {
   id: string;
@@ -135,6 +136,7 @@ export const normalizeSchemaOptions = (schema: any): any => {
 
 const CourseRegistration: React.FC = () => {
   const { versionId } = useParams({ from: studentCourseInviteRegistration.id });
+   const { user } = useAuthStore();
 
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isRegistering, setIsRegistering] = useState(false);
@@ -204,13 +206,20 @@ const CourseRegistration: React.FC = () => {
     }
   };
 
-  const resetForm = () => {
-    if (jsonSchema) {
-      setFormData(buildEmptyFormData(jsonSchema));
-    }
-    setRecaptchaToken(null);
-    recaptchaRef.current?.reset();
-  };
+ const resetForm = () => {
+  if (jsonSchema) {
+    const empty = buildEmptyFormData(jsonSchema);
+
+    setFormData({
+      ...empty,
+      Name: user?.name,
+      Email: user?.email,
+    });
+  }
+
+  setRecaptchaToken(null);
+  recaptchaRef.current?.reset();
+};
 
   const buildEmptyFormData = (schema: RJSFSchema) => {
     if (!schema?.properties) return {};
@@ -227,14 +236,43 @@ const CourseRegistration: React.FC = () => {
 
     return obj;
   };
-  useEffect(() => {
-    if (jsonSchema?.properties) {
-      setFormData(buildEmptyFormData(jsonSchema));
-    }
 
-  }, [jsonSchema]);
+
+
+ useEffect(() => {
+  if (!jsonSchema?.properties||!user) return;
+
+  const emptyData = buildEmptyFormData(jsonSchema);
+
+  setFormData(prev => ({
+    ...emptyData,
+    Name: user?.name ?? "emptyData.Name",
+    Email: user?.email ?? "emptyData.Email",
+  }));
+}, [jsonSchema, user]);
+
+
+
+const computedUiSchema = React.useMemo(() => {
+  if (!uiSchema) return uiSchema;
+
+  return {
+    ...uiSchema,
+    Name: {
+      ...uiSchema?.Name,
+      "ui:disabled": true,
+    },
+    Email: {
+      ...uiSchema?.Email,
+      "ui:disabled": true,
+    },
+  };
+}, [uiSchema]);
+
 
   useEffect(() => { setIsRegistered(false) }, [])
+
+
 
 
 
@@ -388,9 +426,10 @@ const CourseRegistration: React.FC = () => {
                 ) : (
                   <div className="space-y-4 max-w-2xl mx-auto py-4">
                     <Form
+                     
                       schema={normalizeSchemaOptions(jsonSchema)}
                       validator={validator}
-                      uiSchema={uiSchema}
+                     uiSchema={computedUiSchema}
                       formContext={{ formData }}
                       showErrorList={false}
                       templates={{
@@ -543,7 +582,7 @@ const CourseRegistration: React.FC = () => {
                   </CardTitle>
 
                   <CardDescription className="text-base">
-                    You’ve been successfully registered for this course.
+                    {versionId === "6981df886e100cfe04f9c4ae" ?"You’ve been successfully registered for this course.":"Registration submitted successfully!"}
                   </CardDescription>
                 </CardHeader>
 
