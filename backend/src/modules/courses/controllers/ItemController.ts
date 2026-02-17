@@ -163,31 +163,33 @@ export class ItemController {
       }
 
       // For students: filter out blank quizzes with conservative approach
-      const filteredItems = [];
+      // const filteredItems = [];
 
-      for (const itemRef of items) {
-        if (itemRef.type !== ItemType.QUIZ) {
-          filteredItems.push(itemRef);
-          continue;
-        }
+      // for (const itemRef of items) {
+      //   if (itemRef.type !== ItemType.QUIZ) {
+      //     filteredItems.push(itemRef);
+      //     continue;
+      //   }
 
-        try {
-          const quizDetails = await this.quizService.getQuizDetails(
-            itemRef?._id?.toString(),
-          );
-          const questionBankRefs = quizDetails?.details?.questionBankRefs;
+      //   try {
+      //     const quizDetails = await this.quizService.getQuizDetails(
+      //       itemRef?._id?.toString(),
+      //     );
+      //     const questionBankRefs = quizDetails?.details?.questionBankRefs;
 
-          if (
-            !(Array.isArray(questionBankRefs) && questionBankRefs.length === 0)
-          ) {
-            filteredItems.push(itemRef);
-          }
-        } catch (error) {
-          filteredItems.push(itemRef);
-        }
-      }
+      //     if (
+      //       !(Array.isArray(questionBankRefs) && questionBankRefs.length === 0)
+      //     ) {
+      //       filteredItems.push(itemRef);
+      //     }
+      //   } catch (error) {
+      //     filteredItems.push(itemRef);
+      //   }
+      // }
 
-      return filteredItems;
+      // return filteredItems;
+
+      return items;
     } catch (error) {
       console.error('Error filtering blank quizzes in readAll:', error);
       return items;

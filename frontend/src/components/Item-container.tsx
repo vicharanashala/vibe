@@ -64,7 +64,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           isCompleted={item.isCompleted || false}
           isAlreadyWatched = {item.isAlreadyWatched || false}
           completedItemIdsRef={completedItemIdsRef}
-          nextItemId={nextItem?.itemId.toString()}
+          nextItemId={nextItem?.itemId?.toString()}
         />;
 
       case 'quiz':
@@ -99,7 +99,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           linearProgressionEnabled={linearProgressionEnabled}
           isAlreadyWatched={item.isAlreadyWatched || false}
           completedItemIdsRef={completedItemIdsRef}
-          nextItemId={nextItem?.itemId.toString()}
+          nextItemId={nextItem?.itemId?.toString()}
         />;
 
       case 'article':

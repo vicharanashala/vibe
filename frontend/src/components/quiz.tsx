@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye, FileQuestion, ChevronDown } from "lucide-react";
-import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem, CreateAttemptResponse, SaveQuizResponse } from '@/hooks/hooks';
+import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem, CreateAttemptResponse, SaveQuizResponse, useSkipOptionalItem } from '@/hooks/hooks';
 import { useCourseStore } from "@/store/course-store";
 import MathRenderer from "./math-renderer";
 import { bufferToHex } from '@/utils/helpers';
@@ -97,6 +97,19 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const startItem = useStartItem();
   const stopItem = useStopItem();
   const isStopping = stopItem.isPending;
+  const { mutateAsync: skipItemAsync } = useSkipOptionalItem();
+
+  const handleSkipItem = async () => {
+    if (!currentCourse?.itemId) return;
+    try {
+
+      await skipItemAsync({ params: { path: { itemId: currentCourse?.itemId } } }); // check for empty quiz.
+
+    } catch (error) {
+      console.error('Error skipping item:', error);
+      toast.error('Failed to skip item');
+    }
+  };
 
   // ===== UTILITY FUNCTIONS =====
 
@@ -424,7 +437,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       return;
     }
 
-    if( !isSkipped && (isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId)) ){
+    if((isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId)) ){
       return;
     }
 
@@ -445,6 +458,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         nextItemId,
       }
     });
+    completedItemIdsRef.current.add(currentCourse.itemId);
     itemStartedRef.current = false;
   }, [currentCourse, stopItem, attemptId, isAlreadyWatched, completedItemIdsRef]);
 
@@ -495,12 +509,14 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       setQuizCompleted(true);
 
       // Start progress tracking
-      await handleSendStartItem();
+      // await handleSendStartItem();
+      // call skipitem to create both start 
+      await handleSkipItem();
 
       if (emptyQuizNextTimerRef.current) {
         clearTimeout(emptyQuizNextTimerRef.current);
       }
-      handleStopItem(true);
+      // handleStopItem(true);
       emptyQuizNextTimerRef.current = setTimeout(() => {
         if (onNext) {
           onNext();
@@ -649,8 +665,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         setQuizPassed?.(1);
         setNoAttemptsLeft(true);
 
-        await handleSendStartItem();
-        await handleStopItem(true);
+        // await handleSendStartItem();
+        // await handleStopItem(true);
+        await handleSkipItem();
+        if (onNext) {
+          onNext();
+        }
 
         // setTimeout(() => {
         //   handleStopItem(true);
@@ -729,15 +749,15 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         setScore(totalScore);
       }
 
+      // try removing  this 
       if (response.gradingStatus === 'FAILED') {
         console.log('Quiz failed - immediately updating progress to previous video');
         try {
-          await handleStopItem(false);
+          await handleStopItem(false); // SHOULD WE CALL THIS ? AT BACKEND validateQuizStop WILL FAIL
         } catch (stopError) {
           console.error('Failed to update progress after quiz failure:', stopError);
         }
       }
-      completedItemIdsRef.current.add(processedQuizId);
 
       setQuizCompleted(true);
 
@@ -1055,6 +1075,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           }
         });
         itemStartedRef.current = false;
+        completedItemIdsRef.current.add(currentCourse.itemId);
       } catch (error: any) {
         console.error('❌ Quiz stopItem error:', error);
         throw error; // Re-throw for parent to catch

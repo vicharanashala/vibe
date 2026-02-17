@@ -507,7 +507,6 @@ class AttemptService extends BaseService {
     await this.submissionRepository.update(submissionId, { gradingResult });
     if (!isSkipped) {
       const isPassed = gradingResult.gradingStatus === "PASSED"
-      console.log("Progress in AttemptService to check the helperfunction: ", userId, quizId, courseId, courseVersionId, isPassed)
       await this.progressService.handleQuizeProgressAfterSubmission(userId, quizId, courseId, courseVersionId, isPassed)
     }
 

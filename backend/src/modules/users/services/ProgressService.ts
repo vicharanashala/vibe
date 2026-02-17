@@ -1180,7 +1180,25 @@ class ProgressService extends BaseService {
     };
   }
 
-  private isValidWatchTime(watchTime: IWatchTime, item: Item) {
+  private parseTimeToSeconds(timeStr: string) {
+    const parts = timeStr.split(":").map(Number);
+
+    if (parts.length === 3) {
+      // HH:MM:SS
+      const [hours, minutes, seconds] = parts;
+      return hours * 3600 + minutes * 60 + seconds;
+    }
+
+    if (parts.length === 2) {
+      // MM:SS
+      const [minutes, seconds] = parts;
+      return minutes * 60 + seconds;
+    }
+
+    throw new Error("Invalid time format");
+  }
+
+  private isValidWatchTime(watchTime: IWatchTime, item: Item) { 
     // Basic sanity checks
     if (!watchTime.startTime || !watchTime.endTime || !item.details) {
       return false;
@@ -1203,18 +1221,19 @@ class ProgressService extends BaseService {
         const videoDetails = item.details as IVideoDetails;
         if (!videoDetails.startTime || !videoDetails.endTime) return false;
 
-        const videoEndTimeInSeconds =
-          parseInt(videoDetails.endTime.split(':')[0]) * 3600 +
-          parseInt(videoDetails.endTime.split(':')[1]) * 60 +
-          parseInt(videoDetails.endTime.split(':')[2]);
-        const videoStartTimeInSeconds =
-          parseInt(videoDetails.startTime.split(':')[0]) * 3600 +
-          parseInt(videoDetails.startTime.split(':')[1]) * 60 +
-          parseInt(videoDetails.startTime.split(':')[2]);
-
+        // parse it to seconds through liabrary
+        const videoEndTimeInSeconds = this.parseTimeToSeconds(videoDetails.endTime)
+          // parseInt(videoDetails.endTime.split(':')[0]) * 3600 +
+          // parseInt(videoDetails.endTime.split(':')[1]) * 60 +
+          // parseInt(videoDetails.endTime.split(':')[2]);
+        const videoStartTimeInSeconds = this.parseTimeToSeconds(videoDetails.startTime)
+          // parseInt(videoDetails.startTime.split(':')[0]) * 3600 +
+          // parseInt(videoDetails.startTime.split(':')[1]) * 60 +
+          // parseInt(videoDetails.startTime.split(':')[2]);
+console.log("----videodetails----", videoDetails);
         const totalVideoDuration =
           videoEndTimeInSeconds - videoStartTimeInSeconds;
-
+console.log("--in isValidWatchTime---",videoEndTimeInSeconds, videoStartTimeInSeconds)
         // Security Rule
         // - Must have watched at least 15% of the video
         // OR
@@ -1817,7 +1836,9 @@ class ProgressService extends BaseService {
     if (!item) throw new NotFoundError('Item not found');
 
     // Ensure current progress matches the module, section, and item
-    // this.validateProgressPosition(progress, moduleId, sectionId, itemId);
+    if(item.type !== 'QUIZ'){
+      this.validateProgressPosition(progress, moduleId, sectionId, itemId);
+    }
 
     await this._withTransaction(async session => {
       // Stop watch tracking for the item
@@ -1883,7 +1904,6 @@ class ProgressService extends BaseService {
           currentItem: nextItem.itemId,
         };
       
-        console.log("isskipped", isSkipped, " newprogress ", newProgress);
       if (item.type === 'QUIZ' && !isSkipped) {
         let isQuizFailed = false;
         const submittedQuiz = await this.submissionRepository.get(
@@ -1918,13 +1938,6 @@ class ProgressService extends BaseService {
             // skippedBlankQuizIds: [],
           };
 
-          await this.progressRepository.updateProgress(
-            userId,
-            courseId,
-            courseVersionId,
-            newProgress,
-            session,
-          );
         }
       }
       console.log("newprogress",newProgress)
@@ -1987,7 +2000,7 @@ class ProgressService extends BaseService {
 
     // 1 Watch-time based items
     if (WATCH_TIME_REQUIRED_ITEMS.has(item.type)) {
-      this.validateWatchTime(item, stoppedWatchTime);
+      this.validateWatchTime(item, stoppedWatchTime);  
       return;
     }
 
@@ -2019,7 +2032,7 @@ class ProgressService extends BaseService {
     }
   }
 
-  private async validateQuizStop(
+  private async validateQuizStop( // when a quiz is failed then also stop is being called at frontend
     itemId: string,
     userId: string,
     courseId: string,
@@ -2369,23 +2382,6 @@ class ProgressService extends BaseService {
         courseVersionId,
         previousProgress,
       );
-    }
-    
-    const watchTime = await this.progressRepository.getWatchTime(
-      userId,
-      quizId,
-      courseId,
-      courseVersionId,
-    );
-    const isItemCompleted = await this.progressRepository.isItemCompleted(
-      userId.toString(),
-      courseId,
-      courseVersionId,
-      quizId,
-    )
-
-    if(!isItemCompleted){
-      const result = await this.progressRepository.stopItemTracking(watchTime[0]._id.toString());
     }
   }
 
