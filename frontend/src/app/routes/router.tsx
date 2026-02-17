@@ -47,6 +47,7 @@ import ResetPasswordPage from '../pages/ResetPasswordPage'
 import StudentLogin from '../pages/student/StudentLogin'
 import TeacherLogin from '../pages/teacher/TeacherLogin'
 import SelectRolePage from '../pages/SelectRolePage'
+import AuditPage from '../pages/teacher/AuditPage'
 
 
 // Root route with error and notFound handling
@@ -369,6 +370,12 @@ const teacherAIWorkflowSectionRoute = new Route({
   component: AiWorkflow,
 });
 
+const teacherAuditRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/audit',
+  component: AuditPage,
+})
+
 // Student dashboard route
 const studentDashboardRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -530,7 +537,8 @@ const routeTree = rootRoute.addChildren([
     teacherCourseAnomaliesRoute,
     teacherCourseInstructorsRoute,
     teacherCourseRegistrationRequests,
-    teacherFeedBackEditorRoute
+    teacherFeedBackEditorRoute,
+    teacherAuditRoute
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
