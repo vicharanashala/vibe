@@ -1,42 +1,51 @@
 import { Type } from "class-transformer";
-import { IsNotEmpty, IsObject, IsString, ValidateNested } from "class-validator";
+import {
+  IsArray,
+  IsObject,
+  IsString,
+  ValidateNested,
+  IsNotEmpty
+} from "class-validator";
 import { JSONSchema } from "class-validator-jsonschema/build/decorators.js";
 
+export class AuditTrailsDetails {
 
-class AuditTrailsDetails {
-    @IsString()
-    id: string;
+  @IsString()
+  id: string;
 
-    @IsString()
-    category: string;
+  @IsString()
+  category: string;
 
-    @IsString()
-    action: string;
+  @IsString()
+  action: string;
 
-    @IsObject()
-    context: object;
+  @IsObject()
+  context: object;
 
-    @IsObject()
-    changes: object;
+  @IsObject()
+  changes: object;
 
-    @IsObject()
-    outcome: object;
+  @IsObject()
+  outcome: object;
 
-    @IsString()
-    timestamp: string;
-    
-
+  @IsString()
+  timestamp: string;
 }
 
 export class AuditTrailsResponse {
-    @ValidateNested()
-    @IsObject()
-    @Type(() => AuditTrailsDetails)
-    @JSONSchema({
-        description: "Audit trail details",
-    })
-    auditTrails: AuditTrailsDetails;
+
+  @IsString()
+  message: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AuditTrailsDetails)
+  @JSONSchema({
+    description: "List of audit trails"
+  })
+  data: AuditTrailsDetails[];
 }
+
 
 
 export class AuditTrailUserIdParams {

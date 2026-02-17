@@ -33,6 +33,8 @@ class AuditTrailsController{
     })
     async getAllAuditTrails(@CurrentUser() user: {_id: string},){
         const auditTrails = await this.auditTrailsService.getAllAuditTrails(user._id);
+        console.log("Current Data userId ", user._id);
+        console.log("Audit Trails: ", auditTrails);
         return {
             message: "Audit trails retrieved successfully",
             data: auditTrails
@@ -55,7 +57,9 @@ class AuditTrailsController{
         statusCode: 400,
     })
     async getAuditTrailsByCourseAndVersion(@Param("courseId") courseId: string, @Param("versionId") versionId: string, @CurrentUser() user: {_id: string}){
-        const auditTrails = await this.auditTrailsService.getAuditTrailsByCourseAndVersion(user._id.toString(), courseId, versionId);
+        console.log("Received request for audit trails with courseId: ", courseId, " and versionId: ", versionId, " for userId: ", user._id);
+        const auditTrails = await this.auditTrailsService.getAuditTrailsByCourseAndVersion(user._id, courseId, versionId);
+        console.log("Audit trails: ", auditTrails);
         return {
             message: "Audit trails retrieved successfully",
             data: auditTrails

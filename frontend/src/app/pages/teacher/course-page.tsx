@@ -32,6 +32,7 @@ import {
   UserCheck,
   Headphones,
   ExternalLink,
+  CheckCheckIcon,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -598,6 +599,16 @@ function CourseCard({
     }
   }
 
+  const navigate = useNavigate()
+
+  const handleAuditClick = ()=>{
+    // Navigate to the audit page for this course
+    localStorage.setItem("selectedCourseId", courseIdHex)
+    localStorage.setItem("selectedCourseVersionId", bufferToHex(enrollment.courseVersionId as any))
+    localStorage.setItem("selectedCourseVersions", JSON.stringify(course.versions || []))
+    navigate({ to: `/teacher/audit` })
+
+  }
 
   const MAX_DESCRIPTION_LENGTH = 1000;
 
@@ -648,6 +659,9 @@ function CourseCard({
               </div>
 
               <div className="flex items-center justify-end gap-2 shrink-0 mt-3 md:mt-0">
+                <Button variant="outline" size="sm" onClick={handleAuditClick}>
+                  <CheckCheckIcon/>  View Audit
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
