@@ -2995,9 +2995,6 @@ class ProgressService extends BaseService {
       throw new BadRequestError('userId, courseId and versionId are required');
     }
 
-    console.log(
-      `Recalculating progress for user: ${userId}, course: ${courseId}, version: ${versionId}`,
-    );
 
     // 1. Fetch progress
     const progress = await this.progressRepository.findProgress(
@@ -3052,12 +3049,6 @@ class ProgressService extends BaseService {
     const missedItemIds = allRelevantItemIds.filter(
       itemId => !completedItemSet.has(itemId),
     );
-
-    console.log(
-      'until ' + allRelevantItemIds.length,
-      'completed ' + completedItemIds.length,
-    );
-    console.log('missedItemIds: ', missedItemIds.length);
 
     // 3. Backfill missed watch-time records
     if (missedItemIds.length > 0) {
