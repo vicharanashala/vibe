@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { logout } from "@/utils/auth"
 import { useNavigate } from "@tanstack/react-router"
-import { LogOut, UserRoundCheck, Menu, X } from "lucide-react"
+import { LogOut, Menu, X, Bell } from "lucide-react"
 import { AuroraText } from "@/components/magicui/aurora-text"
 import { useState } from "react"
 import InviteDropdown from "@/components/inviteDropDown"
@@ -69,7 +69,7 @@ export default function StudentLayout() {
       window.history.replaceState = originalReplaceState;
     };
   }, []);
-  
+
   // Sync local state with hook data
   useEffect(() => {
     if (approvedNotifications && approvedNotifications.length !== approvedNotificationsList.length) {
@@ -258,8 +258,8 @@ export default function StudentLayout() {
                   onClick={() => setShowInvites((prev) => !prev)}
                   className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
                 >
-                  <UserRoundCheck className="h-4 w-4" />
-                  <span className="hidden sm:block ml-2">Invites</span>
+                  <Bell className="h-4 w-4" />
+                  <span className="hidden sm:block ml-2">Notifications</span>
                   {(pendingInvites.length > 0 || approvedNotificationsList.length > 0) && <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500" />}
                 </Button>
 

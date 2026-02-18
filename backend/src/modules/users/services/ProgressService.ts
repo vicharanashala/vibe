@@ -1793,19 +1793,24 @@ console.log("--in isValidWatchTime---",videoEndTimeInSeconds, videoStartTimeInSe
       courseVersion.totalItems ??
       (await this.itemRepo.CalculateTotalItemsCount(courseId, courseVersionId));
 
-    const percentCompleted = parseFloat(
-      (
-        (totalItems > 0 ? completedItemsSet.size / totalItems : 0) * 100
-      ).toFixed(2),
+   const rawPercent =
+      totalItems > 0 ? (completedItemsSet.size / totalItems) * 100 : 0;
+
+    const percentCompleted = Math.min(
+      100,
+      parseFloat(rawPercent.toFixed(2)),
     );
 
-    // Fire-and-forget safe update
     await this.enrollmentRepo.updateProgressPercentById(
       enrollment._id.toString(),
       percentCompleted,
       undefined,
       completedItemsSet.size,
     );
+
+    if (percentCompleted > 99) {
+      await this.recalculateStudentProgress(userId, courseId, courseVersionId);
+    }
   }
 
 
