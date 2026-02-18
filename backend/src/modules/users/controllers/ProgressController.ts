@@ -569,7 +569,6 @@ It returns an empty body with a 200 status code.
     @CurrentUser() currentUser: IUser,
     @Ability(getProgressAbility) { ability },
   ): Promise<string> {
-    console.log("RECALCULATE METHOD HIT controller");
 
     const { courseId, courseVersionId, userId: requestedUserId } = body;
 
@@ -592,11 +591,9 @@ It returns an empty body with a 200 status code.
       }
 
       targetUserId = requestedUserId;
-      console.log('Instructor/Admin recalculating for user:', targetUserId);
     } else {
       // No userId provided - use authenticated user (student use case)
       targetUserId = currentUser._id?.toString();
-      console.log('Student recalculating own progress:', targetUserId);
     }
 
     if (!targetUserId) {
