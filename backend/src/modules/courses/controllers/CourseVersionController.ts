@@ -328,7 +328,6 @@ Accessible to:
   })
   async getCourseVersionWatchTime(
     @Params() params: GetCourseVersionWatchTimeParams,
-    @Ability(getCourseVersionAbility) { ability },
   ): Promise<CourseVersionWatchTimeResponse> {
     const { courseId, versionId } = params;
 
