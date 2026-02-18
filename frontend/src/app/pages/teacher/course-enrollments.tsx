@@ -421,6 +421,8 @@ export default function CourseEnrollments() {
   // Active / Inactive tab
   const [enrollmentTab, setEnrollmentTab] = useState<"ACTIVE" | "INACTIVE">("ACTIVE")
   const statusTab: "ACTIVE" | "INACTIVE" = enrollmentTab
+  const [activeCount, setActiveCount] = useState(0)
+  const [inactiveCount, setInactiveCount] = useState(0)
   const {
     data: quizScores,
     isLoading: isLoadingQuizScores,
@@ -466,6 +468,13 @@ export default function CourseEnrollments() {
 
   // Pagination state
   const totalDocuments = enrollmentsData?.totalDocuments || 0
+  useEffect(() => {
+    if (enrollmentTab === "ACTIVE") {
+      setActiveCount(totalDocuments)
+    } else {
+      setInactiveCount(totalDocuments)
+    }
+  }, [totalDocuments, enrollmentTab])
   const totalPages = enrollmentsData?.totalPages || 1
 
 
@@ -884,14 +893,14 @@ export default function CourseEnrollments() {
                 value="ACTIVE"
                 className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
               >
-                Active Students
+                Active Students({activeCount})
               </TabsTrigger>
 
               <TabsTrigger
                 value="INACTIVE"
                 className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
               >
-                Inactive Students
+                Inactive Students({inactiveCount})
               </TabsTrigger>
             </TabsList>
           </div>
@@ -1908,8 +1917,8 @@ function EnrollmentsTable({
       <CardHeader className="pb-4 bg-gradient-to-r from-card to-muted/20 flex items-center justify-between lg:flex-nowrap flex-wrap">
         <CardTitle className="text-xl font-medium text-card-foreground">
           {isInactiveTab
-            ? `Inactive Students (${totalDocuments})`
-            : `Active Students (${totalDocuments})`}
+            ? `Inactive Students `
+            : `Active Students `}
         </CardTitle>
 
         {/* SAME header functionality for both tabs */}
