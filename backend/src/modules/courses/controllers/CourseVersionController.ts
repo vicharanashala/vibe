@@ -1,5 +1,5 @@
-import {CourseVersionService} from '#courses/services/CourseVersionService.js';
-import {injectable, inject} from 'inversify';
+import { CourseVersionService } from '#courses/services/CourseVersionService.js';
+import { injectable, inject } from 'inversify';
 import {
   JsonController,
   Post,
@@ -15,11 +15,11 @@ import {
   Authorized,
   Patch,
 } from 'routing-controllers';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {COURSES_TYPES} from '#courses/types.js';
-import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
-import {CourseVersion} from '#courses/classes/transformers/CourseVersion.js';
-import {Ability} from '#root/shared/functions/AbilityDecorator.js';
+import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
+import { COURSES_TYPES } from '#courses/types.js';
+import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
+import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
+import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import {
   CreateCourseVersionResponse,
   CourseVersionNotFoundErrorResponse,
@@ -32,16 +32,18 @@ import {
   UpdateCourseVersionBody,
   CopyCourseVersionResponse,
   CopyCourseVersionParams,
+  CourseVersionWatchTimeResponse,
+  GetCourseVersionWatchTimeParams,
 } from '#courses/classes/validators/CourseVersionValidators.js';
 import {
   CourseVersionActions,
   getCourseVersionAbility,
 } from '../abilities/versionAbilities.js';
-import {subject} from '@casl/ability';
-import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
-import {USERS_TYPES} from '#root/modules/users/types.js';
-import {response} from 'express';
-import {CourseActions} from '../abilities/courseAbilities.js';
+import { subject } from '@casl/ability';
+import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
+import { USERS_TYPES } from '#root/modules/users/types.js';
+import { response } from 'express';
+import { CourseActions } from '../abilities/courseAbilities.js';
 
 @OpenAPI({
   tags: ['Course Versions'],
@@ -54,7 +56,7 @@ export class CourseVersionController {
     private readonly courseVersionService: CourseVersionService,
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
-  ) {}
+  ) { }
 
   @OpenAPI({
     summary: 'Create a course version',
@@ -63,7 +65,7 @@ Accessible to:
 - Instructor or manager of the course.`,
   })
   @Authorized()
-  @Post('/:courseId/versions', {transformResponse: true})
+  @Post('/:courseId/versions', { transformResponse: true })
   @HttpCode(201)
   @ResponseSchema(CreateCourseVersionResponse, {
     description: 'Course version created successfully',
@@ -79,13 +81,13 @@ Accessible to:
   async create(
     @Params() params: CreateCourseVersionParams,
     @Body() body: CreateCourseVersionBody,
-    @Ability(getCourseVersionAbility) {ability, user},
+    @Ability(getCourseVersionAbility) { ability, user },
   ): Promise<CourseVersion> {
-    const {courseId} = params;
+    const { courseId } = params;
     const userId = user._id.toString();
 
     // Check permissions upfront
-    const courseVersionSubject = subject('CourseVersion', {courseId});
+    const courseVersionSubject = subject('CourseVersion', { courseId });
     if (!ability.can(CourseVersionActions.Create, courseVersionSubject)) {
       throw new ForbiddenError(
         'You do not have permission to create course versions',
@@ -131,12 +133,12 @@ Accessible to:
   })
   async read(
     @Params() params: ReadCourseVersionParams,
-    @Ability(getCourseVersionAbility) {ability, user},
+    @Ability(getCourseVersionAbility) { ability, user },
   ): Promise<CourseVersion> {
-    const {versionId} = params;
+    const { versionId } = params;
 
     // Build the subject context first
-    const courseVersionSubject = subject('CourseVersion', {versionId});
+    const courseVersionSubject = subject('CourseVersion', { versionId });
 
     if (!ability.can(CourseVersionActions.View, courseVersionSubject)) {
       throw new ForbiddenError(
@@ -156,7 +158,7 @@ Accessible to:
 - Instructor or manager for the course.`,
   })
   @Authorized()
-  @Patch('/:courseId/versions/:versionId', {transformResponse: true})
+  @Patch('/:courseId/versions/:versionId', { transformResponse: true })
   @ResponseSchema(CourseVersionDataResponse, {
     description: 'Course version updated successfully',
   })
@@ -171,9 +173,9 @@ Accessible to:
   async update(
     @Params() params: UpdateCourseVersionParams,
     @Body() body: UpdateCourseVersionBody,
-    @Ability(getCourseVersionAbility) {ability},
+    @Ability(getCourseVersionAbility) { ability },
   ): Promise<CourseVersion> {
-    const {courseId, versionId} = params;
+    const { courseId, versionId } = params;
 
     const courseVersionSubject = subject('CourseVersion', {
       courseId,
@@ -212,9 +214,9 @@ Accessible to:
   })
   async delete(
     @Params() params: DeleteCourseVersionParams,
-    @Ability(getCourseVersionAbility) {ability},
-  ): Promise<{message: string}> {
-    const {courseId, versionId} = params;
+    @Ability(getCourseVersionAbility) { ability },
+  ): Promise<{ message: string }> {
+    const { courseId, versionId } = params;
     if (!versionId || !courseId) {
       throw new BadRequestError('Version ID is required');
     }
@@ -270,9 +272,9 @@ Accessible to:
   })
   async copy(
     @Params() params: CopyCourseVersionParams,
-    @Ability(getCourseVersionAbility) {ability},
-  ): Promise<{message: string}> {
-    const {courseId, versionId} = params;
+    @Ability(getCourseVersionAbility) { ability },
+  ): Promise<{ message: string }> {
+    const { courseId, versionId } = params;
 
     if (!versionId || !courseId) {
       throw new BadRequestError('Version ID is required');
@@ -302,6 +304,73 @@ Accessible to:
 
     return {
       message: `Version copied successfully.`,
+    };
+  }
+
+
+
+
+  @OpenAPI({
+    summary: 'Get course version watch time',
+    description: `Returns total watch time for a specific course version`,
+  })
+  @Get('/:courseId/versions/:versionId/watch-time')
+  @ResponseSchema(CourseVersionWatchTimeResponse, {
+    description: 'Course version watch time fetched successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(CourseVersionNotFoundErrorResponse, {
+    description: 'Course or version not found',
+    statusCode: 404,
+  })
+  async getCourseVersionWatchTime(
+    @Params() params: GetCourseVersionWatchTimeParams,
+  ): Promise<CourseVersionWatchTimeResponse> {
+    const { courseId, versionId } = params;
+
+    if (!courseId || !versionId) {
+      throw new BadRequestError('Course ID and Version ID are required');
+    }
+    const result = await this.courseVersionService.getCourseVersionTotalWatchTime(
+      courseId,
+      versionId,
+    );
+
+    if (!result) {
+      throw new InternalServerError(
+        'Failed to fetch watch time, please try again later',
+      );
+    }
+
+    const formatWatchTime = (totalSeconds: number): string => {
+      if (!totalSeconds || totalSeconds <= 0) return '0 minutes';
+
+      const days = Math.floor(totalSeconds / 86400);
+      const hours = Math.floor((totalSeconds % 86400) / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+      const parts: string[] = [];
+
+      if (days > 0) parts.push(`${days} ${days === 1 ? 'day' : 'days'}`);
+      if (hours > 0) parts.push(`${hours} ${hours === 1 ? 'hour' : 'hours'}`);
+      if (minutes > 0) parts.push(`${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`);
+
+      return parts.join(' ');
+    }
+
+    const totalSeconds = result.totalSeconds ?? 0;
+    const totalHours = totalSeconds / 3600;
+    const readableDuration = formatWatchTime(totalSeconds);
+
+    return {
+      message: result.message || 'Course version watch time fetched successfully',
+      totalSeconds,
+      totalHours,
+      totalHoursRounded: Number(totalHours.toFixed(2)),
+      readableDuration,
     };
   }
 }
