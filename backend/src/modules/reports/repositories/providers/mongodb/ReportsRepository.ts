@@ -147,8 +147,9 @@ class ReportRepository {
     session?: ClientSession,
   ): Promise<IReport | null> {
     await this.init();
-    const aggregationPipeline = [
+  const aggregationPipeline = [
       { $match: { _id: new ObjectId(reportId) } },
+      // Reported By
       {
         $lookup: {
           from: 'users',
@@ -157,13 +158,13 @@ class ReportRepository {
           as: 'reportedByUser',
         },
       },
-      {
-        $unwind: {
-          path: '$reportedByUser',
-          preserveNullAndEmptyArrays: true,
-        },
+      { 
+        $unwind: { 
+          path: '$reportedByUser', 
+          preserveNullAndEmptyArrays: true 
+        } 
       },
-
+      // Course
       {
         $lookup: {
           from: 'newCourse',
@@ -172,14 +173,13 @@ class ReportRepository {
           as: 'courseData',
         },
       },
-      {
-        $unwind: {
-          path: '$courseData',
-          preserveNullAndEmptyArrays: true,
-        },
+      { 
+        $unwind: { 
+          path: '$courseData', 
+          preserveNullAndEmptyArrays: true 
+        } 
       },
-
-      // Lookup course version to get module/section structure
+      // Version
       {
         $lookup: {
           from: 'newCourseVersion',
@@ -188,16 +188,13 @@ class ReportRepository {
           as: 'versionData',
         },
       },
-      {
-        $unwind: {
-          path: '$versionData',
-          preserveNullAndEmptyArrays: true,
-        },
+      { 
+        $unwind: { 
+          path: '$versionData', 
+          preserveNullAndEmptyArrays: true 
+        } 
       },
-
-      // Lookup ItemsGroup collection to find which itemsGroup contains this item
-      // We use string conversion for IDs to be robust against ObjectId/String mismatches
-      // We check both _id and itemId fields just in case
+      // Find ItemsGroup
       {
         $lookup: {
           from: 'itemsGroup',
@@ -209,7 +206,7 @@ class ReportRepository {
                   $or: [
                     {
                       $in: [
-                        { $toString: '$$entityIdVar' },  // Convert to string to match
+                        { $toString: '$$entityIdVar' },
                         {
                           $map: {
                             input: { $ifNull: ['$items', []] },
@@ -221,7 +218,7 @@ class ReportRepository {
                     },
                     {
                       $in: [
-                        { $toString: '$$entityIdVar' },  // Convert to string to match
+                        { $toString: '$$entityIdVar' },
                         {
                           $map: {
                             input: { $ifNull: ['$items', []] },
@@ -236,96 +233,84 @@ class ReportRepository {
               },
             },
             { $limit: 1 },
-            {
-              $project: {
-                _id: 1,
-              },
-            },
+            { $project: { _id: 1 } },
           ],
           as: 'itemsGroupData',
         },
       },
-      {
-        $unwind: {
-          path: '$itemsGroupData',
-          preserveNullAndEmptyArrays: true,
-        },
+      { 
+        $unwind: { 
+          path: '$itemsGroupData', 
+          preserveNullAndEmptyArrays: true 
+        } 
       },
-
-      // Separate Lookups to get Item Name from specific collections
+      // Video
       {
         $lookup: {
           from: 'videos',
           localField: 'entityId',
           foreignField: '_id',
           pipeline: [{ $project: { name: 1 } }],
-          as: 'videoData'
-        }
+          as: 'videoData',
+        },
       },
-      {
-        $unwind: { path: '$videoData', preserveNullAndEmptyArrays: true }
+      { 
+        $unwind: { 
+          path: '$videoData', 
+          preserveNullAndEmptyArrays: true 
+        } 
       },
+      // Quiz
       {
         $lookup: {
           from: 'quizzes',
           localField: 'entityId',
           foreignField: '_id',
           pipeline: [{ $project: { name: 1 } }],
-          as: 'quizData'
-        }
+          as: 'quizData',
+        },
       },
-      {
-        $unwind: { path: '$quizData', preserveNullAndEmptyArrays: true }
+      { 
+        $unwind: { 
+          path: '$quizData', 
+          preserveNullAndEmptyArrays: true 
+        } 
       },
+      // Blog
       {
         $lookup: {
           from: 'blogs',
           localField: 'entityId',
           foreignField: '_id',
           pipeline: [{ $project: { name: 1 } }],
-          as: 'blogData'
-        }
+          as: 'blogData',
+        },
       },
-      {
-        $unwind: { path: '$blogData', preserveNullAndEmptyArrays: true }
+      { 
+        $unwind: { 
+          path: '$blogData', 
+          preserveNullAndEmptyArrays: true 
+        } 
       },
+      // Project
       {
         $lookup: {
           from: 'projects',
           localField: 'entityId',
           foreignField: '_id',
           pipeline: [{ $project: { name: 1 } }],
-          as: 'projectData'
-        }
+          as: 'projectData',
+        },
       },
-      {
-        $unwind: { path: '$projectData', preserveNullAndEmptyArrays: true }
+      { 
+        $unwind: { 
+          path: '$projectData', 
+          preserveNullAndEmptyArrays: true 
+        } 
       },
-
+      // Resolve Item Name
       {
         $addFields: {
-          _id: { $toString: '$_id' },
-          reportedBy: {
-            _id: { $toString: '$reportedByUser._id' },
-            firstName: '$reportedByUser.firstName',
-            lastName: '$reportedByUser.lastName',
-          },
-          courseId: {
-            _id: { $toString: '$courseData._id' },
-            name: '$courseData.name',
-            description: '$courseData.description',
-          },
-          versionId: { $toString: '$versionId' },
-          entityId: { $toString: '$entityId' },
-          questionId: {
-            $cond: {
-              if: { $ifNull: ['$questionId', false] },
-              then: { $toString: '$questionId' },
-              else: '$$REMOVE'
-            }
-          },
-
-          // Resolve Item Name
           itemName: {
             $ifNull: [
               '$videoData.name',
@@ -335,89 +320,134 @@ class ReportRepository {
                   {
                     $ifNull: [
                       '$blogData.name',
-                      '$projectData.name'
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-
-          // Find module and section that contain this itemsGroup
-          moduleInfo: {
-            $arrayElemAt: [
-              {
-                $filter: {
-                  input: {
-                    $map: {
-                      input: { $ifNull: ['$versionData.modules', []] },
-                      as: 'module',
-                      in: {
-                        moduleName: '$$module.name',
-                        moduleId: '$$module.moduleId',
-                        sectionInfo: {
-                          $arrayElemAt: [
-                            {
-                              $filter: {
-                                input: {
-                                  $map: {
-                                    input: { $ifNull: ['$$module.sections', []] },
-                                    as: 'section',
-                                    in: {
-                                      sectionName: '$$section.name',
-                                      sectionId: '$$section.sectionId',
-                                      itemsGroupId: '$$section.itemsGroupId',
-                                    },
-                                  },
-                                },
-                                as: 'sec',
-                                cond: {
-                                  $eq: [
-                                    { $toString: '$$sec.itemsGroupId' },
-                                    { $toString: '$itemsGroupData._id' },
-                                  ],
-                                },
-                              },
-                            },
-                            0,
-                          ],
-                        },
-                      },
-                    },
+                      '$projectData.name',
+                    ],
                   },
-                  as: 'mod',
-                  cond: { $ne: ['$$mod.sectionInfo', null] },
-                },
+                ],
               },
-              0,
             ],
           },
         },
       },
-
+      // Flatten All Sections
       {
         $addFields: {
-          moduleName: '$moduleInfo.moduleName',
-          sectionName: '$moduleInfo.sectionInfo.sectionName',
+          allSections: {
+            $reduce: {
+              input: { $ifNull: ['$versionData.modules', []] },
+              initialValue: [],
+              in: {
+                $concatArrays: [
+                  '$$value',
+                  { $ifNull: ['$$this.sections', []] },
+                ],
+              },
+            },
+          },
         },
       },
+      // Find Matching Section
+      {
+        $addFields: {
+          matchedSection: {
+            $first: {
+              $filter: {
+                input: '$allSections',
+                as: 'section',
+                cond: {
+                  $eq: [
+                    { $toString: '$$section.itemsGroupId' },
+                    { $toString: '$itemsGroupData._id' },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      },
+      // Find Parent Module
+      {
+        $addFields: {
+          matchedModule: {
+            $first: {
+              $filter: {
+                input: { $ifNull: ['$versionData.modules', []] },
+                as: 'module',
+                cond: {
+                  $in: [
+                    { $toString: '$matchedSection.sectionId' },
+                    {
+                      $map: {
+                        input: { $ifNull: ['$$module.sections', []] },
+                        as: 'sec',
+                        in: { $toString: '$$sec.sectionId' },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      },
+      // Extract Names
+      {
+        $addFields: {
+          moduleName: '$matchedModule.name',
+          sectionName: '$matchedSection.name',
+        },
+      },
+      // Cleanup Temporary Fields
+      {
+        $project: {
+          allSections: 0,
+          matchedSection: 0,
+          matchedModule: 0,
+        },
+      },
+      // Format Final Fields
+      {
+        $addFields: {
+          _id: { $toString: '$_id' },
+          versionId: { $toString: '$versionId' },
+          entityId: { $toString: '$entityId' },
 
+          questionId: {
+            $cond: {
+              if: { $ifNull: ['$questionId', false] },
+              then: { $toString: '$questionId' },
+              else: '$$REMOVE',
+            },
+          },
+
+          reportedBy: {
+            _id: { $toString: '$reportedByUser._id' },
+            firstName: '$reportedByUser.firstName',
+            lastName: '$reportedByUser.lastName',
+          },
+
+          courseId: {
+            _id: { $toString: '$courseData._id' },
+            name: '$courseData.name',
+            description: '$courseData.description',
+          },
+        },
+      },
+      // Final Cleanup
       {
         $project: {
           reportedByUser: 0,
           courseData: 0,
           versionData: 0,
-          moduleInfo: 0,
           itemsGroupData: 0,
           videoData: 0,
           quizData: 0,
           blogData: 0,
           projectData: 0,
-          matchedItem: 0,
+          moduleInfo: 0,
         },
       },
     ];
-
     const result = await this.reportCollection
       .aggregate(aggregationPipeline, { session })
       .toArray();
