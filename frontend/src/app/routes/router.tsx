@@ -116,7 +116,7 @@ const forgotPasswordRoute = new Route({
 // Reset Password route - accessible only when NOT authenticated
 const resetPasswordRoute = new Route({
   getParentRoute: () => rootRoute,
- path: '/reset-password',
+  path: '/reset-password',
   component: ResetPasswordPage,
   beforeLoad: () => {
     const { isAuthenticated, user } = useAuthStore.getState();
@@ -430,7 +430,7 @@ export const studentCourseInviteRegistration = new Route({
       throw redirect({
         to: '/student/login',
         search: {
-          redirect: window.location.pathname, // optional: come back after login
+          redirect: window.location.pathname + window.location.search,
         },
       });
     }
@@ -490,21 +490,21 @@ const testAISectionModalRoute = new Route({
 
 //student login route
 export const studentLoginRoute = new Route({
-  getParentRoute: ()=> rootRoute,
+  getParentRoute: () => rootRoute,
   path: '/student/login',
   component: StudentLogin
 })
 
 //teacher login route
 export const teacherLoginRoute = new Route({
-  getParentRoute: ()=> rootRoute,
+  getParentRoute: () => rootRoute,
   path: '/teacher/login',
   component: TeacherLogin
 })
 
 //select role route
 export const selectRoleRoute = new Route({
-  getParentRoute: ()=> rootRoute,
+  getParentRoute: () => rootRoute,
   path: '/select-role',
   component: SelectRolePage
 })
@@ -513,7 +513,7 @@ export const selectRoleRoute = new Route({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   authRoute,
-//   loginRoute,
+  //   loginRoute,
   forgotPasswordRoute,
   resetPasswordRoute,
   // loginRoute,
