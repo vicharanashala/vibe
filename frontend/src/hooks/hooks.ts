@@ -31,6 +31,7 @@ import { ISubmitFeedbackBody } from '@/components/Item-container';
 import { TranscriptResponse } from '@/types/ai.types';
 import { VideoOverallAnalytics, VideoUserAnalytics, VideoUserAnalyticsResponse } from '@/app/pages/teacher/teacher-course-page';
 import { WatchTimeTrackData } from '@/types/user_activity_event.types';
+import { start } from 'repl';
 
 // Add missing ObjectId type
 type ObjectId = string;
@@ -932,24 +933,29 @@ export function useMoveSection(): {
 
 export function useCourseVersionAuditDetails(
   courseId: string,
-  versionId: string
+  versionId: string,
+  page: number,
+  limit: number,
+  startDate?: string,
+  endDate?: string
 ): {
-  data: undefined,
-  isLoading: boolean,
-  error: string | null,
-  refetch: () => void
+  data: any;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
 } {
-
   const result = api.useQuery(
     "get",
     "/audit-trails/course/{courseId}/version/{versionId}" as any,
     {
       params: {
-        path: { courseId, versionId }
-      }
+        path: { courseId, versionId },
+        query: { page, limit, startDate, endDate },
+      },
     },
     {
-      enabled: !!courseId && !!versionId
+      enabled: !!courseId && !!versionId,
+      keepPreviousData: true, // 🔥 Important for pagination UX
     }
   );
 
@@ -959,10 +965,9 @@ export function useCourseVersionAuditDetails(
     error: result.error
       ? result.error.message || "Failed to fetch audit details"
       : null,
-    refetch: result.refetch
+    refetch: result.refetch,
   };
 }
-
 
 
 // GET /courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items

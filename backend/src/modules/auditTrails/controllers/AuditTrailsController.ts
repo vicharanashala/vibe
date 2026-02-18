@@ -1,5 +1,5 @@
 import { inject, injectable } from "inversify";
-import { Authorized, BadRequestError, CurrentUser, Get, HttpCode, JsonController, Param } from "routing-controllers";
+import { Authorized, BadRequestError, CurrentUser, Get, HttpCode, JsonController, Param, QueryParam } from "routing-controllers";
 import { OpenAPI, ResponseSchema } from "routing-controllers-openapi";
 import { AUDIT_TRAILS_TYPES } from "../types.js";
 import { AuditTrailsService } from "../services/AuditTrailsService.js";
@@ -56,14 +56,17 @@ class AuditTrailsController{
         description: "Bad Request",
         statusCode: 400,
     })
-    async getAuditTrailsByCourseAndVersion(@Param("courseId") courseId: string, @Param("versionId") versionId: string, @CurrentUser() user: {_id: string}){
+
+    async getAuditTrailsByCourseAndVersion(@Param("courseId") courseId: string, @Param("versionId") versionId: string,   @QueryParam("page") page: number = 1, @QueryParam("limit") limit: number = 10, @CurrentUser() user: {_id: string}, @QueryParam("startDate") startDate?: string, @QueryParam("endDate") endDate?: string, ){
         console.log("Received request for audit trails with courseId: ", courseId, " and versionId: ", versionId, " for userId: ", user._id);
-        const auditTrails = await this.auditTrailsService.getAuditTrailsByCourseAndVersion(user._id, courseId, versionId);
-        console.log("Audit trails: ", auditTrails);
-        return {
-            message: "Audit trails retrieved successfully",
-            data: auditTrails
-        }
+        const {data, totalDocuments} = await this.auditTrailsService.getAuditTrailsByCourseAndVersion(user._id, courseId, versionId, page, limit, startDate, endDate);
+         return {
+    message: "Audit trails retrieved successfully",
+    data,
+    totalDocuments,
+    totalPages: Math.ceil(totalDocuments / limit),
+    currentPage: page,
+  };
     }
 }
 

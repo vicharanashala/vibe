@@ -17,6 +17,13 @@ export interface IAuditTrailsRepository{
         userId: string,
         courseId: string,
         versionId: string,
+        page: number,
+        limit: number,
+        startDate?: string,
+        endDate?: string,
         session?: ClientSession
-    ): Promise<InstructorAuditTrail[]>;
+    ): Promise<{
+        data: InstructorAuditTrail[];
+        totalDocuments: number;
+    }>;
 }
