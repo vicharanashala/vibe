@@ -128,6 +128,9 @@ Accessible to:
           title: body.name,
           description: body.description,
         }
+      },
+      outcome:{
+        status: OutComeStatus.SUCCESS
       }
     })
     return {version: instanceToPlain(createdVersion)} as any;

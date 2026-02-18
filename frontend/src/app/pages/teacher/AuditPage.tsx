@@ -27,8 +27,9 @@ import {
 
 import { useCourseVersionAuditDetails } from "@/hooks/hooks";
 import { Button } from "@/components/ui/button";
-import { ArrowBigDown, ArrowBigDownDashIcon } from "lucide-react";
-
+import { Input } from "@/components/ui/input";
+import { ArrowBigDownDashIcon } from "lucide-react";
+import { Pagination } from "@/components/ui/Pagination";
 function isIdKey(key: string) {
   return key.toLowerCase().includes("id");
 }
@@ -108,6 +109,11 @@ const AuditPage = () => {
   const [selectedVersionId, setSelectedVersionId] =
     useState<string | null>(null);
 
+    const [page, setPage] = useState(1);
+    const [startDate, setStartDate] = useState<string | undefined>(undefined);
+const [endDate, setEndDate] = useState<string | undefined>(undefined);
+const limit = 5;
+
   // ✅ Set default version (first one)
   useEffect(() => {
     if (versions.length > 0 && !selectedVersionId) {
@@ -119,6 +125,10 @@ const AuditPage = () => {
     useCourseVersionAuditDetails(
       courseId!,
       selectedVersionId!,
+      page,
+      limit,
+        startDate,
+  endDate
     );
 
   if (!courseId) {
@@ -142,39 +152,91 @@ const AuditPage = () => {
       </h1>
 
       {/* 🔥 Version Dropdown */}
-           {versions.length > 0 && (
-        <DropdownMenu>
-             <DropdownMenuTrigger asChild>
-          <Button className="border px-4 py-2 rounded-md text-sm font-medium">
-               <ArrowBigDownDashIcon/> {selectedVersionId
-                ? `Version v${
-                    versions.indexOf(selectedVersionId) + 1
-                  }.0`
-                : "Select Version"}
-            </Button>
-          </DropdownMenuTrigger>
+           <div className="flex flex-wrap items-center gap-4">
+  {/* Version Dropdown */}
+  {versions.length > 0 && (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button className="border px-4 py-2 rounded-md text-sm font-medium">
+          <ArrowBigDownDashIcon className="mr-2 h-4 w-4" />
+          {selectedVersionId
+            ? `Version v${
+                versions.indexOf(selectedVersionId) + 1
+              }.0`
+            : "Select Version"}
+        </Button>
+      </DropdownMenuTrigger>
 
-          <DropdownMenuContent>
-            <DropdownMenuRadioGroup
-              value={selectedVersionId || ""}
-              onValueChange={(value) =>
-                setSelectedVersionId(value)
-              }
-            >
-              {versions.map(
-                (versionId: string, index: number) => (
-                  <DropdownMenuRadioItem
-                    key={versionId}
-                    value={versionId}
-                  >
-                    v{index + 1}.0
-                  </DropdownMenuRadioItem>
-                )
-              )}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+      <DropdownMenuContent>
+        <DropdownMenuRadioGroup
+          value={selectedVersionId || ""}
+          onValueChange={(value) => {
+            setSelectedVersionId(value);
+            setPage(1);
+          }}
+        >
+          {versions.map(
+            (versionId: string, index: number) => (
+              <DropdownMenuRadioItem
+                key={versionId}
+                value={versionId}
+              >
+                v{index + 1}.0
+              </DropdownMenuRadioItem>
+            )
+          )}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )}
+
+  {/* From Date */}
+  <div className="flex items-center gap-2">
+    <span className="text-sm text-muted-foreground">
+      From:
+    </span>
+    <Input
+      type="date"
+      value={startDate || ""}
+      onChange={(e) => {
+        setStartDate(e.target.value || undefined);
+        setPage(1);
+      }}
+      className="w-[160px]"
+    />
+  </div>
+
+  {/* To Date */}
+  <div className="flex items-center gap-2">
+    <span className="text-sm text-muted-foreground">
+      To:
+    </span>
+    <Input
+      type="date"
+      value={endDate || ""}
+      onChange={(e) => {
+        setEndDate(e.target.value || undefined);
+        setPage(1);
+      }}
+      className="w-[160px]"
+    />
+  </div>
+
+  {/* Clear Filter Button */}
+  {(startDate || endDate) && (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => {
+        setStartDate(undefined);
+        setEndDate(undefined);
+        setPage(1);
+      }}
+    >
+      Clear Dates
+    </Button>
+  )}
+</div>
 
       {auditTrails.length === 0 && (
         <div className="text-muted-foreground">
@@ -260,6 +322,14 @@ const AuditPage = () => {
           </Card>
         );
       })}
+      {data && data.totalPages > 1 && (
+  <Pagination
+    currentPage={data.currentPage}
+    totalPages={data.totalPages}
+    totalDocuments={data.totalDocuments}
+    onPageChange={(newPage) => setPage(newPage)}
+  />
+)}
     </div>
   );
 };

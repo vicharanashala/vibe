@@ -43,7 +43,6 @@ import { setAuditTrail } from '#root/utils/setAuditTrail.js';
 import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
 import { ObjectId } from 'mongodb';
 import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
-import { inv } from 'mathjs';
 
 /**
  * Controller for managing student enrollments in courses.
