@@ -740,3 +740,32 @@ export interface TranscriptExplanations {
   C: string;
   D: string;
 }
+
+export enum AnnouncementType {
+  GENERAL = 'GENERAL',
+  VERSION_SPECIFIC = 'VERSION_SPECIFIC',
+  COURSE_SPECIFIC = 'COURSE_SPECIFIC',
+}
+
+export interface IAnnouncementAttachment {
+  fileName: string;
+  fileUrl: string;
+  fileType: string;
+}
+
+export interface IAnnouncement {
+  _id?: ID;
+  title: string;
+  content: string;
+  type: AnnouncementType;
+  courseId?: ID;
+  courseVersionId?: ID;
+  instructorId: ID;
+  instructorName: string;
+  attachments?: IAnnouncementAttachment[];
+  isHidden: boolean;
+  isDeleted?: boolean;
+  deletedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
