@@ -511,13 +511,14 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       // Start progress tracking
       // await handleSendStartItem();
       // call skipitem to create both start 
-      await handleSkipItem();
+      // await handleSkipItem();
 
       if (emptyQuizNextTimerRef.current) {
         clearTimeout(emptyQuizNextTimerRef.current);
       }
       // handleStopItem(true);
-      emptyQuizNextTimerRef.current = setTimeout(() => {
+      emptyQuizNextTimerRef.current = setTimeout(async () => {
+        await handleSkipItem();
         if (onNext) {
           onNext();
         } else {
@@ -753,11 +754,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       if (response.gradingStatus === 'FAILED') {
         console.log('Quiz failed - immediately updating progress to previous video');
         try {
-          await handleStopItem(false); // SHOULD WE CALL THIS ? AT BACKEND validateQuizStop WILL FAIL
+          await handleStopItem(false);
         } catch (stopError) {
           console.error('Failed to update progress after quiz failure:', stopError);
         }
       }
+      completedItemIdsRef.current.add(processedQuizId);
 
       setQuizCompleted(true);
 
@@ -1305,7 +1307,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                 {/* Next Lesson Button-If user doesn't want to wait*/}
                 {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
                   <Button
-                    onClick={onNext}
+                    onClick={async ()=>{
+                        await handleSkipItem();
+                        if(onNext){
+                        onNext();
+                        }
+                      }
+                    }
                     disabled={isProgressUpdating}
                     className="min-w-[180px] h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
                     size="lg"

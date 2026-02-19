@@ -1230,10 +1230,10 @@ class ProgressService extends BaseService {
           // parseInt(videoDetails.startTime.split(':')[0]) * 3600 +
           // parseInt(videoDetails.startTime.split(':')[1]) * 60 +
           // parseInt(videoDetails.startTime.split(':')[2]);
-console.log("----videodetails----", videoDetails);
+
         const totalVideoDuration =
           videoEndTimeInSeconds - videoStartTimeInSeconds;
-console.log("--in isValidWatchTime---",videoEndTimeInSeconds, videoStartTimeInSeconds)
+
         // Security Rule
         // - Must have watched at least 15% of the video
         // OR
@@ -1945,7 +1945,6 @@ console.log("--in isValidWatchTime---",videoEndTimeInSeconds, videoStartTimeInSe
 
         }
       }
-      console.log("newprogress",newProgress)
 
       // Update progress in a transaction
       await this.progressRepository.updateProgress(
@@ -2387,6 +2386,24 @@ console.log("--in isValidWatchTime---",videoEndTimeInSeconds, videoStartTimeInSe
         courseVersionId,
         previousProgress,
       );
+    }
+    // if we refresh the quiz page after passing then the student will land on next item
+    //  and as the stop item is not called for that quiz endtime will never be created 
+    const watchTime = await this.progressRepository.getWatchTime(
+      userId,
+      quizId,
+      courseId,
+      courseVersionId,
+    );
+    const isItemCompleted = await this.progressRepository.isItemCompleted(
+      userId.toString(),
+      courseId,
+      courseVersionId,
+      quizId,
+    )
+
+    if(!isItemCompleted){
+      const result = await this.progressRepository.stopItemTracking(watchTime[0]._id.toString());
     }
   }
 

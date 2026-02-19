@@ -385,7 +385,6 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
         completedItemIdsRef.current.add(currentCourse!.itemId);
 
         progressStoppedRef.current = true;
-        console.log('Progress stopped successfully for watchItemId:', watchItemId);
         resolve(true);
 
       } catch (err: any) {

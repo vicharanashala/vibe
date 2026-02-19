@@ -5,6 +5,7 @@ import {
   InternalServerError,
   BadRequestError,
   UnauthorizedError,
+  ForbiddenError
 } from 'routing-controllers';
 import { COURSES_TYPES } from '#courses/types.js';
 import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
@@ -489,7 +490,7 @@ export class ItemService extends BaseService {
       !isItemAlreadyAttempted &&
       currentUserProgress?.currentItem.toString() !== itemId
     ) {
-      throw new UnauthorizedError(
+      throw new ForbiddenError(
         "You don't have permission to watch this item",
       );
     }
