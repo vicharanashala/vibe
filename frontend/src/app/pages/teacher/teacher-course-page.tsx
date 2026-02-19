@@ -2369,38 +2369,38 @@ function TeacherCourseContent() {
                     {/* Header with breadcrumb */}
                     <div className="mb-6 pb-4 border-b border-slate-200 dark:border-gray-700">
                       <div className="flex items-center justify-between mb-2">
-  <div className="flex items-center gap-2">
-    {/* Pencil icon to update module*/}
-    {(selectedEntity.type === "module" || selectedEntity.type === "section") && !isEditingModule && !isEditingSection && (
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => {
-          if (selectedEntity.type === "module") {
-            setIsEditingModule(true);
-            setOriginalModuleData({
-              name: selectedEntity.data.name,
-              description: selectedEntity.data.description || ""
-            });
-          } else {
-            setIsEditingSection(true);
-            setOriginalSectionData({
-              name: selectedEntity.data.name,
-              description: selectedEntity.data.description || ""
-            });
-          }
-        }}
-        className="h-8 w-8 -ml-2"
-      >
-        <Pencil className="h-4 w-4" />
-        <span className="sr-only">Edit {selectedEntity.type}</span>
-      </Button>
-    )}
-    <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-slate-900 dark:text-gray-100">
-      {selectedEntity.data?.name}
-    </h2>
-  </div>
-  <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
+                          {/* Pencil icon to update module*/}
+                          {(selectedEntity.type === "module" || selectedEntity.type === "section") && !isEditingModule && !isEditingSection && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                if (selectedEntity.type === "module") {
+                                  setIsEditingModule(true);
+                                  setOriginalModuleData({
+                                    name: selectedEntity.data.name,
+                                    description: selectedEntity.data.description || ""
+                                  });
+                                } else {
+                                  setIsEditingSection(true);
+                                  setOriginalSectionData({
+                                    name: selectedEntity.data.name,
+                                    description: selectedEntity.data.description || ""
+                                  });
+                                }
+                              }}
+                              className="h-8 w-8 -ml-2"
+                            >
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">Edit {selectedEntity.type}</span>
+                            </Button>
+                          )}
+                          <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-slate-900 dark:text-gray-100">
+                            {selectedEntity.data?.name}
+                          </h2>
+                        </div>
+                        <div className="flex items-center gap-2">
                           {selectedEntity.type === "item" && (
                             // <div className="items-center gap-2 bg-muted/40 px-2 py-1 rounded-md border text-sm">
                             //   <div className="flex items-center justify-center gap-1.5">
