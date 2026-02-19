@@ -496,7 +496,7 @@ export default function AuthPage({ role }: AuthPageProps) {
                         onClick={handleEmailLogin}
                         disabled={loading || (!recaptchaToken && isRecaptchaEnabled)}
                       >
-                        {loading ? "Signing in..." : `Sign in as ${activeRole}`}
+                       {loading ? "Signing in..." : `Sign in as ${activeRole=="student"?'learner':activeRole}`}
                       </Button>
 
                       {/* Divider */}
