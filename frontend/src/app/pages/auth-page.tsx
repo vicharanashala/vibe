@@ -558,7 +558,7 @@ export default function AuthPage() {
                                     onClick={handleEmailLogin}
                                     disabled={loading}
                                   >
-                                    {loading ? "Signing in..." : `Sign in as ${activeRole}`}
+                                    {loading ? "Signing in..." : `Sign in as ${activeRole=="student"?'learner':activeRole}`}
                                   </Button>
                                 </div>
 
