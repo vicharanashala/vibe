@@ -628,10 +628,10 @@ function CourseCard({
 
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-                    <CardTitle className="text-lg md:text-xl font-bold text-foreground truncate lg:max-w-full max-w-[220px]">
+                    <CardTitle className="text-lg md:text-xl font-bold text-foreground sm:line-clamp-2 break-words">
                       {course.name}
                     </CardTitle>
-                    <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary w-fit">
+                    <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary w-fit shrink-0">
                       <FileText className="h-3 w-3 mr-1" />
                       {`${course.versions?.length || 0} version${course.versions?.length > 1 ? 's' : ''}`}
                     </Badge>
