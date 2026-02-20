@@ -95,6 +95,7 @@ export class AnnouncementRepository {
             type?: AnnouncementType;
             courseId?: string;
             courseVersionId?: string;
+            instructorId?: string;
         },
         page: number = 1,
         limit: number = 10,
@@ -118,6 +119,12 @@ export class AnnouncementRepository {
                 ? new ObjectId(filters.courseVersionId)
                 : null;
             filter.courseVersionId = { $in: [filters.courseVersionId, ...(versionIdObj ? [versionIdObj] : [])] };
+        }
+        if (filters.instructorId) {
+            const instructorIdObj = ObjectId.isValid(filters.instructorId)
+                ? new ObjectId(filters.instructorId)
+                : null;
+            filter.instructorId = { $in: [filters.instructorId, ...(instructorIdObj ? [instructorIdObj] : [])] };
         }
 
         const skip = (page - 1) * limit;

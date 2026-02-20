@@ -137,6 +137,7 @@ export class AnnouncementService {
             type?: AnnouncementType;
             courseId?: string;
             courseVersionId?: string;
+            instructorId?: string;
         },
         page: number = 1,
         limit: number = 10,
