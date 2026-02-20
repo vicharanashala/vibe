@@ -20,9 +20,11 @@ export type StudentProjectItemProps = {
   };
   onNext?: () => void;
   isProgressUpdating?: boolean;
+  completedItemIdsRef: React.RefObject<Set<string>>;
+  isAlreadyWatched?: boolean;
 };
 
-export default function StudentProjectItem({ item, onNext, isProgressUpdating }: StudentProjectItemProps) {
+export default function StudentProjectItem({ item, onNext, isProgressUpdating, completedItemIdsRef,isAlreadyWatched }: StudentProjectItemProps) {
   const [link, setLink] = useState('');
   const [comment, setComment] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -111,6 +113,7 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating }:
           moduleId: currentCourse.moduleId ?? ''
         }
       });
+      completedItemIdsRef.current.add(currentCourse.itemId);
       return true;
     } catch (error) {
       console.error('Error stopping watch item:', error);
@@ -137,6 +140,36 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating }:
 
       if (!currentCourse) {
         toast.error('Course information not available');
+        return;
+      }
+      if(!currentCourse.itemId){
+        toast.error('Course item information not available');
+        return;
+      }
+      try {
+        if(isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId)){
+          await submitProject({
+            body: {
+              projectId: item._id,
+              courseId: currentCourse.courseId,
+              versionId: currentCourse.versionId || '',
+              moduleId: currentCourse.moduleId || '',
+              sectionId: currentCourse.sectionId || '',
+              watchItemId: '', // No watchItemId since we're not tracking
+              submissionURL: link.trim(),
+              comment: comment.trim() || undefined,
+            }
+          });
+          toast.success('Form submitted successfully!');
+          setIsSubmitted(true);
+          if (onNext) {
+            onNext();
+          }
+          return;
+        }
+      } catch (error) {
+        console.error('Failed to submit form:', error);
+        toast.error('Failed to submit form. Please try again.');
         return;
       }
 

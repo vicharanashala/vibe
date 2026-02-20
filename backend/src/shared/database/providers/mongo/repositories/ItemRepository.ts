@@ -21,6 +21,7 @@ import {
 import { UpdateItemBody } from '#root/modules/courses/classes/index.js';
 import { QuestionBank } from '#root/modules/quizzes/classes/transformers/QuestionBank.js';
 import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
+import { AuditTrails } from '#root/modules/auditTrails/classes/transformers/AuditTrails.js';
 
 @injectable()
 export class ItemRepository implements IItemRepository {
@@ -33,6 +34,8 @@ export class ItemRepository implements IItemRepository {
   private questionBankCollection: Collection<QuestionBank>;
   private questionsCollection: Collection<any>;
   private courseVersionCollection: Collection<any>;
+  // private auditCollection: Collection<AuditTrail>;
+  private auditCollection: Collection<AuditTrails>;
 
   constructor(
     @inject(GLOBAL_TYPES.Database)
@@ -62,6 +65,9 @@ export class ItemRepository implements IItemRepository {
     this.questionsCollection = await this.db.getCollection('questions');
     this.courseVersionCollection = await this.db.getCollection<CourseVersion>(
       'newCourseVersion',
+    );
+    this.auditCollection = await this.db.getCollection<AuditTrails>(
+      'instructor_audit_trails',
     );
   }
 
@@ -268,7 +274,8 @@ export class ItemRepository implements IItemRepository {
   // Methods for Item CRUD operations
   async createItem(item: Item, session?: ClientSession): Promise<Item | null> {
     await this.init();
-
+    const auditTrail = new AuditTrails(item._id.toString());
+    await this.auditCollection.insertOne(auditTrail, { session });
     let collection: Collection<any> = null;
     switch (item.type) {
       case ItemType.VIDEO:

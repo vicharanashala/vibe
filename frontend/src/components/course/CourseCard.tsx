@@ -26,6 +26,21 @@ const EnrollmentDetailsDialog = lazy(() =>
   }))
 );
 
+// Helper function to check if current time is within assigned time slot
+const isCurrentTimeInTimeSlot = (timeSlot?: { from: string; to: string }) => {
+  if (!timeSlot) return true; // No time slot restriction
+  
+  const now = new Date();
+  const currentTime = now.getHours() * 60 + now.getMinutes(); // Convert to minutes since midnight
+  
+  const [fromHours, fromMinutes] = timeSlot.from.split(':').map(Number);
+  const [toHours, toMinutes] = timeSlot.to.split(':').map(Number);
+  const fromTime = fromHours * 60 + fromMinutes;
+  const toTime = toHours * 60 + toMinutes;
+  
+  return currentTime >= fromTime && currentTime <= toTime;
+};
+
 export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard', className, completion, setCompletion }: CourseCardProps) => {
   // Add null checks to prevent errors when enrollment data is incomplete
   if (!enrollment || !enrollment.courseId || !enrollment.courseVersionId) {
@@ -255,6 +270,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 //   : "bg-blue-600 hover:bg-blue-700 text-white shadow-md border-0"
                 } w-full sm:w-auto transition-all duration-200`}
               onClick={handleContinue}
+               disabled={!isCurrentTimeInTimeSlot(enrollment.assignedTimeSlot)}
             >
               {variant === 'available' ? 'Register' : progress === 0 ? 'Start' : progress >= 100 ? 'Completed' : 'Continue'}
             </Button>
@@ -278,7 +294,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 </Suspense>
               )
             }
-            {enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && <Button onClick={() => setIsDetailsOpen(true)} variant="outline" className="w-full sm:w-auto">View Details</Button>}
+            {variant !== 'available' && enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && <Button onClick={() => setIsDetailsOpen(true)} variant="outline" className="w-full sm:w-auto">View Details</Button>}
             {/* {enrollment.courseVersionId!=="6981df886e100cfe04f9c4ae"&& <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full sm:w-auto">View Details</Button>
@@ -937,7 +953,7 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { course
             <div className="w-px h-6 bg-border" />
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground uppercase tracking-wider">Progress</span>
-              <span className="font-semibold text-foreground">{Math.round(myStats.completionPercentage*1000)/1000}%</span>
+              <span className="font-semibold text-foreground">{Math.round(myStats.completionPercentage * 1000) / 1000}%</span>
             </div>
           </div>
         ) : (
