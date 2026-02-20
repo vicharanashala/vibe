@@ -41,6 +41,7 @@ export interface Item {
     title?: string;
     description?: string;
   };
+  isAlreadyWatched?: boolean;
 }
 
 export interface ItemContainerProps {
@@ -50,6 +51,7 @@ export interface ItemContainerProps {
   onNext: () => void;
   onPrevVideo?: () => void;
   isProgressUpdating: boolean;
+  isNavigatingToPrev?: boolean;
   attemptId?: string;
   setAttemptId?: (attemptId: string) => void;
   rewindVid?: boolean;
@@ -63,7 +65,9 @@ export interface ItemContainerProps {
   linearProgressionEnabled: boolean;
   seekForwardEnabled: boolean;
   courseId: string;
-  versionId: string
+  versionId: string;
+  completedItemIdsRef: React.RefObject<Set<string>>;
+  nextItem: {itemId:string};
 }
 
 export interface ItemContainerRef {
