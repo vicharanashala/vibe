@@ -12,6 +12,7 @@ import {
   Authorized,
   QueryParams,
   Res,
+  CurrentUser
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { COURSES_TYPES } from '#courses/types.js';
@@ -162,31 +163,33 @@ export class ItemController {
       }
 
       // For students: filter out blank quizzes with conservative approach
-      const filteredItems = [];
+      // const filteredItems = [];
 
-      for (const itemRef of items) {
-        if (itemRef.type !== ItemType.QUIZ) {
-          filteredItems.push(itemRef);
-          continue;
-        }
+      // for (const itemRef of items) {
+      //   if (itemRef.type !== ItemType.QUIZ) {
+      //     filteredItems.push(itemRef);
+      //     continue;
+      //   }
 
-        try {
-          const quizDetails = await this.quizService.getQuizDetails(
-            itemRef?._id?.toString(),
-          );
-          const questionBankRefs = quizDetails?.details?.questionBankRefs;
+      //   try {
+      //     const quizDetails = await this.quizService.getQuizDetails(
+      //       itemRef?._id?.toString(),
+      //     );
+      //     const questionBankRefs = quizDetails?.details?.questionBankRefs;
 
-          if (
-            !(Array.isArray(questionBankRefs) && questionBankRefs.length === 0)
-          ) {
-            filteredItems.push(itemRef);
-          }
-        } catch (error) {
-          filteredItems.push(itemRef);
-        }
-      }
+      //     if (
+      //       !(Array.isArray(questionBankRefs) && questionBankRefs.length === 0)
+      //     ) {
+      //       filteredItems.push(itemRef);
+      //     }
+      //   } catch (error) {
+      //     filteredItems.push(itemRef);
+      //   }
+      // }
 
-      return filteredItems;
+      // return filteredItems;
+
+      return items;
     } catch (error) {
       console.error('Error filtering blank quizzes in readAll:', error);
       return items;
@@ -409,20 +412,22 @@ Access control logic:
   })
   async getItem(
     @Params() params: GetItemParams,
-    @Ability(getItemAbility) { ability },
+    // @Ability(getItemAbility) { ability, user },
+    @CurrentUser() user: {_id: string},
   ) {
     const { versionId, itemId, courseId } = params;
+    const { _id: userId } = user;
 
     // Create an item resource object for permission checking
     const itemResource = subject('Item', { courseId, versionId, itemId });
 
     // Check permission using ability.can() with the actual item resource
-    if (!ability.can(ItemActions.View, itemResource)) {
-      throw new ForbiddenError('You do not have permission to view this item');
-    }
+    // if (!ability.can(ItemActions.View, itemResource)) {
+    //  throw new ForbiddenError('You do not have permission to view this item');
+    // }
 
     return {
-      item: await this.itemService.readItem(versionId, itemId),
+      item: await this.itemService.readItem(userId?.toString(), courseId, versionId, itemId),
     };
   }
 

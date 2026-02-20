@@ -110,14 +110,12 @@ class AttemptService extends BaseService {
     questionRenderViews: IQuestionRenderView[];
   }> {
     const questionsBankRefs = quiz.details.questionBankRefs || [];
-    console.log('questionsBankRefs', questionsBankRefs);
     const selectedQuestionIds: string[] = [];
 
     for (const questionBankRef of questionsBankRefs) {
       const questionIdsForBank =
         await this.questionBankService.getQuestions(questionBankRef);
       selectedQuestionIds.push(...questionIdsForBank);
-      console.log("selectedQuestionIds", selectedQuestionIds);
     }
 
     const questionDetails: IQuestionDetails[] = [];
@@ -357,7 +355,6 @@ class AttemptService extends BaseService {
       const { questionDetails, questionRenderViews } =
         await this._getQuestionsForAttempt(quiz);
 
-      console.log('questionRenderViews:', questionRenderViews);
 
       //5. Create a new attempt
 
@@ -508,10 +505,8 @@ class AttemptService extends BaseService {
     /* -------------------- UPDATE SUBMISSION (SMALL WRITE) -------------------- */
 
     await this.submissionRepository.update(submissionId, { gradingResult });
-
-    if (isFirst && !isSkipped) {
+    if (!isSkipped) {
       const isPassed = gradingResult.gradingStatus === "PASSED"
-      console.log("Progress in AttemptService to check the helperfunction: ", userId, quizId, courseId, courseVersionId, isPassed)
       await this.progressService.handleQuizeProgressAfterSubmission(userId, quizId, courseId, courseVersionId, isPassed)
     }
 

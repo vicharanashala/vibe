@@ -279,6 +279,7 @@ class ProgressController {
       attemptId,
       isSkipped,
       seekForwardEnabled,
+      nextItemId,
     } = body;
 
     const userId = String(user._id);
@@ -306,6 +307,7 @@ class ProgressController {
       attemptId,
       isSkipped,
       seekForwardEnabled,
+      nextItemId,
     );
   }
 
