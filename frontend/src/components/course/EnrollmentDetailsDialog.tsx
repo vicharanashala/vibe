@@ -225,6 +225,7 @@ export function EnrollmentDetailsDialog({
                 </div>
               </div>
             </div>
+          </div>
           </ScrollArea>
         </DialogContent>
       </>}
