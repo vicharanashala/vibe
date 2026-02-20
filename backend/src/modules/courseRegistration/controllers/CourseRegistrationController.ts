@@ -15,6 +15,7 @@ import {
   QueryParam,
   QueryParams,
   Req,
+  UseInterceptor,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { GLOBAL_TYPES } from '#root/types.js';
@@ -23,6 +24,7 @@ import { CourseRegistrationService } from '../services/CourseRegistrationService
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { BadRequestErrorResponse, IUserRepository } from '#root/shared/index.js';
 import { CourseVersionIdParams } from '#root/modules/notifications/index.js';
+import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 import {
   AllRegistrationsResponse,
   ApprovedRegistrationResponse,
@@ -48,6 +50,9 @@ import {
 } from '../abilities/CourseRegistrationAbilities.js';
 import { subject } from '@casl/ability';
 import { UpdateCourseSettingResponse, UpdateSettingResponse } from '#root/modules/setting/index.js';
+import { setAuditTrail } from '#root/utils/setAuditTrail.js';
+import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
+import { ObjectId } from 'mongodb';
 import { query } from 'winston';
 
 @OpenAPI({
@@ -249,6 +254,7 @@ class CourseRegistrationController {
   })
   @Authorized()
   @Patch('/status/:registrationId', { transformResponse: true })
+  @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(updateStatusResponse, {
     description: 'Registration status updated successfully',
     statusCode: 200,
@@ -261,6 +267,7 @@ class CourseRegistrationController {
     @Params() params: RegistrationParams,
     @Body() body: UpdateStatusBody,
     @Ability(getCourseRegistrationAbility) { ability, user },
+    @Req() req: Request,
   ) {
     const { registrationId } = params;
     const { status } = body;
@@ -269,6 +276,28 @@ class CourseRegistrationController {
       registrationId,
       status,
     );
+
+    setAuditTrail(req, {
+      category: AuditCategory.REGISTRATION,
+      action: result.status === "APPROVED" ? AuditAction.REGISTRATION_APPROVE : AuditAction.REGISTRATION_REJECT,
+      actor: new ObjectId(user._id),
+      context: {
+        registrationId,
+        courseId: new ObjectId(result.courseId),
+        courseVersionId: new ObjectId(result.versionId),
+        userId: new ObjectId(result.userId),
+      },
+      changes:{
+        after:{
+          status: result.status,
+        }
+      },
+
+      outcome: {
+        status: OutComeStatus.SUCCESS,
+      }
+    })
+
     return {
       message: 'Registration status updated successfully',
       registration: result,

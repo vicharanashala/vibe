@@ -31,6 +31,7 @@ import { ISubmitFeedbackBody } from '@/components/Item-container';
 import { TranscriptResponse } from '@/types/ai.types';
 import { VideoOverallAnalytics, VideoUserAnalytics, VideoUserAnalyticsResponse } from '@/app/pages/teacher/teacher-course-page';
 import { WatchTimeTrackData } from '@/types/user_activity_event.types';
+import { start } from 'repl';
 
 // Add missing ObjectId type
 type ObjectId = string;
@@ -694,6 +695,10 @@ export function useCreateCourseVersion(): {
   };
 }
 
+// Get Audit details for a course version:
+
+
+
 // GET /courses/versions/{id}
 export function useCourseVersionById(id: string, enabled?: boolean): {
   data: components['schemas']['CourseVersionDataResponse'] | undefined,
@@ -924,6 +929,46 @@ export function useMoveSection(): {
 }
 
 // Item hooks
+
+
+export function useCourseVersionAuditDetails(
+  courseId: string,
+  versionId: string,
+  page: number,
+  limit: number,
+  startDate?: string,
+  endDate?: string
+): {
+  data: any;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = api.useQuery(
+    "get",
+    "/audit-trails/course/{courseId}/version/{versionId}" as any,
+    {
+      params: {
+        path: { courseId, versionId },
+        query: { page, limit, startDate, endDate },
+      },
+    },
+    {
+      enabled: !!courseId && !!versionId,
+      keepPreviousData: true, // 🔥 Important for pagination UX
+    }
+  );
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error
+      ? result.error.message || "Failed to fetch audit details"
+      : null,
+    refetch: result.refetch,
+  };
+}
+
 
 // GET /courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items
 export function useItemsBySectionId(versionId: string, moduleId: string, sectionId: string): {

@@ -14,7 +14,11 @@ import {
   ForbiddenError,
   Authorized,
   Patch,
-  BadRequestError, QueryParams
+  BadRequestError, QueryParams,
+  UseBefore,
+  UseAfter,
+  UseInterceptor,
+  Req
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema, } from 'routing-controllers-openapi';
 import { COURSES_TYPES } from '#courses/types.js';
@@ -36,6 +40,10 @@ import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { subject } from '@casl/ability';
 import { USERS_TYPES } from '#root/modules/users/types.js';
 import { EnrollmentService } from '#root/modules/users/services/EnrollmentService.js';
+import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
+import { setAuditTrail } from '#root/utils/setAuditTrail.js';
+import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
+import { ObjectId } from 'mongodb';
 
 @OpenAPI({
   tags: ['Courses'],
@@ -74,7 +82,7 @@ export class CourseController {
   ) {
     const { courseId, courseVersionId, startTimeStamp, endTimeStamp } = query;
 
-    const activeUsers = await this.courseService.getActiveUsersByCourse(courseId, courseVersionId, startTimeStamp, endTimeStamp );
+    const activeUsers = await this.courseService.getActiveUsersByCourse(courseId, courseVersionId, startTimeStamp, endTimeStamp);
 
     return activeUsers;
   }
@@ -120,6 +128,7 @@ export class CourseController {
   })
   @Authorized()
   @Post('/', { transformResponse: true })
+  @UseInterceptor(AuditTrailsHandler)
   @HttpCode(201)
   @ResponseSchema(CourseDataResponse, {
     description: 'Course created successfully',
@@ -132,6 +141,7 @@ export class CourseController {
   async create(
     @Body() body: CourseBody,
     @Ability(getCourseAbility) { ability, user },
+    @Req() req: Request
   ): Promise<Course> {
     const { versionName, versionDescription } = body;
     const userId = user._id.toString();
@@ -149,7 +159,6 @@ export class CourseController {
       versionDescription,
       userId,
     );
-
     // //3. Create enrollment for the user
     // await this.enrollmentService.enrollUser(
     //   userId,
@@ -158,9 +167,30 @@ export class CourseController {
     //   'INSTRUCTOR',
     // );
 
+    setAuditTrail(req, {
+      category: AuditCategory.COURSE,
+      action: AuditAction.COURSE_CREATE,
+      actor: ObjectId.createFromHexString(userId),
+      context: {
+        courseId: createdCourse._id,
+        courseVersionId: createdCourse.versions[createdCourse.versions.length - 1],
+      },
+      changes: {
+        after: {
+          title: createdCourse.name,
+          description: createdCourse.description,
+        }
+      },
+      outcome: {
+        status: OutComeStatus.SUCCESS,
+      },
+    });
+
     //3. Return the course details
     return createdCourse;
   }
+
+
 
   @OpenAPI({
     summary: 'Get course details',
@@ -210,6 +240,7 @@ Accessible to:
   })
   @Authorized()
   @Patch('/:courseId', { transformResponse: true })
+  @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(CourseDataResponse, {
     description: 'Course updated successfully',
     statusCode: 200,
@@ -225,10 +256,11 @@ Accessible to:
   async update(
     @Params() params: CourseIdParams,
     @Body() body: EditCourseBody,
-    @Ability(getCourseAbility) { ability },
+    @Ability(getCourseAbility) { ability, user },
+    @Req() req: Request
   ) {
     const { courseId } = params;
-
+    const userId = user._id.toString();
     // Create a course resource object with the courseId for permission checking
     const courseResource = subject('Course', { courseId });
 
@@ -238,8 +270,32 @@ Accessible to:
         'You do not have permission to update this course',
       );
     }
-
+    const courseBeforeUpdate = await this.courseService.readCourse(courseId);
     const updatedCourse = await this.courseService.updateCourse(courseId, body);
+    const lastIndex = updatedCourse.versions.length - 1 || 0;
+    setAuditTrail(req, {
+      category: AuditCategory.COURSE,
+      action: AuditAction.COURSE_UPDATE,
+      actor: ObjectId.createFromHexString(userId),
+      context: {
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: updatedCourse.versions[lastIndex],
+      },
+      changes: {
+        before: {
+          title: courseBeforeUpdate.name,
+          description: courseBeforeUpdate.description,
+        },
+        after: {
+          title: updatedCourse.name,
+          description: updatedCourse.description,
+        },
+      },
+       outcome:{
+          status: OutComeStatus.SUCCESS,
+        }
+      
+    })
     return updatedCourse;
   }
 
@@ -250,6 +306,7 @@ Accessible to:
   })
   @Authorized()
   @Delete('/:courseId', { transformResponse: true })
+  @UseInterceptor(AuditTrailsHandler)
   @OnUndefined(200)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
@@ -261,10 +318,11 @@ Accessible to:
   })
   async delete(
     @Params() params: CourseIdParams,
-    @Ability(getCourseAbility) { ability },
+    @Ability(getCourseAbility) { ability, user },
+    @Req() req: Request
   ) {
     const { courseId } = params;
-
+    const userId = user._id.toString();
     // Create a course resource object with the courseId for permission checking
     const courseResource = subject('Course', { courseId });
 
@@ -278,6 +336,27 @@ Accessible to:
       // MERN CASE Study check
       throw new BadRequestError("You can't delete this course!");
     }
+
+    const courseBeforeDelete = await this.courseService.readCourse(courseId);
+
+    setAuditTrail(req, {
+      category: AuditCategory.COURSE,
+      action: AuditAction.COURSE_DELETE,
+      actor: ObjectId.createFromHexString(userId),
+      context: {
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: courseBeforeDelete.versions[courseBeforeDelete.versions.length - 1],
+      },
+      changes: {
+        before: {
+          title: courseBeforeDelete.name,
+          description: courseBeforeDelete.description,
+        },
+      },
+       outcome:{
+          status: OutComeStatus.SUCCESS,
+        }
+    })
 
     await this.courseService.deleteCourse(courseId);
   }
@@ -307,9 +386,6 @@ Accessible to:
     const updatedVersion = await this.courseService.updateCourseVersionTotalItemCount(courseId, courseVersionId);
     return updatedVersion;
   }
-
-
-
 
 }
 
