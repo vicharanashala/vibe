@@ -5,7 +5,7 @@ import { IQuizItem, ItemType } from '#shared/interfaces/models.js';
 import { instanceToPlain } from 'class-transformer';
 import { injectable, inject } from 'inversify';
 import { Collection, ClientSession, ObjectId } from 'mongodb';
-import { InternalServerError, NotFoundError } from 'routing-controllers';
+import { InternalServerError, NotFoundError, BadRequestError } from 'routing-controllers';
 import { MongoDatabase } from '../MongoDatabase.js';
 import { IQuestionBank } from '#root/shared/interfaces/quiz.js';
 import {
@@ -113,22 +113,37 @@ export class ItemRepository implements IItemRepository {
   }
 
   async readItemsGroup(
-    itemsGroupId: string,
+    itemsGroupId: string | any,
     session?: ClientSession,
   ): Promise<ItemsGroup> {
     await this.init();
 
+    // Handle both string and ObjectId inputs
+    let itemsGroupIdStr: string;
+    if (typeof itemsGroupId === 'string') {
+      itemsGroupIdStr = itemsGroupId;
+    } else if (itemsGroupId && typeof itemsGroupId === 'object' && 'toString' in itemsGroupId) {
+      itemsGroupIdStr = itemsGroupId.toString();
+    } else {
+      throw new BadRequestError(`Invalid itemsGroupId: expected string or ObjectId, got ${typeof itemsGroupId}`);
+    }
+
+    // Validate ObjectId to prevent BSONError
+    if (!ObjectId.isValid(itemsGroupIdStr)) {
+      throw new BadRequestError(`Invalid itemsGroupId: ${itemsGroupIdStr}`);
+    }
+
     const itemsGroup = await this.itemsGroupCollection.findOne(
-      { _id: new ObjectId(itemsGroupId), isDeleted: { $ne: true } },
+      { _id: new ObjectId(itemsGroupIdStr), isDeleted: { $ne: true } },
       { session },
     );
     if (!itemsGroup) {
       // Create a new empty ItemsGroup if it doesn't exist
       // console.log(`[ItemRepository] ItemsGroup ${itemsGroupId} not found, creating new empty group`);
       const newItemsGroup = {
-        _id: new ObjectId(itemsGroupId),
+        _id: new ObjectId(itemsGroupIdStr),
         items: [],
-        sectionId: new ObjectId(itemsGroupId), // Use the same ID for now
+        sectionId: new ObjectId(itemsGroupIdStr), // Use the same ID for now
         isDeleted: false,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -183,8 +198,6 @@ export class ItemRepository implements IItemRepository {
       }
     }
 
-    console.log(`[ItemRepository] Returning ${filteredItems.length} items with names:`,
-      filteredItems.map(i => ({ id: i._id, type: i.type, name: i.name })));
 
     itemsGroup.items = filteredItems;
 
@@ -308,6 +321,9 @@ export class ItemRepository implements IItemRepository {
           break;
         case ItemType.PROJECT:
           collection = this.projectCollection;
+          break;
+        case ItemType.FEEDBACK:
+          collection = this.feedbackFormCollection;
           break;
         default:
           throw new Error(`Unsupported item type: ${item.type}`);
@@ -1006,7 +1022,18 @@ export class ItemRepository implements IItemRepository {
           },
 
           { $unwind: '$modules' },
+          {
+            $match: {
+              'modules.isDeleted': { $ne: true },
+            },
+          },
           { $unwind: '$modules.sections' },
+          {
+            $match: {
+              'modules.sections.isDeleted': { $ne: true },
+            },
+          },
+
 
           {
             $lookup: {
@@ -1144,7 +1171,7 @@ export class ItemRepository implements IItemRepository {
                 { $match: { 'itemGroup.items.type': 'FEEDBACK' } },
                 {
                   $lookup: {
-                    from: 'feedbackForms',
+                    from: 'feedback_forms',
                     let: { itemId: '$itemGroup.items._id' },
                     pipeline: [
                       {

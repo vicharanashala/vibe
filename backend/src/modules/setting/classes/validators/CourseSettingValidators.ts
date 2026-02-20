@@ -63,6 +63,13 @@ export class RegistrationSchema {
   })
   jsonSchema?: any;
 
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Indicates whether the registration form is active',
+  })
+  isActive?: boolean;
+
   @JSONSchema({
     description: 'UI schema for Registration form',
     type: 'object',
@@ -118,6 +125,22 @@ export class SettingsDto {
   })
   @IsBoolean()
   linearProgressionEnabled: boolean;
+
+  @JSONSchema({
+    description: 'Indicates whether seek forward is enabled for all videos',
+    examples: [true, false],
+  })
+  @IsBoolean()
+  seekForwardEnabled: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Indicates whether the course is publicly visible',
+    examples: [true, false],
+    default: false,
+  })
+  isPublic?: boolean;
   // jsonSchema?:any
   // uiSchema?:any
   @IsOptional()
@@ -297,6 +320,22 @@ export class AddCourseProctoringBody {
     description: 'Student should follow the cours linearly if this is enabled'
   })
   linearProgressionEnabled: boolean;
+
+  @IsDefined()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Allow students to seek forward in all videos if this is enabled'
+  })
+  seekForwardEnabled: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Indicates whether the course is publicly visible',
+    examples: [true, false],
+    default: false,
+  })
+  isPublic?: boolean;
 
 }
 

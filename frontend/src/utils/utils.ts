@@ -70,3 +70,50 @@ export const formatDateTime = (dateString: string, asString = false) => {
 
   return asString ? `${formatted.date} ${formatted.time}` : formatted;
 }
+export const buildEmptyFormData = (schema: any) => {
+  if (!schema?.properties) return {};
+
+  const obj: Record<string, any> = {};
+  Object.keys(schema.properties).forEach((key) => {
+    obj[key] = undefined; //  stops enum auto select
+  });
+
+  return obj;
+};
+
+export const normalizeSchemaOptions = (schema: any): any => {
+  if (!schema || typeof schema !== "object") return schema;
+
+  const clone = { ...schema };
+
+  const toTitle = (str: string) =>
+    str
+      .replace(/[_-]/g, " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase());
+
+  if (clone.properties) {
+    clone.properties = Object.fromEntries(
+      Object.entries(clone.properties).map(([key, value]: any) => {
+        let prop = { ...value };
+
+        //  oneOf + enum >>> remove enum
+        if (prop.oneOf && prop.enum) {
+          delete prop.enum;
+        }
+
+        // only enum >>> convert to oneOf
+        if (!prop.oneOf && prop.enum) {
+          prop.oneOf = prop.enum.map((val: string) => ({
+            const: val,
+            title: toTitle(val),
+          }));
+          delete prop.enum;
+        }
+
+        return [key, normalizeSchemaOptions(prop)];
+      })
+    );
+  }
+
+  return clone;
+};

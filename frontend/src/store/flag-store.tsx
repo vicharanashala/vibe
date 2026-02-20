@@ -18,6 +18,13 @@ export const useFlagStore = create<FlagState>()(
             : null,
         }));
       },
+      setQuestionId: (questionId) => {
+        set((state) => ({
+          currentCourseFlag: state.currentCourseFlag
+            ? { ...state.currentCourseFlag, questionId }
+            : null,
+        }));
+      },
      
       clearCurrentCourseFlag: () => set({ currentCourseFlag: null }),
     }),

@@ -23,8 +23,6 @@ import { GLOBAL_TYPES } from './types.js';
 import dns from "node:dns";
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
 
-
-
 const app = express();
 const globalRateLimiter = createRateLimiter();
 

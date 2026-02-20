@@ -64,7 +64,7 @@ describe('InviteController', () => {
   afterAll(() => {
     vi.restoreAllMocks();
   });
-  
+
   // Helper to create valid invite body
   function createInviteBody(email?: string, role?: any): InviteBody {
     return {
@@ -92,7 +92,7 @@ describe('InviteController', () => {
       expect(res.body.invites[0]).toHaveProperty('email');
       expect(res.body.invites[0]).toHaveProperty('inviteStatus');
     });
-    
+
     it('returns "ALREADY_ENROLLED" when user is already enrolled in the course', async () => {
       const email = faker.internet.email();
       const signUpBody: SignUpBody = {
@@ -100,10 +100,11 @@ describe('InviteController', () => {
         password: faker.internet.password(),
         firstName: faker.person.firstName('male').replace(/[^a-zA-Z]/g, ''),
         lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
+        recaptchaToken: 'mock-token',
       };
       const signUpResponse = await request(app)
-      .post('/auth/signup/')
-      .send(signUpBody);
+        .post('/auth/signup/')
+        .send(signUpBody);
       expect(signUpResponse.status).toBe(201);
       const userId = signUpResponse.body.userId;
       const enrollmentResponse = await request(app)
@@ -118,7 +119,7 @@ describe('InviteController', () => {
       expect(res.status).toBe(200);
       expect(res.body.invites[0].inviteStatus).toBe('ALREADY_ENROLLED');
     });
-    
+
     it('fails because of invalid email', async () => {
       const body = createInviteBody('not-an-email');
       const res = await request(app)
@@ -157,8 +158,8 @@ describe('InviteController', () => {
         },
       ]
       const res = await request(app)
-      .post(`/notifications/invite/courses/${courseId}/versions/${version._id.toString()}`)
-      .send({inviteData});
+        .post(`/notifications/invite/courses/${courseId}/versions/${version._id.toString()}`)
+        .send({inviteData});
       expect(res.status).toBe(200);
       expect(res.body.invites).toBeInstanceOf(Array);
       const inviteId1 = res.body.invites[0].inviteId;
@@ -198,6 +199,7 @@ describe('InviteController', () => {
         password: faker.internet.password(),
         firstName: faker.person.firstName(),
         lastName: faker.person.lastName(),
+        recaptchaToken: 'mock-token',
       };
       const signUpResponse = await request(app)
         .post('/auth/signup/')
@@ -215,6 +217,7 @@ describe('InviteController', () => {
         password: faker.internet.password(),
         firstName: faker.person.firstName(),
         lastName: faker.person.lastName(),
+        recaptchaToken: 'mock-token',
       };
       const signUpResponse = await request(app)
         .post('/auth/signup/')
@@ -279,25 +282,26 @@ describe('InviteController', () => {
 
   it('send multiple invite to users, after user accepts one invite, it should throw an error when user tries to accept another invite for the same course', async () => {
     const email = faker.internet.email();
-      const signUpBody: SignUpBody = {
-        email: email,
-        password: faker.internet.password(),
-        firstName: faker.person.firstName(),
-        lastName: faker.person.lastName(),
-      };
-      const signUpResponse = await request(app)
-        .post('/auth/signup/')
-        .send(signUpBody);
-      expect(signUpResponse.status).toBe(201);
-      const inviteResponse1 = await createInvite(email, 'STUDENT');
-      const inviteId1 = inviteResponse1.body.invites[0].inviteId;
-      const inviteResponse2 = await createInvite(email, 'STUDENT');
-      const inviteId2 = inviteResponse2.body.invites[0].inviteId;
-      const res = await request(app).get(`/notifications/invite/${inviteId1}`);
-      expect(res.status).toBe(200);
-      expect(res.text).toContain('<h2>You have been successfully enrolled in the course as STUDENT.</h2>');
-      // send on inviteId2
-      const resendRes = await request(app).get(`/notifications/invite/${inviteId2}`);
-      expect(resendRes.text).toContain('<h2>You are already enrolled in this course.</h2>');
+    const signUpBody: SignUpBody = {
+      email: email,
+      password: faker.internet.password(),
+      firstName: faker.person.firstName(),
+      lastName: faker.person.lastName(),
+      recaptchaToken: 'mock-token',
+    };
+    const signUpResponse = await request(app)
+      .post('/auth/signup/')
+      .send(signUpBody);
+    expect(signUpResponse.status).toBe(201);
+    const inviteResponse1 = await createInvite(email, 'STUDENT');
+    const inviteId1 = inviteResponse1.body.invites[0].inviteId;
+    const inviteResponse2 = await createInvite(email, 'STUDENT');
+    const inviteId2 = inviteResponse2.body.invites[0].inviteId;
+    const res = await request(app).get(`/notifications/invite/${inviteId1}`);
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('<h2>You have been successfully enrolled in the course as STUDENT.</h2>');
+    // send on inviteId2
+    const resendRes = await request(app).get(`/notifications/invite/${inviteId2}`);
+    expect(resendRes.text).toContain('<h2>You are already enrolled in this course.</h2>');
   });
 });

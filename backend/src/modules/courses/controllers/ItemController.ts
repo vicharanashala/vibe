@@ -11,6 +11,7 @@ import {
   Put,
   Authorized,
   QueryParams,
+  Res,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { COURSES_TYPES } from '#courses/types.js';
@@ -31,6 +32,11 @@ import {
   CSVItemBody,
   CourseVersionModuleSectionParams,
   csvResponse,
+  VideoOverallAnalytics,
+  GetVideoAnalyticsParams,
+  VideoUserAnalyticsQuery,
+  VideoUserAnalytics,
+  VideoUserAnalyticsResponse,
 } from '#courses/classes/validators/ItemValidators.js';
 import { ItemService } from '#courses/services/ItemService.js';
 import { injectable, inject } from 'inversify';
@@ -42,6 +48,8 @@ import { QuizService } from '#root/modules/quizzes/services/QuizService.js';
 import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 import { ItemType } from '#shared/interfaces/models.js';
 import { HideModuleBody } from '../classes/index.js';
+import { createObjectCsvStringifier } from 'csv-writer';
+import { Response } from 'express';
 
 @OpenAPI({
   tags: ['Course Items'],
@@ -146,7 +154,7 @@ export class ItemController {
       const sampleItemResource = subject('Item', { versionId, _id: 'sample' });
       const canManage = ability.can(ItemActions.Modify, sampleItemResource);
 
- 
+
 
       if (canManage) {
         // Instructors/managers/TAs can see all items including blank quizzes
@@ -306,6 +314,78 @@ Accessible to:
     );
   }
 
+
+  @OpenAPI({
+    summary: 'Get video analytics',
+    description: `Retrieves analytics for a video item.<br/>
+Access control logic:
+- Only instructors, managers, and teaching assistants can access analytics.
+- Students are restricted from viewing analytics.`,
+  })
+  @Authorized()
+  @Get('/:courseId/versions/:versionId/item/:itemId/analytics')
+  @HttpCode(200)
+  @ResponseSchema(VideoOverallAnalytics, {
+    description: 'Video analytics retrieved successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ItemNotFoundErrorResponse, {
+    description: 'Video item not found',
+    statusCode: 404,
+  })
+  async getVideoAnalytics(
+    @Params() params: GetVideoAnalyticsParams,
+  ) {
+    const { courseId, versionId, itemId: videoId } = params;
+
+    return await this.itemService.getVideoAnalytics(
+      courseId,
+      versionId,
+      videoId,
+    );
+  }
+
+
+  @OpenAPI({
+    summary: "Get video analytics per student",
+    description: `Retrieves per-student analytics for a video item, with search, pagination, and filters.<br/>
+Access control logic:
+- Only instructors, managers, and teaching assistants can access analytics.
+- Students are restricted from viewing analytics.`,
+  })
+  // @Authorized()
+  @Get("/:courseId/versions/:versionId/item/:itemId/analytics/users")
+  @HttpCode(200)
+  @ResponseSchema(VideoUserAnalytics, {
+    description: "Per-student video analytics retrieved successfully",
+    isArray: true,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: "Bad Request Error",
+    statusCode: 400,
+  })
+  @ResponseSchema(ItemNotFoundErrorResponse, {
+    description: "Video item not found",
+    statusCode: 404,
+  })
+  async getVideoAnalyticsPerStudent(
+    @Params() params: GetVideoAnalyticsParams,
+    @QueryParams() query: VideoUserAnalyticsQuery
+  ): Promise<VideoUserAnalyticsResponse> {
+    const { courseId, versionId, itemId: videoId } = params;
+    return await this.itemService.getVideoUserAnalytics(
+      courseId,
+      versionId,
+      videoId,
+      query
+    );
+  }
+
+
+
   @OpenAPI({
     summary: 'Get an item by ID',
     description: `Retrieves a specific item from a course version.<br/>
@@ -380,6 +460,46 @@ Access control logic:
       Number(page),
       Number(limit),
     );
+  }
+
+  @OpenAPI({
+    summary: 'Export feedback submissions as CSV',
+    description: `Export all feedback submissions for a particular course item.`,
+  })
+  @Authorized()
+  @Get('/:courseId/item/:feedbackId/feedback/submissions/export')
+  async exportFeedbackSubmissions(
+    @Params() params: GetFeedbackSubmissionsParams,
+    @Res() res: Response,
+  ) {
+    const { courseId, feedbackId } = params;
+    const result = await this.itemService.exportFeedbackSubmissions(
+      courseId,
+      feedbackId,
+    );
+
+    if (result.length === 0) {
+      return res.status(200).send('No submissions found');
+    }
+
+    const headers = Object.keys(result[0]).map(key => ({ id: key, title: key }));
+
+    const csvStringifier = createObjectCsvStringifier({
+      header: headers,
+    });
+
+    const csvContent =
+      csvStringifier.getHeaderString() +
+      csvStringifier.stringifyRecords(result);
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="feedback_submissions_${feedbackId}.csv"`,
+    );
+    res.setHeader('Cache-Control', 'no-cache');
+
+    return res.send(csvContent);
   }
 
   @OpenAPI({
@@ -476,7 +596,7 @@ Accessible to:
   @Authorized()
   @Post("/:courseId/versions/:versionId/module/:moduleId/section/:sectionId/items/csv")
   @HttpCode(200)
-  @ResponseSchema(csvResponse,{
+  @ResponseSchema(csvResponse, {
     description: 'CSV processed successfully',
     statusCode: 200,
   })
@@ -499,11 +619,11 @@ Accessible to:
 
     const result = await this.itemService.processCSVAndCreateItems(
       youtubeurl,
-      moduleId,    
-      sectionId,   
-      versionId,   
-      courseId,    
-      userId,      
+      moduleId,
+      sectionId,
+      versionId,
+      courseId,
+      userId,
       data
     );
     return result;

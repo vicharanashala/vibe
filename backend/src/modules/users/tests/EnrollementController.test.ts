@@ -110,6 +110,7 @@ describe('Enrollment Controller Integration Tests', () => {
         password: faker.internet.password(),
         firstName: faker.person.firstName().replace(/[^a-zA-Z]/g, ''),
         lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
+        recaptchaToken: 'mock-token',
       };
 
       const signUpResponse = await request(app)
@@ -314,6 +315,7 @@ describe('Enrollment Controller Integration Tests', () => {
         password: faker.internet.password(),
         firstName: faker.person.firstName().replace(/[^a-zA-Z]/g, ''),
         lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
+        recaptchaToken: 'mock-token',
       };
 
       const signUpResponse = await request(app)
@@ -451,6 +453,7 @@ describe('Enrollment Controller Integration Tests', () => {
         password: faker.internet.password(),
         firstName: faker.person.firstName().replace(/[^a-zA-Z]/g, ''),
         lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
+        recaptchaToken: 'mock-token',
       };
 
       const signUpResponse = await request(app)

@@ -6,6 +6,7 @@ export interface Item {
   description?: string;
   type: string;
   order?: string;
+  isCompleted?: boolean;
   details?: {
     points?: string;
 
@@ -60,12 +61,14 @@ export interface ItemContainerProps {
   keyboardLockEnabled?: boolean;
   setIsQuizSkipped: React.Dispatch<React.SetStateAction<boolean>>;
   linearProgressionEnabled: boolean;
-  courseId:string;
-  versionId:string
+  seekForwardEnabled: boolean;
+  courseId: string;
+  versionId: string
 }
 
 export interface ItemContainerRef {
   stopCurrentItem: () => Promise<void>;
+  getCurrentDetails?: () => { questionId?: string };
 }
 
 export type ItemMeta = {

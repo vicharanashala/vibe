@@ -39,9 +39,14 @@ import CourseInstructors from '../pages/teacher/course-instructors'
 import RegisteredUsers from '../pages/teacher/CourseRegistrationRequests'
 import CourseRegistration from '../pages/student/CourseRegistration'
 import CourseIssueReports from '../pages/student/FlagResponse'
-import LoginPage from '../pages/LoginPage'
+// import LoginPage from '../pages/LoginPage'
 import FeedbackFormEditor from '../pages/teacher/FeedbackFormEditor'
 import Leaderboard from '../pages/student/leaderboard'
+import ForgotPasswordPage from '../pages/ForgotPasswordPage'
+import ResetPasswordPage from '../pages/ResetPasswordPage'
+import StudentLogin from '../pages/student/StudentLogin'
+import TeacherLogin from '../pages/teacher/TeacherLogin'
+import SelectRolePage from '../pages/SelectRolePage'
 
 
 // Root route with error and notFound handling
@@ -76,6 +81,42 @@ const authRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/auth',
   component: AuthPage,
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+    // Redirect to appropriate dashboard if already authenticated
+    if (isAuthenticated && user?.role) {
+      if (user.role === 'teacher') {
+        throw redirect({ to: '/teacher' });
+      } else if (user.role === 'student') {
+        throw redirect({ to: '/student' });
+      }
+    }
+  },
+});
+
+// Forgot Password route - accessible only when NOT authenticated
+const forgotPasswordRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/forgot-password',
+  component: ForgotPasswordPage,
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+    // Redirect to appropriate dashboard if already authenticated
+    if (isAuthenticated && user?.role) {
+      if (user.role === 'teacher') {
+        throw redirect({ to: '/teacher' });
+      } else if (user.role === 'student') {
+        throw redirect({ to: '/student' });
+      }
+    }
+  },
+});
+
+// Reset Password route - accessible only when NOT authenticated
+const resetPasswordRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/reset-password',
+  component: ResetPasswordPage,
   beforeLoad: () => {
     const { isAuthenticated, user } = useAuthStore.getState();
     // Redirect to appropriate dashboard if already authenticated
@@ -189,11 +230,7 @@ const studentLayoutRoute = new Route({
       }
     }
   },
-  component: () => (
-    <StudentRouteGuard>
-      <StudentLayout />
-    </StudentRouteGuard>
-  )
+  component: StudentLayout
   ,
 });
 
@@ -368,16 +405,45 @@ const studentProfileRoute = new Route({
   component: StudentProfile,
 });
 
+// export const studentCourseInviteRegistration = new Route({
+//   getParentRoute: () => studentLayoutRoute,
+//   path: "/course-registration/$versionId",
+//   component: CourseRegistration,
+// })
+
 export const studentCourseInviteRegistration = new Route({
-  getParentRoute: () => studentLayoutRoute,
-  path: "/course-registration/$versionId",
+  getParentRoute: () => rootRoute, // 👈 IMPORTANT: NOT studentLayoutRoute
+  path: "/student/course-registration/$versionId",
   component: CourseRegistration,
-})
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+
+    // ❌ Not logged in → go to student login
+    if (!isAuthenticated) {
+      throw redirect({
+        to: '/student/login',
+        search: {
+          redirect: window.location.pathname + window.location.search,
+        },
+      });
+    }
+
+    // ❌ Logged in but not a student
+    if (user?.role !== 'student') {
+      throw redirect({ to: '/auth' });
+    }
+  },
+});
+
 
 const coursePageRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/student/learn',
-  component: CoursePage,
+  component: () => (
+    <StudentRouteGuard>
+      <CoursePage />
+    </StudentRouteGuard>
+  ),
   beforeLoad: () => {
     const { isAuthenticated, user } = useAuthStore.getState();
     if (!isAuthenticated) {
@@ -409,17 +475,44 @@ const testAISectionModalRoute = new Route({
   path: '/test-ai-section-modal',
   component: AISectionPage,
 });
-export const loginRoute = new Route({
+// export const loginRoute = new Route({
+//   getParentRoute: () => rootRoute,
+//   path: '/login',
+//   component: LoginPage,
+// })
+
+//student login route
+export const studentLoginRoute = new Route({
   getParentRoute: () => rootRoute,
-  path: '/login',
-  component: LoginPage,
+  path: '/student/login',
+  component: StudentLogin
+})
+
+//teacher login route
+export const teacherLoginRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/teacher/login',
+  component: TeacherLogin
+})
+
+//select role route
+export const selectRoleRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/select-role',
+  component: SelectRolePage
 })
 
 // Create the router with the route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
   authRoute,
-  loginRoute,
+  //   loginRoute,
+  forgotPasswordRoute,
+  resetPasswordRoute,
+  // loginRoute,
+  selectRoleRoute,
+  studentLoginRoute,
+  teacherLoginRoute,
   teacherLayoutRoute.addChildren([
     // teacherDashboardRoute,
     teacherCreateArticleRoute,

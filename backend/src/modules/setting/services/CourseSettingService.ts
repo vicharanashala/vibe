@@ -126,6 +126,9 @@ class CourseSettingService extends BaseService {
         settings.proctors = new ProctoringSettingsDto();
         settings.proctors.detectors = [];
         settings.linearProgressionEnabled = true;
+        settings.seekForwardEnabled = false;
+        settings.isPublic = false;
+        settings.registration = { isActive: true };
 
         const created = await this.createCourseSettings(
           new CourseSetting({
@@ -152,6 +155,8 @@ class CourseSettingService extends BaseService {
     courseVersionId: string,
     detectors: DetectorSettingsDto[],
     linearProgressionEnabled: boolean,
+    seekForwardEnabled: boolean,
+    isPublic: boolean,
     userId: string,
   ): Promise<boolean> {
     return this._withTransaction(async session => {
@@ -166,6 +171,9 @@ class CourseSettingService extends BaseService {
         const settings = new SettingsDto();
         settings.proctors = new ProctoringSettingsDto();
         settings.proctors.detectors = detectors;
+        settings.linearProgressionEnabled = linearProgressionEnabled;
+        settings.seekForwardEnabled = seekForwardEnabled;
+        settings.isPublic = isPublic;
 
         settings.audit = [
           {
@@ -177,6 +185,8 @@ class CourseSettingService extends BaseService {
               after: {
                 detectors,
                 linearProgressionEnabled,
+                seekForwardEnabled,
+                isPublic,
               },
             },
           },
@@ -202,11 +212,17 @@ class CourseSettingService extends BaseService {
         detectors: courseSettings.settings?.proctors?.detectors,
         linearProgressionEnabled:
           courseSettings.settings?.linearProgressionEnabled,
+        seekForwardEnabled:
+          courseSettings.settings?.seekForwardEnabled,
+        isPublic:
+          courseSettings.settings?.isPublic,
       };
 
       const afterState = {
         detectors,
         linearProgressionEnabled,
+        seekForwardEnabled,
+        isPublic,
       };
 
       const audit: AuditingDto = {
@@ -224,6 +240,8 @@ class CourseSettingService extends BaseService {
         courseVersionId,
         detectors,
         linearProgressionEnabled,
+        seekForwardEnabled,
+        isPublic,
         audit,
         session,
       );

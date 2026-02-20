@@ -1,8 +1,9 @@
-﻿import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
+import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
-import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, userParseCSVtoItems, useUpdateItemOptional } from '@/hooks/hooks';
-import { Download, LogOut, Upload, UserRoundCheck } from 'lucide-react';
+import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useVideoUserAnalytics } from '@/hooks/hooks';
+import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video, Clock, PlayCircle, Users, Search } from 'lucide-react';
 import { useHideItem } from '@/hooks/hooks';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 const MAX_DESCRIPTION_LENGTH = 1000;
 
@@ -32,7 +33,9 @@ import {
   MessageSquare,
   Eye,
   EyeOff,
-  Loader2
+  Loader2,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 
 import { useNavigate } from "@tanstack/react-router";
@@ -51,7 +54,7 @@ import { toast } from "sonner";
 import Loader from "@/components/Loader";
 import { Label } from "@/components/ui/label";
 import ProjectItem from "./components/ProjectItem";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup, SidebarResizablePanel } from "@/components/ui/resizable";
 import FeedbackFormEditor from "./FeedbackFormEditor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
@@ -74,9 +77,14 @@ type Mode = "default" | "wizard" | "custom" | "ai-module";
 import { logout } from "@/utils/auth";
 import InviteDropdown from "@/components/inviteDropDown";
 import AiModule from "./AiModule";
+import { useQueryClient } from "@tanstack/react-query"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import { Pagination } from "@/components/ui/Pagination";
 
 
-// ✅ Icons per item type
+// ? Icons per item type
 const getItemIcon = (type: string) => {
   switch (type) {
     case "BLOG": return <FileText className="h-3 w-3" />;
@@ -128,6 +136,10 @@ function TeacherCourseContent() {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
   const invitesRef = useRef<HTMLDivElement | null>(null);
+  const [videoTab, setVideoTab] = useState("video");
+
+
+
 
   const handleLogout = () => {
     logout();
@@ -139,6 +151,11 @@ function TeacherCourseContent() {
   // Use correct keys for course/version IDs
   const courseId = currentCourse?.courseId;
   const versionId = currentCourse?.versionId;
+
+
+
+
+
   useEffect(() => {
     const items: BreadcrumbItem[] = [];
     items.push({
@@ -170,26 +187,26 @@ function TeacherCourseContent() {
 
     setBreadcrumbs(items);
   }, [matches]);
-  const { setOpen, setOpenMobile } = useSidebar();
-  const [isDesktopSidebarVisible, setIsDesktopSidebarVisible] = useState(true);
+  // const { setOpen, setOpenMobile } = useSidebar();
+  // const [isDesktopSidebarVisible, setIsDesktopSidebarVisible] = useState(true);
 
   const checkScreenSize = () => {
     return window.innerWidth <= 425;
   };
 
-  useEffect(() => {
-    const handleResize = () => {
-      const width = window.innerWidth;
-      if (width >= 768) {
-        setOpen(true);
-      }
-    };
+  // useEffect(() => {
+  //   const handleResize = () => {
+  //     const width = window.innerWidth;
+  //     if (width >= 768) {
+  //       setOpen(true);
+  //     }
+  //   };
 
-    window.addEventListener('resize', handleResize);
-    handleResize();
+  //   window.addEventListener('resize', handleResize);
+  //   handleResize();
 
-    return () => window.removeEventListener('resize', handleResize);
-  }, [setOpen]);
+  //   return () => window.removeEventListener('resize', handleResize);
+  // }, [setOpen]);
 
   // Fetch course version data (modules, sections, items)
   const { data: versionData, refetch: refetchVersion, isLoading } = useCourseVersionById(versionId || "");
@@ -232,7 +249,7 @@ function TeacherCourseContent() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
 
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  // const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [hidingModuleId, setHidingModuleId] = useState<string | null>(null);
   const [hidingSectionId, setHidingSectionId] = useState<string | null>(null);
   const [hidingItemId, setHidingItemId] = useState<string | null>(null);
@@ -252,6 +269,8 @@ function TeacherCourseContent() {
   }, [currentTextIndex, aiMessages]);
 
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
+  const [autoSelectSectionsToLoad, setAutoSelectSectionsToLoad] = useState<Array<{ moduleId: string, sectionId: string }>>([]);
+  const [autoSelectCurrentIndex, setAutoSelectCurrentIndex] = useState(0);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [selectedEntity, setSelectedEntity] = useState<{
     type: "module" | "section" | "item";
@@ -317,6 +336,59 @@ function TeacherCourseContent() {
     shouldFetchItem ? versionId : '',
     shouldFetchItem ? selectedEntity?.data?._id : ''
   );
+
+  const [videoAnalyticsPage, setVideoAnalyticsPage] = useState(1);
+  const [videoAnalyticsLimit, setVideoAnalyticsLimit] = useState(12);
+  const [videoAnalyticsSearch, setVideoAnalyticsSearch] = useState("");
+  const [debouncedVideoAnalyticsSearch, setDebouncedVideoAnalyticsSearch] = useState("");
+  const [videoAnalyticsSortBy, setVideoAnalyticsSortBy] = useState<'name' | 'views' | 'watchHours'>('name');
+  const [videoAnalyticsSortOrder, setVideoAnalyticsSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedVideoAnalyticsSearch(videoAnalyticsSearch);
+      setVideoAnalyticsPage(1);
+    }, 300);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [videoAnalyticsSearch]);
+
+  const {
+    data: overallAnalytics,
+    isLoading: overallLoading,
+    error: overallError,
+    refetch: refetchOverall,
+  } = useOverallVideoAnalytics(courseId!, versionId!, selectedEntity?.data?._id);
+
+  const videoUserAnalyticsQuery = useVideoUserAnalytics(
+    courseId!,
+    versionId!,
+    selectedEntity?.data?._id,
+    {
+      page: videoAnalyticsPage,
+      limit: videoAnalyticsLimit,
+      search: debouncedVideoAnalyticsSearch,
+      sortBy: videoAnalyticsSortBy,
+      sortOrder: videoAnalyticsSortOrder,
+    }
+  );
+
+  const {
+    data: userAnalyticsData,
+    totalDocuments: userAnalyticsTotalDocs,
+    totalPages: userAnalyticsTotalPages,
+    page,
+    limit,
+  } = videoUserAnalyticsQuery.data ?? {};
+
+  const {
+    isLoading: usersLoading,
+    error: usersError,
+    refetch: refetchUsers,
+  } = videoUserAnalyticsQuery;
+
   // Sync controlled state with selectedItemData for PROJECT edit
   useEffect(() => {
     if (selectedEntity?.type === 'item' && selectedEntity.data.type === 'PROJECT') {
@@ -370,6 +442,7 @@ function TeacherCourseContent() {
   const [showCSVUpload, setShowCSVUpload] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const userCSVtoItem = userParseCSVtoItems();
+  const queryClient = useQueryClient()
 
 
   const updateItemOptional = useUpdateItemOptional();
@@ -455,12 +528,12 @@ function TeacherCourseContent() {
       // },
       isUpdateModuleError: {
         flag: isUpdateModuleError,
-        message: updateModuleError?.message,
+        message: updateModuleError?.toString(),
         fallback: "Failed to update module",
       },
       isDeleteModuleError: {
         flag: isDeleteModuleError,
-        message: deleteModuleError?.message,
+        message: deleteModuleError?.toString(),
         fallback: "Failed to delete module",
       },
       isCreateSectionError: {
@@ -470,32 +543,32 @@ function TeacherCourseContent() {
       },
       isUpdateSectionError: {
         flag: isUpdateSectionError,
-        message: updateSectionError?.message,
+        message: updateSectionError?.toString(),
         fallback: "Failed to update section",
       },
       isDeleteSectionError: {
         flag: isDeleteSectionError,
-        message: deleteSectionError?.message,
+        message: deleteSectionError?.toString(),
         fallback: "Failed to delete section",
       },
       isCreateItemError: {
         flag: isCreateItemError,
-        message: createItemError?.message,
+        message: createItemError?.toString(),
         fallback: "Failed to create item",
       },
       isUpdateItemError: {
         flag: isUpdateItemError,
-        message: updateItemError?.message,
+        message: updateItemError?.toString(),
         fallback: "Failed to update item",
       },
       isDeleteItemError: {
         flag: isDeleteItemError,
-        message: deleteItemError?.message,
+        message: deleteItemError?.toString(),
         fallback: "Failed to delete item",
       },
       isMoveItemError: {
         flag: isMoveItemError,
-        message: moveItemError?.message,
+        message: moveItemError?.toString(),
         fallback: "Failed to move item",
       },
     },
@@ -524,12 +597,219 @@ function TeacherCourseContent() {
     ) {
 
       const itemsArray = (currentSectionItems as any)?.items || (Array.isArray(currentSectionItems) ? currentSectionItems : []);
+
+
       setSectionItems(prev => ({
         ...prev,
         [activeSectionInfo.sectionId]: itemsArray
       }));
+
+      // If we're in auto-select mode and have a watchItemId, check if the target item is in this newly loaded section
+      const watchItemId = currentCourse?.watchItemId;
+
+
+      if (watchItemId && itemsArray.length > 0) {
+
+        const targetItem = itemsArray.find((item: any) => item._id === watchItemId);
+        if (targetItem) {
+
+
+          // Find the module for this section
+          const targetModule = modules?.find(module =>
+            module.sections?.some(section => section.sectionId === activeSectionInfo.sectionId)
+          );
+
+          if (targetModule) {
+            const targetSection = targetModule.sections?.find(section => section.sectionId === activeSectionInfo.sectionId);
+
+            if (targetSection) {
+
+
+              // Show toast notification for successful navigation
+              const questionId = currentCourse?.questionId;
+              if (questionId) {
+                toast.success(`Navigated to flagged question in "${targetItem.name}"`);
+              } else {
+                toast.success(`Navigated to flagged item: "${targetItem.name}"`);
+              }
+
+              // Expand the module and section
+              setExpandedModules(prev => ({ ...prev, [targetModule.moduleId]: true }));
+              setExpandedSections(prev => ({ ...prev, [targetSection.sectionId]: true }));
+
+              // Select the item
+              setSelectedEntity({
+                type: 'item',
+                data: targetItem,
+                parentIds: {
+                  moduleId: targetModule.moduleId,
+                  sectionId: targetSection.sectionId
+                }
+              });
+
+              // Clear watchItemId and questionId after navigation
+              setCurrentCourse({
+                ...currentCourse,
+                watchItemId: null,
+                // questionId: null // Keep questionId for EnhancedQuizEditor to use
+              });
+              setAutoSelectSectionsToLoad([]);
+              setAutoSelectCurrentIndex(0);
+
+
+            } else {
+
+            }
+          } else {
+
+          }
+        } else {
+
+        }
+      }
     }
-  }, [currentSectionItems, itemsLoading, activeSectionInfo, shouldFetchItems]);
+  }, [currentSectionItems, itemsLoading, activeSectionInfo, shouldFetchItems, currentCourse, modules]);
+
+  // Auto-select item when navigating from flagged list
+  useEffect(() => {
+    const watchItemId = currentCourse?.watchItemId;
+    const questionId = currentCourse?.questionId;
+
+    // Wait for version data to load before attempting auto-select
+    if (isLoading) {
+
+      return;
+    }
+
+    if (!watchItemId || !modules || modules.length === 0) return;
+
+
+
+    if (questionId) {
+
+    }
+
+    // First, try to find the item in already-loaded sectionItems
+    for (const module of modules) {
+
+      for (const section of module.sections || []) {
+
+        const items = sectionItems[section.sectionId] || [];
+
+
+        const targetItem = items.find((item: any) => item._id === watchItemId);
+
+        if (targetItem) {
+
+
+          // Show toast notification for successful navigation
+          if (questionId) {
+            toast.success(`Navigated to flagged question in "${targetItem.name}"`);
+          } else {
+            toast.success(`Navigated to flagged item: "${targetItem.name}"`);
+          }
+
+          // Expand the module and section
+          setExpandedModules(prev => ({ ...prev, [module.moduleId]: true }));
+          setExpandedSections(prev => ({ ...prev, [section.sectionId]: true }));
+
+          // Select the item
+          setSelectedEntity({
+            type: 'item',
+            data: targetItem,
+            parentIds: {
+              moduleId: module.moduleId,
+              sectionId: section.sectionId
+            }
+          });
+
+          // Clear watchItemId and questionId after navigation
+          setCurrentCourse({
+            ...currentCourse,
+            watchItemId: null,
+            // questionId: null // Keep questionId for EnhancedQuizEditor to use
+          });
+          setAutoSelectSectionsToLoad([]);
+          setAutoSelectCurrentIndex(0);
+
+          return;
+        }
+      }
+    }
+
+    // If not found and we haven't started loading sections yet, prepare the list
+    if (autoSelectSectionsToLoad.length === 0) {
+
+
+      const sectionsToLoad: Array<{ moduleId: string, sectionId: string }> = [];
+      modules.forEach(module => {
+
+        module.sections?.forEach(section => {
+
+          sectionsToLoad.push({ moduleId: module.moduleId, sectionId: section.sectionId });
+        });
+      });
+
+
+      setAutoSelectSectionsToLoad(sectionsToLoad);
+      setAutoSelectCurrentIndex(0);
+
+      // Expand all modules and sections
+      const newExpandedModules: Record<string, boolean> = {};
+      const newExpandedSections: Record<string, boolean> = {};
+      modules.forEach(module => {
+        newExpandedModules[module.moduleId] = true;
+        module.sections?.forEach(section => {
+          newExpandedSections[section.sectionId] = true;
+        });
+      });
+      setExpandedModules(newExpandedModules);
+      setExpandedSections(newExpandedSections);
+    }
+  }, [currentCourse?.watchItemId, modules, sectionItems, autoSelectSectionsToLoad.length, isLoading]);
+
+  // Load sections one by one for auto-selection
+  useEffect(() => {
+    // If not in auto-select mode or no item to watch, do nothing
+    if (autoSelectSectionsToLoad.length === 0 || !currentCourse?.watchItemId) return;
+
+    const currentTarget = autoSelectSectionsToLoad[autoSelectCurrentIndex];
+
+    // If we've run out of sections to check, stop
+    if (!currentTarget) {
+      setAutoSelectSectionsToLoad([]);
+      setAutoSelectCurrentIndex(0);
+      return;
+    }
+
+    // If the active section doesn't match our target, switch to it
+    if (activeSectionInfo?.sectionId !== currentTarget.sectionId) {
+      setActiveSectionInfo(currentTarget);
+      return;
+    }
+
+    // If the active section matches AND we've finished loading:
+    // We can assume the item wasn't found (because the other useEffect would have cleared the state)
+    // So we move to the next section
+    if (!itemsLoading && currentSectionItems) {
+      setAutoSelectCurrentIndex(prev => prev + 1);
+    }
+  }, [
+    autoSelectCurrentIndex,
+    autoSelectSectionsToLoad,
+    currentCourse?.watchItemId,
+    activeSectionInfo,
+    itemsLoading,
+    currentSectionItems
+  ]);
+
+
+
+
+
+
+
+
 
   const getItemLabel = ({ itemId, itemType, sectionItems, sectionId }: LabelOptions): string => {
     const item = (sectionItems[sectionId] || []).find(i => i._id === itemId);
@@ -591,6 +871,37 @@ function TeacherCourseContent() {
   };
 
 
+  // Invalidate all related queries
+  const invalidateAllQueries = async () => {
+    // Invalidate section items queries as in refetchitems
+    await queryClient.invalidateQueries({
+      queryKey: ["get", "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items"]
+    })
+
+    // Invalidate all item detail queries as in refetchitem
+    await queryClient.invalidateQueries({
+      queryKey: ["get", "/courses/{courseId}/versions/{versionId}/item/{itemId}"]
+    })
+
+    // // Invalidate all course version queries
+    await queryClient.invalidateQueries({
+      queryKey: ["get", "/courses/versions/{id}"]
+    })
+  }
+
+  // invalidated as sometimes questions are not fetched properly
+  const handleinvalidateItemQueries = async () => {
+    // Invalidate all related queries for question banks
+    await queryClient.invalidateQueries({
+      queryKey: ["get", "/quizzes/question-bank/{questionBankId}"]
+    })
+
+    // Invalidate all related queries for questions
+    await queryClient.invalidateQueries({
+      queryKey: ["get", "/quizzes/questions/{questionId}"]
+    })
+  }
+
 
   // Process CSV file and create items
   const processCSV = async (file: File, moduleId: string, sectionId: string, youtubeUrl: string) => {
@@ -631,14 +942,14 @@ function TeacherCourseContent() {
       const response = await userCSVtoItem.mutateAsync({
         params: { path: { courseId: courseId!, versionId: versionId!, moduleId, sectionId } },
         body: { youtubeurl: youtubeUrl, data: result.data }
-      }).then((res) => {
-        if (res.success) {
-          toast.success('Successfully created items from CSV');
-        }
-        refetchVersion()
-        refetchItems()
-        setIsProcessingCSV(false);
       });
+
+      if (response.success) {
+        toast.success('Successfully created items from CSV');
+      }
+
+      await invalidateAllQueries();
+      setIsProcessingCSV(false);
     } catch (error) {
       console.error('Error processing CSV:', error);
       toast.error(`Failed to process CSV: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -713,7 +1024,7 @@ function TeacherCourseContent() {
       refetchVersion();
       refetchItems();
     } catch (error) {
-      console.error("❌ Error in handleHideItem:", error);
+      console.error("? Error in handleHideItem:", error);
     } finally {
       setHidingItemId(null);
     }
@@ -900,7 +1211,7 @@ function TeacherCourseContent() {
           }
         })
         .catch((err) => {
-          toast.error("Failed to create feedback form");
+          toast.error("Failed to create feedback form: ", err.message);
           console.error(err);
         });
     }
@@ -1257,18 +1568,18 @@ function TeacherCourseContent() {
         }}
       />
       {/* Mobile Sidebar Overlay */}
-      {isMobileSidebarOpen && (
+      {/* {isMobileSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={() => setIsMobileSidebarOpen(false)}
         />
-      )}
-      {isDesktopSidebarVisible && (
-        <ResizablePanel
+      )} */}
+      {/* {isDesktopSidebarVisible && ( */}
+        <SidebarResizablePanel
           defaultSize={20}
           minSize={20}
           maxSize={50}
-          className={`${isMobileSidebarOpen ? 'fixed inset-y-0 left-0 z-50 w-[280px]' : 'hidden md:block'}`}
+          // className={`${isMobileSidebarOpen ? 'fixed inset-y-0 left-0 z-50 w-[280px]' : 'hidden md:block'}`}
         >
           {/* sidebar content */}
           <div className="h-full overflow-hidden border-r border-border/40 bg-sidebar/50">
@@ -1305,6 +1616,7 @@ function TeacherCourseContent() {
                             <Reorder.Item
                               key={module.moduleId}
                               value={module}
+                              as="div"
                               drag
                               className={module.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
                               whileDrag={{ scale: 1.02 }}
@@ -1369,7 +1681,12 @@ function TeacherCourseContent() {
                                         handleMoveSection(module.moduleId, section.sectionId, versionId);
                                       }}
                                     >
-                                      <SidebarMenuSubItem>
+
+                                      <div
+                                        data-slot="sidebar-menu-sub-item"
+                                        data-sidebar="menu-sub-item"
+                                        className="group/menu-sub-item relative"
+                                      >
                                         <SidebarMenuSubButton
                                           onClick={() => {
                                             setMode("default");
@@ -1455,7 +1772,8 @@ function TeacherCourseContent() {
                                                           ? "bg-zinc-600 text-gray-200"
                                                           : "bg-transparent transition-none"
                                                           }`}
-                                                        onClick={() => {
+                                                        onClick={async () => {
+                                                          await handleinvalidateItemQueries();
                                                           setMode("default");
                                                           const label = getItemLabel({
                                                             itemId: item._id,
@@ -1817,7 +2135,7 @@ function TeacherCourseContent() {
                                             </SidebarMenuSub>
                                           </Reorder.Group>
                                         )}
-                                      </SidebarMenuSubItem>
+                                      </div>
                                     </Reorder.Item>
                                   ))}
 
@@ -1903,8 +2221,8 @@ function TeacherCourseContent() {
               </SidebarFooter>
             </Sidebar>
           </div>
-        </ResizablePanel>
-      )}
+        </SidebarResizablePanel>
+      {/* )} */}
 
       {/* <ResizablePanel
         defaultSize={20}
@@ -1924,25 +2242,25 @@ function TeacherCourseContent() {
 
 
 
-      {/* <ResizableHandle className="hidden md:flex" /> */}
-      {isDesktopSidebarVisible && <ResizableHandle className="hidden md:flex" />}
+      <ResizableHandle className="hidden md:flex" />
+      {/* {isDesktopSidebarVisible && <ResizableHandle className="hidden md:flex" />} */}
 
 
       <ResizablePanel defaultSize={80} className="min-w-0">
         {/* Course Editor Area */}
         <SidebarInset className="max-w-full overflow-hidden flex flex-col">
-          <header className="hidden md:flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear sticky top-0 z-50 bg-background">
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear sticky top-0 z-50 bg-background">
             <div className="flex w-full items-center justify-between px-4">
               <div className="flex items-center gap-2">
                 {/* Add Toggle Button */}
-                <Button
+                {/* <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsDesktopSidebarVisible((p) => !p)}
                   className="hidden md:inline-flex"
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
+                > */}
+                  <SidebarTrigger/>
+                {/* </Button> */}
 
                 <Separator orientation="vertical" className="mx-2 h-4" />
                 <Breadcrumb className="hidden md:flex">
@@ -1965,9 +2283,10 @@ function TeacherCourseContent() {
                     ))}
                   </BreadcrumbList>
                 </Breadcrumb>
+                <Link to="/teacher" className="block md:hidden font-medium text-muted-foreground hover:text-foreground">Dashboard</Link>
               </div>
 
-              <div className="hidden md:flex items-center gap-3">
+              <div className="flex items-center gap-3">
 
                 <div className="relative" ref={invitesRef}>
                   <Button
@@ -2021,15 +2340,14 @@ function TeacherCourseContent() {
           <div className="w-full p-4 sm:p-6">
             {mode === "default" && <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-2 min-w-0 flex-1">
-                <Button
+                {/* <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
                   className="md:hidden shrink-0"
-                >
-                  <Menu className="h-7 w-7" />
+                > */}
                   <span className="sr-only">Toggle Menu</span>
-                </Button>
+                {/* </Button> */}
 
                 <div className="flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-lg border min-w-0 flex-1 sm:flex-none sm:min-w-[200px]">
                   <GraduationCap className="h-4 w-4 text-primary flex-shrink-0" />
@@ -2052,7 +2370,7 @@ function TeacherCourseContent() {
                     variant="outline"
                     className="bg-primary/10 border-primary/20 text-primary px-3 py-1.5 text-xs sm:text-sm font-medium whitespace-nowrap"
                   >
-                    Version: {(versionData as any)?.version || (versionData as any)?.name || 'Unknown'}
+                    Version: {(versionData as any)?.version || (versionData as any)?.name || 'Unknown'} a
                   </Badge>
                 </div>
               )}
@@ -2182,7 +2500,13 @@ function TeacherCourseContent() {
                       </div>
                       <div className="text-sm text-slate-500 dark:text-gray-400 flex items-center gap-2">
                         <BookOpen className="h-4 w-4" />
-                        <span>Course › Module › {selectedEntity.type}</span>
+                        <span className="flex items-center gap-1">
+                          Course
+                          <ChevronRight size={16} />
+                          Module
+                          <ChevronRight size={16} />
+                          {selectedEntity.type}
+                        </span>
                       </div>
                     </div>
 
@@ -2511,72 +2835,182 @@ function TeacherCourseContent() {
 
 
 
-                      {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
-
-                        <VideoModal
-                          isLoading={isItemLoading}
-                          selectedItemName={selectedItem.name}
-                          action={isEditingItem ? "edit" : "view"}
-                          item={selectedItemData?.item}
-                          onClose={() => setIsEditingItem(false)}
-                          onSave={video => {
-                            const formattedVideo = {
-                              ...video,
-                              type: "VIDEO",
-                              details: {
-                                ...video.details,
-                                startTime: video.details.startTime,
-                                endTime: video.details.endTime,
-                              }
-                            };
-                            if (
-                              selectedEntity.parentIds?.moduleId &&
-                              selectedEntity.parentIds?.sectionId &&
-                              selectedEntity.data?._id &&
-                              versionId
-                            ) {
-                              updateVideoAsync({
-                                params: {
-                                  path: {
-                                    versionId,
-                                    itemId: selectedEntity.data._id,
+                      {/* {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
+                        <>
+                        
+                          <VideoModal
+                            isLoading={isItemLoading}
+                            selectedItemName={selectedItem.name}
+                            action={isEditingItem ? "edit" : "view"}
+                            item={selectedItemData?.item}
+                            onClose={() => setIsEditingItem(false)}
+                            onSave={video => {
+                              const formattedVideo = {
+                                ...video,
+                                type: "VIDEO",
+                                details: {
+                                  ...video.details,
+                                  startTime: video.details.startTime,
+                                  endTime: video.details.endTime,
+                                }
+                              };
+                              if (
+                                selectedEntity.parentIds?.moduleId &&
+                                selectedEntity.parentIds?.sectionId &&
+                                selectedEntity.data?._id &&
+                                versionId
+                              ) {
+                                updateVideoAsync({
+                                  params: {
+                                    path: {
+                                      versionId,
+                                      itemId: selectedEntity.data._id,
+                                    }
+                                  },
+                                  body: formattedVideo,
+                                }).then((res) => {
+                                  refetchVersion();
+                                  if (shouldFetchItems) {
+                                    refetchItems();
                                   }
-                                },
-                                body: formattedVideo,
-                              }).then((res) => {
-                                refetchVersion();
-                                if (shouldFetchItems) {
-                                  refetchItems();
-                                }
-                                refetchItem();
-                              });
-                              toast.success("Video details saved successfully");
-                              setIsEditingItem(false);
-                            }
-                          }}
-                          onDelete={() => {
-                            if (
-                              selectedEntity.parentIds?.sectionId &&
-                              selectedEntity.data?._id
-                            ) {
+                                  refetchItem();
+                                });
+                                toast.success("Video details saved successfully");
+                                setIsEditingItem(false);
+                              }
+                            }}
+                            onDelete={() => {
+                              if (
+                                selectedEntity.parentIds?.sectionId &&
+                                selectedEntity.data?._id
+                              ) {
 
-                              deleteItemAsync({
-                                params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
-                              }).then((res) => {
-                                refetchVersion();
-                                if (shouldFetchItems) {
-                                  refetchItems();
-                                }
-                                refetchItem();
-                              });
-                              setSelectedEntity(null);
-                              setIsEditingItem(false);
+                                deleteItemAsync({
+                                  params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
+                                }).then((res) => {
+                                  refetchVersion();
+                                  if (shouldFetchItems) {
+                                    refetchItems();
+                                  }
+                                  refetchItem();
+                                });
+                                setSelectedEntity(null);
+                                setIsEditingItem(false);
 
-                            }
-                          }}
-                          onEdit={() => setIsEditingItem(true)}
-                        />
+                              }
+                            }}
+                            onEdit={() => setIsEditingItem(true)}
+                          />
+                        </>
+                      )} */}
+                      {selectedEntity.type === "item" && selectedEntity.data.type === "VIDEO" && (
+                        <Tabs value={videoTab} onValueChange={setVideoTab} className=" mb-4">
+
+                          <TabsList className=" overflow-x-auto no-scrollbar">
+
+                            <TabsTrigger value="video" className="flex items-center gap-2 cursor-pointer">
+                              <Video className="h-4 w-4" />
+                              Video
+                            </TabsTrigger>
+
+                            <TabsTrigger value="analytics" className="flex items-center gap-2 cursor-pointer">
+                              <BarChart3 className="h-4 w-4" />
+                              Analytics
+                            </TabsTrigger>
+
+                          </TabsList>
+
+                          {videoTab === "video" && (
+                            <VideoModal
+                              isLoading={isItemLoading}
+                              selectedItemName={selectedItem.name}
+                              action={isEditingItem ? "edit" : "view"}
+                              item={selectedItemData?.item}
+                              onClose={() => setIsEditingItem(false)}
+                              onSave={video => {
+                                const formattedVideo = {
+                                  ...video,
+                                  type: "VIDEO",
+                                  details: {
+                                    ...video.details,
+                                    startTime: video.details.startTime,
+                                    endTime: video.details.endTime,
+                                  }
+                                };
+
+                                if (
+                                  selectedEntity.parentIds?.moduleId &&
+                                  selectedEntity.parentIds?.sectionId &&
+                                  selectedEntity.data?._id &&
+                                  versionId
+                                ) {
+                                  updateVideoAsync({
+                                    params: {
+                                      path: {
+                                        versionId,
+                                        itemId: selectedEntity.data._id,
+                                      }
+                                    },
+                                    body: formattedVideo,
+                                  }).then(() => {
+                                    refetchVersion();
+                                    shouldFetchItems && refetchItems();
+                                    refetchItem();
+                                  });
+
+                                  toast.success("Video details saved successfully");
+                                  setIsEditingItem(false);
+                                }
+                              }}
+
+                              onDelete={() => {
+                                if (
+                                  selectedEntity.parentIds?.sectionId &&
+                                  selectedEntity.data?._id
+                                ) {
+                                  deleteItemAsync({
+                                    params: {
+                                      path: {
+                                        itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "",
+                                        itemId: selectedEntity.data._id
+                                      }
+                                    }
+                                  }).then(() => {
+                                    refetchVersion();
+                                    shouldFetchItems && refetchItems();
+                                    refetchItem();
+                                  });
+
+                                  setSelectedEntity(null);
+                                  setIsEditingItem(false);
+                                }
+                              }}
+
+                              onEdit={() => setIsEditingItem(true)}
+                            />
+                          )}
+
+                          {videoTab === "analytics" && (
+                            <div className="mt-4">
+                              <p className="text-sm text-muted-foreground">
+                                <UserAnalytics users={userAnalyticsData || []} overallAnalytics={overallAnalytics} currentPage={videoAnalyticsPage} limit={videoAnalyticsLimit} search={videoAnalyticsSearch} onSearchChange={(v) => {
+                                  setVideoAnalyticsSearch(v);
+                                  setVideoAnalyticsPage(1);
+                                }} sortBy={videoAnalyticsSortBy} sortOrder={videoAnalyticsSortOrder} onSortChange={(field) => {
+                                  if (videoAnalyticsSortBy === field) {
+                                    setVideoAnalyticsSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+                                  } else {
+                                    setVideoAnalyticsSortBy(field);
+                                    setVideoAnalyticsSortOrder('asc');
+                                  }
+                                }} onPageChange={setVideoAnalyticsPage} isLoading={overallLoading || usersLoading} totalDocuments={userAnalyticsTotalDocs || 0} totalPages={userAnalyticsTotalPages || 0} />
+                              </p>
+                            </div>
+                          )}
+
+                        </Tabs>
                       )}
+
                       {/* <CreateArticle/> */}
                       {selectedEntity.type === "item" && selectedEntity.data.type === "QUIZ" && courseId && versionId && (
                         <EnhancedQuizEditor
@@ -2591,6 +3025,7 @@ function TeacherCourseContent() {
                           analytics={quizAnalytics}
                           // submissions={quizSubmissions}
                           performance={quizPerformance}
+                          questionId={currentCourse?.questionId || null}
                           onDelete={() => {
                             deleteItemAsync({
                               params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedQuizId } }
@@ -2620,7 +3055,7 @@ function TeacherCourseContent() {
                                   body: { name, description, details: { name, description }, type: 'PROJECT' }
                                 });
                                 refetchVersion();
-                                refetchItems(); ``
+                                refetchItems();
                                 refetchItem();
                                 toast.success("Project updated successfully");
                               } catch (err) {
@@ -2893,3 +3328,329 @@ export function useStatusToasts({
 }
 
 // 4. ADD A SIMPLE FEEDBACK EDITOR COMPONENT (Hello World for now)
+
+export interface VideoUserAnalytics {
+  firstName: string;
+  email: string;
+  userId: string;
+  viewCount: number;
+  totalWatchTime: number;
+}
+
+export interface VideoUserAnalyticsResponse {
+  data: VideoUserAnalytics[];
+  totalDocuments: number;
+  totalPages: number;
+  page: number;
+  limit: number;
+}
+
+export interface VideoOverallAnalytics {
+  videoId: string;
+  videoDuration: number | string;
+  totalViews: number;
+  totalWatchHours: number;
+  averageViewsPerUser: number;
+  averageWatchHoursPerUser: number;
+}
+
+export type UserAnalyticsProps = {
+  users: VideoUserAnalytics[] | null;
+  overallAnalytics?: VideoOverallAnalytics | null;
+
+  search: string;
+  onSearchChange: (value: string) => void;
+
+  currentPage: number;
+  limit: number;
+  totalDocuments: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+
+  sortBy: 'name' | 'views' | 'watchHours';
+  sortOrder: 'asc' | 'desc';
+  onSortChange: (field: 'name' | 'views' | 'watchHours') => void;
+
+  isLoading?: boolean;
+};
+
+export function UserAnalytics({
+  users,
+  overallAnalytics,
+  search,
+  onSearchChange,
+  currentPage,
+  limit,
+  totalDocuments,
+  totalPages,
+  onPageChange,
+  sortBy,
+  sortOrder,
+  onSortChange,
+  isLoading,
+}: UserAnalyticsProps) {
+  const safeUsers = users ?? [];
+
+  const totalViewsOnPage = useMemo(
+    () => safeUsers.reduce((sum, u) => sum + (u.viewCount || 0), 0),
+    [safeUsers]
+  );
+
+  const totalWatchHoursOnPage = useMemo(
+    () => safeUsers.reduce((sum, u) => sum + (u.watchHours || 0), 0),
+    [safeUsers]
+  );
+
+  const avgViewsPerUserOnPage = safeUsers.length ? totalViewsOnPage / safeUsers.length : 0;
+
+
+
+  return (
+    <div className="w-full space-y-4 p-4">
+      {/* Header */}
+      <div className="space-y-1">
+        <h1 className="text-xl font-semibold tracking-tight">User Analytics</h1>
+        <p className="text-sm text-muted-foreground">Per-student engagement for this video.</p>
+      </div>
+
+      {/* Overall Analytics (compact) */}
+      {overallAnalytics && (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
+          {/* Duration */}
+          <Card className="bg-blue-50 border-blue-100">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-medium text-blue-900">
+                Duration
+              </CardTitle>
+              <Clock className="h-4 w-4 text-blue-700" />
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-lg font-semibold text-blue-950">
+                {overallAnalytics.videoDuration}s
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Total Views */}
+          <Card className="bg-green-50 border-green-100">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-medium text-green-900">
+                Total Views
+              </CardTitle>
+              <Eye className="h-4 w-4 text-green-700" />
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-lg font-semibold text-green-950">
+                {overallAnalytics.totalViews.toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Watch Hours */}
+          <Card className="bg-purple-50 border-purple-100">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-medium text-purple-900">
+                Watch Hours
+              </CardTitle>
+              <PlayCircle className="h-4 w-4 text-purple-700" />
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-lg font-semibold text-purple-950">
+                {overallAnalytics.totalWatchHours?.toFixed(1)}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Avg Watch / User */}
+          <Card className="bg-orange-50 border-orange-100">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-medium text-orange-900">
+                Avg Watch / User
+              </CardTitle>
+              <Users className="h-4 w-4 text-orange-700" />
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-lg font-semibold text-orange-950">
+                {overallAnalytics.averageWatchHoursPerUser?.toFixed(1)}h
+              </div>
+            </CardContent>
+          </Card>
+
+        </div>
+      )}
+
+      {/* Search + Stats */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="w-full sm:max-w-sm relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+
+            <Input
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search by name or email..."
+              className="h-9 pl-9"
+            />
+          </div>
+
+
+        </div>
+
+
+      </div>
+
+      {/* Table */}
+      <Card className="bg-muted/20">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Users</CardTitle>
+          <CardDescription className="text-xs">
+            Showing{" "}
+            {totalDocuments === 0 ? 0 : (currentPage - 1) * limit + 1}–
+            {Math.min(currentPage * limit, totalDocuments)} of {totalDocuments}
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          <div className="overflow-x-auto min-h-[400px]">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border bg-muted/30">
+                  {[
+                    { key: "name", label: "Student", className: "pl-6 w-[320px]", sortable: true },
+                    { key: "views", label: "Views", className: "w-[120px] text-right", sortable: true },
+                    { key: "watchHours", label: "Watch (hrs)", className: "w-[160px] text-right", sortable: true },
+                    { key: "engagement", label: "Engagement", className: "w-[160px] text-center", sortable: false },
+                  ].map(({ key, label, className, sortable }) => (
+                    <TableHead
+                      key={key}
+                      className={`font-bold text-foreground select-none ${sortable ? 'cursor-pointer' : ''} ${className}`}
+                      onClick={() => sortable && onSortChange(key as 'name' | 'views' | 'watchHours')}
+                    >
+                      <span className="flex items-center gap-1">
+                        {label}
+                        {sortable && sortBy === key && (
+                          sortOrder === 'asc' ? (
+                            <ArrowUp size={16} className="text-foreground" />
+                          ) : (
+                            <ArrowDown size={16} className="text-foreground" />
+                          )
+                        )}
+                      </span>
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {/* Loading state */}
+                {isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="py-16 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                        <span className="text-muted-foreground">
+                          Loading user analytics…
+                        </span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+
+                {/* Empty state */}
+                {!isLoading && safeUsers.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={4}
+                      className="py-10 text-center text-sm text-muted-foreground"
+                    >
+                      No users found for the current search.
+                    </TableCell>
+                  </TableRow>
+                )}
+
+                {/* Data rows */}
+                {!isLoading &&
+                  safeUsers.map((user) => {
+                    const engagement =
+                      user.viewCount > avgViewsPerUserOnPage
+                        ? "high"
+                        : user.viewCount > avgViewsPerUserOnPage * 0.5
+                          ? "medium"
+                          : "low";
+
+                    const badgeClass = {
+                      high: "bg-primary/15 text-primary",
+                      medium: "bg-muted text-foreground",
+                      low: "bg-muted/60 text-muted-foreground",
+                    }[engagement];
+
+                    return (
+                      <TableRow
+                        key={user.userId}
+                        className="border-b border-border/60 hover:bg-muted/30"
+                      >
+                        {/* Name + Email (common pattern) */}
+                        <TableCell className="pl-6">
+                          <div className="flex items-center gap-3">
+                            {/* Avatar */}
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                              {user.firstName?.charAt(0)?.toUpperCase()}
+                            </div>
+
+                            {/* Name + Email */}
+                            <div className="flex flex-col">
+                              <span className="font-medium text-foreground leading-tight">
+                                {user.firstName}
+                              </span>
+                              <span className="text-xs text-muted-foreground leading-tight">
+                                {user.email}
+                              </span>
+                            </div>
+                          </div>
+                        </TableCell>
+
+
+                        <TableCell className="w-[120px] text-left font-medium tabular-nums">
+                          {user.viewCount.toLocaleString()}
+                        </TableCell>
+
+                        <TableCell className="w-[120px] text-left font-medium tabular-nums">
+                          {user.totalWatchTime}
+                        </TableCell>
+
+                        <TableCell className="text-left">
+                          <Badge className={badgeClass}>
+                            {engagement.charAt(0).toUpperCase() + engagement.slice(1)}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+              </TableBody>
+            </Table>
+          </div>
+
+
+
+          {/* Pagination (buttons should use bg-primary inside your Pagination component) */}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalDocuments={totalDocuments}
+            onPageChange={onPageChange}
+            className="mt-4"
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+
+
+
+
+
+
+

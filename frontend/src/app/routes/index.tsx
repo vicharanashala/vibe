@@ -5,7 +5,7 @@ import studentRoutesExport from "./student-routes";
 import { useAuthStore } from "@/store/auth-store";
 import { JSX } from "react";
 import React from "react";
-import LoginPage from "../pages/LoginPage";
+// import LoginPage from "../pages/LoginPage";
 
 const { studentRoutes, learnRoutes } = studentRoutesExport;
 
@@ -69,7 +69,7 @@ export default function AppRoutes() {
                 <Route path={learnRoutes.path} element={<ProtectedRoute role="student">{learnRoutes.element}</ProtectedRoute>} />
 
                 <Route path="/" element={<Navigate to="/auth" />} />
-                <Route path="/login" element={<LoginPage />} />
+                {/* <Route path="/login" element={<LoginPage />} /> */}
             </Routes>
         </BrowserRouter>
     );
