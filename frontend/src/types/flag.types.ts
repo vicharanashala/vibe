@@ -5,12 +5,14 @@ export interface flagInfo {
     sectionId: string | null;
     itemId: string | null;
     watchItemId: string | null;
+    questionId?: string | null;
 }
 
 export interface FlagState {
     currentCourseFlag: flagInfo | null;
     setCurrentCourseFlag: (courseInfo: flagInfo) => void;
     setWatchItemId: (watchItemId: string) => void;
+    setQuestionId: (questionId: string) => void;
     clearCurrentCourseFlag: () => void;
 }
 
@@ -42,6 +44,7 @@ export interface IReport {
     versionId: string;
     entityId: string;
     entityType: EntityType;
+    questionId?: string;
     reportedBy: string | components['schemas']['UserByFirebaseUIDResponse'];
     reason: string;
     status: IStatus[];

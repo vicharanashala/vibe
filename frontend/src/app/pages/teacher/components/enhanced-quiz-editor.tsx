@@ -76,6 +76,7 @@ interface EnhancedQuizEditorProps {
   selectedItemName: string,
   isLoading: boolean;
   performance: any;
+  questionId?: string | null;
   onDelete: () => void;
 }
 
@@ -265,11 +266,13 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   analytics,
   // submissions,
   performance,
+  questionId,
   onDelete,
 }) => {
   const [selectedTab, setSelectedTab] = useState('analytics');
   const [selectedQuestionBank, setSelectedQuestionBank] = useState<string | null>(null);
   const [questionCacheUpdateTrigger, setQuestionCacheUpdateTrigger] = useState(0);
+
 
   // Dialog states
   const [showCreateBankDialog, setShowCreateBankDialog] = useState(false);
@@ -398,6 +401,35 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   // const updateItem = useUpdateItem();
   const editQuestionBankInQuiz = useEditQuestionBankInQuiz();
 
+  // Auto-switch to questions tab when navigating from flagged question
+  useEffect(() => {
+    if (questionId && questionBanks && questionBanks.length > 0) {
+      // Switch to questions tab
+      setSelectedTab('questions');
+
+      // Find the question bank that contains this question
+      const findBankWithQuestion = async () => {
+        for (const bank of questionBanks) {
+          // Fetch bank data to check if it contains the question
+          try {
+            const response = await fetch(`/api/quizzes/question-bank/${bank.bankId}`);
+            if (response.ok) {
+              const bankData = await response.json();
+              if (bankData.questions && bankData.questions.includes(questionId)) {
+                setSelectedQuestionBank(bank.bankId);
+                break;
+              }
+            }
+          } catch (error) {
+            console.error('Error checking question bank:', error);
+          }
+        }
+      };
+
+      findBankWithQuestion();
+    }
+  }, [questionId, questionBanks]);
+
   // Initialize quiz settings form with existing details
   useEffect(() => {
 
@@ -456,7 +488,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
       if (!questionBanks) questionBanks = [];
 
       const questionBankRefs: QuestionBankRef[] = questionBanks?.map((bank: QuestionBankRef) => ({
-        bankId: bank.bankId, 
+        bankId: bank.bankId,
         count: bank.count,
         difficulty: bank.difficulty,
         tags: bank.tags
@@ -688,7 +720,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
       setQuestionToDelete(null);
     } catch (error: any) {
       console.error('Failed to delete question:', error);
-      
+
       if (error?.name === 'ForbiddenError') {
         toast.error("You don't have permission to delete this question. Only admins or the question creator can delete it.");
       } else {
@@ -910,6 +942,22 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
     <>
       {isLoading ? <Loader /> :
         <div className="h-full flex flex-col">
+          {/* Flagged Question Banner */}
+          {questionId && (
+            <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-4">
+              <div className="flex items-center">
+                <FlagTriangleRight className="h-5 w-5 text-amber-400 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-amber-800">
+                    Viewing Flagged Question
+                  </p>
+                  <p className="text-xs text-amber-700">
+                    Question ID: {questionId.slice(-8)} • This question was flagged by a student
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="border-b">
             <div className="md:p-6 pb-6">
               <div className="lg:flex items-center justify-between">
@@ -1015,7 +1063,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                         return acc;
                       }, 0) / submissions.length).toFixed(1)} `
                       : 'Loading...'} */}
-                      {analytics?.averageScore.toFixed(2) || 0}
+                    {analytics?.averageScore.toFixed(2) || 0}
                   </div>
                   <p className='font-medium text-[#008236]'>
                     {/* {submissions && submissions.length > 0
@@ -1026,7 +1074,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                         return acc;
                       }, 0) / submissions.length).toFixed(1)}%`
                       : '0%'} */}
-                      {analytics?.averagePercentage|| "0"}%
+                    {analytics?.averagePercentage || "0"}%
                   </p>
                   {/* <Progress value={submissions && submissions.length > 0
                     ? parseFloat((submissions.reduce((acc: number, sub: any) => {
@@ -1142,14 +1190,15 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                         />
                         <ScrollArea className="flex-1">
                           <div className="xl:p-4 py-4 space-y-4">
-                            {selectedBankData?.questions?.map((questionId: string) => (
+                            {selectedBankData?.questions?.map((qId: string) => (
                               <ExpandableQuestionCard
-                                key={questionId}
-                                questionId={questionId}
-                                onDelete={() => handleDeleteQuestion(questionId)}
+                                key={qId}
+                                questionId={qId}
+                                isFlagged={questionId === qId}
+                                onDelete={() => handleDeleteQuestion(qId)}
                                 onDuplicate={async () => {
                                   await replaceQuestionWithDuplicate.mutateAsync({
-                                    params: { path: { questionBankId: selectedQuestionBank, questionId } }
+                                    params: { path: { questionBankId: selectedQuestionBank, questionId: qId } }
                                   });
                                   refetchSelectedBank();
                                 }}
@@ -1336,7 +1385,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                         onChange={(e) => { setSearchQuery(e.target.value) }}
                         className="pl-10 pr-10 w-full bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
                       />
-                 <X className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground cursor-pointer"
+                      <X className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground cursor-pointer"
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
@@ -1397,15 +1446,15 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                 <div className="p-6 w-full flex-1">
                   <Card>
                     <div className="flex items-center justify-between relative">
-                    <CardHeader className="w-1/2">
-                      <CardTitle>All Submissions</CardTitle>
-                      <CardDescription>
-                        Detailed view of all quiz submissions with grading information
-                      </CardDescription>
-                      <Button variant="ghost" className="absolute right-6" onClick={handleDownloadCSV}>
-                        Download CSV
-                      </Button>
-                    </CardHeader>
+                      <CardHeader className="w-1/2">
+                        <CardTitle>All Submissions</CardTitle>
+                        <CardDescription>
+                          Detailed view of all quiz submissions with grading information
+                        </CardDescription>
+                        <Button variant="ghost" className="absolute right-6" onClick={handleDownloadCSV}>
+                          Download CSV
+                        </Button>
+                      </CardHeader>
                     </div>
                     <CardContent>
                       <Table>

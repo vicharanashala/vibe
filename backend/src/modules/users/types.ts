@@ -3,6 +3,7 @@
   EnrollmentService: Symbol.for('EnrollmentService'),
   ProgressService: Symbol.for('ProgressService'),
   UserService: Symbol.for('UserService'),
+  UserActivityEventService: Symbol.for('UserActivityEventService'),
 
   //Repositories
   ProgressRepo: Symbol.for('ProgressRepo'),

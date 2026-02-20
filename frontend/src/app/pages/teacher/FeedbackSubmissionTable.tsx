@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Eye, Loader2, Search, X } from 'lucide-react';
+import { Eye, Loader2, Search, X, Download } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useFeedbackSubmissions } from '@/hooks/hooks';
+import { useFeedbackSubmissions,useExportFeedbackSubmissions } from '@/hooks/hooks';
 import { SubmissionDetailsDialog } from './SubmissionDetailsDialog';
 import { Pagination } from '@/components/ui/Pagination';
 
@@ -27,18 +27,23 @@ export const FeedbackSubmissionsTable: React.FC<FeedbackSubmissionsTableProps> =
     page: currentPage,
   });
 
-// const { data: submissionsData, isLoading: submissionsLoading } = {
-//   data: mockSubmissionsData,
-//   isLoading: false,
-// };
+  const { exportCSV: handleDownloadCSV, isExporting } = useExportFeedbackSubmissions({
+    courseId,
+    feedbackId
+  });
+
+  // const { data: submissionsData, isLoading: submissionsLoading } = {
+  //   data: mockSubmissionsData,
+  //   isLoading: false,
+  // };
   const submissions = submissionsData?.submissions || [];
-  const limit = 10; 
+  const limit = 10;
 
   const handlePageChange = (page: number) => setCurrentPage(page);
   const handleViewDetails = (submission: any) => {
     const details = submission.details || {};
 
-  const ignoredKeys = ['Name', 'Email', 'Feedback'];
+  const ignoredKeys = [''];
   const filteredFormFields = Object.entries(details).reduce((acc, [key, value]) => {
     if (!ignoredKeys.includes(key)) {
       acc[key] = value;
@@ -47,18 +52,18 @@ export const FeedbackSubmissionsTable: React.FC<FeedbackSubmissionsTableProps> =
   }, {} as Record<string, any>);
   const hasExtraFields = Object.keys(filteredFormFields).length > 0;
     const normalizedSubmission = {
-    userInfo: {
-      firstName: submission.user?.firstName || '',
-      lastName: submission.user?.lastName || '',
-      email: submission.user?.email || 'N/A',
-    },
-    submittedAt: submission.createdAt || submission.submittedAt || new Date().toISOString(),
-    itemType: submission.previousItemType || 'FEEDBACK',
-    itemName: submission.previousItem?.name || 'N/A',
-    feedback: submission.details?.Feedback || submission.details || 'No feedback provided',
-    // formFields: submission.details || {}, 
-    formFields:hasExtraFields ? filteredFormFields : {}
-  };
+      userInfo: {
+        firstName: details?.Name || 'Anonymous',
+        lastName: '',
+        email: details?.Email || 'N/A',
+      },
+      submittedAt: submission.createdAt || submission.submittedAt || new Date().toISOString(),
+      itemType: submission.previousItemType || 'FEEDBACK',
+      itemName: submission.previousItem?.name || 'N/A',
+      feedback: submission.details?.Feedback || submission.details || 'No feedback provided',
+      // formFields: submission.details || {}, 
+      formFields:hasExtraFields ? filteredFormFields : {}
+    };
     // setSelectedSubmission(submission);
     setSelectedSubmission(normalizedSubmission)
     setShowSubmissionDialog(true);
@@ -98,6 +103,18 @@ export const FeedbackSubmissionsTable: React.FC<FeedbackSubmissionsTableProps> =
             />
           )}
         </div>
+        <Button
+          onClick={handleDownloadCSV}
+          disabled={isExporting || submissions.length === 0}
+          className="w-full lg:w-auto"
+        >
+          {isExporting ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <Download className="h-4 w-4 mr-2" />
+          )}
+          Download CSV
+        </Button>
       </div>
 
       <Card>
@@ -128,12 +145,12 @@ export const FeedbackSubmissionsTable: React.FC<FeedbackSubmissionsTableProps> =
               ) : (
                 submissions.map((sub: any, index: number) => {
                   const slNo = (currentPage - 1) * limit + index + 1;
-                  const username = `${sub.user?.firstName || ''} ${sub.user?.lastName || ''}`.trim() || 'Anonymous';
+                  const username =`${sub.user?.firstName || ''} ${sub.user?.lastName || ''}`.trim() || 'Anonymous';
                   const email = sub.user?.email || 'N/A';
                   const itemType = sub.previousItemType || 'FEEDBACK';
                   const itemName = sub.previousItem?.name || 'N/A';
                   const FeedbackOnly = sub.details.Feedback || "N/A";
-                
+
                   return (
                     <TableRow key={`submission-${index}`}>
                       <TableCell>{slNo}</TableCell>

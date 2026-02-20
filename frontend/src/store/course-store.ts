@@ -18,6 +18,13 @@ export const useCourseStore = create<CourseState>()(
             : null,
         }));
       },
+      setQuestionId: (questionId) => {
+        set((state) => ({
+          currentCourse: state.currentCourse
+            ? { ...state.currentCourse, questionId }
+            : null,
+        }));
+      },
       clearCurrentCourse: () => set({ currentCourse: null }),
     }),
     {

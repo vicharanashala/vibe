@@ -9,7 +9,7 @@ import type { DashboardSidebarProps } from '@/types/dashboard.types';
 
 export const DashboardSidebar = ({ enrollments, className }: DashboardSidebarProps) => {
   return (
-    <div className={`w-full space-y-6 bg-sidebar p-4 rounded-lg border border-sidebar-border dark:bg-[#d7ab5f18] ${className || ''}`}>
+    <div className={`w-full space-y-6 bg-sidebar p-1 rounded-lg border border-sidebar-border dark:bg-[#d7ab5f18] ${className || ''}`}>
       <TodoList />
 
       {/*

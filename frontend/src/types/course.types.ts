@@ -34,10 +34,14 @@ export interface CourseCardProps {
       description: string;
     };
     enrollmentDate?: string;
+    moduleNumber?: string;
+    sectionNumber?: string;
+    itemType?: string;
+    _id?: string;
   };
   isLoading: boolean;
   index: number;
-  variant?: 'dashboard' | 'courses';
+  variant?: 'dashboard' | 'courses' | 'available';
   className?: string;
   completion?: CoursePctCompletion[];
   setCompletion?: (completion: CoursePctCompletion[]) => void;
@@ -53,6 +57,7 @@ export interface CourseSectionProps {
   onViewAll?: () => void;
   onRetry?: () => void;
   variant?: 'dashboard' | 'courses';
+  cardVariant?: 'dashboard' | 'courses' | 'available';
   skeletonCount?: number;
   emptyStateConfig?: {
     title: string;
@@ -72,12 +77,14 @@ export interface CourseInfo {
   sectionId: string | null;
   itemId: string | null;
   watchItemId: string | null;
+  questionId?: string | null;
 }
 
 export interface CourseState {
   currentCourse: CourseInfo | null;
   setCurrentCourse: (courseInfo: CourseInfo) => void;
   setWatchItemId: (watchItemId: string) => void;
+  setQuestionId: (questionId: string) => void;
   clearCurrentCourse: () => void;
 }
 

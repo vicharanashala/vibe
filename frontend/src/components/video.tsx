@@ -2,8 +2,10 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent } from '@/components/ui/card';
-import { Play, Pause, SkipBack, Volume2, Captions, Loader2, XCircle, Maximize, Minimize } from 'lucide-react';
-import { useSkipOptionalItem, useStartItem, useStopItem } from '../hooks/hooks';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Captions, Loader2, XCircle, Maximize, Minimize, FastForward } from 'lucide-react';
+import { useSkipOptionalItem, useStartItem, useStopItem, useStoreWatchTimeTrack, } from '../hooks/hooks';
+
 
 import { useCourseStore } from '../store/course-store';
 import { usePlayerStore } from '../store/player-store'; // Import the new store
@@ -11,7 +13,16 @@ import type { VideoProps, YTPlayerInstance } from '@/types/video.types';
 
 import { toast } from 'sonner';
 import { Badge } from './ui/badge';
+import { WatchTimeTrackData } from '@/types/user_activity_event.types';
 
+
+// Helper to format seconds to HH:MM:SS
+function formatSecondsToTime(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
 
 // Helper to extract YouTube video ID from URL
 function getYouTubeId(url: string): string | null {
@@ -32,9 +43,12 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-export default function Video({ URL, startTime, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true }: VideoProps) {
+export default function Video({ URL, startTime, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, linearProgressionEnabled, seekForwardEnabled, isCompleted = false }: VideoProps) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
+  const stopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSeekTimeRef = useRef<number>(0);
+  const lastSeekErrorToastRef = useRef<number>(0);
   const [playerReady, setPlayerReady] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -50,6 +64,7 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
   const startItem = useStartItem();
   const stopItem = useStopItem();
   const isStopping = stopItem.isPending;
+  const { mutateAsync: storeWatchTimeTrack } = useStoreWatchTimeTrack();
 
   // Parse start and end times
   const startTimeSeconds = parseTimeToSeconds(startTime || '0');
@@ -75,6 +90,9 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
   // Track if we've already auto-played the video
   const hasAutoPlayedRef = useRef(false)
 
+  // Track maxTime with a ref for synchronous updates (state updates are async)
+  const maxTimeRef = useRef(startTimeSeconds);
+
   // Track grace period completion
   const [gracePeriodCompleted, setGracePeriodCompleted] = useState(false);
 
@@ -82,8 +100,66 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
   const [isFullscreen, setIsFullscreen] = useState(false);
   const videoContainerRef = useRef<HTMLDivElement>(null);
 
+  // Watch time tracking state
+  const [watchTimeTrack, setWatchTimeTrack] = useState<WatchTimeTrackData>({
+    rewinds: 0,
+    fastForwards: 0,
+    videoId: '', // Will be set when currentCourse is available
+    userId: '',
+    courseId: '',
+    versionId: '',
+    rewindData: [],
+    fastForwardData: []
+  });
+  const watchTimeTrackRef = useRef<WatchTimeTrackData>(watchTimeTrack);
+
   const wasPlayingBeforeTabSwitch = useRef(false);
 
+
+  useEffect(() => {
+    watchTimeTrackRef.current = watchTimeTrack;
+  }, [watchTimeTrack]);
+
+  const sendWatchTimeTrackData = async (capturedTrackData?: WatchTimeTrackData) => {
+
+    try {
+
+      // Use captured data if provided, otherwise use current state
+    const dataToSend = capturedTrackData || watchTimeTrackRef.current;
+
+      // Get user ID from current course or localStorage
+      const userId = currentCourse?.userId || localStorage.getItem('userId') || '';
+
+      const trackData: WatchTimeTrackData = {
+        ...dataToSend,
+        userId: userId,
+        courseId: currentCourse?.courseId || '',
+        versionId: currentCourse?.versionId || '',
+        // Don't override videoId - use the tracked one
+      };
+      await storeWatchTimeTrack({ body: trackData });
+
+      // Reset tracking after successful send
+      setWatchTimeTrack({
+        rewinds: 0,
+        fastForwards: 0,
+        videoId: currentCourse?.itemId || '', // Use course itemId instead of YouTube video ID
+        userId: '',
+        courseId: '',
+        versionId: '',
+        rewindData: [],
+        fastForwardData: []
+      });
+
+    } catch (error) {
+      console.error(' [DEBUG] Failed to send watch time track data:', error);
+    }
+  };
+
+  // Track previous time for seek detection
+  const previousTimeRef = useRef(0);
+  const seekDetectionRef = useRef(false);
+  const captureInProgressRef = useRef(false);
 
   // HANDLE STOP FAILED CASE, SHOW SKIP OPTION IF FAILED
   const [isStopFailed, setIsStopFailed] = useState(false);
@@ -175,7 +251,19 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
   // Reset when video changes
   useEffect(() => {
     setGracePeriodCompleted(false);
-  }, [videoId]);
+    hasAutoPlayedRef.current = false; // Reset autoplay flag for new video
+    maxTimeRef.current = startTimeSeconds; // Reset maxTime ref
+
+    // Update watchTimeTrack with course info when video changes
+    if (currentCourse?.itemId) {
+      setWatchTimeTrack(prev => ({
+        ...prev,
+        videoId: currentCourse.itemId || '',
+        courseId: currentCourse.courseId || '',
+        versionId: currentCourse.versionId || '',
+      }));
+    }
+  }, [videoId, startTimeSeconds, currentCourse?.itemId, currentCourse?.courseId, currentCourse?.versionId]);
 
   // // Ensure video doesn't autoplay accidentally
   // useEffect(() => {
@@ -187,8 +275,8 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
   // }, [playerReady]);
 
   useEffect(() => {
-    playerRef.current?.setPlaybackRate(playbackRate);
-  }, [playbackRate, playerRef, videoId, iframeRef, playerReady, currentTime]);
+    playerRef.current?.setPlaybackRate?.(playbackRate);
+  }, [playbackRate]);
 
   // Control handlers
   const handlePlayPause = useCallback(() => {
@@ -204,10 +292,116 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
 
   const handleBackward = () => {
     const player = playerRef.current;
-    if (!player) return;
+    if (!player) {
+      return;
+    }
+    const previousTime = currentTime;
     const newTime = Math.max(startTimeSeconds, currentTime - 10);
     player.seekTo(newTime, true);
+
+    // Track the rewind
+    setWatchTimeTrack(prev => {
+      const newTrack = {
+        ...prev,
+        rewinds: prev.rewinds + 1,
+        rewindData: [...prev.rewindData, {
+          from: formatSecondsToTime(previousTime),
+          to: formatSecondsToTime(newTime),
+          createdAt: new Date().toISOString()
+        }]
+      };
+      return newTrack;
+    });
   };
+
+  const handleForward = () => {
+    const player = playerRef.current;
+    if (!player) {
+      return;
+    }
+    // Allow forward seek if either the video is completed OR seek forward is enabled in settings
+    if (!seekForwardEnabled) {
+      return;
+    }
+
+    const previousTime = currentTime;
+    const maxSeekTime = endTimeSeconds > 0 ? endTimeSeconds : duration;
+    const newTime = Math.min(maxSeekTime, currentTime + 10);
+    player.seekTo(newTime, true);
+
+    // Track the fast forward
+    setWatchTimeTrack(prev => {
+      const newTrack = {
+        ...prev,
+        fastForwards: prev.fastForwards + 1,
+        fastForwardData: [...prev.fastForwardData, {
+          from: formatSecondsToTime(previousTime),
+          to: formatSecondsToTime(newTime),
+          createdAt: new Date().toISOString()
+        }]
+      };
+      return newTrack;
+    });
+  };
+
+  //  function to handle stop with debouncing
+const handleStopItem = useCallback(async (watchItemId: string, debounceMs: number = 0): Promise<boolean> => {
+  // Clear any pending stop request
+  if (stopTimeoutRef.current) {
+    clearTimeout(stopTimeoutRef.current);
+    stopTimeoutRef.current = null;
+  }
+
+  // Prevent duplicate concurrent requests
+  if (stopInFlightRef.current) {
+    console.log('Stop request already in flight, skipping');
+    return false;
+  }
+
+  return new Promise((resolve) => {
+    const executeStop = async () => {
+      stopInFlightRef.current = true;
+
+      try {
+        await stopItem.mutateAsync({
+          params: {
+            path: {
+              courseId: currentCourse!.courseId,
+              courseVersionId: currentCourse!.versionId ?? '',
+            },
+          },
+          body: {
+            watchItemId,
+            itemId: currentCourse!.itemId ?? '',
+            moduleId: currentCourse!.moduleId ?? '',
+            sectionId: currentCourse!.sectionId ?? '',
+            seekForwardEnabled, 
+          },
+        });
+
+        progressStoppedRef.current = true;
+        resolve(true);
+        
+      } catch (err: any) {
+        console.error('Stop item failed:', err);
+        progressStoppedRef.current = true; // Prevent infinite retries
+        toast.warning('Unable to save progress.');
+        setIsStopFailed(true);
+        resolve(false);
+        
+      } finally {
+        stopInFlightRef.current = false;
+        stopTimeoutRef.current = null;
+      }
+    };
+
+    if (debounceMs > 0) {
+      stopTimeoutRef.current = setTimeout(executeStop, debounceMs);
+    } else {
+      executeStop();
+    }
+  });
+}, [currentCourse, stopItem]);
 
   // Pause/resume video based on doGesture
   useEffect(() => {
@@ -412,7 +606,6 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
     function createPlayer() {
       if (!iframeRef.current || !videoId) return;
 
-
       playerRef.current = new window.YT!.Player(iframeRef.current, {
         videoId,
         playerVars: {
@@ -465,41 +658,15 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
                 forceHighestQuality(event.target);
               }, 500);
             } else if (window.YT && event.data === window.YT.PlayerState.ENDED) {
-              // Video naturally ended (when no endTimeSeconds constraint)
               setPlaying(false);
               if (!progressStoppedRef.current && watchItemIdRef.current && currentCourse) {
                 const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
                 if (watchItemId) {
-                  stopInFlightRef.current = true;
-                  try {
-                    await stopItem.mutateAsync({
-                      params: {
-                        path: {
-                          courseId: currentCourse.courseId,
-                          courseVersionId: currentCourse.versionId ?? '',
-                        },
-                      },
-                      body: {
-                        watchItemId,
-                        itemId: currentCourse.itemId ?? '',
-                        moduleId: currentCourse.moduleId ?? '',
-                        sectionId: currentCourse.sectionId ?? '',
-                      },
-                    });
-
-                    progressStoppedRef.current = true;
+                  const success = await handleStopItem(watchItemId, 0); // No debounce on natural end
+                  if (success) {
                     onNext?.();
-                  } catch (err) {
-                    progressStoppedRef.current = true; // Prevent infinite retries
-                    toast.warning('Unable to stop video, try again!');
-                    console.error('Stop item failed:', err);
-                    setIsStopFailed(true);
-                    return;
-                  } finally {
-                    stopInFlightRef.current = false;
                   }
                 }
-
               }
             } else {
               setPlaying(false);
@@ -519,31 +686,39 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
 
     // Cleanup when component unmounts or URL changes
     return () => {
+// Clear any pending stop timeout
+  if (stopTimeoutRef.current) {
+    clearTimeout(stopTimeoutRef.current);
+    stopTimeoutRef.current = null;
+  }
 
-
-      // Stop if started but not yet stopped
-      if (!progressStoppedRef.current && !stopInFlightRef.current && watchItemIdRef.current && currentCourse) {
-        stopInFlightRef.current = true
-        stopItem.mutate({
-          params: {
-            path: {
-              courseId: currentCourse.courseId,
-              courseVersionId: currentCourse.versionId ?? '',
-            },
-          },
-          body: {
-            watchItemId: watchItemIdRef.current,
-            itemId: currentCourse.itemId ?? '',
-            moduleId: currentCourse.moduleId ?? '',
-            sectionId: currentCourse.sectionId ?? '',
-          },
-        });
-      }
+    // Stop if started but not yet stopped (immediate on unmount, no debounce)
+  if (!progressStoppedRef.current && !stopInFlightRef.current && watchItemIdRef.current && currentCourse) {
+    stopInFlightRef.current = true;
+    stopItem.mutate({
+      params: {
+        path: {
+          courseId: currentCourse.courseId,
+          courseVersionId: currentCourse.versionId ?? '',
+        },
+      },
+      body: {
+        watchItemId: watchItemIdRef.current,
+        itemId: currentCourse.itemId ?? '',
+        moduleId: currentCourse.moduleId ?? '',
+        sectionId: currentCourse.sectionId ?? '',
+        seekForwardEnabled,
+      },
+    });
+  }
       // Reset references
       progressStartedRef.current = false;
       progressStoppedRef.current = false;
       stopInFlightRef.current = false;
       watchItemIdRef.current = null;
+
+      // Reset player ready state when video changes
+      setPlayerReady(false);
 
       // Destroy player
       if (playerRef.current) {
@@ -608,43 +783,28 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
           if (time < startTimeSeconds) {
             if (!player) return;
             player.seekTo(startTimeSeconds, true);
-            setMaxTime(startTimeSeconds);
             return;
           }
 
           // Enforce endTime constraint
           if (endTimeSeconds > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= endTimeSeconds - 1 && currentCourse) {
-            const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
-            stopInFlightRef.current = true;
-            if (watchItemId) {
-              // Pause video immediately
-              player?.pauseVideo();
-              try {
-                await stopItem.mutateAsync({
-                  params: {
-                    path: {
-                      courseId: currentCourse.courseId,
-                      courseVersionId: currentCourse.versionId ?? '',
-                    },
-                  },
-                  body: {
-                    watchItemId,
-                    itemId: currentCourse.itemId ?? '',
-                    moduleId: currentCourse.moduleId ?? '',
-                    sectionId: currentCourse.sectionId ?? '',
-                  },
-                });
+             const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
 
-                progressStoppedRef.current = true;
+            if (watchItemId) {
+              player?.pauseVideo();
+
+              // Check if user recently seeked (within last 3 seconds)
+              const timeSinceLastSeek = Date.now() - lastSeekTimeRef.current;
+              const debounceTime = timeSinceLastSeek < 3000 ? 2000 : 0;
+
+              // CAPTURE tracking data BEFORE calling handleStopItem
+              captureInProgressRef.current = true;
+              const capturedTrackData = { ...watchTimeTrackRef.current };
+
+              const success = await handleStopItem(watchItemId, debounceTime);
+              if (success) {
+                await sendWatchTimeTrackData(capturedTrackData);
                 onNext?.();
-              } catch (err) {
-                progressStoppedRef.current = true; // Prevent infinite retries
-                toast.warning('Unable to stop video, try again!');
-                console.error('Stop item failed:', err);
-                setIsStopFailed(true);
-                return;
-              } finally {
-                stopInFlightRef.current = false;
               }
             }
           }
@@ -653,44 +813,26 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
           if (endTimeSeconds === 0 && duration > 0 && !progressStoppedRef.current && !stopInFlightRef.current && time >= duration - 2 && currentCourse) {
             const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
             if (watchItemId) {
-              // Pause video immediately when stop is triggered
               player?.pauseVideo();
-              stopInFlightRef.current = true;
-              try {
-                await stopItem.mutateAsync({
-                  params: {
-                    path: {
-                      courseId: currentCourse.courseId,
-                      courseVersionId: currentCourse.versionId ?? '',
-                    },
-                  },
-                  body: {
-                    watchItemId,
-                    itemId: currentCourse.itemId ?? '',
-                    moduleId: currentCourse.moduleId ?? '',
-                    sectionId: currentCourse.sectionId ?? '',
-                  },
-                });
-                progressStoppedRef.current = true;
 
+              // Check if user recently seeked
+              const timeSinceLastSeek = Date.now() - lastSeekTimeRef.current;
+              const debounceTime = timeSinceLastSeek < 3000 ? 2000 : 0;
+
+              // CAPTURE tracking data BEFORE calling handleStopItem
+              const capturedTrackData = { ...watchTimeTrackRef.current };
+
+              const success = await handleStopItem(watchItemId, debounceTime);
+              if (success) {
+                await sendWatchTimeTrackData(capturedTrackData);
                 onNext?.();
-              } catch (err) {
-                progressStoppedRef.current = true; // Prevent infinite retries
-                toast.error('Unable to stop video, try again!');
-                console.error('Stop item failed:', err);
-                setIsStopFailed(true);
-                return;
-              } finally {
-                stopInFlightRef.current = false
               }
             }
-
           }
           if (endTimeSeconds > 0 && time >= endTimeSeconds) {
             player.pauseVideo();
             if (!player) return;
             player.seekTo(endTimeSeconds, true);
-            setMaxTime(endTimeSeconds);
             if (!videoEnded) {
               setVideoEnded(true);
             }
@@ -698,20 +840,27 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
           }
 
           // Prevent forward seeking beyond what they've already watched
+          // BUT allow forward seeking if either the video is completed OR seek forward is enabled in settings
           const speedTolerance = playbackRate * 1.0;
-          const timeDifference = time - maxTime;
+          const currentMaxTime = maxTimeRef.current; // Use ref for synchronous value
+          const timeDifference = time - currentMaxTime;
 
-          if (timeDifference > speedTolerance + 1.0 && time <= endTimeSeconds) {
+          // Determine the effective end time (use duration if no end time is set)
+          const effectiveEndTime = endTimeSeconds > 0 ? endTimeSeconds : duration;
+
+          if (timeDifference > speedTolerance + 1.0 && time <= effectiveEndTime && !seekForwardEnabled) {
             if (!player) return;
-            player.seekTo(maxTime, true);
-          } else if (time >= startTimeSeconds && time <= endTimeSeconds) {
-            setMaxTime(Math.max(maxTime, time));
+            player.seekTo(currentMaxTime, true);
+          } else if (time >= startTimeSeconds && (endTimeSeconds === 0 || time <= endTimeSeconds)) {
+            const newMaxTime = Math.max(currentMaxTime, time);
+            maxTimeRef.current = newMaxTime; // Update ref immediately
+            setMaxTime(newMaxTime); // Update state for UI
           }
         }
       }, Math.max(200, 500 / playbackRate));
     }
     return () => clearInterval(interval);
-  }, [playerReady, maxTime, playbackRate, startTimeSeconds, endTimeSeconds, videoEnded]);
+  }, [playerReady, playbackRate, startTimeSeconds, endTimeSeconds, videoEnded]);
 
   useEffect(() => {
     if (!keyboardLockEnabled) return;
@@ -1376,18 +1525,70 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Progress Bar - Visual indicator only, no seeking */}
+          {/* Progress Bar - Seeking controlled by seekForwardEnabled */}
           <div style={{ marginBottom: 8 }}>
             <Slider
               value={[currentTime]}
               min={startTimeSeconds}
               max={endTimeSeconds > 0 ? endTimeSeconds : duration}
               step={0.1}
-              onValueChange={() => {
-                // Disabled - no seeking allowed
+              onValueChange={(value) => {
+                const newTime = value[0];
+                const currentTimeStr = formatSecondsToTime(currentTime);
+                const newTimeStr = formatSecondsToTime(newTime);
+
+                // Record seek time 
+                lastSeekTimeRef.current = Date.now();
+
+                // Track seek as rewind or fast forward
+                if (newTime < currentTime) {
+                  setWatchTimeTrack(prev => ({
+                    ...prev,
+                    rewinds: prev.rewinds + 1,
+                    rewindData: [...prev.rewindData, {
+                      from: currentTimeStr,
+                      to: newTimeStr,
+                      createdAt: new Date().toISOString()
+                    }]
+                  }));
+                } else if (newTime > currentTime) {
+                  // Fast forward
+                  setWatchTimeTrack(prev => ({
+                    ...prev,
+                    fastForwards: prev.fastForwards + 1,
+                    fastForwardData: [...prev.fastForwardData, {
+                      from: currentTimeStr,
+                      to: newTimeStr,
+                      createdAt: new Date().toISOString()
+                    }]
+                  }));
+                }
+
+                // If seekForward is disabled and user tries to seek forward
+                if (!seekForwardEnabled && newTime > currentTime) {
+                  // Throttle toast to prevent spam (max once every 2 seconds)
+                  const now = Date.now();
+                  if (now - lastSeekErrorToastRef.current > 2000) {
+                    toast.error('You are not allowed to seek forward');
+                    lastSeekErrorToastRef.current = now;
+                  }
+                  return;
+                }
+
+                // Allow seeking (backward always, forward only if enabled)
+                if (playerRef.current && typeof playerRef.current.seekTo === 'function') {
+                  playerRef.current.seekTo(newTime, true);
+                } else {
+                  console.log('⚠️ [DEBUG] Player not ready or seekTo not available');
+                }
+
+                // Cancel any pending stop request when user is actively seeking
+                if (stopTimeoutRef.current) {
+                  clearTimeout(stopTimeoutRef.current);
+                  stopTimeoutRef.current = null;
+                }
               }}
-              className="w-full pointer-events-none"
-              disabled
+              className="w-full"
             />
           </div>
 
@@ -1427,6 +1628,23 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
                 <SkipBack className="h-3 w-3 scale-130" />
               </Button>
 
+              {/* Forward seek button - shown when seekForwardEnabled is true */}
+              {seekForwardEnabled && (
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleForward();
+                  }}
+                  size="icon"
+                  variant="secondary"
+                  className="rounded-full w-11 h-11 flex-shrink-0"
+                  aria-label="Forward 10 seconds"
+                  title="Forward 10 seconds"
+                >
+                  <SkipForward className="h-3 w-3 scale-130" />
+                </Button>
+              )}
+
               <span style={{
                 color: 'hsl(var(--foreground))',
                 fontFamily: 'var(--font-sans)',
@@ -1444,98 +1662,115 @@ export default function Video({ URL, startTime, endTime, points, anomalies, read
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
 
-              {/* Subtitles */}
-              <Button
-                onClick={handleToggleSubtitles}
-                variant="ghost"
-                size="icon"
-                className={`rounded-sm relative group transition-colors duration-200 ${subtitlesEnabled
-                  ? "text-black dark:text-white"
-                  : "text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
-                  }`}
-              >
-                <span className="scale-[1.4] flex items-center justify-center">
-                  <Captions className="h-6 w-6" strokeWidth={2.5} />
-                </span>
+              <TooltipProvider>
+                {/* Subtitles */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      onClick={handleToggleSubtitles}
+                      variant="ghost"
+                      size="icon"
+                      className={`rounded-sm relative group transition-colors duration-200 ${subtitlesEnabled
+                        ? "text-black dark:text-white"
+                        : "text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
+                        }`}
+                    >
+                      <span className="scale-[1.4] flex items-center justify-center">
+                        <Captions className="h-6 w-6" strokeWidth={2.5} />
+                      </span>
 
-                {subtitlesEnabled && (
-                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-[2px] bg-red-500 rounded-full"></span>
-                )}
-              </Button>
+                      {subtitlesEnabled && (
+                        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-[2px] bg-red-500 rounded-full"></span>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Toggle Subtitles</p>
+                  </TooltipContent>
+                </Tooltip>
 
-              {/* Fullscreen Toggle */}
-              <Button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleFullscreen();
-                }}
-                variant="ghost"
-                size="icon"
-                className="rounded-sm relative group transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
-                aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-              >
-                <span className="scale-[1.4] flex items-center justify-center">
-                  {isFullscreen ? (
-                    <Minimize className="h-6 w-6" strokeWidth={2.5} />
-                  ) : (
-                    <Maximize className="h-6 w-6" strokeWidth={2.5} />
-                  )}
-                </span>
-              </Button>
-
-              {/* Speed Control */}
-              <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
-                <span className="text-md font-bold text-foreground min-w-[24px]">
-                  Speed
-                </span>
-                <Slider
-                  value={[playbackRate]}
-                  min={0.25}
-                  max={2}
-                  step={0.05}
-                  onValueChange={(value) => {
-                    const rate = value[0];
-                    const player = playerRef.current;
-                    if (player && typeof player.getAvailablePlaybackRates === 'function') {
-                      const availableRates = player.getAvailablePlaybackRates!();
-                      let closest = availableRates[0];
-                      for (const r of availableRates) {
-                        if (Math.abs(r - rate) < Math.abs(closest - rate)) closest = r;
+                {/* Speed Control */}
+                <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
+                  <span className="hidden md:block text-md font-bold text-foreground min-w-[24px]">
+                    Speed
+                  </span>
+                  <FastForward className="flex md:hidden h-3 w-3 text-accent flex-shrink-0 scale-160"/>
+                  <Slider
+                    value={[playbackRate]}
+                    min={0.25}
+                    max={2}
+                    step={0.05}
+                    onValueChange={(value) => {
+                      const rate = value[0];
+                      const player = playerRef.current;
+                      if (player && typeof player.getAvailablePlaybackRates === 'function') {
+                        const availableRates = player.getAvailablePlaybackRates!();
+                        let closest = availableRates[0];
+                        for (const r of availableRates) {
+                          if (Math.abs(r - rate) < Math.abs(closest - rate)) closest = r;
+                        }
+                        player.setPlaybackRate(closest);
+                        // Update both local state and global store
+                        setPlaybackRate(closest);
+                      } else {
+                        playerRef.current?.setPlaybackRate(rate);
+                        // Update both local state and global store
+                        setPlaybackRate(rate);
                       }
-                      player.setPlaybackRate(closest);
-                      // Update both local state and global store
-                      setPlaybackRate(closest);
-                    } else {
-                      playerRef.current?.setPlaybackRate(rate);
-                      // Update both local state and global store
-                      setPlaybackRate(rate);
-                    }
-                  }}
-                  className="w-[80px]"
-                />
-                <span className="text-md font-semibold text-primary min-w-[24px] text-center">
-                  {playbackRate.toFixed(2)}x
-                </span>
-              </Card>
+                    }}
+                    className="w-[80px]"
+                  />
+                  <span className="text-md font-semibold text-primary min-w-[24px] text-center">
+                    {playbackRate.toFixed(2)}x
+                  </span>
+                </Card>
 
-              {/* Volume Control */}
-              <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
-                <Volume2 className="h-3 w-3 text-accent flex-shrink-0 scale-160" />
-                <Slider
-                  value={[volume]}
-                  min={0}
-                  max={100}
-                  onValueChange={(value) => {
-                    const v = value[0];
-                    setVolume(v);
-                    playerRef.current?.setVolume(v);
-                  }}
-                  className="w-[80px]"
-                />
-                <span className="text-md font-bold text-foreground min-w-[24px] text-center">
-                  {Math.round(volume)}%
-                </span>
-              </Card>
+                {/* Volume Control */}
+                <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
+                  <Volume2 className="h-3 w-3 text-accent flex-shrink-0 scale-160" />
+                  <Slider
+                    value={[volume]}
+                    min={0}
+                    max={100}
+                    onValueChange={(value) => {
+                      const v = value[0];
+                      setVolume(v);
+                      playerRef.current?.setVolume(v);
+                    }}
+                    className="w-[80px]"
+                  />
+                  <span className="text-md font-bold text-foreground min-w-[24px] text-center">
+                    {Math.round(volume)}%
+                  </span>
+                </Card>
+
+                {/* Fullscreen Toggle */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFullscreen();
+                      }}
+                      variant="ghost"
+                      size="icon"
+                      className="rounded-sm relative group transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
+                      aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+                    >
+                      <span className="scale-[1.4] flex items-center justify-center">
+                        {isFullscreen ? (
+                          <Minimize className="h-6 w-6" strokeWidth={2.5} />
+                        ) : (
+                          <Maximize className="h-6 w-6" strokeWidth={2.5} />
+                        )}
+                      </span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
 
