@@ -16,6 +16,7 @@ import AISectionPage from "@/app/pages/teacher/AISectionPage";
 import AnomaliesList from "../pages/teacher/AnomaliesList";
 import RegisteredUsers from "../pages/teacher/CourseRegistrationRequests";
 import FeedbackFormEditor from "../pages/teacher/FeedbackFormEditor";
+import TeacherAnnouncements from "../pages/teacher/announcements";
 
 const teacherRoutes: RouteObject = {
   path: "/teacher",
@@ -37,7 +38,7 @@ const teacherRoutes: RouteObject = {
     //   path: "courses/create",
     //   element: <CreateCourse />,
     // },
-    
+
     {
       path: "courses/articles/create",
       element: <Editor />,
@@ -50,7 +51,7 @@ const teacherRoutes: RouteObject = {
       path: "courses/enrollments",
       element: <CourseEnrollments />,
     },
-     {
+    {
       path: "courses/flags",
       element: <FlaggedList />,
     },
@@ -85,12 +86,15 @@ const teacherRoutes: RouteObject = {
     {
       path: "ai-section",
       element: <AISectionPage />, // Page for generating sections using AI
-    },{
-      path:"requests",
+    }, {
+      path: "requests",
       element: <RegisteredUsers />
-    },{
-      path:"editor/feedback",
-      element:<FeedbackFormEditor/>
+    }, {
+      path: "editor/feedback",
+      element: <FeedbackFormEditor />
+    }, {
+      path: "announcements",
+      element: <TeacherAnnouncements />
     }
   ],
 };
