@@ -104,11 +104,15 @@ export class AnnouncementController {
     async updateAnnouncement(
         @Params() params: AnnouncementIdParams,
         @Body() body: UpdateAnnouncementBody,
-        @Ability(getAnnouncementAbility) { ability },
+        @Ability(getAnnouncementAbility) { ability, user },
     ) {
         const existing = await this.announcementService.getAnnouncementById(
             params.announcementId,
         );
+
+        if (existing.instructorId?.toString() !== user._id.toString()) {
+            throw new ForbiddenError('You can only modify your own announcements');
+        }
 
         // Check permission
         if (existing.type === AnnouncementType.GENERAL) {
@@ -148,11 +152,15 @@ export class AnnouncementController {
     })
     async toggleHideAnnouncement(
         @Params() params: AnnouncementIdParams,
-        @Ability(getAnnouncementAbility) { ability },
+        @Ability(getAnnouncementAbility) { ability, user },
     ) {
         const existing = await this.announcementService.getAnnouncementById(
             params.announcementId,
         );
+
+        if (existing.instructorId?.toString() !== user._id.toString()) {
+            throw new ForbiddenError('You can only modify your own announcements');
+        }
 
         if (existing.type === AnnouncementType.GENERAL) {
             if (!ability.can(AnnouncementActions.Update, 'Announcement')) {
@@ -195,11 +203,15 @@ export class AnnouncementController {
     })
     async deleteAnnouncement(
         @Params() params: AnnouncementIdParams,
-        @Ability(getAnnouncementAbility) { ability },
+        @Ability(getAnnouncementAbility) { ability, user },
     ) {
         const existing = await this.announcementService.getAnnouncementById(
             params.announcementId,
         );
+
+        if (existing.instructorId?.toString() !== user._id.toString()) {
+            throw new ForbiddenError('You can only delete your own announcements');
+        }
 
         if (existing.type === AnnouncementType.GENERAL) {
             if (!ability.can(AnnouncementActions.Delete, 'Announcement')) {
@@ -235,7 +247,7 @@ export class AnnouncementController {
     })
     async getAnnouncementsForInstructor(
         @QueryParams() query: AnnouncementQueryParams,
-        @Ability(getAnnouncementAbility) { ability },
+        @Ability(getAnnouncementAbility) { ability, user },
     ) {
         if (!ability.can(AnnouncementActions.Create, 'Announcement')) {
             throw new ForbiddenError(
@@ -246,7 +258,7 @@ export class AnnouncementController {
         const { page, limit, type, courseId, courseVersionId } = query;
 
         const result = await this.announcementService.getAnnouncementsForInstructor(
-            { type, courseId, courseVersionId },
+            { type, courseId, courseVersionId, instructorId: user._id.toString() },
             page,
             limit,
         );
