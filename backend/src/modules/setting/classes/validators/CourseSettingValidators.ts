@@ -25,6 +25,7 @@ import {
   IDetectorSettings,
   ISettings,
   IUserSetting,
+  ITimeSlot,
 } from '#shared/interfaces/models.js';
 import { JSONSchema } from 'class-validator-jsonschema';
 import { ProctoringComponent } from '#root/shared/database/interfaces/ISettingRepository.js';
@@ -75,6 +76,21 @@ export class RegistrationSchema {
     type: 'object',
   })
   uiSchema?: any;
+}
+
+export class TimeSlotSchema {
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Indicates whether time slots are active',
+  })
+  isActive: boolean;
+
+  @IsArray()
+  @JSONSchema({
+    description: 'Array of time slots',
+    type: 'array',
+  })
+  slots: ITimeSlot[];
 }
 
 export class AuditingChangeDto {
@@ -151,6 +167,15 @@ export class SettingsDto {
     type: 'object',
   })
   registration?: RegistrationSchema;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => TimeSlotSchema)
+  @JSONSchema({
+    description: 'Time slot configuration',
+    type: 'object',
+  })
+  timeslots?: TimeSlotSchema;
 
   @IsOptional()
   @ValidateNested({ each: true })

@@ -78,37 +78,45 @@ export function EnrollmentDetailsDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      {isLoading ? <Skeleton /> : <>
-        <DialogTrigger asChild>
-          <Button variant="outline" className="w-full sm:w-auto">View Details</Button>
-        </DialogTrigger>
-
-        <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 max-h-full flex flex-col">
-          <DialogHeader className="mb-3 text-left">
-            <DialogTitle>Course Details</DialogTitle>
-          </DialogHeader>
-
-          <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[700px] overflow-y-auto">
-            <div className="space-y-6 py-2">
-              {/* Course Information */}
-              <div>
-                <div className="grid grid-cols-2 gap-4 mt-2">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-muted-foreground">Course Name</p>
-                    <p>{enroll1?.course?.name || 'N/A'}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-muted-foreground">Version</p>
-                    <p>{enroll1?.course?.versionDetails?.[0]?.version || versionDetails?.version || 'N/A'}</p>
-                  </div>
-                  <div className="space-y-1 col-span-2">
-                    <p className="text-sm font-medium text-muted-foreground">Description</p>
-                    <p className="text-sm">{enroll1?.course?.description || 'No description available'}</p>
-                  </div>
-                  <div className="space-y-1 col-span-2">
-                    <p className="text-sm font-medium text-muted-foreground">Version Description</p>
-                    <p className="text-sm">{enroll1?.course?.versionDetails?.[0]?.description || versionDetails?.description || 'No version description available'}</p>
-                  </div>
+        {isLoading ?<Skeleton/>:<>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="w-full sm:w-auto">View Details</Button>
+      </DialogTrigger>
+      
+      <DialogContent className="w-full max-[425px]:w-[95vw] max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 max-h-full flex flex-col">
+        <DialogHeader className="mb-3 text-left">
+          <DialogTitle>Course Details</DialogTitle>
+        </DialogHeader>
+        
+        <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[700px] overflow-y-auto">
+          <div className="space-y-6 py-2">
+            {/* Course Information */}
+            <div>
+              <div className="grid grid-cols-2 gap-4 mt-2">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Course Name</p>
+                  <p>{enroll1?.course?.name || 'N/A'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Version</p>
+                  <p>{enroll1?.course?.versionDetails?.[0]?.version || 'N/A'}</p>
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <p className="text-sm font-medium text-muted-foreground">Assigned Timeslot</p>
+                  <p className="text-sm">
+                    {enroll1?.assignedTimeSlot 
+                      ? `${enroll1.assignedTimeSlot.from} - ${enroll1.assignedTimeSlot.to} (IST)`
+                      : 'You can access course anytime'
+                    }
+                  </p>
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <p className="text-sm font-medium text-muted-foreground">Description</p>
+                  <p className="text-sm">{enroll1?.course?.description || 'No description available'}</p>
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <p className="text-sm font-medium text-muted-foreground">Version Description</p>
+                  <p className="text-sm">{enroll1?.course?.versionDetails?.[0]?.description || 'No version description available'}</p>
                 </div>
               </div>
 
