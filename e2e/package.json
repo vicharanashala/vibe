@@ -1,0 +1,17 @@
+{
+  "name": "vibe-e2e",
+  "private": true,
+  "scripts": {
+    "test-e2e": "playwright test",
+    "lint": "eslint \"tests/**/*.ts\"",
+    "format": "prettier --write \"**/*.{ts,js,json,md}\""
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@typescript-eslint/eslint-plugin": "^8.54.0",
+    "@typescript-eslint/parser": "^8.54.0",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.8.1"
+  }
+}

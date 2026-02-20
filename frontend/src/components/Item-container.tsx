@@ -15,7 +15,7 @@ export interface ISubmitFeedbackBody {
   courseVersionId: string;
   // isSkipped?: boolean;
 }
-const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, doGesture, onNext, onPrevVideo, isProgressUpdating, readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson, keyboardLockEnabled, setIsQuizSkipped, linearProgressionEnabled, seekForwardEnabled, courseId, versionId }, ref) => {
+const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, nextItem, doGesture, onNext, onPrevVideo, isProgressUpdating, isNavigatingToPrev, readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson, keyboardLockEnabled, setIsQuizSkipped, linearProgressionEnabled, seekForwardEnabled, courseId, versionId, completedItemIdsRef }, ref) => {
   const articleRef = useRef<ArticleRef>(null);
   const quizRef = useRef<QuizRef>(null);
 
@@ -62,6 +62,9 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           linearProgressionEnabled={linearProgressionEnabled}
           seekForwardEnabled={seekForwardEnabled}
           isCompleted={item.isCompleted || false}
+          isAlreadyWatched = {item.isAlreadyWatched || false}
+          completedItemIdsRef={completedItemIdsRef}
+          nextItemId={nextItem?.itemId?.toString()}
         />;
 
       case 'quiz':
@@ -86,6 +89,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           onNext={onNext}
           onPrevVideo={onPrevVideo}
           isProgressUpdating={isProgressUpdating}
+          isNavigatingToPrev={isNavigatingToPrev}
           attemptId={attemptId}
           setAttemptId={setAttemptId}
           displayNextLesson={displayNextLesson}
@@ -93,6 +97,9 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           rewindVid={rewindVid}
           setIsQuizSkipped={setIsQuizSkipped}
           linearProgressionEnabled={linearProgressionEnabled}
+          isAlreadyWatched={item.isAlreadyWatched || false}
+          completedItemIdsRef={completedItemIdsRef}
+          nextItemId={nextItem?.itemId?.toString()}
         />;
 
       case 'article':
@@ -105,6 +112,8 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           points={item.details?.points || ''}
           onNext={onNext}
           isProgressUpdating={isProgressUpdating}
+          isAlreadyWatched={item.isAlreadyWatched || false}
+          completedItemIdsRef={completedItemIdsRef}
         />;
 
       case 'project':
@@ -131,6 +140,8 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           onSubmit={handleFeedbackSubmit}
           isSubmitting={isProgressUpdating}
           onNext={onNext}
+          isAlreadyWatched={item.isAlreadyWatched || false}
+          completedItemIdsRef={completedItemIdsRef}
         />
 
       default:

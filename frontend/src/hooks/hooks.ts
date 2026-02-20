@@ -31,6 +31,7 @@ import { ISubmitFeedbackBody } from '@/components/Item-container';
 import { TranscriptResponse } from '@/types/ai.types';
 import { VideoOverallAnalytics, VideoUserAnalytics, VideoUserAnalyticsResponse } from '@/app/pages/teacher/teacher-course-page';
 import { WatchTimeTrackData } from '@/types/user_activity_event.types';
+import { start } from 'repl';
 
 // Add missing ObjectId type
 type ObjectId = string;
@@ -694,6 +695,10 @@ export function useCreateCourseVersion(): {
   };
 }
 
+// Get Audit details for a course version:
+
+
+
 // GET /courses/versions/{id}
 export function useCourseVersionById(id: string, enabled?: boolean): {
   data: components['schemas']['CourseVersionDataResponse'] | undefined,
@@ -924,6 +929,46 @@ export function useMoveSection(): {
 }
 
 // Item hooks
+
+
+export function useCourseVersionAuditDetails(
+  courseId: string,
+  versionId: string,
+  page: number,
+  limit: number,
+  startDate?: string,
+  endDate?: string
+): {
+  data: any;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = api.useQuery(
+    "get",
+    "/audit-trails/course/{courseId}/version/{versionId}" as any,
+    {
+      params: {
+        path: { courseId, versionId },
+        query: { page, limit, startDate, endDate },
+      },
+    },
+    {
+      enabled: !!courseId && !!versionId,
+      keepPreviousData: true, // 🔥 Important for pagination UX
+    }
+  );
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error
+      ? result.error.message || "Failed to fetch audit details"
+      : null,
+    refetch: result.refetch,
+  };
+}
+
 
 // GET /courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items
 export function useItemsBySectionId(versionId: string, moduleId: string, sectionId: string): {
@@ -4399,6 +4444,190 @@ export function useMarkNotificationAsRead(): {
 export const useBulkUnenrollUsers = () => {
   return api.useMutation('post', '/users/enrollments/courses/{courseId}/versions/{versionId}/bulk-unenroll');
 };
+
+// Time Slots hooks
+
+// POST /timeslots/add
+export function useAddTimeSlots(): {
+  mutate: (variables: { body: { courseId: string; courseVersionId: string; timeSlots: Array<{ from: string; to: string; studentIds: string[] }> } }) => void,
+  mutateAsync: (variables: { body: { courseId: string; courseVersionId: string; timeSlots: Array<{ from: string; to: string; studentIds: string[] }> } }) => Promise<{ success: boolean; message?: string }>,
+  data: { success: boolean; message?: string } | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/timeslots/add");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to add time slots') : null
+  };
+}
+
+// POST /timeslots/remove
+export function useRemoveTimeSlots(): {
+  mutate: (variables: { body: { courseId: string; courseVersionId: string; timeSlotsToRemove: Array<{ from: string; to: string }> } }) => void,
+  mutateAsync: (variables: { body: { courseId: string; courseVersionId: string; timeSlotsToRemove: Array<{ from: string; to: string }> } }) => Promise<{ success: boolean; message?: string }>,
+  data: { success: boolean; message?: string } | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/timeslots/remove");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to remove time slots') : null
+  };
+}
+
+// PUT /timeslots/update
+export function useUpdateTimeSlot(): {
+  mutate: (variables: { body: { courseId: string; courseVersionId: string; oldTimeSlot: { from: string; to: string }; newTimeSlot: { from: string; to: string } } }) => void,
+  mutateAsync: (variables: { body: { courseId: string; courseVersionId: string; oldTimeSlot: { from: string; to: string }; newTimeSlot: { from: string; to: string } } }) => Promise<{ success: boolean; message?: string }>,
+  data: { success: boolean; message?: string } | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("put", "/timeslots/update");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to update time slot') : null
+  };
+}
+
+// PUT /timeslots/toggle
+export function useToggleTimeSlots(): {
+  mutate: (variables: { body: { courseId: string; courseVersionId: string; isActive: boolean } }) => void,
+  mutateAsync: (variables: { body: { courseId: string; courseVersionId: string; isActive: boolean } }) => Promise<{ success: boolean; message?: string }>,
+  data: { success: boolean; message?: string } | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("put", "/timeslots/toggle");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to toggle time slots') : null
+  };
+}
+
+// GET /timeslots/course/{courseId}/version/{courseVersionId}
+export function useGetTimeSlots(
+  courseId: string | undefined,
+  courseVersionId: string | undefined,
+  enabled: boolean = true
+): {
+  data: { isActive: boolean; slots: Array<{ from: string; to: string; studentIds: string[] }> } | null | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery(
+    "get",
+    "/timeslots/course/{courseId}/version/{courseVersionId}",
+    {
+      params: {
+        path: { courseId: courseId!, courseVersionId: courseVersionId! }
+      }
+    },
+    {
+      enabled: !!courseId && !!courseVersionId && enabled,
+      retry: 1,
+      refetchOnWindowFocus: false
+    }
+  );
+
+  return {
+    data: result.data?.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch time slots') : null,
+    refetch: result.refetch
+  };
+}
+
+// GET /timeslots/students/{courseId}/{courseVersionId}
+export function useGetStudentsInTimeSlots(
+  courseId: string | undefined,
+  courseVersionId: string | undefined,
+  enabled: boolean = true
+): {
+  data: Array<{ from: string; to: string; studentIds: string[] }> | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery(
+    "get",
+    "/timeslots/students/{courseId}/{courseVersionId}",
+    {
+      params: {
+        path: { courseId: courseId!, courseVersionId: courseVersionId! }
+      }
+    },
+    {
+      enabled: !!courseId && !!courseVersionId && enabled,
+      retry: 1,
+      refetchOnWindowFocus: false
+    }
+  );
+
+  return {
+    data: result.data?.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch students in time slots') : null,
+    refetch: result.refetch
+  };
+}
+
+// GET /timeslots/check-access/{courseId}/{courseVersionId}
+export function useCheckTimeSlotAccess(
+  courseId: string | undefined,
+  courseVersionId: string | undefined,
+  enabled: boolean = true
+): {
+  data: { canAccess: boolean; message?: string } | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = api.useQuery(
+    "get",
+    "/timeslots/check-access/{courseId}/{courseVersionId}",
+    {
+      params: {
+        path: { courseId: courseId!, courseVersionId: courseVersionId! }
+      }
+    },
+    {
+      enabled: !!courseId && !!courseVersionId && enabled,
+      retry: 1,
+      refetchOnWindowFocus: false
+    }
+  );
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to check time slot access') : null,
+    refetch: result.refetch
+  };
+}
 
 // GET /users/enrollments
 export function useUserEnrollmentsDetails(enabled: boolean = true, search?: string, role = "STUDENT", courseVersionId?: string,): {

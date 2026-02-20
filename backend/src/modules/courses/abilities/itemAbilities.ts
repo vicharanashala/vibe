@@ -55,6 +55,22 @@ export async function setupItemAbilities(
         case 'STUDENT':
           can(ItemActions.ViewAll, 'Item', versionBounded);
 
+          // Check time slot access restrictions
+          try {
+            const timeSlotAccess = await courseSettingService.canStudentAccessCourse(
+              user.userId,
+              enrollment.courseId,
+              enrollment.versionId
+            );
+            
+            // If time slot access is denied, don't grant any item permissions
+            if (!timeSlotAccess.canAccess) {
+              return; // Exit early, no item permissions granted
+            }
+          } catch (error) {
+            return;
+          }
+
 
           // true if linearProgressionEnabled field is not available
           const linearProgressionEnabled = await courseSettingService.isLinearProgressionEnabled(

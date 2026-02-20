@@ -6,6 +6,8 @@ import "@tensorflow/tfjs";
 import * as faceDetection from "@tensorflow-models/face-detection";
 
 let detector: faceDetection.FaceDetector | null = null;
+const isTesting = import.meta.env.VITE_E2E_TESTING === 'true';
+
 
 console.log("✅ Face Detection Worker started");
 
@@ -16,16 +18,41 @@ self.onerror = (err) => {
 
 async function initializeModel() {
   try {
-    // Ensure TF is ready
     await tf.ready();
 
-    // Force WebGL backend ONLY
-    const ok = await tf.setBackend("webgl");
-    if (!ok) {
-      throw new Error("WebGL backend not supported on this device");
+    let backendSet = false;
+
+    // If testing, directly use CPU
+    if (isTesting) {
+      await tf.setBackend("cpu");
+      backendSet = true;
+      console.log("🧪 Testing mode → CPU backend");
+    } else {
+      // Try WebGL first
+      try {
+        const ok = await tf.setBackend("webgl");
+        if (ok) {
+          backendSet = true;
+          console.log("⚡ WebGL backend enabled");
+        }
+      } catch (err) {
+        console.warn("⚠️ WebGL failed, falling back to CPU:", err);
+      }
+
+      // Fallback to CPU if WebGL not available
+      if (!backendSet) {
+        const ok = await tf.setBackend("cpu");
+        if (!ok) {
+          throw new Error("Neither WebGL nor CPU backend is supported");
+        }
+        console.log("🐢 CPU backend enabled (fallback)");
+      }
     }
 
     await tf.ready();
+
+    const activeBackend = tf.getBackend();
+    console.log(`🎯 Active backend: ${activeBackend}`);
 
     // Create detector
     detector = await faceDetection.createDetector(
@@ -33,11 +60,11 @@ async function initializeModel() {
       {
         runtime: "tfjs",
         maxFaces: 10,
-        modelType: "full", // change to "short" for better performance
+        modelType: "full",
       }
     );
 
-    self.postMessage({ type: "MODEL_READY" });
+    self.postMessage({ type: "MODEL_READY", backend: activeBackend });
     console.log("✅ Face detector ready");
   } catch (err) {
     console.error("❌ Model init failed:", err);

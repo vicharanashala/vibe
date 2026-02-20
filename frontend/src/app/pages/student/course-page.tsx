@@ -54,7 +54,7 @@ import ItemContainer from "@/components/Item-container";
 import logo from "../../../../public/img/vibe_logo_img.ico"
 import { registerStream, unRegisterStream } from "@/lib/MediaRegistry";
 import { useModuleProgress } from "@/hooks/hooks";
-import { isMobile } from "react-device-detect";
+import { useIsMobile } from "@/hooks/use-mobile";
 import MobileFallbackScreen from "@/components/MobileFallbackScreen";
 
 // Helper function to get icon for item type
@@ -108,6 +108,8 @@ export default function CoursePage() {
   const [closing, setClosing] = useState(false);
   const [allProctorsDisabled, setAllProctorsDisabled] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
+
+  const isMobile=useIsMobile();
 
   
 
@@ -183,6 +185,8 @@ export default function CoursePage() {
   const [anomalies, setAnomalies] = useState<string[]>([]);
   const [isQuizSkipped, setIsQuizSkipped] = useState(false);
   const [readyToDetect, setReadyToDetect] = useState(false);
+  const [isNavigatingToPrev, setIsNavigatingToPrev] = useState<boolean>(false);
+  const completedItemIdsRef = useRef<Set<string>>(new Set());
    // State for sidebar visibility
   const [isDesktopSidebarVisible, setIsDesktopSidebarVisible] = useState(true);
 
@@ -1263,7 +1267,7 @@ export default function CoursePage() {
   // Handle navigation to previous video (used by quiz component)
   const handlePrevVideo = useCallback(async () => {
     // Set loading state
-    setIsNavigatingToNext(true);
+    setIsNavigatingToPrev(true);
 
     try {
       // Stop current item before moving to previous video with proper cleanup
@@ -1278,7 +1282,7 @@ export default function CoursePage() {
       const prevVideoItem = findPreviousVideoItem();
 
       if (!prevVideoItem) {
-        setIsNavigatingToNext(false);
+        setIsNavigatingToPrev(false);
         return;
       }
 
@@ -1286,7 +1290,7 @@ export default function CoursePage() {
 
       // Ensure all values are defined before switching
       if (!moduleId || !sectionId || !itemId) {
-        setIsNavigatingToNext(false);
+        setIsNavigatingToPrev(false);
         return;
       }
 
@@ -1324,12 +1328,12 @@ export default function CoursePage() {
 
       // Clear loading state after successful navigation
       setTimeout(() => {
-        setIsNavigatingToNext(false);
+        setIsNavigatingToPrev(false);
       }, 500);
     } catch (error) {
       console.error('Error navigating to previous video:', error);
       // Clear loading state on error
-      setIsNavigatingToNext(false);
+      setIsNavigatingToPrev(false);
     }
   }, [
     findPreviousVideoItem,
@@ -1494,6 +1498,8 @@ export default function CoursePage() {
                         <SidebarMenuButton
                           onClick={() => toggleModule(moduleId)}
                           isActive={isCurrentModule}
+                          aria-expanded={isModuleExpanded}
+                          data-state={isModuleExpanded ? 'open' : 'closed'}
                           className="group relative h-10 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/15 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm"
                         >
                           <ChevronRight
@@ -1540,6 +1546,8 @@ export default function CoursePage() {
                                   <SidebarMenuSubButton
                                     onClick={() => toggleSection(moduleId, sectionId)}
                                     isActive={isCurrentSection}
+                                    aria-expanded={isModuleExpanded}
+                                    data-state={isModuleExpanded ? 'open' : 'closed'}
                                     className="group relative h-8 px-3 w-full rounded-md text-xs transition-all duration-200 hover:bg-accent/10 hover:text-accent-foreground data-[state=active]:bg-accent/15 data-[state=active]:text-accent-foreground"
                                   >
                                     <ChevronRight
@@ -1571,7 +1579,7 @@ export default function CoursePage() {
                                         sortItemsByOrder(sectionItems[sectionId]).map((item: any) => {
                                           const itemId = item._id;
                                           const isCurrentItem = itemId === selectedItemId;
-                                          if (item.type === 'QUIZ') return null; // Skip quizzes in sidebar
+                                          
                                           return (
                                             <SidebarMenuSubItem key={itemId}>
                                               <SidebarMenuSubButton
@@ -1957,6 +1965,8 @@ export default function CoursePage() {
                       item={currentItem}
                       onNext={handleNext}
                       isProgressUpdating={isNavigatingToNext}
+                      completedItemIdsRef={completedItemIdsRef}
+                      isAlreadyWatched={currentItem.isAlreadyWatched}
                     />
                   ) : (
                     
@@ -1967,6 +1977,7 @@ export default function CoursePage() {
                       onNext={handleNext}
                       onPrevVideo={handlePrevVideo}
                       isProgressUpdating={isNavigatingToNext}
+                      isNavigatingToPrev={isNavigatingToPrev}
                       attemptId={attemptId || undefined}
                       setAttemptId={setAttemptId}
                       rewindVid={rewindVid}
@@ -1982,6 +1993,8 @@ export default function CoursePage() {
                       courseId={COURSE_ID}
                       versionId={VERSION_ID}
                       sectionId={sectionId}
+                      completedItemIdsRef={completedItemIdsRef}
+                      nextItem={findNextItem()}
                     />
                   )}
 

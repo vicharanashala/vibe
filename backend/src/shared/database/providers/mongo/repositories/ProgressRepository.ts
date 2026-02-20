@@ -299,7 +299,7 @@ class ProgressRepository {
   }
 
   async executeBulkAttemptDelete(
-    operations: Array<{ deleteOne: { filter: any } }>,
+    operations: Array<{ deleteMany: { filter: any } }>,
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
@@ -314,12 +314,12 @@ class ProgressRepository {
     maxAttemptsMap: Record<string, number>,
     session?: ClientSession,
   ): Promise<{
-    attemptDeletes: Array<{ deleteOne: { filter: any } }>;
+    attemptDeletes: Array<{ deleteMany: { filter: any } }>;
     metricsUpdates: Array<{ updateOne: { filter: any; update: any } }>;
     submissionDeletes: string[];
   }> {
     await this.init();
-    const attemptDeletes: Array<{ deleteOne: { filter: any } }> = [];
+    const attemptDeletes: Array<{ deleteMany: { filter: any } }> = [];
     const metricsUpdates: Array<{ updateOne: { filter: any; update: any } }> = [];
     let submissionDeletes: string[] = [];
 
@@ -346,7 +346,7 @@ class ProgressRepository {
 
       // 3. push to attempts which we want to delete
       attemptDeletes.push({
-        deleteOne: {
+        deleteMany: {
           filter: {
             userId: { $in: [userIdStr, userIdObj] },
             quizId: { $in: [quizIdStr, quizIdObj] },
@@ -949,6 +949,30 @@ class ProgressRepository {
       activeUsers,
     };
   }
+
+    async isItemAttempted(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    itemId: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+
+    const existing = await this.watchTimeCollection.findOne(
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        itemId: new ObjectId(itemId),
+        isDeleted: { $ne: true },
+      },
+      { session, limit: 1 },
+    );
+
+    return existing !== null;
+  }
+
 
   async getWatchTimeByItemId(itemId: string): Promise<IWatchTime[]> {
     await this.init();

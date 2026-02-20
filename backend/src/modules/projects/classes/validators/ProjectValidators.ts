@@ -31,8 +31,10 @@ export class SubmitProjectBody {
   @IsString()
   moduleId!: string;
 
-  @IsNotEmpty({message: 'watchItemId is required'})
-  @IsString()
+  @IsOptional()
+  @JSONSchema({
+    description:'Watch item ID for tracking progress'
+  })
   watchItemId!: string;
 
   @IsNotEmpty({message: 'courseId is required'})

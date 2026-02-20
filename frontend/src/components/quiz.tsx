@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye, FileQuestion, ChevronDown } from "lucide-react";
-import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem, CreateAttemptResponse, SaveQuizResponse } from '@/hooks/hooks';
+import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem, CreateAttemptResponse, SaveQuizResponse, useSkipOptionalItem } from '@/hooks/hooks';
 import { useCourseStore } from "@/store/course-store";
 import MathRenderer from "./math-renderer";
 import { bufferToHex } from '@/utils/helpers';
@@ -44,6 +44,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   doGesture = false,
   onNext,
   isProgressUpdating,
+  isNavigatingToPrev,
   attemptId,
   setAttemptId,
   displayNextLesson,
@@ -51,7 +52,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   setQuizPassed,
   rewindVid,
   setIsQuizSkipped,
-  linearProgressionEnabled
+  linearProgressionEnabled,
+  isAlreadyWatched,
+  completedItemIdsRef,
+  nextItemId
 }, ref) => {
   // console.log('Quiz component rendered with props:', {});
   // ===== CORE STATE =====
@@ -78,6 +82,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const [openQuestionId, setOpenQuestionId] = useState<string | null>(null);
   const [emptyQuizRedirectCountdown, setEmptyQuizRedirectCountdown] = useState<number | null>(null);
   const emptyQuizNextTimerRef = useRef<ReturnType<typeof window.setTimeout> | undefined>(undefined);
+  const [finshingQuiz, setFinshingQuiz] = useState(false);
 
   // ===== REFS AND CONSTANTS =====
   const itemStartedRef = useRef(false);
@@ -93,6 +98,19 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const startItem = useStartItem();
   const stopItem = useStopItem();
   const isStopping = stopItem.isPending;
+  const { mutateAsync: skipItemAsync } = useSkipOptionalItem();
+
+  const handleSkipItem = async () => {
+    if (!currentCourse?.itemId) return;
+    try {
+
+      await skipItemAsync({ params: { path: { itemId: currentCourse?.itemId } } }); // check for empty quiz.
+
+    } catch (error) {
+      console.error('Error skipping item:', error);
+      toast.error('Failed to skip item');
+    }
+  };
 
   // ===== UTILITY FUNCTIONS =====
 
@@ -383,30 +401,32 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const handleSendStartItem = useCallback(async () => {
     if (!currentCourse?.itemId) return;
     try {
-      const response = await startItem.mutateAsync({
-        params: {
-          path: {
-            courseId: currentCourse.courseId,
-            courseVersionId: currentCourse.versionId ?? '',
+      if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
+        const response = await startItem.mutateAsync({
+          params: {
+            path: {
+              courseId: currentCourse.courseId,
+              courseVersionId: currentCourse.versionId ?? '',
+            },
           },
-        },
-        body: {
-          itemId: currentCourse.itemId,
-          moduleId: currentCourse.moduleId ?? '',
-          sectionId: currentCourse.sectionId ?? '',
-        }
-      });
+          body: {
+            itemId: currentCourse.itemId,
+            moduleId: currentCourse.moduleId ?? '',
+            sectionId: currentCourse.sectionId ?? '',
+          }
+        });
 
-      if (!response?.watchItemId) {
-        console.error('No watchItemId returned from startItem');
-        return;
+        if (!response?.watchItemId) {
+          console.error('No watchItemId returned from startItem');
+          return;
+        }
+        if (response?.watchItemId) setWatchItemId(response.watchItemId);
       }
-      if (response?.watchItemId) setWatchItemId(response.watchItemId);
       itemStartedRef.current = true;
     } catch (error) {
       console.error('Failed to start item:', error);
     }
-  }, [currentCourse, startItem, setWatchItemId]);
+  }, [currentCourse, startItem, setWatchItemId, isAlreadyWatched, completedItemIdsRef]);
 
   const handleStopItem = useCallback(async (isSkipped?: boolean) => {
     if (!currentCourse?.itemId || !currentCourse.watchItemId) {
@@ -415,6 +435,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     }
 
     if (!itemStartedRef.current) {
+      return;
+    }
+
+    if((isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId)) ){
       return;
     }
 
@@ -431,11 +455,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         moduleId: currentCourse.moduleId ?? '',
         sectionId: currentCourse.sectionId ?? '',
         attemptId,
-        isSkipped
+        isSkipped,
+        nextItemId,
       }
     });
+    completedItemIdsRef.current.add(currentCourse.itemId);
     itemStartedRef.current = false;
-  }, [currentCourse, stopItem, attemptId]);
+  }, [currentCourse, stopItem, attemptId, isAlreadyWatched, completedItemIdsRef]);
 
 
   const stopItemAsync = useCallback(
@@ -463,6 +489,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           sectionId: currentCourse.sectionId ?? '',
           attemptId,
           isSkipped,
+          nextItemId,
         },
       });
 
@@ -483,13 +510,16 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       setQuizCompleted(true);
 
       // Start progress tracking
-      await handleSendStartItem();
+      // await handleSendStartItem();
+      // call skipitem to create both start 
+      // await handleSkipItem();
 
       if (emptyQuizNextTimerRef.current) {
         clearTimeout(emptyQuizNextTimerRef.current);
       }
-      handleStopItem(true);
-      emptyQuizNextTimerRef.current = setTimeout(() => {
+      // handleStopItem(true);
+      emptyQuizNextTimerRef.current = setTimeout(async () => {
+        await handleSkipItem();
         if (onNext) {
           onNext();
         } else {
@@ -637,16 +667,22 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         setQuizPassed?.(1);
         setNoAttemptsLeft(true);
 
-        await handleSendStartItem();
-        setTimeout(() => {
-          handleStopItem(true);
+        // await handleSendStartItem();
+        // await handleStopItem(true);
+        await handleSkipItem();
+        if (onNext) {
+          onNext();
+        }
 
-          setTimeout(() => {
-            if (onNext) {
-              onNext();
-            }
-          }, 1500);
-        }, 500);
+        // setTimeout(() => {
+        //   handleStopItem(true);
+
+        //   setTimeout(() => {
+        //     if (onNext) {
+        //       onNext();
+        //     }
+        //   }, 1500);
+        // }, 500);
 
         return;
       }
@@ -661,7 +697,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       console.error('No attempt ID available for submission');
       return;
     }
-
+    setFinshingQuiz(true);
     try {
       // For non-skipped quizzes, save all answers first, then submit
       if (!isSkipped) {
@@ -691,6 +727,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       if (!response) {
         // ✅ Stop will be called by course-page.tsx via ref
         setQuizCompleted(true);
+        setFinshingQuiz(false);
         return;
       }
       // Convert the response to match the expected type
@@ -715,6 +752,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         setScore(totalScore);
       }
 
+      // try removing  this 
       if (response.gradingStatus === 'FAILED') {
         console.log('Quiz failed - immediately updating progress to previous video');
         try {
@@ -723,13 +761,15 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           console.error('Failed to update progress after quiz failure:', stopError);
         }
       }
+      completedItemIdsRef.current.add(processedQuizId);
 
       setQuizCompleted(true);
-
+      setFinshingQuiz(false);
     } catch (err) {
       console.error('Failed to submit quiz:', err);
       // ✅ Even on error, mark as completed so course-page can handle stop API
       setQuizCompleted(true);
+      setFinshingQuiz(false);
     }
   }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem, saveQuiz]);
 
@@ -1005,20 +1045,22 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }, [handleStopItem]);
 
   // Early detection for empty quizzes (all types)
-  useEffect(() => {
-    if (!quizStarted && !quizAttemptedRef.current && !isEmptyQuiz && !noAttemptsLeft && !isPending) {
-      if (!questionBankRefs || questionBankRefs.length === 0) {
-        quizAttemptedRef.current = true; // Prevent other start attempts
-        handleEmptyQuiz();
-      }
-    }
-  }, [questionBankRefs, quizStarted, isEmptyQuiz, noAttemptsLeft, isPending, handleEmptyQuiz]);
+  // useEffect(() => {
+  //   if (!quizStarted && !quizAttemptedRef.current && !isEmptyQuiz && !noAttemptsLeft && !isPending) {
+  //     if (!questionBankRefs || questionBankRefs.length === 0) {
+  //       quizAttemptedRef.current = true; // Prevent other start attempts
+  //       handleEmptyQuiz();
+  //     }
+  //   }
+  // }, [questionBankRefs, quizStarted, isEmptyQuiz, noAttemptsLeft, isPending, handleEmptyQuiz]);
 
   // ===== IMPERATIVE HANDLE =====
   useImperativeHandle(ref, () => ({
     stopItem: async () => {
       if (!currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
-
+      if( isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId) ){
+        return;
+      }
       try {
         await stopItem.mutateAsync({
           params: {
@@ -1033,10 +1075,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             moduleId: currentCourse.moduleId ?? '',
             sectionId: currentCourse.sectionId ?? '',
             attemptId,
-            isSkipped: false
+            isSkipped: false,
+            nextItemId,
           }
         });
         itemStartedRef.current = false;
+        completedItemIdsRef.current.add(currentCourse.itemId);
       } catch (error: any) {
         console.error('❌ Quiz stopItem error:', error);
         throw error; // Re-throw for parent to catch
@@ -1250,7 +1294,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                     className="min-w-[180px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
                     size="lg"
                   >
-                    {isProgressUpdating ? (
+                    {isNavigatingToPrev ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2" />
                         Processing
@@ -1266,7 +1310,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                 {/* Next Lesson Button-If user doesn't want to wait*/}
                 {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
                   <Button
-                    onClick={onNext}
+                    onClick={async ()=>{
+                        await handleSkipItem();
+                        if(onNext){
+                        onNext();
+                        }
+                      }
+                    }
                     disabled={isProgressUpdating}
                     className="min-w-[180px] h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
                     size="lg"
@@ -1373,7 +1423,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                       className="min-w-[180px] h-12 text-lg font-semibold border-2 hover:bg-accent transition-all duration-200"
                       size="lg"
                     >
-                      {isProgressUpdating ? (
+                      {isNavigatingToPrev ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2" />
                           Processing
@@ -1835,7 +1885,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
             <Button
               onClick={handleNextQuestion}
-              disabled={!isAnswerValid(currentQuestion, answers[currentQuestion.id]) || isSubmitting}
+              disabled={!isAnswerValid(currentQuestion, answers[currentQuestion.id]) || isSubmitting || finshingQuiz}
             >
               {isSubmitting ? (
                 <>
