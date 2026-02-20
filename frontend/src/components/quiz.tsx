@@ -82,6 +82,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const [openQuestionId, setOpenQuestionId] = useState<string | null>(null);
   const [emptyQuizRedirectCountdown, setEmptyQuizRedirectCountdown] = useState<number | null>(null);
   const emptyQuizNextTimerRef = useRef<ReturnType<typeof window.setTimeout> | undefined>(undefined);
+  const [finshingQuiz, setFinshingQuiz] = useState(false);
 
   // ===== REFS AND CONSTANTS =====
   const itemStartedRef = useRef(false);
@@ -696,7 +697,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       console.error('No attempt ID available for submission');
       return;
     }
-
+    setFinshingQuiz(true);
     try {
       // For non-skipped quizzes, save all answers first, then submit
       if (!isSkipped) {
@@ -726,6 +727,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       if (!response) {
         // ✅ Stop will be called by course-page.tsx via ref
         setQuizCompleted(true);
+        setFinshingQuiz(false);
         return;
       }
       // Convert the response to match the expected type
@@ -762,11 +764,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       completedItemIdsRef.current.add(processedQuizId);
 
       setQuizCompleted(true);
-
+      setFinshingQuiz(false);
     } catch (err) {
       console.error('Failed to submit quiz:', err);
       // ✅ Even on error, mark as completed so course-page can handle stop API
       setQuizCompleted(true);
+      setFinshingQuiz(false);
     }
   }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem, saveQuiz]);
 
@@ -1882,7 +1885,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
             <Button
               onClick={handleNextQuestion}
-              disabled={!isAnswerValid(currentQuestion, answers[currentQuestion.id]) || isSubmitting}
+              disabled={!isAnswerValid(currentQuestion, answers[currentQuestion.id]) || isSubmitting || finshingQuiz}
             >
               {isSubmitting ? (
                 <>
