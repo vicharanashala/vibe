@@ -623,7 +623,7 @@ Access control logic:
     // }
 
     return {
-      item: await this.itemService.readItem(userId?.toString(), courseId, versionId, itemId),
+      item: await this.itemService.readItem(userId?.toString(), versionId, itemId, courseId),
     };
   }
 

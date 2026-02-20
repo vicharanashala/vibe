@@ -81,8 +81,8 @@ export class EnrollmentRepository {
 
   async findEnrollment(
     userId: string | ObjectId,
-    courseId: string,
     courseVersionId: string,
+    courseId: string,
     session?: ClientSession,
   ): Promise<IEnrollment | null> {
     await this.init();
@@ -3309,14 +3309,14 @@ export class EnrollmentRepository {
     session?: ClientSession,
   ): Promise<any> {
     await this.init();
-    
+
     const updateResult = await this.enrollmentCollection.updateOne(
       { _id: new ObjectId(enrollmentId) },
-      { 
-        $set: { 
+      {
+        $set: {
           assignedTimeSlot: timeSlot,
           updatedAt: new Date()
-        } 
+        }
       },
       { session }
     );
@@ -3332,11 +3332,11 @@ export class EnrollmentRepository {
     session?: ClientSession,
   ): Promise<any> {
     await this.init();
-    
+
     const updateResult = await this.enrollmentCollection.updateOne(
       { _id: new ObjectId(enrollmentId) },
-      { 
-        $unset: { 
+      {
+        $unset: {
           assignedTimeSlot: 1
         },
         $set: {
@@ -3359,7 +3359,7 @@ export class EnrollmentRepository {
     session?: ClientSession,
   ): Promise<any[]> {
     await this.init();
-    
+
     const enrollments = await this.enrollmentCollection.find({
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
