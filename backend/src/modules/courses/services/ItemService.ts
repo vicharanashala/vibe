@@ -53,12 +53,12 @@ import {
   QuizRepository,
   UserQuizMetricsRepository,
 } from '#root/modules/quizzes/repositories/index.js';
-import {FeedbackRepository} from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
-import {QuestionBankService} from '#root/modules/quizzes/services/QuestionBankService.js';
-import {QuizService} from '#root/modules/quizzes/services/QuizService.js';
-import {QuestionService} from '#root/modules/quizzes/services/QuestionService.js';
-import {QuestionFactory} from '#root/modules/quizzes/classes/index.js';
-import {QuestionProcessor} from '#root/modules/quizzes/question-processing/QuestionProcessor.js';
+import { FeedbackRepository } from '#root/modules/quizzes/repositories/providers/mongodb/FeedbackRepository.js';
+import { QuestionBankService } from '#root/modules/quizzes/services/QuestionBankService.js';
+import { QuizService } from '#root/modules/quizzes/services/QuizService.js';
+import { QuestionService } from '#root/modules/quizzes/services/QuestionService.js';
+import { QuestionFactory } from '#root/modules/quizzes/classes/index.js';
+import { QuestionProcessor } from '#root/modules/quizzes/question-processing/QuestionProcessor.js';
 import { CourseSettingService, SETTING_TYPES } from '#root/modules/setting/index.js';
 
 @injectable()
@@ -437,9 +437,9 @@ export class ItemService extends BaseService {
 
   public async readItem(
     userId: string,
-    courseId: string,
     versionId: string,
     itemId: string,
+    courseId?: string,
   ) {
 
     console.log(`[ItemService] readItem called with userId=${userId}, courseId=${courseId}, versionId=${versionId}, itemId=${itemId}`);
@@ -498,7 +498,7 @@ export class ItemService extends BaseService {
     return {
       ...item,
       _id: item._id.toString(),
-      isAlreadyWatched : isItemAlreadyCompleted,
+      isAlreadyWatched: isItemAlreadyCompleted,
     };
   }
 
