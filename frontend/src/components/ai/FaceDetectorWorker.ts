@@ -6,6 +6,8 @@ import "@tensorflow/tfjs";
 import * as faceDetection from "@tensorflow-models/face-detection";
 
 let detector: faceDetection.FaceDetector | null = null;
+const isTesting = import.meta.env.VITE_E2E_TESTING  === 'true';
+
 
 console.log("✅ Face Detection Worker started");
 
@@ -19,13 +21,18 @@ async function initializeModel() {
     // Ensure TF is ready
     await tf.ready();
 
-    // Force WebGL backend ONLY
-    const ok = await tf.setBackend("webgl");
+    // Force WebGL backend ONLY , except in the case of testing
+    const desiredBackend = isTesting ? 'cpu' : 'webgl';
+
+    const ok = await tf.setBackend(desiredBackend);
     if (!ok) {
-      throw new Error("WebGL backend not supported on this device");
+      throw new Error(`${desiredBackend} backend not supported on this device`);
     }
 
     await tf.ready();
+
+    const activeBackend = tf.getBackend();
+    console.log(`🎯 Backend set to ${activeBackend}`);
 
     // Create detector
     detector = await faceDetection.createDetector(
