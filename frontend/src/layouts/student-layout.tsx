@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { logout } from "@/utils/auth"
 import { useNavigate } from "@tanstack/react-router"
-import { LogOut, UserRoundCheck, Menu, X } from "lucide-react"
+import { LogOut, Menu, X, Bell } from "lucide-react"
 import { AuroraText } from "@/components/magicui/aurora-text"
 import { useState } from "react"
 import InviteDropdown from "@/components/inviteDropDown"
@@ -17,6 +17,7 @@ import { useInvites, useGetUnreadApprovedRegistrations } from "@/hooks/hooks"
 import { ApprovedRegistrationNotification } from "@/types/notification.types"
 import { useRef, useEffect } from "react"
 import logo from "../../public/img/vibe_logo_img.ico"
+import { useLocation } from "react-router-dom";
 
 export default function StudentLayout() {
   const { user, isAuthReady } = useAuthStore()
@@ -30,6 +31,44 @@ export default function StudentLayout() {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const invitesRef = useRef<HTMLDivElement | null>(null);
+  // const location = useLocation();
+  const [pathname, setPathname] = useState(
+    typeof window !== "undefined" ? window.location.pathname : ""
+  );
+  const isActive = (path: string) => {
+    if (path === "/student") return pathname === "/student";
+    return pathname === path || pathname.startsWith(path + "/");
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const update = () => setPathname(window.location.pathname);
+
+    // Back/forward
+    window.addEventListener("popstate", update);
+
+    // If your app navigates via pushState (SPA), popstate won't fire.
+    // So we patch pushState/replaceState to notify.
+    const originalPushState = window.history.pushState;
+    const originalReplaceState = window.history.replaceState;
+
+    window.history.pushState = function (...args) {
+      originalPushState.apply(window.history, args as any);
+      update();
+    };
+
+    window.history.replaceState = function (...args) {
+      originalReplaceState.apply(window.history, args as any);
+      update();
+    };
+
+    return () => {
+      window.removeEventListener("popstate", update);
+      window.history.pushState = originalPushState;
+      window.history.replaceState = originalReplaceState;
+    };
+  }, []);
 
   // Sync local state with hook data
   useEffect(() => {
@@ -74,7 +113,7 @@ export default function StudentLayout() {
         });
         sessionStorage.setItem("notificationToastShown", "true");
       }
-      
+
       // Clear flag if no notifications exist (allows toast to show next time)
       if (approvedNotifications && approvedNotifications.length === 0) {
         sessionStorage.removeItem("notificationToastShown");
@@ -171,7 +210,10 @@ export default function StudentLayout() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+                className={`relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300  ${isActive("/student")
+                  ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-md before:opacity-100"
+                  : ""
+                  }`}
                 asChild
               >
                 <Link to="/student">
@@ -182,7 +224,10 @@ export default function StudentLayout() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+                className={`relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300 ${isActive("/student/issues")
+                  ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-md before:opacity-100"
+                  : ""
+                  }`}
                 asChild
               >
                 <Link to="/student/issues">
@@ -193,7 +238,10 @@ export default function StudentLayout() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
+                className={`relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300 ${isActive("/student/courses")
+                  ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-md before:opacity-100"
+                  : ""
+                  }`}
                 asChild
               >
                 <Link to="/student/courses">
@@ -210,14 +258,14 @@ export default function StudentLayout() {
                   onClick={() => setShowInvites((prev) => !prev)}
                   className="relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
                 >
-                  <UserRoundCheck className="h-4 w-4" />
-                  <span className="hidden sm:block ml-2">Invites</span>
+                  <Bell className="h-4 w-4" />
+                  <span className="hidden sm:block ml-2">Notifications</span>
                   {(pendingInvites.length > 0 || approvedNotificationsList.length > 0) && <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500" />}
                 </Button>
 
-                {showInvites && <InviteDropdown 
-                  setPendingInvites={setPendingInvites} 
-                  pendingInvites={pendingInvites} 
+                {showInvites && <InviteDropdown
+                  setPendingInvites={setPendingInvites}
+                  pendingInvites={pendingInvites}
                   approvedNotifications={approvedNotificationsList}
                   setApprovedNotifications={setApprovedNotificationsList}
                 />}

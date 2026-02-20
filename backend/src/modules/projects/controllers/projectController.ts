@@ -105,15 +105,15 @@ export class ProjectController {
     //   watchItemId,
     // );
 
-    await this._progressService.updateProgress(
-      userId,
-      courseId,
-      versionId,
-      moduleId,
-      sectionId,
-      projectId,
-      watchItemId,
-    );
+    // await this._progressService.updateProgress(
+    //   userId,
+    //   courseId,
+    //   versionId,
+    //   moduleId,
+    //   sectionId,
+    //   projectId,
+    //   watchItemId,
+    // );
 
     return {
       message: 'Project submitted successfully',

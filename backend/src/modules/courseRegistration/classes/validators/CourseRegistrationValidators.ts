@@ -182,6 +182,40 @@ export class UpdateRegistrationSchemasBody {
   @IsObject()
   @JSONSchema({ description: "Dynamic UI Schema for the form" })
   uiSchema: Record<string, any>;
+
+
+
+
+}
+
+
+export class ToggleRegistrationBody {
+  @IsBoolean()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: "Active status of course registration",
+    example: true
+  })
+  isActive: boolean;
+}
+
+export class AutoApprovalSettingsBody {
+  @IsBoolean()
+  @IsNotEmpty()
+  @JSONSchema({
+    example: true,
+    description: 'Whether auto-approval is enabled or not'
+  })
+  registrationsAutoApproved: boolean;
+
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayUnique()
+  @JSONSchema({
+    example: ['iitm.ac.in', 'gmail.com'],
+    description: 'Email patterns to auto-approve (if empty, all emails are approved)'
+  })
+  autoapproval_emails?: string[];
 }
 
 export class PendingRegistrationResponse {
@@ -323,7 +357,7 @@ export class AllRegistrationsResponse {
 
 
 export class updateStatusResponse {
-  @JSONSchema({description: 'Message',example:'Registration status updated successfully'})
+  @JSONSchema({ description: 'Message', example: 'Registration status updated successfully' })
   @IsString()
   message: string;
 
@@ -333,10 +367,10 @@ export class updateStatusResponse {
 }
 
 export class updateStatusBulkResponse {
-  @JSONSchema({description: 'Message',example:'Registration status updated successfully'})
+  @JSONSchema({ description: 'Message', example: 'Registration status updated successfully' })
   @IsString()
   message: string;
 
   @IsNumber()
-  registration:number;
+  registration: number;
 }

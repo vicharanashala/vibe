@@ -26,6 +26,7 @@ import { CourseVersionIdParams } from '#root/modules/notifications/index.js';
 import {
   AllRegistrationsResponse,
   ApprovedRegistrationResponse,
+  AutoApprovalSettingsBody,
   BulkUpdateStatusBody,
   CourseVersionDetailsResponse,
   GetPendingRegistrationsParams,
@@ -34,6 +35,7 @@ import {
   PendingRegistrationResponse,
   RegistrationFilterQuery,
   RegistrationParams,
+  ToggleRegistrationBody,
   UpdateRegistrationSchemasBody,
   UpdateStatusBody,
   updateStatusBulkResponse,
@@ -165,8 +167,33 @@ class CourseRegistrationController {
     const result = await this.courseRegistrationService.create(
       registrationData,
     );
-    if (versionId === "6981df886e100cfe04f9c4ae")
-      await this.courseRegistrationService.updateStatus(result, "APPROVED");
+
+    // Check for auto-approval settings
+    const courseSettings = await this.courseRegistrationService.getSettings(versionId);
+    const registrationSettings = courseSettings;
+
+    if (registrationSettings.registrationsAutoApproved) {
+      // Auto-approval is enabled
+      if (!registrationSettings.autoapproval_emails || registrationSettings.autoapproval_emails.length === 0) {
+        // No specific emails set - auto-approve all
+        await this.courseRegistrationService.updateStatus(result, "APPROVED");
+      } else {
+        // Check if user email matches any of the specified patterns
+        const userDetails = await this.userRepository.findById(userId);
+
+        if (userDetails && userDetails.email) {
+          const userEmail = userDetails.email.toLowerCase();
+          const shouldAutoApprove = registrationSettings.autoapproval_emails.some(pattern =>
+            userEmail.includes(pattern.toLowerCase())
+          );
+
+          if (shouldAutoApprove) {
+            await this.courseRegistrationService.updateStatus(result, "APPROVED");
+          }
+        }
+      }
+    }
+
     return result;
   }
 
@@ -276,6 +303,10 @@ class CourseRegistrationController {
     };
   }
 
+  @OpenAPI({
+    summary: 'Get Registration Settings',
+    description: 'Get the registration settings for a course version',
+  })
   @Get('/build-form/version/:versionId')
   @Authorized()
   @ResponseSchema(UpdateRegistrationSchemasBody, {
@@ -333,6 +364,83 @@ class CourseRegistrationController {
   }
 
   @OpenAPI({
+    summary: 'Update Auto-Approval Settings',
+    description: 'Update auto-approval settings for course registrations',
+  })
+  @Put('/auto-approval/version/:versionId')
+  @Authorized()
+  @ResponseSchema(UpdateSettingResponse, {
+    description: 'Auto-approval settings updated successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async updateAutoApprovalSettings(
+    @Params() params: CourseVersionIdParams,
+    @Body() body: AutoApprovalSettingsBody,
+    @Ability(getCourseRegistrationAbility) { ability },
+  ) {
+    const { versionId } = params;
+
+    if (
+      !ability.can(
+        CourseRegistrationActions.Modify,
+        subject(courseRegistrationSubject, { versionId }),
+      )
+    ) {
+      throw new ForbiddenError('You do not have permission to modify auto-approval settings');
+    }
+
+    // Get current settings to preserve existing schema and isActive
+    const currentSettings = await this.courseRegistrationService.getSettings(versionId);
+
+    return this.courseRegistrationService.updateSettings(versionId, {
+      jsonSchema: currentSettings.jsonSchema,
+      uiSchema: currentSettings.uiSchema,
+      isActive: currentSettings.isActive,
+      registrationsAutoApproved: body.registrationsAutoApproved,
+      autoapproval_emails: body.autoapproval_emails,
+    });
+  }
+
+  @OpenAPI({
+    summary: 'Toggle Course Registration Active Status',
+    description: 'Enable or disable course registration without needing to send schema data',
+  })
+  @Patch('/registration/version/:versionId/toggle')
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(UpdateSettingResponse, {
+    description: 'Registration status toggled successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async toggleRegistration(
+    @Params() params: CourseVersionIdParams,
+    @Body() body: ToggleRegistrationBody,
+    @Ability(getCourseRegistrationAbility) { ability },
+  ) {
+    const { versionId } = params;
+    const { isActive } = body;
+
+    if (
+      !ability.can(
+        CourseRegistrationActions.Modify,
+        subject(courseRegistrationSubject, { versionId }),
+      )
+    ) {
+      throw new ForbiddenError('You do not have permission to modify settings');
+    }
+
+    return this.courseRegistrationService.toggleRegistrationStatus(versionId, isActive);
+  }
+
+  @OpenAPI({
     summary: 'Get Data for student registration form',
     description:
       'Get all the Data to load in the register form page for student registration.',
@@ -377,7 +485,7 @@ class CourseRegistrationController {
   })
   @Get('/pending')
   @Authorized()
-  @HttpCode(200)  
+  @HttpCode(200)
   @ResponseSchema(PendingRegistrationResponse, {
     description: 'Pending registrations retrieved successfully',
     statusCode: 200,
@@ -388,15 +496,15 @@ class CourseRegistrationController {
   })
   async getPendingRegistrations(
     @QueryParams() query: GetPendingRegistrationsParams,
-    @Ability(getCourseRegistrationAbility) { ability , user},
+    @Ability(getCourseRegistrationAbility) { ability, user },
   ) {
     const { instructorId } = query;
     const userId = user._id;
-  
+
 
     // Find instructor's MongoDB _id using their firebaseUID
     const instructorRecord = await this.userRepository.findByFirebaseUID(instructorId);
-    
+
     if (!instructorRecord) {
       throw new NotFoundError('Instructor not found');
     }
@@ -412,7 +520,7 @@ class CourseRegistrationController {
       throw new ForbiddenError('You do not have permission to view pending registrations');
     }
     const result = await this.courseRegistrationService.getPendingRegistrations(mongoInstructorId);
-    
+
     return result;
   }
 
@@ -435,7 +543,7 @@ class CourseRegistrationController {
     statusCode: 400,
   })
   async getUnreadApprovedRegistrations(
-    @QueryParams() query:GetUnreadApprovedRegistrationsParams,
+    @QueryParams() query: GetUnreadApprovedRegistrationsParams,
     @Ability(getCourseRegistrationAbility) { ability, user },
   ) {
     const { studentId } = query;
@@ -447,7 +555,7 @@ class CourseRegistrationController {
 
     // Find user's MongoDB _id using their firebaseUID
     const userRecord = await this.userRepository.findByFirebaseUID(studentId);
-    
+
     if (!userRecord) {
       throw new NotFoundError('User not found');
     }
@@ -460,7 +568,7 @@ class CourseRegistrationController {
     description:
       'Mark a course registration notification as read for a student.',
   })
-  @Patch('/notifications/:registrationId/read',{ transformResponse: true })
+  @Patch('/notifications/:registrationId/read', { transformResponse: true })
   @Authorized()
   @ResponseSchema(markNotificationAsReadResponse, {
     description: 'Notification marked as read successfully',

@@ -24,6 +24,8 @@ interface FeedbackFormProps {
   onSkip?: () => void;
   isSubmitting?: boolean;
   onNext: () => void
+  isAlreadyWatched?: boolean;
+  completedItemIdsRef: React.RefObject<Set<string>>;
 }
 
 const FeedbackForm = ({
@@ -36,6 +38,8 @@ const FeedbackForm = ({
   onSkip,
   isSubmitting = false,
   onNext,
+  isAlreadyWatched,
+  completedItemIdsRef,
 }: FeedbackFormProps) => {
   const watchItemIdRef = useRef<string | null>(null);
 
@@ -69,19 +73,21 @@ const FeedbackForm = ({
 
   function handleSendStartItem() {
     if (!currentCourse?.itemId) return;
-    startItem.mutate({
-      params: {
-        path: {
-          courseId: currentCourse.courseId,
-          courseVersionId: currentCourse.versionId ?? '',
+    if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
+      startItem.mutate({
+        params: {
+          path: {
+            courseId: currentCourse.courseId,
+            courseVersionId: currentCourse.versionId ?? '',
+          },
         },
-      },
-      body: {
-        itemId: currentCourse.itemId,
-        moduleId: currentCourse.moduleId ?? '',
-        sectionId: currentCourse.sectionId ?? '',
-      }
-    });
+        body: {
+          itemId: currentCourse.itemId,
+          moduleId: currentCourse.moduleId ?? '',
+          sectionId: currentCourse.sectionId ?? '',
+        }
+      });
+    }
   }
   // const handleSubmit = async ({formData}:any ) => {
   //   const payload: ISubmitFeedbackBody = {
@@ -128,21 +134,23 @@ const FeedbackForm = ({
        toast.success(result.message);
 
       // 2️⃣ Only runs if submitFeedback succeeded
-      await stopItem.mutateAsync({
-        params: {
-          path: {
-            courseId: currentCourse!.courseId,
-            courseVersionId: currentCourse!.versionId ?? "",
+      if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
+        await stopItem.mutateAsync({
+          params: {
+            path: {
+              courseId: currentCourse!.courseId,
+              courseVersionId: currentCourse!.versionId ?? "",
+            },
           },
-        },
-        body: {
-          watchItemId: watchItemId ?? "",
-          itemId: currentCourse!.itemId ?? "",
-          moduleId: currentCourse!.moduleId ?? "",
-          sectionId: currentCourse!.sectionId ?? "",
-        },
-      });
-
+          body: {
+            watchItemId: watchItemId ?? "",
+            itemId: currentCourse!.itemId ?? "",
+            moduleId: currentCourse!.moduleId ?? "",
+            sectionId: currentCourse!.sectionId ?? "",
+          },
+        });
+      }
+      completedItemIdsRef.current.add(currentCourse!.itemId!);
       // 3️⃣ Only when both succeed
       onNext();
 

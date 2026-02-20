@@ -634,7 +634,7 @@ const mapValidationToSchema = (
                           onClick={() => addField(fieldType.type)}
                         >
                           <Icon className="w-4 h-4" />
-                          <span className="text-sm">{fieldType.label}</span>
+                          <span className="text-xs">{fieldType.label}</span>
                         </Button>
                       );
                     })}
@@ -766,7 +766,7 @@ const mapValidationToSchema = (
 
                             <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
                               {field.type !== "url" && (
-                              <label className="text-sm font-medium flex items-center gap-1">
+                              <label className="text-xs font-medium flex items-center gap-1">
                                 
                                 {field.label}
                                 {field.validation.required && <span className="text-destructive">*</span>}
@@ -825,7 +825,7 @@ const mapValidationToSchema = (
                                     }
                                   />
 
-                                  <label htmlFor={field.id} className="text-sm cursor-pointer">
+                                  <label htmlFor={field.id} className="text-xs cursor-pointer">
                                     {field.placeholder || "Check this box"}
                                   </label>
                                 </div>
@@ -862,7 +862,7 @@ const mapValidationToSchema = (
                                         onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
                                         className="w-4 h-4"
                                       />
-                                      <label htmlFor={`${field.id}_${option.value}`} className="text-sm cursor-pointer">
+                                      <label htmlFor={`${field.id}_${option.value}`} className="text-xs cursor-pointer">
                                         {option.label}
                                       </label>
                                     </div>
@@ -900,7 +900,7 @@ const mapValidationToSchema = (
                               )} */}
                           {field.type === "url" && (
                             <>
-                                <label htmlFor={field.id} className="text-sm cursor-pointer">
+                                <label htmlFor={field.id} className="text-xs cursor-pointer">
                                   {field.placeholder || "Check the link"}
                                 </label>
                                   {field.helpText && (
@@ -914,7 +914,7 @@ const mapValidationToSchema = (
                                   href={field.label}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-sm font-medium text-primary underline break-all hover:opacity-80"
+                                  className="text-xs font-medium text-primary underline break-all hover:opacity-80"
                                   onClick={(e) => e.stopPropagation()} // 🔑 prevents selecting the field accidentally
                                 >
                                   {field.label}
@@ -1192,6 +1192,36 @@ const mapValidationToSchema = (
                               <div className="space-y-2">
                                 {selectedField.options?.map((option, index) => (
                                   <div key={index} className="flex items-center gap-2">
+                                    <div className="flex flex-col gap-1">
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-6 w-6"
+                                        onClick={() => {
+                                          if (index === 0) return;
+                                          const newOptions = [...(selectedField.options || [])];
+                                          [newOptions[index - 1], newOptions[index]] = [newOptions[index], newOptions[index - 1]];
+                                          updateField(selectedField.id, { options: newOptions });
+                                        }}
+                                        disabled={index === 0}
+                                      >
+                                        <ArrowUp className="w-3 h-3" />
+                                      </Button>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-6 w-6"
+                                        onClick={() => {
+                                          if (!selectedField.options || index === selectedField.options.length - 1) return;
+                                          const newOptions = [...selectedField.options];
+                                          [newOptions[index], newOptions[index + 1]] = [newOptions[index + 1], newOptions[index]];
+                                          updateField(selectedField.id, { options: newOptions });
+                                        }}
+                                        disabled={!selectedField.options || index === selectedField.options.length - 1}
+                                      >
+                                        <ArrowDown className="w-3 h-3" />
+                                      </Button>
+                                    </div>
                                     <Input
                                       value={option.label}
                                       onChange={(e) => {

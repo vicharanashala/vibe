@@ -280,6 +280,19 @@ export class CourseRegistrationService extends BaseService {
         registrationData.versionId.toString(),
         session,
       );
+
+      const courseSettings = await this.settingsRepo.readCourseSettings(
+        courseVersion.courseId.toString(),
+        registrationData.versionId.toString(),
+        session,
+      );
+
+      const regSettings = courseSettings?.settings?.registration;
+
+      if (regSettings?.isActive === false || String(regSettings?.isActive) === 'false') {
+        throw new Error('Course registration is not active');
+      }
+
       const requestExisits = await this.courseRegistrationRepo.findPendingRequestsByUserId(
         registrationData.userId.toString(),
         registrationData.versionId.toString(),
@@ -391,7 +404,7 @@ export class CourseRegistrationService extends BaseService {
         await this.settingsRepo.updateRegistrationSchemas(
           courseId,
           versionId,
-          { jsonSchema: defaultJsonSchema, uiSchema: defaultUiSchema },
+          { jsonSchema: defaultJsonSchema, uiSchema: defaultUiSchema, isActive: true },
           session,
         );
       }
@@ -552,7 +565,7 @@ export class CourseRegistrationService extends BaseService {
 
   async getSettings(
     versionId: string,
-  ): Promise<{ jsonSchema: any; uiSchema: any }> {
+  ): Promise<{ jsonSchema: any; uiSchema: any; isActive: boolean, registrationsAutoApproved?: boolean, autoapproval_emails?: string[] }> {
     return this._withTransaction(async session => {
       try {
         const version = await this.courseRepo.readVersion(versionId, session);
@@ -576,7 +589,7 @@ export class CourseRegistrationService extends BaseService {
           );
         }
 
-        let { jsonSchema, uiSchema } =
+        let { jsonSchema, uiSchema, isActive, registrationsAutoApproved, autoapproval_emails } =
           courseSettings.settings?.registration || {};
 
         //   // const defaultUiSchema = {
@@ -597,7 +610,14 @@ export class CourseRegistrationService extends BaseService {
         //   //   ],
         //   // };
 
-        return { jsonSchema, uiSchema };
+        // return { jsonSchema, uiSchema, isActive: isActive ?? true };
+         return { 
+          jsonSchema, 
+          uiSchema, 
+          isActive: isActive ?? true, 
+          registrationsAutoApproved, 
+          autoapproval_emails 
+        };
 
         // return registrationSettings;
       } catch (error) {
@@ -608,7 +628,7 @@ export class CourseRegistrationService extends BaseService {
 
   async updateSettings(
     versionId: string,
-    schemas: { jsonSchema: any; uiSchema: any },
+    schemas: { jsonSchema: any; uiSchema: any; isActive?: boolean; registrationsAutoApproved?: boolean; autoapproval_emails?: string[] },
   ) {
     return this._withTransaction(async session => {
       try {
@@ -623,7 +643,13 @@ export class CourseRegistrationService extends BaseService {
           courseId,
           versionId,
           // settings,
-          schemas,
+          {
+            jsonSchema: schemas.jsonSchema,
+            uiSchema: schemas.uiSchema,
+            isActive: schemas.isActive ?? true,
+            registrationsAutoApproved: schemas.registrationsAutoApproved,
+            autoapproval_emails: schemas.autoapproval_emails,
+          },
           session,
         );
       } catch (error) {
@@ -634,8 +660,83 @@ export class CourseRegistrationService extends BaseService {
   }
 
   async getRegistrationForm(versionId: string) {
+    const defaultJsonSchema = {
+      type: 'object',
+      properties: {
+        Name: {
+          type: 'string',
+          title: 'Name',
+          minLength: 1,
+        },
+        Email: {
+          type: 'string',
+          format: 'email',
+          title: 'Email',
+        },
+        Phone: {
+          type: 'string',
+          title: 'Phone',
+        },
+      },
+      required: ['Name', 'Email'],
+    };
+
+    const defaultUiSchema = {
+      Name: {
+        'ui:placeholder': 'Enter your Name',
+      },
+      Email: {
+        'ui:placeholder': 'Enter your Email',
+      },
+      Phone: {
+        'ui:options': {
+          inputType: 'tel',
+        },
+        'ui:placeholder': 'Enter your Phone Number',
+      },
+    };
+
     return this._withTransaction(async session => {
-      return await this.settingsRepo.readSettingsSchema(versionId, session);
+      const result = await this.settingsRepo.readSettingsSchema(
+        versionId,
+        session,
+      );
+
+      // If no schema is configured, return the defaults
+      if (!result.jsonSchema || Object.keys(result.jsonSchema).length === 0) {
+        return {
+          jsonSchema: defaultJsonSchema,
+          uiSchema: defaultUiSchema,
+          isActive: result.isActive ?? true
+        };
+      }
+
+      return result;
+    });
+  }
+
+  async toggleRegistrationStatus(versionId: string, isActive: boolean) {
+    return this._withTransaction(async session => {
+      try {
+        const version = await this.courseRepo.readVersion(versionId, session);
+        if (!version) {
+          throw new NotFoundError(
+            `Course version with id ${versionId} not found`,
+          );
+        }
+        const courseId = version.courseId.toString();
+
+        // Use updateRegistrationSchemas which supports partial updates
+        return await this.settingsRepo.updateRegistrationSchemas(
+          courseId,
+          versionId,
+          { isActive }, // Only pass isActive
+          session,
+        );
+      } catch (error) {
+        console.error(error);
+        throw new InternalServerError('Failed to toggle registration status');
+      }
     });
   }
 

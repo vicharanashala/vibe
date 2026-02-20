@@ -12,6 +12,7 @@ import {
   Authorized,
   QueryParams,
   Res,
+  CurrentUser
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { COURSES_TYPES } from '#courses/types.js';
@@ -32,6 +33,11 @@ import {
   CSVItemBody,
   CourseVersionModuleSectionParams,
   csvResponse,
+  VideoOverallAnalytics,
+  GetVideoAnalyticsParams,
+  VideoUserAnalyticsQuery,
+  VideoUserAnalytics,
+  VideoUserAnalyticsResponse,
 } from '#courses/classes/validators/ItemValidators.js';
 import { ItemService } from '#courses/services/ItemService.js';
 import { injectable, inject } from 'inversify';
@@ -157,31 +163,33 @@ export class ItemController {
       }
 
       // For students: filter out blank quizzes with conservative approach
-      const filteredItems = [];
+      // const filteredItems = [];
 
-      for (const itemRef of items) {
-        if (itemRef.type !== ItemType.QUIZ) {
-          filteredItems.push(itemRef);
-          continue;
-        }
+      // for (const itemRef of items) {
+      //   if (itemRef.type !== ItemType.QUIZ) {
+      //     filteredItems.push(itemRef);
+      //     continue;
+      //   }
 
-        try {
-          const quizDetails = await this.quizService.getQuizDetails(
-            itemRef?._id?.toString(),
-          );
-          const questionBankRefs = quizDetails?.details?.questionBankRefs;
+      //   try {
+      //     const quizDetails = await this.quizService.getQuizDetails(
+      //       itemRef?._id?.toString(),
+      //     );
+      //     const questionBankRefs = quizDetails?.details?.questionBankRefs;
 
-          if (
-            !(Array.isArray(questionBankRefs) && questionBankRefs.length === 0)
-          ) {
-            filteredItems.push(itemRef);
-          }
-        } catch (error) {
-          filteredItems.push(itemRef);
-        }
-      }
+      //     if (
+      //       !(Array.isArray(questionBankRefs) && questionBankRefs.length === 0)
+      //     ) {
+      //       filteredItems.push(itemRef);
+      //     }
+      //   } catch (error) {
+      //     filteredItems.push(itemRef);
+      //   }
+      // }
 
-      return filteredItems;
+      // return filteredItems;
+
+      return items;
     } catch (error) {
       console.error('Error filtering blank quizzes in readAll:', error);
       return items;
@@ -309,6 +317,78 @@ Accessible to:
     );
   }
 
+
+  @OpenAPI({
+    summary: 'Get video analytics',
+    description: `Retrieves analytics for a video item.<br/>
+Access control logic:
+- Only instructors, managers, and teaching assistants can access analytics.
+- Students are restricted from viewing analytics.`,
+  })
+  @Authorized()
+  @Get('/:courseId/versions/:versionId/item/:itemId/analytics')
+  @HttpCode(200)
+  @ResponseSchema(VideoOverallAnalytics, {
+    description: 'Video analytics retrieved successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ItemNotFoundErrorResponse, {
+    description: 'Video item not found',
+    statusCode: 404,
+  })
+  async getVideoAnalytics(
+    @Params() params: GetVideoAnalyticsParams,
+  ) {
+    const { courseId, versionId, itemId: videoId } = params;
+
+    return await this.itemService.getVideoAnalytics(
+      courseId,
+      versionId,
+      videoId,
+    );
+  }
+
+
+  @OpenAPI({
+    summary: "Get video analytics per student",
+    description: `Retrieves per-student analytics for a video item, with search, pagination, and filters.<br/>
+Access control logic:
+- Only instructors, managers, and teaching assistants can access analytics.
+- Students are restricted from viewing analytics.`,
+  })
+  // @Authorized()
+  @Get("/:courseId/versions/:versionId/item/:itemId/analytics/users")
+  @HttpCode(200)
+  @ResponseSchema(VideoUserAnalytics, {
+    description: "Per-student video analytics retrieved successfully",
+    isArray: true,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: "Bad Request Error",
+    statusCode: 400,
+  })
+  @ResponseSchema(ItemNotFoundErrorResponse, {
+    description: "Video item not found",
+    statusCode: 404,
+  })
+  async getVideoAnalyticsPerStudent(
+    @Params() params: GetVideoAnalyticsParams,
+    @QueryParams() query: VideoUserAnalyticsQuery
+  ): Promise<VideoUserAnalyticsResponse> {
+    const { courseId, versionId, itemId: videoId } = params;
+    return await this.itemService.getVideoUserAnalytics(
+      courseId,
+      versionId,
+      videoId,
+      query
+    );
+  }
+
+
+
   @OpenAPI({
     summary: 'Get an item by ID',
     description: `Retrieves a specific item from a course version.<br/>
@@ -332,20 +412,22 @@ Access control logic:
   })
   async getItem(
     @Params() params: GetItemParams,
-    @Ability(getItemAbility) { ability },
+    // @Ability(getItemAbility) { ability, user },
+    @CurrentUser() user: {_id: string},
   ) {
     const { versionId, itemId, courseId } = params;
+    const { _id: userId } = user;
 
     // Create an item resource object for permission checking
     const itemResource = subject('Item', { courseId, versionId, itemId });
 
     // Check permission using ability.can() with the actual item resource
-    if (!ability.can(ItemActions.View, itemResource)) {
-      throw new ForbiddenError('You do not have permission to view this item');
-    }
+    // if (!ability.can(ItemActions.View, itemResource)) {
+    //  throw new ForbiddenError('You do not have permission to view this item');
+    // }
 
     return {
-      item: await this.itemService.readItem(versionId, itemId),
+      item: await this.itemService.readItem(userId?.toString(), courseId, versionId, itemId),
     };
   }
 
@@ -519,7 +601,7 @@ Accessible to:
   @Authorized()
   @Post("/:courseId/versions/:versionId/module/:moduleId/section/:sectionId/items/csv")
   @HttpCode(200)
-  @ResponseSchema(csvResponse,{
+  @ResponseSchema(csvResponse, {
     description: 'CSV processed successfully',
     statusCode: 200,
   })

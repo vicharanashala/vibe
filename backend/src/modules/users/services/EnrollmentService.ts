@@ -275,7 +275,7 @@ export class EnrollmentService extends BaseService {
 
     // Process unenrollments in parallel with error handling
     await Promise.allSettled(
-      userIds.map(async (userId) => {
+      userIds.map(async userId => {
         try {
           const enrollment = await this.findActiveEnrollment(
             userId,
@@ -285,9 +285,7 @@ export class EnrollmentService extends BaseService {
 
           if (!enrollment) {
             results.failureCount++;
-            results.errors.push(
-              `User ${userId}: No active enrollment found`,
-            );
+            results.errors.push(`User ${userId}: No active enrollment found`);
             return;
           }
 
@@ -312,14 +310,20 @@ export class EnrollmentService extends BaseService {
     return results;
   }
 
-
   private filterCourseVersions(course: any, enrolledVersionIds: Set<string>) {
     return {
       ...course,
-      versions:
-        course?.versions?.filter((versionId: string) =>
-          enrolledVersionIds.has(versionId.toString()),
-        ) || [],
+      versions: course?.versions
+        ? course.versions
+          .map((versionId: any) => {
+            // Convert ObjectId to string if needed
+            const versionIdStr = versionId.toString
+              ? versionId.toString()
+              : versionId;
+            return enrolledVersionIds.has(versionIdStr) ? versionIdStr : null;
+          })
+          .filter(Boolean) // Remove null values
+        : [],
     };
   }
 
@@ -379,7 +383,7 @@ export class EnrollmentService extends BaseService {
       const allItemGroupIds = Array.from(versionToItemGroups.values()).flat();
 
       const quizInfo = await this.itemRepo.getQuizInfo(allItemGroupIds);
-      console.log(quizInfo[0]);
+
       // Extract actual quiz item IDs from quizInfo
       const allQuizIds = quizInfo
         .filter(quiz => quiz.items?._id)
@@ -392,40 +396,47 @@ export class EnrollmentService extends BaseService {
       }));
 
       // Batch all async operations together
-      const [watchedItemsMap, watchedItemsByTypeMap, quizSubmissionGrades]: [
-        Map<string, number>,
-        Map<string, { videos: number; quizzes: number; articles: number; projects: number }>,
-        ISubmission[],
-      ] = await Promise.all([
-        this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
-        this.enrollmentRepo.getWatchedItemCountsByTypeBatch(watchedKeys),
-        allQuizIds.length > 0
-          ? this.enrollmentRepo.getQuizSubmissionGrade(userId, allQuizIds)
-          : Promise.resolve([]),
-      ]);
+      const [
+        watchedItemsMap,
+        // watchedItemsByTypeMap,
+        quizSubmissionGrades,
+      ]: [
+          Map<string, number>,
+          // Map<
+          //   string,
+          //   {videos: number; quizzes: number; articles: number; projects: number}
+          // >,
+          ISubmission[],
+        ] = await Promise.all([
+          this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
+          // this.enrollmentRepo.getWatchedItemCountsByTypeBatch(watchedKeys),
+          allQuizIds.length > 0
+            ? this.enrollmentRepo.getQuizSubmissionGrade(userId, allQuizIds)
+            : Promise.resolve([]),
+        ]);
 
       // Create a map for quick quiz grade lookup
-      const quizGradeMap: Map<string, IGradingResult> = new Map(
-        quizSubmissionGrades.map(grade => [
-          grade.quizId.toString(),
-          grade.gradingResult,
-        ]),
-      );
+      // const quizGradeMap: Map<string, IGradingResult> = new Map(
+      //   quizSubmissionGrades.map(grade => [
+      //     grade.quizId.toString(),
+      //     grade.gradingResult,
+      //   ]),
+      // );
 
       return enrollments.map(enr => {
         const versionIdStr = enr.courseVersionId.toString();
         const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}`;
-        const versionItemGroups = versionToItemGroups.get(versionIdStr) || [];
-        const versionQuizIds = quizInfo.filter(quiz =>
-          versionItemGroups.includes(quiz._id.toString()),
-        );
+        // const versionItemGroups = versionToItemGroups.get(versionIdStr) || [];
+        // const versionQuizIds = quizInfo.filter(quiz =>
+        //   versionItemGroups.includes(quiz._id.toString()),
+        // );
 
         // Get quiz grades for this enrollment's quizzes
-        const enrollmentQuizGrades = versionQuizIds
-          .map(q =>
-            q.items?._id ? quizGradeMap.get(q.items._id.toString()) : null,
-          )
-          .filter(Boolean) as IGradingResult[];
+        // const enrollmentQuizGrades = versionQuizIds
+        //   .map(q =>
+        //     q.items?._id ? quizGradeMap.get(q.items._id.toString()) : null,
+        //   )
+        //   .filter(Boolean) as IGradingResult[];
 
         // update percentage if contentCountsMap / watchedItemsMap has different value from enrollment.percentCompleted
         // ratio is calculated as (watchedItems / totalItems) * 100
@@ -456,8 +467,159 @@ export class EnrollmentService extends BaseService {
         }
 
         if (enr.percentCompleted >= 0) {
+          return {
+            _id: enr._id.toString(),
+            courseId: enr.courseId.toString(),
+            courseVersionId: versionIdStr,
+            role: enr.role,
+            status: enr.status,
+            enrollmentDate: new Date(enr.enrollmentDate),
+            course: this.filterCourseVersions(enr.course, enrolledVersionIds),
+            percentCompleted: enr.percentCompleted || 0,
+            moduleNumber: enr.moduleNumber,
+            sectionNumber: enr.sectionNumber,
+            itemType: enr.itemType,
+            contentCounts: {
+              totalItems: enr.totalItems ?? 0,
+            },
+
+            completedItems: watchedItemsMap.get(watchedKey) || 0,
+          };
+        }
+      });
+    }
+    // Non-student
+    return enrollments.map(enr => ({
+      _id: enr._id.toString(),
+      courseId: enr.courseId.toString(),
+      courseVersionId: enr.courseVersionId.toString(),
+      role: enr.role,
+      status: enr.status,
+      enrollmentDate: new Date(enr.enrollmentDate),
+      course: this.filterCourseVersions(enr.course, enrolledVersionIds),
+    }));
+  }
+
+  public async getDetailedEnrollment(
+    userId: string,
+    role: EnrollmentRole,
+    courseVersionId?: string,
+  ): Promise<EnrollmentDataResponse[]> {
+    let enrollments = [];
+
+    enrollments = await this.enrollmentRepo.getDetailedEnrollment(
+      userId,
+      role,
+      courseVersionId,
+    );
+
+    if (!enrollments.length) return [];
+
+    //  If courseVersionId is provided, filter to only that version
+    if (courseVersionId) {
+      enrollments = enrollments.filter(
+        e => e.courseVersionId.toString() === courseVersionId,
+      );
+    }
+
+    const enrolledVersionIds: Set<string> = new Set(
+      enrollments.map(e => e.courseVersionId.toString()),
+    );
+
+    if (role === 'STUDENT') {
+      const courseVersions = await this.courseRepo.getActiveVersions(
+        Array.from(enrolledVersionIds),
+      );
+      const versionToItemGroups = new Map<string, string[]>();
+
+      courseVersions.forEach((version: ICourseVersion) => {
+        const itemGroupIds: string[] = [];
+        version.modules.forEach(module => {
+          module.sections.forEach(section => {
+            if (section.itemsGroupId) {
+              itemGroupIds.push(section.itemsGroupId.toString());
+            }
+          });
+        });
+        versionToItemGroups.set(version._id.toString(), itemGroupIds);
+      });
+
+      const allItemGroupIds = Array.from(versionToItemGroups.values()).flat();
+
+      const quizInfo = await this.itemRepo.getQuizInfo(allItemGroupIds);
+
+      // Extract actual quiz item IDs from quizInfo
+      const allQuizIds = quizInfo
+        .filter(quiz => quiz.items?._id)
+        .map(quiz => quiz.items._id.toString());
+
+      const watchedKeys = enrollments.map(e => ({
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(e.courseId),
+        courseVersionId: new ObjectId(e.courseVersionId),
+      }));
+
+      // Batch all async operations together
+      const [watchedItemsMap, watchedItemsByTypeMap, quizSubmissionGrades]: [
+        Map<string, number>,
+        Map<
+          string,
+          { videos: number; quizzes: number; articles: number; projects: number }
+        >,
+        ISubmission[],
+      ] = await Promise.all([
+        this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
+        this.enrollmentRepo.getWatchedItemCountsByTypeBatch(watchedKeys),
+        allQuizIds.length > 0
+          ? this.enrollmentRepo.getQuizSubmissionGrade(userId, allQuizIds)
+          : Promise.resolve([]),
+      ]);
+      const quizGradeMap: Map<string, IGradingResult> = new Map(
+        quizSubmissionGrades.map(grade => [
+          grade.quizId.toString(),
+          grade.gradingResult,
+        ]),
+      );
+
+      return enrollments.map(enr => {
+        const versionIdStr = enr.courseVersionId.toString();
+        const watchedKey = `${userId}-${enr.courseId.toString()}-${versionIdStr}`;
+        const versionItemGroups = versionToItemGroups.get(versionIdStr) || [];
+        const versionQuizIds = quizInfo.filter(quiz =>
+          versionItemGroups.includes(quiz._id.toString()),
+        );
+
+        const enrollmentQuizGrades = versionQuizIds
+          .map(q =>
+            q.items?._id ? quizGradeMap.get(q.items._id.toString()) : null,
+          )
+          .filter(Boolean) as IGradingResult[];
+
+        const completedCount = watchedItemsMap.get(watchedKey) || 0;
+
+        const ratio = completedCount / (enr.totalItems || 1);
+        const calculatedPercent = Number((ratio * 100).toFixed(2));
+
+        if (enr.percentCompleted !== calculatedPercent) {
+          void this.enrollmentRepo.updateProgressPercentById(
+            enr._id.toString(),
+            calculatedPercent,
+            undefined,
+            completedCount,
+          );
+
+          enr.percentCompleted = calculatedPercent;
+          enr.completedItemsCount = completedCount;
+        }
+
+        if (enr.percentCompleted >= 0) {
           const itemCounts = enr.itemCounts || {};
-          const completedByType = watchedItemsByTypeMap.get(watchedKey) || { videos: 0, quizzes: 0, articles: 0, projects: 0 };
+          const completedByType = watchedItemsByTypeMap.get(watchedKey) || {
+            videos: 0,
+            quizzes: 0,
+            articles: 0,
+            projects: 0,
+          };
 
           return {
             _id: enr._id.toString(),
@@ -467,6 +629,7 @@ export class EnrollmentService extends BaseService {
             status: enr.status,
             enrollmentDate: new Date(enr.enrollmentDate),
             course: this.filterCourseVersions(enr.course, enrolledVersionIds),
+            // courseVersion: enr.courseVersion,
             percentCompleted: enr.percentCompleted || 0,
             moduleNumber: enr.moduleNumber,
             sectionNumber: enr.sectionNumber,
@@ -497,17 +660,20 @@ export class EnrollmentService extends BaseService {
         }
       });
     }
-
-    // Non-student
-    return enrollments.map(enr => ({
-      _id: enr._id.toString(),
-      courseId: enr.courseId.toString(),
-      courseVersionId: enr.courseVersionId.toString(),
-      role: enr.role,
-      status: enr.status,
-      enrollmentDate: new Date(enr.enrollmentDate),
-      course: this.filterCourseVersions(enr.course, enrolledVersionIds),
-    }));
+  }
+  async detailedCountEnrollment(
+    userId: string,
+    role: EnrollmentRole,
+    courseVersionId?: string,
+  ) {
+    return this._withTransaction(async (session: ClientSession) => {
+      const result = await this.enrollmentRepo.detailedCountEnrollment(
+        userId,
+        role,
+        courseVersionId,
+      );
+      return result;
+    });
   }
 
   async getAllEnrollments(userId: string) {
@@ -578,7 +744,6 @@ export class EnrollmentService extends BaseService {
       // }
 
       if (enrollmentsData.enrollments.length > 0 && filter === 'STUDENT') {
-
         // existing quiz score enrichment
         await this.enrichEnrollmentsWithQuizScores(
           enrollmentsData.enrollments,
@@ -601,10 +766,7 @@ export class EnrollmentService extends BaseService {
         const flattened = allStudentEnrollments.flat();
 
         // build lookup map
-        const contentCountsMap = new Map<
-          string,
-          any
-        >();
+        const contentCountsMap = new Map<string, any>();
 
         flattened.forEach(enr => {
           const key = `${enr.courseVersionId}-${enr._id}`;
@@ -617,7 +779,6 @@ export class EnrollmentService extends BaseService {
           enr.contentCounts = contentCountsMap.get(key);
         });
       }
-
 
       return enrollmentsData;
     });
@@ -686,7 +847,6 @@ export class EnrollmentService extends BaseService {
 
     // 3. Get all user IDs from enrollments
     const userIds = enrollments.map(e => e.userId);
-    console.log('🔍 User IDs for quiz lookup:', enrollments);
 
     // 4. Batch fetch quiz submissions for all users
     const quizSubmissions =
@@ -772,9 +932,19 @@ export class EnrollmentService extends BaseService {
     }
   }
 
-  async countEnrollments(userId: string, role: EnrollmentRole, search: string) {
+  async countEnrollments(
+    userId: string,
+    role: EnrollmentRole,
+    search?: string,
+    courseVersionId?: string,
+  ) {
     return this._withTransaction(async (session: ClientSession) => {
-      const result = await this.enrollmentRepo.countEnrollments(userId, role, search);
+      const result = await this.enrollmentRepo.countEnrollments(
+        userId,
+        role,
+        search,
+        courseVersionId,
+      );
       return result;
     });
   }
@@ -1177,5 +1347,23 @@ export class EnrollmentService extends BaseService {
     const updatedCount = results.reduce((sum, r) => sum + r.updatedCount, 0);
 
     return { totalCount, updatedCount };
+  }
+
+  async getModuleProgressForUser(
+    userId: string,
+    courseId: string,
+    versionId: string,
+  ): Promise<Array<{
+    moduleId: string;
+    moduleName: string;
+    totalItems: number;
+    completedItems: number;
+  }>> {
+    // Delegate to ProgressService which already has working module progress logic
+    return await this.progressService.getModuleWiseProgress(
+      userId,
+      courseId,
+      versionId,
+    );
   }
 }

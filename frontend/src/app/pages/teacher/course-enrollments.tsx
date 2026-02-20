@@ -32,6 +32,8 @@ import {
   useCourseQuizScores,
   useRecalculateProgress,
   useBulkUnenrollUsers,
+  useUserModuleProgress,
+  useRecalculateStudentProgress
 } from "@/hooks/hooks"
 import { toast } from "sonner"
 import { useCourseStore } from "@/store/course-store"
@@ -186,6 +188,13 @@ export default function CourseEnrollments() {
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set())
   const [isBulkUnenrollDialogOpen, setIsBulkUnenrollDialogOpen] = useState(false)
+
+  // Fetch module progress for the selected user
+  const { data: userModuleProgress, isLoading: moduleProgressLoading } = useUserModuleProgress(
+    selectedUser?.id || "",
+    courseId || "",
+    versionId || ""
+  )
 
   const toggleSelectionMode = () => {
     setIsSelectionMode((prev) => {
@@ -413,6 +422,8 @@ export default function CourseEnrollments() {
   // Active / Inactive tab
   const [enrollmentTab, setEnrollmentTab] = useState<"ACTIVE" | "INACTIVE">("ACTIVE")
   const statusTab: "ACTIVE" | "INACTIVE" = enrollmentTab
+  const [activeCount, setActiveCount] = useState(0)
+  const [inactiveCount, setInactiveCount] = useState(0)
   const {
     data: quizScores,
     isLoading: isLoadingQuizScores,
@@ -455,9 +466,18 @@ export default function CourseEnrollments() {
   const unenrollMutation = useUnenrollUser()
   const bulkUnenrollMutation = useBulkUnenrollUsers()
   const recalculateMutation = useRecalculateProgress()
+  const recalculateStudentMutation = useRecalculateStudentProgress()
+
 
   // Pagination state
   const totalDocuments = enrollmentsData?.totalDocuments || 0
+  useEffect(() => {
+    if (enrollmentTab === "ACTIVE") {
+      setActiveCount(totalDocuments)
+    } else {
+      setInactiveCount(totalDocuments)
+    }
+  }, [totalDocuments, enrollmentTab])
   const totalPages = enrollmentsData?.totalPages || 1
 
 
@@ -569,20 +589,21 @@ export default function CourseEnrollments() {
     if (userToRecalculate && courseId) {
       const userId = userToRecalculate?.id ?? undefined;
       try {
-        await recalculateMutation.mutateAsync({
-          params: {
-            query: {
-              courseId: courseId,
-              userId: userId,
-              courseVersionId: versionId,
-            },
+        await recalculateStudentMutation.mutateAsync({
+          body: {
+            userId: userId,
+            courseId: courseId,
+            courseVersionId: versionId,
+
           },
         })
         setIsRecalculateProgressOpen(false)
         setUsertToRecalculate(null)
         refetchEnrollments()
-      } catch (error) {
-        console.error("Failed to remove student:", error)
+        toast.success("Progress recalculated successfully")
+      } catch (error: any) {
+        console.error("Failed to recalculate progress:", error)
+        toast.error(error?.message || "Failed to recalculate progress")
       }
     }
   }
@@ -876,14 +897,14 @@ export default function CourseEnrollments() {
                 value="ACTIVE"
                 className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
               >
-                Active Students
+                Active Students({activeCount})
               </TabsTrigger>
 
               <TabsTrigger
                 value="INACTIVE"
                 className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
               >
-                Inactive Students
+                Inactive Students({inactiveCount})
               </TabsTrigger>
             </TabsList>
           </div>
@@ -997,17 +1018,17 @@ export default function CourseEnrollments() {
                       onClick={() => setShowContentSummary(prev => !prev)}
                       className="flex items-center gap-2 px-3 py-2 text-sm font-medium hover:bg-muted/20 rounded-md"
                     > */}
-                     <p>Content Summary</p> 
-                      {/* {showContentSummary ? (
+                    <p>Content Summary</p>
+                    {/* {showContentSummary ? (
                       <ChevronDown className="h-4 w-4" />
                     ) : (
                       <ChevronRight className="h-4 w-4" />
                     )} */}
                     {/* </button> */}
-                      <div className= "flex justify-between items-center mt-2 mb-2">
-                    <p className="text-sm text-muted-foreground mb-2">Completion Percentage</p>
-                    <EnrollmentProgress progress={(selectedUser.progress || 0)} />
-                        </div>
+                    <div className="flex justify-between items-center mt-2 mb-2">
+                      <p className="text-sm text-muted-foreground mb-2">Completion Percentage</p>
+                      <EnrollmentProgress progress={(selectedUser.progress || 0)} />
+                    </div>
                     {/* Body */}
                     {
                       // showContentSummary &&
@@ -1207,7 +1228,43 @@ export default function CourseEnrollments() {
                           <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         )}
                         <BookOpen className="h-5 w-5 text-blue-600" />
-                        <span className="font-semibold text-foreground">{module.name}</span>
+                        <span className="font-semibold text-foreground flex-1">{module.name}</span>
+
+                        {/* Module completion count */}
+                        {(() => {
+                          // Find progress for this module from the API response
+                          const moduleProgress = userModuleProgress?.modules?.find(
+                            (m: any) => m.moduleId === module.moduleId
+                          );
+
+                          if (moduleProgress) {
+                            const { totalItems, completedItems } = moduleProgress;
+                            const completedText = totalItems > 0
+                              ? `${completedItems}/${totalItems} completed`
+                              : 'No items';
+
+                            return (
+                              <span className="text-xs ml-auto text-muted-foreground">
+                                {completedText}
+                              </span>
+                            );
+                          }
+
+                          let totalItems = 0;
+                          module.sections?.forEach((section: any) => {
+                            totalItems += section.itemCount || 0;
+                          });
+
+                          const loadingText = moduleProgressLoading
+                            ? `${totalItems} items (loading...)`
+                            : `${totalItems} items`;
+
+                          return (
+                            <span className="text-xs ml-auto text-muted-foreground">
+                              {loadingText}
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       {/* Sections */}
@@ -1864,8 +1921,8 @@ function EnrollmentsTable({
       <CardHeader className="pb-4 bg-gradient-to-r from-card to-muted/20 flex items-center justify-between lg:flex-nowrap flex-wrap">
         <CardTitle className="text-xl font-medium text-card-foreground">
           {isInactiveTab
-            ? `Inactive Students (${totalDocuments})`
-            : `Active Students (${totalDocuments})`}
+            ? `Inactive Students `
+            : `Active Students `}
         </CardTitle>
 
         {/* SAME header functionality for both tabs */}
