@@ -1,4 +1,4 @@
-﻿import {QuestionBankRef} from '#quizzes/classes/validators/QuestionBankValidator.js';
+﻿import {QuestionBankNotFoundErrorResponse, QuestionBankRef} from '#quizzes/classes/validators/QuestionBankValidator.js';
 import {
   QuizIdParam,
   AddQuestionBankBody,
@@ -23,6 +23,8 @@ import {
   QuizNotFoundErrorResponse,
   GetAllQuestionBanksResponse,
   GetQuizSubmissionsQuery,
+  QuestionModificationParam,
+  QuestionUpdatedResponse,
 } from '#quizzes/classes/validators/QuizValidator.js';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {QuizService} from '#quizzes/services/QuizService.js';
@@ -41,6 +43,7 @@ import {
   ForbiddenError,
   Authorized,
   QueryParams,
+  Put,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
@@ -55,6 +58,16 @@ import {COURSES_TYPES} from '#root/modules/courses/types.js';
 import {ItemService} from '#root/modules/courses/services/ItemService.js';
 import {BadRequestErrorResponse} from '#root/shared/index.js';
 import {CourseIdParams} from '#root/modules/courses/classes/index.js';
+import {
+  QuestionBody,
+  QuestionFactory,
+  QuestionNotFoundErrorResponse,
+} from '../classes/index.js';
+import {
+  getQuestionAbility,
+  QuestionActions,
+} from '../abilities/questionAbilities.js';
+import {QuestionProcessor} from '../question-processing/QuestionProcessor.js';
 
 @OpenAPI({
   tags: ['Quiz'],
@@ -777,6 +790,58 @@ class QuizController {
     @Ability(getQuizAbility) {ability},
   ): Promise<void> {
     await this.quizService.updateMissingSubmissionResultIds();
+  }
+
+  @OpenAPI({
+    summary: 'Update a specific question in a specific quiz',
+    description: `Updates a specific question in a specific quiz.<br/>
+    It returns a string body with a 200 status code.`,
+  })
+  @Authorized()
+  @Put('/:quizId/questions/:questionId')
+  @ResponseSchema(QuestionUpdatedResponse, {
+    description: 'Question updated successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid quiz ID',
+    statusCode: 400,
+  })
+  @ResponseSchema(QuizNotFoundErrorResponse, {
+    description: 'Quiz not found',
+    statusCode: 404,
+  })
+  @ResponseSchema(QuestionNotFoundErrorResponse, {
+    description: 'Question not found',
+    statusCode: 404,
+  })
+   @ResponseSchema(QuestionBankNotFoundErrorResponse, {
+    description: 'Question bank not found',
+    statusCode: 404,
+  })
+  async updateSpecificQuestionInASpecificQuiz(
+    @Params() params: QuestionModificationParam,
+    @Body() body: QuestionBody,
+    @Ability(getQuestionAbility) {ability, user},
+  ): Promise<QuestionUpdatedResponse> {
+    const {quizId, questionId} = params;
+    const userId = user._id.toString();
+
+    if (!ability.can(QuestionActions.Modify, 'Question')) {
+      throw new ForbiddenError(
+        'You do not have permission to modify questions',
+      );
+    }
+
+    const question = QuestionFactory.createQuestion(body, userId);
+    const questionProcessor = new QuestionProcessor(question);
+    questionProcessor.validate();
+    questionProcessor.render();
+    return await this.quizService.updateSpecificQuestionInASpecificQuiz(
+      question,
+      quizId,
+      questionId,
+    );
   }
 }
 

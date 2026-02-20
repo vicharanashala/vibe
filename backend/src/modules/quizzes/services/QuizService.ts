@@ -18,10 +18,20 @@ import {
   ISubmissionWithUser,
   PaginatedSubmissions,
 } from '../interfaces/grading.js';
-import {GetQuizSubmissionsQuery, QuestionBankRef} from '../classes/index.js';
+import {
+  BaseQuestion,
+  GetQuizSubmissionsQuery,
+  QuestionBankNotFoundErrorResponse,
+  QuestionBankRef,
+  QuestionNotFoundErrorResponse,
+  QuestionUpdatedResponse,
+  QuizNotFoundErrorResponse,
+} from '../classes/index.js';
 import {QuestionBankService} from './QuestionBankService.js';
 import {EnrollmentRepository, ICourseRepository} from '#root/shared/index.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
+import {re} from 'mathjs';
+import {QuestionService} from './QuestionService.js';
 @injectable()
 class QuizService extends BaseService {
   constructor(
@@ -51,6 +61,9 @@ class QuizService extends BaseService {
 
     @inject(USERS_TYPES.EnrollmentRepo)
     private readonly enrollmentRepo: EnrollmentRepository,
+
+    @inject(QUIZZES_TYPES.QuestionService)
+    public readonly questionService: QuestionService,
   ) {
     super(database);
   }
@@ -717,6 +730,44 @@ class QuizService extends BaseService {
       );
       throw error;
     }
+  }
+
+   updateSpecificQuestionInASpecificQuiz(
+    question: BaseQuestion,
+    quizId: string,
+    questionId: string,
+  ): Promise<QuestionUpdatedResponse> {
+    return this._withTransaction(async session => {
+      const quiz = await this.quizRepo.getById(quizId, session);
+      if (!quiz) {
+        throw new QuizNotFoundErrorResponse();
+      }
+  
+      const questionBankRefIds: string[] = quiz.details.questionBankRefs.map(
+        ref => ref.bankId.toString(),
+      );
+        
+      for (const bankId of questionBankRefIds) {
+        const questionBank = await this.questionBankRepo.getById(bankId, session);
+         
+        if (!questionBank) {
+          throw new QuestionBankNotFoundErrorResponse();
+        }
+        
+        const questionExists = questionBank.questions.some(
+          q => q.toString() === questionId.toString(),
+        );
+
+        if (questionExists) {
+          // Question found in this question bank, proceed to update
+          await this.questionService.update(questionId, question);
+          const res = new QuestionUpdatedResponse();
+            res.message = 'Question updated successfully';
+            return res;
+          }
+      }
+      throw new QuestionNotFoundErrorResponse();
+     });
   }
 }
 
