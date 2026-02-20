@@ -752,6 +752,7 @@ export class EnrollmentRepository {
           enrollmentDate: 1,
           course: 1,
           courseVersion: 1,
+          assignedTimeSlot: 1,
           //getting current course completion details(not actual details)
           moduleNumber: '$moduleNumber',
           sectionNumber: '$sectionNumber',
@@ -3226,6 +3227,7 @@ export class EnrollmentRepository {
           role: 1,
           status: 1,
           enrollmentDate: 1,
+          assignedTimeSlot: 1,
           course: 1,
           courseVersion: 1,
           //getting current course completion details(not actual details)
@@ -3296,5 +3298,77 @@ export class EnrollmentRepository {
       .toArray();
 
     return result[0]?.total || 0;
+  }
+
+  /**
+   * Update enrollment time slot
+   */
+  async updateEnrollmentTimeSlot(
+    enrollmentId: string,
+    timeSlot: { from: string; to: string },
+    session?: ClientSession,
+  ): Promise<any> {
+    await this.init();
+    
+    const updateResult = await this.enrollmentCollection.updateOne(
+      { _id: new ObjectId(enrollmentId) },
+      { 
+        $set: { 
+          assignedTimeSlot: timeSlot,
+          updatedAt: new Date()
+        } 
+      },
+      { session }
+    );
+
+    return updateResult;
+  }
+
+  /**
+   * Remove assigned time slot from enrollment
+   */
+  async removeEnrollmentTimeSlot(
+    enrollmentId: string,
+    session?: ClientSession,
+  ): Promise<any> {
+    await this.init();
+    
+    const updateResult = await this.enrollmentCollection.updateOne(
+      { _id: new ObjectId(enrollmentId) },
+      { 
+        $unset: { 
+          assignedTimeSlot: 1
+        },
+        $set: {
+          updatedAt: new Date()
+        }
+      },
+      { session }
+    );
+
+    return updateResult;
+  }
+
+  /**
+   * Find enrollments by assigned time slot
+   */
+  async findEnrollmentsByTimeSlot(
+    courseId: string,
+    courseVersionId: string,
+    timeSlot: { from: string; to: string },
+    session?: ClientSession,
+  ): Promise<any[]> {
+    await this.init();
+    
+    const enrollments = await this.enrollmentCollection.find({
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+      'assignedTimeSlot.from': timeSlot.from,
+      'assignedTimeSlot.to': timeSlot.to,
+      status: 'ACTIVE',
+      role: 'STUDENT'
+    }).toArray();
+
+    return enrollments;
   }
 }

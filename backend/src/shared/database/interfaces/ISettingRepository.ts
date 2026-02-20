@@ -4,6 +4,7 @@ import {
   IRegistrationSettings,
   ISettings,
   IUserSetting,
+  ITimeSlot,
 } from '../../interfaces/models.js';
 import {
   AuditingDto,
@@ -201,4 +202,32 @@ export interface ISettingRepository {
     search: string,
     session?: ClientSession,
   ): Promise<number>;
+
+  /**
+   * Updates timeslots settings for a specific course and version.
+   * @param courseId - The ID of the course
+   * @param courseVersionId - The ID of the course version
+   * @param timeslots - The timeslots settings to update
+   * @param session - Optional MongoDB session for transactions
+   * @returns Update result or null if update failed
+   */
+  updateTimeslotsSettings(
+    courseId: string,
+    courseVersionId: string,
+    timeslots: { isActive: boolean; slots: ITimeSlot[] },
+    session?: ClientSession,
+  ): Promise<UpdateResult | null>;
+
+  /**
+   * Reads timeslots settings for a specific course and version.
+   * @param courseId - The ID of the course
+   * @param courseVersionId - The ID of the course version
+   * @param session - Optional MongoDB session for transactions
+   * @returns The timeslots settings or null if not found
+   */
+  readTimeslotsSettings(
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<{ isActive: boolean; slots: ITimeSlot[] } | null>;
 }

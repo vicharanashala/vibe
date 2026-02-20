@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useNavigate } from "@tanstack/react-router"
-import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare } from 'lucide-react'
+import { useNavigate, useSearch } from "@tanstack/react-router"
+import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare, Check } from 'lucide-react'
 import { Pagination } from "@/components/ui/Pagination"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { QuizSubmissionDisplay } from "./QuizSubmissionDisplay"
 import { WatchTimeDisplay } from "./WatchTimeDisplay"
+import TimeSlotsModal from "./components/TimeSlotsModal"
 import { useStudentCurrentProgressPath } from "@/hooks/hooks"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -33,6 +34,7 @@ import {
   useRecalculateProgress,
   useBulkUnenrollUsers,
   useUserModuleProgress,
+  useGetTimeSlots,
 } from "@/hooks/hooks"
 import { toast } from "sonner"
 import { useCourseStore } from "@/store/course-store"
@@ -187,6 +189,68 @@ export default function CourseEnrollments() {
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set())
   const [isBulkUnenrollDialogOpen, setIsBulkUnenrollDialogOpen] = useState(false)
+  const [isTimeSlotsModalOpen, setIsTimeSlotsModalOpen] = useState(false);
+
+  // Get URL search params
+  const search = useSearch({ strict: false }) as any
+  const selectMode = search?.selectMode === "true"
+  const excludeAssigned = search?.excludeAssigned === "true"
+
+  // Time slots data for exclusion logic
+  const { data: timeSlotsData } = useGetTimeSlots(
+    courseId && courseId.length === 24 && versionId && versionId.length === 24 
+      ? courseId 
+      : undefined, 
+    versionId && versionId.length === 24 
+      ? versionId 
+      : undefined
+  );
+
+  // Get assigned student IDs
+  const getAssignedStudentIds = () => {
+    const assignedIds = new Set<string>();
+    timeSlotsData?.slots?.forEach((slot: any) => {
+      slot.studentIds?.forEach((id: string) => assignedIds.add(id));
+    });
+    return assignedIds;
+  };
+
+  // Handle student selection completion for time slots
+  const handleTimeSlotStudentSelection = () => {
+    if (selectedUsers.size > 0) {
+      // Send selected students back to TimeSlotsModal
+      window.dispatchEvent(new CustomEvent('studentSelectionComplete', {
+        detail: { selectedStudentIds: Array.from(selectedUsers) }
+      }));
+      // Exit selection mode
+      setIsSelectionMode(false);
+    }
+  };
+
+  // Listen for enableSelectionMode event from TimeSlotsModal
+  useEffect(() => {
+    const handleEnableSelectionMode = (event: CustomEvent) => {
+      const { slot } = event.detail;
+      // Enable selection mode
+      setIsSelectionMode(true);
+      // Pre-select existing students for this slot
+      setSelectedUsers(new Set(slot.studentIds));
+    };
+
+    window.addEventListener('enableSelectionMode', handleEnableSelectionMode as EventListener);
+    return () => {
+      window.removeEventListener('enableSelectionMode', handleEnableSelectionMode as EventListener);
+    };
+  }, []);
+
+  // Auto-enable selection mode if URL params indicate it
+  useEffect(() => {
+    if (selectMode && !isSelectionMode) {
+      setIsSelectionMode(true);
+    }
+  }, [selectMode]);
+
+
 
   // Fetch module progress for the selected user
   const { data: userModuleProgress, isLoading: moduleProgressLoading } = useUserModuleProgress(
@@ -205,25 +269,6 @@ export default function CourseEnrollments() {
     })
   }
 
-  const handleSelectAll = (checked: boolean) => {
-    const visibleUserIds = studentEnrollments.map((e: any) => e.user?._id || e.user?.id).filter(Boolean)
-
-    if (checked) {
-      // Add all visible students to existing selections
-      setSelectedUsers((prev) => {
-        const newSet = new Set(prev)
-        visibleUserIds.forEach((id: string) => newSet.add(id))
-        return newSet
-      })
-    } else {
-      // Remove all visible students from selections
-      setSelectedUsers((prev) => {
-        const newSet = new Set(prev)
-        visibleUserIds.forEach((id: string) => newSet.delete(id))
-        return newSet
-      })
-    }
-  }
 
   const handleSelectUser = (userId: string, checked: boolean) => {
     const newSelected = new Set(selectedUsers)
@@ -456,6 +501,35 @@ export default function CourseEnrollments() {
 
   // const studentEnrollments = enrollmentsData?.enrollments || [];
   const studentEnrollments = enrollmentsData?.enrollments || []
+
+  // Filter out already assigned students if excludeAssigned is true
+  const filteredStudentEnrollments = excludeAssigned 
+    ? studentEnrollments.filter((enrollment: any) => {
+        const assignedIds = getAssignedStudentIds();
+        const studentId = enrollment.user?._id || enrollment.user?.id;
+        return !assignedIds.has(studentId);
+      })
+    : studentEnrollments;
+
+  const handleSelectAll = (checked: boolean) => {
+    const visibleUserIds = filteredStudentEnrollments.map((e: any) => e.user?._id || e.user?.id).filter(Boolean)
+
+    if (checked) {
+      // Add all visible students to existing selections
+      setSelectedUsers((prev) => {
+        const newSet = new Set(prev)
+        visibleUserIds.forEach((id: string) => newSet.add(id))
+        return newSet
+      })
+    } else {
+      // Remove all visible students from selections
+      setSelectedUsers((prev) => {
+        const newSet = new Set(prev)
+        visibleUserIds.forEach((id: string) => newSet.delete(id))
+        return newSet
+      })
+    }
+  }
 
 
   // API Hooks
@@ -791,22 +865,23 @@ export default function CourseEnrollments() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto py-4 space-y-8">
-        {/* Enhanced Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div className="space-y-4">
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Course Enrollments
-            </h1>
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-1 bg-gradient-to-b from-primary to-accent rounded-full"></div>
-                <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-foreground">{course.name}</h2>
-                <span className="text-lg text-muted-foreground">•</span>
-                <h3 className="text-base md:text-lg lg:text-xl font-semibold text-accent">{version.version}</h3>
-              </div>
-              <div className="h-1 w-32 bg-gradient-to-r from-primary to-accent rounded-full ml-4"></div>
+    <>
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto py-4 space-y-8">
+          {/* Enhanced Header */}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="space-y-4">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                Course Enrollments
+              </h1>
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-1 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+                  <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-foreground">{course.name}</h2>
+                  <span className="text-lg text-muted-foreground">•</span>
+                  <h3 className="text-base md:text-lg lg:text-xl font-semibold text-accent">{version.version}</h3>
+                </div>
+                <div className="h-1 w-32 bg-gradient-to-r from-primary to-accent rounded-full ml-4"></div>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -866,6 +941,36 @@ export default function CourseEnrollments() {
                 setSearchQuery("");
               }} />
           </div>
+          
+          
+          {/* Time Slot Selection Mode Header */}
+          {(selectMode || isSelectionMode) && (
+            <div className="flex items-center gap-3">
+              <div className="bg-card border border-border rounded-lg px-4 py-2">
+                <p className="text-sm text-card-foreground font-medium">
+                  Select students for time slot assignment
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {selectedUsers.size} student{selectedUsers.size !== 1 ? 's' : ''} selected
+                </p>
+              </div>
+              <Button
+                onClick={handleTimeSlotStudentSelection}
+                disabled={selectedUsers.size === 0}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+              >
+                <Check className="h-4 w-4 mr-2" />
+                Confirm Selection
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setIsSelectionMode(false)}
+                className="border-border text-foreground hover:bg-muted"
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
         </div>
 
 
@@ -899,7 +1004,7 @@ export default function CourseEnrollments() {
           <TabsContent value="ACTIVE" className="mt-4">
             <EnrollmentsTable
               totalDocuments={totalDocuments}
-              studentEnrollments={studentEnrollments}
+              studentEnrollments={filteredStudentEnrollments}
               enrollmentsLoading={enrollmentsLoading}
               isSearching={isSearching}
               enrollmentTab={enrollmentTab}
@@ -922,6 +1027,7 @@ export default function CourseEnrollments() {
               onSelectAll={handleSelectAll}
               toggleSelectionMode={toggleSelectionMode}
               handleBulkUnenroll={handleBulkUnenroll}
+              setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
             />
           </TabsContent>
 
@@ -946,10 +1052,15 @@ export default function CourseEnrollments() {
               handleViewProgress={handleViewProgress}
               handleRemoveStudent={handleRemoveStudent}
               getRoleBadge={getRoleBadge}
+              isSelectionMode={false}
+              selectedUsers={new Set()}
+              onSelectUser={handleSelectUser}
+              onSelectAll={handleSelectAll}
+              toggleSelectionMode={toggleSelectionMode}
+              handleBulkUnenroll={handleBulkUnenroll}
+              setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
             />
           </TabsContent>
-
-
         </Tabs>
 
 
@@ -1713,6 +1824,15 @@ export default function CourseEnrollments() {
         )}
       </div>
     </div>
+    
+    {/* Time Slots Modal */}
+    <TimeSlotsModal
+      isOpen={isTimeSlotsModalOpen}
+      onClose={() => setIsTimeSlotsModalOpen(false)}
+      courseId={courseId || ""}
+      courseVersionId={versionId || ""}
+    />
+    </>
   )
 }
 
@@ -1900,6 +2020,7 @@ function EnrollmentsTable({
   onSelectAll,
   toggleSelectionMode,
   handleBulkUnenroll,
+  setIsTimeSlotsModalOpen,
 }: any) {
   const isInactiveTab = enrollmentTab === "INACTIVE"
 
@@ -1927,6 +2048,18 @@ function EnrollmentsTable({
               <FileDown className="h-4 w-4" />
             )}
             <span>{isLoadingQuizScores ? "Exporting..." : "Export Quiz Scores"}</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setIsTimeSlotsModalOpen(true);
+            }}
+            className="flex items-center gap-2"
+          >
+            <Clock className="h-4 w-4" />
+            <span>Configure Time Slots</span>
           </Button>
 
           {/* Select Students Button - Only for Active Students */}
