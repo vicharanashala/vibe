@@ -26,6 +26,21 @@ const EnrollmentDetailsDialog = lazy(() =>
   }))
 );
 
+// Helper function to check if current time is within assigned time slot
+const isCurrentTimeInTimeSlot = (timeSlot?: { from: string; to: string }) => {
+  if (!timeSlot) return true; // No time slot restriction
+  
+  const now = new Date();
+  const currentTime = now.getHours() * 60 + now.getMinutes(); // Convert to minutes since midnight
+  
+  const [fromHours, fromMinutes] = timeSlot.from.split(':').map(Number);
+  const [toHours, toMinutes] = timeSlot.to.split(':').map(Number);
+  const fromTime = fromHours * 60 + fromMinutes;
+  const toTime = toHours * 60 + toMinutes;
+  
+  return currentTime >= fromTime && currentTime <= toTime;
+};
+
 export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard', className, completion, setCompletion }: CourseCardProps) => {
   // Add null checks to prevent errors when enrollment data is incomplete
   if (!enrollment || !enrollment.courseId || !enrollment.courseVersionId) {
@@ -255,6 +270,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 //   : "bg-blue-600 hover:bg-blue-700 text-white shadow-md border-0"
                 } w-full sm:w-auto transition-all duration-200`}
               onClick={handleContinue}
+               disabled={!isCurrentTimeInTimeSlot(enrollment.assignedTimeSlot)}
             >
               {variant === 'available' ? 'Register' : progress === 0 ? 'Start' : progress >= 100 ? 'Completed' : 'Continue'}
             </Button>
