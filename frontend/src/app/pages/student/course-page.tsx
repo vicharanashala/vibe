@@ -1498,6 +1498,8 @@ export default function CoursePage() {
                         <SidebarMenuButton
                           onClick={() => toggleModule(moduleId)}
                           isActive={isCurrentModule}
+                          aria-expanded={isModuleExpanded}
+                          data-state={isModuleExpanded ? 'open' : 'closed'}
                           className="group relative h-10 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/15 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm"
                         >
                           <ChevronRight
@@ -1544,6 +1546,8 @@ export default function CoursePage() {
                                   <SidebarMenuSubButton
                                     onClick={() => toggleSection(moduleId, sectionId)}
                                     isActive={isCurrentSection}
+                                    aria-expanded={isModuleExpanded}
+                                    data-state={isModuleExpanded ? 'open' : 'closed'}
                                     className="group relative h-8 px-3 w-full rounded-md text-xs transition-all duration-200 hover:bg-accent/10 hover:text-accent-foreground data-[state=active]:bg-accent/15 data-[state=active]:text-accent-foreground"
                                   >
                                     <ChevronRight
