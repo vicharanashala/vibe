@@ -54,7 +54,7 @@ import ItemContainer from "@/components/Item-container";
 import logo from "../../../../public/img/vibe_logo_img.ico"
 import { registerStream, unRegisterStream } from "@/lib/MediaRegistry";
 import { useModuleProgress } from "@/hooks/hooks";
-import { isMobile } from "react-device-detect";
+import { useIsMobile } from "@/hooks/use-mobile";
 import MobileFallbackScreen from "@/components/MobileFallbackScreen";
 
 // Helper function to get icon for item type
@@ -108,6 +108,8 @@ export default function CoursePage() {
   const [closing, setClosing] = useState(false);
   const [allProctorsDisabled, setAllProctorsDisabled] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
+
+  const isMobile=useIsMobile();
 
   
 
@@ -1571,7 +1573,7 @@ export default function CoursePage() {
                                         sortItemsByOrder(sectionItems[sectionId]).map((item: any) => {
                                           const itemId = item._id;
                                           const isCurrentItem = itemId === selectedItemId;
-                                          if (item.type === 'QUIZ') return null; // Skip quizzes in sidebar
+                                          
                                           return (
                                             <SidebarMenuSubItem key={itemId}>
                                               <SidebarMenuSubButton
