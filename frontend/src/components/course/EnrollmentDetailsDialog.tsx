@@ -98,6 +98,15 @@ export function EnrollmentDetailsDialog({
                   <p>{enroll1?.course?.versionDetails?.[0]?.version || 'N/A'}</p>
                 </div>
                 <div className="space-y-1 col-span-2">
+                  <p className="text-sm font-medium text-muted-foreground">Assigned Timeslot</p>
+                  <p className="text-sm">
+                    {enroll1?.assignedTimeSlot 
+                      ? `${enroll1.assignedTimeSlot.from} - ${enroll1.assignedTimeSlot.to} (IST)`
+                      : 'You can access course anytime'
+                    }
+                  </p>
+                </div>
+                <div className="space-y-1 col-span-2">
                   <p className="text-sm font-medium text-muted-foreground">Description</p>
                   <p className="text-sm">{enroll1?.course?.description || 'No description available'}</p>
                 </div>
