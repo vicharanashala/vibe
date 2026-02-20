@@ -3301,9 +3301,6 @@ class ProgressService extends BaseService {
       throw new BadRequestError('userId, courseId and versionId are required');
     }
 
-    console.log(
-      `Recalculating progress for user: ${userId}, course: ${courseId}, version: ${versionId}`,
-    );
 
     // 1. Fetch progress
     const progress = await this.progressRepository.findProgress(
@@ -3322,21 +3319,11 @@ class ProgressService extends BaseService {
     }
 
     // 2. Fetch required data's in parallel
-    const [
-      allItemIdsUntilCurrentItem,
-      completedItemIds,
-      courseVersion,
-      enrollment,
-    ] = await Promise.all([
-      this.getItemIdsUntilItem(versionId, currentItemId),
+    const [completedItemIds, courseVersion, enrollment] = await Promise.all([
       this.progressRepository.getCompletedItems(userId, courseId, versionId),
       this.courseRepo.readVersion(versionId),
       this.enrollmentRepo.findEnrollment(userId, courseId, versionId),
     ]);
-
-    if (!allItemIdsUntilCurrentItem.length) {
-      throw new NotFoundError('No items found for this course version');
-    }
 
     if (!courseVersion) {
       throw new NotFoundError('Course version not found');
@@ -3346,22 +3333,38 @@ class ProgressService extends BaseService {
       throw new NotFoundError('Enrollment not found');
     }
 
+    let allRelevantItemIds: string[] = [];
+
+    // If course is completed, we should check against ALL items, because currentItem reset to the start
+    if (progress.completed) {
+      allRelevantItemIds = await this.getAllItemIds(versionId);
+    } else {
+      if (currentItemId) {
+        allRelevantItemIds = await this.getItemIdsUntilItem(
+          versionId,
+          currentItemId,
+        );
+      }
+    }
+
+    if (!allRelevantItemIds.length) {
+      throw new NotFoundError('No items found for this course version');
+    }
+
     const completedItemSet = new Set(completedItemIds);
-    const missedItemIds = allItemIdsUntilCurrentItem.filter(
+    const missedItemIds = allRelevantItemIds.filter(
       itemId => !completedItemSet.has(itemId),
     );
 
-    if (!missedItemIds.length) {
-      return; // Nothing to fix
-    }
-
     // 3. Backfill missed watch-time records
-    await this.progressRepository.addBulkWatchTime(
-      userId,
-      courseId,
-      versionId,
-      missedItemIds,
-    );
+    if (missedItemIds.length > 0) {
+      await this.progressRepository.addBulkWatchTime(
+        userId,
+        courseId,
+        versionId,
+        missedItemIds,
+      );
+    }
 
     // 4. Avoid recomputing totalItems if already stored
     const totalItemsCount =
@@ -3371,16 +3374,13 @@ class ProgressService extends BaseService {
     const totalCompletedItemsCount =
       completedItemSet.size + missedItemIds.length;
 
-    const normalizedTotalItemsCount = Math.max(
-      totalItemsCount,
-      totalCompletedItemsCount,
-    );
+    const normalizedTotalItemsCount = Math.max(totalItemsCount, totalCompletedItemsCount);
 
     const percentCompleted =
-      totalItemsCount > 0
+      normalizedTotalItemsCount > 0
         ? Math.min(
           parseFloat(
-            ((normalizedTotalItemsCount / totalItemsCount) * 100).toFixed(2),
+            ((totalCompletedItemsCount / normalizedTotalItemsCount) * 100).toFixed(2),
           ),
           100,
         )
@@ -3391,7 +3391,7 @@ class ProgressService extends BaseService {
       enrollment._id!.toString(),
       percentCompleted,
       undefined,
-      normalizedTotalItemsCount,
+      totalCompletedItemsCount,
     );
 
     return 'Progress recalculated successfully';

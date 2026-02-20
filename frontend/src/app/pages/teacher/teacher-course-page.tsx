@@ -35,7 +35,8 @@ import {
   EyeOff,
   Loader2,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Pencil
 } from "lucide-react";
 
 import { useNavigate } from "@tanstack/react-router";
@@ -2368,9 +2369,37 @@ function TeacherCourseContent() {
                     {/* Header with breadcrumb */}
                     <div className="mb-6 pb-4 border-b border-slate-200 dark:border-gray-700">
                       <div className="flex items-center justify-between mb-2">
-                        <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-slate-900 dark:text-gray-100">
-                          {selectedEntity.data?.name}
-                        </h2>
+                        <div className="flex items-center gap-2">
+                          {/* Pencil icon to update module*/}
+                          {(selectedEntity.type === "module" || selectedEntity.type === "section") && !isEditingModule && !isEditingSection && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                if (selectedEntity.type === "module") {
+                                  setIsEditingModule(true);
+                                  setOriginalModuleData({
+                                    name: selectedEntity.data.name,
+                                    description: selectedEntity.data.description || ""
+                                  });
+                                } else {
+                                  setIsEditingSection(true);
+                                  setOriginalSectionData({
+                                    name: selectedEntity.data.name,
+                                    description: selectedEntity.data.description || ""
+                                  });
+                                }
+                              }}
+                              className="h-8 w-8 -ml-2"
+                            >
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">Edit {selectedEntity.type}</span>
+                            </Button>
+                          )}
+                          <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-slate-900 dark:text-gray-100">
+                            {selectedEntity.data?.name}
+                          </h2>
+                        </div>
                         <div className="flex items-center gap-2">
                           {selectedEntity.type === "item" && (
                             // <div className="items-center gap-2 bg-muted/40 px-2 py-1 rounded-md border text-sm">
@@ -2621,7 +2650,9 @@ function TeacherCourseContent() {
                         </>
                       )}
                       <div className="flex items-center gap-2">
-                        {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
+                        {(selectedEntity.type === "module" || selectedEntity.type === "section") &&
+                        (isEditingModule || isEditingSection) &&
+                         (
                           <Button
                             onClick={() => {
                               const moduleName = selectedEntity.data.name?.trim();
@@ -2737,11 +2768,17 @@ function TeacherCourseContent() {
                                 });
                               }
                             }}
-                            className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
+                            variant={isEditingModule || isEditingSection ? "default" : "ghost"}
+                            size={isEditingModule || isEditingSection ? "default" : "icon"}
+                            className={isEditingModule || isEditingSection ? 
+                              "bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300" : "h-8 w-8"}
                           >
-                            {selectedEntity.type === "module"
-                              ? (isEditingModule ? 'Save Changes' : `Update ${selectedEntity.type}`)
-                              : (isEditingSection ? 'Save Changes' : `Update ${selectedEntity.type}`)}
+                             {isEditingModule || isEditingSection ? (
+                              'Save Changes'
+                            ) : (
+                              <Pencil className="h-4 w-4" />
+                            )}
+                            <span className="sr-only">Edit {selectedEntity.type}</span>
                           </Button>
                         )}
 

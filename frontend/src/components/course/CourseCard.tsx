@@ -278,7 +278,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 </Suspense>
               )
             }
-            {enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && <Button onClick={() => setIsDetailsOpen(true)} variant="outline" className="w-full sm:w-auto">View Details</Button>}
+            {variant !== 'available' && enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && <Button onClick={() => setIsDetailsOpen(true)} variant="outline" className="w-full sm:w-auto">View Details</Button>}
             {/* {enrollment.courseVersionId!=="6981df886e100cfe04f9c4ae"&& <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full sm:w-auto">View Details</Button>
@@ -937,7 +937,7 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen }: { course
             <div className="w-px h-6 bg-border" />
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground uppercase tracking-wider">Progress</span>
-              <span className="font-semibold text-foreground">{Math.round(myStats.completionPercentage*1000)/1000}%</span>
+              <span className="font-semibold text-foreground">{Math.round(myStats.completionPercentage * 1000) / 1000}%</span>
             </div>
           </div>
         ) : (

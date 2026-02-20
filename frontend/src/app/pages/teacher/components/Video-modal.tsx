@@ -454,15 +454,24 @@ const VideoModal: React.FC<VideoModalProps> = ({
         setErrorList(newErrors);
         const isValid = Object.values(newErrors).every((err) => err === "");
         if (!isValid) return;
+        let finalStartTime = timeInputs.start;
+        let finalEndTime = timeInputs.end;
+
+        if (action === "add" && duration === 0) {
+            finalStartTime = "0:00";
+            finalEndTime = "0:00";
+        }
+
 
         const startSeconds = validateTimeInput(timeInputs.start, duration);
         const endSeconds = validateTimeInput(timeInputs.end, duration);
 
-        const startValid = validateTimeAgainstDuration(timeInputs.start, "startTime", duration);
-        const endValid = validateTimeAgainstDuration(timeInputs.end, "endTime", duration);
-        const rangeValid = validateTimeRange(timeInputs.start, timeInputs.end);
-
-        if (!startValid || !endValid || !rangeValid) return;
+        if (duration > 0) {
+            const startValid = validateTimeAgainstDuration(finalStartTime, "startTime", duration);
+            const endValid = validateTimeAgainstDuration(finalEndTime, "endTime", duration);
+            const rangeValid = validateTimeRange(finalStartTime, finalEndTime);
+            if (!startValid || !endValid || !rangeValid) return;
+        }
 
         const video: Video = {
             _id: item?._id || "",
@@ -507,10 +516,9 @@ const VideoModal: React.FC<VideoModalProps> = ({
             {isLoading ? <Loader /> :
                 <div
                     ref={modalRef}
-                    className="bg-background rounded-lg p-6 
-             backdrop-blur-md bg-background/80 border
-              overflow-y-auto
-                min-w-4xl"
+                    className="bg-white rounded-lg p-6 
+                    overflow-y-auto
+                    min-w-4xl shadow-lg"
                 >
 
 
@@ -538,6 +546,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                             value={name}
                             onChange={e => setName(e.target.value)}
                             disabled={action === "view"}
+                            className="bg-white border-gray-200"
                         />
                         {errorList.name && (
                             <p className="text-xs text-red-500 mt-1">{errorList.name}</p>
@@ -547,6 +556,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                             value={url}
                             onChange={e => setUrl(e.target.value)}
                             disabled={action === "view"}
+                            className="bg-white border-gray-200"
                         />
                         {errorList.url && (
                             <p className="text-xs text-red-500 mt-1">{errorList.url}</p>
@@ -557,7 +567,8 @@ const VideoModal: React.FC<VideoModalProps> = ({
                             onChange={e => setDescription(e.target.value)}
                             disabled={action === "view"}
                             rows={3}
-                            className="w-full rounded border px-3 py-2 text-sm"
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm
+                            bg-white focus:border-primary focus:ring-1 focus:ring-primary"
                         />
                         {errorList.description && (
                             <p className="text-xs text-red-500 mt-1">{errorList.description}</p>
@@ -570,8 +581,8 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                     margin: "0 auto",
                                     borderRadius: 12,
                                     overflow: "hidden",
-                                    background: "hsl(var(--background))",
-                                    boxShadow: "0 2px 16px rgba(30,41,59,0.10)",
+                                    background: "#fff",
+                                    border: "1px solid #e5e7eb",
                                     display: "flex",
                                     flexDirection: "column",
                                 }}
@@ -631,9 +642,9 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                 {/* Start/End Time Inputs Below Video */}
                                 <div
                                     style={{
-                                        background: 'hsl(var(--card))',
+                                        background: '#f9fafb',
                                         padding: '16px',
-                                        borderTop: '1px solid hsl(var(--primary) / 0.2)',
+                                        borderTop: '1px solid #e5e7eb',
                                         borderRadius: '0 0 12px 12px',
                                         userSelect: 'none',
                                         WebkitUserSelect: 'none',
@@ -658,7 +669,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                                             style={{ width: 100 }}
                                                             placeholder="0:00"
                                                             maxLength={5}
-                                                            className={errors.startTime ? "border-red-500" : ""}
+                                                            className={errors.startTime ? "border-red-500" : "bg-white border-gray-200"}
                                                         />
                                                     </div>
                                                 </div>
@@ -679,7 +690,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                                             style={{ width: 100 }}
                                                             placeholder="0:00"
                                                             maxLength={5}
-                                                            className={errors.endTime ? "border-red-500" : ""}
+                                                            className={errors.endTime ? "border-red-500" : "bg-white border-gray-200"}
                                                         />
                                                     </div>
                                                 </div>
@@ -719,8 +730,8 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                 </div>
                             </div>
                         )}
-                        <div className="mt-2">
-                            <label className="block mb-1 font-medium">Points</label>
+                        <div className="mt-4 p-4 bg-white border border-gray-200 rounded-lg ">
+                            <label className="block mb-2 font-medium text-sm text-gray-700">Points</label>
                             <Input
                                 type="number"
                                 min={0}
@@ -728,11 +739,12 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                 onChange={e => setPoints(Number(e.target.value))}
                                 disabled={action === "view"}
                                 style={{ width: 120 }}
+                                className="bg-white border-gray-200"
                             />
                         </div>
                         {(action === "add" || action === "edit") && (
                             <div className="flex justify-end gap-2 mt-6">
-                                <Button variant="outline" onClick={handleCancel}>
+                                <Button variant="outline" onClick={handleCancel} className="border-gray-300">
                                     Cancel
                                 </Button>
                                 {action === "edit" && (
@@ -749,14 +761,30 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                 )}
                                 {(() => {
                                     const hasTimeRangeError = () => {
+                                        if (duration === 0) {
+                                            return false;
+                                        }
                                         const startSeconds = parseTimeToSeconds(timeInputs.start);
                                         const endSeconds = parseTimeToSeconds(timeInputs.end);
+                                        if (startSeconds === 0 && endSeconds === 0) {
+                                            return false;
+                                        }
                                         return endSeconds <= startSeconds;
                                     };
+                                    const isDisabled = 
+                                    (action !== "add" && !playerReady) || 
+                                    !url || 
+                                    !name || 
+                                    !description || 
+                                    hasErrors() || 
+                                    hasTimeRangeError();
+
                                     return (
                                         <Button
                                             onClick={handleSave}
-                                            disabled={!playerReady || !url || hasErrors() || hasTimeRangeError()}
+                                            disabled={isDisabled}
+                                            
+                                            className="bg-primary hover:bg-primary/90"
                                         >
                                             {action === "add" ? "Add Item " : "Update Video"}
                                         </Button>

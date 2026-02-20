@@ -567,13 +567,43 @@ It returns an empty body with a 200 status code.
     statusCode: 500,
   })
   async recalculateStudentProgress(
-    @Body() body: CourseVersionQuery,
-    @CurrentUser() user: IUser,
+    @Body() body: CourseVersionQuery & { userId?: string },
+    @CurrentUser() currentUser: IUser,
+    @Ability(getProgressAbility) { ability },
   ): Promise<string> {
-    const {courseId, courseVersionId} = body;
-    const userId = user._id?.toString();
+
+    const { courseId, courseVersionId, userId: requestedUserId } = body;
+
+    // Determine the target user based on role and permissions
+    let targetUserId: string;
+
+    if (requestedUserId) {
+      // If userId is provided (instructor use case), verify permissions
+      const progressResource = subject('Progress', {
+        userId: requestedUserId,
+        courseId,
+        versionId: courseVersionId,
+      });
+
+      // Check if current user can modify progress for the requested user
+      if (!ability.can(ProgressActions.Modify, progressResource)) {
+        throw new ForbiddenError(
+          'You do not have permission to recalculate progress for this user',
+        );
+      }
+
+      targetUserId = requestedUserId;
+    } else {
+      // No userId provided - use authenticated user (student use case)
+      targetUserId = currentUser._id?.toString();
+    }
+
+    if (!targetUserId) {
+      throw new BadRequestError('Unable to determine target user');
+    }
+
     return this.progressService.recalculateStudentProgress(
-      userId,
+      targetUserId,
       courseId,
       courseVersionId,
     );

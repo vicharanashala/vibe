@@ -33,6 +33,7 @@ import {
   useRecalculateProgress,
   useBulkUnenrollUsers,
   useUserModuleProgress,
+  useRecalculateStudentProgress
 } from "@/hooks/hooks"
 import { toast } from "sonner"
 import { useCourseStore } from "@/store/course-store"
@@ -465,6 +466,8 @@ export default function CourseEnrollments() {
   const unenrollMutation = useUnenrollUser()
   const bulkUnenrollMutation = useBulkUnenrollUsers()
   const recalculateMutation = useRecalculateProgress()
+  const recalculateStudentMutation = useRecalculateStudentProgress()
+
 
   // Pagination state
   const totalDocuments = enrollmentsData?.totalDocuments || 0
@@ -586,20 +589,21 @@ export default function CourseEnrollments() {
     if (userToRecalculate && courseId) {
       const userId = userToRecalculate?.id ?? undefined;
       try {
-        await recalculateMutation.mutateAsync({
-          params: {
-            query: {
-              courseId: courseId,
-              userId: userId,
-              courseVersionId: versionId,
-            },
+        await recalculateStudentMutation.mutateAsync({
+          body: {
+            userId: userId,
+            courseId: courseId,
+            courseVersionId: versionId,
+
           },
         })
         setIsRecalculateProgressOpen(false)
         setUsertToRecalculate(null)
         refetchEnrollments()
-      } catch (error) {
-        console.error("Failed to remove student:", error)
+        toast.success("Progress recalculated successfully")
+      } catch (error: any) {
+        console.error("Failed to recalculate progress:", error)
+        toast.error(error?.message || "Failed to recalculate progress")
       }
     }
   }
