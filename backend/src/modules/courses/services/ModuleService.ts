@@ -218,6 +218,17 @@ export class ModuleService extends BaseService {
     });
   }
 
+  public async readModule(versionId: string, moduleId: string) {
+    return this._withTransaction(async session => {
+      const version = await this.courseRepo.readVersion(versionId, session);
+      const module = version.modules.find(
+        m => m.moduleId.toString() === moduleId,
+      );
+      if (!module) throw new NotFoundError(`Module ${moduleId} not found.`);
+      return module;
+    });
+  }
+
   public async toggleModuleVisibility(
     versionId: string,
     moduleId: string,

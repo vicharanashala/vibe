@@ -143,28 +143,22 @@ useEffect(() => {
   const handleBulkApprove = async () => {
     if (isUpdatingBulkStatus || isUpdatingStatus) return;
 
-    const allPendingRegistrationIds = registrationsData?.registrations?.filter((reg)=>reg.status=="PENDING").map((reg) => reg._id) || [];
-
-    if (!allPendingRegistrationIds.length) {
-      toast.error("No pending registrations available for approval.");
+    if (!selectedIds || selectedIds.length === 0) {
+      toast.error("Please select at least one registration to approve.");
       setTimeout(()=>{
         setIsBulkApproveOpen(false);
       },1000)
       return;
     }
-    const idsToApprove = selectedIds && selectedIds.length > 0 ? selectedIds : allPendingRegistrationIds;
+
     try {
-      await updateBulkStatus(idsToApprove);
+      await updateBulkStatus(selectedIds);
 
-      const successMessage =
-        idsToApprove.length > 0
-          ? 'Selected registrations approved successfully'
-          : 'All registrations approved successfully';
+      toast.success(
+        `${selectedIds.length} registration${selectedIds.length > 1 ? 's' : ''} approved successfully`
+      );
 
-      toast.success(successMessage);
-
-      if (idsToApprove.length > 0) setSelectedIds([]);
-
+      setSelectedIds([]);
       registrationsRefetch();
       setIsBulkApproveOpen(false);
     } catch (error: any) {
@@ -307,9 +301,9 @@ useEffect(() => {
         isOpen={isBulkApproveOpen}
         onClose={() => setIsBulkApproveOpen(false)}
         onConfirm={() => handleBulkApprove()}
-        title="Approve All Registrations"
-        description="Are you sure you want to approve all selected registrations? This action cannot be undone."
-        confirmText="Approve All"
+        title="Approve Selected Registrations"
+        description={`Are you sure you want to approve ${selectedIds.length} selected registration${selectedIds.length > 1 ? 's' : ''}? This action cannot be undone.`}
+        confirmText={`Approve ${selectedIds.length} Registration${selectedIds.length > 1 ? 's' : ''}`}
         cancelText="Cancel"
         isDestructive={false}
         isLoading={isUpdatingBulkStatus}
@@ -1053,13 +1047,13 @@ export const RegistrationActions = ({
 
       <Button
         onClick={() => setIsBulkApproveOpen(true)}
-        disabled={isUpdatingBulkStatus || isUpdatingStatus}
+        disabled={isUpdatingBulkStatus || isUpdatingStatus || !selectedIds || selectedIds.length === 0}
         variant="outline"
-        className="hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 dark:hover:bg-blue-950 dark:hover:text-blue-300 dark:hover:border-blue-700 transition-colors"
+        className="hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 dark:hover:bg-blue-950 dark:hover:text-blue-300 dark:hover:border-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <CheckCircle className="h-4 w-4 mr-2" />
         {(!selectedIds || selectedIds.length === 0)
-          ? "Approve All"
+          ? "Approve Selected"
           : `Approve Selected (${selectedIds.length})`}
       </Button>
 

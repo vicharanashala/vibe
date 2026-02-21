@@ -250,30 +250,30 @@ const addInviteRow = () => {
       color: "bg-blue-500",
       disabled: !canSendInvites,
     },
-    {
-      label: "Teaching Assistant",
-      value: "TA",
-      color: "bg-green-500",
-      disabled: false,
-    },
+    // {
+    //   label: "Teaching Assistant",
+    //   value: "TA",
+    //   color: "bg-green-500",
+    //   disabled: false,
+    // },
     {
       label: "Instructor",
       value: "INSTRUCTOR",
       color: "bg-purple-500",
       disabled: false,
     },
-    {
-      label: "Manager",
-      value: "MANAGER",
-      color: "bg-red-500",
-      disabled: false,
-    },
-    {
-      label: "Staff",
-      value: "STAFF",
-      color: "bg-yellow-500",
-      disabled: false,
-    },
+    // {
+    //   label: "Manager",
+    //   value: "MANAGER",
+    //   color: "bg-red-500",
+    //   disabled: false,
+    // },
+    // {
+    //   label: "Staff",
+    //   value: "STAFF",
+    //   color: "bg-yellow-500",
+    //   disabled: false,
+    // },
   ];
 
 

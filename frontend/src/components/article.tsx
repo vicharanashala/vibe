@@ -68,7 +68,7 @@ import { NavigatingOverlay } from "./video";
 import { toast } from "sonner";
 
 
-const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTimeInMinutes, points, tags, onNext, isProgressUpdating }, ref) => {
+const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTimeInMinutes, points, tags, onNext, isProgressUpdating, isAlreadyWatched, completedItemIdsRef }, ref) => {
     // ✅ Initialize Yoopta Editor
     const editor = useMemo(() => createYooptaEditor(), []);
     const [value, setValue] = useState<YooptaContentValue>();
@@ -85,30 +85,10 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
 
     function handleSendStartItem() {
         if (!currentCourse?.itemId || startRequestSentRef.current) return;
-        
         // Mark that we've sent the start request to prevent multiple calls
         startRequestSentRef.current = true;
-        
-        startItem.mutate({
-            params: {
-                path: {
-                    courseId: currentCourse.courseId,
-                    courseVersionId: currentCourse.versionId ?? '',
-                },
-            },
-            body: {
-                itemId: currentCourse.itemId,
-                moduleId: currentCourse.moduleId ?? '',
-                sectionId: currentCourse.sectionId ?? '',
-            }
-        });
-    }
-
-   async function handleStopItem() {
-        if (!currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
-        
-        try {
-            await stopItem.mutateAsync({
+        if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
+            startItem.mutate({
                 params: {
                     path: {
                         courseId: currentCourse.courseId,
@@ -116,12 +96,35 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
                     },
                 },
                 body: {
-                    watchItemId: currentCourse.watchItemId,
                     itemId: currentCourse.itemId,
                     moduleId: currentCourse.moduleId ?? '',
                     sectionId: currentCourse.sectionId ?? '',
                 }
             });
+        }
+    }
+
+   async function handleStopItem() {
+        if (!currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
+        
+        try {
+            if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
+                await stopItem.mutateAsync({
+                    params: {
+                        path: {
+                            courseId: currentCourse.courseId,
+                            courseVersionId: currentCourse.versionId ?? '',
+                        },
+                    },
+                    body: {
+                        watchItemId: currentCourse.watchItemId,
+                        itemId: currentCourse.itemId,
+                        moduleId: currentCourse.moduleId ?? '',
+                        sectionId: currentCourse.sectionId ?? '',
+                    }
+                });
+            }
+            completedItemIdsRef.current.add(currentCourse!.itemId);
             itemStartedRef.current = false;
         } catch (error: any) {
             console.error('❌ handleStopItem error:', error);

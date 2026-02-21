@@ -11,6 +11,7 @@ import {UserActivityEventController} from './controllers/UserActivityEventContro
 import { CourseController } from '../courses/controllers/CourseController.js';
 import { coursesContainerModule } from '../courses/container.js';
 import { ENROLLMENT_VALIDATORS, PROGRESS_VALIDATORS, USER_VALIDATORS } from './classes/validators/index.js';
+import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 
 
 export const usersContainerModules: ContainerModule[] = [

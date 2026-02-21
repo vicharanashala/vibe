@@ -41,6 +41,8 @@ import {
   ForbiddenError,
   Authorized,
   QueryParams,
+  UseInterceptor,
+  Req,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
@@ -53,8 +55,13 @@ import {QuizActions, getQuizAbility} from '../abilities/quizAbilities.js';
 import {subject} from '@casl/ability';
 import {COURSES_TYPES} from '#root/modules/courses/types.js';
 import {ItemService} from '#root/modules/courses/services/ItemService.js';
-import {BadRequestErrorResponse} from '#root/shared/index.js';
+import { BadRequestErrorResponse} from '#root/shared/index.js';
+import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 import {CourseIdParams} from '#root/modules/courses/classes/index.js';
+import { setAuditTrail } from '#root/utils/setAuditTrail.js';
+import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
+import { ObjectId } from 'mongodb';
+import { QuestionBankService } from '../services/QuestionBankService.js';
 
 @OpenAPI({
   tags: ['Quiz'],
@@ -68,6 +75,9 @@ class QuizController {
 
     @inject(COURSES_TYPES.ItemService)
     private readonly itemService: ItemService,
+
+    @inject(QUIZZES_TYPES.QuestionBankService)
+    private readonly questionBankService: QuestionBankService
   ) {}
 
   @OpenAPI({
@@ -118,6 +128,7 @@ class QuizController {
   })
   @Authorized()
   @Delete('/:quizId/bank/:questionBankId')
+  @UseInterceptor(AuditTrailsHandler)
   @OnUndefined(200)
   @ResponseSchema(QuizNotFoundErrorResponse, {
     description: 'Quiz or question bank not found',
@@ -129,7 +140,8 @@ class QuizController {
   })
   async removeQuestionBank(
     @Params() params: RemoveQuestionBankParams,
-    @Ability(getQuizAbility) {ability},
+    @Ability(getQuizAbility) {ability, user},
+    @Req() req: Request
   ) {
     const {quizId, questionBankId} = params;
     const courseInfo = await this.itemService.getCourseAndVersionByItemId(
@@ -147,6 +159,33 @@ class QuizController {
       );
     }
 
+    const getBank = await this.quizService.getAllQuestionBanks(quizId);
+    
+    const bankToRemove = getBank.find(bank => bank.bankId.toString() === questionBankId);
+
+      setAuditTrail(req, {
+        category: AuditCategory.QUESTION_BANK,
+        action: AuditAction.QUESTION_BANK_DELETE,
+        actor: ObjectId.createFromHexString(user._id.toString()),
+        context: {
+            courseId: ObjectId.createFromHexString(courseInfo.courseId.toString()),
+            courseVersionId: ObjectId.createFromHexString(courseInfo.versionId.toString()),
+            quizId: ObjectId.createFromHexString(quizId.toString()),
+        },
+        changes:{
+          before:{
+            bankId: ObjectId.createFromHexString(questionBankId.toString()),
+            count: bankToRemove.count,
+            difficulty: bankToRemove.difficulty,
+            tags: bankToRemove.tags,
+          }
+        },
+        outcome:{
+          status: OutComeStatus.SUCCESS
+        }
+
+      })
+
     await this.quizService.removeQuestionBank(quizId, questionBankId);
   }
 
@@ -157,6 +196,7 @@ class QuizController {
   })
   @Authorized()
   @Patch('/:quizId/bank')
+  @UseInterceptor(AuditTrailsHandler)
   @OnUndefined(200)
   @ResponseSchema(QuizNotFoundErrorResponse, {
     description: 'Quiz not found',
@@ -169,7 +209,8 @@ class QuizController {
   async editQuestionBank(
     @Params() params: QuizIdParam,
     @Body() body: EditQuestionBankBody,
-    @Ability(getQuizAbility) {ability},
+    @Ability(getQuizAbility) {ability, user},
+    @Req() req: Request
   ) {
     const {quizId} = params;
     const courseInfo = await this.itemService.getCourseAndVersionByItemId(
@@ -186,6 +227,36 @@ class QuizController {
         'You do not have permission to modify quiz question banks',
       );
     }
+
+    const existingQuestionBank = await this.quizService.getAllQuestionBanks(quizId);
+
+    const questionBankToEdit = existingQuestionBank.find(qb => qb.bankId.toString() === body.bankId);
+
+    setAuditTrail(req, {
+      category: AuditCategory.QUESTION_BANK,
+      action: AuditAction.QUESTION_BANK_UPDATE,
+      actor: ObjectId.createFromHexString(user._id.toString()),
+      context: {
+          courseId: ObjectId.createFromHexString(courseInfo.courseId.toString()),
+          courseVersionId: ObjectId.createFromHexString(courseInfo.versionId.toString()),
+          quizId: ObjectId.createFromHexString(quizId.toString()),
+         
+      },
+      changes:{
+        before:{
+          bankId: ObjectId.createFromHexString(body.bankId.toString()),
+          count: questionBankToEdit.count,
+          difficulty: questionBankToEdit.difficulty,
+          tags: questionBankToEdit.tags,
+        },
+        after:{
+          bankId : ObjectId.createFromHexString(body.bankId.toString()),
+          count: body.count,
+          difficulty: body.difficulty,
+          tags: body.tags,
+        }
+      }
+    })
 
     await this.quizService.editQuestionBankConfiguration(quizId, body);
   }

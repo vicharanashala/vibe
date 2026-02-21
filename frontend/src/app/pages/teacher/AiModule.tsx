@@ -3,7 +3,7 @@ import { ArrowLeft, Sparkles, Upload } from "lucide-react";
 import { useNavigate } from '@tanstack/react-router';;
 import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { UploadParams, YoutubeUrlInput } from "./AiWorkflow";
+import { QuestionGenerationView, UploadParams, YoutubeUrlInput } from "./AiWorkflow";
 import { AudioTranscripter } from "./AudioTranscripter";
 import { TranscriberData } from "@/hooks/useTranscriber";
 import { useCourseStore } from "@/store/course-store";
@@ -371,6 +371,8 @@ const AiModule = () => {
                                 </>
                             )}
                         </div>)}
+                        {/* <QuestionGenerationView
+                        /> */}
                 </Card>
             </div>
         </>
