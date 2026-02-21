@@ -69,6 +69,16 @@ export class Announcement {
     @Transform(StringToObjectId.transformer, { toClassOnly: true })
     courseVersionId?: ID;
 
+    @JSONSchema({ title: 'Course Name', type: 'string' })
+    @IsOptional()
+    @IsString()
+    courseName?: string;
+
+    @JSONSchema({ title: 'Course Version Name', type: 'string' })
+    @IsOptional()
+    @IsString()
+    courseVersionName?: string;
+
     @JSONSchema({ title: 'Instructor ID', type: 'string' })
     @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
     @Transform(StringToObjectId.transformer, { toClassOnly: true })
