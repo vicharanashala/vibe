@@ -50,6 +50,8 @@ import { ItemType } from '#shared/interfaces/models.js';
 import { HideModuleBody } from '../classes/index.js';
 import { createObjectCsvStringifier } from 'csv-writer';
 import { Response } from 'express';
+import { SETTING_TYPES } from '#root/modules/setting/types.js';
+import { TimeSlotService } from '#root/modules/setting/services/TimeSlotService.js';
 
 @OpenAPI({
   tags: ['Course Items'],
@@ -62,6 +64,8 @@ export class ItemController {
     private readonly itemService: ItemService,
     @inject(QUIZZES_TYPES.QuizService)
     private readonly quizService: QuizService,
+    @inject(SETTING_TYPES.TimeSlotService)
+    private readonly timeSlotService: TimeSlotService,
   ) { }
   @OpenAPI({
     summary: 'Create an item',
@@ -409,9 +413,28 @@ Access control logic:
   })
   async getItem(
     @Params() params: GetItemParams,
-    @Ability(getItemAbility) { ability },
+    @Ability(getItemAbility) { ability, user },
   ) {
     const { versionId, itemId, courseId } = params;
+
+    // Check time slot access for this specific course
+    try {
+      const timeSlotAccess = await this.timeSlotService.canStudentAccessCourse(
+        user.userId || user._id,
+        courseId,
+        versionId
+      );
+      
+      if (!timeSlotAccess.canAccess) {
+        throw new ForbiddenError(timeSlotAccess.message || 'Time slot access denied');
+      }
+    } catch (error) {
+      // If it's already a ForbiddenError, re-throw it
+      if (error.name === 'ForbiddenError') {
+        throw error;
+      }
+      throw new ForbiddenError('Time slot access check failed');
+    }
 
     // Create an item resource object for permission checking
     const itemResource = subject('Item', { courseId, versionId, itemId });
