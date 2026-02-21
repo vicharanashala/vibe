@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation, useSkipOptionalItem, useRecalculateStudentProgress } from "@/hooks/hooks";
+import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation, useSkipOptionalItem, useRecalculateStudentProgress, useUserProgressPercentage } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
@@ -214,6 +214,7 @@ export default function CoursePage() {
     useUserProgress(COURSE_ID, VERSION_ID);
   const { data: moduleProgressData, isLoading: moduleProgressLoading } =
     useModuleProgress(COURSE_ID, VERSION_ID);
+  const { data: progressPercentageData } = useUserProgressPercentage(COURSE_ID, VERSION_ID);
 
 
   // Fetch proctoring settings for the course (fetched once when component loads)
@@ -1053,6 +1054,16 @@ export default function CoursePage() {
           console.log("🎉 Course complete");
           setIsNavigatingToNext(false);
 
+          // Recalcualate and update the progress % and completed items count properly
+          const recalculateResult = await recalculateStudentProgressAsync({
+            body: {
+              courseId: COURSE_ID,
+              courseVersionId: VERSION_ID,
+            },
+          });
+
+          // Only trigger confetti if the course is 100% complete
+          if (progressPercentageData?.percentCompleted === 100 || recalculateResult?.includes("100")) {
           // Confetti celebration
           const end = Date.now() + 3000;
           const colors = ["#a786ff", "#fd8bbc", "#eca184", "#f8deb1"];
@@ -1080,15 +1091,9 @@ export default function CoursePage() {
             requestAnimationFrame(frame);
           };
           frame();
+          }
 
           setTimeout(() => router.navigate({ to: "/student" }), 3500);
-          // Recalcualate and update the progress % and completed items count properly
-          await recalculateStudentProgressAsync({
-            body: {
-              courseId: COURSE_ID,
-              courseVersionId: VERSION_ID,
-            },
-          });
           return;
         }
         // set the current item as completed
@@ -1177,6 +1182,10 @@ export default function CoursePage() {
     sectionItems,
     updateCourseNavigation,
     router,
+    progressPercentageData?.percentCompleted,
+    recalculateStudentProgressAsync,
+    COURSE_ID,
+    VERSION_ID
   ]);
 
 
