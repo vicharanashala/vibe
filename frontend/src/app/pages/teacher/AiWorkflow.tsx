@@ -198,6 +198,7 @@ const AiWorkflow = () => {
 
         return next;
       });
+
     });
     // 4. Clean up
     return () => es.close();
@@ -1543,7 +1544,7 @@ const ProgressiveProgressBar = ({
   )
 }
 
-const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
+export const QuestionGenerationView: React.FC<QuestionGenerationResultProps> = ({
   isLoading,
   isTaskResultLoading,
   error,

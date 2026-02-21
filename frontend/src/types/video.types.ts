@@ -16,6 +16,9 @@ export interface VideoProps {
   linearProgressionEnabled: boolean;
   seekForwardEnabled: boolean;
   isCompleted?: boolean;
+  isAlreadyWatched?: boolean;
+  completedItemIdsRef: React.RefObject<Set<string>>;
+  nextItemId: string;
 }
 
 

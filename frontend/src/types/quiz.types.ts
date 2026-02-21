@@ -66,6 +66,7 @@ export interface QuizProps {
   onNext?: () => void;
   onPrevVideo?: () => void;
   isProgressUpdating?: boolean;
+  isNavigatingToPrev?: boolean;
   attemptId?: string;
   setAttemptId?: (attemptId: string) => void;
   displayNextLesson?: boolean;
@@ -73,6 +74,9 @@ export interface QuizProps {
   rewindVid?: boolean;
   setIsQuizSkipped: React.Dispatch<React.SetStateAction<boolean>>;
   linearProgressionEnabled: boolean;
+  isAlreadyWatched?: boolean;
+  completedItemIdsRef: React.RefObject<Set<string>>;
+  nextItemId?: string;
 }
 
 export interface QuizRef {

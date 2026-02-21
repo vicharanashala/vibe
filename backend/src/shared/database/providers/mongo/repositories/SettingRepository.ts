@@ -7,6 +7,7 @@ import {
   IRegistrationSettings,
   ISettings,
   IUserSetting,
+  ITimeSlot,
 } from '#shared/interfaces/models.js';
 import {
   ISettingRepository,
@@ -661,5 +662,49 @@ export class SettingRepository implements ISettingRepository {
       .toArray();
 
     return result.length > 0 ? result[0].total : 0;
+  }
+
+  async updateTimeslotsSettings(
+    courseId: string,
+    courseVersionId: string,
+    timeslots: { isActive: boolean; slots: ITimeSlot[] },
+    session?: ClientSession,
+  ): Promise<UpdateResult | null> {
+    await this.init();
+
+    const result = await this.courseSettingsCollection.updateOne(
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+      },
+      {
+        $set: {
+          // Use type assertion to bypass TypeScript error
+          'settings.timeslots': timeslots as any,
+        },
+      },
+      { session },
+    );
+    return result;
+  }
+
+  async readTimeslotsSettings(
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<{ isActive: boolean; slots: ITimeSlot[] } | null> {
+    await this.init();
+
+    const courseSettings = await this.courseSettingsCollection.findOne(
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+      },
+      { session },
+    );
+
+    // Use type assertion to access timeslots property
+    const settings = courseSettings?.settings as any;
+    return settings?.timeslots || null;
   }
 }
