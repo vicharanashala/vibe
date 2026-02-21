@@ -618,7 +618,7 @@ Access control logic:
     // Check time slot access for this specific course
     try {
       const timeSlotAccess = await this.timeSlotService.canStudentAccessCourse(
-        user.userId || user._id,
+        userId.toString(),
         courseId,
         versionId
       );
