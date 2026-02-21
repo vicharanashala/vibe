@@ -760,6 +760,8 @@ export interface IAnnouncement {
   type: AnnouncementType;
   courseId?: ID;
   courseVersionId?: ID;
+  courseName?: string;
+  courseVersionName?: string;
   instructorId: ID;
   instructorName: string;
   attachments?: IAnnouncementAttachment[];

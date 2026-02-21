@@ -47,11 +47,47 @@ export class AnnouncementRepository {
         session?: ClientSession,
     ): Promise<IAnnouncement | null> {
         await this.init();
-        const announcement = await this.announcementCollection.findOne(
-            { _id: new ObjectId(id), isDeleted: { $ne: true } },
-            { session },
-        );
-        if (!announcement) return null;
+
+        const pipeline = [
+            { $match: { _id: new ObjectId(id), isDeleted: { $ne: true } } },
+            // Lookup Course
+            {
+                $lookup: {
+                    from: 'newCourse',
+                    localField: 'courseId',
+                    foreignField: '_id',
+                    as: 'courseDetails'
+                }
+            },
+            // Lookup Course Version
+            {
+                $lookup: {
+                    from: 'newCourseVersion',
+                    localField: 'courseVersionId',
+                    foreignField: '_id',
+                    as: 'versionDetails'
+                }
+            },
+            // Add Fields
+            {
+                $addFields: {
+                    courseName: { $arrayElemAt: ['$courseDetails.name', 0] },
+                    courseVersionName: { $arrayElemAt: ['$versionDetails.version', 0] }
+                }
+            },
+            // Remove joined arrays
+            {
+                $project: {
+                    courseDetails: 0,
+                    versionDetails: 0
+                }
+            }
+        ];
+
+        const results = await this.announcementCollection.aggregate(pipeline, { session }).toArray();
+        if (results.length === 0) return null;
+
+        const announcement = results[0];
 
         return {
             ...announcement,
@@ -59,7 +95,7 @@ export class AnnouncementRepository {
             courseId: announcement.courseId?.toString(),
             courseVersionId: announcement.courseVersionId?.toString(),
             instructorId: announcement.instructorId?.toString(),
-        };
+        } as IAnnouncement;
     }
 
     async update(
@@ -130,12 +166,44 @@ export class AnnouncementRepository {
         const skip = (page - 1) * limit;
 
         const [announcements, totalDocuments] = await Promise.all([
-            this.announcementCollection
-                .find(filter, { session })
-                .sort({ createdAt: -1 })
-                .skip(skip)
-                .limit(limit)
-                .toArray(),
+            this.announcementCollection.aggregate([
+                { $match: filter },
+                { $sort: { createdAt: -1 as const } },
+                { $skip: skip },
+                { $limit: limit },
+                // Lookup Course
+                {
+                    $lookup: {
+                        from: 'newCourse',
+                        localField: 'courseId',
+                        foreignField: '_id',
+                        as: 'courseDetails'
+                    }
+                },
+                // Lookup Course Version
+                {
+                    $lookup: {
+                        from: 'newCourseVersion',
+                        localField: 'courseVersionId',
+                        foreignField: '_id',
+                        as: 'versionDetails'
+                    }
+                },
+                // Add Fields
+                {
+                    $addFields: {
+                        courseName: { $arrayElemAt: ['$courseDetails.name', 0] },
+                        courseVersionName: { $arrayElemAt: ['$versionDetails.version', 0] }
+                    }
+                },
+                // Remove joined arrays
+                {
+                    $project: {
+                        courseDetails: 0,
+                        versionDetails: 0
+                    }
+                }
+            ], { session }).toArray(),
             this.announcementCollection.countDocuments(filter),
         ]);
 
@@ -147,7 +215,7 @@ export class AnnouncementRepository {
             courseId: a.courseId?.toString(),
             courseVersionId: a.courseVersionId?.toString(),
             instructorId: a.instructorId?.toString(),
-        }));
+        })) as IAnnouncement[];
 
         return { announcements: normalized, totalDocuments, totalPages };
     }
@@ -197,12 +265,44 @@ export class AnnouncementRepository {
         const skip = (page - 1) * limit;
 
         const [announcements, totalDocuments] = await Promise.all([
-            this.announcementCollection
-                .find(filter, { session })
-                .sort({ createdAt: -1 })
-                .skip(skip)
-                .limit(limit)
-                .toArray(),
+            this.announcementCollection.aggregate([
+                { $match: filter },
+                { $sort: { createdAt: -1 as const } },
+                { $skip: skip },
+                { $limit: limit },
+                // Lookup Course
+                {
+                    $lookup: {
+                        from: 'newCourse',
+                        localField: 'courseId',
+                        foreignField: '_id',
+                        as: 'courseDetails'
+                    }
+                },
+                // Lookup Course Version
+                {
+                    $lookup: {
+                        from: 'newCourseVersion',
+                        localField: 'courseVersionId',
+                        foreignField: '_id',
+                        as: 'versionDetails'
+                    }
+                },
+                // Add Fields
+                {
+                    $addFields: {
+                        courseName: { $arrayElemAt: ['$courseDetails.name', 0] },
+                        courseVersionName: { $arrayElemAt: ['$versionDetails.version', 0] }
+                    }
+                },
+                // Remove joined arrays
+                {
+                    $project: {
+                        courseDetails: 0,
+                        versionDetails: 0
+                    }
+                }
+            ], { session }).toArray(),
             this.announcementCollection.countDocuments(filter),
         ]);
 
@@ -214,7 +314,7 @@ export class AnnouncementRepository {
             courseId: a.courseId?.toString(),
             courseVersionId: a.courseVersionId?.toString(),
             instructorId: a.instructorId?.toString(),
-        }));
+        })) as IAnnouncement[];
 
         return { announcements: normalized, totalDocuments, totalPages };
     }
