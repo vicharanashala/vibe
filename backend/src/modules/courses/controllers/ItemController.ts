@@ -58,9 +58,8 @@ import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
 import { setAuditTrail } from '#root/utils/setAuditTrail.js';
 import { ObjectId } from 'mongodb';
-import { before } from 'node:test';
-import { get } from 'http';
-import { number } from 'mathjs';
+import { SETTING_TYPES } from '#root/modules/setting/types.js';
+import { TimeSlotService } from '#root/modules/setting/services/TimeSlotService.js';
 
 @OpenAPI({
   tags: ['Course Items'],
@@ -73,6 +72,8 @@ export class ItemController {
     private readonly itemService: ItemService,
     @inject(QUIZZES_TYPES.QuizService)
     private readonly quizService: QuizService,
+    @inject(SETTING_TYPES.TimeSlotService)
+    private readonly timeSlotService: TimeSlotService,
   ) { }
   @OpenAPI({
     summary: 'Create an item',
@@ -613,6 +614,25 @@ Access control logic:
   ) {
     const { versionId, itemId, courseId } = params;
     const { _id: userId } = user;
+
+    // Check time slot access for this specific course
+    try {
+      const timeSlotAccess = await this.timeSlotService.canStudentAccessCourse(
+        userId.toString(),
+        courseId,
+        versionId
+      );
+
+      if (!timeSlotAccess.canAccess) {
+        throw new ForbiddenError(timeSlotAccess.message || 'Time slot access denied');
+      }
+    } catch (error) {
+      // If it's already a ForbiddenError, re-throw it
+      if (error.name === 'ForbiddenError') {
+        throw error;
+      }
+      throw new ForbiddenError('Time slot access check failed');
+    }
 
     // Create an item resource object for permission checking
     const itemResource = subject('Item', { courseId, versionId, itemId });

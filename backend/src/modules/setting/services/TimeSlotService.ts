@@ -67,7 +67,8 @@ export class TimeSlotService extends BaseService {
     const istTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
     const hours = istTime.getUTCHours().toString().padStart(2, '0');
     const minutes = istTime.getUTCMinutes().toString().padStart(2, '0');
-    return `${hours}:${minutes}`;
+    const result = `${hours}:${minutes}`;
+    return result;
   }
 
   /**
