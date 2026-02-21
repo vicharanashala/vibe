@@ -339,6 +339,8 @@ export default function CoursePage() {
     }
 
     if (itemError && selectedItemId && itemErrorName === "ForbiddenError") {
+
+      toast.error(itemError);
       // Clear loading state on error
       setIsNavigatingToNext(false);
       setIsItemForbidden(true);
