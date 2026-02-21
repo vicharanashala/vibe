@@ -215,6 +215,18 @@ export default function CourseEnrollments() {
     return assignedIds;
   };
 
+  // Get assigned timeslot for a student
+  const getStudentTimeSlot = (studentId: string) => {
+    if (!timeSlotsData?.slots) return null;
+    
+    for (const slot of timeSlotsData.slots) {
+      if (slot.studentIds?.includes(studentId)) {
+        return slot;
+      }
+    }
+    return null;
+  };
+
   // Handle student selection completion for time slots
   const handleTimeSlotStudentSelection = () => {
     if (selectedUsers.size > 0) {
@@ -1028,6 +1040,8 @@ export default function CourseEnrollments() {
               toggleSelectionMode={toggleSelectionMode}
               handleBulkUnenroll={handleBulkUnenroll}
               setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
+              timeSlotsData={timeSlotsData}
+              getStudentTimeSlot={getStudentTimeSlot}
             />
           </TabsContent>
 
@@ -1059,6 +1073,8 @@ export default function CourseEnrollments() {
               toggleSelectionMode={toggleSelectionMode}
               handleBulkUnenroll={handleBulkUnenroll}
               setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
+              timeSlotsData={timeSlotsData}
+              getStudentTimeSlot={getStudentTimeSlot}
             />
           </TabsContent>
         </Tabs>
@@ -2021,8 +2037,19 @@ function EnrollmentsTable({
   toggleSelectionMode,
   handleBulkUnenroll,
   setIsTimeSlotsModalOpen,
+  timeSlotsData,
+  getStudentTimeSlot,
 }: any) {
   const isInactiveTab = enrollmentTab === "INACTIVE"
+
+  // Helper function to check if student is already assigned to any timeslot
+  const isStudentAlreadyAssigned = (studentId: string) => {
+    if (!timeSlotsData?.slots) return false;
+    
+    return timeSlotsData.slots.some((slot: any) => 
+      slot.studentIds?.includes(studentId)
+    );
+  };
 
   return (
     <Card className="border-0 shadow-lg overflow-hidden">
@@ -2125,9 +2152,11 @@ function EnrollmentsTable({
                       <Checkbox
                         checked={
                           studentEnrollments.length > 0 &&
-                          studentEnrollments.every((e: any) =>
-                            selectedUsers.has(e.user?._id || e.user?.id)
-                          )
+                          studentEnrollments.every((e: any) => {
+                            const studentId = e.user?._id || e.user?.id;
+                            const isAssigned = isStudentAlreadyAssigned(studentId);
+                            return isAssigned || selectedUsers.has(studentId);
+                          })
                         }
                         onCheckedChange={onSelectAll}
                         aria-label="Select all"
@@ -2141,12 +2170,14 @@ function EnrollmentsTable({
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
                         { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                         { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
                       ]
                       : [
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                         { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
                       ];
                     return columns.map(({ key, label, className }) => (
@@ -2211,9 +2242,11 @@ function EnrollmentsTable({
                       <Checkbox
                         checked={
                           studentEnrollments.length > 0 &&
-                          studentEnrollments.every((e: any) =>
-                            selectedUsers.has(e.user?._id || e.user?.id)
-                          )
+                          studentEnrollments.every((e: any) => {
+                            const studentId = e.user?._id || e.user?.id;
+                            const isAssigned = isStudentAlreadyAssigned(studentId);
+                            return isAssigned || selectedUsers.has(studentId);
+                          })
                         }
                         onCheckedChange={onSelectAll}
                         aria-label="Select all"
@@ -2227,12 +2260,14 @@ function EnrollmentsTable({
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
                         { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                         { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
                       ]
                       : [
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                         { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
                       ];
                     return columns.map(({ key, label, className }) => (
@@ -2295,13 +2330,39 @@ function EnrollmentsTable({
                       {/* Selection Checkbox */}
                       {isSelectionMode && (
                         <TableCell className="pl-6 w-[50px]">
-                          <Checkbox
-                            checked={selectedUsers.has(enrollment.user?._id || enrollment.user?.id)}
-                            onCheckedChange={(checked) =>
-                              onSelectUser(enrollment.user?._id || enrollment.user?.id, checked === true)
-                            }
-                            aria-label={`Select ${enrollment.user?.name}`}
-                          />
+                          <div className="relative">
+                            {isStudentAlreadyAssigned(enrollment.user?._id || enrollment.user?.id) ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div>
+                                    <Checkbox
+                                      checked={selectedUsers.has(enrollment.user?._id || enrollment.user?.id)}
+                                      onCheckedChange={(checked) =>
+                                        onSelectUser(enrollment.user?._id || enrollment.user?.id, checked === true)
+                                      }
+                                      disabled={isStudentAlreadyAssigned(enrollment.user?._id || enrollment.user?.id)}
+                                      aria-label={`Select ${enrollment.user?.name}`}
+                                      className="opacity-50 cursor-not-allowed"
+                                    />
+                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
+                                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                                    </div>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Student already assigned to a time slot</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <Checkbox
+                                checked={selectedUsers.has(enrollment.user?._id || enrollment.user?.id)}
+                                onCheckedChange={(checked) =>
+                                  onSelectUser(enrollment.user?._id || enrollment.user?.id, checked === true)
+                                }
+                                aria-label={`Select ${enrollment.user?.name}`}
+                              />
+                            )}
+                          </div>
                         </TableCell>
                       )}
 
@@ -2368,6 +2429,26 @@ function EnrollmentsTable({
                       {/* Progress */}
                       <TableCell className="py-6">
                         <EnrollmentProgress progress={enrollment.progress || 0} />
+                      </TableCell>
+
+                      {/* Assigned Time Slot */}
+                      <TableCell className="py-6">
+                        <div className="text-muted-foreground font-medium">
+                          {(() => {
+                            const timeSlot = getStudentTimeSlot(enrollment.user?._id || enrollment.user?.id);
+                            if (timeSlot && timeSlot.from && timeSlot.to) {
+                              const formatTime = (time: string) => {
+                                const [hour, minute] = time.split(':');
+                                const h = parseInt(hour);
+                                const suffix = h >= 12 ? 'PM' : 'AM';
+                                const displayHour = h > 12 ? h - 12 : h === 0 ? 12 : h;
+                                return `${displayHour}:${minute} ${suffix}`;
+                              };
+                              return `${formatTime(timeSlot.from)} - ${formatTime(timeSlot.to)}`;
+                            }
+                            return "Not Assigned";
+                          })()}
+                        </div>
                       </TableCell>
 
                       {/* Score obtained */}
