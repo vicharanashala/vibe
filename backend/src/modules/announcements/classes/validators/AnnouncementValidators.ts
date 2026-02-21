@@ -9,6 +9,7 @@ import {
     IsBoolean,
     IsInt,
     Min,
+    Matches,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { JSONSchema } from 'class-validator-jsonschema';
@@ -61,6 +62,7 @@ export class CreateAnnouncementBody {
     })
     @IsString()
     @IsNotEmpty()
+    @Matches(/\S/, { message: 'Title cannot be empty or just spaces' })
     title: string;
 
     @JSONSchema({
@@ -70,6 +72,7 @@ export class CreateAnnouncementBody {
     })
     @IsString()
     @IsNotEmpty()
+    @Matches(/\S/, { message: 'Content cannot be empty or just spaces' })
     content: string;
 
     @JSONSchema({
@@ -116,6 +119,7 @@ export class UpdateAnnouncementBody {
     })
     @IsOptional()
     @IsString()
+    @Matches(/\S/, { message: 'Title cannot be empty or just spaces' })
     title?: string;
 
     @JSONSchema({
@@ -124,40 +128,10 @@ export class UpdateAnnouncementBody {
     })
     @IsOptional()
     @IsString()
+    @Matches(/\S/, { message: 'Content cannot be empty or just spaces' })
     content?: string;
 
-    @JSONSchema({
-        description: 'Updated announcement type',
-        type: 'string',
-        enum: ['GENERAL', 'COURSE_SPECIFIC', 'VERSION_SPECIFIC'],
-    })
-    @IsOptional()
-    @IsEnum(AnnouncementType)
-    type?: AnnouncementType;
 
-    @JSONSchema({
-        description: 'Updated course ID',
-        type: 'string',
-    })
-    @IsOptional()
-    @IsMongoId()
-    courseId?: string;
-
-    @JSONSchema({
-        description: 'Updated version ID',
-        type: 'string',
-    })
-    @IsOptional()
-    @IsMongoId()
-    courseVersionId?: string;
-
-    @JSONSchema({
-        description: 'Whether the announcement is hidden',
-        type: 'boolean',
-    })
-    @IsOptional()
-    @IsBoolean()
-    isHidden?: boolean;
 
     @JSONSchema({
         description: 'Updated attachments',
