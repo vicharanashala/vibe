@@ -189,8 +189,8 @@ export class EnrollmentService extends BaseService {
       }
       const existingEnrollment = await this.enrollmentRepo.findEnrollment(
         userId,
-        courseId,
         courseVersionId,
+        courseId,
       );
       // if (!existingEnrollment) {
       //   throw new Error('User is not enrolled in this course version');
