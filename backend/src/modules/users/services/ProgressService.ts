@@ -1180,7 +1180,25 @@ class ProgressService extends BaseService {
     };
   }
 
-  private isValidWatchTime(watchTime: IWatchTime, item: Item) {
+  private parseTimeToSeconds(timeStr: string) {
+    const parts = timeStr.split(":").map(Number);
+
+    if (parts.length === 3) {
+      // HH:MM:SS
+      const [hours, minutes, seconds] = parts;
+      return hours * 3600 + minutes * 60 + seconds;
+    }
+
+    if (parts.length === 2) {
+      // MM:SS
+      const [minutes, seconds] = parts;
+      return minutes * 60 + seconds;
+    }
+
+    throw new Error("Invalid time format");
+  }
+
+  private isValidWatchTime(watchTime: IWatchTime, item: Item) { 
     // Basic sanity checks
     if (!watchTime.startTime || !watchTime.endTime || !item.details) {
       return false;
@@ -1203,14 +1221,15 @@ class ProgressService extends BaseService {
         const videoDetails = item.details as IVideoDetails;
         if (!videoDetails.startTime || !videoDetails.endTime) return false;
 
-        const videoEndTimeInSeconds =
-          parseInt(videoDetails.endTime.split(':')[0]) * 3600 +
-          parseInt(videoDetails.endTime.split(':')[1]) * 60 +
-          parseInt(videoDetails.endTime.split(':')[2]);
-        const videoStartTimeInSeconds =
-          parseInt(videoDetails.startTime.split(':')[0]) * 3600 +
-          parseInt(videoDetails.startTime.split(':')[1]) * 60 +
-          parseInt(videoDetails.startTime.split(':')[2]);
+        // parse it to seconds through liabrary
+        const videoEndTimeInSeconds = this.parseTimeToSeconds(videoDetails.endTime)
+          // parseInt(videoDetails.endTime.split(':')[0]) * 3600 +
+          // parseInt(videoDetails.endTime.split(':')[1]) * 60 +
+          // parseInt(videoDetails.endTime.split(':')[2]);
+        const videoStartTimeInSeconds = this.parseTimeToSeconds(videoDetails.startTime)
+          // parseInt(videoDetails.startTime.split(':')[0]) * 3600 +
+          // parseInt(videoDetails.startTime.split(':')[1]) * 60 +
+          // parseInt(videoDetails.startTime.split(':')[2]);
 
         const totalVideoDuration =
           videoEndTimeInSeconds - videoStartTimeInSeconds;
@@ -1526,7 +1545,7 @@ class ProgressService extends BaseService {
     });
   }
 
-  async stopItem(
+  async stopIte(
     userId: string,
     courseId: string,
     courseVersionId: string,
@@ -1794,6 +1813,277 @@ class ProgressService extends BaseService {
     }
   }
 
+
+  async stopItem(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    itemId: string,
+    sectionId: string,
+    moduleId: string,
+    watchItemId: string,
+    attemptId?: string,
+    isSkipped?: boolean,
+    seekForwardEnabled?: boolean,
+    nextItemId?: string,
+  ): Promise<void> {
+    // Fetch course version, progress, and item in parallel
+    const [courseVersion, progress, item] = await Promise.all([
+      this.courseRepo.readVersion(courseVersionId),
+      this.progressRepository.findProgress(userId, courseId, courseVersionId),
+      this.itemRepo.readItemById(itemId)
+    ]);
+
+    // Validate existence of course, progress, and item
+    if (!courseVersion || courseVersion.courseId.toString() !== courseId)
+      throw new NotFoundError('Invalid course version');
+    if (!progress) throw new NotFoundError('Progress not found');
+    if (!item) throw new NotFoundError('Item not found');
+
+    // Ensure current progress matches the module, section, and item
+    if(item.type !== 'QUIZ'){
+      this.validateProgressPosition(progress, moduleId, sectionId, itemId);
+    }
+
+    await this._withTransaction(async session => {
+      // Stop watch tracking for the item
+      const stoppedWatchTime =
+        await this.progressRepository.stopItemTracking(watchItemId, session);
+
+      if (!stoppedWatchTime) {
+        throw new NotFoundError('Watch time not found or already stopped');
+      }
+
+      // Validate eligibility based on item type (QUIZ, PROJECT, VIDEO, BLOG) and currentItem
+      await this.validateItemStopEligibility(
+        item,
+        itemId,
+        userId,
+        courseId,
+        courseVersionId,
+        attemptId,
+        isSkipped,
+        stoppedWatchTime
+      );
+
+      let nextItem = null;
+
+      // Determine next item either from client-provided ID or sequence
+      if (nextItemId) {
+        const nextItemEntity = await this.itemRepo.readItemById(nextItemId);
+
+        if (!nextItemEntity) {
+          throw new BadRequestError('Invalid next item');
+        }
+
+        nextItem = {
+          moduleId,
+          sectionId,
+          itemId: nextItemId,
+        };
+      } else {
+        nextItem = await this.getNextItemInSequence(
+          courseVersion,
+          moduleId,
+          sectionId,
+          itemId,
+        );
+      }
+
+      // Check if this is the last item in the sequence
+      const isCompleted = !nextItem;
+
+      // Prepare the progress update payload
+      let newProgress: Partial<IProgress> = isCompleted
+        ? {
+          currentModule: moduleId,
+          currentSection: sectionId,
+          currentItem: itemId,
+          completed: true,
+          completedAt: new Date(),
+        }
+        : {
+          completed: false,
+          currentModule: nextItem.moduleId,
+          currentSection: nextItem.sectionId,
+          currentItem: nextItem.itemId,
+        };
+      
+      if (item.type === 'QUIZ' && !isSkipped) {
+        let isQuizFailed = false;
+        const submittedQuiz = await this.submissionRepository.get(
+          itemId,
+          userId,
+          attemptId,
+        );
+        if (!submittedQuiz) throw new BadRequestError('Quiz not submitted');
+        if (submittedQuiz.gradingResult.gradingStatus !== 'PASSED') {
+          isQuizFailed = true;
+        }
+
+        if(isQuizFailed && !isSkipped){
+          const previousVideoItem = await this.getPreviousVideoItem(
+            courseVersion,
+            moduleId,
+            sectionId,
+            itemId,
+          );
+
+          if (!previousVideoItem) {
+            throw new BadRequestError(
+              'Quiz failed and no previous video found to review',
+            );
+          }
+
+          newProgress = {
+            completed: false,
+            currentModule: previousVideoItem.moduleId,
+            currentSection: previousVideoItem.sectionId,
+            currentItem: previousVideoItem.itemId,
+            // skippedBlankQuizIds: [],
+          };
+
+        }
+      }
+
+      // Update progress in a transaction
+      await this.progressRepository.updateProgress(
+        userId,
+        courseId,
+        courseVersionId,
+        newProgress,
+        session,
+      );
+    });
+  }
+
+
+  private validateProgressPosition(
+    progress: IProgress,
+    moduleId: string,
+    sectionId: string,
+    itemId: string,
+  ): void {
+    if (progress.currentModule?.toString() !== moduleId) {
+      throw new BadRequestError(
+        'Module ID does not match current progress position',
+      );
+    }
+
+    if (progress.currentSection?.toString() !== sectionId) {
+      throw new BadRequestError(
+        'Section ID does not match current progress position',
+      );
+    }
+
+    if (progress.currentItem?.toString() !== itemId) {
+      throw new BadRequestError(
+        'Item ID does not match current progress position',
+      );
+    }
+  }
+
+    // Validate whether the current item can be stopped
+  private async validateItemStopEligibility(
+    item: Item,
+    itemId: string,
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    attemptId?: string,
+    isSkipped?: boolean,
+    stoppedWatchTime?: IWatchTime,
+  ): Promise<void> {
+
+
+
+    const WATCH_TIME_REQUIRED_ITEMS = new Set<string>([
+      'VIDEO',
+      'BLOG',
+    ]);
+
+    // 1 Watch-time based items
+    if (WATCH_TIME_REQUIRED_ITEMS.has(item.type)) {
+      this.validateWatchTime(item, stoppedWatchTime);  
+      return;
+    }
+
+    // 2 Quiz validation
+    // if (item.type === 'QUIZ') {
+    //   await this.validateQuizStop(itemId, userId, courseId,
+    //     courseVersionId, attemptId, isSkipped);
+    //   return;
+    // }
+
+    // 3 Project validation
+    if (item.type === 'PROJECT') {
+      await this.validateProjectStop(itemId, userId, courseId, courseVersionId);
+      return;
+    }
+
+  }
+
+  private validateWatchTime(
+    item: Item,
+    stoppedWatchTime?: IWatchTime,
+  ): void {
+    if (!stoppedWatchTime) {
+      throw new BadRequestError('Watch time not found');
+    }
+
+    if (!this.isValidWatchTime(stoppedWatchTime, item)) {
+      throw new BadRequestError('Invalid watch time');
+    }
+  }
+
+  private async validateQuizStop( // when a quiz is failed then also stop is being called at frontend
+    itemId: string,
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    attemptId?: string,
+    isSkipped?: boolean,
+  ): Promise<void> {
+    if (isSkipped) return;
+
+    const submittedQuiz = await this.submissionRepository.get(
+      itemId,
+      userId,
+      attemptId,
+    );
+
+    if (!submittedQuiz) {
+      throw new BadRequestError('Quiz not submitted');
+    }
+
+    if (submittedQuiz.gradingResult?.gradingStatus == 'FAILED') {
+      throw new BadRequestError('Quiz not passed, cannot stop the item');
+    }
+  }
+
+  private async validateProjectStop(
+    itemId: string,
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<void> {
+    const projectSubmission =
+      await this.projectSubmissionRepo.getByUser(
+        userId,
+        courseVersionId,
+        courseId,
+      );
+
+    if (
+      !projectSubmission ||
+      projectSubmission.projectId.toString() !== itemId
+    ) {
+      throw new BadRequestError('Project not submitted');
+    }
+  }
+
+
+
   async updateProgress(
     userId: string,
     courseId: string,
@@ -2009,86 +2299,80 @@ class ProgressService extends BaseService {
 
   async handleQuizeProgressAfterSubmission(
     userId: string | ObjectId,
-    quizeId: string,
+    quizId: string,
     courseId: string,
     courseVersionId: string,
     isPassed: boolean,
   ) {
-    const progress = await this.progressRepository.findProgress(
-      userId,
-      courseId,
-      courseVersionId,
-    );
-    console.log('Progress: ', progress);
-    if (!progress) {
-      console.log('Progress not found');
-      return;
+
+
+    // Fetch progress and course version in parallel
+    const [progress, courseVersion] = await Promise.all([
+      this.progressRepository.findProgress(userId, courseId, courseVersionId),
+      this.courseRepo.readVersion(courseVersionId),
+    ]);
+
+    if (!progress || !courseVersion) {
+      throw new NotFoundError('Progress or Course Version not found');
     }
 
-    // if (progress.currentItem !== quizeId) {
-    //   console.log("Inside if is trigreed", progress.currentItem)
-    //   return;
-    // }
 
-    // if (isPassed === false) {
-    //   return;
-    // }
-
-    // const quizeItem = await this.itemRepo.readItemById(quizeId);
-    // const itemsGroup = await this.itemRepo.readItemsGroup(quizeItem.details.itemsGroupId);
-    // const items = itemsGroup.items;
-    // const index = items.indexOf(quizeId);
-    // if(index === -1){
-    //   return;
-    // }
-    // if(isPassed){
-    //   const nextItem = items[index + 1];
-    //   if(nextItem){
-    //     progress.currentItem = nextItem._id;
-    //   }
-    // }else{
-    //   const prevItem = items[index -1];
-    //   if(prevItem){
-    //     progress.currentItem = prevItem._id;
-    //   }
-    // }
-
-    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
-    console.log('courseVersion: ', courseVersion);
+    // const courseVersion = await this.courseRepo.readVersion(courseVersionId);
 
     if (isPassed) {
       const nextItemDetails = await this.getNextItemInSequence(
         courseVersion,
         progress.currentModule.toString(),
         progress.currentSection.toString(),
-        quizeId,
+        quizId,
       );
 
-      console.log('NextItemDetails Object', nextItemDetails);
+      if(!nextItemDetails){
+        // Course completed → reset to first item
+        const initialProgress = await this.initializeProgress(
+          userId.toString(),
+          courseId,
+          courseVersionId,
+          courseVersion,
+        );
 
-      const newProgress = {
-        currentModule: nextItemDetails.moduleId,
-        currentSection: nextItemDetails.sectionId,
-        currentItem: nextItemDetails.itemId,
-      };
+        const newProgress = {
+          completed: true,
+          completedAt: new Date(),
+          currentModule: initialProgress.currentModule,
+          currentSection: initialProgress.currentSection,
+          currentItem: initialProgress.currentItem,
+          skippedBlankQuizIds: [],
+        };
 
-      console.log('newProgress Object: ', newProgress);
+        await this.progressRepository.updateProgress(
+          userId.toString(),
+          courseId,
+          courseVersionId,
+          newProgress,
+        );
 
-      await this.progressRepository.updateProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        newProgress,
-      );
+      } else{
+        const newProgress = {
+          currentModule: nextItemDetails.moduleId,
+          currentSection: nextItemDetails.sectionId,
+          currentItem: nextItemDetails.itemId,
+        };
+
+        await this.progressRepository.updateProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          newProgress,
+        );
+      }
     } else {
       const previousDetails = await this.getPreviousItemInSequence(
         courseVersion,
         progress.currentModule.toString(),
         progress.currentSection.toString(),
-        quizeId,
+        quizId,
       );
-
-      console.log('PreviousDetails Object: ', previousDetails);
 
       const previousProgress = {
         currentModule: previousDetails.moduleId,
@@ -2096,13 +2380,30 @@ class ProgressService extends BaseService {
         currentItem: previousDetails.itemId,
       };
 
-      console.log('PreviousProgress Object: ', previousProgress);
       await this.progressRepository.updateProgress(
         userId,
         courseId,
         courseVersionId,
         previousProgress,
       );
+    }
+    // if we refresh the quiz page after passing then the student will land on next item
+    //  and as the stop item is not called for that quiz endtime will never be created 
+    const watchTime = await this.progressRepository.getWatchTime(
+      userId,
+      quizId,
+      courseId,
+      courseVersionId,
+    );
+    const isItemCompleted = await this.progressRepository.isItemCompleted(
+      userId.toString(),
+      courseId,
+      courseVersionId,
+      quizId,
+    )
+
+    if(!isItemCompleted){
+      const result = await this.progressRepository.stopItemTracking(watchTime[0]._id.toString());
     }
   }
 

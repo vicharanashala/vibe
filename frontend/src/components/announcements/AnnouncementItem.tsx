@@ -55,7 +55,7 @@ export function AnnouncementItem({ announcement, isInstructor, onEdit, onDelete,
                                     </Badge>
                                 )}
                             </CardTitle>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 flex-wrap">
                                 <span className="font-medium text-foreground">{announcement.instructorName}</span>
                                 <span>•</span>
                                 <span className="flex items-center gap-1">
@@ -65,6 +65,16 @@ export function AnnouncementItem({ announcement, isInstructor, onEdit, onDelete,
                                 <Badge variant="secondary" className="text-[10px] h-5 px-1.5 ml-1">
                                     {announcement.type.replace('_', ' ')}
                                 </Badge>
+                                {announcement.courseName && (
+                                    <Badge variant="outline" className="text-[10px] h-5 px-1.5">
+                                        {announcement.courseName}
+                                    </Badge>
+                                )}
+                                {announcement.courseVersionName && (
+                                    <Badge variant="outline" className="text-[10px] h-5 px-1.5">
+                                        v: {announcement.courseVersionName}
+                                    </Badge>
+                                )}
                             </div>
                         </div>
                     </div>

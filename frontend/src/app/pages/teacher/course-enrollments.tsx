@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useNavigate } from "@tanstack/react-router"
-import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare } from 'lucide-react'
+import { useNavigate, useSearch } from "@tanstack/react-router"
+import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare, Check } from 'lucide-react'
 import { Pagination } from "@/components/ui/Pagination"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { QuizSubmissionDisplay } from "./QuizSubmissionDisplay"
 import { WatchTimeDisplay } from "./WatchTimeDisplay"
+import TimeSlotsModal from "./components/TimeSlotsModal"
 import { useStudentCurrentProgressPath } from "@/hooks/hooks"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -33,7 +34,8 @@ import {
   useRecalculateProgress,
   useBulkUnenrollUsers,
   useUserModuleProgress,
-  useRecalculateStudentProgress
+  useRecalculateStudentProgress,
+  useGetTimeSlots,
 } from "@/hooks/hooks"
 import { toast } from "sonner"
 import { useCourseStore } from "@/store/course-store"
@@ -188,6 +190,80 @@ export default function CourseEnrollments() {
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set())
   const [isBulkUnenrollDialogOpen, setIsBulkUnenrollDialogOpen] = useState(false)
+  const [isTimeSlotsModalOpen, setIsTimeSlotsModalOpen] = useState(false);
+
+  // Get URL search params
+  const search = useSearch({ strict: false }) as any
+  const selectMode = search?.selectMode === "true"
+  const excludeAssigned = search?.excludeAssigned === "true"
+
+  // Time slots data for exclusion logic
+  const { data: timeSlotsData } = useGetTimeSlots(
+    courseId && courseId.length === 24 && versionId && versionId.length === 24 
+      ? courseId 
+      : undefined, 
+    versionId && versionId.length === 24 
+      ? versionId 
+      : undefined
+  );
+
+  // Get assigned student IDs
+  const getAssignedStudentIds = () => {
+    const assignedIds = new Set<string>();
+    timeSlotsData?.slots?.forEach((slot: any) => {
+      slot.studentIds?.forEach((id: string) => assignedIds.add(id));
+    });
+    return assignedIds;
+  };
+
+  // Get assigned timeslot for a student
+  const getStudentTimeSlot = (studentId: string) => {
+    if (!timeSlotsData?.slots) return null;
+    
+    for (const slot of timeSlotsData.slots) {
+      if (slot.studentIds?.includes(studentId)) {
+        return slot;
+      }
+    }
+    return null;
+  };
+
+  // Handle student selection completion for time slots
+  const handleTimeSlotStudentSelection = () => {
+    if (selectedUsers.size > 0) {
+      // Send selected students back to TimeSlotsModal
+      window.dispatchEvent(new CustomEvent('studentSelectionComplete', {
+        detail: { selectedStudentIds: Array.from(selectedUsers) }
+      }));
+      // Exit selection mode
+      setIsSelectionMode(false);
+    }
+  };
+
+  // Listen for enableSelectionMode event from TimeSlotsModal
+  useEffect(() => {
+    const handleEnableSelectionMode = (event: CustomEvent) => {
+      const { slot } = event.detail;
+      // Enable selection mode
+      setIsSelectionMode(true);
+      // Pre-select existing students for this slot
+      setSelectedUsers(new Set(slot.studentIds));
+    };
+
+    window.addEventListener('enableSelectionMode', handleEnableSelectionMode as EventListener);
+    return () => {
+      window.removeEventListener('enableSelectionMode', handleEnableSelectionMode as EventListener);
+    };
+  }, []);
+
+  // Auto-enable selection mode if URL params indicate it
+  useEffect(() => {
+    if (selectMode && !isSelectionMode) {
+      setIsSelectionMode(true);
+    }
+  }, [selectMode]);
+
+
 
   // Fetch module progress for the selected user
   const { data: userModuleProgress, isLoading: moduleProgressLoading } = useUserModuleProgress(
@@ -206,25 +282,6 @@ export default function CourseEnrollments() {
     })
   }
 
-  const handleSelectAll = (checked: boolean) => {
-    const visibleUserIds = studentEnrollments.map((e: any) => e.user?._id || e.user?.id).filter(Boolean)
-
-    if (checked) {
-      // Add all visible students to existing selections
-      setSelectedUsers((prev) => {
-        const newSet = new Set(prev)
-        visibleUserIds.forEach((id: string) => newSet.add(id))
-        return newSet
-      })
-    } else {
-      // Remove all visible students from selections
-      setSelectedUsers((prev) => {
-        const newSet = new Set(prev)
-        visibleUserIds.forEach((id: string) => newSet.delete(id))
-        return newSet
-      })
-    }
-  }
 
   const handleSelectUser = (userId: string, checked: boolean) => {
     const newSelected = new Set(selectedUsers)
@@ -459,6 +516,35 @@ export default function CourseEnrollments() {
 
   // const studentEnrollments = enrollmentsData?.enrollments || [];
   const studentEnrollments = enrollmentsData?.enrollments || []
+
+  // Filter out already assigned students if excludeAssigned is true
+  const filteredStudentEnrollments = excludeAssigned 
+    ? studentEnrollments.filter((enrollment: any) => {
+        const assignedIds = getAssignedStudentIds();
+        const studentId = enrollment.user?._id || enrollment.user?.id;
+        return !assignedIds.has(studentId);
+      })
+    : studentEnrollments;
+
+  const handleSelectAll = (checked: boolean) => {
+    const visibleUserIds = filteredStudentEnrollments.map((e: any) => e.user?._id || e.user?.id).filter(Boolean)
+
+    if (checked) {
+      // Add all visible students to existing selections
+      setSelectedUsers((prev) => {
+        const newSet = new Set(prev)
+        visibleUserIds.forEach((id: string) => newSet.add(id))
+        return newSet
+      })
+    } else {
+      // Remove all visible students from selections
+      setSelectedUsers((prev) => {
+        const newSet = new Set(prev)
+        visibleUserIds.forEach((id: string) => newSet.delete(id))
+        return newSet
+      })
+    }
+  }
 
 
   // API Hooks
@@ -804,22 +890,23 @@ export default function CourseEnrollments() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto py-4 space-y-8">
-        {/* Enhanced Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div className="space-y-4">
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Course Enrollments
-            </h1>
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-1 bg-gradient-to-b from-primary to-accent rounded-full"></div>
-                <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-foreground">{course.name}</h2>
-                <span className="text-lg text-muted-foreground">•</span>
-                <h3 className="text-base md:text-lg lg:text-xl font-semibold text-accent">{version.version}</h3>
-              </div>
-              <div className="h-1 w-32 bg-gradient-to-r from-primary to-accent rounded-full ml-4"></div>
+    <>
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto py-4 space-y-8">
+          {/* Enhanced Header */}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="space-y-4">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                Course Enrollments
+              </h1>
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-1 bg-gradient-to-b from-primary to-accent rounded-full"></div>
+                  <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-foreground">{course.name}</h2>
+                  <span className="text-lg text-muted-foreground">•</span>
+                  <h3 className="text-base md:text-lg lg:text-xl font-semibold text-accent">{version.version}</h3>
+                </div>
+                <div className="h-1 w-32 bg-gradient-to-r from-primary to-accent rounded-full ml-4"></div>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -879,6 +966,36 @@ export default function CourseEnrollments() {
                 setSearchQuery("");
               }} />
           </div>
+          
+          
+          {/* Time Slot Selection Mode Header */}
+          {(selectMode || isSelectionMode) && (
+            <div className="flex items-center gap-3">
+              <div className="bg-card border border-border rounded-lg px-4 py-2">
+                <p className="text-sm text-card-foreground font-medium">
+                  Select students for time slot assignment
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {selectedUsers.size} student{selectedUsers.size !== 1 ? 's' : ''} selected
+                </p>
+              </div>
+              <Button
+                onClick={handleTimeSlotStudentSelection}
+                disabled={selectedUsers.size === 0}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+              >
+                <Check className="h-4 w-4 mr-2" />
+                Confirm Selection
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setIsSelectionMode(false)}
+                className="border-border text-foreground hover:bg-muted"
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
         </div>
 
 
@@ -912,7 +1029,7 @@ export default function CourseEnrollments() {
           <TabsContent value="ACTIVE" className="mt-4">
             <EnrollmentsTable
               totalDocuments={totalDocuments}
-              studentEnrollments={studentEnrollments}
+              studentEnrollments={filteredStudentEnrollments}
               enrollmentsLoading={enrollmentsLoading}
               isSearching={isSearching}
               enrollmentTab={enrollmentTab}
@@ -935,6 +1052,9 @@ export default function CourseEnrollments() {
               onSelectAll={handleSelectAll}
               toggleSelectionMode={toggleSelectionMode}
               handleBulkUnenroll={handleBulkUnenroll}
+              setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
+              timeSlotsData={timeSlotsData}
+              getStudentTimeSlot={getStudentTimeSlot}
             />
           </TabsContent>
 
@@ -959,10 +1079,17 @@ export default function CourseEnrollments() {
               handleViewProgress={handleViewProgress}
               handleRemoveStudent={handleRemoveStudent}
               getRoleBadge={getRoleBadge}
+              isSelectionMode={false}
+              selectedUsers={new Set()}
+              onSelectUser={handleSelectUser}
+              onSelectAll={handleSelectAll}
+              toggleSelectionMode={toggleSelectionMode}
+              handleBulkUnenroll={handleBulkUnenroll}
+              setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
+              timeSlotsData={timeSlotsData}
+              getStudentTimeSlot={getStudentTimeSlot}
             />
           </TabsContent>
-
-
         </Tabs>
 
 
@@ -1726,6 +1853,15 @@ export default function CourseEnrollments() {
         )}
       </div>
     </div>
+    
+    {/* Time Slots Modal */}
+    <TimeSlotsModal
+      isOpen={isTimeSlotsModalOpen}
+      onClose={() => setIsTimeSlotsModalOpen(false)}
+      courseId={courseId || ""}
+      courseVersionId={versionId || ""}
+    />
+    </>
   )
 }
 
@@ -1913,8 +2049,20 @@ function EnrollmentsTable({
   onSelectAll,
   toggleSelectionMode,
   handleBulkUnenroll,
+  setIsTimeSlotsModalOpen,
+  timeSlotsData,
+  getStudentTimeSlot,
 }: any) {
   const isInactiveTab = enrollmentTab === "INACTIVE"
+
+  // Helper function to check if student is already assigned to any timeslot
+  const isStudentAlreadyAssigned = (studentId: string) => {
+    if (!timeSlotsData?.slots) return false;
+    
+    return timeSlotsData.slots.some((slot: any) => 
+      slot.studentIds?.includes(studentId)
+    );
+  };
 
   return (
     <Card className="border-0 shadow-lg overflow-hidden">
@@ -1940,6 +2088,18 @@ function EnrollmentsTable({
               <FileDown className="h-4 w-4" />
             )}
             <span>{isLoadingQuizScores ? "Exporting..." : "Export Quiz Scores"}</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setIsTimeSlotsModalOpen(true);
+            }}
+            className="flex items-center gap-2"
+          >
+            <Clock className="h-4 w-4" />
+            <span>Configure Time Slots</span>
           </Button>
 
           {/* Select Students Button - Only for Active Students */}
@@ -2005,9 +2165,11 @@ function EnrollmentsTable({
                       <Checkbox
                         checked={
                           studentEnrollments.length > 0 &&
-                          studentEnrollments.every((e: any) =>
-                            selectedUsers.has(e.user?._id || e.user?.id)
-                          )
+                          studentEnrollments.every((e: any) => {
+                            const studentId = e.user?._id || e.user?.id;
+                            const isAssigned = isStudentAlreadyAssigned(studentId);
+                            return isAssigned || selectedUsers.has(studentId);
+                          })
                         }
                         onCheckedChange={onSelectAll}
                         aria-label="Select all"
@@ -2021,12 +2183,14 @@ function EnrollmentsTable({
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
                         { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                         { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
                       ]
                       : [
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                         { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
                       ];
                     return columns.map(({ key, label, className }) => (
@@ -2091,9 +2255,11 @@ function EnrollmentsTable({
                       <Checkbox
                         checked={
                           studentEnrollments.length > 0 &&
-                          studentEnrollments.every((e: any) =>
-                            selectedUsers.has(e.user?._id || e.user?.id)
-                          )
+                          studentEnrollments.every((e: any) => {
+                            const studentId = e.user?._id || e.user?.id;
+                            const isAssigned = isStudentAlreadyAssigned(studentId);
+                            return isAssigned || selectedUsers.has(studentId);
+                          })
                         }
                         onCheckedChange={onSelectAll}
                         aria-label="Select all"
@@ -2107,12 +2273,14 @@ function EnrollmentsTable({
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
                         { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                         { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
                       ]
                       : [
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                         { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
                       ];
                     return columns.map(({ key, label, className }) => (
@@ -2175,13 +2343,39 @@ function EnrollmentsTable({
                       {/* Selection Checkbox */}
                       {isSelectionMode && (
                         <TableCell className="pl-6 w-[50px]">
-                          <Checkbox
-                            checked={selectedUsers.has(enrollment.user?._id || enrollment.user?.id)}
-                            onCheckedChange={(checked) =>
-                              onSelectUser(enrollment.user?._id || enrollment.user?.id, checked === true)
-                            }
-                            aria-label={`Select ${enrollment.user?.name}`}
-                          />
+                          <div className="relative">
+                            {isStudentAlreadyAssigned(enrollment.user?._id || enrollment.user?.id) ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div>
+                                    <Checkbox
+                                      checked={selectedUsers.has(enrollment.user?._id || enrollment.user?.id)}
+                                      onCheckedChange={(checked) =>
+                                        onSelectUser(enrollment.user?._id || enrollment.user?.id, checked === true)
+                                      }
+                                      disabled={isStudentAlreadyAssigned(enrollment.user?._id || enrollment.user?.id)}
+                                      aria-label={`Select ${enrollment.user?.name}`}
+                                      className="opacity-50 cursor-not-allowed"
+                                    />
+                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
+                                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                                    </div>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Student already assigned to a time slot</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <Checkbox
+                                checked={selectedUsers.has(enrollment.user?._id || enrollment.user?.id)}
+                                onCheckedChange={(checked) =>
+                                  onSelectUser(enrollment.user?._id || enrollment.user?.id, checked === true)
+                                }
+                                aria-label={`Select ${enrollment.user?.name}`}
+                              />
+                            )}
+                          </div>
                         </TableCell>
                       )}
 
@@ -2248,6 +2442,26 @@ function EnrollmentsTable({
                       {/* Progress */}
                       <TableCell className="py-6">
                         <EnrollmentProgress progress={enrollment.progress || 0} />
+                      </TableCell>
+
+                      {/* Assigned Time Slot */}
+                      <TableCell className="py-6">
+                        <div className="text-muted-foreground font-medium">
+                          {(() => {
+                            const timeSlot = getStudentTimeSlot(enrollment.user?._id || enrollment.user?.id);
+                            if (timeSlot && timeSlot.from && timeSlot.to) {
+                              const formatTime = (time: string) => {
+                                const [hour, minute] = time.split(':');
+                                const h = parseInt(hour);
+                                const suffix = h >= 12 ? 'PM' : 'AM';
+                                const displayHour = h > 12 ? h - 12 : h === 0 ? 12 : h;
+                                return `${displayHour}:${minute} ${suffix}`;
+                              };
+                              return `${formatTime(timeSlot.from)} - ${formatTime(timeSlot.to)}`;
+                            }
+                            return "Not Assigned";
+                          })()}
+                        </div>
                       </TableCell>
 
                       {/* Score obtained */}

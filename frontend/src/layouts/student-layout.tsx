@@ -364,6 +364,19 @@ export default function StudentLayout() {
                   <span>Courses</span>
                 </Link>
               </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground"
+                asChild
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                {/* @ts-ignore */}
+                <Link to="/student/announcements">
+                  <span>Announcements</span>
+                </Link>
+              </Button>
             </div>
           </div>
         )}

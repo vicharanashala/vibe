@@ -4,6 +4,8 @@ import {
   NotFoundError,
   InternalServerError,
   BadRequestError,
+  UnauthorizedError,
+  ForbiddenError
 } from 'routing-controllers';
 import { COURSES_TYPES } from '#courses/types.js';
 import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
@@ -57,6 +59,7 @@ import { QuizService } from '#root/modules/quizzes/services/QuizService.js';
 import { QuestionService } from '#root/modules/quizzes/services/QuestionService.js';
 import { QuestionFactory } from '#root/modules/quizzes/classes/index.js';
 import { QuestionProcessor } from '#root/modules/quizzes/question-processing/QuestionProcessor.js';
+import { CourseSettingService, SETTING_TYPES } from '#root/modules/setting/index.js';
 
 @injectable()
 export class ItemService extends BaseService {
@@ -87,6 +90,8 @@ export class ItemService extends BaseService {
     private readonly quizService: QuizService,
     @inject(QUIZZES_TYPES.QuestionService)
     private readonly questionService: QuestionService,
+    @inject(SETTING_TYPES.CourseSettingService)
+    private readonly courseSettingService: CourseSettingService,
   ) {
     super(database);
   }
@@ -430,10 +435,71 @@ export class ItemService extends BaseService {
     return itemsGroup.items;
   }
 
-  public async readItem(versionId: string, itemId: string) {
+  public async readItem(
+    userId: string,
+    versionId: string,
+    itemId: string,
+    courseId?: string,
+  ) {
+
+    console.log(`[ItemService] readItem called with userId=${userId}, courseId=${courseId}, versionId=${versionId}, itemId=${itemId}`);
+    // Fetch enrollment early
+    const enrollment = await this.enrollmentRepo.findEnrollment(
+      userId,
+      versionId,
+      courseId
+    );
+
+    if (!enrollment) {
+      throw new UnauthorizedError(
+        'You are not enrolled in this course version',
+      );
+    }
+
+    if (enrollment.status === 'INACTIVE') {
+      throw new UnauthorizedError(
+        'Your enrollment is inactive for this course version',
+      );
+    }
     const item = await this.itemRepo.readItem(versionId, itemId);
-    item._id = item._id.toString();
-    return item;
+
+    // Non-students do not require progress checks
+    if (enrollment.role !== 'STUDENT') {
+      return {
+        ...item,
+        _id: item._id.toString(),
+      };
+    }
+
+    // Student-specific checks (parallelized)
+    const [
+      isItemAlreadyCompleted,
+      isItemAlreadyAttempted,
+      currentUserProgress,
+      linearProgressionEnabled,
+    ] = await Promise.all([
+      this.progressRepo.isItemCompleted(userId, courseId, versionId, itemId),
+      this.progressRepo.isItemAttempted(userId, courseId, versionId, itemId),
+      this.progressRepo.findProgress(userId, courseId, versionId),
+      this.courseSettingService.isLinearProgressionEnabled(courseId, versionId),
+    ]);
+
+    // Enforce linear progression only when required
+    if (
+      linearProgressionEnabled &&
+      !isItemAlreadyAttempted &&
+      currentUserProgress?.currentItem.toString() !== itemId
+    ) {
+      throw new ForbiddenError(
+        "You don't have permission to watch this item",
+      );
+    }
+
+    return {
+      ...item,
+      _id: item._id.toString(),
+      isAlreadyWatched: isItemAlreadyCompleted,
+    };
   }
 
   public async updateItem(

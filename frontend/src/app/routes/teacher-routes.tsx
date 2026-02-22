@@ -17,6 +17,7 @@ import AnomaliesList from "../pages/teacher/AnomaliesList";
 import RegisteredUsers from "../pages/teacher/CourseRegistrationRequests";
 import FeedbackFormEditor from "../pages/teacher/FeedbackFormEditor";
 import TeacherAnnouncements from "../pages/teacher/announcements";
+import AuditPage from "../pages/teacher/AuditPage";
 
 const teacherRoutes: RouteObject = {
   path: "/teacher",
@@ -95,6 +96,9 @@ const teacherRoutes: RouteObject = {
     }, {
       path: "announcements",
       element: <TeacherAnnouncements />
+    }, {
+      path: "audit",
+      element: <AuditPage />
     }
   ],
 };

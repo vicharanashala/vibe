@@ -1192,6 +1192,36 @@ const mapValidationToSchema = (
                               <div className="space-y-2">
                                 {selectedField.options?.map((option, index) => (
                                   <div key={index} className="flex items-center gap-2">
+                                    <div className="flex flex-col gap-1">
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-6 w-6"
+                                        onClick={() => {
+                                          if (index === 0) return;
+                                          const newOptions = [...(selectedField.options || [])];
+                                          [newOptions[index - 1], newOptions[index]] = [newOptions[index], newOptions[index - 1]];
+                                          updateField(selectedField.id, { options: newOptions });
+                                        }}
+                                        disabled={index === 0}
+                                      >
+                                        <ArrowUp className="w-3 h-3" />
+                                      </Button>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-6 w-6"
+                                        onClick={() => {
+                                          if (!selectedField.options || index === selectedField.options.length - 1) return;
+                                          const newOptions = [...selectedField.options];
+                                          [newOptions[index], newOptions[index + 1]] = [newOptions[index + 1], newOptions[index]];
+                                          updateField(selectedField.id, { options: newOptions });
+                                        }}
+                                        disabled={!selectedField.options || index === selectedField.options.length - 1}
+                                      >
+                                        <ArrowDown className="w-3 h-3" />
+                                      </Button>
+                                    </div>
                                     <Input
                                       value={option.label}
                                       onChange={(e) => {

@@ -679,7 +679,7 @@ function SidebarMenuSubButton({
   size?: "sm" | "md"
   isActive?: boolean
 }) {
-  const Comp = asChild ? Slot : "a"
+  const Comp = asChild ? Slot : "button"
   return (
     <Comp
       data-slot="sidebar-menu-sub-button"

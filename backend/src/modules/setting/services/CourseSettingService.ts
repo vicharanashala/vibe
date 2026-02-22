@@ -129,6 +129,7 @@ class CourseSettingService extends BaseService {
         settings.seekForwardEnabled = false;
         settings.isPublic = false;
         settings.registration = { isActive: true };
+        settings.timeslots = { isActive: false, slots: [] };
 
         const created = await this.createCourseSettings(
           new CourseSetting({
