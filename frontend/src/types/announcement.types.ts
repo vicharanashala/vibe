@@ -17,6 +17,8 @@ export interface Announcement {
     type: AnnouncementType;
     courseId?: string;
     courseVersionId?: string;
+    courseName?: string;
+    courseVersionName?: string;
     instructorId: string;
     instructorName: string;
     attachments?: Attachment[];

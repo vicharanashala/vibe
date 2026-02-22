@@ -33,6 +33,7 @@ import {
   Headphones,
   ExternalLink,
   Megaphone,
+  CheckCheckIcon,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -618,6 +619,16 @@ function CourseCard({
     }
   }
 
+  const navigate = useNavigate()
+
+  const handleAuditClick = () => {
+    // Navigate to the audit page for this course
+    localStorage.setItem("selectedCourseId", courseIdHex)
+    localStorage.setItem("selectedCourseVersionId", bufferToHex(enrollment.courseVersionId as any))
+    localStorage.setItem("selectedCourseVersions", JSON.stringify(course.versions || []))
+    navigate({ to: `/teacher/audit` })
+
+  }
 
   const MAX_DESCRIPTION_LENGTH = 1000;
 
@@ -648,10 +659,10 @@ function CourseCard({
 
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-                    <CardTitle className="text-lg md:text-xl font-bold text-foreground truncate lg:max-w-full max-w-[220px]">
+                    <CardTitle className="text-lg md:text-xl font-bold text-foreground sm:line-clamp-2 break-words">
                       {course.name}
                     </CardTitle>
-                    <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary w-fit">
+                    <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary w-fit shrink-0">
                       <FileText className="h-3 w-3 mr-1" />
                       {`${course.versions?.length || 0} version${course.versions?.length > 1 ? 's' : ''}`}
                     </Badge>
@@ -668,6 +679,9 @@ function CourseCard({
               </div>
 
               <div className="flex items-center justify-end gap-2 shrink-0 mt-3 md:mt-0">
+                <Button variant="outline" size="sm" onClick={handleAuditClick}>
+                  <CheckCheckIcon />  View Audit
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"

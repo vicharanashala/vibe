@@ -12,6 +12,14 @@ import {
     DropdownMenuCheckboxItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog";
 
 interface AnnouncementListProps {
     courseId?: string;
@@ -31,6 +39,7 @@ export function AnnouncementList({ courseId, versionId, isInstructor }: Announce
     const [filterType, setFilterType] = useState<AnnouncementType | 'ALL'>('ALL');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<Announcement | null>(null);
+    const [deleteId, setDeleteId] = useState<string | null>(null);
 
     // Decide default type for creation based on context
     const defaultCreateType = versionId ? AnnouncementType.VERSION_SPECIFIC : courseId ? AnnouncementType.COURSE_SPECIFIC : AnnouncementType.GENERAL;
@@ -50,6 +59,16 @@ export function AnnouncementList({ courseId, versionId, isInstructor }: Announce
 
     const { mutateAsync: deleteAnnouncement } = useDeleteAnnouncement();
     const { mutateAsync: toggleHideAnnouncement } = useToggleHideAnnouncement();
+
+    const handleConfirmDelete = async () => {
+        if (!deleteId) return;
+        try {
+            await deleteAnnouncement(deleteId);
+            refetch();
+        } finally {
+            setDeleteId(null);
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -116,11 +135,7 @@ export function AnnouncementList({ courseId, versionId, isInstructor }: Announce
                             announcement={item}
                             isInstructor={isInstructor}
                             onEdit={handleEdit}
-                            onDelete={(id) => {
-                                if (confirm("Are you sure you want to delete this announcement?")) {
-                                    deleteAnnouncement(id).then(() => refetch());
-                                }
-                            }}
+                            onDelete={(id) => setDeleteId(id)}
                             onToggleHide={(id) => {
                                 toggleHideAnnouncement(id).then(() => refetch());
                             }}
@@ -139,6 +154,29 @@ export function AnnouncementList({ courseId, versionId, isInstructor }: Announce
                     versionId={versionId}
                 />
             )}
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Delete Announcement</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this announcement? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="outline" onClick={() => setDeleteId(null)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleConfirmDelete}
+                        >
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

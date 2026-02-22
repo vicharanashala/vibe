@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
 import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useVideoUserAnalytics } from '@/hooks/hooks';
-import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video, Clock, PlayCircle, Users, Search } from 'lucide-react';
+import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video, Clock, PlayCircle, Users, Search, LockOpen, Lock } from 'lucide-react';
 import { useHideItem } from '@/hooks/hooks';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
@@ -35,7 +35,8 @@ import {
   EyeOff,
   Loader2,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Pencil
 } from "lucide-react";
 
 import { useNavigate } from "@tanstack/react-router";
@@ -136,7 +137,7 @@ function TeacherCourseContent() {
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
   const invitesRef = useRef<HTMLDivElement | null>(null);
   const [videoTab, setVideoTab] = useState("video");
-
+  const [isReorderEnabled,setIsReorderEnabled]=useState(false);
 
 
 
@@ -1584,12 +1585,32 @@ function TeacherCourseContent() {
           <div className="h-full overflow-hidden border-r border-border/40 bg-sidebar/50">
             <Sidebar variant="sidebar" collapsible="none" className="h-screen w-full">
               <SidebarHeader>
-                <div className="flex items-center gap-3 px-3 py-2">
-                  <BookOpen className="text-primary" />
-                  <div>
-                    <h1 className="text-base font-bold">Vibe (Teacher)</h1>
-                    <p className="text-xs text-muted-foreground">Course Editor</p>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3 px-3 py-2">
+                    <BookOpen className="text-primary" />
+                    <div>
+                      <h1 className="text-base font-bold">Vibe (Teacher)</h1>
+                      <p className="text-xs text-muted-foreground">Course Editor</p>
+                    </div>
                   </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant={isReorderEnabled ? "default" : "ghost"}
+                          className={`h-7 w-7 transition-all duration-200 ${isReorderEnabled ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+                          onClick={() => setIsReorderEnabled((prev) => !prev)}
+                        >
+                          {isReorderEnabled?<LockOpen className="h-4 w-4" />:<Lock className="h-4 w-4" />}
+                          <span className="sr-only">Toggle Reorder</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        {isReorderEnabled ? "Disable Reordering" : "Enable Reordering"}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
                 <Separator className="opacity-50" />
               </SidebarHeader>
@@ -1616,7 +1637,7 @@ function TeacherCourseContent() {
                               key={module.moduleId}
                               value={module}
                               as="div"
-                              drag
+                              drag={isReorderEnabled}
                               className={module.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
                               whileDrag={{ scale: 1.02 }}
                               onDragEnd={() => {
@@ -1666,7 +1687,7 @@ function TeacherCourseContent() {
                                     <Reorder.Item
                                       key={section.sectionId}
                                       value={section}
-                                      drag
+                                      drag={isReorderEnabled}
                                       className={section.isHidden || module.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
                                       whileDrag={{ scale: 1.02 }}
                                       onDragEnd={() => {
@@ -1740,7 +1761,7 @@ function TeacherCourseContent() {
                                                   <Reorder.Item
                                                     key={item._id}
                                                     value={item}
-                                                    drag
+                                                    drag={isReorderEnabled}
                                                     className={section.isHidden || module.isHidden || item.isHidden ? "focus:outline-none opacity-60" : "focus:outline-none"}
                                                     whileDrag={{ scale: 1.02 }}
                                                     onDragEnd={() => {
@@ -2368,9 +2389,37 @@ function TeacherCourseContent() {
                     {/* Header with breadcrumb */}
                     <div className="mb-6 pb-4 border-b border-slate-200 dark:border-gray-700">
                       <div className="flex items-center justify-between mb-2">
-                        <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-slate-900 dark:text-gray-100">
-                          {selectedEntity.data?.name}
-                        </h2>
+                        <div className="flex items-center gap-2">
+                          {/* Pencil icon to update module*/}
+                          {(selectedEntity.type === "module" || selectedEntity.type === "section") && !isEditingModule && !isEditingSection && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                if (selectedEntity.type === "module") {
+                                  setIsEditingModule(true);
+                                  setOriginalModuleData({
+                                    name: selectedEntity.data.name,
+                                    description: selectedEntity.data.description || ""
+                                  });
+                                } else {
+                                  setIsEditingSection(true);
+                                  setOriginalSectionData({
+                                    name: selectedEntity.data.name,
+                                    description: selectedEntity.data.description || ""
+                                  });
+                                }
+                              }}
+                              className="h-8 w-8 -ml-2"
+                            >
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">Edit {selectedEntity.type}</span>
+                            </Button>
+                          )}
+                          <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-slate-900 dark:text-gray-100">
+                            {selectedEntity.data?.name}
+                          </h2>
+                        </div>
                         <div className="flex items-center gap-2">
                           {selectedEntity.type === "item" && (
                             // <div className="items-center gap-2 bg-muted/40 px-2 py-1 rounded-md border text-sm">
@@ -2621,7 +2670,9 @@ function TeacherCourseContent() {
                         </>
                       )}
                       <div className="flex items-center gap-2">
-                        {(selectedEntity.type === "module" || selectedEntity.type === "section") && (
+                        {(selectedEntity.type === "module" || selectedEntity.type === "section") &&
+                        (isEditingModule || isEditingSection) &&
+                         (
                           <Button
                             onClick={() => {
                               const moduleName = selectedEntity.data.name?.trim();
@@ -2737,11 +2788,17 @@ function TeacherCourseContent() {
                                 });
                               }
                             }}
-                            className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
+                            variant={isEditingModule || isEditingSection ? "default" : "ghost"}
+                            size={isEditingModule || isEditingSection ? "default" : "icon"}
+                            className={isEditingModule || isEditingSection ? 
+                              "bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300" : "h-8 w-8"}
                           >
-                            {selectedEntity.type === "module"
-                              ? (isEditingModule ? 'Save Changes' : `Update ${selectedEntity.type}`)
-                              : (isEditingSection ? 'Save Changes' : `Update ${selectedEntity.type}`)}
+                             {isEditingModule || isEditingSection ? (
+                              'Save Changes'
+                            ) : (
+                              <Pencil className="h-4 w-4" />
+                            )}
+                            <span className="sr-only">Edit {selectedEntity.type}</span>
                           </Button>
                         )}
 

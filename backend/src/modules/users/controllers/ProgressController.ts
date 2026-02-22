@@ -1,5 +1,5 @@
-import {Progress} from '#users/classes/transformers/Progress.js';
-import {ICurrentProgressPath} from '#shared/interfaces/models.js';
+import { Progress } from '#users/classes/transformers/Progress.js';
+import { ICurrentProgressPath } from '#shared/interfaces/models.js';
 import {
   GetUserProgressParams,
   StartItemParams,
@@ -22,9 +22,9 @@ import {
   LeaderboardNoAuthResponse,
   GetLeaderboardResponse,
 } from '#users/classes/validators/ProgressValidators.js';
-import {ProgressService} from '#users/services/ProgressService.js';
-import {USERS_TYPES} from '#users/types.js';
-import {injectable, inject} from 'inversify';
+import { ProgressService } from '#users/services/ProgressService.js';
+import { USERS_TYPES } from '#users/types.js';
+import { injectable, inject } from 'inversify';
 import {
   JsonController,
   Get,
@@ -43,28 +43,37 @@ import {
   QueryParams,
   CurrentUser,
   Req,
+  UseInterceptor,
 } from 'routing-controllers';
-import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
-import {UserNotFoundErrorResponse} from '../classes/validators/UserValidators.js';
+import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
+import { UserNotFoundErrorResponse } from '../classes/validators/UserValidators.js';
 import {
   ProgressActions,
   getProgressAbility,
 } from '../abilities/progressAbilities.js';
-import {Ability} from '#root/shared/functions/AbilityDecorator.js';
-import {subject} from '@casl/ability';
-import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
-import {QuizService} from '#root/modules/quizzes/services/index.js';
-import {BadRequestErrorResponse, IUser} from '#root/shared/index.js';
-import {InternalServerErrorResponse} from '../../../shared/middleware/errorHandler.js';
-import {COURSES_TYPES} from '#root/modules/courses/types.js';
-import {ItemService} from '#root/modules/courses/services/ItemService.js';
-import {SuccessResponse} from '#root/modules/projects/classes/validators/ProjectValidators.js';
-import {CourseVersionQuery} from '#root/modules/courses/classes/index.js';
+import { Ability } from '#root/shared/functions/AbilityDecorator.js';
+import { subject } from '@casl/ability';
+import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
+import { QuizService } from '#root/modules/quizzes/services/index.js';
+import { BadRequestErrorResponse, IUser } from '#root/shared/index.js';
+import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
+import { InternalServerErrorResponse } from '../../../shared/middleware/errorHandler.js';
+import { COURSES_TYPES } from '#root/modules/courses/types.js';
+import { ItemService } from '#root/modules/courses/services/ItemService.js';
+import { SuccessResponse } from '#root/modules/projects/classes/validators/ProjectValidators.js';
+import { CourseVersionQuery } from '#root/modules/courses/classes/index.js';
+import { setAuditTrail } from '#root/utils/setAuditTrail.js';
+import {
+  AuditAction,
+  AuditCategory,
+  OutComeStatus,
+} from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
+import { ObjectId } from 'mongodb';
 
 @OpenAPI({
   tags: ['Progress'],
 })
-@JsonController('/users', {transformResponse: true})
+@JsonController('/users', { transformResponse: true })
 @injectable()
 class ProgressController {
   constructor(
@@ -76,7 +85,7 @@ class ProgressController {
 
     @inject(COURSES_TYPES.ItemService)
     private readonly itemService: ItemService,
-  ) {}
+  ) { }
 
   @OpenAPI({
     summary: 'Get user progress in a course version',
@@ -95,13 +104,13 @@ class ProgressController {
   })
   async getUserProgress(
     @Params() params: GetUserProgressParams,
-    @Ability(getProgressAbility) {ability, user},
+    @Ability(getProgressAbility) { ability, user },
   ): Promise<Progress> {
-    const {courseId, versionId} = params;
+    const { courseId, versionId } = params;
     const userId = user._id.toString();
 
     // Create a progress resource object for permission checking
-    const progressResource = subject('Progress', {userId, courseId, versionId});
+    const progressResource = subject('Progress', { userId, courseId, versionId });
 
     // Check permission using ability.can() with the actual progress resource
     if (!ability.can(ProgressActions.View, progressResource)) {
@@ -129,10 +138,10 @@ class ProgressController {
   @HttpCode(200)
   async getCurrentProgressPath(
     @Params() params: GetUserProgressParams,
-    @Ability(getProgressAbility) {user},
+    @Ability(getProgressAbility) { user },
     @Req() request: any,
   ): Promise<ICurrentProgressPath> {
-    const {courseId, versionId} = params;
+    const { courseId, versionId } = params;
 
     // Validate and extract userId with proper error handling
     const queryUserId = request.query?.userId as string;
@@ -174,13 +183,13 @@ class ProgressController {
   })
   async getUserProgressPercentage(
     @Params() params: GetUserProgressParams,
-    @Ability(getProgressAbility) {ability, user},
+    @Ability(getProgressAbility) { ability, user },
   ): Promise<CompletedProgressResponse> {
-    const {courseId, versionId} = params;
+    const { courseId, versionId } = params;
     const userId = user._id.toString();
 
     // Create a progress resource object for permission checking
-    const progressResource = subject('Progress', {userId, courseId, versionId});
+    const progressResource = subject('Progress', { userId, courseId, versionId });
 
     if (!ability.can(ProgressActions.View, progressResource)) {
       throw new ForbiddenError('You do not have permission');
@@ -215,14 +224,14 @@ class ProgressController {
   async startItem(
     @Params() params: StartItemParams,
     @Body() body: StartItemBody,
-    @Ability(getProgressAbility) {ability, user},
+    @Ability(getProgressAbility) { ability, user },
   ): Promise<StartItemResponse> {
-    const {courseId, versionId} = params;
-    const {itemId, moduleId, sectionId} = body;
+    const { courseId, versionId } = params;
+    const { itemId, moduleId, sectionId } = body;
     const userId = user._id.toString();
 
     // Create a progress resource object for permission checking
-    const progressResource = subject('Progress', {userId, courseId, versionId});
+    const progressResource = subject('Progress', { userId, courseId, versionId });
 
     // Check permission using ability.can() with the actual progress resource
     if (!ability.can(ProgressActions.Modify, progressResource)) {
@@ -268,9 +277,9 @@ class ProgressController {
   async stopItem(
     @Params() params: StopItemParams,
     @Body() body: StopItemBody,
-    @Ability(getProgressAbility) {ability, user},
+    @Ability(getProgressAbility) { ability, user },
   ): Promise<void> {
-    const {courseId, versionId} = params;
+    const { courseId, versionId } = params;
     const {
       itemId,
       sectionId,
@@ -279,6 +288,7 @@ class ProgressController {
       attemptId,
       isSkipped,
       seekForwardEnabled,
+      nextItemId,
     } = body;
 
     const userId = String(user._id);
@@ -306,6 +316,7 @@ class ProgressController {
       attemptId,
       isSkipped,
       seekForwardEnabled,
+      nextItemId,
     );
   }
 
@@ -321,6 +332,7 @@ It returns an empty body with a 200 status code.
   })
   @Authorized()
   @Patch('/:userId/progress/courses/:courseId/versions/:versionId/reset')
+  @UseInterceptor(AuditTrailsHandler)
   @OnUndefined(200)
   @ResponseSchema(UserNotFoundErrorResponse, {
     description: 'User not found',
@@ -333,13 +345,17 @@ It returns an empty body with a 200 status code.
   async resetProgress(
     @Params() params: ResetCourseProgressParams,
     @Body() body: ResetCourseProgressBody,
-    @Ability(getProgressAbility) {ability},
+    @Ability(getProgressAbility) { ability, user },
+    @Req() req: Request,
   ): Promise<void> {
-    const {userId, courseId, versionId} = params;
-    const {moduleId, sectionId, itemId} = body;
+    console.log('RESET API HIT');
+    console.log('Params:', params);
+    console.log('Body:', body);
+    const { userId, courseId, versionId } = params;
+    const { moduleId, sectionId, itemId } = body;
 
     // Create a progress resource object for permission checking
-    const progressResource = subject('Progress', {userId, courseId, versionId});
+    const progressResource = subject('Progress', { userId, courseId, versionId });
 
     // Check permission using ability.can() with the actual progress resource
     if (!ability.can(ProgressActions.Modify, progressResource)) {
@@ -351,17 +367,69 @@ It returns an empty body with a 200 status code.
     // Check if only moduleId is provided
     // If so, reset progress to the beginning of the module
     if (moduleId && !sectionId && !itemId) {
+      console.log('Reset the course progress to the beginning of the module');
+      const getmoduleProgress =
+        await this.progressService.getUserProgressPercentage(
+          userId,
+          courseId,
+          versionId,
+        );
+      console.log('Module Progress before reset:', getmoduleProgress);
       await this.progressService.resetCourseProgressToModule(
         userId,
         courseId,
         versionId,
         moduleId,
       );
+
+      const afterUpdateModuleProgress =
+        await this.progressService.getUserProgressPercentage(
+          userId,
+          courseId,
+          versionId,
+        );
+      console.log('Module Progress after reset:', afterUpdateModuleProgress);
+      setAuditTrail(req, {
+        category: AuditCategory.PROGRESS,
+        action: AuditAction.PROGRESS_RESET,
+        actor: ObjectId.createFromHexString(user._id.toString()),
+        context: {
+          courseId: ObjectId.createFromHexString(courseId),
+          courseVersionId: ObjectId.createFromHexString(versionId),
+          moduleId: ObjectId.createFromHexString(moduleId),
+          userId: ObjectId.createFromHexString(userId),
+        },
+        changes: {
+          before: {
+            completed: getmoduleProgress.completed,
+            completedItems: getmoduleProgress.completedItems,
+            compltedPercentage: getmoduleProgress.percentCompleted,
+            totalItems: getmoduleProgress.totalItems,
+          },
+          after: {
+            completed: afterUpdateModuleProgress.completed,
+            completedItems: afterUpdateModuleProgress.completedItems,
+            compltedPercentage: afterUpdateModuleProgress.percentCompleted,
+            totalItems: afterUpdateModuleProgress.totalItems,
+          },
+        },
+        outcome: {
+          status: OutComeStatus.SUCCESS,
+        },
+      });
     }
 
     // Check if moduleId and sectionId are provided
     // If so, reset progress to the beginning of the section
     else if (moduleId && sectionId && !itemId) {
+      console.log('Reset the course progress to the beginning of the section');
+      const getProgress = await this.progressService.getUserProgressPercentage(
+        userId,
+        courseId,
+        versionId,
+      );
+      console.log('Section Progress before reset:', getProgress);
+
       await this.progressService.resetCourseProgressToSection(
         userId,
         courseId,
@@ -369,11 +437,55 @@ It returns an empty body with a 200 status code.
         moduleId,
         sectionId,
       );
+
+      const afterUpdateProgress =
+        await this.progressService.getUserProgressPercentage(
+          userId,
+          courseId,
+          versionId,
+        );
+      console.log('Section Progress after reset:', afterUpdateProgress);
+      setAuditTrail(req, {
+        category: AuditCategory.PROGRESS,
+        action: AuditAction.PROGRESS_RESET,
+        actor: ObjectId.createFromHexString(user._id.toString()),
+        context: {
+          courseId: ObjectId.createFromHexString(courseId),
+          courseVersionId: ObjectId.createFromHexString(versionId),
+          moduleId: ObjectId.createFromHexString(moduleId),
+          sectionId: ObjectId.createFromHexString(sectionId),
+          userId: ObjectId.createFromHexString(userId),
+        },
+        changes: {
+          before: {
+            completed: getProgress.completed,
+            completedItems: getProgress.completedItems,
+            compltedPercentage: getProgress.percentCompleted,
+            totalItems: getProgress.totalItems,
+          },
+          after: {
+            completed: afterUpdateProgress.completed,
+            completedItems: afterUpdateProgress.completedItems,
+            compltedPercentage: afterUpdateProgress.percentCompleted,
+            totalItems: afterUpdateProgress.totalItems,
+          },
+        },
+        outcome: {
+          status: OutComeStatus.SUCCESS,
+        },
+      });
     }
 
     // Check if moduleId, sectionId, and itemId are provided
     // If so, reset progress to the beginning of the item
     else if (moduleId && sectionId && itemId) {
+      console.log('Reset the course progress to the beginning of the item');
+      const getProgress = await this.progressService.getUserProgressPercentage(
+        userId,
+        courseId,
+        versionId,
+      );
+      console.log('Item Progress before reset:', getProgress);
       await this.progressService.resetCourseProgressToItem(
         userId,
         courseId,
@@ -382,15 +494,87 @@ It returns an empty body with a 200 status code.
         sectionId,
         itemId,
       );
+      const afterUpdateProgress =
+        await this.progressService.getUserProgressPercentage(
+          userId,
+          courseId,
+          versionId,
+        );
+
+      console.log('Item Progress after reset:', afterUpdateProgress);
+      setAuditTrail(req, {
+        category: AuditCategory.PROGRESS,
+        action: AuditAction.PROGRESS_RESET,
+        actor: ObjectId.createFromHexString(user._id.toString()),
+        context: {
+          courseId: ObjectId.createFromHexString(courseId),
+          courseVersionId: ObjectId.createFromHexString(versionId),
+          moduleId: ObjectId.createFromHexString(moduleId),
+          sectionId: ObjectId.createFromHexString(sectionId),
+          itemId: ObjectId.createFromHexString(itemId),
+          userId: ObjectId.createFromHexString(userId),
+        },
+        changes: {
+          before: {
+            completed: getProgress.completed,
+            completedItems: getProgress.completedItems,
+            compltedPercentage: getProgress.percentCompleted,
+            totalItems: getProgress.totalItems,
+          },
+          after: {
+            completed: afterUpdateProgress.completed,
+            completedItems: afterUpdateProgress.completedItems,
+            compltedPercentage: afterUpdateProgress.percentCompleted,
+            totalItems: afterUpdateProgress?.totalItems ?? 0,
+          },
+        },
+        outcome: {
+          status: OutComeStatus.SUCCESS,
+        },
+      });
     }
 
     // If no moduleId, sectionId, or itemId are provided, reset progress to the beginning of the course
     else {
+      console.log('Rest the course progress to the beginning of the course');
+      const getProgress = await this.progressService.getUserProgressPercentage(
+        userId,
+        courseId,
+        versionId,
+      );
+      console.log('Course Progress before reset:', getProgress);
       await this.progressService.resetCourseProgress(
         userId,
         courseId,
         versionId,
       );
+      setAuditTrail(req, {
+        category: AuditCategory.PROGRESS,
+        action: AuditAction.PROGRESS_RESET,
+        actor: ObjectId.createFromHexString(user._id.toString()),
+        context: {
+          courseId: ObjectId.createFromHexString(courseId),
+          courseVersionId: ObjectId.createFromHexString(versionId),
+          userId: ObjectId.createFromHexString(userId),
+        },
+        changes: {
+          before: {
+            completed: getProgress.completed,
+            completedItems: getProgress.completedItems,
+            compltedPercentage: getProgress.percentCompleted,
+            totalItems: getProgress.totalItems,
+          },
+          after: {
+            completed: 0,
+            completedItems: 0,
+            compltedPercentage: 0,
+            totalItems: getProgress.totalItems,
+          },
+        },
+        outcome: {
+          status: OutComeStatus.SUCCESS,
+        },
+      });
     }
   }
 
@@ -417,12 +601,12 @@ It returns an empty body with a 200 status code.
   })
   async getWatchTime(
     @Params() params: WatchTimeParams,
-    @Ability(getProgressAbility) {ability},
+    @Ability(getProgressAbility) { ability },
   ): Promise<WatchTimeResponse> {
-    const {userId, courseId, versionId, itemId, type} = params;
+    const { userId, courseId, versionId, itemId, type } = params;
 
     // Create a progress resource object for permission checking
-    const progressResource = subject('Progress', {userId, courseId, versionId});
+    const progressResource = subject('Progress', { userId, courseId, versionId });
     // Check permission using ability.can() with the actual progress resource
     if (!ability.can(ProgressActions.View, progressResource)) {
       throw new ForbiddenError(
@@ -443,11 +627,11 @@ It returns an empty body with a 200 status code.
         itemId,
       );
       if (quizMetrics) {
-        return {watchTime, quizMetrics};
+        return { watchTime, quizMetrics };
       }
     }
 
-    return {watchTime};
+    return { watchTime };
   }
 
   @OpenAPI({
@@ -470,7 +654,7 @@ It returns an empty body with a 200 status code.
     statusCode: 500,
   })
   async getTotalWatchtimeOfUser(
-    @Ability(getProgressAbility) {user},
+    @Ability(getProgressAbility) { user },
   ): Promise<number> {
     const userId = user._id.toString();
 
@@ -494,16 +678,16 @@ It returns an empty body with a 200 status code.
   })
   async skipOptionalItem(
     @Params() params: ItemIdparams,
-    @Ability(getProgressAbility) {user, ability},
+    @Ability(getProgressAbility) { user, ability },
   ): Promise<void> {
-    const {itemId} = params;
+    const { itemId } = params;
 
     if (!user || (!user.userId && !user._id)) {
       throw new Error('User not authenticated or user ID not found');
     }
 
     const userId = user.userId || user._id;
-    const {courseId, versionId} =
+    const { courseId, versionId } =
       await this.itemService.getCourseAndVersionByItemId(itemId);
 
     await this.progressService.skipItem(userId, courseId, versionId, itemId);
@@ -540,8 +724,8 @@ It returns an empty body with a 200 status code.
     totalPages: number;
     currentPage: number;
   }> {
-    const {courseId, versionId} = params;
-    const {page = 1, limit = 10} = query;
+    const { courseId, versionId } = params;
+    const { page = 1, limit = 10 } = query;
     const userId = user._id?.toString();
     return await this.progressService.getLeaderboard(
       userId,
@@ -553,6 +737,7 @@ It returns an empty body with a 200 status code.
   }
 
   @Post('/progress/recalculate')
+  @UseInterceptor(AuditTrailsHandler)
   @HttpCode(200)
   @OpenAPI({
     summary: 'Recalculate student progress',
@@ -567,46 +752,80 @@ It returns an empty body with a 200 status code.
   async recalculateStudentProgress(
     @Body() body: CourseVersionQuery & { userId?: string },
     @CurrentUser() currentUser: IUser,
-    @Ability(getProgressAbility) { ability },
+    @Ability(getProgressAbility) { ability, actorUser },
+    @Req() req: Request,
   ): Promise<string> {
-
     const { courseId, courseVersionId, userId: requestedUserId } = body;
 
-    // Determine the target user based on role and permissions
-    let targetUserId: string;
-
-    if (requestedUserId) {
-      // If userId is provided (instructor use case), verify permissions
-      const progressResource = subject('Progress', {
-        userId: requestedUserId,
-        courseId,
-        versionId: courseVersionId,
-      });
-
-      // Check if current user can modify progress for the requested user
-      if (!ability.can(ProgressActions.Modify, progressResource)) {
-        throw new ForbiddenError(
-          'You do not have permission to recalculate progress for this user',
-        );
-      }
-
-      targetUserId = requestedUserId;
-    } else {
-      // No userId provided - use authenticated user (student use case)
-      targetUserId = currentUser._id?.toString();
-    }
+    // Determine target user
+    const targetUserId = requestedUserId ?? currentUser._id?.toString();
 
     if (!targetUserId) {
       throw new BadRequestError('Unable to determine target user');
     }
 
-    return this.progressService.recalculateStudentProgress(
+    // Build CASL subject
+    const progressResource = subject('Progress', {
+      userId: targetUserId,
+      courseId,
+      versionId: courseVersionId,
+    });
+
+    // Permission check
+    if (!ability.can(ProgressActions.Modify, progressResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to recalculate progress for this user',
+      );
+    }
+
+    // Get progress BEFORE recalculation
+    const previousProgress =
+      await this.progressService.getUserProgressPercentage(
+        targetUserId,
+        courseId,
+        courseVersionId,
+      );
+
+    // Recalculate
+    const result = await this.progressService.recalculateStudentProgress(
       targetUserId,
       courseId,
       courseVersionId,
     );
-  }
 
+    // Get progress AFTER recalculation
+    const updatedProgress =
+      await this.progressService.getUserProgressPercentage(
+        targetUserId,
+        courseId,
+        courseVersionId,
+      );
+
+    // Audit log
+    setAuditTrail(req, {
+      category: AuditCategory.PROGRESS,
+      action: AuditAction.PROGRESS_RECALCULATE,
+      actor: ObjectId.createFromHexString(actorUser._id.toString()),
+      context: {
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: ObjectId.createFromHexString(courseVersionId),
+        userId: ObjectId.createFromHexString(targetUserId),
+      },
+      changes: {
+        before: {
+          completedPercentage: previousProgress?.percentCompleted ?? 0,
+        },
+        after: {
+          completedPercentage: updatedProgress?.percentCompleted ?? 0,
+        },
+      },
+      outcome: {
+        status: OutComeStatus.SUCCESS,
+      },
+    });
+
+    return result;
+  }
   @OpenAPI({
     summary: 'Get module wise progress',
     description:
@@ -625,7 +844,7 @@ It returns an empty body with a 200 status code.
   })
   async getModuleWiseProgress(
     @Params() params: GetUserProgressParams,
-    @Ability(getProgressAbility) {ability, user},
+    @Ability(getProgressAbility) { ability, user },
   ): Promise<
     Array<{
       moduleId: string;
@@ -634,7 +853,7 @@ It returns an empty body with a 200 status code.
       completedItems: number;
     }>
   > {
-    const {courseId, versionId} = params;
+    const { courseId, versionId } = params;
     const userId = user._id.toString();
 
     // Permission check
@@ -670,7 +889,7 @@ It returns an empty body with a 200 status code.
     statusCode: 500,
   })
   async createBulkWatchiTimeDocs(@Body() body: any): Promise<any> {
-    const {courseId, versionId, userId} = body;
+    const { courseId, versionId, userId } = body;
     return this.progressService.createBulkWatchiTimeDocs(
       courseId,
       versionId,
@@ -696,7 +915,7 @@ It returns an empty body with a 200 status code.
   async getNoAuthLeaderboard(
     @Params() params: GetUserProgressParams,
   ): Promise<GetLeaderboardResponse> {
-    const {courseId, versionId} = params;
+    const { courseId, versionId } = params;
     // const {page = 1, limit = 10} = query;
 
     return await this.progressService.getLeaderboardNoAuth(
@@ -707,4 +926,4 @@ It returns an empty body with a 200 status code.
     );
   }
 }
-export {ProgressController};
+export { ProgressController };

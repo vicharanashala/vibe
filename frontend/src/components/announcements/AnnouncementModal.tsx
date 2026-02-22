@@ -14,6 +14,7 @@ import { Loader2, Paperclip, X } from "lucide-react";
 import { useCreateAnnouncement, useUpdateAnnouncement } from "@/hooks/announcement-hooks";
 import { Announcement, AnnouncementType, Attachment } from "@/types/announcement.types";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 interface AnnouncementModalProps {
     isOpen: boolean;
@@ -84,6 +85,27 @@ export function AnnouncementModal({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // --- Frontend Validation ---
+        if (!title.trim()) {
+            toast.error("Title cannot be empty or just spaces");
+            return;
+        }
+        if (!content.trim()) {
+            toast.error("Content cannot be empty or just spaces");
+            return;
+        }
+        if (
+            (type === AnnouncementType.COURSE_SPECIFIC || type === AnnouncementType.VERSION_SPECIFIC) &&
+            !courseId
+        ) {
+            toast.error("Course must be selected for course-specific or version-specific announcements");
+            return;
+        }
+        if (type === AnnouncementType.VERSION_SPECIFIC && !versionId) {
+            toast.error("Version must be selected for version-specific announcements");
+            return;
+        }
 
         const body: any = {
             title,

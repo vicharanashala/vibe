@@ -20,7 +20,6 @@ import { currentUserChecker } from './shared/functions/currentUserChecker.js';
 import { startCron } from './utils/startCron.js';
 import { GLOBAL_TYPES } from './types.js';
 
-
 const app = express();
 const globalRateLimiter = createRateLimiter();
 
