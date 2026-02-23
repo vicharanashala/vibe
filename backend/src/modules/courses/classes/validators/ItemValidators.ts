@@ -672,6 +672,26 @@ class GetItemParams {
   @IsMongoId()
   @IsString()
   itemId: string;
+
+  @JSONSchema({
+    title: 'module ID',
+    description: 'module ID of the item',
+    example: '60d5ec49b3f1c8e4a8f8b8f8',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  moduleId: string;
+
+  @JSONSchema({
+    title: 'section ID',
+    description: 'section ID of the item',
+    example: '60d5ec49b3f1c8e4a8f8b8f8',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  sectionId: string;
 }
 
 class ItemNotFoundErrorResponse {
