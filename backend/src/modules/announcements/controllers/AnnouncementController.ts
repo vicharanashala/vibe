@@ -48,9 +48,9 @@ export class AnnouncementController {
         private readonly announcementService: AnnouncementService,
     ) { }
 
-    
+
     //Create a new announcement
-     
+
     @Authorized()
     @Post('/')
     @HttpCode(201)
@@ -91,9 +91,9 @@ export class AnnouncementController {
         return announcement;
     }
 
-    
+
     //Update an existing announcement
-    
+
     @Authorized()
     @Patch('/:announcementId')
     @HttpCode(200)
@@ -140,9 +140,9 @@ export class AnnouncementController {
         return new AnnouncementMessageResponse('Announcement updated successfully');
     }
 
-    
+
     //Toggle announcement visibility (hide/show)
-    
+
     @Authorized()
     @Patch('/:announcementId/toggle-hide')
     @HttpCode(200)
@@ -191,9 +191,9 @@ export class AnnouncementController {
         };
     }
 
-    
+
     //Soft delete an announcement
-    
+
     @Authorized()
     @Delete('/:announcementId')
     @HttpCode(200)
@@ -234,9 +234,9 @@ export class AnnouncementController {
         return new AnnouncementMessageResponse('Announcement deleted successfully');
     }
 
-    
+
     //Get announcements for instructor (includes hidden)
-    
+
     @Authorized()
     @Get('/instructor')
     @HttpCode(200)
@@ -249,7 +249,7 @@ export class AnnouncementController {
         @QueryParams() query: AnnouncementQueryParams,
         @Ability(getAnnouncementAbility) { ability, user },
     ) {
-        if (!ability.can(AnnouncementActions.Create, 'Announcement')) {
+        if (!ability.can(AnnouncementActions.View, 'Announcement')) {
             throw new ForbiddenError(
                 'You do not have permission to view instructor announcements',
             );
@@ -270,9 +270,9 @@ export class AnnouncementController {
         );
     }
 
-    
+
     //Get announcements for student (filtered by enrollments, excludes hidden)
-    
+
     @Authorized()
     @Get('/student')
     @HttpCode(200)
