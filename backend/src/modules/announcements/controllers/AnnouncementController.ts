@@ -258,7 +258,7 @@ export class AnnouncementController {
         const { page, limit, type, courseId, courseVersionId } = query;
 
         const result = await this.announcementService.getAnnouncementsForInstructor(
-            { type, courseId, courseVersionId, instructorId: user._id.toString() },
+            { type, courseId, courseVersionId },
             page,
             limit,
         );
