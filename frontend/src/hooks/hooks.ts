@@ -1050,7 +1050,9 @@ export function userParseCSVtoItems(): {
 export function useItemById(
   courseId: string,
   versionId: string,
-  itemId: string
+  itemId: string,
+  moduleId: string,
+  sectionId: string
 ): {
   data: components['schemas']['ItemDataResponse'] | undefined;
   isLoading: boolean;
@@ -1060,9 +1062,9 @@ export function useItemById(
 } {
   const result = api.useQuery(
     "get",
-    "/courses/{courseId}/versions/{versionId}/item/{itemId}",
+    "/courses/{courseId}/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/item/{itemId}",
     {
-      params: { path: { courseId, versionId, itemId } },
+      params: { path: { courseId, versionId, itemId, moduleId, sectionId } },
     },
     {
       enabled: !!courseId && !!versionId && !!itemId,
