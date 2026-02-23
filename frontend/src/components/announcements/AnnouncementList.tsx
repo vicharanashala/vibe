@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuthStore } from "@/store/auth-store";
 import { useAnnouncements, useDeleteAnnouncement, useToggleHideAnnouncement } from "@/hooks/announcement-hooks";
 import { AnnouncementItem } from "./AnnouncementItem";
 import { AnnouncementModal } from "./AnnouncementModal";
@@ -28,6 +29,7 @@ interface AnnouncementListProps {
 }
 
 export function AnnouncementList({ courseId, versionId, isInstructor }: AnnouncementListProps) {
+    const { user } = useAuthStore();
     const { data, isLoading, refetch } = useAnnouncements(
         undefined, // fetch all initially, filter locally or let hook handle
         courseId,
@@ -135,6 +137,8 @@ export function AnnouncementList({ courseId, versionId, isInstructor }: Announce
                             key={item._id}
                             announcement={item}
                             isInstructor={isInstructor}
+                            currentUserId={user?.uid}
+                            isAdmin={user?.role === 'admin'}
                             onEdit={handleEdit}
                             onDelete={(id) => setDeleteId(id)}
                             onToggleHide={(id) => {
