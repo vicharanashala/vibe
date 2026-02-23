@@ -95,17 +95,17 @@ export function AnnouncementModal({
             toast.error("Content cannot be empty or just spaces");
             return;
         }
-        if (
-            (type === AnnouncementType.COURSE_SPECIFIC || type === AnnouncementType.VERSION_SPECIFIC) &&
-            !courseId
-        ) {
-            toast.error("Course must be selected for course-specific or version-specific announcements");
-            return;
-        }
-        if (type === AnnouncementType.VERSION_SPECIFIC && !versionId) {
-            toast.error("Version must be selected for version-specific announcements");
-            return;
-        }
+        // if (
+        //     (type === AnnouncementType.COURSE_SPECIFIC || type === AnnouncementType.VERSION_SPECIFIC) &&
+        //     !courseId
+        // ) {
+        //     toast.error("Course must be selected for course-specific or version-specific announcements");
+        //     return;
+        // }
+        // if (type === AnnouncementType.VERSION_SPECIFIC && !versionId) {
+        //     toast.error("Version must be selected for version-specific announcements");
+        //     return;
+        // }
 
         const body: any = {
             title,
