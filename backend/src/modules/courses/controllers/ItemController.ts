@@ -594,7 +594,7 @@ Access control logic:
 - For instructors, managers, and teaching assistants: The item is accessible without this restriction.`,
   })
   @Authorized()
-  @Get('/:courseId/versions/:versionId/item/:itemId')
+  @Get('/:courseId/versions/:versionId/modules/:moduleId/sections/:sectionId/item/:itemId')
   @HttpCode(201)
   @ResponseSchema(ItemDataResponse, {
     description: 'Item retrieved successfully',
@@ -612,7 +612,7 @@ Access control logic:
     // @Ability(getItemAbility) { ability, user },
     @CurrentUser() user: { _id: string },
   ) {
-    const { versionId, itemId, courseId } = params;
+    const { versionId, itemId, courseId, moduleId, sectionId } = params;
     const { _id: userId } = user;
 
     // Check time slot access for this specific course
@@ -643,7 +643,7 @@ Access control logic:
     // }
 
     return {
-      item: await this.itemService.readItem(userId?.toString(), versionId, itemId, courseId),
+      item: await this.itemService.readItem(userId?.toString(), versionId, itemId, courseId, moduleId, sectionId),
     };
   }
 
