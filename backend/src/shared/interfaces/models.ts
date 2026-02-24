@@ -1,6 +1,6 @@
-import {ObjectId} from 'mongodb';
-import {ProctoringComponent} from '../database/index.js';
-import {Type} from 'class-transformer';
+import { ObjectId } from 'mongodb';
+import { ProctoringComponent } from '../database/index.js';
+import { Type } from 'class-transformer';
 import {
   IsOptional,
   IsInt,
@@ -10,7 +10,7 @@ import {
   isString,
   IsEnum,
 } from 'class-validator';
-import {Priority} from './quiz.js';
+import { Priority } from './quiz.js';
 
 export interface IUser {
   _id?: string | ObjectId | null;
@@ -415,9 +415,9 @@ export interface IProgress {
 }
 
 export interface ICurrentProgressPath {
-  module: {id: string; name: string} | null;
-  section: {id: string; name: string} | null;
-  item: {id: string; name: string; type: string} | null;
+  module: { id: string; name: string } | null;
+  section: { id: string; name: string } | null;
+  item: { id: string; name: string; type: string } | null;
   message?: string;
 }
 
@@ -507,14 +507,14 @@ export interface IRegistrationSettings {
   _id?: ID;
   label: string;
   type:
-    | 'TEXT'
-    | 'TEXTAREA'
-    | 'EMAIL'
-    | 'TEL'
-    | 'DATE'
-    | 'NUMBER'
-    | 'URL'
-    | 'SELECT';
+  | 'TEXT'
+  | 'TEXTAREA'
+  | 'EMAIL'
+  | 'TEL'
+  | 'DATE'
+  | 'NUMBER'
+  | 'URL'
+  | 'SELECT';
   isDefault: boolean;
   required: boolean;
   options?: string[];
@@ -779,6 +779,7 @@ export interface IAnnouncement {
   courseVersionName?: string;
   instructorId: ID;
   instructorName: string;
+  instructorFirebaseUid?: string;
   attachments?: IAnnouncementAttachment[];
   isHidden: boolean;
   isDeleted?: boolean;

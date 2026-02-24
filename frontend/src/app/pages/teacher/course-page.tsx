@@ -68,6 +68,7 @@ import { toast } from "sonner"
 import ConfirmationModal from "./components/confirmation-modal"
 import { AnnouncementModal } from "@/components/announcements/AnnouncementModal"
 import { AnnouncementType } from "@/types/announcement.types"
+import { useAnnouncements } from "@/hooks/announcement-hooks"
 
 // Utility function to format relative time
 const getUpdateMessage = (updatedAt?: string) => {
@@ -108,6 +109,7 @@ export default function TeacherCoursesPage() {
   const [lastEmptyState, setLastEmptyState] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1)
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false)
+  const { isAdmin } = useAnnouncements();
   const queryClient = useQueryClient()
 
   const role = "INSTRUCTOR"
@@ -295,14 +297,16 @@ export default function TeacherCoursesPage() {
                 </div>
               </div>
               <div className="flex flex-col lg:flex-row gap-3 mt-4 lg:mt-0">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowAnnouncementModal(true)}
-                  className="bg-background/50 hover:bg-background/80 border-primary/20 hover:border-primary/50 text-foreground h-12 px-6"
-                >
-                  <Megaphone className="h-4 w-4 mr-2 text-primary" />
-                  General Announcements
-                </Button>
+                {isAdmin && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAnnouncementModal(true)}
+                    className="bg-background/50 hover:bg-background/80 border-primary/20 hover:border-primary/50 text-foreground h-12 px-6"
+                  >
+                    <Megaphone className="h-4 w-4 mr-2 text-primary" />
+                    General Announcements
+                  </Button>
+                )}
                 <Button
                   onClick={createNewCourse}
                   className="relative overflow-hidden bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_auto] hover:bg-[length:100%_auto] shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105 hover:-translate-y-1 h-12 px-8 group"
@@ -322,6 +326,7 @@ export default function TeacherCoursesPage() {
               isOpen={showAnnouncementModal}
               onClose={() => setShowAnnouncementModal(false)}
               defaultType={AnnouncementType.GENERAL}
+              isAdmin={isAdmin}
             />
           </div>
         </div>
