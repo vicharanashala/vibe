@@ -524,6 +524,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
       await updateItem.mutateAsync({
         params: {
           path: {
+            courseId: courseId,
             versionId: courseVersionId,
             // moduleId,
             // sectionId,

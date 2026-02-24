@@ -93,6 +93,7 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
   details,
   onDelete,
   onRefetch,
+  courseId
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -911,6 +912,7 @@ const EnhancedBlogEditor: React.FC<EnhancedBlogEditorProps> = ({
       await updateItem.mutateAsync({
         params: {
           path: {
+            courseId: courseId,
             versionId: courseVersionId,
             itemId: blogId,
           },

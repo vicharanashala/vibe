@@ -251,7 +251,7 @@ export class ItemController {
   - Instructors, managers, and teaching assistants of the course.`,
   })
   @Authorized()
-  @Put('/versions/:versionId/items/:itemId')
+  @Put('/:courseId/versions/:versionId/items/:itemId')
   @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(ItemDataResponse, {
     description: 'Item updated successfully',
@@ -270,7 +270,7 @@ export class ItemController {
     @Ability(getItemAbility) { ability, user },
     @Req() req: Request,
   ) {
-    const { versionId, itemId } = params;
+    const {courseId, versionId, itemId } = params;
 
     // Create an item resource object for permission checking
     const itemResource = subject('Item', { versionId });
@@ -282,7 +282,7 @@ export class ItemController {
       );
     }
 
-    const getItemBeforeUpdate = await this.itemService.readItem(user._id.toString(), versionId, itemId);
+    const getItemBeforeUpdate = await this.itemService.readItem(user._id.toString(), versionId, itemId, courseId);
 
     const itemData = await this.itemService.updateItem(versionId, itemId, body)
 
@@ -614,7 +614,7 @@ Access control logic:
   ) {
     const { versionId, itemId, courseId, moduleId, sectionId } = params;
     const { _id: userId } = user;
-
+    console.log("---params----", params);
     // Check time slot access for this specific course
     try {
       const timeSlotAccess = await this.timeSlotService.canStudentAccessCourse(
@@ -760,7 +760,7 @@ Accessible to:
     }
 
     const getItemBeforeUpdate = await this.itemService.readItem(user._id.toString(), versionId, itemId);
-
+    console.log("getItemBeforeUpdate----",getItemBeforeUpdate);
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
       action: AuditAction.ITEM_MAKE_OPTIONAL,

@@ -376,6 +376,7 @@ class ProgressService extends BaseService {
       userId,
       courseId,
       courseVersionId,
+      session
     );
     if (!enrollment) throw new NotFoundError('User has no enrollments');
 

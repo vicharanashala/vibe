@@ -1169,8 +1169,8 @@ export function useVideoUserAnalytics(
 
 
 export function useUpdateCourseItem(): {
-  mutate: (variables: { params: { path: { versionId: string, itemId: string } }, body: components['schemas']['UpdateItemBody'] }) => void,
-  mutateAsync: (variables: { params: { path: { versionId: string, itemId: string } }, body: components['schemas']['UpdateItemBody'] }) => Promise<components['schemas']['ItemDataResponse']>,
+  mutate: (variables: { params: { path: { courseId: string, versionId: string, itemId: string } }, body: components['schemas']['UpdateItemBody'] }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, itemId: string } }, body: components['schemas']['UpdateItemBody'] }) => Promise<components['schemas']['ItemDataResponse']>,
   data: components['schemas']['ItemDataResponse'] | undefined,
   error: string | null,
   isPending: boolean,
@@ -1180,7 +1180,7 @@ export function useUpdateCourseItem(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("put", "/courses/versions/{versionId}/items/{itemId}");
+  const result = api.useMutation("put", "/courses/{courseId}/versions/{versionId}/items/{itemId}");
   return {
     ...result,
     error: result.error ? (result.error.message || 'Item update failed') : null

@@ -334,7 +334,9 @@ function TeacherCourseContent() {
   } = useItemById(
     shouldFetchItem ? courseId : '',
     shouldFetchItem ? versionId : '',
-    shouldFetchItem ? selectedEntity?.data?._id : ''
+    shouldFetchItem ? selectedEntity?.data?._id : '',
+    shouldFetchItem ? activeSectionInfo!.moduleId : '',
+    shouldFetchItem ? activeSectionInfo!.sectionId : '',
   );
 
   const [videoAnalyticsPage, setVideoAnalyticsPage] = useState(1);

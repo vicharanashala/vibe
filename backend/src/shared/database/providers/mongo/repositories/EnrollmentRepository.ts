@@ -81,8 +81,8 @@ export class EnrollmentRepository {
 
   async findEnrollment(
     userId: string | ObjectId,
-    courseVersionId: string,
     courseId: string,
+    courseVersionId: string,
     session?: ClientSession,
   ): Promise<IEnrollment | null> {
     await this.init();

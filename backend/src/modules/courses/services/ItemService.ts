@@ -465,8 +465,8 @@ export class ItemService extends BaseService {
     // Fetch enrollment early
     const enrollment = await this.enrollmentRepo.findEnrollment(
       userId,
+      courseId,
       versionId,
-      courseId
     );
 
     if (!enrollment) {
