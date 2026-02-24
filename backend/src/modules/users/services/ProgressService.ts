@@ -374,8 +374,8 @@ class ProgressService extends BaseService {
   ): Promise<void> {
     const enrollment = await this.enrollmentRepo.findEnrollment(
       userId,
-      courseId,
       courseVersionId,
+      courseId,
     );
     if (!enrollment) throw new NotFoundError('User has no enrollments');
 
@@ -1388,37 +1388,42 @@ class ProgressService extends BaseService {
     courseVersionId: string,
   ): Promise<CompletedProgressResponse> {
     return this._withTransaction(async session => {
-      // 🔥 Run independent reads in parallel
-      const [_, progress, totalItems, completedItemsArray, enrollment] =
-        await Promise.all([
-          this.verifyDetails(userId, courseId, courseVersionId),
+      await this.verifyDetails(userId, courseId, courseVersionId);
 
-          this.progressRepository.findProgress(
-            userId,
-            courseId,
-            courseVersionId,
-            session,
-          ),
+      const progress = await this.progressRepository.findProgress(
+        userId,
+        courseId,
+        courseVersionId,
+        session,
+      );
 
-          this.itemRepo.getTotalItemsCount(courseId, courseVersionId, session),
+      const totalItems = await this.itemRepo.getTotalItemsCount(
+        courseId,
+        courseVersionId,
+        session,
+      );
 
-          this.progressRepository.getCompletedItems(
-            userId.toString(),
-            courseId,
-            courseVersionId,
-            session,
-          ),
+      const completedItemsArray =
+        await this.progressRepository.getCompletedItems(
+          userId.toString(),
+          courseId,
+          courseVersionId,
+          session,
+        );
 
-          this.enrollmentRepo.findEnrollment(
-            userId,
-            courseId,
-            courseVersionId,
-            session,
-          ),
-        ]);
+      const enrollment = await this.enrollmentRepo.findEnrollment(
+        userId,
+        courseVersionId,
+        courseId,
+        session,
+      );
 
       if (!progress) {
         throw new NotFoundError('Progress not found');
+      }
+
+      if (!enrollment) {
+        throw new NotFoundError('Enrollment not found');
       }
 
       const completedItemsSet = new Set(completedItemsArray);
@@ -1445,8 +1450,8 @@ class ProgressService extends BaseService {
 
       const enrollment = await this.enrollmentRepo.findEnrollment(
         userId,
-        courseId,
         courseVersionId,
+        courseId,
         existingSession,
       );
       if (!enrollment) {
@@ -1784,8 +1789,8 @@ class ProgressService extends BaseService {
 
     const enrollment = await this.enrollmentRepo.findEnrollment(
       userId,
-      courseId,
       courseVersionId,
+      courseId,
     );
     if (!enrollment) return;
 
@@ -3322,7 +3327,7 @@ class ProgressService extends BaseService {
     const [completedItemIds, courseVersion, enrollment] = await Promise.all([
       this.progressRepository.getCompletedItems(userId, courseId, versionId),
       this.courseRepo.readVersion(versionId),
-      this.enrollmentRepo.findEnrollment(userId, courseId, versionId),
+      this.enrollmentRepo.findEnrollment(userId, versionId, courseId),
     ]);
 
     if (!courseVersion) {
