@@ -1198,7 +1198,7 @@ class ProgressService extends BaseService {
     throw new Error("Invalid time format");
   }
 
-  private isValidWatchTime(watchTime: IWatchTime, item: Item) { 
+  private isValidWatchTime(watchTime: IWatchTime, item: Item) {
     // Basic sanity checks
     if (!watchTime.startTime || !watchTime.endTime || !item.details) {
       return false;
@@ -1223,13 +1223,13 @@ class ProgressService extends BaseService {
 
         // parse it to seconds through liabrary
         const videoEndTimeInSeconds = this.parseTimeToSeconds(videoDetails.endTime)
-          // parseInt(videoDetails.endTime.split(':')[0]) * 3600 +
-          // parseInt(videoDetails.endTime.split(':')[1]) * 60 +
-          // parseInt(videoDetails.endTime.split(':')[2]);
+        // parseInt(videoDetails.endTime.split(':')[0]) * 3600 +
+        // parseInt(videoDetails.endTime.split(':')[1]) * 60 +
+        // parseInt(videoDetails.endTime.split(':')[2]);
         const videoStartTimeInSeconds = this.parseTimeToSeconds(videoDetails.startTime)
-          // parseInt(videoDetails.startTime.split(':')[0]) * 3600 +
-          // parseInt(videoDetails.startTime.split(':')[1]) * 60 +
-          // parseInt(videoDetails.startTime.split(':')[2]);
+        // parseInt(videoDetails.startTime.split(':')[0]) * 3600 +
+        // parseInt(videoDetails.startTime.split(':')[1]) * 60 +
+        // parseInt(videoDetails.startTime.split(':')[2]);
 
         const totalVideoDuration =
           videoEndTimeInSeconds - videoStartTimeInSeconds;
@@ -1793,7 +1793,7 @@ class ProgressService extends BaseService {
       courseVersion.totalItems ??
       (await this.itemRepo.CalculateTotalItemsCount(courseId, courseVersionId));
 
-   const rawPercent =
+    const rawPercent =
       totalItems > 0 ? (completedItemsSet.size / totalItems) * 100 : 0;
 
     const percentCompleted = Math.min(
@@ -1841,7 +1841,7 @@ class ProgressService extends BaseService {
     if (!item) throw new NotFoundError('Item not found');
 
     // Ensure current progress matches the module, section, and item
-    if(item.type !== 'QUIZ'){
+    if (item.type !== 'QUIZ') {
       this.validateProgressPosition(progress, moduleId, sectionId, itemId);
     }
 
@@ -1908,7 +1908,7 @@ class ProgressService extends BaseService {
           currentSection: nextItem.sectionId,
           currentItem: nextItem.itemId,
         };
-      
+
       if (item.type === 'QUIZ' && !isSkipped) {
         let isQuizFailed = false;
         const submittedQuiz = await this.submissionRepository.get(
@@ -1921,7 +1921,7 @@ class ProgressService extends BaseService {
           isQuizFailed = true;
         }
 
-        if(isQuizFailed && !isSkipped){
+        if (isQuizFailed && !isSkipped) {
           const previousVideoItem = await this.getPreviousVideoItem(
             courseVersion,
             moduleId,
@@ -1983,7 +1983,7 @@ class ProgressService extends BaseService {
     }
   }
 
-    // Validate whether the current item can be stopped
+  // Validate whether the current item can be stopped
   private async validateItemStopEligibility(
     item: Item,
     itemId: string,
@@ -2004,7 +2004,7 @@ class ProgressService extends BaseService {
 
     // 1 Watch-time based items
     if (WATCH_TIME_REQUIRED_ITEMS.has(item.type)) {
-      this.validateWatchTime(item, stoppedWatchTime);  
+      this.validateWatchTime(item, stoppedWatchTime);
       return;
     }
 
@@ -2327,7 +2327,7 @@ class ProgressService extends BaseService {
         quizId,
       );
 
-      if(!nextItemDetails){
+      if (!nextItemDetails) {
         // Course completed → reset to first item
         const initialProgress = await this.initializeProgress(
           userId.toString(),
@@ -2352,7 +2352,7 @@ class ProgressService extends BaseService {
           newProgress,
         );
 
-      } else{
+      } else {
         const newProgress = {
           currentModule: nextItemDetails.moduleId,
           currentSection: nextItemDetails.sectionId,
@@ -2402,7 +2402,7 @@ class ProgressService extends BaseService {
       quizId,
     )
 
-    if(!isItemCompleted){
+    if (!isItemCompleted) {
       const result = await this.progressRepository.stopItemTracking(watchTime[0]._id.toString());
     }
   }
@@ -3571,6 +3571,7 @@ class ProgressService extends BaseService {
     for (const enrollment of enrollments) {
       enrollmentMap.set(enrollment.userId.toString(), {
         completionPercentage: enrollment.percentCompleted || 0,
+        enrolledAt: enrollment.enrollmentDate
       });
     }
 
@@ -3592,19 +3593,44 @@ class ProgressService extends BaseService {
       }
     }
 
+    const formatToIST = (date?: Date | string | null): string => {
+      if (!date) return '—';
+
+      return new Date(date).toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+      });
+    };
+
     // Combine progress and enrollment data
-    const leaderboardData = progressRecords.map(progress => ({
-      userId: progress.userId.toString(),
-      userName: userMap.get(progress.userId.toString())?.name || 'Unknown User',
-      email: userMap.get(progress.userId.toString())?.email || 'No email',
-      completionPercentage:
-        enrollmentMap.get(progress.userId.toString())?.completionPercentage ||
-        0,
-      completedAt:
-        progress.completed && progress.completedAt
-          ? progress.completedAt
-          : 'No completed Yet',
-    }));
+    const leaderboardData = progressRecords.map(progress => {
+      const userId = progress.userId.toString();
+      const enrollment = enrollmentMap.get(userId);
+      const user = userMap.get(userId);
+
+      return {
+        userId,
+        userName: user?.name || 'Unknown User',
+        email: user?.email || 'No email',
+
+        completionPercentage: enrollment?.completionPercentage ?? 0,
+
+        completedAt:
+          progress.completed && progress.completedAt
+            ? formatToIST(progress.completedAt)
+            : 'Not completed yet',
+
+        enrolledAt: enrollment?.enrolledAt
+          ? formatToIST(enrollment.enrolledAt)
+          : 'No enrollment date',
+      };
+    });
 
     // Sort by Progress % (highest first), then by Completion Date (earliest first) for ties
     const sortedLeaderboard = leaderboardData.sort((a, b) => {
@@ -3629,8 +3655,8 @@ class ProgressService extends BaseService {
     });
 
     const rankedLeaderboard = sortedLeaderboard.map((student, index) => ({
-      ...student,
       rank: index + 1,
+      ...student,
     }));
 
     return {
