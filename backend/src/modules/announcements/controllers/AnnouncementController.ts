@@ -65,6 +65,12 @@ export class AnnouncementController {
     ) {
         // Check permission based on announcement type
         if (body.type === AnnouncementType.GENERAL) {
+            // Only admins can create GENERAL announcements
+            if (user.roles !== 'admin') {
+                throw new ForbiddenError(
+                    'Only admins can create general announcements',
+                );
+            }
             if (!ability.can(AnnouncementActions.Create, 'Announcement')) {
                 throw new ForbiddenError(
                     'You do not have permission to create announcements',
@@ -86,6 +92,7 @@ export class AnnouncementController {
             body,
             user._id.toString(),
             instructorName,
+            user.firebaseUID,
         );
 
         return announcement;
@@ -110,7 +117,7 @@ export class AnnouncementController {
             params.announcementId,
         );
 
-        if (existing.instructorId?.toString() !== user._id.toString()) {
+        if (existing.instructorId?.toString() !== user._id.toString() && user.roles !== 'admin') {
             throw new ForbiddenError('You can only modify your own announcements');
         }
 
@@ -158,7 +165,7 @@ export class AnnouncementController {
             params.announcementId,
         );
 
-        if (existing.instructorId?.toString() !== user._id.toString()) {
+        if (existing.instructorId?.toString() !== user._id.toString() && user.roles !== 'admin') {
             throw new ForbiddenError('You can only modify your own announcements');
         }
 
@@ -209,7 +216,7 @@ export class AnnouncementController {
             params.announcementId,
         );
 
-        if (existing.instructorId?.toString() !== user._id.toString()) {
+        if (existing.instructorId?.toString() !== user._id.toString() && user.roles !== 'admin') {
             throw new ForbiddenError('You can only delete your own announcements');
         }
 
@@ -267,6 +274,7 @@ export class AnnouncementController {
             result.announcements,
             result.totalDocuments,
             result.totalPages,
+            user.roles === 'admin',
         );
     }
 

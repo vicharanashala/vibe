@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useAuthStore } from "@/store/auth-store";
 import { useAnnouncements, useDeleteAnnouncement, useToggleHideAnnouncement } from "@/hooks/announcement-hooks";
 import { AnnouncementItem } from "./AnnouncementItem";
 import { AnnouncementModal } from "./AnnouncementModal";
@@ -29,8 +28,7 @@ interface AnnouncementListProps {
 }
 
 export function AnnouncementList({ courseId, versionId, isInstructor }: AnnouncementListProps) {
-    const { user } = useAuthStore();
-    const { data, isLoading, refetch } = useAnnouncements(
+    const { data, isLoading, isAdmin, refetch } = useAnnouncements(
         undefined, // fetch all initially, filter locally or let hook handle
         courseId,
         versionId,
@@ -109,7 +107,7 @@ export function AnnouncementList({ courseId, versionId, isInstructor }: Announce
                         </DropdownMenuContent>
                     </DropdownMenu>
 
-                    {isInstructor && (
+                    {isInstructor && (defaultCreateType !== AnnouncementType.GENERAL || isAdmin) && (
                         <Button size="sm" className="gap-2" onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
                             <Plus className="h-4 w-4" />
                             New Announcement
@@ -137,8 +135,7 @@ export function AnnouncementList({ courseId, versionId, isInstructor }: Announce
                             key={item._id}
                             announcement={item}
                             isInstructor={isInstructor}
-                            currentUserId={user?.uid}
-                            isAdmin={user?.role === 'admin'}
+                            isAdmin={isAdmin}
                             onEdit={handleEdit}
                             onDelete={(id) => setDeleteId(id)}
                             onToggleHide={(id) => {
@@ -157,6 +154,7 @@ export function AnnouncementList({ courseId, versionId, isInstructor }: Announce
                     defaultType={defaultCreateType}
                     courseId={courseId}
                     versionId={versionId}
+                    isAdmin={isAdmin}
                 />
             )}
 
