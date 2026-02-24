@@ -37,6 +37,10 @@ export interface CourseCardProps {
     moduleNumber?: string;
     sectionNumber?: string;
     itemType?: string;
+    assignedTimeSlot?: {
+      from: string;
+      to: string;
+    };
     _id?: string;
   };
   isLoading: boolean;
