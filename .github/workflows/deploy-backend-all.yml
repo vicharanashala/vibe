@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'backend/**'
-      - '.github/workflows/deploy-backend-all.yml'
+      - "backend/**"
+      - ".github/workflows/deploy-backend-all.yml"
   workflow_dispatch:
     inputs:
       deploy_production:
@@ -23,7 +23,7 @@ permissions:
   id-token: write
 
 env:
-  NODE_VERSION: '22'
+  NODE_VERSION: "22"
   DOCKER_IMAGE: vibe-backend
   GCP_REGION: asia-south1
   GCP_SERVICE: vibe-backend-staging
@@ -73,8 +73,8 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: '${{ secrets.GCP_SA_KEY }}'
-          gcp-service-account_json: '${{ secrets.GCP_STORAGE_KEY }}'
+          credentials_json: "${{ secrets.GCP_SA_KEY }}"
+          gcp-service-account_json: "${{ secrets.GCP_STORAGE_KEY }}"
 
       - name: Deploy to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v1
@@ -83,7 +83,7 @@ jobs:
           region: ${{ env.GCP_REGION }}
           image: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          env_vars: |
+          env_vars: >
             AI_SERVER_IP=${{ secrets.AI_SERVER_IP }}
             AI_SERVER_PORT=${{ secrets.AI_SERVER_PORT }}
             NODE_ENV=staging
@@ -103,8 +103,7 @@ jobs:
             ENABLE_DB_BACKUP=${{ secrets.ENABLE_DB_BACKUP }}
             GCP_BACKUP_BUCKET=${{ secrets.GCP_BACKUP_BUCKET }}
             AI_PROXY_ADDRESS=socks5h://localhost:1055
-            
-           
+
           flags: --allow-unauthenticated
 
   deploy_production:
@@ -118,8 +117,8 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: '${{ secrets.GCP_SA_KEY }}'
-          gcp-service-account_json: '${{ secrets.GCP_STORAGE_KEY }}'
+          credentials_json: "${{ secrets.GCP_SA_KEY }}"
+          gcp-service-account_json: "${{ secrets.GCP_STORAGE_KEY }}"
 
       - name: Deploy to Cloud Run (Production)
         uses: google-github-actions/deploy-cloudrun@v1
@@ -148,7 +147,5 @@ jobs:
             ENABLE_DB_BACKUP=${{ secrets.ENABLE_DB_BACKUP }}
             GCP_BACKUP_BUCKET=${{ secrets.GCP_BACKUP_BUCKET }}
             AI_PROXY_ADDRESS=socks5h://localhost:1055
-         
-          
-            
+
           flags: --allow-unauthenticated
