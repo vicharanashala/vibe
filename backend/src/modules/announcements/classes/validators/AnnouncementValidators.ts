@@ -10,6 +10,7 @@ import {
     IsInt,
     Min,
     Matches,
+    IsUrl,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { JSONSchema } from 'class-validator-jsonschema';
@@ -42,6 +43,7 @@ export class AttachmentBody {
     })
     @IsString()
     @IsNotEmpty()
+    @IsUrl({ require_tld: false, require_protocol: true }, { message: 'File URL must be a valid complete URL including http:// or https://' })
     fileUrl: string;
 
     @JSONSchema({
