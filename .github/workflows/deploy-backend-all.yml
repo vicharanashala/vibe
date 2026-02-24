@@ -83,7 +83,7 @@ jobs:
           region: ${{ env.GCP_REGION }}
           image: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          env_vars: >
+          env_vars: |
             AI_SERVER_IP=${{ secrets.AI_SERVER_IP }}
             AI_SERVER_PORT=${{ secrets.AI_SERVER_PORT }}
             NODE_ENV=staging
@@ -127,7 +127,7 @@ jobs:
           region: ${{ env.GCP_REGION }}
           image: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          env_vars: >
+          env_vars: |
             AI_SERVER_IP=${{ secrets.AI_SERVER_IP }}
             AI_SERVER_PORT=${{ secrets.AI_SERVER_PORT }}
             NODE_ENV=production
