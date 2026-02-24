@@ -9,12 +9,15 @@ import { cn } from "@/utils/utils";
 interface AnnouncementItemProps {
     announcement: Announcement;
     isInstructor?: boolean;
+    currentUserId?: string;
+    isAdmin?: boolean;
     onEdit?: (a: Announcement) => void;
     onDelete?: (id: string) => void;
     onToggleHide?: (id: string) => void;
 }
 
-export function AnnouncementItem({ announcement, isInstructor, onEdit, onDelete, onToggleHide }: AnnouncementItemProps) {
+export function AnnouncementItem({ announcement, isInstructor, currentUserId, isAdmin, onEdit, onDelete, onToggleHide }: AnnouncementItemProps) {
+    const canModify = isInstructor && (isAdmin || currentUserId === announcement.instructorId);
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('en-US', {
             month: 'short',
@@ -79,7 +82,7 @@ export function AnnouncementItem({ announcement, isInstructor, onEdit, onDelete,
                         </div>
                     </div>
 
-                    {isInstructor && (
+                    {canModify && (
                         <div className="flex gap-1 shrink-0">
                             <Button
                                 variant="ghost"

@@ -12,6 +12,7 @@ import { LogOut, Menu, X, Bell } from "lucide-react"
 import { AuroraText } from "@/components/magicui/aurora-text"
 import { useState } from "react"
 import InviteDropdown from "@/components/inviteDropDown"
+import { useNewAnnouncementIndicator } from "@/hooks/use-new-announcement-indicator"
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal"
 import { useInvites, useGetUnreadApprovedRegistrations } from "@/hooks/hooks"
 import { ApprovedRegistrationNotification } from "@/types/notification.types"
@@ -31,6 +32,7 @@ export default function StudentLayout() {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const invitesRef = useRef<HTMLDivElement | null>(null);
+  const { hasNew: hasNewAnnouncements, markSeen: markAnnouncementsSeen } = useNewAnnouncementIndicator();
   // const location = useLocation();
   const [pathname, setPathname] = useState(
     typeof window !== "undefined" ? window.location.pathname : ""
@@ -257,10 +259,12 @@ export default function StudentLayout() {
                   : ""
                   }`}
                 asChild
+                onClick={markAnnouncementsSeen}
               >
                 {/* @ts-ignore */}
                 <Link to="/student/announcements">
                   <span className="relative z-10">Announcements</span>
+                  {hasNewAnnouncements && <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-500 animate-pulse" />}
                 </Link>
               </Button>
             </div>
@@ -370,11 +374,12 @@ export default function StudentLayout() {
                 size="sm"
                 className="w-full justify-start h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground"
                 asChild
-                onClick={() => setIsMobileMenuOpen(false)}
+                onClick={() => { setIsMobileMenuOpen(false); markAnnouncementsSeen(); }}
               >
                 {/* @ts-ignore */}
                 <Link to="/student/announcements">
                   <span>Announcements</span>
+                  {hasNewAnnouncements && <span className="ml-2 inline-block h-2 w-2 rounded-full bg-red-500 animate-pulse" />}
                 </Link>
               </Button>
             </div>
