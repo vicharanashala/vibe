@@ -12,6 +12,8 @@ import {
     CurrentUser,
     QueryParams,
     ForbiddenError,
+    UseInterceptor,
+    Req,
 } from 'routing-controllers';
 import { injectable, inject } from 'inversify';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
@@ -35,6 +37,10 @@ import {
 } from '../classes/transformers/Announcement.js';
 import { AnnouncementType } from '#root/shared/interfaces/models.js';
 import { IUser } from '#root/shared/interfaces/models.js';
+import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
+import { setAuditTrail } from '#root/utils/setAuditTrail.js';
+import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
+import { ObjectId } from 'mongodb';
 
 
 @OpenAPI({
@@ -53,6 +59,7 @@ export class AnnouncementController {
 
     @Authorized()
     @Post('/')
+    @UseInterceptor(AuditTrailsHandler)
     @HttpCode(201)
     @OpenAPI({
         summary: 'Create an announcement',
@@ -62,6 +69,7 @@ export class AnnouncementController {
     async createAnnouncement(
         @Body() body: CreateAnnouncementBody,
         @Ability(getAnnouncementAbility) { ability, user },
+        @Req() req: Request,
     ) {
         // Check permission based on announcement type
         if (body.type === AnnouncementType.GENERAL) {
@@ -95,6 +103,27 @@ export class AnnouncementController {
             user.firebaseUID,
         );
 
+        setAuditTrail(req, {
+            category: AuditCategory.ANNOUNCEMENT,
+            action: AuditAction.ANNOUNCEMENT_CREATE,
+            actor: ObjectId.createFromHexString(user._id.toString()),
+            context: {
+                announcementId: announcement._id ? ObjectId.createFromHexString(announcement._id.toString()) : undefined,
+                courseId: body.courseId ? ObjectId.createFromHexString(body.courseId) : undefined,
+                courseVersionId: body.courseVersionId ? ObjectId.createFromHexString(body.courseVersionId) : undefined,
+            },
+            changes: {
+                after: {
+                    title: body.title,
+                    content: body.content,
+                    type: body.type,
+                },
+            },
+            outcome: {
+                status: OutComeStatus.SUCCESS,
+            },
+        });
+
         return announcement;
     }
 
@@ -103,6 +132,7 @@ export class AnnouncementController {
 
     @Authorized()
     @Patch('/:announcementId')
+    @UseInterceptor(AuditTrailsHandler)
     @HttpCode(200)
     @OpenAPI({
         summary: 'Update an announcement',
@@ -112,6 +142,7 @@ export class AnnouncementController {
         @Params() params: AnnouncementIdParams,
         @Body() body: UpdateAnnouncementBody,
         @Ability(getAnnouncementAbility) { ability, user },
+        @Req() req: Request,
     ) {
         const existing = await this.announcementService.getAnnouncementById(
             params.announcementId,
@@ -144,6 +175,31 @@ export class AnnouncementController {
             body,
         );
 
+        setAuditTrail(req, {
+            category: AuditCategory.ANNOUNCEMENT,
+            action: AuditAction.ANNOUNCEMENT_UPDATE,
+            actor: ObjectId.createFromHexString(user._id.toString()),
+            context: {
+                announcementId: ObjectId.createFromHexString(params.announcementId),
+                courseId: existing.courseId ? ObjectId.createFromHexString(existing.courseId.toString()) : undefined,
+                courseVersionId: existing.courseVersionId ? ObjectId.createFromHexString(existing.courseVersionId.toString()) : undefined,
+            },
+            changes: {
+                before: {
+                    title: existing.title,
+                    content: existing.content,
+                    type: existing.type,
+                },
+                after: {
+                    title: body.title ?? existing.title,
+                    content: body.content ?? existing.content,
+                },
+            },
+            outcome: {
+                status: OutComeStatus.SUCCESS,
+            },
+        });
+
         return new AnnouncementMessageResponse('Announcement updated successfully');
     }
 
@@ -152,6 +208,7 @@ export class AnnouncementController {
 
     @Authorized()
     @Patch('/:announcementId/toggle-hide')
+    @UseInterceptor(AuditTrailsHandler)
     @HttpCode(200)
     @OpenAPI({
         summary: 'Toggle hide/show announcement',
@@ -160,6 +217,7 @@ export class AnnouncementController {
     async toggleHideAnnouncement(
         @Params() params: AnnouncementIdParams,
         @Ability(getAnnouncementAbility) { ability, user },
+        @Req() req: Request,
     ) {
         const existing = await this.announcementService.getAnnouncementById(
             params.announcementId,
@@ -190,6 +248,34 @@ export class AnnouncementController {
             params.announcementId,
         );
 
+        setAuditTrail(req, {
+            category: AuditCategory.ANNOUNCEMENT,
+            action: isHidden ? AuditAction.ANNOUNCEMENT_HIDE : AuditAction.ANNOUNCEMENT_UNHIDE,
+            actor: ObjectId.createFromHexString(user._id.toString()),
+            context: {
+                announcementId: ObjectId.createFromHexString(params.announcementId),
+                courseId: existing.courseId ? ObjectId.createFromHexString(existing.courseId.toString()) : undefined,
+                courseVersionId: existing.courseVersionId ? ObjectId.createFromHexString(existing.courseVersionId.toString()) : undefined,
+            },
+            changes: {
+                before: {
+                    title: existing.title,
+                    content: existing.content,
+                    type: existing.type,
+                    isHidden: existing.isHidden,
+                },
+                after: {
+                    title: existing.title,
+                    content: existing.content,
+                    type: existing.type,
+                    isHidden,
+                },
+            },
+            outcome: {
+                status: OutComeStatus.SUCCESS,
+            },
+        });
+
         return {
             message: isHidden
                 ? 'Announcement is now hidden'
@@ -203,6 +289,7 @@ export class AnnouncementController {
 
     @Authorized()
     @Delete('/:announcementId')
+    @UseInterceptor(AuditTrailsHandler)
     @HttpCode(200)
     @OpenAPI({
         summary: 'Delete an announcement',
@@ -211,6 +298,7 @@ export class AnnouncementController {
     async deleteAnnouncement(
         @Params() params: AnnouncementIdParams,
         @Ability(getAnnouncementAbility) { ability, user },
+        @Req() req: Request,
     ) {
         const existing = await this.announcementService.getAnnouncementById(
             params.announcementId,
@@ -238,6 +326,28 @@ export class AnnouncementController {
         }
 
         await this.announcementService.deleteAnnouncement(params.announcementId);
+
+        setAuditTrail(req, {
+            category: AuditCategory.ANNOUNCEMENT,
+            action: AuditAction.ANNOUNCEMENT_DELETE,
+            actor: ObjectId.createFromHexString(user._id.toString()),
+            context: {
+                announcementId: ObjectId.createFromHexString(params.announcementId),
+                courseId: existing.courseId ? ObjectId.createFromHexString(existing.courseId.toString()) : undefined,
+                courseVersionId: existing.courseVersionId ? ObjectId.createFromHexString(existing.courseVersionId.toString()) : undefined,
+            },
+            changes: {
+                before: {
+                    title: existing.title,
+                    content: existing.content,
+                    type: existing.type,
+                },
+            },
+            outcome: {
+                status: OutComeStatus.SUCCESS,
+            },
+        });
+
         return new AnnouncementMessageResponse('Announcement deleted successfully');
     }
 
