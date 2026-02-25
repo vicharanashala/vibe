@@ -170,6 +170,11 @@ export class ItemService extends BaseService {
     body: CreateItemBody,
   ) {
     return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+            
+      if(versionStatus==="archived"){
+        throw new ForbiddenError("This course version is archived and cannot be modified.");
+      }
       // Step 1: Fetch and validate parent entities
       const { version, module, section, itemsGroup } =
         await this._getVersionModuleSectionAndItemsGroup(
@@ -435,14 +440,33 @@ export class ItemService extends BaseService {
     return itemsGroup.items;
   }
 
+  private async _isPreviousItemCompleted(
+    courseVersion: ICourseVersion,
+    moduleId: string,
+    sectionId: string,
+    itemId: string,
+    userId: string,
+    courseId: string,
+    versionId: string
+  ): Promise<boolean> {
+    const previousItem = await this.progressService.getPreviousItemInSequence(courseVersion, moduleId, sectionId, itemId);
+    // First item ? 
+    if (!previousItem) {
+      return true;
+    }
+    const previousItemCompleted = await this.progressRepo.isItemCompleted(userId, courseId, versionId, previousItem.itemId);
+    return previousItemCompleted;
+  }
+
   public async readItem(
     userId: string,
     versionId: string,
     itemId: string,
     courseId?: string,
+    moduleId?: string,
+    sectionId?: string
   ) {
 
-    console.log(`[ItemService] readItem called with userId=${userId}, courseId=${courseId}, versionId=${versionId}, itemId=${itemId}`);
     // Fetch enrollment early
     const enrollment = await this.enrollmentRepo.findEnrollment(
       userId,
@@ -477,29 +501,71 @@ export class ItemService extends BaseService {
       isItemAlreadyAttempted,
       currentUserProgress,
       linearProgressionEnabled,
+      courseVersion
     ] = await Promise.all([
       this.progressRepo.isItemCompleted(userId, courseId, versionId, itemId),
       this.progressRepo.isItemAttempted(userId, courseId, versionId, itemId),
       this.progressRepo.findProgress(userId, courseId, versionId),
       this.courseSettingService.isLinearProgressionEnabled(courseId, versionId),
+      this.courseRepo.readVersion(versionId),
     ]);
 
-    // Enforce linear progression only when required
-    if (
-      linearProgressionEnabled &&
-      !isItemAlreadyAttempted &&
-      currentUserProgress?.currentItem.toString() !== itemId
-    ) {
-      throw new ForbiddenError(
-        "You don't have permission to watch this item",
-      );
-    }
+    // // Enforce linear progression only when required
+    // if (
+    //   linearProgressionEnabled &&
+    //   !isItemAlreadyAttempted &&
+    //   currentUserProgress?.currentItem.toString() !== itemId
+    // ) {
+    //   const previousItemCompleted = await this._isPreviousItemCompleted(courseVersion, moduleId, sectionId, itemId, userId, courseId, versionId);
+    //   if(!previousItemCompleted){
+    //     throw new ForbiddenError(
+    //       "You don't have permission to watch this item",
+    //     );
+    //   }
+    // }
 
-    return {
+    // If linear progression is NOT enabled, allow normally
+
+    const response = (isAlreadyWatched = isItemAlreadyCompleted) => ({
       ...item,
       _id: item._id.toString(),
-      isAlreadyWatched: isItemAlreadyCompleted,
-    };
+      isAlreadyWatched,
+    });
+
+    // If linear progression is disabled, allow immediately
+    if (!linearProgressionEnabled) return response();
+
+    // If attempted items should bypass restriction, allow immediately
+    if (isItemAlreadyAttempted) return response();
+
+    const currentItemId = currentUserProgress?.currentItem?.toString();
+
+    // 1) current item matches => allow
+    if (currentItemId === itemId) return response();
+
+    // 2) already completed => allow
+    if (isItemAlreadyCompleted) return response(true);
+
+    // 3) previous item completed => allow
+    const previousItemCompleted = await this._isPreviousItemCompleted(
+      courseVersion,
+      moduleId,
+      sectionId,
+      itemId,
+      userId,
+      courseId,
+      versionId,
+    );
+
+    if (previousItemCompleted) return response();
+
+    // All checks failed => forbid
+    throw new ForbiddenError("You don't have permission to watch this item");
+    // return {
+    //   ...item,
+    //   _id: item._id.toString(),
+    //   isAlreadyWatched: isItemAlreadyCompleted,
+    // };
   }
 
   public async updateItem(
@@ -508,6 +574,11 @@ export class ItemService extends BaseService {
     body: UpdateItemBody,
   ) {
     return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+      
+      if(versionStatus==="archived"){
+          throw new ForbiddenError("This course version is archived and cannot be modified.");
+        }
       //  Run version and item fetch in parallel
       const [version, item] = await Promise.all([
         this.courseRepo.readVersion(versionId, session),
@@ -646,6 +717,14 @@ export class ItemService extends BaseService {
         const item = await this.itemRepo.readItemById(itemId, session);
         if (!item) throw new InternalServerError('Item not found');
 
+        const version = await this.findVersion(itemsGroupId);
+        
+        const versionStatus=await this.courseRepo.getCourseVersionStatus(version._id.toString(),session);
+      
+        if(versionStatus==="archived"){
+          throw new ForbiddenError("This course version is archived and items cannot be deleted.");
+        }
+
         // Check item type
         if (item.type === 'FEEDBACK') {
           await this.feedbackRepo.deleteSubmissionsByFormId(itemId, session);
@@ -659,7 +738,6 @@ export class ItemService extends BaseService {
         if (!deleted) throw new InternalServerError('Item deletion failed');
 
         // Step 2: Fetch version
-        const version = await this.findVersion(itemsGroupId);
 
         const courseId = version.courseId.toString();
         const versionId = version._id.toString();
@@ -715,6 +793,12 @@ export class ItemService extends BaseService {
     body: MoveItemBody,
   ) {
     return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+
+      if(versionStatus==="archived"){
+        throw new ForbiddenError("This course version is archived and cannot be modified.");
+      }
+      
       const { afterItemId, beforeItemId } = body;
       if (!afterItemId && !beforeItemId) {
         throw new Error('Either afterItemId or beforeItemId is required');
@@ -866,6 +950,11 @@ export class ItemService extends BaseService {
     hidden: boolean,
   ) {
     return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(courseVersionId,session);
+      
+      if(versionStatus==="archived"){
+          throw new ForbiddenError("This course version is archived and cannot be modified.");
+        }
       const itemGroup = await this.itemRepo.findItemsGroupByItemId(
         itemId,
         session,
@@ -979,6 +1068,11 @@ export class ItemService extends BaseService {
     isOptional: boolean,
   ) {
     return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+            
+      if(versionStatus==="archived"){
+        throw new ForbiddenError("This course version is archived and cannot be updated.");
+      }
       const versionIdObject = new ObjectId(versionId);
       // Get the item
       const item = await this.itemRepo.readItem(versionId, itemId, session);
@@ -1035,6 +1129,11 @@ export class ItemService extends BaseService {
     userId: string,
     data: CSVQuizQuestion[],
   ) {
+    const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId);
+      
+    if(versionStatus==="archived"){
+      throw new ForbiddenError("This course version is archived and cannot create items.");
+    }
     if (!data || !Array.isArray(data)) {
       throw new Error('Invalid data: Expected an array of questions');
     }

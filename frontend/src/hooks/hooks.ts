@@ -764,6 +764,27 @@ export function useUpdateCourseVersion(): {
   };
 }
 
+export function useCourseVersionArchive(): {
+  mutate: (variables: { params: { path: { versionId: string } }, body: components['schemas']['UpdateCourseVersionStatusBody'] }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string } }, body: components['schemas']['UpdateCourseVersionStatusBody'] }) => Promise<components['schemas']['CourseVersionDataResponse']>,
+  data: components['schemas']['CourseVersionDataResponse'] | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("patch", "/courses/versions/{versionId}/archive" as any );
+  return {
+    ...result,
+    error: result.error
+      ? result.error.message || "Course version status update failed"
+      : null,
+  };
+}
+
 // Module hooks
 
 // POST /courses/versions/{versionId}/modules
@@ -1050,7 +1071,9 @@ export function userParseCSVtoItems(): {
 export function useItemById(
   courseId: string,
   versionId: string,
-  itemId: string
+  itemId: string,
+  moduleId: string,
+  sectionId: string
 ): {
   data: components['schemas']['ItemDataResponse'] | undefined;
   isLoading: boolean;
@@ -1060,9 +1083,9 @@ export function useItemById(
 } {
   const result = api.useQuery(
     "get",
-    "/courses/{courseId}/versions/{versionId}/item/{itemId}",
+    "/courses/{courseId}/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/item/{itemId}",
     {
-      params: { path: { courseId, versionId, itemId } },
+      params: { path: { courseId, versionId, itemId, moduleId, sectionId } },
     },
     {
       enabled: !!courseId && !!versionId && !!itemId,

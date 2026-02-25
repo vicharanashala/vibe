@@ -12,6 +12,7 @@ import { LogOut, Menu, X, Bell } from "lucide-react"
 import { AuroraText } from "@/components/magicui/aurora-text"
 import { useState } from "react"
 import InviteDropdown from "@/components/inviteDropDown"
+import { useNewAnnouncementIndicator } from "@/hooks/use-new-announcement-indicator"
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal"
 import { useInvites, useGetUnreadApprovedRegistrations } from "@/hooks/hooks"
 import { ApprovedRegistrationNotification } from "@/types/notification.types"
@@ -31,6 +32,7 @@ export default function StudentLayout() {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const invitesRef = useRef<HTMLDivElement | null>(null);
+  const { hasNew: hasNewAnnouncements, markSeen: markAnnouncementsSeen } = useNewAnnouncementIndicator();
   // const location = useLocation();
   const [pathname, setPathname] = useState(
     typeof window !== "undefined" ? window.location.pathname : ""
@@ -248,6 +250,23 @@ export default function StudentLayout() {
                   <span className="relative z-10">Courses</span>
                 </Link>
               </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`relative h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300 ${isActive("/student/announcements")
+                  ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-md before:opacity-100"
+                  : ""
+                  }`}
+                asChild
+                onClick={markAnnouncementsSeen}
+              >
+                {/* @ts-ignore */}
+                <Link to="/student/announcements">
+                  <span className="relative z-10">Announcements</span>
+                  {hasNewAnnouncements && <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-500 animate-pulse" />}
+                </Link>
+              </Button>
             </div>
 
             <div className="flex items-center gap-2 lg:gap-4 sm:gap-2">
@@ -347,6 +366,20 @@ export default function StudentLayout() {
               >
                 <Link to="/student/courses">
                   <span>Courses</span>
+                </Link>
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start h-10 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground"
+                asChild
+                onClick={() => { setIsMobileMenuOpen(false); markAnnouncementsSeen(); }}
+              >
+                {/* @ts-ignore */}
+                <Link to="/student/announcements">
+                  <span>Announcements</span>
+                  {hasNewAnnouncements && <span className="ml-2 inline-block h-2 w-2 rounded-full bg-red-500 animate-pulse" />}
                 </Link>
               </Button>
             </div>

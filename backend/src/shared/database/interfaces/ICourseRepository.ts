@@ -1,5 +1,6 @@
 import { Module } from '#root/modules/courses/classes/index.js';
 import {
+  courseVersionStatus,
   ICourse,
   ICourseVersion,
   ID,
@@ -97,7 +98,8 @@ export interface ICourseRepository {
   ): Promise<ICourseVersion | null>;
   bulkUpdateVersions(operations: any[], session?: ClientSession): Promise<void>;
   getAllCourses(session?: ClientSession): Promise<ICourse[]>;
-
+  updateCourseVersionStatus(vesionId:string,versionStatus:courseVersionStatus,session?: ClientSession): Promise<ICourseVersion | null>;
+  getCourseVersionStatus(versionId:string,session?:ClientSession): Promise<courseVersionStatus>;
   // Cascade Delete Methods used by Cron Jobs
   cascadeDeleteVersion(session?: ClientSession): Promise<void>;
   //cascadeDeleteModule(session?: ClientSession): Promise<void>;
