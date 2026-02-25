@@ -1156,7 +1156,9 @@ export class CourseRepository implements ICourseRepository {
     await this.init();
     const isExistVersion = await this.courseVersionCollection.findOne({
         _id: new ObjectId(versionId),
-      });
+      },
+      { session },
+    );
     if (!isExistVersion)
       throw new NotFoundError('Course version not founded!',);
     return isExistVersion.versionStatus;

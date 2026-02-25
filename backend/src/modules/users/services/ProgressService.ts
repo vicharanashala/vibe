@@ -374,6 +374,7 @@ class ProgressService extends BaseService {
   ): Promise<void> {
     const enrollment = await this.enrollmentRepo.findEnrollment(
       userId,
+      courseId,
       courseVersionId,
       session
     );
@@ -1413,8 +1414,8 @@ class ProgressService extends BaseService {
 
       const enrollment = await this.enrollmentRepo.findEnrollment(
         userId,
-        courseVersionId,
         courseId,
+        courseVersionId,
         session,
       );
 
@@ -1450,8 +1451,8 @@ class ProgressService extends BaseService {
 
       const enrollment = await this.enrollmentRepo.findEnrollment(
         userId,
-        courseVersionId,
         courseId,
+        courseVersionId,
         existingSession,
       );
       if (!enrollment) {
@@ -1789,8 +1790,8 @@ class ProgressService extends BaseService {
 
     const enrollment = await this.enrollmentRepo.findEnrollment(
       userId,
-      courseVersionId,
       courseId,
+      courseVersionId,
     );
     if (!enrollment) return;
 
@@ -3327,7 +3328,7 @@ class ProgressService extends BaseService {
     const [completedItemIds, courseVersion, enrollment] = await Promise.all([
       this.progressRepository.getCompletedItems(userId, courseId, versionId),
       this.courseRepo.readVersion(versionId),
-      this.enrollmentRepo.findEnrollment(userId, versionId, courseId),
+      this.enrollmentRepo.findEnrollment(userId, courseId, versionId),
     ]);
 
     if (!courseVersion) {

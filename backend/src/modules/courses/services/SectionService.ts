@@ -96,7 +96,19 @@ export class SectionService extends BaseService {
       //Update Version
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
-        version,
+        {
+          ...version,
+          courseId: new ObjectId(version.courseId),
+          modules: (version.modules || []).map(module => ({
+            ...module,
+            moduleId: new ObjectId(module.moduleId),
+            sections: (module.sections || []).map(section => ({
+              ...section,
+              sectionId: new ObjectId(section.sectionId),
+              itemsGroupId: new ObjectId(section.itemsGroupId),
+            })),
+          })),
+        },
         session,
       );
       if (!updatedVersion) {

@@ -277,7 +277,18 @@ export class ItemService extends BaseService {
 
       // Step 6: Update hierarchy timestamps
       const updatedVersion = await this._updateHierarchyAndVersion(
-        version,
+        {...version,
+          courseId: new ObjectId(version.courseId),
+          modules: (version.modules || []).map(module => ({
+            ...module,
+            moduleId: new ObjectId(module.moduleId),
+            sections: (module.sections || []).map(section => ({
+              ...section,
+              sectionId: new ObjectId(section.sectionId),
+              itemsGroupId: new ObjectId(section.itemsGroupId),
+            })),
+          })),
+        },
         module,
         section,
         session,

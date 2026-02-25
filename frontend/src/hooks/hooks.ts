@@ -1229,9 +1229,9 @@ export function useUpdateItem(): {
 }
 
 // DELETE /courses/itemGroups/{itemsGroupId}/items/{itemId}
-export function useDeleteItem(): {
-  mutate: (variables: { params: { path: { itemsGroupId: string, itemId: string } } }) => void,
-  mutateAsync: (variables: { params: { path: { itemsGroupId: string, itemId: string } } }) => Promise<components['schemas']['DeletedItemResponse']>,
+export function useDeleteItem(): { 
+  mutate: (variables: { params: { path: { courseId: string, itemsGroupId: string, itemId: string } } }) => void,
+  mutateAsync: (variables: { params: { path: { courseId : string, itemsGroupId: string, itemId: string } } }) => Promise<components['schemas']['DeletedItemResponse']>,
   data: components['schemas']['DeletedItemResponse'] | undefined,
   error: string | null,
   isPending: boolean,
@@ -1241,7 +1241,7 @@ export function useDeleteItem(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("delete", "/courses/itemGroups/{itemsGroupId}/items/{itemId}");
+  const result = api.useMutation("delete", "/courses/{courseId}/itemGroups/{itemsGroupId}/items/{itemId}");
   return {
     ...result,
     error: result.error ? (result.error.message || 'Item deletion failed') : null

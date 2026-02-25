@@ -48,6 +48,7 @@ import { InterceptorInterface, Action} from 'routing-controllers';
 import {injectable, inject} from 'inversify';
 import {AUDIT_TRAILS_TYPES} from '#root/modules/auditTrails/types.js';
 import {IAuditTrailsRepository} from '#root/modules/auditTrails/interfaces/IAuditTrailsRepository.js';
+import { ObjectId } from 'mongodb';
 
 @injectable()
 export class AuditTrailsHandler implements InterceptorInterface {
@@ -80,6 +81,7 @@ export class AuditTrailsHandler implements InterceptorInterface {
       //To-be implemented -> implement the background queue job.
       await this.auditTrailsRepo.createAuditTrail({
         ...auditData,
+        actor: new ObjectId(String(auditData.actor)),
         createdAt: new Date(),
       });
     } catch (err) {

@@ -3011,6 +3011,7 @@ function TeacherCourseContent() {
                                   deleteItemAsync({
                                     params: {
                                       path: {
+                                        courseId: courseId || "",
                                         itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "",
                                         itemId: selectedEntity.data._id
                                       }
@@ -3068,7 +3069,7 @@ function TeacherCourseContent() {
                           questionId={currentCourse?.questionId || null}
                           onDelete={() => {
                             deleteItemAsync({
-                              params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedQuizId } }
+                              params: { path: { courseId: courseId, itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedQuizId } }
                             }).then((res) => {
                               refetchVersion();
                               refetchItems();
@@ -3108,7 +3109,7 @@ function TeacherCourseContent() {
                             if (selectedEntity.parentIds?.itemsGroupId && projectId) {
 
                               await deleteItemAsync({
-                                params: { path: { itemsGroupId: selectedEntity.parentIds.itemsGroupId, itemId: projectId } },
+                                params: { path: {courseId:courseId, itemsGroupId: selectedEntity.parentIds.itemsGroupId, itemId: projectId } },
                               });
                               refetchVersion();
                               refetchItems();
@@ -3140,7 +3141,7 @@ function TeacherCourseContent() {
                           }}
                           onDelete={() => {
                             deleteItemAsync({
-                              params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
+                              params: { path: {courseId:courseId, itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
                             }).then((res) => {
                               refetchVersion();
                               refetchItems();
@@ -3173,7 +3174,7 @@ function TeacherCourseContent() {
                           }}
                           onDelete={() => {
                             deleteItemAsync({
-                              params: { path: { itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
+                              params: { path: {courseId: courseId || "", itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
                             }).then(() => {
                               refetchVersion();
                               refetchItems();

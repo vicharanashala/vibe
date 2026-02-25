@@ -330,7 +330,7 @@ export class ItemController {
   - Instructors or managers of the course.`,
   })
   @Authorized()
-  @Delete('/itemGroups/:itemsGroupId/items/:itemId')
+  @Delete('/:courseId/itemGroups/:itemsGroupId/items/:itemId')
   @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(DeletedItemResponse, {
     description: 'Item deleted successfully',
@@ -348,7 +348,7 @@ export class ItemController {
     @Ability(getItemAbility) { ability, user },
     @Req() req: Request,
   ) {
-    const { itemsGroupId, itemId } = params;
+    const { itemsGroupId, itemId , courseId} = params;
     const version = await this.itemService.findVersion(itemsGroupId);
     // Create an item resource object for permission checking
     const itemResource = subject('Item', { versionId: version._id.toString() });
@@ -359,7 +359,7 @@ export class ItemController {
       );
     }
 
-    const getItemBeforeDelete = await this.itemService.readItem(user._id.toString(), version._id.toString(), itemId);
+    const getItemBeforeDelete = await this.itemService.readItem(user._id.toString(), version._id.toString(), itemId, courseId);
 
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
@@ -614,7 +614,7 @@ Access control logic:
   ) {
     const { versionId, itemId, courseId, moduleId, sectionId } = params;
     const { _id: userId } = user;
-    console.log("---params----", params);
+
     // Check time slot access for this specific course
     try {
       const timeSlotAccess = await this.timeSlotService.canStudentAccessCourse(
