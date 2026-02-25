@@ -21,7 +21,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { lazy, Suspense } from "react";
 
 const EnrollmentDetailsDialog = lazy(() =>
-  import("./EnrollmentDetailsDialog").then(mod => ({
+  import("@/components/course/EnrollmentDetailsDialog").then(mod => ({
     default: mod.EnrollmentDetailsDialog
   }))
 );
