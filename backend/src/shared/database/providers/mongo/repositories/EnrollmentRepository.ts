@@ -326,6 +326,7 @@ export class EnrollmentRepository {
     role: EnrollmentRole,
     session?: ClientSession,
   ) {
+    console.log("Get enrollments in ")
     try {
       await this.init();
       const userObjectId = new ObjectId(userId);
@@ -518,6 +519,7 @@ export class EnrollmentRepository {
     role: EnrollmentRole,
     search: string,
   ) {
+    console.log("Basic enrollments");
     await this.init();
     const userObjectId = new ObjectId(userId);
     const pipeline: any[] = [
@@ -1601,8 +1603,30 @@ export class EnrollmentRepository {
     const pipeline: any[] = [
       {
         $match: matchStage,
-      },
+      }];
+    if (role === 'STUDENT') {
+      pipeline.push(
+        {
+          $lookup: {
+            from: 'newCourseVersion',
+            localField: 'courseVersionId',
+            foreignField: '_id',
+            as: 'version',
+          },
+        },
+        {
+          $unwind: '$version',
+        },
+        {
+          $match: {
+            'version.versionStatus': { $ne: 'archived' },
+          },
+        }
+      );
+    }
 
+    //  Existing course lookup
+    pipeline.push(
       {
         $lookup: {
           from: 'newCourse',
@@ -1625,7 +1649,7 @@ export class EnrollmentRepository {
       { $unwind: '$course' },
 
       { $count: 'total' },
-    ];
+    );
 
     const result = await this.enrollmentCollection
       .aggregate(pipeline)
