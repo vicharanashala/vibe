@@ -15,8 +15,9 @@ export enum AuditCategory {
   INVITE = "INVITE",
   COURSE_SETTINGS = "COURSE_SETTINGS",
   PROGRESS = "PROGRESS",
+  ANNOUNCEMENT = "ANNOUNCEMENT",
 }
- 
+
 export enum AuditAction {
 
   // Course
@@ -74,7 +75,7 @@ export enum AuditAction {
   PROGRESS_RECALCULATE = "PROGRESS_RECALCULATE",
 
   // Registration
- 
+
   REGISTRATION_APPROVE = "REGISTRATION_APPROVE",
   REGISTRATION_REJECT = "REGISTRATION_REJECT",
   REGISTRATION_FORM_UPDATE = "REGISTRATION_FORM_UPDATE",
@@ -88,6 +89,13 @@ export enum AuditAction {
   // Settings
   COURSE_SETTINGS_UPDATE = "COURSE_SETTINGS_UPDATE",
 
+  // Announcements
+  ANNOUNCEMENT_CREATE = "ANNOUNCEMENT_CREATE",
+  ANNOUNCEMENT_UPDATE = "ANNOUNCEMENT_UPDATE",
+  ANNOUNCEMENT_DELETE = "ANNOUNCEMENT_DELETE",
+  ANNOUNCEMENT_HIDE = "ANNOUNCEMENT_HIDE",
+  ANNOUNCEMENT_UNHIDE = "ANNOUNCEMENT_UNHIDE",
+
   // Reports / Downloads
   // DOWNLOAD_PROJECT_SUBMISSIONS = "DOWNLOAD_PROJECT_SUBMISSIONS",
   // DOWNLOAD_QUIZ_SUBMISSIONS = "DOWNLOAD_QUIZ_SUBMISSIONS",
@@ -96,16 +104,16 @@ export enum AuditAction {
 
 }
 
-export enum OutComeStatus{
+export enum OutComeStatus {
   SUCCESS = "SUCCESS",
   FAILED = "FAILED",
   PARTIAL = "PARTIAL"
 }
- 
- 
- 
- 
- 
+
+
+
+
+
 export interface InstructorAuditTrail {
   category: AuditCategory;
   action: AuditAction;
@@ -126,8 +134,9 @@ export interface InstructorAuditTrail {
     enrollmentId?: string | ObjectId;
     registrationId?: string | ObjectId;
     inviteId?: string | ObjectId;
+    announcementId?: string | ObjectId;
     relatedIds?: Record<string, ObjectId | string>;
-    userId?: string | ObjectId; 
+    userId?: string | ObjectId;
   };
 
   changes?: {
