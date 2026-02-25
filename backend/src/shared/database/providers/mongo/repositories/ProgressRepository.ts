@@ -275,12 +275,10 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
-    console.log("---deleteUserWatchTimeByCourseVersion-", userId, courseId, courseVersionId)
     if (!this.watchTimeCollection) {
       console.log('[ProgressRepository] watchTimeCollection not initialized');
       return;
     }
-    console.log("---deleteUserWatchTimeByCourseVersion-")
     const result = await this.watchTimeCollection.updateMany(
       {
         userId: new ObjectId(userId),
@@ -290,7 +288,6 @@ class ProgressRepository {
       { $set: { isDeleted: true, deletedAt: new Date() } },
       { session },
     );
-    console.log("--------deleteUserWatchTimeByCourseVersion-", result);
     if (result?.modifiedCount === 0) {
       console.log(
         `No watch time records found for course version ID: ${courseVersionId}, user ID: ${userId} and course ID: ${courseId}`,
