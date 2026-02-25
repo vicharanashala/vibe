@@ -61,6 +61,18 @@ export function AnnouncementModal({
     const handleAddAttachment = () => {
         if (!newAttachmentUrl.trim()) return;
 
+        // Validate URL — must start with http:// or https:// (matches backend @IsUrl rule)
+        try {
+            const url = new URL(newAttachmentUrl);
+            if (!['http:', 'https:'].includes(url.protocol)) {
+                toast.error("URL must start with http:// or https://");
+                return;
+            }
+        } catch {
+            toast.error("Please enter a valid URL (e.g. https://example.com/file.pdf)");
+            return;
+        }
+
         // Auto-detect fileType from URL extension
         let fileType = 'link';
         const lowerUrl = newAttachmentUrl.toLowerCase();
@@ -132,7 +144,7 @@ export function AnnouncementModal({
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-[750px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>{isEditing ? "Edit Announcement" : "New Announcement"}</DialogTitle>
                 </DialogHeader>

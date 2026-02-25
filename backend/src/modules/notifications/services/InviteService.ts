@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import {
   BadRequestError,
+  ForbiddenError,
   InternalServerError,
   NotFoundError,
 } from 'routing-controllers';
@@ -383,6 +384,12 @@ export class InviteService extends BaseService {
       throw new NotFoundError('Course version not found');
     }
 
+    const versionStatus=await this.courseRepo.getCourseVersionStatus(courseVersionId);
+                    
+    if(versionStatus==="archived"){
+      throw new ForbiddenError("Can't invite users to archived course version");
+    }
+
     // Validate course content only if any user is a STUDENT
     const hasStudent = inviteData.some(invite => invite.role === 'STUDENT');
     if (hasStudent) {
@@ -509,6 +516,12 @@ export class InviteService extends BaseService {
 
   // New function for Link creation
   async generateLink(courseId: string, courseVersionId: string, role: EnrollmentRole): Promise<string> {
+
+    const versionStatus=await this.courseRepo.getCourseVersionStatus(courseVersionId);
+                
+    if(versionStatus==="archived"){
+      throw new ForbiddenError("This enrollment is invalid. Because course version is archived.");
+    }
     const token = crypto.randomBytes(24).toString('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const invite = new Invite({
@@ -525,10 +538,23 @@ export class InviteService extends BaseService {
   async processInvite(inviteId: string, action: 'ACCEPT' | 'REJECTED' = 'ACCEPT',
 
   ): Promise<{ message: string; isBulk?: boolean }> {
+
     const invite = await this.inviteRepo.findInviteById(inviteId);
     if (!invite) {
       throw new NotFoundError('Invite not found');
     }
+    console.log(invite)
+    const versionStatus=await this.courseRepo.getCourseVersionStatus(invite.courseVersionId.toString());
+                
+    if(versionStatus==="archived"){
+      
+      await this.inviteRepo.updateInvite(inviteId, {
+        inviteStatus: 'CANCELLED',
+      });
+
+      throw new ForbiddenError("Can'not process invite. Because course version is archived.");
+    }
+
     if (invite.type === InviteType.BULK) {
       return {
         message: 'Processing Your Invite...',
@@ -629,6 +655,12 @@ export class InviteService extends BaseService {
     if (!invite) {
       throw new NotFoundError('Invite not found');
     }
+    const versionStatus=await this.courseRepo.getCourseVersionStatus(invite.courseVersionId.toString());
+                
+    if(versionStatus==="archived"){
+      throw new ForbiddenError("Cannot cancel invite. Because course version is archived.");
+    }
+
     if (invite.inviteStatus == 'ACCEPTED') {
       throw new BadRequestError('Student already accpeted this invite!');
     }
@@ -651,6 +683,11 @@ export class InviteService extends BaseService {
     // Validate the invite expiresAt < new Date() throw error
     if (invite.expiresAt < new Date()) {
       throw new BadRequestError('Invite has expired');
+    }
+    const versionStatus=await this.courseRepo.getCourseVersionStatus(invite.courseVersionId.toString());
+                
+    if(versionStatus==="archived"){
+      throw new ForbiddenError("Cannot resend invite. Because course version is archived.");
     }
 
     // Prepare and send email
