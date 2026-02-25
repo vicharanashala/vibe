@@ -5,19 +5,24 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar, Paperclip, Edit, Trash2, EyeOff, Eye } from "lucide-react";
 import { cn } from "@/utils/utils";
+import { useAuthStore } from "@/store/auth-store";
 
 interface AnnouncementItemProps {
     announcement: Announcement;
     isInstructor?: boolean;
-    currentUserId?: string;
     isAdmin?: boolean;
     onEdit?: (a: Announcement) => void;
     onDelete?: (id: string) => void;
     onToggleHide?: (id: string) => void;
 }
 
-export function AnnouncementItem({ announcement, isInstructor, currentUserId, isAdmin, onEdit, onDelete, onToggleHide }: AnnouncementItemProps) {
-    const canModify = isInstructor && (isAdmin || currentUserId === announcement.instructorId);
+export function AnnouncementItem({ announcement, isInstructor, isAdmin, onEdit, onDelete, onToggleHide }: AnnouncementItemProps) {
+    const { user } = useAuthStore();
+    // Show modification buttons only to the creator (matched by Firebase UID) or admin
+    const canModify = isInstructor && (
+        isAdmin ||
+        user?.uid === announcement.instructorFirebaseUid
+    );
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('en-US', {
             month: 'short',

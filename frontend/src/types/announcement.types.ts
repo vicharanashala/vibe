@@ -21,6 +21,7 @@ export interface Announcement {
     courseVersionName?: string;
     instructorId: string;
     instructorName: string;
+    instructorFirebaseUid?: string;
     attachments?: Attachment[];
     isHidden: boolean;
     isDeleted?: boolean;

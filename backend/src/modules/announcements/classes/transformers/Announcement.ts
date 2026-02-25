@@ -117,14 +117,19 @@ export class AnnouncementResponse {
     @IsOptional()
     totalPages?: number;
 
+    @IsOptional()
+    isAdmin?: boolean;
+
     constructor(
         announcements: any[],
         totalDocuments?: number,
         totalPages?: number,
+        isAdmin?: boolean,
     ) {
         this.announcements = announcements;
         this.totalDocuments = totalDocuments;
         this.totalPages = totalPages;
+        this.isAdmin = isAdmin;
     }
 }
 
