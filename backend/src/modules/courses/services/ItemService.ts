@@ -170,6 +170,11 @@ export class ItemService extends BaseService {
     body: CreateItemBody,
   ) {
     return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+            
+      if(versionStatus==="archived"){
+        throw new ForbiddenError("This course version is archived and cannot be modified.");
+      }
       // Step 1: Fetch and validate parent entities
       const { version, module, section, itemsGroup } =
         await this._getVersionModuleSectionAndItemsGroup(
@@ -508,6 +513,11 @@ export class ItemService extends BaseService {
     body: UpdateItemBody,
   ) {
     return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+      
+      if(versionStatus==="archived"){
+          throw new ForbiddenError("This course version is archived and cannot be modified.");
+        }
       //  Run version and item fetch in parallel
       const [version, item] = await Promise.all([
         this.courseRepo.readVersion(versionId, session),
@@ -646,6 +656,14 @@ export class ItemService extends BaseService {
         const item = await this.itemRepo.readItemById(itemId, session);
         if (!item) throw new InternalServerError('Item not found');
 
+        const version = await this.findVersion(itemsGroupId);
+        
+        const versionStatus=await this.courseRepo.getCourseVersionStatus(version._id.toString(),session);
+      
+        if(versionStatus==="archived"){
+          throw new ForbiddenError("This course version is archived and items cannot be deleted.");
+        }
+
         // Check item type
         if (item.type === 'FEEDBACK') {
           await this.feedbackRepo.deleteSubmissionsByFormId(itemId, session);
@@ -659,7 +677,6 @@ export class ItemService extends BaseService {
         if (!deleted) throw new InternalServerError('Item deletion failed');
 
         // Step 2: Fetch version
-        const version = await this.findVersion(itemsGroupId);
 
         const courseId = version.courseId.toString();
         const versionId = version._id.toString();
@@ -715,6 +732,12 @@ export class ItemService extends BaseService {
     body: MoveItemBody,
   ) {
     return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+
+      if(versionStatus==="archived"){
+        throw new ForbiddenError("This course version is archived and cannot be modified.");
+      }
+      
       const { afterItemId, beforeItemId } = body;
       if (!afterItemId && !beforeItemId) {
         throw new Error('Either afterItemId or beforeItemId is required');
@@ -866,6 +889,11 @@ export class ItemService extends BaseService {
     hidden: boolean,
   ) {
     return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(courseVersionId,session);
+      
+      if(versionStatus==="archived"){
+          throw new ForbiddenError("This course version is archived and cannot be modified.");
+        }
       const itemGroup = await this.itemRepo.findItemsGroupByItemId(
         itemId,
         session,
@@ -979,6 +1007,11 @@ export class ItemService extends BaseService {
     isOptional: boolean,
   ) {
     return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+            
+      if(versionStatus==="archived"){
+        throw new ForbiddenError("This course version is archived and cannot be updated.");
+      }
       const versionIdObject = new ObjectId(versionId);
       // Get the item
       const item = await this.itemRepo.readItem(versionId, itemId, session);
@@ -1035,6 +1068,11 @@ export class ItemService extends BaseService {
     userId: string,
     data: CSVQuizQuestion[],
   ) {
+    const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId);
+      
+    if(versionStatus==="archived"){
+      throw new ForbiddenError("This course version is archived and cannot create items.");
+    }
     if (!data || !Array.isArray(data)) {
       throw new Error('Invalid data: Expected an array of questions');
     }
