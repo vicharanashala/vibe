@@ -1944,6 +1944,27 @@ export function useWatchtimeTotal(): {
   };
 }
 
+// GenAI hook;
+// GET  /:id/tasks/:type/status
+export function useGenAIResponse():{
+  data: any;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = api.useQuery("get", "/{id}/tasks/{type}/status" as any, {
+    params: { path: {id, type} }
+  })
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch GenAI response') : null,
+    refetch: result.refetch
+  }
+}
+
+
+
 
 // --- AnomalyController Hooks ---
 

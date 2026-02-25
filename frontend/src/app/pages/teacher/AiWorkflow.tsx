@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, editQuestionData, getApiUrl, JobStatus, QuestionGenerationParameters, SegmentationParameters } from '@/lib/genai-api';
+import { aiSectionAPI, Chunk, connectToLiveStatusUpdates, editQuestionData, getApiUrl, getTaskStatus, JobStatus, QuestionGenerationParameters, SegmentationParameters } from '@/lib/genai-api';
 import { useCourseStore } from '@/store/course-store';
 import { ArrowLeft, ArrowRight, ChevronRight, ChevronLeft, CheckCircle, Clock, Edit, FileText, HelpCircle, ListChecks, Loader2, MessageSquareText, PauseCircle, Pencil, Plus, RefreshCw, Save, Scissors, Settings, Sparkles, Trash2, Upload, UploadCloud, X, XCircle, Zap, Info, Power, Check } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react'
@@ -123,86 +123,185 @@ const AiWorkflow = () => {
 
   const navigate = useNavigate();
 
+  const handleIncomingStatus = (incoming: JobStatus) => {
+  // 1. Set current job
+  setCurrentJob({
+    task: incoming.task,
+    status: incoming.status
+  });
+
+  if (incoming.status === "COMPLETED") {
+    handleShowHandleResult(incoming.task);
+    setProgress(100);
+    setTimeout(() => setIsLoading(false), 500);
+
+    if (incoming.task === "SEGMENTATION") {
+      toast.success("Segmentation completed!");
+    } else if (incoming.task === "QUESTION_GENERATION") {
+      toast.success("Question generation completed!");
+    }
+  } 
+  else if (incoming.status === "RUNNING") {
+    setIsWaitingServer(false);
+    setIsLoading(true);
+  } 
+  else if (incoming.status === "FAILED") {
+    setProgress(0);
+    setIsLoading(false);
+  }
+
+  // Preserve your aiJobStatus logic
+  setAiJobStatus(() => {
+    let next: any = { ...incoming };
+    const failing = optimisticFailedTaskRef.current;
+
+    if (next && failing) {
+      const ensureJobStatus = () => { next.jobStatus = { ...(next.jobStatus || {}) }; };
+      const setTop = (taskStr: string) => { next.task = taskStr; next.status = 'FAILED'; };
+
+      switch (failing) {
+        case 'AUDIO_EXTRACTION':
+          setTop('AUDIO_EXTRACTION');
+          ensureJobStatus();
+          next.jobStatus.audioExtraction = 'FAILED';
+          break;
+        case 'TRANSCRIPT_GENERATION':
+          setTop('TRANSCRIPT_GENERATION');
+          ensureJobStatus();
+          next.jobStatus.transcriptGeneration = 'FAILED';
+          break;
+        case 'SEGMENTATION':
+          setTop('SEGMENTATION');
+          ensureJobStatus();
+          next.jobStatus.segmentation = 'FAILED';
+          break;
+        case 'QUESTION_GENERATION':
+          setTop('QUESTION_GENERATION');
+          ensureJobStatus();
+          next.jobStatus.questionGeneration = 'FAILED';
+          break;
+        case 'UPLOAD_CONTENT':
+          setTop('UPLOAD_CONTENT');
+          ensureJobStatus();
+          next.jobStatus.uploadContent = 'FAILED';
+          break;
+      }
+    }
+
+    if (next?.status === 'FAILED' || next?.status === 'STOPPED') {
+      optimisticFailedTaskRef.current = null;
+    }
+
+    return next;
+  });
+};
+
+useEffect(() => {
+  if (!aiJobId) return;
+  let isMounted = true;
+
+  const pollStatus = async () => {
+    try {
+      const status = await getTaskStatus(aiJobId, currentJob?.task);
+
+      if (!isMounted) return;
+
+      handleIncomingStatus(status);
+
+    } catch (err) {
+      console.error("Polling error:", err);
+    }
+  };
+
+  // Call immediately
+  pollStatus();
+
+  return () => {
+    isMounted = false;
+  };
+
+}, [aiJobId]);
+
 
 
   // <<<<<<<<<< UseEffects >>>>>>>>>>
 
   // For live status
-  useEffect(() => {
-    if (!aiJobId) return;
-    const es = connectToLiveStatusUpdates(aiJobId, (incoming) => {
-      // 1. Set current job for live status update
-      setCurrentJob({
-        task: incoming.task,
-        status: incoming.status
-      })
-      // 2. If status is completed then need to show result, need to hide the progress bar (%) and set next task status as waiting
-      if (incoming.status == "COMPLETED") {
-        handleShowHandleResult(incoming.task); // to show the result of the tasks
-        setProgress(100);
-        setTimeout(() => setIsLoading(false), 500);
+  // useEffect(() => {
+  //   if (!aiJobId) return;
+  //   const es = connectToLiveStatusUpdates(aiJobId, (incoming) => {
+  //     // 1. Set current job for live status update
+  //     setCurrentJob({
+  //       task: incoming.task,
+  //       status: incoming.status
+  //     })
+  //     // 2. If status is completed then need to show result, need to hide the progress bar (%) and set next task status as waiting
+  //     if (incoming.status == "COMPLETED") {
+  //       handleShowHandleResult(incoming.task); // to show the result of the tasks
+  //       setProgress(100);
+  //       setTimeout(() => setIsLoading(false), 500);
 
-        if (incoming.task == "SEGMENTATION") {
-          toast.success("Segmentation completed!")
-          // setCurrentJob({task: "QUESTION_GENERATION", status: "WAITING"}) // Setting next task as waiting
-        }
-        else if (incoming.task == "QUESTION_GENERATION") {
-          toast.success("Question generation completed!")
-          // setCurrentJob({task: "UPLOAD_CONTENT", status: "WAITING"})
-        }
-      } else if (incoming.status == "RUNNING") {
-        setIsWaitingServer(false);
-        setIsLoading(true); // for progress bar (%) 
-      } else if (incoming.status == "FAILED") {
-        setProgress(0);
-        setIsLoading(false);
-      }
-      // 3. Set ai job status for live status (currently not using)
-      setAiJobStatus(() => {
-        let next: any = { ...incoming };
-        const failing = optimisticFailedTaskRef.current;
-        if (next && failing) {
-          const ensureJobStatus = () => { next.jobStatus = { ...(next.jobStatus || {}) }; };
-          const setTop = (taskStr: string) => { next.task = taskStr; next.status = 'FAILED'; };
-          switch (failing) {
-            case 'AUDIO_EXTRACTION':
-              setTop('AUDIO_EXTRACTION');
-              ensureJobStatus();
-              next.jobStatus.audioExtraction = 'FAILED';
-              break;
-            case 'TRANSCRIPT_GENERATION':
-              setTop('TRANSCRIPT_GENERATION');
-              ensureJobStatus();
-              next.jobStatus.transcriptGeneration = 'FAILED';
-              break;
-            case 'SEGMENTATION':
-              setTop('SEGMENTATION');
-              ensureJobStatus();
-              next.jobStatus.segmentation = 'FAILED';
-              break;
-            case 'QUESTION_GENERATION':
-              setTop('QUESTION_GENERATION');
-              ensureJobStatus();
-              next.jobStatus.questionGeneration = 'FAILED';
-              break;
-            case 'UPLOAD_CONTENT':
-              setTop('UPLOAD_CONTENT');
-              ensureJobStatus();
-              next.jobStatus.uploadContent = 'FAILED';
-              break;
-          }
-        }
-        if (next?.status === 'FAILED' || next?.status === 'STOPPED') {
-          optimisticFailedTaskRef.current = null;
-        }
+  //       if (incoming.task == "SEGMENTATION") {
+  //         toast.success("Segmentation completed!")
+  //         // setCurrentJob({task: "QUESTION_GENERATION", status: "WAITING"}) // Setting next task as waiting
+  //       }
+  //       else if (incoming.task == "QUESTION_GENERATION") {
+  //         toast.success("Question generation completed!")
+  //         // setCurrentJob({task: "UPLOAD_CONTENT", status: "WAITING"})
+  //       }
+  //     } else if (incoming.status == "RUNNING") {
+  //       setIsWaitingServer(false);
+  //       setIsLoading(true); // for progress bar (%) 
+  //     } else if (incoming.status == "FAILED") {
+  //       setProgress(0);
+  //       setIsLoading(false);
+  //     }
+  //     // 3. Set ai job status for live status (currently not using)
+  //     setAiJobStatus(() => {
+  //       let next: any = { ...incoming };
+  //       const failing = optimisticFailedTaskRef.current;
+  //       if (next && failing) {
+  //         const ensureJobStatus = () => { next.jobStatus = { ...(next.jobStatus || {}) }; };
+  //         const setTop = (taskStr: string) => { next.task = taskStr; next.status = 'FAILED'; };
+  //         switch (failing) {
+  //           case 'AUDIO_EXTRACTION':
+  //             setTop('AUDIO_EXTRACTION');
+  //             ensureJobStatus();
+  //             next.jobStatus.audioExtraction = 'FAILED';
+  //             break;
+  //           case 'TRANSCRIPT_GENERATION':
+  //             setTop('TRANSCRIPT_GENERATION');
+  //             ensureJobStatus();
+  //             next.jobStatus.transcriptGeneration = 'FAILED';
+  //             break;
+  //           case 'SEGMENTATION':
+  //             setTop('SEGMENTATION');
+  //             ensureJobStatus();
+  //             next.jobStatus.segmentation = 'FAILED';
+  //             break;
+  //           case 'QUESTION_GENERATION':
+  //             setTop('QUESTION_GENERATION');
+  //             ensureJobStatus();
+  //             next.jobStatus.questionGeneration = 'FAILED';
+  //             break;
+  //           case 'UPLOAD_CONTENT':
+  //             setTop('UPLOAD_CONTENT');
+  //             ensureJobStatus();
+  //             next.jobStatus.uploadContent = 'FAILED';
+  //             break;
+  //         }
+  //       }
+  //       if (next?.status === 'FAILED' || next?.status === 'STOPPED') {
+  //         optimisticFailedTaskRef.current = null;
+  //       }
 
-        return next;
-      });
+  //       return next;
+  //     });
 
-    });
-    // 4. Clean up
-    return () => es.close();
-  }, [aiJobId]);
+  //   });
+  //   // 4. Clean up
+  //   return () => es.close();
+  // }, [aiJobId]);
 
   // To track transcription status and start ai job for segementation
   useEffect(() => {

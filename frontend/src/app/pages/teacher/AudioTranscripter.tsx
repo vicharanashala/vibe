@@ -113,6 +113,7 @@ export const AudioTranscripter = (props:IAudioTranscripter) => {
                         tooltipContent={"Converts extracted audio into accurate text transcripts."}
                         startTime={props.startTime}
                         endTime={props.endTime}
+                        isAIModulePage={props.isAIModulePage}
                       />
                     </div>)}
                 <AudioManager 
