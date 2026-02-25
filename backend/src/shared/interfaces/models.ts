@@ -37,11 +37,13 @@ export interface ICourse {
 }
 
 export type ID = string | ObjectId | null;
+export type courseVersionStatus="active" | "archived";
 export interface ICourseVersion {
   _id?: ID;
   courseId: ID;
   version: string;
   description: string;
+  versionStatus?:courseVersionStatus;
   supportLink?: string;
   modules: IModule[];
   totalItems?: number;
