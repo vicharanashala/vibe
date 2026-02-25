@@ -290,6 +290,8 @@ class CourseRegistrationController {
       changes:{
         after:{
           status: result.status,
+          name: result.detail.Name,
+          email: result.detail.Email,
         }
       },
 
