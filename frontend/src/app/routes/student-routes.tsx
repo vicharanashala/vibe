@@ -5,9 +5,9 @@ import StudentCourses from "@/app/pages/student/courses";
 import StudentProfile from "@/app/pages/student/profile";
 import CoursePage from "@/app/pages/student/course-page";
 import CourseDetails from "../pages/student/CourseRegistration";
-import path from "path";
 import CourseIssueReports from "../pages/student/FlagResponse";
 import Leaderboard from "../pages/student/leaderboard";
+import StudentAnnouncements from "../pages/student/announcements/StudentAnnouncements";
 
 const studentRoutes: RouteObject = {
   path: "/student",
@@ -22,15 +22,19 @@ const studentRoutes: RouteObject = {
       element: <StudentCourses />,
     },
     {
+      path: "announcements",
+      element: <StudentAnnouncements />,
+    },
+    {
       path: "profile",
       element: <StudentProfile />,
     },
     {
-      path:"courseDetails",
+      path: "courseDetails",
       element: <CourseDetails />
     },
     {
-      path:"issues",
+      path: "issues",
       element: <CourseIssueReports />
     },
     {
@@ -50,4 +54,4 @@ const learnRoutes: RouteObject = {
 };
 
 
-export default {studentRoutes, learnRoutes};
+export default { studentRoutes, learnRoutes };
