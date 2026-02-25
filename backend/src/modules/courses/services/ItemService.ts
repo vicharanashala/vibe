@@ -440,14 +440,33 @@ export class ItemService extends BaseService {
     return itemsGroup.items;
   }
 
+  private async _isPreviousItemCompleted(
+    courseVersion: ICourseVersion,
+    moduleId: string,
+    sectionId: string,
+    itemId: string,
+    userId: string,
+    courseId: string,
+    versionId: string
+  ): Promise<boolean> {
+    const previousItem = await this.progressService.getPreviousItemInSequence(courseVersion, moduleId, sectionId, itemId);
+    // First item ? 
+    if (!previousItem) {
+      return true;
+    }
+    const previousItemCompleted = await this.progressRepo.isItemCompleted(userId, courseId, versionId, previousItem.itemId);
+    return previousItemCompleted;
+  }
+
   public async readItem(
     userId: string,
     versionId: string,
     itemId: string,
     courseId?: string,
+    moduleId?: string,
+    sectionId?: string
   ) {
 
-    console.log(`[ItemService] readItem called with userId=${userId}, courseId=${courseId}, versionId=${versionId}, itemId=${itemId}`);
     // Fetch enrollment early
     const enrollment = await this.enrollmentRepo.findEnrollment(
       userId,
@@ -482,29 +501,71 @@ export class ItemService extends BaseService {
       isItemAlreadyAttempted,
       currentUserProgress,
       linearProgressionEnabled,
+      courseVersion
     ] = await Promise.all([
       this.progressRepo.isItemCompleted(userId, courseId, versionId, itemId),
       this.progressRepo.isItemAttempted(userId, courseId, versionId, itemId),
       this.progressRepo.findProgress(userId, courseId, versionId),
       this.courseSettingService.isLinearProgressionEnabled(courseId, versionId),
+      this.courseRepo.readVersion(versionId),
     ]);
 
-    // Enforce linear progression only when required
-    if (
-      linearProgressionEnabled &&
-      !isItemAlreadyAttempted &&
-      currentUserProgress?.currentItem.toString() !== itemId
-    ) {
-      throw new ForbiddenError(
-        "You don't have permission to watch this item",
-      );
-    }
+    // // Enforce linear progression only when required
+    // if (
+    //   linearProgressionEnabled &&
+    //   !isItemAlreadyAttempted &&
+    //   currentUserProgress?.currentItem.toString() !== itemId
+    // ) {
+    //   const previousItemCompleted = await this._isPreviousItemCompleted(courseVersion, moduleId, sectionId, itemId, userId, courseId, versionId);
+    //   if(!previousItemCompleted){
+    //     throw new ForbiddenError(
+    //       "You don't have permission to watch this item",
+    //     );
+    //   }
+    // }
 
-    return {
+    // If linear progression is NOT enabled, allow normally
+
+    const response = (isAlreadyWatched = isItemAlreadyCompleted) => ({
       ...item,
       _id: item._id.toString(),
-      isAlreadyWatched: isItemAlreadyCompleted,
-    };
+      isAlreadyWatched,
+    });
+
+    // If linear progression is disabled, allow immediately
+    if (!linearProgressionEnabled) return response();
+
+    // If attempted items should bypass restriction, allow immediately
+    if (isItemAlreadyAttempted) return response();
+
+    const currentItemId = currentUserProgress?.currentItem?.toString();
+
+    // 1) current item matches => allow
+    if (currentItemId === itemId) return response();
+
+    // 2) already completed => allow
+    if (isItemAlreadyCompleted) return response(true);
+
+    // 3) previous item completed => allow
+    const previousItemCompleted = await this._isPreviousItemCompleted(
+      courseVersion,
+      moduleId,
+      sectionId,
+      itemId,
+      userId,
+      courseId,
+      versionId,
+    );
+
+    if (previousItemCompleted) return response();
+
+    // All checks failed => forbid
+    throw new ForbiddenError("You don't have permission to watch this item");
+    // return {
+    //   ...item,
+    //   _id: item._id.toString(),
+    //   isAlreadyWatched: isItemAlreadyCompleted,
+    // };
   }
 
   public async updateItem(

@@ -752,7 +752,7 @@ It returns an empty body with a 200 status code.
   async recalculateStudentProgress(
     @Body() body: CourseVersionQuery & { userId?: string },
     @CurrentUser() currentUser: IUser,
-    @Ability(getProgressAbility) { ability, actorUser },
+    @Ability(getProgressAbility) { ability, user: actorUser },
     @Req() req: Request,
   ): Promise<string> {
     const { courseId, courseVersionId, userId: requestedUserId } = body;

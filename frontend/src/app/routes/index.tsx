@@ -1,13 +1,22 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import AuthPage from "@/app/pages/auth-page";
 import teacherRoutes from "./teacher-routes";
-import studentRoutesExport from "./student-routes";
+// import studentRoutesExport from "./student-routes";
 import { useAuthStore } from "@/store/auth-store";
 import { JSX } from "react";
 import React from "react";
 // import LoginPage from "../pages/LoginPage";
 
-const { studentRoutes, learnRoutes } = studentRoutesExport;
+// const { studentRoutes, learnRoutes } = studentRoutesExport;
+const studentRoutes = {
+    path: "/student",
+    element: <div />,
+    children: [] as any[]
+};
+const learnRoutes = {
+    path: "/student/learn",
+    element: <div />
+};
 
 // ✅ Role-Based Route Guard using Zustand
 function ProtectedRoute({ role, children }: { role: "teacher" | "student"; children: JSX.Element }) {
