@@ -1052,6 +1052,15 @@ export default function CoursePage() {
           }
         }
 
+        setSectionItems(prev => ({
+        ...prev,
+        [selectedSectionId!]: prev[selectedSectionId!].map(item =>
+          item._id === selectedItemId
+            ? { ...item, isCompleted: true }
+            : item
+        )
+      }));
+
         // 2️⃣ Determine next item
         const nextItem = findNextItem();
 
@@ -1059,6 +1068,26 @@ export default function CoursePage() {
           console.log("🎉 Course complete");
           setIsNavigatingToNext(false);
 
+           const allSections = ((courseVersionData as any)?.modules || [])?.flatMap((m: any) => m.sections || []) || [];
+          const allItemIds = new Set<string>();
+          const completedItemIds = new Set<string>();
+
+          allSections.forEach((section: any) => {
+          const items = sectionItems[section.sectionId] || [];
+          items.forEach((item: any) => {
+            allItemIds.add(item._id);
+
+             if (item.isCompleted || item._id === selectedItemId) {
+                  completedItemIds.add(item._id);
+                }
+              });
+            });
+
+             completedItemIdsRef.current.forEach((id: string) => completedItemIds.add(id));
+  
+            const isCourseFullyCompleted = allItemIds.size > 0 && allItemIds.size === completedItemIds.size;
+
+            if (isCourseFullyCompleted) {
           // Confetti celebration
           const end = Date.now() + 3000;
           const colors = ["#a786ff", "#fd8bbc", "#eca184", "#f8deb1"];
@@ -1086,6 +1115,7 @@ export default function CoursePage() {
             requestAnimationFrame(frame);
           };
           frame();
+        }
 
           setTimeout(() => router.navigate({ to: "/student" }), 3500);
           // Recalcualate and update the progress % and completed items count properly
@@ -1097,15 +1127,6 @@ export default function CoursePage() {
           });
           return;
         }
-        // set the current item as completed
-        setSectionItems(prev => ({
-          ...prev,
-          [selectedSectionId!]: prev[selectedSectionId!].map(item =>
-            item._id === selectedItemId
-              ? { ...item, isCompleted: true }
-              : item
-          )
-        }));
 
         // 3️⃣ If next section requires loading
         if ((nextItem as any).needsLoading) {
@@ -1183,6 +1204,10 @@ export default function CoursePage() {
     sectionItems,
     updateCourseNavigation,
     router,
+    courseVersionData, 
+    recalculateStudentProgressAsync,
+    COURSE_ID,
+    VERSION_ID,
   ]);
 
 

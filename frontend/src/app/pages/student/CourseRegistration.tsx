@@ -571,35 +571,34 @@ const computedUiSchema = React.useMemo(() => {
           ) : (
             <>
 
-              <Card className="w-full border border-green-300 dark:border-green-700 rounded-xl shadow-sm animate-in fade-in zoom-in-95 duration-500">
-                <CardHeader className="text-center space-y-3">
+              <Card className="w-full max-w-3xl mx-auto border border-green-300 dark:border-green-700 rounded-xl shadow-sm animate-in fade-in zoom-in-95 duration-500">
+                <CardHeader className="text-center space-y-2 pb-2">
                   <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
                     <GraduationCap className="h-7 w-7 text-green-600 dark:text-green-400" />
                   </div>
 
                   <CardTitle className="text-2xl font-bold text-green-700 dark:text-green-400">
-                    Registration Successful 🎉
+                     Registration Request Submitted 🎉
                   </CardTitle>
 
                   <CardDescription className="text-base">
-                    {versionId === "6981df886e100cfe04f9c4ae" ?"You’ve been successfully registered for this course.":"Registration submitted successfully!"}
+                      Your enrollment request has been successfully submitted.
                   </CardDescription>
+
+                   <p className="text-sm text-muted-foreground max-w-md mx-auto text-center">
+                      Our team will review your request and notify you once it is approved.
+                    </p>
                 </CardHeader>
 
-                <CardContent className="space-y-6 text-center">
-
-
-                  <div className="flex justify-center pt-2">
-                    {versionId === "6981df886e100cfe04f9c4ae" ? <Button
-                      asChild
-                      className="flex items-center gap-2 px-6 py-5 text-base sm:text-lg"
-                    >
-                      <a href={`/student`}>
-                        <BookOpen className="w-5 h-5" />
-                        Go to Course
-                      </a>
-                    </Button> : <p className="text-sm text-muted-foreground">Your registration has been received and is pending approval.
-                      Please wait for further updates.</p>}
+                <CardContent className="space-y-1 text-center py-3">
+                  <div className="flex flex-col items-center justify-center gap-1 pt-2">
+                   <Button
+                      onClick={() => window.location.href = "/student"}
+                      className="flex items-center gap-2 px-6 py-4 text-base"
+                      >
+                      <BookOpen className="w-5 h-5" />
+                      Go to Dashboard
+                    </Button>
                   </div>
                 </CardContent>
 
