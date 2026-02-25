@@ -72,12 +72,12 @@ const AiModule = () => {
         - Do not mention the word 'transcript' for giving references, use the word 'video' instead`,
             numberOfQuestions: 10
         });
-    const [customSegmentationParams, setCustomSegmentationParams] =
-        useState<SegmentationParameters>({
-            lam: 4.5,
-            runs: 25,
-            noiseId: -1,
-        });
+    // const [customSegmentationParams, setCustomSegmentationParams] =
+    //     useState<SegmentationParameters>({
+    //         lam: 4.5,
+    //         runs: 25,
+    //         noiseId: -1,
+    //     });
 
     const isValidYouTubeUrl = (url: string): boolean => {
         const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})(\S*)?$/;
@@ -147,12 +147,6 @@ const AiModule = () => {
                 questionsPerQuiz: uploadParams.questionsPerQuiz,
             };
 
-
-            jobParams.segmentationParameters = {
-                lam: customSegmentationParams.lam ?? 4.5,
-                runs: customSegmentationParams.runs ?? 25,
-                noiseId: customSegmentationParams.noiseId ?? -1,
-            };
 
             jobParams.questionGenerationParameters = {
                 model: customQuestionParams.model || "deepseek-r1:70b",

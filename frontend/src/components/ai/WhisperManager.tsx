@@ -975,7 +975,7 @@ export function AudioManager(props: { transcriber: Transcriber, isEditingTranscr
                             isCreatingAiJob={props.isCreatingAiJob}
                             isTranscribed={!!props.transcriber.output?.text}
                         />)}
-                        {!props.transcriber.isModelLoading && !props.transcriber.isBusy && props.transcriber.output?.text &&
+                        {!props.transcriber.isModelLoading && !props.transcriber.isBusy && props.transcriber.output?.text && !props.isAIModulePage &&
                             <Button className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary 
                                 text-primary-foreground font-semibold px-10 py-5 rounded-xl shadow-lg 
                                 hover:shadow-xl transition-all duration-300 transform hover:scale-105 
