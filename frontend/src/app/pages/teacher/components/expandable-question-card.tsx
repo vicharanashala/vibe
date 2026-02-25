@@ -582,11 +582,18 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
                           </div>
                           <div className="flex-1 space-y-2 w-full">
                             <Label className='text-sm text-gray-600'>Type:</Label>
-                            <Textarea
-                              placeholder='string or number'
-                              className="mt-1"
-                              onChange={(e) => updateParameter(index, { type: e.target.value })}
-                              value={param.type} />
+                            <Select
+                              value={param.type || ''}
+                              onValueChange={(value) => updateParameter(index, { type: value })}
+                            >
+                              <SelectTrigger className="mt-1">
+                                <SelectValue placeholder="Select type..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="number">number</SelectItem>
+                                <SelectItem value="string">string</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
                         <div>
