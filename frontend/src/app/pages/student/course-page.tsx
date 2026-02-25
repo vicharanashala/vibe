@@ -1842,7 +1842,9 @@ export default function CoursePage() {
                           Access Restricted
                         </Badge>
                         <p className="text-md font-medium leading-relaxed">
-                          {previousValidItem
+                            {itemError && itemErrorName === "ForbiddenError"
+                              ? itemError
+                              : previousValidItem
                             ? "Returning to previous valid content."
                             : "Complete current item first to access this content."
                           }
