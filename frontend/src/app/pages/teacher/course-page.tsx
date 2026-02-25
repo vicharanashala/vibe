@@ -34,12 +34,15 @@ import {
   ExternalLink,
   Megaphone,
   CheckCheckIcon,
+  Archive,
+  ArchiveRestore,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { ProctoringModal } from "@/components/EditProctoringModal"
 import { Pagination } from "@/components/ui/Pagination"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 // Import the hooks and auth store
 import {
@@ -48,6 +51,7 @@ import {
   useCreateCourseVersion,
   useDeleteCourseVersion,
   useUpdateCourseVersion,
+  useCourseVersionArchive,
   useUserEnrollments,
   useCourseById,
   useCourseVersionById,
@@ -423,6 +427,7 @@ function CourseCard({
 
   const [creatingErrors, setCreatingErrors] = useState<{ name?: string; description?: string }>({});
   const [editingErrors, setEditingErrors] = useState<{ name?: string; description?: string }>({});
+  const [activeVersionTab, setActiveVersionTab] = useState<'active' | 'archived'>('active');
 
 
   const queryClient = useQueryClient()
@@ -957,6 +962,29 @@ function CourseCard({
                     </Card>
                   </div>
                 )}
+                <Tabs
+                  value={activeVersionTab}
+                  onValueChange={(v) =>
+                    setActiveVersionTab(v as "active" | "archived")
+                  }
+                  className="w-full" >
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <TabsList className="grid w-full sm:w-[360px] grid-cols-2 h-11 bg-muted/30 p-1 rounded-xl">
+                      <TabsTrigger
+                        value="active"
+                        className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
+                      >
+                        Active
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="archived"
+                        className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
+                      >
+                        Archived
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
+                </Tabs>
 
                 {/* Display All Versions */}
                 <div className="space-y-3">
@@ -973,6 +1001,7 @@ function CourseCard({
                           onInvalidate={onInvalidate}
                           deleteVersionMutation={deleteVersionMutation}
                           versionCount={course?.versions?.length}
+                          activeVersionTab={activeVersionTab}
                         />
                       </div>
                     ))
@@ -989,6 +1018,7 @@ function CourseCard({
                           onInvalidate={onInvalidate}
                           deleteVersionMutation={deleteVersionMutation}
                           versionCount={course?.versions?.length}
+                          activeVersionTab={activeVersionTab}
                         />
                       </div>
                     ))
@@ -1028,6 +1058,7 @@ function VersionCard({
   onInvalidate,
   deleteVersionMutation,
   versionCount,
+  activeVersionTab,
 }: {
   versionData?: components['schemas']['CourseVersionDataResponse'];
   versionId?: string
@@ -1035,6 +1066,7 @@ function VersionCard({
   onInvalidate: () => void
   deleteVersionMutation: any
   versionCount: number
+  activeVersionTab?:'active'|'archived'
 }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -1058,7 +1090,8 @@ function VersionCard({
   const updateVersionMutation = useUpdateCourseVersion()
 
   const [showLinkModal, setShowLinkModal] = useState(false);
-  const [showDeleteVersionModel, setShowDeleteVersionModel] = useState(false)
+  const [showDeleteVersionModel, setShowDeleteVersionModel] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [generatedLink, setGeneratedLink] = useState('');
   const generateLinkMutation = useGenerateLink();
   // To copy a entire course version
@@ -1072,7 +1105,36 @@ function VersionCard({
 
   const selectedVersionId = version?.id || versionId;
 
-  // Edit functions
+  const isArchived = (version as any)?.versionStatus === 'archived';
+  const { mutateAsync: archiveMutateAsync, isPending: isArchivePending } = useCourseVersionArchive();
+  const handleArchive = async () => {
+    try {
+      await archiveMutateAsync({
+        params: {
+          path: {
+            courseId: courseId,
+            versionId: selectedVersionId,
+          },
+        },
+        body: {
+          versionStatus: isArchived ? 'active' : 'archived',
+        },
+      } as any);
+
+      toast.success(isArchived ? 'Version unarchived successfully' : 'Version archived successfully');
+      onInvalidate();
+      queryClient.invalidateQueries({
+        queryKey: ['get', '/courses/versions/{id}'],
+      });
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to update version status');
+    }
+  };
+
+  if (!version) return null;
+  if (activeVersionTab === 'active' && isArchived)  return null;
+  if (activeVersionTab === 'archived' && !isArchived) return null;
+
   const startEditingVersion = () => {
     setEditingVersion(true)
     setEditingValues({
@@ -1466,6 +1528,41 @@ function VersionCard({
                     )}
                     Edit
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowArchiveModal(true)}
+                    disabled={isArchivePending}
+                    className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                  >
+                    {isArchivePending ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : isArchived ? (
+                      <Archive className="h-3 w-3 mr-1" />
+                    ) : (
+                      <ArchiveRestore className="h-3 w-3 mr-1" />
+                    )}
+                    {isArchived ? "Unarchive" : "Archive"}
+                  </Button>
+                  <ConfirmationModal
+                    isOpen={showArchiveModal}
+                    onClose={() => setShowArchiveModal(false)}
+                    onConfirm={async () => {
+                      await handleArchive();
+                      setShowArchiveModal(false);
+                    }}
+                    title={isArchived ? "Unarchive Version" : "Archive Version"}
+                    description={
+                      isArchived
+                        ? "Are you sure you want to unarchive this version? Students will be able to access it again. Note: Only administrators can use this feature."
+                        : "Are you sure you want to archive this version? Students will no longer be able to access it. Note: Only administrators can use this feature."
+                    }
+                    confirmText={isArchived ? "Unarchive" : "Archive"}
+                    cancelText="Cancel"
+                    isDestructive={false}
+                    isLoading={isArchivePending}
+                    loadingText={isArchived ? "Unarchiving..." : "Archiving..."}
+                  />
                   <Button
                     variant="outline"
                     size="sm"

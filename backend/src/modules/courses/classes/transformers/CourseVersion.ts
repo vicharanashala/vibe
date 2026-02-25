@@ -4,7 +4,7 @@ import {
   ObjectIdToString,
   StringToObjectId,
 } from '#root/shared/constants/transformerConstants.js';
-import {ICourseVersion, ID} from '#root/shared/interfaces/models.js';
+import {courseVersionStatus, ICourseVersion, ID} from '#root/shared/interfaces/models.js';
 import {Module} from './Module.js';
 
 /**
@@ -28,6 +28,10 @@ class CourseVersion implements ICourseVersion {
 
   @Expose()
   description: string;
+
+  @Expose()
+  @Transform(({ value }) => value ?? 'active', {toClassOnly: true})
+  versionStatus: courseVersionStatus;
 
   @Expose()
   @Type(() => Module)
@@ -59,6 +63,7 @@ class CourseVersion implements ICourseVersion {
       this.version = courseVersionBody.version;
       this.description = courseVersionBody.description;
     }
+    this.versionStatus='active';
     this.modules = [];
     this.createdAt = new Date();
     this.updatedAt = new Date();
