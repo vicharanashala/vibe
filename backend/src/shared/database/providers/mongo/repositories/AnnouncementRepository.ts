@@ -68,18 +68,29 @@ export class AnnouncementRepository {
                     as: 'versionDetails'
                 }
             },
+            // Lookup Instructor for firebaseUID
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'instructorId',
+                    foreignField: '_id',
+                    as: 'instructorDetails'
+                }
+            },
             // Add Fields
             {
                 $addFields: {
                     courseName: { $arrayElemAt: ['$courseDetails.name', 0] },
-                    courseVersionName: { $arrayElemAt: ['$versionDetails.version', 0] }
+                    courseVersionName: { $arrayElemAt: ['$versionDetails.version', 0] },
+                    instructorFirebaseUid: { $arrayElemAt: ['$instructorDetails.firebaseUID', 0] }
                 }
             },
             // Remove joined arrays
             {
                 $project: {
                     courseDetails: 0,
-                    versionDetails: 0
+                    versionDetails: 0,
+                    instructorDetails: 0
                 }
             }
         ];
@@ -189,18 +200,29 @@ export class AnnouncementRepository {
                         as: 'versionDetails'
                     }
                 },
+                // Lookup Instructor for firebaseUID
+                {
+                    $lookup: {
+                        from: 'users',
+                        localField: 'instructorId',
+                        foreignField: '_id',
+                        as: 'instructorDetails'
+                    }
+                },
                 // Add Fields
                 {
                     $addFields: {
                         courseName: { $arrayElemAt: ['$courseDetails.name', 0] },
-                        courseVersionName: { $arrayElemAt: ['$versionDetails.version', 0] }
+                        courseVersionName: { $arrayElemAt: ['$versionDetails.version', 0] },
+                        instructorFirebaseUid: { $arrayElemAt: ['$instructorDetails.firebaseUID', 0] }
                     }
                 },
                 // Remove joined arrays
                 {
                     $project: {
                         courseDetails: 0,
-                        versionDetails: 0
+                        versionDetails: 0,
+                        instructorDetails: 0
                     }
                 }
             ], { session }).toArray(),
@@ -288,18 +310,29 @@ export class AnnouncementRepository {
                         as: 'versionDetails'
                     }
                 },
+                // Lookup Instructor for firebaseUID
+                {
+                    $lookup: {
+                        from: 'users',
+                        localField: 'instructorId',
+                        foreignField: '_id',
+                        as: 'instructorDetails'
+                    }
+                },
                 // Add Fields
                 {
                     $addFields: {
                         courseName: { $arrayElemAt: ['$courseDetails.name', 0] },
-                        courseVersionName: { $arrayElemAt: ['$versionDetails.version', 0] }
+                        courseVersionName: { $arrayElemAt: ['$versionDetails.version', 0] },
+                        instructorFirebaseUid: { $arrayElemAt: ['$instructorDetails.firebaseUID', 0] }
                     }
                 },
                 // Remove joined arrays
                 {
                     $project: {
                         courseDetails: 0,
-                        versionDetails: 0
+                        versionDetails: 0,
+                        instructorDetails: 0
                     }
                 }
             ], { session }).toArray(),

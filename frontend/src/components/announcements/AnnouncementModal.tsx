@@ -23,6 +23,7 @@ interface AnnouncementModalProps {
     defaultType?: AnnouncementType;
     courseId?: string;
     versionId?: string;
+    isAdmin?: boolean;
 }
 
 export function AnnouncementModal({
@@ -32,14 +33,20 @@ export function AnnouncementModal({
     defaultType = AnnouncementType.GENERAL,
     courseId,
     versionId,
+    isAdmin,
 }: AnnouncementModalProps) {
     const isEditing = !!initialData;
     const createMutation = useCreateAnnouncement();
     const updateMutation = useUpdateAnnouncement();
 
+    // Non-admins cannot create GENERAL announcements
+    const effectiveDefaultType = (!isAdmin && defaultType === AnnouncementType.GENERAL)
+        ? AnnouncementType.COURSE_SPECIFIC
+        : defaultType;
+
     const [title, setTitle] = useState("");
     const [content, setContent] = useState("");
-    const [type, setType] = useState<AnnouncementType>(defaultType);
+    const [type, setType] = useState<AnnouncementType>(effectiveDefaultType);
     const [attachments, setAttachments] = useState<Attachment[]>([]);
     const [newAttachmentUrl, setNewAttachmentUrl] = useState("");
     const [newAttachmentName, setNewAttachmentName] = useState("");
@@ -53,10 +60,10 @@ export function AnnouncementModal({
         } else {
             setTitle("");
             setContent("");
-            setType(defaultType);
+            setType(effectiveDefaultType);
             setAttachments([]);
         }
-    }, [initialData, defaultType, isOpen]);
+    }, [initialData, effectiveDefaultType, isOpen]);
 
     const handleAddAttachment = () => {
         if (!newAttachmentUrl.trim()) return;
