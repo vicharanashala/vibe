@@ -98,41 +98,12 @@ class ProgressRepository {
   ): Promise<string[]> {
     await this.init();
 
-    // const distinctItemIds = await this.watchTimeCollection.distinct(
-    //   'itemId',
-    //   {
-    //     userId: new ObjectId(userId),
-    //     courseId: new ObjectId(courseId),
-    //     courseVersionId: new ObjectId(courseVersionId),
-    //     endTime: { $exists: true, $ne: null },
-    //     isDeleted: { $ne: true },
-
-    //   },
-    //   { session },
-    // );
     const distinctItemIds = await this.watchTimeCollection.distinct(
       'itemId',
       {
-        $and:[
-          {
-            $or:[
-              { userId: new ObjectId(userId) },
-              { userId: userId }
-            ]
-          },
-          {
-            $or:[
-              { courseId: new ObjectId(courseId) },
-              { courseId: courseId }
-            ]
-          },
-          {
-            $or:[
-              { courseVersionId: new ObjectId(courseVersionId) },
-              { courseVersionId: courseVersionId }
-            ]
-          },
-        ],
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
         endTime: { $exists: true, $ne: null },
         isDeleted: { $ne: true },
       },
@@ -443,45 +414,17 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<IProgress | null> {
     await this.init();
-    // return await this.progressCollection.findOne(
-    //   {
-    //     userId: new ObjectId(userId),
-    //     courseId: new ObjectId(courseId),
-    //     courseVersionId: new ObjectId(courseVersionId),
-    //     isDeleted: { $ne: true },
-    //   },
-    //   {
-    //     session,
-    //   },
-    // );
-    const normalizedUserId =
-    typeof userId === "string" ? new ObjectId(userId) : userId;
-    return await this.progressCollection.findOne({
-      $and: [
-        {
-          $or: [
-            { userId: normalizedUserId },
-            { userId: userId }
-          ]
-        },
-        {
-          $or: [
-            { courseId: new ObjectId(courseId) },
-            { courseId: courseId }
-          ]
-        },
-        {
-          $or: [
-            { courseVersionId: new ObjectId(courseVersionId) },
-            { courseVersionId: courseVersionId }
-          ]
-        }
-      ],
-      isDeleted: { $ne: true }
-    },
-    {
-      session,
-    },);
+    return await this.progressCollection.findOne(
+      {
+        userId: { $in: [new ObjectId(userId), userId] },
+        courseId: { $in: [new ObjectId(courseId), courseId] },
+        courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
+        isDeleted: { $ne: true }
+      },
+      {
+        session,
+      }
+    );
   }
 
   async deleteProgress(
@@ -493,17 +436,15 @@ class ProgressRepository {
     await this.init();
     await this.progressCollection.updateOne(
       {
-        userId: new ObjectId(userId),
-        courseId: new ObjectId(courseId),
-        courseVersionId: new ObjectId(courseVersionId),
+        userId: { $in: [new ObjectId(userId), userId] },
+        courseId: { $in: [new ObjectId(courseId), courseId] },
+        courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
       },
       { $set: { isDeleted: true, deletedAt: new Date() } },
       {
         session,
       },
     );
-
-
   }
 
   async findById(
@@ -548,9 +489,9 @@ class ProgressRepository {
 
     const result = await this.progressCollection.findOneAndUpdate(
       {
-        userId: new ObjectId(userId),
-        courseId: new ObjectId(courseId),
-        courseVersionId: new ObjectId(courseVersionId),
+        userId: { $in: [new ObjectId(userId), userId] },
+        courseId: { $in: [new ObjectId(courseId), courseId] },
+        courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
       },
       { $set: normalizedProgress },
       { returnDocument: 'after', session },
@@ -682,9 +623,9 @@ class ProgressRepository {
     await this.init();
     const result = await this.progressCollection.findOneAndUpdate(
       {
-        userId: new ObjectId(userId),
-        courseId: new ObjectId(courseId),
-        courseVersionId: new ObjectId(courseVersionId),
+        userId: { $in: [new ObjectId(userId), userId] },
+        courseId: { $in: [new ObjectId(courseId), courseId] },
+        courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
         isDeleted: { $ne: true },
       },
       { $set: progress },
@@ -722,7 +663,7 @@ class ProgressRepository {
   async deleteProgressByVersionId(versionId: string, session?: ClientSession) {
     await this.init();
     await this.progressCollection.updateMany(
-      { courseVersionId: new ObjectId(versionId) },
+      { courseVersionId: { $in: [new ObjectId(versionId), versionId] }, },
       { $set: { isDeleted: true, deletedAt: new Date() } },
       { session },
     );
@@ -737,8 +678,8 @@ class ProgressRepository {
     const progressRecords = await this.progressCollection
       .find(
         {
-          courseId: new ObjectId(courseId),
-          courseVersionId: new ObjectId(courseVersionId),
+          courseId: { $in: [new ObjectId(courseId), courseId] },
+          courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
         },
         { session },
       )
@@ -778,7 +719,7 @@ class ProgressRepository {
   ): Promise<number> {
     await this.init();
     const result = await this.progressCollection.updateMany(
-      { currentItem: new ObjectId(itemId) },
+      { currentItem: { $in: [new ObjectId(itemId), itemId] } },
       { $set: updateData },
       { session },
     );
@@ -792,7 +733,7 @@ class ProgressRepository {
   ): Promise<number> {
     await this.init();
     const result = await this.progressCollection.updateMany(
-      { currentSection: new ObjectId(sectionId) },
+      { currentSection: { $in: [new ObjectId(sectionId), sectionId] } },
       { $set: updateData },
       { session },
     );
@@ -806,7 +747,7 @@ class ProgressRepository {
   ): Promise<number> {
     await this.init();
     const result = await this.progressCollection.updateMany(
-      { currentModule: new ObjectId(moduleId) },
+      { currentModule: { $in: [new ObjectId(moduleId), moduleId] } },
       { $set: updateData },
       { session },
     );
@@ -821,8 +762,8 @@ class ProgressRepository {
     await this.init();
     const progress = await this.progressCollection.findOne(
       {
-        userId: new ObjectId(userId),
-        courseVersionId: new ObjectId(courseVersionId),
+        userId: { $in: [new ObjectId(userId), userId] },
+        courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
         isDeleted: { $ne: true },
       },
       { session },

@@ -548,6 +548,19 @@ export class CourseRepository implements ICourseRepository {
   ): Promise<ICourseVersion | null> {
     await this.init();
     try {
+      courseVersion = {
+        ...courseVersion,
+        courseId: new ObjectId(courseVersion.courseId),
+        modules: (courseVersion.modules || []).map(module => ({
+          ...module,
+          moduleId: new ObjectId(module.moduleId),
+          sections: (module.sections || []).map(section => ({
+            ...section,
+            sectionId: new ObjectId(section.sectionId),
+            itemsGroupId: new ObjectId(section.itemsGroupId),
+          })),
+        })),
+      }
       const { _id: _, ...fields } = courseVersion;
 
       const isExistVersion = await this.courseVersionCollection.findOne({

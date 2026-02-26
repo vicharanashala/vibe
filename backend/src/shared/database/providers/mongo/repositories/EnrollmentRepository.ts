@@ -89,17 +89,16 @@ export class EnrollmentRepository {
 
     const courseObjectId = new ObjectId(courseId);
     const courseVersionObjectId = new ObjectId(courseVersionId);
-
     const userObjectid = new ObjectId(userId);
 
     return await this.enrollmentCollection.findOne(
       {
-        userId: userObjectid,
-        courseId: courseObjectId,
-        courseVersionId: courseVersionObjectId,
+        userId: { $in: [userId, new ObjectId(userId)] },
+        courseId: { $in: [courseId, new ObjectId(courseId)] },
+        courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
         isDeleted: { $ne: true },
       },
-      { session },
+      { session }
     );
   }
 
@@ -117,13 +116,13 @@ export class EnrollmentRepository {
 
     return await this.enrollmentCollection.findOne(
       {
-        userId: userObjectid,
-        courseId: courseObjectId,
-        courseVersionId: courseVersionObjectId,
+        userId: { $in: [userObjectid, userId] },
+        courseId: { $in: [courseObjectId, courseId] },
+        courseVersionId: { $in: [courseVersionObjectId, courseVersionId] },
         status: 'ACTIVE',
         isDeleted: { $ne: true },
       },
-      { session },
+      { session }
     );
   }
 
@@ -137,8 +136,8 @@ export class EnrollmentRepository {
     const enrollments = await this.enrollmentCollection
       .find(
         {
-          courseId: new ObjectId(courseId),
-          courseVersionId: new ObjectId(versionId),
+          courseId: { $in: [new ObjectId(courseId), courseId] },
+          courseVersionId: { $in: [new ObjectId(versionId), versionId] },
           role: 'INSTRUCTOR',
           status: 'ACTIVE',
         },
@@ -334,7 +333,7 @@ export class EnrollmentRepository {
       const aggregationPipeline: any[] = [
         {
           $match: {
-            userId: userObjectId,
+            userId: { $in: [userObjectId, userId] },
             role,
             isDeleted: { $ne: true },
             status: 'ACTIVE',
@@ -525,7 +524,7 @@ export class EnrollmentRepository {
     const pipeline: any[] = [
       {
         $match: {
-          userId: userObjectId,
+          userId: { $in: [userObjectId, userId] },
           role,
           isDeleted: { $ne: true },
           status: { $regex: /^active$/i },
@@ -789,7 +788,7 @@ export class EnrollmentRepository {
       /* ---------- EARLY FILTER (INDEXED) ---------- */
       {
         $match: {
-          userId: new ObjectId(userId),
+          userId: { $in: [new ObjectId(userId), userId] },
           role,
           isDeleted: { $ne: true },
           status: { $regex: /^active$/i },
@@ -1346,8 +1345,8 @@ export class EnrollmentRepository {
     await this.init();
 
     const baseMatch: any = {
-      courseId: new ObjectId(courseId),
-      courseVersionId: new ObjectId(courseVersionId),
+      courseId: { $in: [courseId, new ObjectId(courseId)] },
+      courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] }
     };
 
     let matchStage: any = { ...baseMatch };
@@ -1510,8 +1509,12 @@ export class EnrollmentRepository {
         [
           {
             $match: {
-              courseId: new ObjectId(courseId),
-              courseVersionId: new ObjectId(courseVersionId),
+              courseId: {
+                $in: [courseId, new ObjectId(courseId)]
+              },
+              courseVersionId: {
+                $in: [courseVersionId, new ObjectId(courseVersionId)]
+              },
               role: 'STUDENT',
               status: { $regex: /^active$/i },
               isDeleted: { $ne: true }, // Exclude soft-deleted enrollments
@@ -1589,7 +1592,7 @@ export class EnrollmentRepository {
   ) {
     await this.init();
     const matchStage: any = {
-      userId: new ObjectId(userId),
+      userId: { $in: [new ObjectId(userId), userId] },
       role,
       isDeleted: { $ne: true },
       status: { $regex: /^active$/i },

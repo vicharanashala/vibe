@@ -789,19 +789,7 @@ export class ItemService extends BaseService {
         // Step 5: Update version
         const updatedVersion = await this.courseRepo.updateVersion(
           versionId,
-          {
-            ...version,
-            courseId: new ObjectId(version.courseId),
-            modules: (version.modules || []).map(module => ({
-              ...module,
-              moduleId: new ObjectId(module.moduleId),
-              sections: (module.sections || []).map(section => ({
-                ...section,
-                sectionId: new ObjectId(section.sectionId),
-                itemsGroupId: new ObjectId(section.itemsGroupId),
-              })),
-            })),
-          },
+          version,
           session,
         );
         if (!updatedVersion) {
@@ -883,19 +871,7 @@ export class ItemService extends BaseService {
       );
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
-        {
-          ...version,
-          courseId: new ObjectId(version.courseId),
-          modules: (version.modules || []).map(module => ({
-            ...module,
-            moduleId: new ObjectId(module.moduleId),
-            sections: (module.sections || []).map(section => ({
-              ...section,
-              sectionId: new ObjectId(section.sectionId),
-              itemsGroupId: new ObjectId(section.itemsGroupId),
-            })),
-          })),
-        }
+        version,
       );
 
       return { itemsGroup: updatedItemsGroup, version: updatedVersion };
@@ -1063,19 +1039,7 @@ export class ItemService extends BaseService {
 
       const updatedVersion = await this.courseRepo.updateVersion(
         courseVersionId,
-        {
-          ...version,
-          courseId: new ObjectId(version.courseId),
-          modules: (version.modules || []).map(module => ({
-            ...module,
-            moduleId: new ObjectId(module.moduleId),
-            sections: (module.sections || []).map(section => ({
-              ...section,
-              sectionId: new ObjectId(section.sectionId),
-              itemsGroupId: new ObjectId(section.itemsGroupId),
-            })),
-          })),
-        },
+        version,
         session,
       );
 

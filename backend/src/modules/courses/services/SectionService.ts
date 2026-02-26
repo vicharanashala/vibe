@@ -96,19 +96,7 @@ export class SectionService extends BaseService {
       //Update Version
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
-        {
-          ...version,
-          courseId: new ObjectId(version.courseId),
-          modules: (version.modules || []).map(module => ({
-            ...module,
-            moduleId: new ObjectId(module.moduleId),
-            sections: (module.sections || []).map(section => ({
-              ...section,
-              sectionId: new ObjectId(section.sectionId),
-              itemsGroupId: new ObjectId(section.itemsGroupId),
-            })),
-          })),
-        },
+        version,
         session,
       );
       if (!updatedVersion) {
@@ -162,19 +150,7 @@ export class SectionService extends BaseService {
       //Update Version
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
-        {
-          ...version,
-          courseId: new ObjectId(version.courseId),
-          modules: (version.modules || []).map(module => ({
-            ...module,
-            moduleId: new ObjectId(module.moduleId),
-            sections: (module.sections || []).map(section => ({
-              ...section,
-              sectionId: new ObjectId(section.sectionId),
-              itemsGroupId: new ObjectId(section.itemsGroupId),
-            })),
-          })),
-        },
+        version,
         session,
       );
       if (!updatedVersion) {
@@ -238,19 +214,7 @@ export class SectionService extends BaseService {
       //Update Version
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
-        {
-          ...version,
-          courseId: new ObjectId(version.courseId),
-          modules: (version.modules || []).map(module => ({
-            ...module,
-            moduleId: new ObjectId(module.moduleId),
-            sections: (module.sections || []).map(section => ({
-              ...section,
-              sectionId: new ObjectId(section.sectionId),
-              itemsGroupId: new ObjectId(section.itemsGroupId),
-            })),
-          })),
-        },
+        version,
         session,
       );
 
@@ -320,19 +284,7 @@ export class SectionService extends BaseService {
 
       await this.courseRepo.updateVersion(
         updatedVersion._id.toString(),
-        {
-          ...updatedVersion,
-          courseId: new ObjectId(updatedVersion.courseId),
-          modules: (updatedVersion.modules || []).map(module => ({
-            ...module,
-            moduleId: new ObjectId(module.moduleId),
-            sections: (module.sections || []).map(section => ({
-              ...section,
-              sectionId: new ObjectId(section.sectionId),
-              itemsGroupId: new ObjectId(section.itemsGroupId),
-            })),
-          })),
-        },
+        updatedVersion,
         session,
       );
 
@@ -445,19 +397,7 @@ export class SectionService extends BaseService {
       // Update Version
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
-        {
-          ...version,
-          courseId: new ObjectId(version.courseId),
-          modules: (version.modules || []).map(module => ({
-            ...module,
-            moduleId: new ObjectId(module.moduleId),
-            sections: (module.sections || []).map(section => ({
-              ...section,
-              sectionId: new ObjectId(section.sectionId),
-              itemsGroupId: new ObjectId(section.itemsGroupId),
-            })),
-          })),
-        },
+        version,
         session,
       );
       if (!updatedVersion) {
