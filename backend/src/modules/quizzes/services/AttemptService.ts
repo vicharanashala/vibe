@@ -389,20 +389,9 @@ class AttemptService extends BaseService {
       metrics.remainingAttempts =
         quiz.details.maxAttempts === -1 ? -1 : metrics.remainingAttempts - 1;
       metrics.attempts.push({ attemptId: attemptObjectId });
-      const updatedMetrics = await this.userQuizMetricsRepository.update( 
+      const updatedMetrics = await this.userQuizMetricsRepository.update(
         metrics._id.toString(),
-        {...metrics,
-          userId: new ObjectId(metrics.userId),
-          quizId: new ObjectId(metrics.quizId),
-          latestAttemptId: metrics.latestAttemptId ? new ObjectId(metrics.latestAttemptId): null,
-          latestSubmissionResultId:metrics.latestSubmissionResultId ?
-            new ObjectId(metrics.latestSubmissionResultId) :null,
-          attempts: metrics.attempts.map(attempt => ({
-            ...attempt,
-            attemptId: new ObjectId(attempt.attemptId),
-            submissionResultId: attempt.submissionResultId ? new ObjectId(attempt.submissionResultId): null,
-          }))
-        }
+        metrics,
       );
 
       //6. Return the attempt ID
@@ -483,18 +472,7 @@ class AttemptService extends BaseService {
 
         await this.userQuizMetricsRepository.update(
           metrics._id.toString(),
-          {...metrics,
-            userId: new ObjectId(metrics.userId),
-            quizId: new ObjectId(metrics.quizId),
-            latestAttemptId: metrics.latestAttemptId ? new ObjectId(metrics.latestAttemptId): null,
-            latestSubmissionResultId:metrics.latestSubmissionResultId ?
-              new ObjectId(metrics.latestSubmissionResultId) :null,
-            attempts: metrics.attempts.map(attempt => ({
-              ...attempt,
-              attemptId: new ObjectId(attempt.attemptId),
-              submissionResultId: attempt.submissionResultId ? new ObjectId(attempt.submissionResultId): null,
-            }))
-          },
+          metrics,
           session,
         );
 
@@ -525,18 +503,7 @@ class AttemptService extends BaseService {
 
       await this.userQuizMetricsRepository.update(
         metrics._id.toString(),
-        {...metrics,
-          userId: new ObjectId(metrics.userId),
-          quizId: new ObjectId(metrics.quizId),
-          latestAttemptId: metrics.latestAttemptId ? new ObjectId(metrics.latestAttemptId): null,
-          latestSubmissionResultId:metrics.latestSubmissionResultId ?
-            new ObjectId(metrics.latestSubmissionResultId) :null,
-          attempts: metrics.attempts.map(attempt => ({
-            ...attempt,
-            attemptId: new ObjectId(attempt.attemptId),
-            submissionResultId: attempt.submissionResultId ? new ObjectId(attempt.submissionResultId): null,
-          }))
-        },
+        metrics,
         session,
       );
     });

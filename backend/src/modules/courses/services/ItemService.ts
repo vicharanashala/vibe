@@ -157,19 +157,7 @@ export class ItemService extends BaseService {
 
     return (await this.courseRepo.updateVersion(
       version._id.toString(),
-      {
-        ...version,
-        courseId: new ObjectId(version.courseId),
-        modules: (version.modules || []).map(module => ({
-          ...module,
-          moduleId: new ObjectId(module.moduleId),
-          sections: (module.sections || []).map(section => ({
-            ...section,
-            sectionId: new ObjectId(section.sectionId),
-            itemsGroupId: new ObjectId(section.itemsGroupId),
-          })),
-        })),
-      },
+      version,
       session,
     )) as CourseVersion; // Assuming version has _id
   }
