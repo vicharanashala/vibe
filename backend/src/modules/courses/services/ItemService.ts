@@ -157,7 +157,19 @@ export class ItemService extends BaseService {
 
     return (await this.courseRepo.updateVersion(
       version._id.toString(),
-      version,
+      {
+        ...version,
+        courseId: new ObjectId(version.courseId),
+        modules: (version.modules || []).map(module => ({
+          ...module,
+          moduleId: new ObjectId(module.moduleId),
+          sections: (module.sections || []).map(section => ({
+            ...section,
+            sectionId: new ObjectId(section.sectionId),
+            itemsGroupId: new ObjectId(section.itemsGroupId),
+          })),
+        })),
+      },
       session,
     )) as CourseVersion; // Assuming version has _id
   }
@@ -777,7 +789,19 @@ export class ItemService extends BaseService {
         // Step 5: Update version
         const updatedVersion = await this.courseRepo.updateVersion(
           versionId,
-          version,
+          {
+            ...version,
+            courseId: new ObjectId(version.courseId),
+            modules: (version.modules || []).map(module => ({
+              ...module,
+              moduleId: new ObjectId(module.moduleId),
+              sections: (module.sections || []).map(section => ({
+                ...section,
+                sectionId: new ObjectId(section.sectionId),
+                itemsGroupId: new ObjectId(section.itemsGroupId),
+              })),
+            })),
+          },
           session,
         );
         if (!updatedVersion) {
@@ -859,7 +883,19 @@ export class ItemService extends BaseService {
       );
       const updatedVersion = await this.courseRepo.updateVersion(
         versionId,
-        version,
+        {
+          ...version,
+          courseId: new ObjectId(version.courseId),
+          modules: (version.modules || []).map(module => ({
+            ...module,
+            moduleId: new ObjectId(module.moduleId),
+            sections: (module.sections || []).map(section => ({
+              ...section,
+              sectionId: new ObjectId(section.sectionId),
+              itemsGroupId: new ObjectId(section.itemsGroupId),
+            })),
+          })),
+        }
       );
 
       return { itemsGroup: updatedItemsGroup, version: updatedVersion };
@@ -1027,7 +1063,19 @@ export class ItemService extends BaseService {
 
       const updatedVersion = await this.courseRepo.updateVersion(
         courseVersionId,
-        version,
+        {
+          ...version,
+          courseId: new ObjectId(version.courseId),
+          modules: (version.modules || []).map(module => ({
+            ...module,
+            moduleId: new ObjectId(module.moduleId),
+            sections: (module.sections || []).map(section => ({
+              ...section,
+              sectionId: new ObjectId(section.sectionId),
+              itemsGroupId: new ObjectId(section.itemsGroupId),
+            })),
+          })),
+        },
         session,
       );
 
