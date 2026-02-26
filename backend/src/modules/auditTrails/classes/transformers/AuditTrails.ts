@@ -72,6 +72,7 @@ export class AuditTrails implements InstructorAuditTrail {
         enrollmentId?: ObjectId;
         registrationId?: ObjectId;
         inviteId?: ObjectId;
+        announcementId?: ObjectId;
         relatedIds?: Record<string, ObjectId | string>;
     };
 
@@ -89,7 +90,7 @@ export class AuditTrails implements InstructorAuditTrail {
         },
         type: "object",
     })
-    changes :{
+    changes: {
         before?: Record<string, any>;
         after?: Record<string, any>;
     }

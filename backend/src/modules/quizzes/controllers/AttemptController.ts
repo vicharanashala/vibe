@@ -87,11 +87,11 @@ class AttemptController {
     // Build subject context first
     const attemptSubject = subject('Attempt', {quizId});
 
-    if (!ability.can(AttemptActions.Start, attemptSubject)) {
-      throw new ForbiddenError(
-        'You do not have permission to start this quiz attempt',
-      );
-    }
+    // if (!ability.can(AttemptActions.Start, attemptSubject)) {
+    //   throw new ForbiddenError(
+    //     'You do not have permission to start this quiz attempt',
+    //   );
+    // }
 
     const attempt = await this.attemptService.attempt(userId, quizId);
 

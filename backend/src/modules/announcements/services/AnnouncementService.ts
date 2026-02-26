@@ -28,6 +28,7 @@ export class AnnouncementService {
         },
         instructorId: string,
         instructorName: string,
+        instructorFirebaseUid: string,
     ): Promise<IAnnouncement> {
         // Validate type constraints
         if (
@@ -58,6 +59,7 @@ export class AnnouncementService {
                     : undefined,
             instructorId: new ObjectId(instructorId),
             instructorName,
+            instructorFirebaseUid,
             attachments: data.attachments || [],
             isHidden: false,
             isDeleted: false,
