@@ -36,10 +36,8 @@ jobs:
         run: pnpm --dir e2e test-e2e
         env:
           BASE_URL: ${{ secrets.STAGING_FRONTEND_URL }}
-          INSTRUCTOR_EMAIL: ${{ secrets.INSTRUCTOR_EMAIL }}
-          INSTRUCTOR_PASSWORD: ${{ secrets.INSTRUCTOR_PASSWORD }}
-          STUDENT_EMAIL: ${{ secrets.STUDENT_EMAIL }}
-          STUDENT_PASSWORD: ${{ secrets.STUDENT_PASSWORD }}
+          TEST_STUDENT_EMAIL: ${{ secrets.TEST_STUDENT_EMAIL }}
+          TEST_STUDENT_PASSWORD: ${{ secrets.TEST_STUDENT_PASSWORD }}
 
       - name: Upload Playwright Report
         if: always()
