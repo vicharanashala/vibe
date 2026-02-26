@@ -1,4 +1,4 @@
-import { ICourseVersion } from '#root/shared/interfaces/models.js';
+import { courseVersionStatus, ICourseVersion } from '#root/shared/interfaces/models.js';
 import {
   IsEmpty,
   IsNotEmpty,
@@ -10,6 +10,7 @@ import {
   MinLength,
   MaxLength,
   IsNumber,
+  IsIn,
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 
@@ -332,6 +333,22 @@ class CourseVersionWatchTimeResponse {
   totalHoursRounded!: number;
 }
 
+class UpdateCourseVersionStatusParams{
+  @JSONSchema({
+    title: 'Version ID',
+    description: 'ID of the course version to update',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  versionId: string;
+}
+
+ class UpdateCourseVersionStatusBody {
+  @IsIn(['active', 'archived'])
+  versionStatus: courseVersionStatus;
+}
+
 export {
   CreateCourseVersionBody,
   GetCourseVersionWatchTimeParams,
@@ -346,6 +363,8 @@ export {
   CourseVersionDataResponse,
   CourseVersionNotFoundErrorResponse,
   CreateCourseVersionResponse,
+  UpdateCourseVersionStatusBody,
+  UpdateCourseVersionStatusParams,
 };
 
 export const COURSEVERSION_VALIDATORS = [
@@ -360,4 +379,6 @@ export const COURSEVERSION_VALIDATORS = [
   CourseVersionDataResponse,
   CourseVersionNotFoundErrorResponse,
   CreateCourseVersionResponse,
+  UpdateCourseVersionStatusBody,
+  UpdateCourseVersionStatusParams,
 ];

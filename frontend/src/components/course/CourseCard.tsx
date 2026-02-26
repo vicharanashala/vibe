@@ -21,7 +21,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { lazy, Suspense } from "react";
 
 const EnrollmentDetailsDialog = lazy(() =>
-  import("./EnrollmentDetailsDialog").then(mod => ({
+  import("@/components/course/EnrollmentDetailsDialog").then(mod => ({
     default: mod.EnrollmentDetailsDialog
   }))
 );
@@ -256,6 +256,16 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
             &nbsp;&nbsp;&nbsp;
             {isCompleted ? "" : (progress == 0) ? "" : <span>&bull; MOD {module_number} &bull; SEC {section_number} &bull; {item_type}</span>}
+          {variant !== 'available' && enrollment.assignedTimeSlot && (
+              <span className="ml-2 inline-flex items-center gap-1.5">
+               
+                <span className="font-bold">Time Slot:</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0 rounded-full text-xs font-medium text-primary bg-primary/10 border border-primary/20">
+                  <Clock className="h-3 w-3" />
+                  {enrollment.assignedTimeSlot.from} - {enrollment.assignedTimeSlot.to} IST
+                </span>
+              </span>
+            )}
           </p>
           <div className="mt-auto flex flex-col sm:flex-row gap-2">
             <Button
