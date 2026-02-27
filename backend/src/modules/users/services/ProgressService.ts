@@ -1845,14 +1845,28 @@ class ProgressService extends BaseService {
     if (!progress) throw new NotFoundError('Progress not found');
     if (!item) throw new NotFoundError('Item not found');
 
-    // Ensure current progress matches the module, section, and item
+    /**
+     * Quiz retry handling:
+     *
+     * When a student fails a quiz, the system still marks the quiz as completed
+     * and the course progress moves back to the previous video item.
+     *
+     * Because of this behavior, during a re-attempt the student's currentItem
+     * will point to the previous video instead of the quiz. Without this check,
+     * the startItem validation would incorrectly throw a permission/progress error
+     * while trying to re-attempt the quiz.
+     *
+     * Therefore, this logic ensures the student is allowed to re-attempt the quiz
+     * even though the progress currentItem is positioned at the previous video.
+     */
     if (item.type !== 'QUIZ') {
+      // Ensure current progress matches the module, section, and item
       this.validateProgressPosition(progress, moduleId, sectionId, itemId);
     }
 
     await this._withTransaction(async session => {
       let stoppedWatchTime = null;
-      
+
       // For quizzes, only set endTime if they are passed
       // For non-quizzes, set endTime normally
       if (item.type !== 'QUIZ') {
@@ -2971,9 +2985,9 @@ class ProgressService extends BaseService {
     } else {
       // Use the existing watch time ID
       if (existingWatchTime && existingWatchTime.length > 0) {
-      watchTimeId = existingWatchTime[0]._id;
-      // Ensure the watch time is marked as completed
-      await this.progressRepository.stopItemTracking(watchTimeId, session);
+        watchTimeId = existingWatchTime[0]._id;
+        // Ensure the watch time is marked as completed
+        await this.progressRepository.stopItemTracking(watchTimeId, session);
       }
     }
     // Get the next item
