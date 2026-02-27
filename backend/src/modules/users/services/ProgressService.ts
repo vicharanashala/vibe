@@ -1500,7 +1500,7 @@ class ProgressService extends BaseService {
           courseVersionId,
           session,
         );
-        return existingWatchTime?.[0]?._id?.toString() || '';
+        return '';
       }
 
       // 🔥 Parallelize independent verifications
@@ -1888,11 +1888,7 @@ class ProgressService extends BaseService {
           stoppedWatchTime
         );
       } else {
-        // For quizzes, we'll get the watchTime record but won't stop it yet
-        const watchTimeRecords = await this.progressRepository.getWatchTime(userId, itemId, courseId, courseVersionId);
-        if (watchTimeRecords && watchTimeRecords.length > 0) {
-          stoppedWatchTime = watchTimeRecords[0]; // Get the record but don't stop it yet
-        }
+        stoppedWatchTime = { _id: new ObjectId(watchItemId) }; // Store the ID for later use
       }
 
       let nextItem = null;
