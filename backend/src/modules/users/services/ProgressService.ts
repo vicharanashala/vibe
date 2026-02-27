@@ -1887,8 +1887,6 @@ class ProgressService extends BaseService {
           isSkipped,
           stoppedWatchTime
         );
-      } else {
-        stoppedWatchTime = { _id: new ObjectId(watchItemId) }; // Store the ID for later use
       }
 
       let nextItem = null;
@@ -1946,7 +1944,7 @@ class ProgressService extends BaseService {
           isQuizFailed = true;
         }
 
-        if (isQuizFailed && !isSkipped) {
+        if (isQuizFailed) {
           const previousVideoItem = await this.getPreviousVideoItem(
             courseVersion,
             moduleId,
@@ -1968,11 +1966,9 @@ class ProgressService extends BaseService {
             // skippedBlankQuizIds: [],
           };
 
-        } else if (item.type === 'QUIZ' && !isSkipped) {
-          // Quiz passed - now we can set endTime
-          if (stoppedWatchTime) {
-            await this.progressRepository.stopItemTracking(stoppedWatchTime._id.toString(), session);
-          }
+        } else {
+          // Quiz passed - set endTime, progress update is handled by the original logic above
+          await this.progressRepository.stopItemTracking(watchItemId, session);
         }
       }
 
