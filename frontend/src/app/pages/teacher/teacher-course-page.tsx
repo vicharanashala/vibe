@@ -82,6 +82,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { Pagination } from "@/components/ui/Pagination";
+import CourseBackButton from "./CourseBackButton";
 
 
 // ? Icons per item type
@@ -2340,6 +2341,9 @@ function TeacherCourseContent() {
             </div>
           </header>
           <div className="w-full p-4 sm:p-6">
+
+          <CourseBackButton />  
+
             {mode === "default" && <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 {/* <Button
@@ -3184,6 +3188,7 @@ function TeacherCourseContent() {
                   </div>
                 </div>
               ) : (
+
                 // Render the content according to the wizard mode or custome mode
                 <div className="flex flex-col items-center justify-center h-[80vh]  text-center relative">
                   {/* Animated Glow */}
@@ -3250,6 +3255,7 @@ function TeacherCourseContent() {
                     </div>
                   </div>
                 </div>
+                
               ))}
 
 
