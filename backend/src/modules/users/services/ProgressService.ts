@@ -840,21 +840,21 @@ class ProgressService extends BaseService {
       );
       const prevSection = sortedSections?.[currentSectionIndex - 1];
       const itemsGroup = await this.itemRepo.readItemsGroup(
-        prevSection?.itemsGroupId.toString(),
+        prevSection?.itemsGroupId?.toString(),
       );
-      const lastItem = itemsGroup.items.sort((a, b) =>
+      const lastItem = itemsGroup?.items?.sort((a, b) =>
         a.order.localeCompare(b.order),
       )[itemsGroup.items.length - 1];
 
       return {
         moduleId,
-        sectionId: prevSection?.sectionId.toString(),
-        itemId: lastItem._id.toString(),
+        sectionId: prevSection?.sectionId?.toString() || '',
+        itemId: lastItem?._id?.toString() || '',
       };
     }
 
     if (!isFirstItem) {
-      const currentItemIndex = sortedItems.findIndex(
+      const currentItemIndex = sortedItems?.findIndex(
         item => item._id.toString() === itemId,
       );
       const prevItem = sortedItems[currentItemIndex - 1];
@@ -862,7 +862,7 @@ class ProgressService extends BaseService {
       return {
         moduleId,
         sectionId,
-        itemId: prevItem._id.toString(),
+        itemId: prevItem?._id?.toString() || '',
       };
     }
 
@@ -1646,16 +1646,16 @@ class ProgressService extends BaseService {
 
     await this._withTransaction(async session => {
       let stoppedWatchTime = null;
-      if (!isQuizFailed) {
+      // Only stop tracking (set endTime) for non-quiz items or when we're certain it should be marked as completed
+      // For quizzes, endTime should only be set when they are actually submitted and graded
+      if (!isQuizFailed && (item.type !== 'QUIZ')) {
         stoppedWatchTime = await this.progressRepository.stopItemTracking(
           watchItemId,
           session,
         );
 
         if (!stoppedWatchTime) {
-          if (!isItemCompleted) {
-            throw new NotFoundError('Watch item not found');
-          }
+          throw new NotFoundError('Watch item not found');
         }
 
         if (
@@ -1846,31 +1846,55 @@ class ProgressService extends BaseService {
     if (!progress) throw new NotFoundError('Progress not found');
     if (!item) throw new NotFoundError('Item not found');
 
-    // Ensure current progress matches the module, section, and item
+    /**
+     * Quiz retry handling:
+     *
+     * When a student fails a quiz, the system still marks the quiz as completed
+     * and the course progress moves back to the previous video item.
+     *
+     * Because of this behavior, during a re-attempt the student's currentItem
+     * will point to the previous video instead of the quiz. Without this check,
+     * the startItem validation would incorrectly throw a permission/progress error
+     * while trying to re-attempt the quiz.
+     *
+     * Therefore, this logic ensures the student is allowed to re-attempt the quiz
+     * even though the progress currentItem is positioned at the previous video.
+     */
     if (item.type !== 'QUIZ') {
+      // Ensure current progress matches the module, section, and item
       this.validateProgressPosition(progress, moduleId, sectionId, itemId);
     }
 
     await this._withTransaction(async session => {
-      // Stop watch tracking for the item
-      const stoppedWatchTime =
-        await this.progressRepository.stopItemTracking(watchItemId, session);
+      let stoppedWatchTime = null;
 
-      if (!stoppedWatchTime) {
-        throw new NotFoundError('Watch time not found or already stopped');
+      // For quizzes, only set endTime if they are passed
+      // For non-quizzes, set endTime normally
+      if (item.type !== 'QUIZ') {
+        stoppedWatchTime = await this.progressRepository.stopItemTracking(watchItemId, session);
+
+        if (!stoppedWatchTime) {
+          throw new NotFoundError('Watch time not found or already stopped');
+        }
+
+        // Validate eligibility based on item type (PROJECT, VIDEO, BLOG) and currentItem
+        await this.validateItemStopEligibility(
+          item,
+          itemId,
+          userId,
+          courseId,
+          courseVersionId,
+          attemptId,
+          isSkipped,
+          stoppedWatchTime
+        );
+      } else {
+        // For quizzes, we'll get the watchTime record but won't stop it yet
+        const watchTimeRecords = await this.progressRepository.getWatchTime(userId, itemId, courseId, courseVersionId);
+        if (watchTimeRecords && watchTimeRecords.length > 0) {
+          stoppedWatchTime = watchTimeRecords[0]; // Get the record but don't stop it yet
+        }
       }
-
-      // Validate eligibility based on item type (QUIZ, PROJECT, VIDEO, BLOG) and currentItem
-      await this.validateItemStopEligibility(
-        item,
-        itemId,
-        userId,
-        courseId,
-        courseVersionId,
-        attemptId,
-        isSkipped,
-        stoppedWatchTime
-      );
 
       let nextItem = null;
 
@@ -1949,6 +1973,11 @@ class ProgressService extends BaseService {
             // skippedBlankQuizIds: [],
           };
 
+        } else if (item.type === 'QUIZ' && !isSkipped) {
+          // Quiz passed - now we can set endTime
+          if (stoppedWatchTime) {
+            await this.progressRepository.stopItemTracking(stoppedWatchTime._id.toString(), session);
+          }
         }
       }
 
@@ -2395,21 +2424,24 @@ class ProgressService extends BaseService {
     }
     // if we refresh the quiz page after passing then the student will land on next item
     //  and as the stop item is not called for that quiz endtime will never be created 
-    const watchTime = await this.progressRepository.getWatchTime(
-      userId,
-      quizId,
-      courseId,
-      courseVersionId,
-    );
-    const isItemCompleted = await this.progressRepository.isItemCompleted(
-      userId.toString(),
-      courseId,
-      courseVersionId,
-      quizId,
-    )
+    // Only mark quiz as completed (set endTime) if it was actually passed
+    if (isPassed) {
+      const watchTime = await this.progressRepository.getWatchTime(
+        userId,
+        quizId,
+        courseId,
+        courseVersionId,
+      );
+      const isItemCompleted = await this.progressRepository.isItemCompleted(
+        userId.toString(),
+        courseId,
+        courseVersionId,
+        quizId,
+      )
 
-    if (!isItemCompleted) {
-      const result = await this.progressRepository.stopItemTracking(watchTime[0]._id.toString());
+      if (!isItemCompleted && watchTime && watchTime.length > 0) {
+        await this.progressRepository.stopItemTracking(watchTime[0]._id.toString());
+      }
     }
   }
 
@@ -2953,9 +2985,11 @@ class ProgressService extends BaseService {
       }
     } else {
       // Use the existing watch time ID
-      watchTimeId = existingWatchTime[0]._id;
-      // Ensure the watch time is marked as completed
-      await this.progressRepository.stopItemTracking(watchTimeId, session);
+      if (existingWatchTime && existingWatchTime.length > 0) {
+        watchTimeId = existingWatchTime[0]._id;
+        // Ensure the watch time is marked as completed
+        await this.progressRepository.stopItemTracking(watchTimeId, session);
+      }
     }
     // Get the next item
     const nextItem = await this.getNextItemInSequence(
