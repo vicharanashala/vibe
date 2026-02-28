@@ -33,6 +33,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import ConfirmationModal from "./components/confirmation-modal";
 import { FormBuilder } from "./components/course-registration-modal";
 import AutoApprovalModal from "./components/auto-approval-modal";
+import CourseBackButton from "./CourseBackButton";
 
 export interface Registration {
   _id: string;
@@ -312,6 +313,7 @@ useEffect(() => {
    
 
       <div className="container mx-auto py-4 space-y-8">
+         <CourseBackButton />
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="space-y-4">
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
