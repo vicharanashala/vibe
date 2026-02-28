@@ -1972,6 +1972,50 @@ class ProgressService extends BaseService {
         }
       }
 
+
+      /* ----------------------------------------------------
+      4. DERIVED DATA UPDATE (NO TRANSACTION)
+   ---------------------------------------------------- */
+
+      const enrollment = await this.enrollmentRepo.findEnrollment(
+        userId,
+        courseVersionId,
+        courseId,
+      );
+      if (!enrollment) return;
+
+      const totalItems =
+        courseVersion.totalItems ??
+        (await this.itemRepo.CalculateTotalItemsCount(courseId, courseVersionId));
+
+      // Get completed items for progress calculation
+      const completedItemsArray =
+        await this.progressRepository.getCompletedItems(
+          userId,
+          courseId,
+          courseVersionId,
+        );
+      const completedItemsSet = new Set(completedItemsArray.map(id => id.toString()));
+
+      const rawPercent =
+        totalItems > 0 ? (completedItemsSet.size / totalItems) * 100 : 0;
+
+      const percentCompleted = Math.min(
+        100,
+        parseFloat(rawPercent.toFixed(2)),
+      );
+
+      await this.enrollmentRepo.updateProgressPercentById(
+        enrollment._id.toString(),
+        percentCompleted,
+        undefined,
+        completedItemsSet.size,
+      );
+
+      if (percentCompleted > 99) {
+        await this.recalculateStudentProgress(userId, courseId, courseVersionId);
+      }
+
       // Update progress in a transaction
       await this.progressRepository.updateProgress(
         userId,
