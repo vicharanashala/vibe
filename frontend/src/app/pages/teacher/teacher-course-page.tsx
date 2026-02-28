@@ -334,7 +334,9 @@ function TeacherCourseContent() {
   } = useItemById(
     shouldFetchItem ? courseId : '',
     shouldFetchItem ? versionId : '',
-    shouldFetchItem ? selectedEntity?.data?._id : ''
+    shouldFetchItem ? selectedEntity?.data?._id : '',
+    shouldFetchItem ? safeModuleId : '',
+    shouldFetchItem ? safeSectionId : ''
   );
 
   const [videoAnalyticsPage, setVideoAnalyticsPage] = useState(1);
@@ -360,12 +362,16 @@ function TeacherCourseContent() {
     isLoading: overallLoading,
     error: overallError,
     refetch: refetchOverall,
-  } = useOverallVideoAnalytics(courseId!, versionId!, selectedEntity?.data?._id);
+  } = useOverallVideoAnalytics(
+    courseId!, 
+    versionId!, 
+    selectedEntity?.data?.type === 'VIDEO' ? selectedEntity?.data?._id : ''
+  );
 
   const videoUserAnalyticsQuery = useVideoUserAnalytics(
     courseId!,
     versionId!,
-    selectedEntity?.data?._id,
+    selectedEntity?.data?.type === 'VIDEO' ? selectedEntity?.data?._id : '',
     {
       page: videoAnalyticsPage,
       limit: videoAnalyticsLimit,

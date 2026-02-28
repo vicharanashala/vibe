@@ -281,8 +281,9 @@ export class ItemController {
         'You do not have permission to modify this item',
       );
     }
-
-    const getItemBeforeUpdate = await this.itemService.readItem(user._id.toString(), versionId, itemId);
+    
+    const { courseId } = await this.itemService.getCourseAndVersionByItemId(itemId);
+    const getItemBeforeUpdate = await this.itemService.readItem(user._id.toString(), versionId, itemId, courseId);
 
     const itemData = await this.itemService.updateItem(versionId, itemId, body)
 
@@ -358,8 +359,8 @@ export class ItemController {
         'You do not have permission to delete this item',
       );
     }
-
-    const getItemBeforeDelete = await this.itemService.readItem(user._id.toString(), version._id.toString(), itemId);
+    const { courseId } = await this.itemService.getCourseAndVersionByItemId(itemId);
+    const getItemBeforeDelete = await this.itemService.readItem(user._id.toString(), version._id.toString(), itemId, courseId);
 
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
