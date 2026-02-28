@@ -568,7 +568,24 @@ export class ItemService extends BaseService {
       versionId,
     );
 
-    if (previousItemCompleted) return response();
+    if (previousItemCompleted) {
+      // If previous item is completed and current item is NOT already completed,
+      // update progress to point to the newly accessed item and mark course as not completed
+      if (!isItemAlreadyCompleted) {
+        await this.progressRepo.updateProgress(
+          userId,
+          courseId,
+          versionId,
+          {
+            currentItem: itemId,
+            currentModule: moduleId,
+            currentSection: sectionId,
+            completed: false
+          }
+        );
+      }
+      return response();
+    }
 
     // All checks failed => forbid
     throw new ForbiddenError("You don't have permission to watch this item");

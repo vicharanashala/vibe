@@ -1501,7 +1501,7 @@ class ProgressService extends BaseService {
           courseVersionId,
           session,
         );
-        return existingWatchTime?.[0]?._id?.toString() || '';
+        return '';
       }
 
       // 🔥 Parallelize independent verifications
@@ -1888,12 +1888,6 @@ class ProgressService extends BaseService {
           isSkipped,
           stoppedWatchTime
         );
-      } else {
-        // For quizzes, we'll get the watchTime record but won't stop it yet
-        const watchTimeRecords = await this.progressRepository.getWatchTime(userId, itemId, courseId, courseVersionId);
-        if (watchTimeRecords && watchTimeRecords.length > 0) {
-          stoppedWatchTime = watchTimeRecords[0]; // Get the record but don't stop it yet
-        }
       }
 
       let nextItem = null;
@@ -1951,7 +1945,7 @@ class ProgressService extends BaseService {
           isQuizFailed = true;
         }
 
-        if (isQuizFailed && !isSkipped) {
+        if (isQuizFailed) {
           const previousVideoItem = await this.getPreviousVideoItem(
             courseVersion,
             moduleId,
@@ -1973,12 +1967,54 @@ class ProgressService extends BaseService {
             // skippedBlankQuizIds: [],
           };
 
-        } else if (item.type === 'QUIZ' && !isSkipped) {
-          // Quiz passed - now we can set endTime
-          if (stoppedWatchTime) {
-            await this.progressRepository.stopItemTracking(stoppedWatchTime._id.toString(), session);
-          }
+        } else {
+          // Quiz passed - set endTime, progress update is handled by the original logic above
+          await this.progressRepository.stopItemTracking(watchItemId, session);
         }
+      }
+
+
+      /* ----------------------------------------------------
+      4. DERIVED DATA UPDATE (NO TRANSACTION)
+   ---------------------------------------------------- */
+
+      const enrollment = await this.enrollmentRepo.findEnrollment(
+        userId,
+        courseVersionId,
+        courseId,
+      );
+      if (!enrollment) return;
+
+      const totalItems =
+        courseVersion.totalItems ??
+        (await this.itemRepo.CalculateTotalItemsCount(courseId, courseVersionId));
+
+      // Get completed items for progress calculation
+      const completedItemsArray =
+        await this.progressRepository.getCompletedItems(
+          userId,
+          courseId,
+          courseVersionId,
+        );
+      const completedItemsSet = new Set(completedItemsArray.map(id => id.toString()));
+
+      const rawPercent =
+        totalItems > 0 ? (completedItemsSet.size / totalItems) * 100 : 0;
+
+      const percentCompleted = Math.min(
+        100,
+        parseFloat(rawPercent.toFixed(2)),
+      );
+
+      await this.enrollmentRepo.updateProgressPercentById(
+        enrollment._id.toString(),
+        percentCompleted,
+        undefined,
+        completedItemsSet.size,
+      );
+
+      if (percentCompleted > 99) {
+        await this.recalculateStudentProgress(userId, courseId, courseVersionId);
       }
 
       // Update progress in a transaction
