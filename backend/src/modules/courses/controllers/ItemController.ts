@@ -282,7 +282,7 @@ export class ItemController {
       );
     }
 
-    const getItemBeforeUpdate = await this.itemService.readItem(user._id.toString(), versionId, itemId);
+    const getItemBeforeUpdate = await this.itemService['itemRepo'].readItemById(itemId);
 
     const itemData = await this.itemService.updateItem(versionId, itemId, body)
 
@@ -359,7 +359,7 @@ export class ItemController {
       );
     }
 
-    const getItemBeforeDelete = await this.itemService.readItem(user._id.toString(), version._id.toString(), itemId);
+    const getItemBeforeDelete = await this.itemService['itemRepo'].readItemById(itemId);
 
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
@@ -759,7 +759,7 @@ Accessible to:
       );
     }
 
-    const getItemBeforeUpdate = await this.itemService.readItem(user._id.toString(), versionId, itemId);
+    const getItemBeforeUpdate = await this.itemService['itemRepo'].readItemById(itemId);
 
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
