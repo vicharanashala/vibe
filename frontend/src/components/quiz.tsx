@@ -752,13 +752,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         setScore(totalScore);
       }
 
-      // try removing  this 
-      if (response.gradingStatus === 'FAILED') {
-        console.log('Quiz failed - immediately updating progress to previous video');
+      // Only call stopItem for PASSED quizzes to mark them as completed
+      if (response.gradingStatus === 'PASSED') {
+        // console.log('Quiz passed - marking as completed');
         try {
           await handleStopItem(false);
         } catch (stopError) {
-          console.error('Failed to update progress after quiz failure:', stopError);
+          console.error('Failed to update progress after quiz pass:', stopError);
         }
       }
       completedItemIdsRef.current.add(processedQuizId);
@@ -767,8 +767,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       setFinshingQuiz(false);
     } catch (err) {
       console.error('Failed to submit quiz:', err);
-      // ✅ Even on error, mark as completed so course-page can handle stop API
-      setQuizCompleted(true);
+      // On submission error, don't mark as completed - let user try again
+      setQuizCompleted(false);
       setFinshingQuiz(false);
     }
   }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem, saveQuiz]);
