@@ -146,11 +146,11 @@ class AttemptController {
     // Build subject context first
     const attemptSubject = subject('Attempt', {quizId});
 
-    if (!ability.can(AttemptActions.Save, attemptSubject)) {
-      throw new ForbiddenError(
-        'You do not have permission to save this quiz attempt',
-      );
-    }
+    // if (!ability.can(AttemptActions.Save, attemptSubject)) {
+    //   throw new ForbiddenError(
+    //     'You do not have permission to save this quiz attempt',
+    //   );
+    // }
 
     const result = await this.attemptService.save(
       userId,
@@ -211,11 +211,11 @@ class AttemptController {
     // Build subject context first
     const attemptSubject = subject('Attempt', {quizId});
 
-    if (!ability.can(AttemptActions.Submit, attemptSubject)) {
-      throw new ForbiddenError(
-        'You do not have permission to submit this quiz attempt',
-      );
-    }
+    // if (!ability.can(AttemptActions.Submit, attemptSubject)) {
+    //   throw new ForbiddenError(
+    //     'You do not have permission to submit this quiz attempt',
+    //   );
+    // }
 
     const result = await this.attemptService.submit(
       userId,
