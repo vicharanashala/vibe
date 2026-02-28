@@ -147,7 +147,7 @@ class QuestionBankRepository {
   }
 
   async getQuestionBanksByQuestionId(
-    questionId: string,
+    questionId: string | ObjectId,
     session?: ClientSession,
   ): Promise<IQuestionBank[]> {
     await this.init();

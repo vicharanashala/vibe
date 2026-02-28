@@ -92,7 +92,7 @@ export class CourseVersionService extends BaseService {
       newVersion.courseId = new ObjectId(courseId);
 
       const createdVersion = await this.courseRepo.createVersion(
-        newVersion,
+        {...newVersion, courseId: new ObjectId(newVersion.courseId)},
         txnSession,
       );
       if (!createdVersion) {
