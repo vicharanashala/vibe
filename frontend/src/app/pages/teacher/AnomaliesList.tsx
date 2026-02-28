@@ -10,6 +10,7 @@ import { useAnomalyStore } from "@/store/anomaly-store"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Pagination } from "@/components/ui/Pagination"
 import { Input } from "@/components/ui/input"
+import CourseBackButton from "./CourseBackButton";
 
 export default function AnomaliesList() {
  
@@ -113,6 +114,7 @@ export default function AnomaliesList() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto py-4 space-y-8">
+        <CourseBackButton />
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="space-y-4">

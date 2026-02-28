@@ -42,6 +42,7 @@ import { useCourseStore } from "@/store/course-store"
 import type { EmailInvite, EnrollmentRole, InviteStatus, InviteResult } from "@/types/invite.types"
 import { useNavigate, redirect } from "@tanstack/react-router"
 import { Pagination } from "@/components/ui/Pagination"
+import CourseBackButton from "./CourseBackButton";
 
 const isValidEmail = (email: string) => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -602,6 +603,7 @@ const hasInvalidEmail = inviteEmails.some(
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      <CourseBackButton />
       {/* Header */}
       <div className="flex items-center space-x-2">
         <UserPlus className="w-6 h-6" />
