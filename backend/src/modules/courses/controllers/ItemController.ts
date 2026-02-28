@@ -251,7 +251,7 @@ export class ItemController {
   - Instructors, managers, and teaching assistants of the course.`,
   })
   @Authorized()
-  @Put('/versions/:versionId/items/:itemId')
+  @Put('/:courseId/versions/:versionId/items/:itemId')
   @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(ItemDataResponse, {
     description: 'Item updated successfully',
@@ -270,7 +270,7 @@ export class ItemController {
     @Ability(getItemAbility) { ability, user },
     @Req() req: Request,
   ) {
-    const { versionId, itemId } = params;
+    const {courseId, versionId, itemId } = params;
 
     // Create an item resource object for permission checking
     const itemResource = subject('Item', { versionId });
@@ -282,7 +282,7 @@ export class ItemController {
       );
     }
 
-    const getItemBeforeUpdate = await this.itemService['itemRepo'].readItemById(itemId);
+    const getItemBeforeUpdate = await this.itemService.readItem(user._id.toString(), versionId, itemId, courseId);
 
     const itemData = await this.itemService.updateItem(versionId, itemId, body)
 
@@ -330,7 +330,7 @@ export class ItemController {
   - Instructors or managers of the course.`,
   })
   @Authorized()
-  @Delete('/itemGroups/:itemsGroupId/items/:itemId')
+  @Delete('/:courseId/itemGroups/:itemsGroupId/items/:itemId')
   @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(DeletedItemResponse, {
     description: 'Item deleted successfully',
@@ -348,7 +348,7 @@ export class ItemController {
     @Ability(getItemAbility) { ability, user },
     @Req() req: Request,
   ) {
-    const { itemsGroupId, itemId } = params;
+    const { itemsGroupId, itemId , courseId} = params;
     const version = await this.itemService.findVersion(itemsGroupId);
     // Create an item resource object for permission checking
     const itemResource = subject('Item', { versionId: version._id.toString() });
@@ -359,7 +359,7 @@ export class ItemController {
       );
     }
 
-    const getItemBeforeDelete = await this.itemService['itemRepo'].readItemById(itemId);
+    const getItemBeforeDelete = await this.itemService.readItem(user._id.toString(), version._id.toString(), itemId, courseId);
 
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
@@ -759,8 +759,8 @@ Accessible to:
       );
     }
 
-    const getItemBeforeUpdate = await this.itemService['itemRepo'].readItemById(itemId);
-
+    const getItemBeforeUpdate = await this.itemService.readItem(user._id.toString(), versionId, itemId);
+    console.log("getItemBeforeUpdate----",getItemBeforeUpdate);
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
       action: AuditAction.ITEM_MAKE_OPTIONAL,

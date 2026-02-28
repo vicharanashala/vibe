@@ -3,16 +3,16 @@ import {ILotItem, IQuestion, IUser} from '#root/shared/index.js';
 import {ObjectId} from 'mongodb';
 
 interface ISOLAnswer {
-  lotItemId: string;
+  lotItemId: string | ObjectId;
 }
 
 interface ISMLAnswer {
-  lotItemIds: string[];
+  lotItemIds: string[] | ObjectId[];
 }
 
 interface IOrder {
   order: number;
-  lotItemId: string;
+  lotItemId: string | ObjectId;
 }
 
 interface IOTLAnswer {
@@ -35,7 +35,7 @@ export type Answer =
   | IDESAnswer;
 
 interface IQuestionAnswer {
-  questionId: string;
+  questionId: string | ObjectId;
   questionType: string;
   answer: Answer;
 }
