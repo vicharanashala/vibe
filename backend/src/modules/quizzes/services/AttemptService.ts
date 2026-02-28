@@ -9,6 +9,8 @@ import {
   IQuestionInfo,
   IResponseAnswer,
   ISOLAnswer,
+  ISMLAnswer,
+  IOTLAnswer,
 } from '#quizzes/interfaces/grading.js';
 import {
   QuestionAnswerFeedback,
@@ -128,7 +130,7 @@ class AttemptService extends BaseService {
         true,
       )) as BaseQuestion;
       const questionDetail: IQuestionDetails = {
-        questionId: questionId,
+        questionId: new ObjectId(questionId),
         parameterMap: question.isParameterized
           ? generateRandomParameterMap(question.parameters)
           : null,
@@ -196,7 +198,7 @@ class AttemptService extends BaseService {
     // Now grade only the answered questions
     for (const answer of answers) {
       const question = await this.questionService.getById(
-        answer.questionId,
+        answer.questionId.toString(),
         true,
       );
 
@@ -329,6 +331,18 @@ class AttemptService extends BaseService {
           quizId,
           session,
         );
+        metrics = {...metrics,
+          userId: new ObjectId(metrics.userId),
+          quizId: new ObjectId(metrics.quizId),
+          latestAttemptId: metrics.latestAttemptId ? new ObjectId(metrics.latestAttemptId): null,
+          latestSubmissionResultId:metrics.latestSubmissionResultId ?
+            new ObjectId(metrics.latestSubmissionResultId) :null,
+          attempts: metrics.attempts.map(attempt => ({
+            ...attempt,
+            attemptId: new ObjectId(attempt.attemptId),
+            submissionResultId: attempt.submissionResultId ? new ObjectId(attempt.submissionResultId): null,
+          }))
+        }
       }
 
       // Ensure metrics exists after creation/fetch
@@ -501,6 +515,13 @@ class AttemptService extends BaseService {
     }
 
     gradingResult = await this._grade(attemptId, quizId, answers);
+    gradingResult = {
+      ...gradingResult,
+      overallFeedback: gradingResult.overallFeedback.map(each => ({
+        ...each,
+        questionId: new ObjectId(each.questionId),
+      })),
+    };
 
     /* -------------------- UPDATE SUBMISSION (SMALL WRITE) -------------------- */
 
@@ -612,6 +633,58 @@ class AttemptService extends BaseService {
     });
   }
 
+  private async _normalizeAnswers(answers: IQuestionAnswer[]) {
+  return answers.map((item) => {
+    const normalizedQuestionId =
+      item.questionId instanceof ObjectId
+        ? item.questionId
+        : new ObjectId(item.questionId);
+
+    let normalizedAnswer = item.answer;
+
+    switch (item.questionType) {
+      case "SELECT_ONE_IN_LOT":
+        normalizedAnswer = {
+          lotItemId:
+            (item.answer as ISOLAnswer).lotItemId instanceof ObjectId
+              ? (item.answer as ISOLAnswer).lotItemId
+              : new ObjectId((item.answer as ISOLAnswer).lotItemId),
+        };
+        break;
+
+      case "SELECT_MULTIPLE_IN_LOT":
+        normalizedAnswer = {
+          lotItemIds: (item.answer as ISMLAnswer).lotItemIds.map((id) =>
+            id instanceof ObjectId ? id : new ObjectId(id)
+          ),
+        };
+        break;
+
+      case "ORDER_THE_LOT":
+        normalizedAnswer = {
+          orders: (item.answer as IOTLAnswer).orders.map((order) => ({
+            ...order,
+            lotItemId:
+              order.lotItemId instanceof ObjectId
+                ? order.lotItemId
+                : new ObjectId(order.lotItemId),
+          })),
+        };
+        break;
+
+      default:
+        // NAT and DES do not need ObjectId normalization
+        break;
+    }
+
+    return {
+      ...item,
+      questionId: normalizedQuestionId,
+      answer: normalizedAnswer,
+    };
+  });
+}
+
   async save(
     userId: string | ObjectId,
     quizId: string,
@@ -667,10 +740,9 @@ class AttemptService extends BaseService {
         if (isSkipped) {
           attempt.isSkipped = true;
         } else {
-          attempt.answers = answers;
+          attempt.answers = await (this._normalizeAnswers(answers));
         }
-
-        await this.attemptRepository.update(attemptId, attempt);
+        await this.attemptRepository.update(attemptId, {...attempt, quizId: new ObjectId(attempt.quizId), userId: new ObjectId(attempt.userId), });
       });
 
       return {

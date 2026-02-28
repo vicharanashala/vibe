@@ -31,6 +31,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ReportEntityEntity } from "@/types/flag.types"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import CourseBackButton from "./CourseBackButton";
 
 
 export default function FlaggedList() {
@@ -257,6 +258,7 @@ export default function FlaggedList() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto py-4 space-y-8">
+        <CourseBackButton />
         {/* Enhanced Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="space-y-4">

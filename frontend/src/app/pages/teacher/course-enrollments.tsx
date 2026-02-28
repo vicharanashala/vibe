@@ -20,6 +20,7 @@ import { useStudentCurrentProgressPath } from "@/hooks/hooks"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
 import { MoreVertical, Trash2 } from "lucide-react"
+import CourseBackButton from "./CourseBackButton";
 
 // Import hooks - including the new quiz hooks
 import {
@@ -893,6 +894,7 @@ export default function CourseEnrollments() {
     <>
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-4 space-y-8">
+          <CourseBackButton />
           {/* Enhanced Header */}
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="space-y-4">

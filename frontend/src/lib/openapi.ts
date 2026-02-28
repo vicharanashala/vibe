@@ -18,6 +18,13 @@ export const setTokenRefreshFunction = (refreshFn: () => Promise<void>) => {
 const fetchClient = createFetchClient<paths>({
   baseUrl: `${import.meta.env.VITE_BASE_URL}`,
   fetch: (url, options) => {
+    // openapi-fetch passes a Request object for some requests (like DELETE without body)
+    // If we just pass `url` down, it drops the headers added by middleware.
+    // Instead, clone it applying options.
+    if (url instanceof Request) {
+      const newReq = new Request(url, { ...options, credentials: "include" });
+      return fetch(newReq);
+    }
     return fetch(url, {
       ...options,
       credentials: "include",
