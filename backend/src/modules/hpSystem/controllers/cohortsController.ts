@@ -39,7 +39,7 @@ export class CohortsController {
                     courseName: "Full Stack Development",
                     versions: [
                         {
-                            courseVersionId: "cv123",
+                            courseVersionId: "65f1b6d2a7a3f2c9b7a2d111",
                             versionName: "v1.0 - Core",
                             totalCohorts: 4,
                             createdAt: "2026-01-10T08:30:00Z",
@@ -86,8 +86,8 @@ export class CohortsController {
             data: [
                 {
                     cohortId: "co1",
-                    cohortName: "Cohort A",
-                    courseVersionId: "cv123",
+                    cohortName: "JAN-2026",
+                    courseVersionId: "65f1b6d2a7a3f2c9b7a2d111",
                     stats: {
                         totalStudents: 120,
                         totalActivities: 15,
