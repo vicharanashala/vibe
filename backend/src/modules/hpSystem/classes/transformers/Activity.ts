@@ -99,7 +99,7 @@ export class HpActivity {
   @Expose()
   @IsString()
   @JSONSchema({ title: 'Cohort', type: 'string', example: 'JAN-2026' })
-  Cohort: string;
+  cohort: string;
 
   // Authoring
   @Expose()

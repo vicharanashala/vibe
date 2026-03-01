@@ -29,7 +29,7 @@ export interface HpActivity {
     // Scoping
     courseVersionId: ID;
     courseId: ID;
-    Cohort: string;
+    cohort: string;
 
     // Authoring
     createdByTeacherId: ID;
