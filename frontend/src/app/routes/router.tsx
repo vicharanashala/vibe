@@ -51,6 +51,10 @@ import TeacherLogin from '../pages/teacher/TeacherLogin'
 import SelectRolePage from '../pages/SelectRolePage'
 import AuditPage from '../pages/teacher/AuditPage'
 
+import HpSystemVersions from '../pages/teacher/hp-system/versions'
+import HpSystemCohorts from '../pages/teacher/hp-system/cohorts'
+import HpSystemDashboard from '../pages/teacher/hp-system/dashboard'
+import CreateHpActivityPage from '../pages/teacher/hp-system/create-activity'
 
 // Root route with error and notFound handling
 const rootRoute = new RootRoute({
@@ -385,6 +389,30 @@ const teacherAuditRoute = new Route({
   component: AuditPage,
 })
 
+const teacherHpSystemVersionsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/hp-system',
+  component: HpSystemVersions,
+})
+
+const teacherHpSystemCohortsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/hp-system/$courseVersionId/cohorts',
+  component: HpSystemCohorts,
+})
+
+const teacherHpSystemDashboardRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/hp-system/$courseVersionId/cohort/$cohortName/activities',
+  component: HpSystemDashboard,
+})
+
+const teacherCreateHpActivityRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/hp-system/$courseVersionId/cohort/$cohortName/activities/create',
+  component: CreateHpActivityPage,
+})
+
 // Student dashboard route
 const studentDashboardRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -555,7 +583,11 @@ const routeTree = rootRoute.addChildren([
     teacherCourseRegistrationRequests,
     teacherFeedBackEditorRoute,
     teacherAnnouncementsRoute,
-    teacherAuditRoute
+    teacherAuditRoute,
+    teacherHpSystemVersionsRoute,
+    teacherHpSystemCohortsRoute,
+    teacherHpSystemDashboardRoute,
+    teacherCreateHpActivityRoute
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,

@@ -18,7 +18,9 @@ import RegisteredUsers from "../pages/teacher/CourseRegistrationRequests";
 import FeedbackFormEditor from "../pages/teacher/FeedbackFormEditor";
 import TeacherAnnouncements from "../pages/teacher/announcements";
 import AuditPage from "../pages/teacher/AuditPage";
-
+import HpSystemVersions from "../pages/teacher/hp-system/versions";
+import HpSystemCohorts from "../pages/teacher/hp-system/cohorts";
+import HpSystemDashboard from "../pages/teacher/hp-system/dashboard";
 const teacherRoutes: RouteObject = {
   path: "/teacher",
   element: <TeacherLayout />,
@@ -99,6 +101,15 @@ const teacherRoutes: RouteObject = {
     }, {
       path: "audit",
       element: <AuditPage />
+    }, {
+      path: "hp-system",
+      element: <HpSystemVersions />
+    }, {
+      path: "hp-system/:courseVersionId/cohorts",
+      element: <HpSystemCohorts />
+    }, {
+      path: "hp-system/:courseVersionId/cohort/:cohortName/activities",
+      element: <HpSystemDashboard />
     }
   ],
 };
