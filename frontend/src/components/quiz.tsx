@@ -498,6 +498,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     [currentCourse, stopItem, attemptId]
   );
 
+  useEffect(() => {
+    return () => {
+      if (emptyQuizNextTimerRef.current) {
+        clearTimeout(emptyQuizNextTimerRef.current);
+      }
+    };
+  }, []);
 
   // Handle empty quiz without attempting to start it
   const handleEmptyQuiz = useCallback(async () => {
