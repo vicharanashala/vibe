@@ -60,13 +60,6 @@ export class CreateActivityBody {
     @ValidateNested({ each: true })
     @Type(() => AttachmentDto)
     attachments?: AttachmentDto[];
-
-    // Rules
-    @IsString()
-    ruleConfigId!: string;
-
-    @IsBoolean()
-    isMandatory!: boolean;
 }
 
 

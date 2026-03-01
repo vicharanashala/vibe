@@ -41,23 +41,16 @@ export class ActivityService extends BaseService {
                     cohort: body.cohort,
 
                     createdByTeacherId: new ObjectId(teacherId),
-                    publishedByTeacherId: undefined,
+                    publishedByTeacherId: body.status === "PUBLISHED" ? new ObjectId(teacherId) : undefined,
                     status: body.status,
 
                     title: body.title,
                     description: body.description,
                     activityType: body.activityType,
 
-                    deadlineAt: new Date(body.deadlineAt),
-                    allowLateSubmission: body.allowLateSubmission,
-                    lateRewardPolicy: body.lateRewardPolicy,
-
                     submissionMode: body.submissionMode,
                     externalLink: body.externalLink,
                     attachments: body.attachments ?? [],
-
-                    ruleConfigId: new ObjectId(body.ruleConfigId),
-                    isMandatory: body.isMandatory,
 
                     stats: {
                         totalStudents: 0,
