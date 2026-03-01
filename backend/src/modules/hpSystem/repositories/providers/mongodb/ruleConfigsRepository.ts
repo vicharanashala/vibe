@@ -16,7 +16,7 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
     ) { }
 
     async init() {
-        this.hpRuleConfigsCollection = await this.db.getCollection<HpRuleConfig>('hp_rule_configs');
+        this.hpRuleConfigsCollection = await this.db.getCollection<HpRuleConfig>('hp_activity_rules');
 
     }
 }

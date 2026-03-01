@@ -76,7 +76,7 @@ export class HpActivityStats {
  *
  * @category HP/Transformers
  */
-export class HpActivity {
+export class HpActivityTransformer {
   @Expose()
   @JSONSchema({ title: 'Activity ID', type: 'string' })
   @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
@@ -218,7 +218,7 @@ export class HpActivity {
   @JSONSchema({ title: 'Updated At', type: 'string', format: 'date-time' })
   updatedAt?: Date;
 
-  constructor(body?: Partial<HpActivity>) {
+  constructor(body?: Partial<HpActivityTransformer>) {
     if (body) Object.assign(this, body);
     this.attachments = this.attachments ?? [];
     this.stats = this.stats ?? ({} as any);

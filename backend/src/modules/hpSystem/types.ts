@@ -4,19 +4,21 @@
 
 const TYPES = {
 
-    // controllers
+    // Controllers
     activityController: Symbol.for('activityController'),
     ruleConfigsController: Symbol.for('ruleConfigsController'),
     activitySubmissionsCotroller: Symbol.for('activitySubmissionsCotroller'),
     ledgerController: Symbol.for('ledgerController'),
+    cohortsController: Symbol.for('cohortsController'),
 
-    // services
+    // Services
     activitySubmissionsService: Symbol.for('activitySubmissionsService'),
     activityService: Symbol.for('activityService'),
     ruleConfigsService: Symbol.for('ruleConfigsService'),
     ledgerService: Symbol.for('ledgerService'),
+    cohortsService: Symbol.for('cohortsService'),
 
-    // repositories
+    // Repositories
     ruleConfigsRepository: Symbol.for('ruleConfigsRepository'),
     ledgerRepository: Symbol.for('ledgerRepository'),
     activityRepository: Symbol.for('activityRepository'),
