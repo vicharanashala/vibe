@@ -6,8 +6,9 @@
 import { Expose, Transform, Type } from "class-transformer";
 import { IsBoolean, IsEnum, IsNumber, IsString, ValidateNested } from "class-validator";
 import { JSONSchema } from "class-validator-jsonschema";
-import { HpRuleStatus, LateBehavior, PenaltyApplyWhen, RewardApplyWhen, RuleType } from "../../constants.js";
+import { HpRuleStatus, LateBehavior, LateRewardPolicy, PenaltyApplyWhen, RewardApplyWhen, RuleType } from "../../constants.js";
 import { ID, ObjectIdToString, StringToObjectId } from "#root/shared/index.js";
+import { LateRewardPolicyEnum } from "../validators/ruleConfigValidators.js";
 
 export class HpRewardRule {
     @Expose()
@@ -115,7 +116,7 @@ export class HpRuleLimits {
  *
  * @category HP/Transformers
  */
-export class HpRuleConfig {
+export class HpRuleConfigTransformer {
     @Expose()
     @JSONSchema({ title: 'Rule Config ID', type: 'string' })
     @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
@@ -133,6 +134,12 @@ export class HpRuleConfig {
     @Transform(StringToObjectId.transformer, { toClassOnly: true })
     @JSONSchema({ title: 'Course Version ID', type: 'string' })
     courseVersionId: ID;
+
+    @Expose()
+    @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+    @Transform(StringToObjectId.transformer, { toClassOnly: true })
+    @JSONSchema({ title: 'Activity ID', type: 'string' })
+    activityId: ID;
 
     @Expose()
     @IsString()
@@ -154,6 +161,26 @@ export class HpRuleConfig {
     @IsBoolean()
     @JSONSchema({ title: 'Is Mandatory', type: 'boolean', example: true })
     isMandatory: boolean;
+
+    @Expose()
+    @Type(() => Date)
+    @JSONSchema({ title: "Deadline At", type: "string", format: "date-time" })
+    deadlineAt: Date;
+
+    @Expose()
+    @IsBoolean()
+    @JSONSchema({ title: "Allow Late Submission", type: "boolean", example: false })
+    allowLateSubmission: boolean;
+
+    @Expose()
+    @IsEnum(LateRewardPolicyEnum)
+    @JSONSchema({
+        title: "Late Reward Policy",
+        type: "string",
+        enum: Object.values(LateRewardPolicy),
+        example: "REWARD_DENIED",
+    })
+    lateRewardPolicy: LateRewardPolicy;
 
     @Expose()
     @ValidateNested()
@@ -198,7 +225,7 @@ export class HpRuleConfig {
     @JSONSchema({ title: 'Updated At', type: 'string', format: 'date-time' })
     updatedAt?: Date;
 
-    constructor(body?: Partial<HpRuleConfig>) {
+    constructor(body?: Partial<HpRuleConfigTransformer>) {
         if (body) Object.assign(this, body);
         this.reward = this.reward ?? ({} as any);
         this.penalty = this.penalty ?? ({} as any);

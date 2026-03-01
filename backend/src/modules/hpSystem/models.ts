@@ -41,11 +41,6 @@ export interface HpActivity {
     description: string;
     activityType: ActivityType;
 
-    // Timing
-    deadlineAt: Date;
-    allowLateSubmission: boolean;
-    lateRewardPolicy: LateRewardPolicy;
-
     // Submission mode
     submissionMode: SubmissionMode; // if EXTERNAL_LINK, students will submit by providing a link to an external platform (e.g. google form, github repo, etc.)
     externalLink: string;
@@ -54,10 +49,6 @@ export interface HpActivity {
         url: string;
         kind: AttachmentKind;
     }[];
-
-    // Rules
-    ruleConfigId: ID; // reference to a rule config that defines the rules for this activity
-    isMandatory: boolean;
 
     // Stats
     stats: { // to track submission stats for this activity, updated by a scheduled job that runs every hour
@@ -154,7 +145,6 @@ export interface HpActivitySubmission {
 
 // hp_rule_configs
 
-export type HpRuleStatus = "ACTIVE" | "ARCHIVED";
 
 export type RuleType = "ABSOLUTE" | "PERCENTAGE";
 
@@ -169,13 +159,15 @@ export interface HpRuleConfig {
 
     courseId: ID;
     courseVersionId: ID;
-    cohort: string;
-    name: string;
-
-    createdByTeacherId: ID;
+    activityId: ID;
 
     // Mandatory/Optional
     isMandatory: boolean;
+
+
+    deadlineAt: Date;
+    allowLateSubmission: boolean;
+    lateRewardPolicy: LateRewardPolicy;
 
     // Reward rule
     reward: {
@@ -204,10 +196,6 @@ export interface HpRuleConfig {
         minHp: number;
         maxHp: number;
     };
-
-    // Versioning
-    version: number;
-    status: HpRuleStatus;
 
     createdAt: Date;
     updatedAt: Date;
