@@ -1,7 +1,10 @@
+import { HpActivityTransformer } from "#root/modules/hpSystem/classes/transformers/Activity.js";
 import { IActivityRepository } from "#root/modules/hpSystem/interfaces/IActivityRepository.js";
-import { HpActivity, HpActivitySubmission } from "#root/modules/hpSystem/models.js";
+import { HpActivity } from "#root/modules/hpSystem/models.js";
+// import { HpActivity, HpActivitySubmission } from "#root/modules/hpSystem/models.js";
 import { MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
+import { plainToInstance } from "class-transformer";
 import { inject, injectable } from "inversify";
 import { ClientSession, Collection, ObjectId } from "mongodb";
 
@@ -19,6 +22,7 @@ export class ActivityRepository implements IActivityRepository {
     }
 
     async createActivity(payload: Partial<HpActivity>, session?: ClientSession): Promise<HpActivity> {
+        await this.init();
         const now = new Date();
 
         const docToInsert: HpActivity = {
@@ -40,6 +44,7 @@ export class ActivityRepository implements IActivityRepository {
         update: Partial<HpActivity>,
         session?: ClientSession,
     ): Promise<HpActivity | null> {
+        await this.init();
         return await this.hpActivityCollection.findOneAndUpdate(
             { _id: new ObjectId(activityId) },
             { $set: { ...update, updatedAt: new Date() } },
@@ -51,29 +56,34 @@ export class ActivityRepository implements IActivityRepository {
 
     }
 
-    async findById(activityId: string): Promise<HpActivity | null> {
-        return this.hpActivityCollection.findOne({ _id: new ObjectId(activityId) });
+    async findById(activityId: string): Promise<HpActivityTransformer | null> {
+        await this.init();
+        const doc = await this.hpActivityCollection.findOne({ _id: new ObjectId(activityId) });
+        return plainToInstance(HpActivityTransformer, doc);
     }
 
     async listActivities(filters: {
         courseId?: string;
         courseVersionId?: string;
-        Cohort?: string;
+        cohort?: string;
         status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
         createdByTeacherId?: string;
-    }): Promise<HpActivity[]> {
+    }): Promise<HpActivityTransformer[]> {
+        await this.init();
         const q: any = {};
 
         if (filters.courseId) q.courseId = new ObjectId(filters.courseId);
         if (filters.courseVersionId) q.courseVersionId = new ObjectId(filters.courseVersionId);
-        if (filters.Cohort) q.Cohort = filters.Cohort;
+        if (filters.cohort) q.Cohort = filters.cohort;
         if (filters.status) q.status = filters.status;
         if (filters.createdByTeacherId) q.createdByTeacherId = new ObjectId(filters.createdByTeacherId);
 
-        return this.hpActivityCollection
+        const docs = await this.hpActivityCollection
             .find(q)
             .sort({ createdAt: -1 })
             .toArray();
+
+        return docs.map(doc => plainToInstance(HpActivityTransformer, doc));
     }
 
     async publishActivity(
@@ -81,6 +91,7 @@ export class ActivityRepository implements IActivityRepository {
         teacherId: string,
         session?: ClientSession,
     ): Promise<HpActivity | null> {
+        await this.init();
         return await this.hpActivityCollection.findOneAndUpdate(
             { _id: new ObjectId(activityId), status: { $ne: "ARCHIVED" } },
             {
@@ -99,6 +110,7 @@ export class ActivityRepository implements IActivityRepository {
     }
 
     async archiveActivity(activityId: string, session?: ClientSession): Promise<HpActivity | null> {
+        await this.init();
         return await this.hpActivityCollection.findOneAndUpdate(
             { _id: new ObjectId(activityId) },
             { $set: { status: "ARCHIVED", updatedAt: new Date() } },
