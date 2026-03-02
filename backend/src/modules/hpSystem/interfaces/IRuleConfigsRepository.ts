@@ -1,3 +1,4 @@
+import { ClientSession } from "mongodb";
 import { HpRuleConfigTransformer } from "../classes/transformers/RuleConfigs.js";
 import { HpRuleConfig } from "../models.js";
 
@@ -11,4 +12,9 @@ export interface IRuleConfigsRepository {
 
     findById(ruleConfigId: string): Promise<HpRuleConfigTransformer | null>;
     findByActivityId(activityId: string): Promise<HpRuleConfigTransformer | null>;
+    softDeleteByActivityId(
+        activityId: string,
+        deletedByTeacherId?: string,
+        session?: ClientSession,
+    ): Promise<{ modifiedCount: number }>
 }
