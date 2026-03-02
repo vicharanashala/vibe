@@ -190,6 +190,7 @@ export default function FeedbackFormEditor({
       await updateItem.mutateAsync({
         params: {
           path: {
+            courseId: courseId,
             versionId: courseVersionId,
             itemId: feedbackId,
           },
