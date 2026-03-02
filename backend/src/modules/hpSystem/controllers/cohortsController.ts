@@ -30,55 +30,55 @@ export class CohortsController {
     async listCourseVersions(@QueryParams() query: CourseVersionListQueryDto, @CurrentUser() user: IUser) {
         const userId = user._id.toString();
 
-        // const data = await this.cohortsService.listCourseVersions(userId, query);
-        const response = {
-            success: true,
-            data: [
-                {
-                    courseId: "c1",
-                    courseName: "Full Stack Development",
-                    versions: [
-                        {
-                            courseVersionId: "65f1b6d2a7a3f2c9b7a2d111",
-                            versionName: "v1.0 - Core",
-                            totalCohorts: 4,
-                            createdAt: "2026-01-10T08:30:00Z",
-                        },
-                        {
-                            courseVersionId: "cv124",
-                            versionName: "v2.0 - NextJS Edition",
-                            totalCohorts: 2,
-                            createdAt: "2026-03-01T09:00:00Z",
-                        },
-                    ],
-                },
-            ],
-            meta: {
-                totalCourses: 2,
-                totalVersions: 3,
-                page: query.page ?? 1,
-                limit: query.limit ?? 10,
-                sortBy: query.sortBy ?? "createdAt",
-                sortOrder: query.sortOrder ?? "desc",
-                search: query.search ?? "fullstack",
-            },
-        };
+        return await this.cohortsService.listCourseVersions(userId, query);
+        // const response = {
+        //     success: true,
+        //     data: [
+        //         {
+        //             courseId: "c1",
+        //             courseName: "Full Stack Development",
+        //             versions: [
+        //                 {
+        //                     courseVersionId: "65f1b6d2a7a3f2c9b7a2d111",
+        //                     versionName: "v1.0 - Core",
+        //                     totalCohorts: 4,
+        //                     createdAt: "2026-01-10T08:30:00Z",
+        //                 },
+        //                 {
+        //                     courseVersionId: "cv124",
+        //                     versionName: "v2.0 - NextJS Edition",
+        //                     totalCohorts: 2,
+        //                     createdAt: "2026-03-01T09:00:00Z",
+        //                 },
+        //             ],
+        //         },
+        //     ],
+        //     meta: {
+        //         totalCourses: 2,
+        //         totalVersions: 3,
+        //         page: query.page ?? 1,
+        //         limit: query.limit ?? 10,
+        //         sortBy: query.sortBy ?? "createdAt",
+        //         sortOrder: query.sortOrder ?? "desc",
+        //         search: query.search ?? "fullstack",
+        //     },
+        // };
 
-        return response;
+        // return response;
     }
 
     @OpenAPI({ summary: "List all enrolled cohorts" })
     @Get("/cohorts")
-    @Authorized()
+    // @Authorized()
     @HttpCode(201)
     @ResponseSchema(BadRequestErrorResponse, {
         description: 'Bad Request Error',
         statusCode: 400,
     })
-    async listCohorts(@QueryParams() query: CohortListQueryDto, @CurrentUser() user: IUser) {
-        const userId = user._id.toString();
+    async listCohorts(@QueryParams() query: CohortListQueryDto,) {
+        const userId = "user._id.toString()";
 
-        // const data = await this.cohortsService.listCohorts(userId, query);
+        return await this.cohortsService.listCohorts(userId, query);
 
         const response = {
             success: true,
