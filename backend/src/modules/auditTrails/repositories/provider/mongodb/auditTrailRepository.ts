@@ -23,12 +23,11 @@ class AuditTrailsRepository implements IAuditTrailsRepository {
 
   async getAllAuditTrailsByInstructorId(instructorId: string, session?: ClientSession): Promise<InstructorAuditTrail[]> {
     await this.init();
-    const auditTrails = await this.auditTrailsCollection.find({ actor: new ObjectId(instructorId) }, { session }).toArray();
+    const auditTrails = await this.auditTrailsCollection.find({ "actor.id": new ObjectId(instructorId) }, { session }).toArray();
     return auditTrails;
   }
 
   async getAuditTrailsByCourseAndVersion(
-    userId: string,
     courseId: string,
     versionId: string,
     page: number,
@@ -48,7 +47,6 @@ class AuditTrailsRepository implements IAuditTrailsRepository {
       $or: [
         // Standard course-version scoped audit entries (modules, sections, items, etc.)
         {
-          actor: new ObjectId(userId),
           "context.courseVersionId": new ObjectId(versionId),
           $or: [
             { "context.courseId": new ObjectId(courseId) },
@@ -102,7 +100,6 @@ class AuditTrailsRepository implements IAuditTrailsRepository {
       .skip(skip)
       .limit(limit)
       .toArray();
-
     return {
       data,
       totalDocuments,
