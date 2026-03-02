@@ -2,8 +2,8 @@ import { BaseService, MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { inject, injectable } from "inversify";
 import { HP_SYSTEM_TYPES } from "../types.js";
-import { ActivityRepository } from "../repositories/index.js";
-import { BadRequestError, NotFoundError } from "routing-controllers";
+import { ActivityRepository, RuleConfigsRepository } from "../repositories/index.js";
+import { BadRequestError, ForbiddenError, NotFoundError } from "routing-controllers";
 import { CreateActivityBody, UpdateActivityBody } from "../classes/validators/activityValidators.js";
 import { ObjectId } from "mongodb";
 
@@ -18,6 +18,9 @@ export class ActivityService extends BaseService {
 
         @inject(HP_SYSTEM_TYPES.activityRepository)
         private readonly activityRepository: ActivityRepository,
+
+        @inject(HP_SYSTEM_TYPES.ruleConfigsRepository)
+        private readonly ruleConfigRepository: RuleConfigsRepository,
 
     ) {
         super(mongoDatabase);
@@ -129,6 +132,62 @@ export class ActivityService extends BaseService {
             const archived = await this.activityRepository.archiveActivity(activityId, session);
             if (!archived) throw new NotFoundError("Activity not found");
             return archived;
+        });
+    }
+
+    async delete(activityId: string, teacherId: string) {
+        return this._withTransaction(async (session) => {
+            // Validate ids
+            if (!ObjectId.isValid(activityId)) {
+                throw new BadRequestError("Invalid activity id");
+            }
+            if (!ObjectId.isValid(teacherId)) {
+                throw new BadRequestError("Invalid teacher id");
+            }
+
+            const teacherObjectId = new ObjectId(teacherId);
+
+            // Fetch activity (within session)
+            const activity = await this.activityRepository.findById(
+                activityId);
+
+            if (!activity) {
+                throw new BadRequestError("Activity not found");
+            }
+
+            // Allow only owner (adjust if admins allowed)
+            const createdBy = activity.createdByTeacherId
+                ? new ObjectId(activity.createdByTeacherId)
+                : null;
+
+            if (!createdBy || !createdBy.equals(teacherObjectId)) {
+                throw new ForbiddenError("You are not allowed to delete this activity");
+            }
+
+            // Safety rule: do not delete published activities
+            if (activity.status === "PUBLISHED") {
+                throw new BadRequestError(
+                    "Published activities cannot be deleted. Please archive instead.",
+                );
+            }
+
+
+            // Delete activity
+            const deleteRes = await this.activityRepository.softDeleteOne(
+                activityId, teacherId, session
+            );
+
+            if (!deleteRes.modifiedCount) {
+                throw new BadRequestError("Failed to delete activity");
+            }
+
+            //  clean related documents 
+            await this.ruleConfigRepository.softDeleteByActivityId(activityId, teacherId, session);
+
+            return {
+                message: "Activity deleted successfully",
+                activityId,
+            };
         });
     }
 

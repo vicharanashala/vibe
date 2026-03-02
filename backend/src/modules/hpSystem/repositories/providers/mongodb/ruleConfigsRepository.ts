@@ -5,7 +5,7 @@ import { MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { plainToInstance } from "class-transformer";
 import { inject, injectable } from "inversify";
-import { Collection, ObjectId } from "mongodb";
+import { ClientSession, Collection, ObjectId } from "mongodb";
 
 @injectable()
 export class RuleConfigsRepository implements IRuleConfigsRepository {
@@ -26,7 +26,8 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
         const result = await this.hpRuleConfigsCollection.insertOne(input as any);
 
         const created = await this.hpRuleConfigsCollection.findOne({
-            _id: result.insertedId,
+            _id: result.insertedId, isDeleted: { $ne: true },
+
         });
 
         return plainToInstance(HpRuleConfigTransformer, created as HpRuleConfig, {
@@ -48,7 +49,9 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
         const _id = new ObjectId(ruleConfigId);
 
         const result = await this.hpRuleConfigsCollection.findOneAndUpdate(
-            { _id },
+            {
+                _id, isDeleted: { $ne: true },
+            },
             { $set: patch },
             { returnDocument: "after" }
         );
@@ -61,7 +64,9 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
     async findById(ruleConfigId: string): Promise<HpRuleConfigTransformer | null> {
         await this.init();
         const _id = new ObjectId(ruleConfigId);
-        const doc = await this.hpRuleConfigsCollection.findOne({ _id });
+        const doc = await this.hpRuleConfigsCollection.findOne({
+            _id, isDeleted: { $ne: true },
+        });
         return plainToInstance(HpRuleConfigTransformer, doc as HpRuleConfig, {
             excludeExtraneousValues: true,
             exposeDefaultValues: true,
@@ -71,11 +76,43 @@ export class RuleConfigsRepository implements IRuleConfigsRepository {
     async findByActivityId(activityId: string): Promise<HpRuleConfigTransformer | null> {
         await this.init();
         const doc = await this.hpRuleConfigsCollection.findOne({
-            activityId: new ObjectId(activityId) as any,
+            activityId: new ObjectId(activityId), isDeleted: { $ne: true },
         });
         return plainToInstance(HpRuleConfigTransformer, doc as HpRuleConfig, {
             excludeExtraneousValues: true,
             exposeDefaultValues: true,
         });
+    }
+
+    async softDeleteByActivityId(
+        activityId: string,
+        deletedByTeacherId?: string,
+        session?: ClientSession,
+    ): Promise<{ modifiedCount: number }> {
+        await this.init();
+
+        const filter: any = {
+            activityId: new ObjectId(activityId) as any,
+            isDeleted: { $ne: true },
+        };
+
+        const update: any = {
+            $set: {
+                isDeleted: true,
+                deletedAt: new Date(),
+            },
+        };
+
+        if (deletedByTeacherId) {
+            update.$set.deletedByTeacherId = new ObjectId(deletedByTeacherId);
+        }
+
+        const res = await this.hpRuleConfigsCollection.updateMany(
+            filter,
+            update,
+            session ? { session } : undefined,
+        );
+
+        return { modifiedCount: res.modifiedCount ?? 0 };
     }
 }
