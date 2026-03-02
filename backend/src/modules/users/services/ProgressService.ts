@@ -1346,7 +1346,7 @@ class ProgressService extends BaseService {
       }
 
       const section = module.sections.find(
-        s => s.sectionId === currentSection.toString(),
+        s => s.sectionId.toString() === currentSection.toString(),
       );
 
       if (!section) {

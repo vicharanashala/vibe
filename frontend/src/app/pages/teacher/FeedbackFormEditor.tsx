@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, Edit, X, Loader2, Sparkles, Users } from 'lucide-react';
+import { FileText, Edit, X, Loader2, Sparkles, Users, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import Form from '@rjsf/shadcn';
 import validator from "@rjsf/validator-ajv8";
-import { useUpdateCourseItem } from '@/hooks/hooks';
+import { useUpdateCourseItem, useCreateItem } from '@/hooks/hooks';
 import FeedbackFormBuilder from '../student/components/FeedbackFormBuilder';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -35,6 +35,8 @@ export default function FeedbackFormEditor({
   isLoading = false,
   selectedItemName,
   feedbackId,
+  moduleId,
+  sectionId,
   courseId,
   courseVersionId,
   details,
@@ -58,6 +60,63 @@ export default function FeedbackFormEditor({
     type: 'FEEDBACK'
   });
   const updateItem = useUpdateCourseItem();
+  const createItem = useCreateItem();
+  
+  const handleCopyFeedbackForm = async () => {
+    if (!details?.item || !moduleId || !sectionId || !courseVersionId) {
+      toast.error("Missing required information to copy form");
+      return;
+    }
+
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      `Are you sure you want to copy "${details.item.name}"? This will create a new feedback form with all the same fields.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const currentItem = details.item;
+      const copyPayload = {
+        type: "FEEDBACK",
+        name: `${currentItem.name} - copy`,
+        description: currentItem.description,
+        feedbackFormDetails: {
+          jsonSchema: currentItem.details?.jsonSchema,
+          uiSchema: currentItem.details?.uiSchema
+        }
+      };
+
+      await createItem.mutateAsync({
+        params: {
+          path: {
+            versionId: courseVersionId,
+            moduleId: moduleId,
+            sectionId: sectionId,
+          },
+        },
+        body: copyPayload,
+      });
+
+      toast.success("Feedback form copied successfully!");
+      onRefetch();
+    } catch (error: any) {
+      console.error('Copy failed', error);
+      let message = "Failed to copy feedback form";
+      
+      if (error?.response?.data?.message) {
+        message = error.response.data.message;
+      } else if (error?.response?.data?.error) {
+        message = error.response.data.error;
+      } else if (error?.message) {
+        message = error.message;
+      }
+      
+      toast.error(message);
+    }
+  };
   // Load real data from props
   useEffect(() => {
     if (details) {
@@ -208,6 +267,19 @@ export default function FeedbackFormEditor({
                     Update Form
                   </Button>
                 )}
+                <Button
+                  onClick={handleCopyFeedbackForm}
+                  variant="outline"
+                  className="text-black bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300"
+                  disabled={isEditMode || createItem.isPending}
+                >
+                  {createItem.isPending ? (
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  ) : (
+                    <Copy className="h-3 w-3 mr-1" />
+                  )}
+                  Copy Feedback Form
+                </Button>
                 <Button
                   onClick={()=>setShowDeleteFormModal(true)}
                   variant="outline"
