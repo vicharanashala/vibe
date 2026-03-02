@@ -12,17 +12,16 @@ import {
   Req,
   ContentType,
   UseInterceptor,
-  CurrentUser,
 } from 'routing-controllers';
-import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
-import { Ability } from '#root/shared/functions/AbilityDecorator.js';
-import { AttemptService } from '#quizzes/services/AttemptService.js';
-import { injectable, inject } from 'inversify';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
+import {Ability} from '#root/shared/functions/AbilityDecorator.js';
+import {AttemptService} from '#quizzes/services/AttemptService.js';
+import {injectable, inject} from 'inversify';
 import {
   AttemptActions,
   getAttemptAbility,
 } from '../abilities/attemptAbilities.js';
-import { subject } from '@casl/ability';
+import {subject} from '@casl/ability';
 import {
   CreateAttemptParams,
   CreateAttemptResponse,
@@ -37,13 +36,13 @@ import {
   ExportQuizAttemptsParams,
   QuestionAnswersBodydto,
 } from '#quizzes/classes/validators/QuizValidator.js';
-import { QUIZZES_TYPES } from '#quizzes/types.js';
-import { IAttempt } from '#quizzes/interfaces/index.js';
-import { BadRequestErrorResponse } from '#root/shared/index.js';
-import { getCourseAbility } from '#root/modules/courses/abilities/courseAbilities.js';
-import { createObjectCsvStringifier } from 'csv-writer';
-import { Response, Request } from 'express';
-import { hideExplanationForStartAttempt } from '../utils/functions/hideExplanationForStartAttempt.js';
+import {QUIZZES_TYPES} from '#quizzes/types.js';
+import {IAttempt} from '#quizzes/interfaces/index.js';
+import {BadRequestErrorResponse} from '#root/shared/index.js';
+import {getCourseAbility} from '#root/modules/courses/abilities/courseAbilities.js';
+import {createObjectCsvStringifier} from 'csv-writer';
+import {Response, Request} from 'express';
+import {hideExplanationForStartAttempt} from '../utils/functions/hideExplanationForStartAttempt.js';
 import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 import { setAuditTrail } from '#root/utils/setAuditTrail.js';
 
@@ -56,7 +55,7 @@ class AttemptController {
   constructor(
     @inject(QUIZZES_TYPES.AttemptService)
     private readonly attemptService: AttemptService,
-  ) { }
+  ) {}
 
   @OpenAPI({
     summary: 'Start a new quiz attempt',
@@ -80,13 +79,13 @@ class AttemptController {
   })
   async attempt(
     @Params() params: CreateAttemptParams,
-    @CurrentUser() { user },
+    @Ability(getAttemptAbility) {ability, user},
   ): Promise<CreateAttemptResponse> {
-    const { quizId } = params;
+    const {quizId} = params;
     const userId = user._id.toString();
 
     // Build subject context first
-    // const attemptSubject = subject('Attempt', { quizId });
+    const attemptSubject = subject('Attempt', {quizId});
 
     // if (!ability.can(AttemptActions.Start, attemptSubject)) {
     //   throw new ForbiddenError(
@@ -121,7 +120,7 @@ class AttemptController {
     @Res() res: Response,
     @Params() params: SaveAttemptParams,
     // @Body() body: QuestionAnswersBody,
-    @Ability(getAttemptAbility) { ability, user },
+    @Ability(getAttemptAbility) {ability, user},
   ): Promise<{
     status: 'saved' | 'failed to save';
     message?: string;
@@ -142,16 +141,16 @@ class AttemptController {
         req.on('error', err => reject(err));
       },
     );
-    const { quizId, attemptId } = params;
+    const {quizId, attemptId} = params;
     const userId = user._id.toString();
     // Build subject context first
-    const attemptSubject = subject('Attempt', { quizId });
+    const attemptSubject = subject('Attempt', {quizId});
 
-    if (!ability.can(AttemptActions.Save, attemptSubject)) {
-      throw new ForbiddenError(
-        'You do not have permission to save this quiz attempt',
-      );
-    }
+    // if (!ability.can(AttemptActions.Save, attemptSubject)) {
+    //   throw new ForbiddenError(
+    //     'You do not have permission to save this quiz attempt',
+    //   );
+    // }
 
     const result = await this.attemptService.save(
       userId,
@@ -188,9 +187,9 @@ class AttemptController {
     @Res() res: Response,
     @Params() params: SubmitAttemptParams,
     // @Body() body: QuestionAnswersBody,
-    @Ability(getAttemptAbility) { ability, user },
+    @Ability(getAttemptAbility) {ability, user},
   ): Promise<SubmitAttemptResponse> {
-    const { quizId, attemptId } = params;
+    const {quizId, attemptId} = params;
     const body: QuestionAnswersBodydto = await new Promise(
       (resolve, reject) => {
         let data = '';
@@ -207,16 +206,16 @@ class AttemptController {
         req.on('error', err => reject(err));
       },
     );
-    const { isSkipped, answers, courseId, courseVersionId } = body;
+    const {isSkipped, answers, courseId, courseVersionId} = body;
     const userId = user._id.toString();
     // Build subject context first
-    const attemptSubject = subject('Attempt', { quizId });
+    const attemptSubject = subject('Attempt', {quizId});
 
-    if (!ability.can(AttemptActions.Submit, attemptSubject)) {
-      throw new ForbiddenError(
-        'You do not have permission to submit this quiz attempt',
-      );
-    }
+    // if (!ability.can(AttemptActions.Submit, attemptSubject)) {
+    //   throw new ForbiddenError(
+    //     'You do not have permission to submit this quiz attempt',
+    //   );
+    // }
 
     const result = await this.attemptService.submit(
       userId,
@@ -254,10 +253,10 @@ class AttemptController {
   async submitFeedback(
     @Params() params: SubmitFeedbackParams,
     @Body() body: SubmitFeedbackBody,
-    @Ability(getCourseAbility) { ability, user },
-  ): Promise<{ message: string }> {
-    const { itemId } = params;
-    const { details, courseId, courseVersionId, sectionId } = body;
+    @Ability(getCourseAbility) {ability, user},
+  ): Promise<{message: string}> {
+    const {itemId} = params;
+    const {details, courseId, courseVersionId, sectionId} = body;
     const userId = user._id.toString();
 
     const message = await this.attemptService.submitFeedBackForm(
@@ -268,7 +267,7 @@ class AttemptController {
       details,
       // isSkipped,
     );
-    return { message };
+    return {message};
   }
 
   @OpenAPI({
@@ -293,13 +292,13 @@ class AttemptController {
   })
   async getAttempt(
     @Params() params: SubmitAttemptParams,
-    @Ability(getAttemptAbility) { ability, user },
+    @Ability(getAttemptAbility) {ability, user},
   ): Promise<IAttempt> {
-    const { quizId, attemptId } = params;
+    const {quizId, attemptId} = params;
     const userId = user._id.toString();
 
     // Build subject context first
-    const attemptSubject = subject('Attempt', { quizId });
+    const attemptSubject = subject('Attempt', {quizId});
 
     if (!ability.can(AttemptActions.View, attemptSubject)) {
       throw new ForbiddenError(
@@ -325,17 +324,17 @@ class AttemptController {
     @Params() params: ExportQuizAttemptsParams,
     @Res() res: Response,
     @Req() req: Request,
-    @Ability(getAttemptAbility) { ability, user },
+     @Ability(getAttemptAbility) {ability, user},
   ): Promise<void> {
     const result = await this.attemptService.exportQuizSubmissions(
       params.quizId,
     );
 
     const header = [
-      { id: 'Name', title: 'Name' },
-      { id: 'Question', title: 'Question' },
-      { id: 'questionType', title: 'Question Type' },
-      { id: 'Response', title: 'Response' },
+      {id: 'Name', title: 'Name'},
+      {id: 'Question', title: 'Question'},
+      {id: 'questionType', title: 'Question Type'},
+      {id: 'Response', title: 'Response'},
     ];
 
     const csvStringifier = createObjectCsvStringifier({
@@ -360,4 +359,4 @@ class AttemptController {
   }
 }
 
-export { AttemptController };
+export {AttemptController};

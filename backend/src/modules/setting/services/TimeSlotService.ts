@@ -472,7 +472,7 @@ export class TimeSlotService extends BaseService {
       }
 
       if (!enrollment.assignedTimeSlot) {
-        return { canAccess: false, message: 'No time slot assigned to this student.' };
+        return { canAccess: true, message: 'No time slot assigned to this student.' };
       }
 
       // Check if current time is within assigned slot

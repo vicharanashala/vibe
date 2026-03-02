@@ -536,8 +536,8 @@ export class CourseRegistrationService extends BaseService {
           if (!item) continue;
           const existingEnrollment = await this.enrollmentRepo.findEnrollment(
             item.userId.toString(),
-            item.versionId.toString(),
             item.courseId.toString(),
+            item.versionId.toString(),
             session,
           );
           if (existingEnrollment) continue;

@@ -36,7 +36,7 @@ class QuestionRepository {
     }
   }
   public async getById(
-    questionId: string,
+    questionId: string | ObjectId,
     session?: ClientSession,
   ): Promise<BaseQuestion | null> {
     await this.init();

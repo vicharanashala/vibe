@@ -72,6 +72,7 @@ import { toast } from "sonner"
 import ConfirmationModal from "./components/confirmation-modal"
 import { AnnouncementModal } from "@/components/announcements/AnnouncementModal"
 import { AnnouncementType } from "@/types/announcement.types"
+import { useAnnouncements } from "@/hooks/announcement-hooks"
 
 // Utility function to format relative time
 const getUpdateMessage = (updatedAt?: string) => {
@@ -110,8 +111,12 @@ export default function TeacherCoursesPage() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
   const [initialDocumentCount, setInitialDocumentCount] = useState(0);
   const [lastEmptyState, setLastEmptyState] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1)
+  const [currentPage, setCurrentPage] = useState(() => {
+    const stored = sessionStorage.getItem("teacher_page")
+    return stored ? Number(stored) : 1
+  })
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false)
+  const { isAdmin } = useAnnouncements();
   const queryClient = useQueryClient()
 
   const role = "INSTRUCTOR"
@@ -168,11 +173,16 @@ export default function TeacherCoursesPage() {
     }
   }, [totalDocuments, initialDocumentCount, enrollmentsResponse])
 
+ useEffect(() => {
+    sessionStorage.removeItem("teacher_page")
+  }, [])
 
   // Reset page to 1 when search query changes
   useEffect(() => {
+  if (searchQuery) {
     setCurrentPage(1)
-  }, [searchQuery])
+  }
+}, [searchQuery])
 
   useEffect(() => {
     if (initialDocumentCount === 0) {
@@ -299,14 +309,16 @@ export default function TeacherCoursesPage() {
                 </div>
               </div>
               <div className="flex flex-col lg:flex-row gap-3 mt-4 lg:mt-0">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowAnnouncementModal(true)}
-                  className="bg-background/50 hover:bg-background/80 border-primary/20 hover:border-primary/50 text-foreground h-12 px-6"
-                >
-                  <Megaphone className="h-4 w-4 mr-2 text-primary" />
-                  General Announcements
-                </Button>
+                {isAdmin && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAnnouncementModal(true)}
+                    className="bg-background/50 hover:bg-background/80 border-primary/20 hover:border-primary/50 text-foreground h-12 px-6"
+                  >
+                    <Megaphone className="h-4 w-4 mr-2 text-primary" />
+                    General Announcements
+                  </Button>
+                )}
                 <Button
                   onClick={createNewCourse}
                   className="relative overflow-hidden bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_auto] hover:bg-[length:100%_auto] shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105 hover:-translate-y-1 h-12 px-8 group"
@@ -326,6 +338,7 @@ export default function TeacherCoursesPage() {
               isOpen={showAnnouncementModal}
               onClose={() => setShowAnnouncementModal(false)}
               defaultType={AnnouncementType.GENERAL}
+              isAdmin={isAdmin}
             />
           </div>
         </div>
@@ -343,7 +356,7 @@ export default function TeacherCoursesPage() {
                     disabled={initialDocumentCount === 0}
                     placeholder="Search courses..."
                     value={searchQuery}
-                    onChange={() => handleSearchQueryChange(event)}
+                    onChange={handleSearchQueryChange}
                     className="pl-10 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
                   />
                 </div>
@@ -383,6 +396,7 @@ export default function TeacherCoursesPage() {
                     <CourseCard
                       enrollment={enrollment}
                       onInvalidate={invalidateAllQueries}
+                      currentPage={currentPage}
                     />
                   </div>
                 ))}
@@ -410,9 +424,11 @@ export default function TeacherCoursesPage() {
 function CourseCard({
   enrollment,
   onInvalidate,
+  currentPage,
 }: {
   enrollment: RawEnrollment
   onInvalidate: () => void
+  currentPage: number
 }) {
   const [showNewVersionForm, setShowNewVersionForm] = useState(false)
   const [newVersionData, setNewVersionData] = useState({ version: "", description: "" })
@@ -718,25 +734,6 @@ function CourseCard({
                   <Megaphone className="h-3 w-3 mr-1" />
                   Announce
                 </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    if (!expandedCourse) toggleCourse()
-                    setShowDeleteCourseModal(true)
-                  }}
-                  className="h-9 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive dark:hover:text-destructive-foreground transition-all duration-300"
-                  disabled={deleteCourseMutation.isPending}
-                >
-                  {deleteCourseMutation.isPending ? (
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-3 w-3 mr-1" />
-                  )}
-                  Delete Course
-                </Button>
               </div>
             </div>
           </div>
@@ -898,6 +895,24 @@ function CourseCard({
                       )}
                       Add Version
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (!expandedCourse) toggleCourse()
+                        setShowDeleteCourseModal(true)
+                      }}
+                      className="h-9 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive dark:hover:text-destructive-foreground transition-all duration-300"
+                      disabled={deleteCourseMutation.isPending}
+                    >
+                      {deleteCourseMutation.isPending ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3 w-3 mr-1" />
+                      )}
+                      Delete Course
+                    </Button>
                   </div>
                 </div>
 
@@ -1002,6 +1017,7 @@ function CourseCard({
                           deleteVersionMutation={deleteVersionMutation}
                           versionCount={course?.versions?.length}
                           activeVersionTab={activeVersionTab}
+                          currentPage={currentPage}
                         />
                       </div>
                     ))
@@ -1019,6 +1035,7 @@ function CourseCard({
                           deleteVersionMutation={deleteVersionMutation}
                           versionCount={course?.versions?.length}
                           activeVersionTab={activeVersionTab}
+                          currentPage={currentPage}
                         />
                       </div>
                     ))
@@ -1059,6 +1076,7 @@ function VersionCard({
   deleteVersionMutation,
   versionCount,
   activeVersionTab,
+  currentPage,
 }: {
   versionData?: components['schemas']['CourseVersionDataResponse'];
   versionId?: string
@@ -1067,9 +1085,17 @@ function VersionCard({
   deleteVersionMutation: any
   versionCount: number
   activeVersionTab?:'active'|'archived'
+  currentPage: number
 }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const storePageAndNavigate = (path: string) => {
+  sessionStorage.setItem("teacher_page", String(currentPage))
+
+  navigate({
+    to: path as any,
+  })
+}
   const { setCurrentCourse } = useCourseStore()
   const [showProctoringModal, setShowProctoringModal] = useState(false)
   const { setCurrentCourseFlag } = useFlagStore()
@@ -1257,9 +1283,7 @@ function VersionCard({
       itemId: null,
       watchItemId: null,
     })
-    navigate({
-      to: "/teacher/courses/enrollments",
-    })
+    storePageAndNavigate("/teacher/courses/enrollments")
   }
 
   const goToRegistrations = () => {
@@ -1271,9 +1295,7 @@ function VersionCard({
       itemId: null,
       watchItemId: null,
     })
-    navigate({
-      to: "/teacher/courses/registration-requests" as any,
-    })
+    storePageAndNavigate("/teacher/courses/registration-requests")
   }
 
   const viewInstructors = () => {
@@ -1286,9 +1308,7 @@ function VersionCard({
       itemId: null,
       watchItemId: null,
     })
-    navigate({
-      to: "/teacher/courses/instructors",
-    })
+    storePageAndNavigate("/teacher/courses/instructors")
   }
 
   const viewFlags = () => {
@@ -1301,9 +1321,7 @@ function VersionCard({
       itemId: null,
       watchItemId: null,
     })
-    navigate({
-      to: "/teacher/courses/flags/list" as any,
-    })
+    storePageAndNavigate("/teacher/courses/flags/list")
   }
   const viewAnomalies = () => {
     setCurrentAnomaly({
@@ -1314,9 +1332,7 @@ function VersionCard({
       itemId: null,
       watchItemId: null
     });
-    navigate({
-      to: "/teacher/courses/anomalies/list" as any
-    });
+    storePageAndNavigate("/teacher/courses/anomalies/list")
   }
   const sendInvites = () => {
     // Set course info in store and navigate to invite page
@@ -1328,9 +1344,7 @@ function VersionCard({
       itemId: null,
       watchItemId: null,
     })
-    navigate({
-      to: "/teacher/courses/invite",
-    })
+    storePageAndNavigate("/teacher/courses/invite")
   }
 
   const viewCourse = () => {
@@ -1343,9 +1357,7 @@ function VersionCard({
       itemId: null,
       watchItemId: null,
     })
-    navigate({
-      to: "/teacher/courses/view",
-    })
+    storePageAndNavigate("/teacher/courses/view")
   }
 
   const handleGenerateLink = async () => {

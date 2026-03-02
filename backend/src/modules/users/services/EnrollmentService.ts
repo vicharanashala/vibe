@@ -68,11 +68,11 @@ export class EnrollmentService extends BaseService {
     throughInvite: boolean = false,
     session?: ClientSession,
   ) {
-    const versionStatus=await this.courseRepo.getCourseVersionStatus(courseVersionId,session);
+    // const versionStatus=await this.courseRepo.getCourseVersionStatus(courseVersionId,session);
                 
-    if(versionStatus==="archived"){
-      throw new ForbiddenError("This enrollment is invalid. Because course version is archived.");
-    }
+    // if(versionStatus==="archived"){
+    //   throw new ForbiddenError("This enrollment is invalid. Because course version is archived.");
+    // }
     const execute = async (session: ClientSession) => {
       const user = await this.userRepo.findById(userId, session);
       if (!user) throw new NotFoundError('User not found');
@@ -88,6 +88,11 @@ export class EnrollmentService extends BaseService {
         throw new NotFoundError(
           'Course version not found or does not belong to this course',
         );
+      }
+
+      // Check if version is archived (only for existing versions, not newly created ones)
+      if (courseVersion.versionStatus === 'archived') {
+        throw new ForbiddenError("This enrollment is invalid. Because course version is archived.");
       }
 
       const existingEnrollment = await this.enrollmentRepo.findActiveEnrollment(
@@ -195,8 +200,8 @@ export class EnrollmentService extends BaseService {
       }
       const existingEnrollment = await this.enrollmentRepo.findEnrollment(
         userId,
-        courseVersionId,
         courseId,
+        courseVersionId,
       );
       // if (!existingEnrollment) {
       //   throw new Error('User is not enrolled in this course version');

@@ -13,7 +13,7 @@ import {BaseQuestion} from '../classes/transformers/Question.js';
 import {IQuestionRenderView} from '../question-processing/renderers/interfaces/RenderViews.js';
 import {QuestionProcessor} from '../question-processing/QuestionProcessor.js';
 import {QuizRepository} from '../repositories/providers/mongodb/QuizRepository.js';
-import {ClientSession} from 'mongodb';
+import {ClientSession, ObjectId} from 'mongodb';
 import {aiConfig} from '#root/config/ai.js';
 import {Anthropic} from '@anthropic-ai/sdk';
 import {TranscriptResponse} from '#root/shared/index.js';
@@ -43,7 +43,7 @@ class QuestionService extends BaseService {
   }
 
   private async _getQuestionSkipCount(
-    questionId: string,
+    questionId: string | ObjectId,
     session?: ClientSession,
   ): Promise<number> {
     try {
@@ -99,7 +99,7 @@ class QuestionService extends BaseService {
 
 
   public async getById(
-    questionId: string,
+    questionId: string | ObjectId,
     raw?: boolean,
     parameterMap?: ParameterMap,
   ): Promise<BaseQuestion | IQuestionRenderView> {

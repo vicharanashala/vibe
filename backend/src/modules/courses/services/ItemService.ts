@@ -209,7 +209,8 @@ export class ItemService extends BaseService {
 
         const allowed = [ItemType.VIDEO, ItemType.QUIZ, ItemType.BLOG];
 
-        if (!allowed.includes(previousItem.type)) {
+        // Skip validation for copied items
+        if (!body.name.includes("copy") && !allowed.includes(previousItem.type)) {
           throw new BadRequestError(
             'Feedback can only be added after VIDEO, QUIZ, or BLOG items',
           );
@@ -277,7 +278,18 @@ export class ItemService extends BaseService {
 
       // Step 6: Update hierarchy timestamps
       const updatedVersion = await this._updateHierarchyAndVersion(
-        version,
+        {...version,
+          courseId: new ObjectId(version.courseId),
+          modules: (version.modules || []).map(module => ({
+            ...module,
+            moduleId: new ObjectId(module.moduleId),
+            sections: (module.sections || []).map(section => ({
+              ...section,
+              sectionId: new ObjectId(section.sectionId),
+              itemsGroupId: new ObjectId(section.itemsGroupId),
+            })),
+          })),
+        },
         module,
         section,
         session,
@@ -470,8 +482,8 @@ export class ItemService extends BaseService {
     // Fetch enrollment early
     const enrollment = await this.enrollmentRepo.findEnrollment(
       userId,
+      courseId,
       versionId,
-      courseId
     );
 
     if (!enrollment) {
@@ -557,7 +569,24 @@ export class ItemService extends BaseService {
       versionId,
     );
 
-    if (previousItemCompleted) return response();
+    if (previousItemCompleted) {
+      // If previous item is completed and current item is NOT already completed,
+      // update progress to point to the newly accessed item and mark course as not completed
+      if (!isItemAlreadyCompleted) {
+        await this.progressRepo.updateProgress(
+          userId,
+          courseId,
+          versionId,
+          {
+            currentItem: itemId,
+            currentModule: moduleId,
+            currentSection: sectionId,
+            completed: false
+          }
+        );
+      }
+      return response();
+    }
 
     // All checks failed => forbid
     throw new ForbiddenError("You don't have permission to watch this item");

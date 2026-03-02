@@ -618,6 +618,15 @@ class VersionItemParams {
   @IsMongoId()
   @IsString()
   itemId: string;
+
+  @JSONSchema({
+    title: 'courseId ID',
+    description: 'courseId of the item',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  courseId: string;
 }
 
 class DeleteItemParams {
@@ -640,6 +649,16 @@ class DeleteItemParams {
   @IsMongoId()
   @IsString()
   itemId: string;
+
+  @JSONSchema({
+    title: 'courseId ID',
+    description: 'ID of the courseId to delete',
+    example: '60d5ec49b3f1c8e4a8f8b8f8',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  courseId: string;
 }
 
 class GetItemParams {

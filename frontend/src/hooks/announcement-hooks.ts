@@ -17,6 +17,7 @@ interface AnnouncementListResponse {
     announcements: Announcement[];
     totalDocuments: number;
     totalPages: number;
+    isAdmin?: boolean;
 }
 
 // --- Hooks ---
@@ -32,6 +33,7 @@ export function useAnnouncements(
     const [error, setError] = useState<string | null>(null);
     const [totalDocuments, setTotalDocuments] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
+    const [isAdmin, setIsAdmin] = useState(false);
 
     const fetchAnnouncements = useCallback(async () => {
         setIsLoading(true);
@@ -71,6 +73,7 @@ export function useAnnouncements(
             setData(sorted);
             setTotalDocuments(result.totalDocuments);
             setTotalPages(result.totalPages);
+            setIsAdmin(result.isAdmin || false);
             setError(null);
         } catch (err: any) {
             setError(err.message || "Failed to load announcements");
@@ -84,7 +87,7 @@ export function useAnnouncements(
         fetchAnnouncements();
     }, [fetchAnnouncements]);
 
-    return { data, isLoading, error, totalDocuments, totalPages, refetch: fetchAnnouncements };
+    return { data, isLoading, error, totalDocuments, totalPages, isAdmin, refetch: fetchAnnouncements };
 }
 
 export function useCreateAnnouncement() {
