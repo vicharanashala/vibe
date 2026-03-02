@@ -190,6 +190,14 @@ export default function CoursePage() {
   // State for sidebar visibility
   const [isDesktopSidebarVisible, setIsDesktopSidebarVisible] = useState(true);
 
+    // Separate state purely for pre-loading the next section in the background.
+// Must NOT share activeSectionInfo — that state drives useItemById for the current item.
+const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
+  moduleId: string;
+  sectionId: string;
+} | null>(null);
+  const [isGoingToNext, setIsGoingToNext] = useState(false);
+
 
   // State to track when we're waiting for next section items to load
   const [waitingForNextSection, setWaitingForNextSection] = useState<{
@@ -1063,7 +1071,7 @@ export default function CoursePage() {
 
         // 2️⃣ Determine next item
         const nextItem = findNextItem();
-
+       
         if (!nextItem) {
           console.log("🎉 Course complete");
           setIsNavigatingToNext(false);
@@ -1382,6 +1390,97 @@ export default function CoursePage() {
     // Navigate back to courses page
     window.history.back();
   };
+  
+
+
+
+const shouldFetchBackgroundItems =
+  !!backgroundSectionInfo?.moduleId &&
+  !!backgroundSectionInfo?.sectionId &&
+  !sectionItems[backgroundSectionInfo.sectionId]; // skip if already cached
+
+const {
+  data: backgroundSectionItems,
+  isLoading: backgroundItemsLoading,
+} = useItemsBySectionId(
+  shouldFetchBackgroundItems ? VERSION_ID : '',
+  shouldFetchBackgroundItems ? backgroundSectionInfo!.moduleId : '',
+  shouldFetchBackgroundItems ? backgroundSectionInfo!.sectionId : '',
+);
+  // Determine whether the "Go to Next Item" button should be shown.
+// Rules:
+//   - Current item must already be completed
+//   - A next item must exist in the sequence
+//   - That next item must also already be completed (i.e. sidebar shows it as done)
+const nextItemInfo = findNextItem();
+
+const isCurrentItemCompleted = Boolean((currentItem as any)?.isCompleted);
+
+// "Go to Next Item" — only when a next completed item actually exists
+const showGoToNextButton =
+  isCurrentItemCompleted &&
+  !!nextItemInfo &&
+  !!(nextItemInfo as any).itemId && // excludes needsLoading case where itemId is null
+  !isGoingToNext;
+
+const handleGoToNextItem = async () => {
+  if (isGoingToNext || !nextItemInfo) return; // guard against double-clicks
+
+  setIsGoingToNext(true);
+  try {
+    const { moduleId, sectionId: nextSectionId, itemId } = nextItemInfo as any;
+    if (!moduleId || !nextSectionId || !itemId) return;
+
+    handleSelectItem(moduleId, nextSectionId, itemId);
+  } finally {
+    // Re-enable after navigation state has been handed off
+    setTimeout(() => setIsGoingToNext(false), 800);
+  }
+};
+// Auto-redirect to dashboard when the learner lands on the last item
+// and it is already completed (no next item exists in the sequence).
+useEffect(() => {
+  if (!currentItem) return;
+  if (!(currentItem as any).isCompleted) return;
+
+  const next = findNextItem();
+  if (next) return; // not the last item
+  // Small delay so the learner briefly sees the item before redirect
+  const timer = setTimeout(() => {
+    router.navigate({ to: '/student' });
+  }, 2000);
+  return () => clearTimeout(timer);
+}, [currentItem, findNextItem, router]);
+// When the current item is already completed, eagerly fetch the next section's
+// items so isNextItemAlreadyCompleted has data to check against.
+useEffect(() => {
+  if (
+    !shouldFetchBackgroundItems ||
+    !backgroundSectionInfo?.sectionId ||
+    !backgroundSectionItems ||
+    backgroundItemsLoading
+  ) return;
+
+  let itemsArray: any[] = [];
+  if (Array.isArray(backgroundSectionItems)) {
+    itemsArray = backgroundSectionItems;
+  } else if ((backgroundSectionItems as any)?.items) {
+    itemsArray = (backgroundSectionItems as any).items;
+  }
+
+  setSectionItems(prev => ({
+    ...prev,
+    [backgroundSectionInfo.sectionId]: sortItemsByOrder(itemsArray),
+  }));
+
+  setBackgroundSectionInfo(null); // clear after storing
+}, [
+  backgroundSectionItems,
+  backgroundItemsLoading,
+  shouldFetchBackgroundItems,
+  backgroundSectionInfo,
+]);
+
 
   // Autoscroll to selected sidebar item when selectedItemId changes
   useEffect(() => {
@@ -1977,19 +2076,38 @@ export default function CoursePage() {
                           <span className="max-sm:hidden">Submit Flag</span>
                         </Button>
                       }
-                      {currentItem?.isOptional && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-xs gap-1 border-amber-500 text-amber-500 hover:bg-amber-50 hover:text-amber-600"
-                          title="Skip this optional item"
-                          onClick={handleSkipItem}
-                          disabled={isSkippingItem || isSkipping}
-                        >
-                          <span className="max-sm:hidden">Skip</span>
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      )}
+               
+{(currentItem as any)?.isOptional && (
+  <Button
+    size="sm"
+    variant="outline"
+    className="text-xs gap-1 border-amber-500 text-amber-500 hover:bg-amber-50 hover:text-amber-600"
+    title="Skip this optional item"
+    onClick={handleSkipItem}
+    disabled={isSkippingItem || isSkipping}
+  >
+    <span className="max-sm:hidden">Skip</span>
+    <ChevronRight className="h-4 w-4" />
+  </Button>
+)}
+
+{showGoToNextButton && (
+  <Button
+    size="sm"
+    variant="outline"
+    className="text-xs gap-1 border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700"
+    title="Go to next item"
+    onClick={handleGoToNextItem}
+    disabled={isGoingToNext}
+  >
+    <CircleCheckIcon className="h-4 w-4" />
+    <span className="max-sm:hidden">Go to Next Item</span>
+    <ChevronRight className="h-4 w-4" />
+  </Button>
+)}
+
+
+
                     </div>
                     {currentItem?.type === 'PROJECT' ? (
                       <StudentProjectItem
