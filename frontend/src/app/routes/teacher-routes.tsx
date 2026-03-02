@@ -18,9 +18,9 @@ import RegisteredUsers from "../pages/teacher/CourseRegistrationRequests";
 import FeedbackFormEditor from "../pages/teacher/FeedbackFormEditor";
 import TeacherAnnouncements from "../pages/teacher/announcements";
 import AuditPage from "../pages/teacher/AuditPage";
-import HpSystemVersions from "../pages/teacher/hp-system/versions";
-import HpSystemCohorts from "../pages/teacher/hp-system/cohorts";
-import HpSystemDashboard from "../pages/teacher/hp-system/dashboard";
+import HpSystemVersions from "../pages/teacher/hp-system/HpSystemPage";
+import HpSystemCohorts from "../pages/teacher/hp-system/CohortsList";
+import HpSystemDashboard from "../pages/teacher/hp-system/CohortDetails";
 const teacherRoutes: RouteObject = {
   path: "/teacher",
   element: <TeacherLayout />,
