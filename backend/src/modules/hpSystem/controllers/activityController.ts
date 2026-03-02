@@ -109,4 +109,20 @@ export class ActivityController {
     return this.activityService.list(query);
   }
 
+
+  @OpenAPI({ summary: "Delete an activity (Only DRAFT allowed)" })
+  @Post("/:id/delete")
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  async delete(
+    @Param("id") id: string,
+    @CurrentUser() user: IUser,
+  ) {
+    const teacherId = user._id.toString();
+    return this.activityService.delete(id, teacherId);
+  }
 }
