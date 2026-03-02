@@ -113,7 +113,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.SECTION,
       action: AuditAction.SECTION_ADD,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseVersionId: ObjectId.createFromHexString(versionId),
         moduleId: ObjectId.createFromHexString(moduleId),
@@ -187,7 +192,12 @@ Accessible to:
           setAuditTrail(req, {
             category: AuditCategory.SECTION,
             action: AuditAction.SECTION_UPDATE,
-            actor: ObjectId.createFromHexString(user._id.toString()),
+            actor: {
+              id: ObjectId.createFromHexString(user._id.toString()),
+              name: `${user.firstName} ${user.lastName}`,
+              email: user.email,
+              role: user.roles,
+            },
             context: {
               courseVersionId: ObjectId.createFromHexString(versionId),
               moduleId: ObjectId.createFromHexString(moduleId),
@@ -205,7 +215,12 @@ Accessible to:
       setAuditTrail(req, {
         category: AuditCategory.SECTION,
         action: AuditAction.SECTION_UPDATE,
-        actor: ObjectId.createFromHexString(user._id.toString()),
+        actor: {
+          id: ObjectId.createFromHexString(user._id.toString()),
+          name: `${user.firstName} ${user.lastName}`,
+          email: user.email,
+          role: user.roles,
+        },
         context: {
           courseVersionId: ObjectId.createFromHexString(versionId),
           moduleId: ObjectId.createFromHexString(moduleId),
@@ -280,7 +295,12 @@ Accessible to:
         setAuditTrail(req, {
           category: AuditCategory.SECTION,
           action: AuditAction.SECTION_REORDER,
-          actor: ObjectId.createFromHexString(user._id.toString()),
+          actor: {
+            id: ObjectId.createFromHexString(user._id.toString()),
+            name: `${user.firstName} ${user.lastName}`,
+            email: user.email,
+            role: user.roles,
+          },
           context: {
             courseVersionId: ObjectId.createFromHexString(versionId),
             moduleId: ObjectId.createFromHexString(moduleId),
@@ -319,7 +339,12 @@ Accessible to:
         setAuditTrail(req, {
           category: AuditCategory.SECTION,
           action: AuditAction.SECTION_REORDER,
-          actor: ObjectId.createFromHexString(user._id.toString()),
+          actor: {
+            id: ObjectId.createFromHexString(user._id.toString()),
+            name: `${user.firstName} ${user.lastName}`,
+            email: user.email,
+            role: user.roles,
+          },
           context: {
             courseVersionId: ObjectId.createFromHexString(versionId),
             moduleId: ObjectId.createFromHexString(moduleId),
@@ -347,7 +372,12 @@ Accessible to:
       setAuditTrail(req, {
         category: AuditCategory.SECTION,
         action: AuditAction.SECTION_REORDER,
-        actor: ObjectId.createFromHexString(user._id.toString()),
+        actor: {
+          id: ObjectId.createFromHexString(user._id.toString()),
+          name: `${user.firstName} ${user.lastName}`,
+          email: user.email,
+          role: user.roles,
+        },
         context: {
           courseVersionId: ObjectId.createFromHexString(versionId),
           moduleId: ObjectId.createFromHexString(moduleId),
@@ -433,7 +463,12 @@ Accessible to:
       setAuditTrail(req, {
         category: AuditCategory.SECTION,
         action: AuditAction.SECTION_DELETE,
-        actor: ObjectId.createFromHexString(user._id.toString()),
+        actor: {
+          id: ObjectId.createFromHexString(user._id.toString()),
+          name: `${user.firstName} ${user.lastName}`,
+          email: user.email,
+          role: user.roles,
+        },
         context: {
           courseVersionId: ObjectId.createFromHexString(versionId),
           moduleId: ObjectId.createFromHexString(moduleId),
@@ -451,7 +486,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.SECTION,
       action: AuditAction.SECTION_DELETE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseVersionId: ObjectId.createFromHexString(versionId),
         moduleId: ObjectId.createFromHexString(moduleId),
@@ -524,7 +564,12 @@ Accessible to:
       setAuditTrail(req, {
         category: AuditCategory.SECTION,
         action: AuditAction.SECTION_HIDE ,
-        actor: ObjectId.createFromHexString(user._id.toString()),
+        actor: {
+          id: ObjectId.createFromHexString(user._id.toString()),
+          name: `${user.firstName} ${user.lastName}`,
+          email: user.email,
+          role: user.roles,
+        },
         context: {
           courseVersionId: ObjectId.createFromHexString(versionId),
           moduleId: ObjectId.createFromHexString(moduleId),
@@ -542,7 +587,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.SECTION,
       action: AuditAction.SECTION_HIDE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseVersionId: ObjectId.createFromHexString(versionId),
         moduleId: ObjectId.createFromHexString(moduleId),

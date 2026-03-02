@@ -280,7 +280,12 @@ class CourseRegistrationController {
     setAuditTrail(req, {
       category: AuditCategory.REGISTRATION,
       action: result.status === "APPROVED" ? AuditAction.REGISTRATION_APPROVE : AuditAction.REGISTRATION_REJECT,
-      actor: new ObjectId(user._id),
+      actor: {
+        id: new ObjectId(user._id),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.role
+      },
       context: {
         registrationId,
         courseId: new ObjectId(result.courseId),
