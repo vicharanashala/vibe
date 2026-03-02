@@ -3100,7 +3100,7 @@ function TeacherCourseContent() {
                             if (projectId && versionId) {
                               try {
                                 await updateCourseItemAsync({
-                                  params: { path: { versionId, itemId: projectId } },
+                                  params: { path: { courseId: courseId || "", versionId, itemId: projectId } },
                                   body: { name, description, details: { name, description }, type: 'PROJECT' }
                                 });
                                 refetchVersion();
