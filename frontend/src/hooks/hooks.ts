@@ -777,7 +777,7 @@ export function useCourseVersionArchive(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("patch", "/courses/versions/{versionId}/archive" as any );
+  const result = api.useMutation("patch", "/courses/versions/{versionId}/archive" as any);
   return {
     ...result,
     error: result.error
@@ -1230,9 +1230,9 @@ export function useUpdateItem(): {
 }
 
 // DELETE /courses/itemGroups/{itemsGroupId}/items/{itemId}
-export function useDeleteItem(): { 
+export function useDeleteItem(): {
   mutate: (variables: { params: { path: { courseId: string, itemsGroupId: string, itemId: string } } }) => void,
-  mutateAsync: (variables: { params: { path: { courseId : string, itemsGroupId: string, itemId: string } } }) => Promise<components['schemas']['DeletedItemResponse']>,
+  mutateAsync: (variables: { params: { path: { courseId: string, itemsGroupId: string, itemId: string } } }) => Promise<components['schemas']['DeletedItemResponse']>,
   data: components['schemas']['DeletedItemResponse'] | undefined,
   error: string | null,
   isPending: boolean,
@@ -3680,7 +3680,7 @@ export const useAutoApprovalSettings = (
       enabled: !!versionId,
     }
   );
-  
+
   return {
     settings: result.data as { registrationsAutoApproved?: boolean; autoapproval_emails?: string[] } | undefined,
     isLoading: result.isLoading,
@@ -4702,6 +4702,9 @@ import {
   HpActivity,
   HpRuleConfig,
   CreateHpActivityPayload,
+  HpStudent,
+  HpLedgerEntry,
+  HpCohortOverviewStats,
 } from '../lib/api/hp-system';
 
 export function useHpCourseVersions() {
@@ -4943,4 +4946,116 @@ export function useUpdateHpRuleConfig() {
   };
 
   return { mutateAsync, isPending };
+}
+
+export function useHpStudents(courseVersionId: string, cohort: string) {
+  const [data, setData] = useState<HpStudent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    if (!courseVersionId || !cohort) return;
+    setIsLoading(true);
+    try {
+      const res = await hpApi.getStudents(courseVersionId, cohort);
+      if (res.success) setData(res.data);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load students');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [courseVersionId, cohort]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  return { data, isLoading, error, refetch: fetchData };
+}
+
+export function useHpStudentLedger(studentId: string, courseVersionId: string, cohort: string) {
+  const [data, setData] = useState<HpLedgerEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    if (!studentId || !courseVersionId || !cohort) return;
+    setIsLoading(true);
+    try {
+      const res = await hpApi.getStudentLedger(studentId, courseVersionId, cohort);
+      if (res.success) setData(res.data);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load ledger');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [studentId, courseVersionId, cohort]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  return { data, isLoading, error, refetch: fetchData };
+}
+
+export function useRevertHpEntry() {
+  const [isPending, setIsPending] = useState(false);
+
+  const mutateAsync = async (entryId: string) => {
+    setIsPending(true);
+    try {
+      const res = await hpApi.revertLedgerEntry(entryId);
+      if (!res.success) throw new Error('Failed to revert entry');
+      toast.success('Entry reverted successfully');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to revert entry');
+      throw err;
+    } finally {
+      setIsPending(false);
+    }
+  };
+
+  return { mutateAsync, isPending };
+}
+
+export function useRestoreHpEntry() {
+  const [isPending, setIsPending] = useState(false);
+
+  const mutateAsync = async (entryId: string) => {
+    setIsPending(true);
+    try {
+      const res = await hpApi.restoreLedgerEntry(entryId);
+      if (!res.success) throw new Error('Failed to restore entry');
+      toast.success('Entry restored successfully');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to restore entry');
+      throw err;
+    } finally {
+      setIsPending(false);
+    }
+  };
+
+  return { mutateAsync, isPending };
+}
+
+export function useHpCohortOverviewStats(courseVersionId: string, cohort: string) {
+  const [data, setData] = useState<HpCohortOverviewStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    if (!courseVersionId || !cohort) return;
+    setIsLoading(true);
+    try {
+      const res = await hpApi.getCohortOverviewStats(courseVersionId, cohort);
+      if (res.success) setData(res.data);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load cohort overview stats');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [courseVersionId, cohort]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  return { data, isLoading, error, refetch: fetchData };
 }
