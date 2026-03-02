@@ -2995,6 +2995,7 @@ function TeacherCourseContent() {
                                   updateVideoAsync({
                                     params: {
                                       path: {
+                                        courseId: courseId || "",
                                         versionId,
                                         itemId: selectedEntity.data._id,
                                       }
