@@ -51,9 +51,9 @@ import TeacherLogin from '../pages/teacher/TeacherLogin'
 import SelectRolePage from '../pages/SelectRolePage'
 import AuditPage from '../pages/teacher/AuditPage'
 
-import HpSystemVersions from '../pages/teacher/hp-system/versions'
-import HpSystemCohorts from '../pages/teacher/hp-system/cohorts'
-import HpSystemDashboard from '../pages/teacher/hp-system/dashboard'
+import HpSystemVersions from '../pages/teacher/hp-system/HpSystemPage'
+import HpSystemCohorts from '../pages/teacher/hp-system/CohortsList'
+import HpSystemDashboard from '../pages/teacher/hp-system/CohortDetails'
 import CreateHpActivityPage from '../pages/teacher/hp-system/create-activity'
 
 // Root route with error and notFound handling
