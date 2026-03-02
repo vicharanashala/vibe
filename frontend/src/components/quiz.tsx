@@ -1480,7 +1480,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                 const userAnswer = answers[question.id];
                 const hasAnswer = userAnswer !== undefined && userAnswer !== null && userAnswer !== '';
                 const questionFeedback = submissionResults?.overallFeedback?.find(
-                  feedback => feedback.questionId === question.id
+                  feedback => {
+                    const fbId = typeof feedback.questionId === 'object' && feedback.questionId !== null && 'buffer' in feedback.questionId
+                      ? bufferToHex(feedback.questionId as any)
+                      : String(feedback.questionId);
+                    return fbId === question.id;
+                  }
                 );
 
                 return (
