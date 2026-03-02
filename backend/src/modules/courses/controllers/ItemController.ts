@@ -126,7 +126,12 @@ export class ItemController {
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
       action: AuditAction.ITEM_ADD,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseVersionId: ObjectId.createFromHexString(versionId),
         moduleId: ObjectId.createFromHexString(moduleId),
@@ -289,7 +294,12 @@ export class ItemController {
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
       action: AuditAction.ITEM_UPDATE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseVersionId: ObjectId.createFromHexString(versionId),
         itemId: ObjectId.createFromHexString(itemId),
@@ -362,7 +372,12 @@ export class ItemController {
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
       action: AuditAction.ITEM_DELETE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseVersionId: ObjectId.createFromHexString(version._id.toString()),
         itemId: ObjectId.createFromHexString(itemId),
@@ -449,7 +464,12 @@ Accessible to:
       setAuditTrail(req, {
         category: AuditCategory.ITEM,
         action: AuditAction.ITEM_REORDER,
-        actor: ObjectId.createFromHexString(user._id.toString()),
+        actor: {
+          id: ObjectId.createFromHexString(user._id.toString()),
+          name: `${user.firstName} ${user.lastName}`,
+          email: user.email,
+          role: user.roles,
+        },
         context: {
           courseVersionId: ObjectId.createFromHexString(versionId),
           moduleId: ObjectId.createFromHexString(moduleId),
@@ -485,7 +505,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
       action: AuditAction.ITEM_REORDER,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseVersionId: ObjectId.createFromHexString(versionId),
         moduleId: ObjectId.createFromHexString(moduleId),
@@ -768,7 +793,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
       action: AuditAction.ITEM_MAKE_OPTIONAL,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseVersionId: ObjectId.createFromHexString(versionId),
         itemId: ObjectId.createFromHexString(itemId),
@@ -842,7 +872,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
       action: AuditAction.ITEM_HIDE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseVersionId: ObjectId.createFromHexString(versionId),
         itemId: ObjectId.createFromHexString(itemId),
@@ -911,7 +946,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
       action: AuditAction.ITEM_BULK_PROCESS,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseVersionId: ObjectId.createFromHexString(versionId),
         moduleId: ObjectId.createFromHexString(moduleId),

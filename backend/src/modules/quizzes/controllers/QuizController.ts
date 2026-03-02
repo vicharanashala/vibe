@@ -166,7 +166,12 @@ class QuizController {
       setAuditTrail(req, {
         category: AuditCategory.QUESTION_BANK,
         action: AuditAction.QUESTION_BANK_DELETE,
-        actor: ObjectId.createFromHexString(user._id.toString()),
+        actor: {
+          id: ObjectId.createFromHexString(user._id.toString()),
+          name: `${user.firstName} ${user.lastName}`,
+          email: user.email,
+          role: user.roles,
+        },
         context: {
             courseId: ObjectId.createFromHexString(courseInfo.courseId.toString()),
             courseVersionId: ObjectId.createFromHexString(courseInfo.versionId.toString()),
@@ -235,7 +240,12 @@ class QuizController {
     setAuditTrail(req, {
       category: AuditCategory.QUESTION_BANK,
       action: AuditAction.QUESTION_BANK_UPDATE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
           courseId: ObjectId.createFromHexString(courseInfo.courseId.toString()),
           courseVersionId: ObjectId.createFromHexString(courseInfo.versionId.toString()),
