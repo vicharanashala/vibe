@@ -363,12 +363,16 @@ function TeacherCourseContent() {
     isLoading: overallLoading,
     error: overallError,
     refetch: refetchOverall,
-  } = useOverallVideoAnalytics(courseId!, versionId!, selectedEntity?.data?._id);
+  } = useOverallVideoAnalytics(
+    courseId!, 
+    versionId!, 
+    selectedEntity?.data?.type === 'VIDEO' ? selectedEntity?.data?._id : ''
+  );
 
   const videoUserAnalyticsQuery = useVideoUserAnalytics(
     courseId!,
     versionId!,
-    selectedEntity?.data?._id,
+    selectedEntity?.data?.type === 'VIDEO' ? selectedEntity?.data?._id : '',
     {
       page: videoAnalyticsPage,
       limit: videoAnalyticsLimit,
@@ -3096,7 +3100,7 @@ function TeacherCourseContent() {
                             if (projectId && versionId) {
                               try {
                                 await updateCourseItemAsync({
-                                  params: { path: { versionId, itemId: projectId } },
+                                  params: { path: { courseId: courseId || "", versionId, itemId: projectId } },
                                   body: { name, description, details: { name, description }, type: 'PROJECT' }
                                 });
                                 refetchVersion();

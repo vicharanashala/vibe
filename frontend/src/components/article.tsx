@@ -77,7 +77,7 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
     const { currentCourse, setWatchItemId } = useCourseStore();
     const startItem = useStartItem();
     const stopItem = useStopItem();
-    const isStopping = stopItem.isPending;
+    const [isStopping, setIsStopping] = useState(false);
 
     // ✅ Track if item has been started and if start request has been sent
     const itemStartedRef = useRef(false);
@@ -144,7 +144,10 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
     // };
 
     const handleNextClick = async () => {
+        if (isStopping || isProgressUpdating) return;
+        
         try {
+            setIsStopping(true);
             if (itemStartedRef.current) {
             await handleStopItem(); //  wait until stop finishes
             }
@@ -153,6 +156,8 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
         } catch (err) {
             toast.error('Unable to save progress. Please try again.');
             console.error('Stop item failed:', err);
+        } finally {
+            setIsStopping(false);
         }
     };
 
@@ -288,11 +293,11 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
                         <div className="flex justify-end">
                             <Button
                                 onClick={handleNextClick}
-                                disabled={isProgressUpdating}
+                                disabled={isProgressUpdating || isStopping}
                                 className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
                                 size="lg"
                             >
-                                {isProgressUpdating ? (
+                                {isProgressUpdating || isStopping ? (
                                     <>
                                         <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
                                         Processing
