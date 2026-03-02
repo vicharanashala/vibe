@@ -1391,37 +1391,21 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     window.history.back();
   };
   
-
-
-
-const shouldFetchBackgroundItems =
-  !!backgroundSectionInfo?.moduleId &&
-  !!backgroundSectionInfo?.sectionId &&
-  !sectionItems[backgroundSectionInfo.sectionId]; // skip if already cached
-
-const {
-  data: backgroundSectionItems,
-  isLoading: backgroundItemsLoading,
-} = useItemsBySectionId(
-  shouldFetchBackgroundItems ? VERSION_ID : '',
-  shouldFetchBackgroundItems ? backgroundSectionInfo!.moduleId : '',
-  shouldFetchBackgroundItems ? backgroundSectionInfo!.sectionId : '',
-);
-  // Determine whether the "Go to Next Item" button should be shown.
-// Rules:
-//   - Current item must already be completed
-//   - A next item must exist in the sequence
-//   - That next item must also already be completed (i.e. sidebar shows it as done)
 const nextItemInfo = findNextItem();
 
 const isCurrentItemCompleted = Boolean((currentItem as any)?.isCompleted);
 
-// "Go to Next Item" — only when a next completed item actually exists
+const isNextItemAlreadyCompleted = (() => {
+  if (!nextItemInfo || (nextItemInfo as any).needsLoading) return false;
+  const { sectionId: nextSectionId, itemId: nextItemId } = nextItemInfo;
+  const nextSectionItems = sectionItems[nextSectionId] ?? [];
+  return nextSectionItems.some(
+    (item: any) => item._id === nextItemId && item.isCompleted,
+  );
+})();
+
 const showGoToNextButton =
-  isCurrentItemCompleted &&
-  !!nextItemInfo &&
-  !!(nextItemInfo as any).itemId && // excludes needsLoading case where itemId is null
-  !isGoingToNext;
+  isCurrentItemCompleted && !!nextItemInfo && isNextItemAlreadyCompleted && !isGoingToNext;
 
 const handleGoToNextItem = async () => {
   if (isGoingToNext || !nextItemInfo) return; // guard against double-clicks
@@ -1451,35 +1435,7 @@ useEffect(() => {
   }, 2000);
   return () => clearTimeout(timer);
 }, [currentItem, findNextItem, router]);
-// When the current item is already completed, eagerly fetch the next section's
-// items so isNextItemAlreadyCompleted has data to check against.
-useEffect(() => {
-  if (
-    !shouldFetchBackgroundItems ||
-    !backgroundSectionInfo?.sectionId ||
-    !backgroundSectionItems ||
-    backgroundItemsLoading
-  ) return;
 
-  let itemsArray: any[] = [];
-  if (Array.isArray(backgroundSectionItems)) {
-    itemsArray = backgroundSectionItems;
-  } else if ((backgroundSectionItems as any)?.items) {
-    itemsArray = (backgroundSectionItems as any).items;
-  }
-
-  setSectionItems(prev => ({
-    ...prev,
-    [backgroundSectionInfo.sectionId]: sortItemsByOrder(itemsArray),
-  }));
-
-  setBackgroundSectionInfo(null); // clear after storing
-}, [
-  backgroundSectionItems,
-  backgroundItemsLoading,
-  shouldFetchBackgroundItems,
-  backgroundSectionInfo,
-]);
 
 
   // Autoscroll to selected sidebar item when selectedItemId changes
