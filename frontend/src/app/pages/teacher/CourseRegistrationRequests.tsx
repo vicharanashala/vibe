@@ -1079,7 +1079,7 @@ export const RegistrationActions = ({
               ) : (
                 <Unlock className="h-4 w-4" />
               )}
-              {isActive ? "Disable" : "Enable"}
+              {isActive ? "Pause registrations" : "Resume registrations"}
             </Button>
           </TooltipTrigger>
 
