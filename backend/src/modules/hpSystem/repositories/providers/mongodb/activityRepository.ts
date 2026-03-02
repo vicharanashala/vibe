@@ -46,7 +46,7 @@ export class ActivityRepository implements IActivityRepository {
     ): Promise<HpActivity | null> {
         await this.init();
         return await this.hpActivityCollection.findOneAndUpdate(
-            { _id: new ObjectId(activityId) },
+            { _id: new ObjectId(activityId), isDeleted: { $ne: true } },
             { $set: { ...update, updatedAt: new Date() } },
             {
                 ...(session ? { session } : {}),
@@ -58,7 +58,9 @@ export class ActivityRepository implements IActivityRepository {
 
     async findById(activityId: string): Promise<HpActivityTransformer | null> {
         await this.init();
-        const doc = await this.hpActivityCollection.findOne({ _id: new ObjectId(activityId) });
+        const doc = await this.hpActivityCollection.findOne({
+            _id: new ObjectId(activityId), isDeleted: { $ne: true },
+        });
         return plainToInstance(HpActivityTransformer, doc);
     }
 
@@ -70,7 +72,7 @@ export class ActivityRepository implements IActivityRepository {
         createdByTeacherId?: string;
     }): Promise<HpActivityTransformer[]> {
         await this.init();
-        const q: any = {};
+        const q: any = { isDeleted: { $ne: true } };
 
         if (filters.courseId) q.courseId = new ObjectId(filters.courseId);
         if (filters.courseVersionId) q.courseVersionId = new ObjectId(filters.courseVersionId);
@@ -93,7 +95,10 @@ export class ActivityRepository implements IActivityRepository {
     ): Promise<HpActivity | null> {
         await this.init();
         return await this.hpActivityCollection.findOneAndUpdate(
-            { _id: new ObjectId(activityId), status: { $ne: "ARCHIVED" } },
+            {
+                _id: new ObjectId(activityId), status: { $ne: "ARCHIVED" },
+                isDeleted: { $ne: true },
+            },
             {
                 $set: {
                     status: "PUBLISHED",
@@ -112,13 +117,45 @@ export class ActivityRepository implements IActivityRepository {
     async archiveActivity(activityId: string, session?: ClientSession): Promise<HpActivity | null> {
         await this.init();
         return await this.hpActivityCollection.findOneAndUpdate(
-            { _id: new ObjectId(activityId) },
+            { _id: new ObjectId(activityId), isDeleted: { $ne: true } },
             { $set: { status: "ARCHIVED", updatedAt: new Date() } },
             {
                 ...(session ? { session } : {}),
                 returnDocument: "after",
             },
         );
+    }
 
+    async softDeleteOne(
+        activityId: string,
+        deletedByTeacherId?: string,
+        session?: ClientSession,
+    ): Promise<{ modifiedCount: number }> {
+        await this.init();
+
+        const filter: any = {
+            _id: new ObjectId(activityId),
+            deletedAt: { $exists: false },
+        };
+
+        const update: any = {
+            $set: {
+                deletedAt: new Date(),
+                isDeleted: true,
+                status: "ARCHIVED",
+            },
+        };
+
+        if (deletedByTeacherId) {
+            update.$set.deletedByTeacherId = new ObjectId(deletedByTeacherId);
+        }
+
+        const res = await this.hpActivityCollection.updateOne(
+            filter,
+            update,
+            session ? { session } : undefined,
+        );
+
+        return { modifiedCount: res.modifiedCount ?? 0 };
     }
 }
