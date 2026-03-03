@@ -84,7 +84,7 @@ export class ActivityController {
   @OpenAPI({ summary: "Get an activity by id" })
   @Get("/:id")
   @Authorized()
-  @HttpCode(201)
+  @HttpCode(200)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
@@ -98,7 +98,7 @@ export class ActivityController {
   @OpenAPI({ summary: "List activities with filters" })
   @Get("/")
   @Authorized()
-  @HttpCode(201)
+  @HttpCode(200)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
