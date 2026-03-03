@@ -632,29 +632,35 @@ Access control logic:
   })
   async getItem(
     @Params() params: GetItemParams,
-    // @Ability(getItemAbility) { ability, user },
+    @Ability(getItemAbility) { ability },
     @CurrentUser() user: { _id: string },
   ) {
     const { versionId, itemId, courseId, moduleId, sectionId } = params;
     const { _id: userId } = user;
 
-    // Check time slot access for this specific course
-    try {
-      const timeSlotAccess = await this.timeSlotService.canStudentAccessCourse(
-        userId.toString(),
-        courseId,
-        versionId
-      );
+    // Check if user is instructor/manager/TA - they should bypass time slot validation
+    const sampleItemResource = subject('Item', { versionId });
+    const canManage = ability.can(ItemActions.Modify, sampleItemResource);
 
-      if (!timeSlotAccess.canAccess) {
-        throw new ForbiddenError(timeSlotAccess.message || 'Time slot access denied');
+    if (!canManage) {
+      // Only apply time slot validation for students
+      try {
+        const timeSlotAccess = await this.timeSlotService.canStudentAccessCourse(
+          userId.toString(),
+          courseId,
+          versionId
+        );
+
+        if (!timeSlotAccess.canAccess) {
+          throw new ForbiddenError(timeSlotAccess.message || 'Time slot access denied');
+        }
+      } catch (error) {
+        // If it's already a ForbiddenError, re-throw it
+        if (error.name === 'ForbiddenError') {
+          throw error;
+        }
+        throw new ForbiddenError('Time slot access check failed');
       }
-    } catch (error) {
-      // If it's already a ForbiddenError, re-throw it
-      if (error.name === 'ForbiddenError') {
-        throw error;
-      }
-      throw new ForbiddenError('Time slot access check failed');
     }
 
     // Create an item resource object for permission checking
