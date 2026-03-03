@@ -3,7 +3,10 @@ import { useParams, useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CohortOverviewTab } from "./components/CohortOverviewTab";
 import { ActivitiesTab } from "./components/ActivitiesTab";
+import { StudentsTab } from "./components/StudentsTab";
+import { Dashboard } from '@/app/pages/teacher/dashboard';
 
 export default function HpSystemDashboard() {
     const { courseVersionId, cohortName } = useParams({ strict: false });
@@ -23,11 +26,18 @@ export default function HpSystemDashboard() {
 
             <Tabs defaultValue="activities" className="w-full">
                 <TabsList>
+                    <TabsTrigger value="overview">Overview</TabsTrigger>
                     <TabsTrigger value="activities">Activities</TabsTrigger>
-                    <TabsTrigger value="students" disabled>Students</TabsTrigger>
+                    <TabsTrigger value="students">Students</TabsTrigger>
                 </TabsList>
+                <TabsContent value="overview" className="mt-6">
+                    <CohortOverviewTab courseVersionId={courseVersionId || ""} cohortName={cohortName || ""} />
+                </TabsContent>
                 <TabsContent value="activities" className="mt-6">
                     <ActivitiesTab courseVersionId={courseVersionId || ""} cohortName={cohortName || ""} />
+                </TabsContent>
+                <TabsContent value="students" className="mt-6">
+                    <StudentsTab courseVersionId={courseVersionId || ""} cohortName={cohortName || ""} />
                 </TabsContent>
             </Tabs>
         </div>
