@@ -102,17 +102,17 @@ const AuditPage = () => {
   const versions =
     typeof window !== "undefined"
       ? JSON.parse(
-          localStorage.getItem("selectedCourseVersions") || "[]"
-        )
+        localStorage.getItem("selectedCourseVersions") || "[]"
+      )
       : [];
 
   const [selectedVersionId, setSelectedVersionId] =
     useState<string | null>(null);
-
-    const [page, setPage] = useState(1);
-    const [startDate, setStartDate] = useState<string | undefined>(undefined);
-const [endDate, setEndDate] = useState<string | undefined>(undefined);
-const limit = 5;
+  const [showDetails, setShowDetails] = useState(false);
+  const [page, setPage] = useState(1);
+  const [startDate, setStartDate] = useState<string | undefined>(undefined);
+  const [endDate, setEndDate] = useState<string | undefined>(undefined);
+  const limit = 10;
 
   // ✅ Set default version (first one)
   useEffect(() => {
@@ -127,8 +127,8 @@ const limit = 5;
       selectedVersionId!,
       page,
       limit,
-        startDate,
-  endDate
+      startDate,
+      endDate
     );
 
   if (!courseId) {
@@ -147,96 +147,107 @@ const limit = 5;
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">
-        Audit Trails
-      </h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">
+          Audit Trails
+        </h1>
 
-      {/* 🔥 Version Dropdown */}
-           <div className="flex flex-wrap items-center gap-4">
-  {/* Version Dropdown */}
-  {versions.length > 0 && (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button className="border px-4 py-2 rounded-md text-sm font-medium">
-          <ArrowBigDownDashIcon className="mr-2 h-4 w-4" />
-          {selectedVersionId
-            ? `Version v${
-                versions.indexOf(selectedVersionId) + 1
-              }.0`
-            : "Select Version"}
-        </Button>
-      </DropdownMenuTrigger>
-
-      <DropdownMenuContent>
-        <DropdownMenuRadioGroup
-          value={selectedVersionId || ""}
-          onValueChange={(value) => {
-            setSelectedVersionId(value);
+        <Button
+          variant="outline"
+          onClick={() => {
+            setShowDetails((prev) => !prev);
             setPage(1);
           }}
         >
-          {versions.map(
-            (versionId: string, index: number) => (
-              <DropdownMenuRadioItem
-                key={versionId}
-                value={versionId}
+          {showDetails ? "Compact View" : "View Full Details"}
+        </Button>
+      </div>
+
+      {/* 🔥 Version Dropdown */}
+      { showDetails && <div className="flex flex-wrap items-center gap-4">
+        {/* Version Dropdown */}
+        {versions.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button className="border px-4 py-2 rounded-md text-sm font-medium">
+                <ArrowBigDownDashIcon className="mr-2 h-4 w-4" />
+                {selectedVersionId
+                  ? `Version v${versions.indexOf(selectedVersionId) + 1
+                  }.0`
+                  : "Select Version"}
+              </Button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent>
+              <DropdownMenuRadioGroup
+                value={selectedVersionId || ""}
+                onValueChange={(value) => {
+                  setSelectedVersionId(value);
+                  setPage(1);
+                }}
               >
-                v{index + 1}.0
-              </DropdownMenuRadioItem>
-            )
-          )}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )}
+                {versions.map(
+                  (versionId: string, index: number) => (
+                    <DropdownMenuRadioItem
+                      key={versionId}
+                      value={versionId}
+                    >
+                      v{index + 1}.0
+                    </DropdownMenuRadioItem>
+                  )
+                )}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
-  {/* From Date */}
-  <div className="flex items-center gap-2">
-    <span className="text-sm text-muted-foreground">
-      From:
-    </span>
-    <Input
-      type="date"
-      value={startDate || ""}
-      onChange={(e) => {
-        setStartDate(e.target.value || undefined);
-        setPage(1);
-      }}
-      className="w-[160px]"
-    />
-  </div>
+        {/* From Date */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">
+            From:
+          </span>
+          <Input
+            type="date"
+            value={startDate || ""}
+            onChange={(e) => {
+              setStartDate(e.target.value || undefined);
+              setPage(1);
+            }}
+            className="w-[160px]"
+          />
+        </div>
 
-  {/* To Date */}
-  <div className="flex items-center gap-2">
-    <span className="text-sm text-muted-foreground">
-      To:
-    </span>
-    <Input
-      type="date"
-      value={endDate || ""}
-      onChange={(e) => {
-        setEndDate(e.target.value || undefined);
-        setPage(1);
-      }}
-      className="w-[160px]"
-    />
-  </div>
+        {/* To Date */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">
+            To:
+          </span>
+          <Input
+            type="date"
+            value={endDate || ""}
+            onChange={(e) => {
+              setEndDate(e.target.value || undefined);
+              setPage(1);
+            }}
+            className="w-[160px]"
+          />
+        </div>
 
-  {/* Clear Filter Button */}
-  {(startDate || endDate) && (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={() => {
-        setStartDate(undefined);
-        setEndDate(undefined);
-        setPage(1);
-      }}
-    >
-      Clear Dates
-    </Button>
-  )}
-</div>
+        {/* Clear Filter Button */}
+        {(startDate || endDate) && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setStartDate(undefined);
+              setEndDate(undefined);
+              setPage(1);
+            }}
+          >
+            Clear Dates
+          </Button>
+        )}
+      </div>}
 
       {auditTrails.length === 0 && (
         <div className="text-muted-foreground">
@@ -252,35 +263,52 @@ const limit = 5;
 
         return (
           <Card key={index}>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle>{audit.action}</CardTitle>
-                  <CardDescription>
-                    Category: {audit.category}
-                  </CardDescription>
-                  <CardDescription>
-                    {audit.createdAt
-                      ? new Date(
-                          audit.createdAt
-                        ).toLocaleString()
-                      : ""}
-                  </CardDescription>
-                </div>
+           <CardHeader>
+  <div className="flex justify-between items-start">
+    <div>
+      <CardTitle>{audit.action}</CardTitle>
 
-                <span
-                  className={`px-3 py-1 text-xs rounded-md font-medium ${
-                    audit.outcome?.status === "SUCCESS"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-red-100 text-red-700"
-                  }`}
-                >
-                  {audit.outcome?.status}
-                </span>
-              </div>
-            </CardHeader>
+      <CardDescription>
+        Category: {audit.category}
+      </CardDescription>
 
-            {rows.length > 0 && (
+      <CardDescription>
+        Actor: {audit.actor?.name || "N/A"}
+      </CardDescription>
+
+      <CardDescription>
+        {audit.createdAt
+          ? new Date(audit.createdAt).toLocaleString()
+          : ""}
+      </CardDescription>
+
+      {/* Show extra info only in detailed mode */}
+      {showDetails && (
+        <>
+          <CardDescription>
+            Actor Email: {audit.actor?.email || "N/A"}
+          </CardDescription>
+
+          <CardDescription>
+            Actor Role: {audit.actor?.role || "N/A"}
+          </CardDescription>
+        </>
+      )}
+    </div>
+
+    <span
+      className={`px-3 py-1 text-xs rounded-md font-medium ${
+        audit.outcome?.status === "SUCCESS"
+          ? "bg-green-100 text-green-700"
+          : "bg-red-100 text-red-700"
+      }`}
+    >
+      {audit.outcome?.status}
+    </span>
+  </div>
+</CardHeader>
+
+            {showDetails && rows.length > 0 && (
               <CardContent>
                 <Table>
                   <TableHeader>
@@ -323,13 +351,13 @@ const limit = 5;
         );
       })}
       {data && data.totalPages > 1 && (
-  <Pagination
-    currentPage={data.currentPage}
-    totalPages={data.totalPages}
-    totalDocuments={data.totalDocuments}
-    onPageChange={(newPage) => setPage(newPage)}
-  />
-)}
+        <Pagination
+          currentPage={data.currentPage}
+          totalPages={data.totalPages}
+          totalDocuments={data.totalDocuments}
+          onPageChange={(newPage) => setPage(newPage)}
+        />
+      )}
     </div>
   );
 };

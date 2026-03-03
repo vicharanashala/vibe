@@ -158,4 +158,33 @@ export class ActivityRepository implements IActivityRepository {
 
         return { modifiedCount: res.modifiedCount ?? 0 };
     }
+
+
+    async getCountByCohortName(cohortName: string): Promise<number> {
+        await this.init();
+        return await this.hpActivityCollection.countDocuments({
+            cohort: cohortName,
+            isDeleted: { $ne: true },
+        });
+    }
+
+
+    async getDraftCountByCohortName(cohortName: string): Promise<number> {
+        await this.init();
+        return await this.hpActivityCollection.countDocuments({
+            cohort: cohortName,
+            status: "DRAFT",
+            isDeleted: { $ne: true },
+        });
+    }
+
+    async getPublishedCountByCohortName(cohortName: string): Promise<number> {
+        await this.init();
+        return await this.hpActivityCollection.countDocuments({
+            cohortName: cohortName,
+            status: "PUBLISHED",
+            isDeleted: { $ne: true },
+        });
+
+    }
 }

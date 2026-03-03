@@ -21,6 +21,7 @@ import AuditPage from "../pages/teacher/AuditPage";
 import HpSystemVersions from "../pages/teacher/hp-system/HpSystemPage";
 import HpSystemCohorts from "../pages/teacher/hp-system/CohortsList";
 import HpSystemDashboard from "../pages/teacher/hp-system/CohortDetails";
+import StudentLedgerPage from "../pages/teacher/hp-system/student-ledger";
 const teacherRoutes: RouteObject = {
   path: "/teacher",
   element: <TeacherLayout />,
@@ -110,6 +111,9 @@ const teacherRoutes: RouteObject = {
     }, {
       path: "hp-system/:courseVersionId/cohort/:cohortName/activities",
       element: <HpSystemDashboard />
+    }, {
+      path: "hp-system/:courseVersionId/cohort/:cohortName/student/:studentId/ledger",
+      element: <StudentLedgerPage />
     }
   ],
 };

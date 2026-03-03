@@ -35,4 +35,8 @@ export interface IActivityRepository {
         deletedByTeacherId?: string,
         session?: ClientSession,
     ): Promise<{ modifiedCount: number }>;
+
+    getCountByCohortName(cohortName: string): Promise<number>;
+    getDraftCountByCohortName(cohortName: string): Promise<number>;
+    getPublishedCountByCohortName(cohortName: string): Promise<number>;
 }

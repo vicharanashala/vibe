@@ -23,6 +23,7 @@ const TYPES = {
     ledgerRepository: Symbol.for('ledgerRepository'),
     activityRepository: Symbol.for('activityRepository'),
     activitySubmissionsRepository: Symbol.for('activitySubmissionsRepository'),
+    cohortRepository: Symbol.for('cohortRepository'),
 
 };
 

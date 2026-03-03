@@ -112,8 +112,8 @@ export class CohortStatsDto {
 ========================================================= */
 
 export class CohortListItemDto {
-    @IsString()
-    cohortId!: string;
+    // @IsString()
+    // cohortId!: string;
 
     @IsString()
     cohortName!: string;
