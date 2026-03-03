@@ -1,5 +1,6 @@
 import { Course, CourseVersion } from "#root/modules/courses/classes/index.js";
 import { CohortStudentItemDto, CohortStudentsListQueryDto } from "#root/modules/hpSystem/classes/validators/courseAndCohorts.js";
+import { ICohortRepository } from "#root/modules/hpSystem/interfaces/ICohortsRepository.js";
 import { IEnrollment, MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { plainToInstance } from "class-transformer";
@@ -7,7 +8,7 @@ import { inject, injectable } from "inversify";
 import { Collection, ObjectId } from "mongodb";
 
 @injectable()
-export class CohortRepository {
+export class CohortRepository implements ICohortRepository {
     private courseCollection: Collection<Course>;
     private courseVersionCollection: Collection<CourseVersion>;
     private enrollmentCollection: Collection<IEnrollment>;
