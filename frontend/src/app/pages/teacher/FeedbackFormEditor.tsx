@@ -70,7 +70,7 @@ export default function FeedbackFormEditor({
 
     // Show confirmation dialog
     const confirmed = window.confirm(
-      `Are you sure you want to copy "${details.item.name}"? This will create a new feedback form with all the same fields.`
+      `Are you sure you want to copy "${details.item.name}"? This will create a new feedback form with same fields`
     );
 
     if (!confirmed) {
@@ -190,6 +190,7 @@ export default function FeedbackFormEditor({
       await updateItem.mutateAsync({
         params: {
           path: {
+            courseId: courseId,
             versionId: courseVersionId,
             itemId: feedbackId,
           },

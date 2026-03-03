@@ -117,7 +117,12 @@ export enum OutComeStatus {
 export interface InstructorAuditTrail {
   category: AuditCategory;
   action: AuditAction;
-  actor: string | ObjectId;
+  actor: {
+    id: string | ObjectId;
+    name: string;
+    email: string;
+    role?: string;
+  };
 
   context: {
 
