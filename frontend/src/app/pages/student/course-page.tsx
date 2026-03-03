@@ -360,12 +360,22 @@ export default function CoursePage() {
         setSelectedSectionId(previousValidItem.sectionId);
         setSelectedItemId(previousValidItem.itemId);
 
+        // Ensure section items are loaded for the previous valid item
+        if (!sectionItems[previousValidItem.sectionId]) {
+          setActiveSectionInfo({
+            moduleId: previousValidItem.moduleId,
+            sectionId: previousValidItem.sectionId
+          });
+        }
+
         // Update course store navigation
         updateCourseNavigation(
           previousValidItem.moduleId,
           previousValidItem.sectionId,
           previousValidItem.itemId
         );
+      } else {
+        setIsNavigatingToNext(false);
       }
 
       // Always clear error after a delay, regardless of whether we reverted
@@ -520,6 +530,13 @@ export default function CoursePage() {
       setSelectedModuleId(moduleId);
       setSelectedSectionId(sectionId);
       setSelectedItemId(itemId);
+
+      // Initialize previous valid item to always have a fallback
+      setPreviousValidItem({
+        moduleId,
+        sectionId,
+        itemId
+      });
 
       // Auto-expand the module and section
       setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
