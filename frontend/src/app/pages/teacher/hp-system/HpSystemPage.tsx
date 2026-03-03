@@ -42,7 +42,7 @@ export default function HpSystemPage() {
                     <TabsList className="grid w-full grid-cols-2 max-w-[400px] mb-6 p-1 bg-muted/50 border border-border/50 shadow-sm rounded-lg mx-auto lg:ml-0">
                         <TabsTrigger value="dashboard" className="rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">
                             <LayoutDashboard className="h-4 w-4 mr-2" />
-                            Dashboard
+                            Overview
                         </TabsTrigger>
 
                         <TabsTrigger value="courses" className="rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">
