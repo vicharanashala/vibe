@@ -3,10 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useHpStudents } from "@/hooks/hooks";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Search, History, User, Mail, Zap } from "lucide-react";
-
+import { Search, ChevronUp, ChevronDown } from "lucide-react";
 interface StudentsTabProps {
     courseVersionId: string;
     cohortName: string;
@@ -14,106 +11,171 @@ interface StudentsTabProps {
 
 export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
     const [search, setSearch] = useState("");
+    const [sortKey, setSortKey] = useState<"name" | "hp" | "completion">("name");
+    const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+    const itemsPerPage = 10;
+    const [currentPage, setCurrentPage] = useState(1);
+
     const navigate = useNavigate();
-    const { data: students, isLoading } = useHpStudents(courseVersionId, cohortName);
+    const { data: students = [], isLoading } = useHpStudents(courseVersionId, cohortName);
 
     const filteredStudents = students.filter(s => {
         if (!search) return true;
         const q = search.toLowerCase();
         return s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q);
     });
+    const handleSort = (key: typeof sortKey) => {
+        if (sortKey === key) {
+            setSortOrder(prev => (prev === "asc" ? "desc" : "asc"));
+        } else {
+              setSortKey(key);
+              setSortOrder("asc");
+          }
+    };
+    const sortedStudents = [...filteredStudents].sort((a, b) => {
+        if (sortKey === "name") {
+            return sortOrder === "asc"
+                ? a.name.localeCompare(b.name)
+                : b.name.localeCompare(a.name);
+          }
+        
+        if (sortKey === "hp") {
+            return sortOrder === "asc"
+                ? a.totalHp - b.totalHp
+                : b.totalHp - a.totalHp;
+          }
 
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-            </div>
+        if (sortKey === "completion") {
+            return sortOrder === "asc"
+                ? a.completionPercentage - b.completionPercentage
+                : b.completionPercentage - a.completionPercentage;
+          }
+
+      return 0;
+    });
+  const paginatedStudents = sortedStudents.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
         );
-    }
 
-    return (
-        <div className="space-y-6">
-            {/* Search Bar */}
-            <div className="relative max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    placeholder="Search students by name or email..."
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    className="pl-10"
-                />
+      if (isLoading) {
+          return (
+              <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              </div>
+          );
+      }
+
+  return (
+      <div className="space-y-6">
+        {/* Search */}
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search students by name or email..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+        {/* Student Count */}
+          <div className="text-sm text-muted-foreground">
+              Showing{" "}
+              {(currentPage - 1) * itemsPerPage + 1}
+              {"-"}
+              {Math.min(currentPage * itemsPerPage, sortedStudents.length)}{" "}
+              of {sortedStudents.length} students
             </div>
 
-            {/* Students Count */}
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <User className="h-4 w-4" />
-                <span>{filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''}</span>
-            </div>
+          {/* Table */}
+          <div className="bg-card border rounded-xl overflow-hidden">
+            <table className="w-full text-sm table-fixed">
+              <thead className="bg-muted/40 text-muted-foreground">
+                <tr>
+                  <th
+                    className="text-left px-4 py-3 cursor-pointer select-none hover:text-primary"
+                    onClick={() => handleSort("name")}
+                  >
+                    <div className="flex items-center gap-1">
+                      Name
+                      {sortKey === "name" &&
+                        (sortOrder === "asc"
+                          ? <ChevronUp className="h-4 w-4" />
+                          : <ChevronDown className="h-4 w-4" />)}
+                    </div>
+                  </th>
+                  <th className="text-left px-4 py-3">Email</th>
+                  <th
+                  className="text-center px-4 py-3 w-[140px] cursor-pointer select-none hover:text-primary"
+                  onClick={() => handleSort("completion")}
+                  >
+                    <div className="flex items-center gap-1">
+                      Completion %
+                      {sortKey === "completion" &&
+                        (sortOrder === "asc"
+                          ? <ChevronUp className="h-4 w-4" />
+                          : <ChevronDown className="h-4 w-4" />)}
+                    </div>
+                  </th>
+                  <th
+                  className="text-center px-4 py-3 w-[120px] cursor-pointer select-none hover:text-primary"
+                  onClick={() => handleSort("hp")}
+                  >
+                    <div className="flex items-center gap-1">
+                      Total HP
+                      {sortKey === "hp" &&
+                        (sortOrder === "asc"
+                          ? <ChevronUp className="h-4 w-4" />
+                          : <ChevronDown className="h-4 w-4" />)}
+                    </div>
+                  </th>
+                  <th className="text-center px-4 py-3">Actions</th>
+                </tr>
+              </thead>
 
-            {/* Students List */}
-            {filteredStudents.length === 0 ? (
-                <div className="text-center py-12 border-2 border-dashed rounded-lg text-muted-foreground">
-                    No students found{search ? ` matching "${search}"` : ''}.
-                </div>
-            ) : (
-                <div className="space-y-3">
-                    {filteredStudents.map(student => (
-                        <Card key={student._id} className="hover:border-primary/50 transition-colors">
-                            <CardContent className="flex items-center justify-between p-4">
-                                <div className="flex items-center gap-4 min-w-0">
-                                    {/* Avatar */}
-                                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-primary font-semibold text-sm">
-                                        {student.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                                    </div>
+              <tbody>
+                {paginatedStudents.map(student => (
+                  <tr key={student._id} className="border-t hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3 font-medium">{student.name}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{student.email}</td>
+                    <td className="px-4 py-3 text-center">{student.completionPercentage}%</td>
+                    <td className="px-4 py-3 text-center font-semibold">{student.totalHp}</td>
+                    <td className="px-4 py-3 text-center">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate({
+                          to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName)}/student/${student._id}/ledger`
+                        })}
+                      >
+                        View HP History
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => prev - 1)}
+            >
+              Previous
+            </Button>
 
-                                    {/* Name & Email */}
-                                    <div className="min-w-0">
-                                        <div className="font-medium truncate">{student.name}</div>
-                                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground truncate">
-                                            <Mail className="h-3 w-3 flex-shrink-0" />
-                                            <span className="truncate">{student.email}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-4 flex-shrink-0">
-                                    {/* Completion */}
-                                    <div className="flex items-center gap-2 min-w-[140px]">
-                                        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full rounded-full transition-all bg-primary"
-                                                style={{ width: `${student.completionPercentage}%` }}
-                                            />
-                                        </div>
-                                        <span className="text-xs font-medium text-muted-foreground w-[36px] text-right">
-                                            {student.completionPercentage}%
-                                        </span>
-                                    </div>
-
-                                    {/* HP Badge */}
-                                    <Badge variant="secondary" className="flex items-center gap-1.5 px-3 py-1">
-                                        <Zap className="h-3.5 w-3.5 text-yellow-500" />
-                                        <span className="font-semibold">{student.totalHp}</span>
-                                        <span className="text-muted-foreground text-xs">HP</span>
-                                    </Badge>
-
-                                    {/* View HP History */}
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => navigate({
-                                            to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName)}/student/${student._id}/ledger`
-                                        })}
-                                    >
-                                        <History className="h-4 w-4 mr-2" />
-                                        View HP History
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage * itemsPerPage >= sortedStudents.length}
+              onClick={() => setCurrentPage(prev => prev + 1)}
+            >
+              Next
+            </Button>
+          </div>
+      </div>
+  );
 }
