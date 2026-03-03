@@ -2631,6 +2631,28 @@ export class EnrollmentRepository {
     /* -------------------------------------------------------
      * 3️⃣ AGGREGATE SUBMISSIONS IN MONGO (🔥 FIX)
      * ----------------------------------------------------- */
+    const attemptsAggregation = await this.submissionCollection
+      .aggregate([
+        {
+          $match: {
+            userId: { $in: userIds },
+            quizId: { $in: quizIdsObj },
+          },
+        },
+        {
+          $group: {
+            _id: {
+              userId: '$userId',
+              quizId: '$quizId',
+            },
+            attempts: { $sum: 1 },
+            maxScore: { $max: '$gradingResult.totalScore' },
+          },
+        },
+      ])
+      .toArray();
+
+    // Aggregation for question scores
     const aggregatedSubmissions = await this.submissionCollection
       .aggregate([
         {
@@ -2652,10 +2674,6 @@ export class EnrollmentRepository {
             questionScore: {
               $max: '$gradingResult.overallFeedback.score',
             },
-            maxScore: {
-              $max: '$gradingResult.totalScore',
-            },
-            attempts: { $sum: 1 },
           },
         },
       ])
@@ -2668,24 +2686,27 @@ export class EnrollmentRepository {
     const maxScoreMap = new Map<string, Map<string, number>>();
     const attemptsMap = new Map<string, Map<string, number>>();
 
-    for (const row of aggregatedSubmissions) {
+    // Build attempts and max score maps from separate aggregation
+    for (const row of attemptsAggregation) {
       const userId = row._id.userId.toString();
       const quizId = row._id.quizId.toString();
-      const questionId = row._id.questionId.toString();
 
-      // attempts
       attemptsMap
         .set(userId, attemptsMap.get(userId) ?? new Map())
         .get(userId)!
         .set(quizId, row.attempts);
 
-      // max score
       maxScoreMap
         .set(userId, maxScoreMap.get(userId) ?? new Map())
         .get(userId)!
         .set(quizId, row.maxScore ?? 0);
+    }
 
-      // question score
+    for (const row of aggregatedSubmissions) {
+      const userId = row._id.userId.toString();
+      const quizId = row._id.quizId.toString();
+      const questionId = row._id.questionId.toString();
+
       scoreMap
         .set(userId, scoreMap.get(userId) ?? new Map())
         .get(userId)!

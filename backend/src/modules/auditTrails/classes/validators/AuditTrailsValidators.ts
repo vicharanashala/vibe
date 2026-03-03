@@ -20,6 +20,14 @@ export class AuditTrailsDetails {
   action: string;
 
   @IsObject()
+  actor: {
+    id: string;
+    name: string;
+    email: string;
+    role?: string;
+  };
+
+  @IsObject()
   context: object;
 
   @IsObject()

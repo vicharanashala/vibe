@@ -110,7 +110,12 @@ export class InviteController {
     setAuditTrail(req, {
       category: AuditCategory.INVITE,
       action: AuditAction.INVITE_SEND_SINGLE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(versionId),
@@ -182,7 +187,12 @@ export class InviteController {
     setAuditTrail(req, {
       category: AuditCategory.INVITE,
       action: AuditAction.INVITE_SEND_BULK,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(versionId),
@@ -342,11 +352,11 @@ export class InviteController {
     setAuditTrail(req, {
       category: AuditCategory.INVITE,
       action: AuditAction.INVITE_RESEND,
-      actor: ObjectId.createFromHexString(user._id.toString()),
-      context: {
-        courseId: new ObjectId(invite.courseId),
-        courseVersionId: new ObjectId(invite.courseVersionId),
-        inviteId: new ObjectId(invite.inviteId.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
       },
       changes:{
         after:{
@@ -400,7 +410,12 @@ export class InviteController {
     setAuditTrail(req, {
       category: AuditCategory.INVITE,
       action: AuditAction.INVITE_REMOVE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseId: new ObjectId(invite.courseId),
         courseVersionId: new ObjectId(invite.courseVersionId),
