@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search, History, User, Mail, Zap } from "lucide-react";
+import { Search, History, User, Mail, Zap, FileText } from "lucide-react";
 
 interface StudentsTabProps {
     courseVersionId: string;
@@ -97,6 +97,16 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
                                         <span className="text-muted-foreground text-xs">HP</span>
                                     </Badge>
 
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => navigate({
+                                            to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName)}/student/${student._id}/submissions`
+                                        })}
+                                    >
+                                        <FileText className="h-4 w-4 mr-2" />
+                                        View Submissions
+                                    </Button>
                                     {/* View HP History */}
                                     <Button
                                         variant="outline"

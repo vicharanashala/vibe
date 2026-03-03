@@ -4705,6 +4705,7 @@ import {
   HpStudent,
   HpLedgerEntry,
   HpCohortOverviewStats,
+  HpStudentSubmission,
 } from '../lib/api/hp-system';
 
 export function useHpCourseVersions() {
@@ -5054,6 +5055,30 @@ export function useHpCohortOverviewStats(courseVersionId: string, cohort: string
       setIsLoading(false);
     }
   }, [courseVersionId, cohort]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  return { data, isLoading, error, refetch: fetchData };
+}
+
+export function useHpStudentSubmissions(studentId: string, courseVersionId: string, cohort: string) {
+  const [data, setData] = useState<HpStudentSubmission[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    if (!studentId || !courseVersionId || !cohort) return;
+    setIsLoading(true);
+    try {
+      const res = await hpApi.getStudentSubmissions(studentId, courseVersionId, cohort);
+      if (res.success) setData(res.data);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load student submissions');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [studentId, courseVersionId, cohort]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

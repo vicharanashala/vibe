@@ -1,9 +1,7 @@
-import { useState } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
-import { useHpStudentLedger, useHpStudents, useRevertHpEntry, useRestoreHpEntry } from "@/hooks/hooks";
+import { useHpStudentLedger, useHpStudents } from "@/hooks/hooks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     Table,
@@ -13,16 +11,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-    DialogFooter,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Zap, ExternalLink, Undo2, RotateCcw, User, Mail, Clock } from "lucide-react";
+import { ArrowLeft, Zap, User, Mail, Clock, MessageSquare } from "lucide-react";
 
 export default function StudentLedgerPage() {
     const { courseVersionId, cohortName, studentId } = useParams({ strict: false });
@@ -31,41 +20,9 @@ export default function StudentLedgerPage() {
     const { data: students } = useHpStudents(courseVersionId || '', cohortName || '');
     const student = students.find(s => s._id === studentId);
 
-    const { data: ledger, isLoading, refetch } = useHpStudentLedger(
+    const { data: ledger, isLoading } = useHpStudentLedger(
         studentId || '', courseVersionId || '', cohortName || ''
     );
-
-    const { mutateAsync: revertEntry, isPending: isReverting } = useRevertHpEntry();
-    const { mutateAsync: restoreEntry, isPending: isRestoring } = useRestoreHpEntry();
-
-    const [actionEntryId, setActionEntryId] = useState<string | null>(null);
-    const [reasonDialog, setReasonDialog] = useState<{
-        open: boolean;
-        entryId: string;
-        action: 'revert' | 'restore';
-    }>({ open: false, entryId: '', action: 'revert' });
-    const [reason, setReason] = useState('');
-
-    const openReasonDialog = (entryId: string, action: 'revert' | 'restore') => {
-        setReason('');
-        setReasonDialog({ open: true, entryId, action });
-    };
-
-    const handleConfirmAction = async () => {
-        const { entryId, action } = reasonDialog;
-        setReasonDialog({ ...reasonDialog, open: false });
-        setActionEntryId(entryId);
-        try {
-            if (action === 'revert') {
-                await revertEntry(entryId);
-            } else {
-                await restoreEntry(entryId);
-            }
-            refetch();
-        } finally {
-            setActionEntryId(null);
-        }
-    };
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -91,7 +48,7 @@ export default function StudentLedgerPage() {
     const totalHp = ledger.reduce((sum, e) => sum + e.currentHp, 0);
 
     return (
-        <div className="space-y-6 max-w-7xl mx-auto pb-12">
+        <div className="space-y-6 w-full pb-12">
             {/* Header */}
             <div className="flex items-center gap-4 border-b pb-4">
                 <Button
@@ -159,12 +116,10 @@ export default function StudentLedgerPage() {
                                 <TableRow>
                                     <TableHead className="min-w-[200px]">Activity</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead>Submission</TableHead>
                                     <TableHead className="text-right">Base HP</TableHead>
                                     <TableHead className="text-right">Current HP</TableHead>
                                     <TableHead className="min-w-[160px]">Submitted At</TableHead>
-                                    <TableHead className="min-w-[200px]">Note / Reason</TableHead>
-                                    <TableHead className="text-right min-w-[120px]">Actions</TableHead>
+                                    <TableHead className="min-w-[250px]">Instructor Feedback</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -177,21 +132,6 @@ export default function StudentLedgerPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell>{getStatusBadge(entry.status)}</TableCell>
-                                        <TableCell>
-                                            {entry.submissionLink ? (
-                                                <a
-                                                    href={entry.submissionLink}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                                                >
-                                                    <ExternalLink className="h-3.5 w-3.5" />
-                                                    View
-                                                </a>
-                                            ) : (
-                                                <span className="text-sm text-muted-foreground">—</span>
-                                            )}
-                                        </TableCell>
                                         <TableCell className="text-right">
                                             <span className="font-semibold text-muted-foreground">{entry.baseHp}</span>
                                         </TableCell>
@@ -211,32 +151,11 @@ export default function StudentLedgerPage() {
                                             )}
                                         </TableCell>
                                         <TableCell>
-                                            <span className="text-sm text-muted-foreground">
-                                                {entry.note || '—'}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            {entry.status === 'REVERTED' ? (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    disabled={isRestoring && actionEntryId === entry._id}
-                                                    onClick={() => openReasonDialog(entry._id, 'restore')}
-                                                >
-                                                    <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-                                                    {isRestoring && actionEntryId === entry._id ? 'Restoring...' : 'Restore'}
-                                                </Button>
-                                            ) : entry.status === 'SUBMITTED' ? (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="text-destructive hover:text-destructive"
-                                                    disabled={isReverting && actionEntryId === entry._id}
-                                                    onClick={() => openReasonDialog(entry._id, 'revert')}
-                                                >
-                                                    <Undo2 className="h-3.5 w-3.5 mr-1.5" />
-                                                    {isReverting && actionEntryId === entry._id ? 'Reverting...' : 'Revert'}
-                                                </Button>
+                                            {entry.instructorFeedback ? (
+                                                <div className="flex items-start gap-1.5 text-sm">
+                                                    <MessageSquare className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-muted-foreground" />
+                                                    <span>{entry.instructorFeedback}</span>
+                                                </div>
                                             ) : (
                                                 <span className="text-sm text-muted-foreground">—</span>
                                             )}
@@ -248,40 +167,6 @@ export default function StudentLedgerPage() {
                     </CardContent>
                 </Card>
             )}
-
-            {/* Reason Dialog */}
-            <Dialog open={reasonDialog.open} onOpenChange={(open) => setReasonDialog({ ...reasonDialog, open })}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>
-                            {reasonDialog.action === 'revert' ? 'Revert HP Entry' : 'Restore HP Entry'}
-                        </DialogTitle>
-                        <DialogDescription>
-                            {reasonDialog.action === 'revert'
-                                ? 'Provide a reason for reverting this HP entry. This will set the current HP to 0.'
-                                : 'Provide a reason for restoring this HP entry. The original HP will be reinstated.'}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-2 py-2">
-                        <label className="text-sm font-medium">Reason / Note</label>
-                        <Textarea
-                            placeholder="Enter the reason for this action..."
-                            value={reason}
-                            onChange={e => setReason(e.target.value)}
-                            className="min-h-[80px]"
-                        />
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setReasonDialog({ ...reasonDialog, open: false })}>Cancel</Button>
-                        <Button
-                            variant={reasonDialog.action === 'revert' ? 'destructive' : 'default'}
-                            onClick={handleConfirmAction}
-                        >
-                            {reasonDialog.action === 'revert' ? 'Confirm Revert' : 'Confirm Restore'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </div>
     );
 }
