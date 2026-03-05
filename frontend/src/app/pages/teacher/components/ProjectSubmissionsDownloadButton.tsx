@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { PDFDownloadLink, Page, Text, View, Document, StyleSheet, Link } from '@react-pdf/renderer';
 import { Button } from '@/components/ui/button';
-import { Download } from 'lucide-react';
+import { Download, ScanEyeIcon } from 'lucide-react';
 import { useProjectSubmissions, ProjectSubmissionUserInfo } from '@/hooks/hooks';
 
 const styles = StyleSheet.create({
@@ -21,6 +21,18 @@ interface ProjectSubmissionsPDFProps {
   userInfo: ProjectSubmissionUserInfo[];
   projectName?: string;
 }
+// Format: submission-YYYY-MM-DD-HH-mm-ss.pdf
+const getFileName = () => {
+  const now = new Date();
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const year = now.getFullYear();
+  const month = pad(now.getMonth() + 1);
+  const day = pad(now.getDate());
+  const hour = pad(now.getHours());
+  const min = pad(now.getMinutes());
+  const sec = pad(now.getSeconds());
+  return `submission-${year}-${month}-${day}-${hour}-${min}-${sec}.pdf`;
+};
 
 const ProjectSubmissionsPDF: React.FC<ProjectSubmissionsPDFProps> = ({ course, courseVersion, userInfo, projectName }) => (
   <Document>
@@ -53,43 +65,82 @@ interface ProjectSubmissionsDownloadButtonProps {
   versionId: string;
 }
 
-
 export const ProjectSubmissionsDownloadButton: React.FC<ProjectSubmissionsDownloadButtonProps & { projectName?: string }> = ({ courseId, versionId, projectName }) => {
-  const { data: projectSubmissions, isLoading: isProjectSubmissionsLoading } = useProjectSubmissions(courseId, versionId);
+  const [shouldFetch, setShouldFetch] = useState(false);
 
-  // Format: submission-YYYY-MM-DD-HH-mm-ss.pdf
-  const getFileName = () => {
-    const now = new Date();
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    const year = now.getFullYear();
-    const month = pad(now.getMonth() + 1);
-    const day = pad(now.getDate());
-    const hour = pad(now.getHours());
-    const min = pad(now.getMinutes());
-    const sec = pad(now.getSeconds());
-    return `submission-${year}-${month}-${day}-${hour}-${min}-${sec}.pdf`;
-  };
+  if (!shouldFetch) {
+    return (
+      <Button variant="outline" size="sm" onClick={() => setShouldFetch(true)}>
+        <ScanEyeIcon className="h-4 w-4 mr-2" />
+        Check Project Submissions
+      </Button>
+    );
+  }
+
+  return <ProjectSubmissionsFetcher courseId={courseId} versionId={versionId} projectName={projectName} />;
+};
+
+
+const ProjectSubmissionsFetcher: React.FC<{ courseId: string; versionId: string; projectName?: string }> = ({ courseId, versionId, projectName }) => {
+  const { data: projectSubmissions, isLoading } = useProjectSubmissions(courseId, versionId);
+
+  if (isLoading) {
+    return (
+      <Button variant="outline" size="sm" disabled>
+        <Download className="h-4 w-4 mr-2" />
+        Loading...
+      </Button>
+    );
+  }
+
+  if (!projectSubmissions || projectSubmissions.userInfo?.length === 0) {
+    return (
+      <Button variant="outline" size="sm" disabled>
+        <Download className="h-4 w-4 mr-2" />
+        No Project Submissions
+      </Button>
+    );
+  }
 
   return (
-    <div>
-      {projectSubmissions && projectSubmissions.userInfo?.length > 0 ? (
-        <PDFDownloadLink
-          document={<ProjectSubmissionsPDF {...projectSubmissions} projectName={projectName} />}
-          fileName={getFileName()}
-        >
-          {({ loading }: { loading: boolean }) => (
-            <Button variant="outline" size="sm" disabled={loading}>
-              <Download className="h-4 w-4 mr-2" />
-              {loading ? "Generating PDF..." : "Download Submissions"}
-            </Button>
-          )}
-        </PDFDownloadLink>
-      ) : (
-        <Button variant="outline" size="sm" disabled>
+    <PDFDownloadLink
+      document={<ProjectSubmissionsPDF {...projectSubmissions} projectName={projectName} />}
+      fileName={getFileName()}
+    >
+      {({ loading }: { loading: boolean }) => (
+        <Button variant="outline" size="sm" disabled={loading}>
           <Download className="h-4 w-4 mr-2" />
-          {isProjectSubmissionsLoading ? "Loading..." : "No Project Submissions"}
+          {loading ? "Generating PDF..." : "Download Submissions"}
         </Button>
       )}
-    </div>
+    </PDFDownloadLink>
   );
 };
+
+// export const ProjectSubmissionsDownloadButton: React.FC<ProjectSubmissionsDownloadButtonProps & { projectName?: string }> = ({ courseId, versionId, projectName }) => {
+//   const { data: projectSubmissions, isLoading: isProjectSubmissionsLoading } = useProjectSubmissions(courseId, versionId);
+
+
+//   return (
+//     <div>
+//       {projectSubmissions && projectSubmissions.userInfo?.length > 0 ? (
+//         <PDFDownloadLink
+//           document={<ProjectSubmissionsPDF {...projectSubmissions} projectName={projectName} />}
+//           fileName={getFileName()}
+//         >
+//           {({ loading }: { loading: boolean }) => (
+//             <Button variant="outline" size="sm" disabled={loading}>
+//               <Download className="h-4 w-4 mr-2" />
+//               {loading ? "Generating PDF..." : "Download Submissions"}
+//             </Button>
+//           )}
+//         </PDFDownloadLink>
+//       ) : (
+//         <Button variant="outline" size="sm" disabled>
+//           <Download className="h-4 w-4 mr-2" />
+//           {isProjectSubmissionsLoading ? "Loading..." : "No Project Submissions"}
+//         </Button>
+//       )}
+//     </div>
+//   );
+// };
