@@ -146,6 +146,15 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
                         variant="outline"
                         size="sm"
                         onClick={() => navigate({
+                          to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName)}/student/${student._id}/submissions`
+                        })}
+                      >
+                        View Submissions
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate({
                           to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName)}/student/${student._id}/ledger`
                         })}
                       >
