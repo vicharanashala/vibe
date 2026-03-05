@@ -128,7 +128,6 @@ export interface SubmissionAttachment {
     name: string;
     url: string;
     type: 'image' | 'pdf' | 'document' | 'link' | 'other';
-    size?: number; // in bytes
 }
 
 export interface HpStudentSubmission {
@@ -403,8 +402,8 @@ export const hpApi = {
                 activityDescription: 'Design and build a RESTful API with Express.js. Must include CRUD operations, proper error handling, and middleware for authentication.',
                 submissionLink: 'https://github.com/student/rest-api',
                 attachments: [
-                    { _id: 'att1', name: 'api-architecture.png', url: 'https://picsum.photos/seed/arch/800/600', type: 'image', size: 245000 },
-                    { _id: 'att2', name: 'API-Documentation.pdf', url: 'https://example.com/docs/api-doc.pdf', type: 'pdf', size: 1200000 },
+                    { _id: 'att1', name: 'api-architecture.png', url: 'https://picsum.photos/seed/arch/800/600', type: 'image' },
+                    { _id: 'att2', name: 'API-Documentation.pdf', url: 'https://example.com/docs/api-doc.pdf', type: 'pdf' },
                 ],
                 dueDate: '2025-11-22T23:59:00Z', submittedAt: '2025-11-20T14:30:00Z', lastUpdated: '2025-11-20T14:30:00Z',
                 submissionCount: 1, isLate: false, baseHp: 100, currentHp: 100,
@@ -414,7 +413,7 @@ export const hpApi = {
                 _id: 'sub2', activityId: 'a2', activityTitle: 'Week 1 Quiz', status: 'SUBMITTED',
                 activityDescription: 'Complete the quiz covering database fundamentals, normalization, and SQL queries.',
                 attachments: [
-                    { _id: 'att3', name: 'quiz-answers.pdf', url: 'https://example.com/docs/quiz.pdf', type: 'pdf', size: 350000 },
+                    { _id: 'att3', name: 'quiz-answers.pdf', url: 'https://example.com/docs/quiz.pdf', type: 'pdf' },
                 ],
                 dueDate: '2025-11-18T23:59:00Z', submittedAt: '2025-11-18T09:15:00Z', lastUpdated: '2025-11-18T09:15:00Z',
                 submissionCount: 1, isLate: false, baseHp: 50, currentHp: 45,
@@ -432,8 +431,8 @@ export const hpApi = {
                 activityDescription: 'Deploy your REST API to a cloud provider (AWS/GCP/Azure). Must include a health check endpoint and CI/CD pipeline.',
                 submissionLink: 'https://github.com/student/cloud-deploy',
                 attachments: [
-                    { _id: 'att4', name: 'deployment-screenshot.png', url: 'https://picsum.photos/seed/deploy/800/600', type: 'image', size: 180000 },
-                    { _id: 'att5', name: 'error-logs.pdf', url: 'https://example.com/docs/error-logs.pdf', type: 'pdf', size: 90000 },
+                    { _id: 'att4', name: 'deployment-screenshot.png', url: 'https://picsum.photos/seed/deploy/800/600', type: 'image' },
+                    { _id: 'att5', name: 'error-logs.pdf', url: 'https://example.com/docs/error-logs.pdf', type: 'pdf' },
                     { _id: 'att6', name: 'Live Demo', url: 'https://student-app.vercel.app', type: 'link' },
                 ],
                 dueDate: '2025-11-24T23:59:00Z', submittedAt: '2025-11-25T11:00:00Z', lastUpdated: '2025-11-26T10:00:00Z',
@@ -445,9 +444,9 @@ export const hpApi = {
                 activityDescription: 'Build a full-stack web application with authentication, database integration, and deployment. Include project report and demo video.',
                 submissionLink: 'https://github.com/student/midterm',
                 attachments: [
-                    { _id: 'att7', name: 'project-report.pdf', url: 'https://example.com/docs/midterm-report.pdf', type: 'pdf', size: 2500000 },
-                    { _id: 'att8', name: 'demo-recording.mp4', url: 'https://example.com/videos/demo.mp4', type: 'other', size: 15000000 },
-                    { _id: 'att9', name: 'wireframes.png', url: 'https://picsum.photos/seed/wire/800/600', type: 'image', size: 320000 },
+                    { _id: 'att7', name: 'project-report.pdf', url: 'https://example.com/docs/midterm-report.pdf', type: 'pdf' },
+                    { _id: 'att8', name: 'demo-recording.mp4', url: 'https://example.com/videos/demo.mp4', type: 'other' },
+                    { _id: 'att9', name: 'wireframes.png', url: 'https://picsum.photos/seed/wire/800/600', type: 'image' },
                 ],
                 dueDate: '2025-12-01T23:59:00Z', submittedAt: '2025-12-01T16:45:00Z', lastUpdated: '2025-12-01T16:45:00Z',
                 submissionCount: 3, isLate: false, baseHp: 200, currentHp: 200, safetyStatus: 'safe'
