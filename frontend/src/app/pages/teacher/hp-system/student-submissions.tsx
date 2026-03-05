@@ -27,13 +27,6 @@ const statusConfig = {
     REVERTED: { label: "Reverted", variant: "destructive" as const, icon: XCircle, color: "text-red-600" },
 };
 
-function formatFileSize(bytes?: number): string {
-    if (!bytes) return '';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 function formatDate(iso?: string): string {
     if (!iso) return '—';
     return new Date(iso).toLocaleString('en-IN', {
@@ -70,7 +63,6 @@ function AttachmentPreview({ attachment }: { attachment: SubmissionAttachment })
             <AttachmentIcon type={attachment.type} />
             <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{attachment.name}</p>
-                {attachment.size && <p className="text-xs text-muted-foreground">{formatFileSize(attachment.size)}</p>}
             </div>
             <ExternalLink className="h-3 w-3 text-muted-foreground flex-shrink-0" />
         </a>
