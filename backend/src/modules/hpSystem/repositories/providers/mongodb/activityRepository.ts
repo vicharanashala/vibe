@@ -76,7 +76,7 @@ export class ActivityRepository implements IActivityRepository {
 
         if (filters.courseId) q.courseId = new ObjectId(filters.courseId);
         if (filters.courseVersionId) q.courseVersionId = new ObjectId(filters.courseVersionId);
-        if (filters.cohort) q.Cohort = filters.cohort;
+        if (filters.cohort) q.cohort = filters.cohort;
         if (filters.status) q.status = filters.status;
         if (filters.createdByTeacherId) q.createdByTeacherId = new ObjectId(filters.createdByTeacherId);
 
@@ -181,7 +181,7 @@ export class ActivityRepository implements IActivityRepository {
     async getPublishedCountByCohortName(cohortName: string): Promise<number> {
         await this.init();
         return await this.hpActivityCollection.countDocuments({
-            cohortName: cohortName,
+            cohort: cohortName,
             status: "PUBLISHED",
             isDeleted: { $ne: true },
         });

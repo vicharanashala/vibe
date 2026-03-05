@@ -24,15 +24,15 @@ import { useHpRuleConfig, useCreateHpRuleConfig, useUpdateHpRuleConfig } from "@
 interface RuleSettingsDialogProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
+    courseId: string;
     courseVersionId: string;
-    cohort?: string;
-    ruleConfigId?: string;
     activityId: string;
 }
 
 export function RuleSettingsDialog({
     isOpen,
     onOpenChange,
+    courseId,
     courseVersionId,
     activityId,
 }: RuleSettingsDialogProps) {
@@ -45,6 +45,32 @@ export function RuleSettingsDialog({
 
     const loading = fetchLoading || isCreating || isUpdating;
 
+    // Default configuration
+    const defaultReward: any = {
+        enabled: true,
+        type: "ABSOLUTE",
+        value: 10,
+        applyWhen: "ON_APPROVAL",
+        onlyWithinDeadline: true,
+        allowLate: false,
+        lateBehavior: "NO_REWARD",
+        minHpFloor: 0,
+    };
+
+    const defaultPenalty: any = {
+        enabled: false,
+        type: "PERCENTAGE",
+        value: 5,
+        applyWhen: "AFTER_DEADLINE",
+        graceMinutes: 0,
+        runOnce: true,
+    };
+
+    const defaultLimits: any = {
+        minHp: 0,
+        maxHp: 10,
+    };
+
     // Sync fetched config into local state when dialog opens
     useEffect(() => {
         if (isOpen) {
@@ -56,6 +82,10 @@ export function RuleSettingsDialog({
                     isMandatory: true,
                     allowLateSubmission: false,
                     lateRewardPolicy: "NONE",
+                    reward: defaultReward,
+                    penalty: defaultPenalty,
+                    limits: defaultLimits,
+                    deadlineAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
                 });
             }
         }
@@ -68,7 +98,7 @@ export function RuleSettingsDialog({
                 await updateRuleConfig(existingConfig._id, config);
             } else {
                 const createPayload: Partial<HpRuleConfig> = {
-                    courseId: "c1", // TODO: pass from parent
+                    courseId,
                     courseVersionId,
                     activityId,
                     ...config,
@@ -92,7 +122,7 @@ export function RuleSettingsDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                {loading ? (
+                {fetchLoading ? (
                     <div className="py-8 text-center text-muted-foreground">Loading settings...</div>
                 ) : (
                     <div className="space-y-8 py-4">
@@ -107,7 +137,7 @@ export function RuleSettingsDialog({
                             </div>
                             <Switch
                                 checked={config?.isMandatory || false}
-                                onCheckedChange={(c) => setConfig(prev => ({ ...prev, isMandatory: c }))}
+                                onCheckedChange={(c) => setConfig(prev => ({ ...prev, isMandatory: c } as any))}
                             />
                         </div>
 
@@ -123,7 +153,7 @@ export function RuleSettingsDialog({
                                     <Input
                                         type="datetime-local"
                                         value={config?.deadlineAt ? new Date(config.deadlineAt).toISOString().slice(0, 16) : ""}
-                                        onChange={(e) => setConfig(prev => ({ ...prev, deadlineAt: new Date(e.target.value).toISOString() }))}
+                                        onChange={(e) => setConfig(prev => ({ ...prev, deadlineAt: new Date(e.target.value).toISOString() } as any))}
                                     />
                                 </div>
 
@@ -132,7 +162,7 @@ export function RuleSettingsDialog({
                                         <Switch
                                             id="allow-late"
                                             checked={config?.allowLateSubmission || false}
-                                            onCheckedChange={(c) => setConfig(prev => ({ ...prev, allowLateSubmission: c }))}
+                                            onCheckedChange={(c) => setConfig(prev => ({ ...prev, allowLateSubmission: c } as any))}
                                         />
                                         <Label htmlFor="allow-late">Allow Late Submissions</Label>
                                     </div>
@@ -144,13 +174,25 @@ export function RuleSettingsDialog({
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
                                 <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Reward Configuration</h4>
-                                <Switch checked={true} />
+                                <Switch
+                                    checked={config?.reward?.enabled || false}
+                                    onCheckedChange={(c) => setConfig(prev => ({
+                                        ...prev,
+                                        reward: { ...(prev?.reward || defaultReward), enabled: c }
+                                    } as any))}
+                                />
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
+                            <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20 ${!config?.reward?.enabled ? 'opacity-50 pointer-events-none' : ''}`}>
 
                                 <div className="space-y-2">
                                     <Label>Rule Type</Label>
-                                    <Select defaultValue="ABSOLUTE">
+                                    <Select
+                                        value={config?.reward?.type || "ABSOLUTE"}
+                                        onValueChange={(v: any) => setConfig(prev => ({
+                                            ...prev,
+                                            reward: { ...(prev?.reward || defaultReward), type: v }
+                                        } as any))}
+                                    >
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
@@ -163,12 +205,25 @@ export function RuleSettingsDialog({
 
                                 <div className="space-y-2">
                                     <Label>Reward Value</Label>
-                                    <Input type="number" defaultValue={10} />
+                                    <Input
+                                        type="number"
+                                        value={config?.reward?.value || 0}
+                                        onChange={(e) => setConfig(prev => ({
+                                            ...prev,
+                                            reward: { ...(prev?.reward || defaultReward), value: parseInt(e.target.value) || 0 }
+                                        } as any))}
+                                    />
                                 </div>
 
                                 <div className="space-y-2">
                                     <Label>Apply Policy</Label>
-                                    <Select defaultValue="ON_APPROVAL">
+                                    <Select
+                                        value={config?.reward?.applyWhen || "ON_APPROVAL"}
+                                        onValueChange={(v: any) => setConfig(prev => ({
+                                            ...prev,
+                                            reward: { ...(prev?.reward || defaultReward), applyWhen: v }
+                                        } as any))}
+                                    >
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
@@ -180,19 +235,19 @@ export function RuleSettingsDialog({
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label>Late Behavior</Label>
+                                    <Label>Late Reward Behavior</Label>
                                     <Select
-                                        value={config?.lateRewardPolicy || "NO_REWARD"}
-                                        onValueChange={(val: any) => setConfig(prev => ({ ...prev, lateRewardPolicy: val }))}
+                                        value={config?.lateRewardPolicy || "NONE"}
+                                        onValueChange={(val: any) => setConfig(prev => ({ ...prev, lateRewardPolicy: val } as any))}
                                         disabled={!config?.allowLateSubmission}
                                     >
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="NO_REWARD">Deny Reward</SelectItem>
+                                            <SelectItem value="NONE">None</SelectItem>
                                             <SelectItem value="REWARD_ALLOWED">Allow Reward</SelectItem>
-                                            <SelectItem value="REWARD_DENIED">Penalty Apply (No Reward)</SelectItem>
+                                            <SelectItem value="REWARD_DENIED">Deny Reward</SelectItem>
                                         </SelectContent>
                                     </Select>
                                     {!config?.allowLateSubmission && <p className="text-[10px] text-muted-foreground">Enable Late Submissions to configure late behavior.</p>}
@@ -204,12 +259,24 @@ export function RuleSettingsDialog({
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
                                 <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Penalty Configuration (Late)</h4>
-                                <Switch checked={false} />
+                                <Switch
+                                    checked={config?.penalty?.enabled || false}
+                                    onCheckedChange={(c) => setConfig(prev => ({
+                                        ...prev,
+                                        penalty: { ...(prev?.penalty || defaultPenalty), enabled: c }
+                                    } as any))}
+                                />
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20 opacity-60 pointer-events-none">
+                            <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20 ${!config?.penalty?.enabled ? 'opacity-50 pointer-events-none' : ''}`}>
                                 <div className="space-y-2">
                                     <Label>Penalty Type</Label>
-                                    <Select defaultValue="PERCENTAGE">
+                                    <Select
+                                        value={config?.penalty?.type || "PERCENTAGE"}
+                                        onValueChange={(v: any) => setConfig(prev => ({
+                                            ...prev,
+                                            penalty: { ...(prev?.penalty || defaultPenalty), type: v }
+                                        } as any))}
+                                    >
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
@@ -221,11 +288,25 @@ export function RuleSettingsDialog({
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Penalty Value</Label>
-                                    <Input type="number" defaultValue={5} />
+                                    <Input
+                                        type="number"
+                                        value={config?.penalty?.value || 0}
+                                        onChange={(e) => setConfig(prev => ({
+                                            ...prev,
+                                            penalty: { ...(prev?.penalty || defaultPenalty), value: parseInt(e.target.value) || 0 }
+                                        } as any))}
+                                    />
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Grace Period (Minutes)</Label>
-                                    <Input type="number" defaultValue={0} />
+                                    <Input
+                                        type="number"
+                                        value={config?.penalty?.graceMinutes || 0}
+                                        onChange={(e) => setConfig(prev => ({
+                                            ...prev,
+                                            penalty: { ...(prev?.penalty || defaultPenalty), graceMinutes: parseInt(e.target.value) || 0 }
+                                        } as any))}
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -233,7 +314,7 @@ export function RuleSettingsDialog({
                     </div>
                 )}
 
-                <DialogFooter>
+                <DialogFooter className="sticky bottom-0 bg-background pt-4 border-t">
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
                     <Button onClick={handleSave} disabled={loading}>{loading ? "Saving..." : "Save Configuration"}</Button>
                 </DialogFooter>

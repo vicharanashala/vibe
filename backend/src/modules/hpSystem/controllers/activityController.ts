@@ -33,7 +33,8 @@ export class ActivityController {
 
   ) {
     const teacherId = user._id.toString();
-    return this.activityService.create(teacherId, body);
+    const doc = await this.activityService.create(teacherId, body);
+    return { success: true, data: doc };
   }
 
   @OpenAPI({ summary: "Update an activity (DRAFT/PUBLISHED only)" })
@@ -48,7 +49,8 @@ export class ActivityController {
     @Param("id") id: string,
     @Body({ required: true }) body: UpdateActivityBody,
   ) {
-    return this.activityService.update(id, body);
+    const doc = await this.activityService.update(id, body);
+    return { success: true, data: doc };
   }
 
   @OpenAPI({ summary: "Publish an activity" })
@@ -64,7 +66,8 @@ export class ActivityController {
     @CurrentUser() user: IUser,
   ) {
     const teacherId = user._id.toString();
-    return this.activityService.publish(id, teacherId);
+    const doc = await this.activityService.publish(id, teacherId);
+    return { success: true, data: doc };
   }
 
   @OpenAPI({ summary: "Archive an activity" })
@@ -78,7 +81,8 @@ export class ActivityController {
   async archive(
     @Param("id") id: string,
   ) {
-    return this.activityService.archive(id);
+    const doc = await this.activityService.archive(id);
+    return { success: true, data: doc };
   }
 
   @OpenAPI({ summary: "Get an activity by id" })
@@ -92,7 +96,8 @@ export class ActivityController {
   async getById(
     @Param("id") id: string,
   ) {
-    return this.activityService.getById(id);
+    const doc = await this.activityService.getById(id);
+    return { success: true, data: doc };
   }
 
   @OpenAPI({ summary: "List activities with filters" })
@@ -106,7 +111,8 @@ export class ActivityController {
   async list(
     @QueryParams() query: ListActivitiesQuery
   ) {
-    return this.activityService.list(query);
+    const doc = await this.activityService.list(query);
+    return { success: true, data: doc };
   }
 
 
@@ -123,6 +129,7 @@ export class ActivityController {
     @CurrentUser() user: IUser,
   ) {
     const teacherId = user._id.toString();
-    return this.activityService.delete(id, teacherId);
+    const doc = await this.activityService.delete(id, teacherId);
+    return { success: true, data: doc };
   }
 }

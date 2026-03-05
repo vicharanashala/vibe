@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
 import { HpActivity } from "@/lib/api/hp-system";
-import { useHpActivities, useUpdateHpActivity, usePublishHpActivity, useArchiveHpActivity } from "@/hooks/hooks";
+import { useNavigate } from "@tanstack/react-router";
+import { EditActivityDialog } from "./EditActivityDialog";
+import { RuleSettingsDialog } from "./RuleSettingsDialog";
+import { useHpActivities, useUpdateHpActivity, usePublishHpActivity, useArchiveHpActivity, useHpCourseVersions } from "@/hooks/hooks";
+import { Plus, Search, Trash2, Paperclip, Edit, Link as LinkIcon, FileText, Send, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Plus, Search, Trash2, Settings, Paperclip, Edit, Link as LinkIcon, FileText, Send } from "lucide-react";
-import { useNavigate } from "@tanstack/react-router";
-import { RuleSettingsDialog } from "./RuleSettingsDialog";
-import { EditActivityDialog } from "./EditActivityDialog";
 
 interface ActivitiesTabProps {
     courseVersionId: string;
@@ -22,17 +22,22 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [debouncedSearch, setDebouncedSearch] = useState("");
 
-    // Setting Dialog state
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [selectedActivity, setSelectedActivity] = useState<HpActivity | null>(null);
 
     // Edit Dialog state
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [editingActivity, setEditingActivity] = useState<HpActivity | null>(null);
 
+    // Rule Dialog state
+    const [isRulesOpen, setIsRulesOpen] = useState(false);
+    const [selectedActivityId, setSelectedActivityId] = useState("");
+
     const navigate = useNavigate();
 
     // Hooks
+    const { data: courses } = useHpCourseVersions();
+    const courseId = courses.find(c =>
+        c.versions.some(v => v.courseVersionId === courseVersionId)
+    )?.courseId || "000000000000000000000001";
     const { data: activities, isLoading: loading, refetch } = useHpActivities(
         courseVersionId, cohortName, statusFilter, debouncedSearch
     );
@@ -55,10 +60,6 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
         }
     };
 
-    const handleOpenSettings = (activity: HpActivity) => {
-        setSelectedActivity(activity);
-        setIsSettingsOpen(true);
-    };
 
     const handleOpenEdit = (activity: HpActivity) => {
         setEditingActivity(activity);
@@ -117,48 +118,47 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
                     {activities.map((activity) => (
                         <Card
-                                key={activity._id}
-                                className="flex flex-col relative overflow-hidden rounded-xl border bg-card shadow-sm hover:shadow-md transition-all"
-                            >
+                            key={activity._id}
+                            className="flex flex-col relative overflow-hidden rounded-xl border bg-card shadow-sm hover:shadow-md transition-all"
+                        >
                             {/* Top decorative border based on status */}
-                           <div className={`h-1 w-full absolute top-0 left-0 ${
-                                            activity.status === 'PUBLISHED'
-                                                ? 'bg-emerald-500'
-                                                : 'bg-amber-400'
-                                            }`} />
+                            <div className={`h-1 w-full absolute top-0 left-0 ${activity.status === 'PUBLISHED'
+                                ? 'bg-emerald-500'
+                                : 'bg-amber-400'
+                                }`} />
 
                             <CardHeader className="pb-4 pt-6">
                                 <div className="flex justify-between items-start">
                                     <div className="space-y-1">
-                                    <CardTitle
-                                        className="text-lg line-clamp-1"
-                                        title={activity.title}
-                                    >
-                                        {activity.title}
-                                    </CardTitle>
-
-                                    <div className="flex gap-2 text-xs">
-                                        <Badge
-                                        variant="outline"
-                                        className="bg-muted/50 text-muted-foreground"
+                                        <CardTitle
+                                            className="text-lg line-clamp-1"
+                                            title={activity.title}
                                         >
-                                        {activity.activityType}
-                                        </Badge>
+                                            {activity.title}
+                                        </CardTitle>
 
-                                        <Badge
-                                        variant={
-                                            activity.status === "PUBLISHED"
-                                            ? "default"
-                                            : "secondary"
-                                        }
-                                        className="text-[10px] uppercase tracking-wide font-medium"
-                                        >
-                                        {activity.status}
-                                        </Badge>
-                                    </div>
+                                        <div className="flex gap-2 text-xs">
+                                            <Badge
+                                                variant="outline"
+                                                className="bg-muted/50 text-muted-foreground"
+                                            >
+                                                {activity.activityType}
+                                            </Badge>
+
+                                            <Badge
+                                                variant={
+                                                    activity.status === "PUBLISHED"
+                                                        ? "default"
+                                                        : "secondary"
+                                                }
+                                                className="text-[10px] uppercase tracking-wide font-medium"
+                                            >
+                                                {activity.status}
+                                            </Badge>
+                                        </div>
                                     </div>
                                 </div>
-                                </CardHeader>
+                            </CardHeader>
 
                             <CardContent className="flex-1 space-y-4">
                                 <p className="text-sm text-muted-foreground line-clamp-2">
@@ -222,41 +222,46 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                                 <div className="flex flex-wrap sm:flex-nowrap justify-end gap-2 w-full">
 
                                     <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-9 px-4"
-                                            onClick={() => handleOpenEdit(activity)}
-                                        >
-                                    <Edit className="mr-2 h-3.5 w-3.5" /> Edit
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-9 px-4"
+                                        onClick={() => handleOpenEdit(activity)}
+                                    >
+                                        <Edit className="mr-2 h-3.5 w-3.5" /> Edit
                                     </Button>
 
                                     <Button
-                                            variant="destructive"
-                                            size="sm"
-                                            className="h-9 px-4"
-                                            onClick={() => handleDelete(activity._id)}
-                                        >
-                                    <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
+                                        variant="destructive"
+                                        size="sm"
+                                        className="h-9 px-4"
+                                        onClick={() => handleDelete(activity._id)}
+                                    >
+                                        <Trash2 className="mr-2 h-3.5 w-3.5" /> Archive
                                     </Button>
 
-                                   <Button
+                                    <Button
                                         size="sm"
                                         variant="secondary"
                                         className="h-9 px-4"
                                         disabled={activity.status === 'PUBLISHED'}
                                         onClick={() => handlePublish(activity._id)}
-                                        >
+                                    >
                                         <Send className="mr-2 h-3.5 w-3.5" />
                                         Publish
                                     </Button>
 
                                     <Button
-                                            size="sm"
-                                            className="h-9 px-4"
-                                            onClick={() => handleOpenSettings(activity)}
-                                        >
-                                    <Settings className="mr-2 h-3.5 w-3.5" /> Rules
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-9 px-4"
+                                        onClick={() => {
+                                            setSelectedActivityId(activity._id);
+                                            setIsRulesOpen(true);
+                                        }}
+                                    >
+                                        <Settings className="mr-2 h-3.5 w-3.5" /> Rules
                                     </Button>
+
 
                                 </div>
                             </CardFooter>
@@ -272,16 +277,13 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                 onSubmit={handleEditSubmit}
             />
 
-            {selectedActivity && (
-                <RuleSettingsDialog
-                    isOpen={isSettingsOpen}
-                    onOpenChange={setIsSettingsOpen}
-                    courseVersionId={courseVersionId}
-                    cohort={cohortName}
-                    ruleConfigId={selectedActivity._id}
-                    activityId={selectedActivity._id}
-                />
-            )}
+            <RuleSettingsDialog
+                isOpen={isRulesOpen}
+                onOpenChange={setIsRulesOpen}
+                courseId={courseId}
+                courseVersionId={courseVersionId}
+                activityId={selectedActivityId}
+            />
         </div>
     );
 }
