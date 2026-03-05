@@ -3,7 +3,7 @@ import { GLOBAL_TYPES } from "#root/types.js";
 import { inject, injectable } from "inversify";
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { ActivitySubmissionsRepository } from "../repositories/index.js";
-import { CreateHpActivitySubmissionBodyDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto } from "../classes/validators/activitySubmissionValidators.js";
+import { CreateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto } from "../classes/validators/activitySubmissionValidators.js";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { appConfig } from "#root/config/app.js";
 import { Bucket, Storage } from '@google-cloud/storage';
@@ -221,8 +221,15 @@ export class ActivitySubmissionsService extends BaseService {
             createdAt: d.createdAt?.toISOString?.() ?? d.createdAt,
             updatedAt: d.updatedAt?.toISOString?.() ?? d.updatedAt,
         }));
+    }
 
+    async listStudentWiseSubmssions(teacherId: string, studentId: string, body: ReviewHpActivitySubmissionBodyDto, query: FilterQueryDto): Promise<StudentActivitySubmissionsResponseDto> {
+        const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query);
 
+        return {
+            success: true,
+            data: submissions
+        }
     }
 
     async review(submissionId: string, teacherId: string, body: ReviewHpActivitySubmissionBodyDto) {

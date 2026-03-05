@@ -68,7 +68,6 @@ export interface HpActivity {
 // hp_activity_submissions
 
 export type SubmissionStatus =
-    | "NOT_STARTED"
     | "SUBMITTED"
     | "APPROVED"
     | "REJECTED"
@@ -81,6 +80,9 @@ export type SubmissionSource =
     | "VIBE_AUTO";
 
 export type ReviewDecision = "APPROVED" | "REJECTED" | "REVERTED";
+
+
+
 
 export interface HpActivitySubmission {
     _id?: ID;

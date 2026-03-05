@@ -16,7 +16,7 @@ import { IUser, BadRequestErrorResponse } from "#root/shared/index.js";
 
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { ActivitySubmissionsService } from "../services/activitySubmissionsService.js";
-import { CreateHpActivitySubmissionBodyDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto } from "../classes/validators/activitySubmissionValidators.js";
+import { CreateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto } from "../classes/validators/activitySubmissionValidators.js";
 
 @OpenAPI({
   tags: ["HP Activity Submissions"],
@@ -63,6 +63,21 @@ export class HpActivitySubmissionController {
   @HttpCode(200)
   async list(@QueryParams() query: ListSubmissionsQueryDto) {
     return this.submissionService.list(query);
+  }
+
+  @OpenAPI({ summary: "List student wise submissions" })
+  @Post("/student/:studentId")
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(StudentActivitySubmissionsResponseDto)
+  async listByStudentId(
+    @CurrentUser() user: IUser,
+    @Param("studentId") studentId: string,
+    @QueryParams() query: FilterQueryDto,
+    @Body({ required: true }) body: ReviewHpActivitySubmissionBodyDto
+  ): Promise<StudentActivitySubmissionsResponseDto> {
+    const teacherId = user._id.toString();
+    return this.submissionService.listStudentWiseSubmssions(teacherId, studentId, body, query);
   }
 
   @OpenAPI({ summary: "Review submission (approve/reject/revert)" })

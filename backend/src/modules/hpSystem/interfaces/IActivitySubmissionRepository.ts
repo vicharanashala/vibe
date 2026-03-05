@@ -1,5 +1,5 @@
 import { ClientSession } from "mongodb";
-import { ListSubmissionsQueryDto, SubmissionPayloadDto } from "../classes/validators/activitySubmissionValidators.js";
+import { FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsViewDto, SubmissionPayloadDto } from "../classes/validators/activitySubmissionValidators.js";
 import { ID, SubmissionSource } from "../constants.js";
 
 
@@ -33,4 +33,9 @@ export interface IActivitySubmissionRepository {
             note?: string;
         };
     }, opts?: { session?: ClientSession }): Promise<void>;
+
+    getByStudentId(
+        studentId: string,
+        query: FilterQueryDto
+    ): Promise<StudentActivitySubmissionsViewDto[]>
 }
