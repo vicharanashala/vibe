@@ -99,7 +99,7 @@ export class HpLedgerMeta {
  *
  * @category HP/Transformers
  */
-export class HpLedger {
+export class HpLedgerTransformer {
     @Expose()
     @JSONSchema({ title: 'Ledger ID', type: 'string' })
     @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
@@ -198,7 +198,7 @@ export class HpLedger {
     @JSONSchema({ title: 'Created At', type: 'string', format: 'date-time' })
     createdAt?: Date;
 
-    constructor(body?: Partial<HpLedger>) {
+    constructor(body?: Partial<HpLedgerTransformer>) {
         if (body) Object.assign(this, body);
         this.calc = this.calc ?? ({} as any);
         this.links = this.links ?? ({} as any);

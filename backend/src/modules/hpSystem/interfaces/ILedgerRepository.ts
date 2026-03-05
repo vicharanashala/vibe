@@ -1,6 +1,7 @@
 import { InsertOneResult } from "mongodb";
-import { HpLedger } from "../models.js";
 import { FilterQueryDto } from "../classes/validators/activitySubmissionValidators.js";
+import { LedgerListResponseDto } from "../classes/validators/ledgerValidators.js";
+import { HpLedger } from "../models.js";
 
 
 export interface ILedgerRepository {
@@ -8,5 +9,5 @@ export interface ILedgerRepository {
     listByStudentId(
         studentId: string,
         filter: FilterQueryDto
-    ): Promise<HpLedger[]>
+    ): Promise<LedgerListResponseDto>
 }

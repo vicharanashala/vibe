@@ -1,8 +1,11 @@
+import { HpLedgerTransformer } from "#root/modules/hpSystem/classes/transformers/Ledger.js";
 import { FilterQueryDto } from "#root/modules/hpSystem/classes/validators/activitySubmissionValidators.js";
+import { LedgerListResponseDto } from "#root/modules/hpSystem/classes/validators/ledgerValidators.js";
 import { ILedgerRepository } from "#root/modules/hpSystem/interfaces/ILedgerRepository.js";
 import { HpLedger } from "#root/modules/hpSystem/models.js";
 import { MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
+import { plainToInstance } from "class-transformer";
 import { inject, injectable } from "inversify";
 import { Collection, InsertOneResult } from "mongodb";
 
@@ -30,7 +33,7 @@ export class LedgerRepository implements ILedgerRepository {
     async listByStudentId(
         studentId: string,
         filter: FilterQueryDto
-    ): Promise<HpLedger[]> {
+    ): Promise<LedgerListResponseDto> {
         await this.init();
 
         const {
@@ -44,7 +47,7 @@ export class LedgerRepository implements ILedgerRepository {
         const skip = (page - 1) * limit;
 
         const query: any = {
-            studentId: studentId,
+            studentId,
         };
 
         if (search) {
@@ -59,13 +62,31 @@ export class LedgerRepository implements ILedgerRepository {
             [sortBy]: sortOrder === "asc" ? 1 : -1,
         };
 
-        const docs = await this.hpLedgerCollection
-            .find(query)
-            .sort(sort)
-            .skip(skip)
-            .limit(limit)
-            .toArray();
+        const [docs, total] = await Promise.all([
+            this.hpLedgerCollection
+                .find(query)
+                .sort(sort)
+                .skip(skip)
+                .limit(limit)
+                .toArray(),
+            this.hpLedgerCollection.countDocuments(query),
+        ]);
 
-        return docs;
+        return plainToInstance(
+            LedgerListResponseDto,
+            {
+                data: plainToInstance(HpLedgerTransformer, docs, {
+                    excludeExtraneousValues: true,
+                    enableImplicitConversion: true,
+                }),
+                total,
+                page,
+                limit,
+            },
+            {
+                excludeExtraneousValues: true,
+                enableImplicitConversion: true,
+            }
+        );
     }
 }
