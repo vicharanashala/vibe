@@ -227,7 +227,7 @@ export type HpReasonCode =
 export type TriggeredBy = "SYSTEM" | "TEACHER" | "STUDENT" | "JOB";
 
 export interface HpLedger {
-    _id: ID;
+    _id?: ID;
 
     courseId: ID;
     courseVersionId: ID;
