@@ -4550,6 +4550,42 @@ export function useToggleTimeSlots(): {
   };
 }
 
+// POST /timeslots/student/choose
+export function useChooseTimeSlot(): {
+  mutate: (variables: { body: { courseId: string; courseVersionId: string; timeSlot: { from: string; to: string } } }) => void,
+  mutateAsync: (variables: { body: { courseId: string; courseVersionId: string; timeSlot: { from: string; to: string } } }) => Promise<{ success: boolean; message?: string }>,
+  data: { success: boolean; message?: string } | undefined,
+  error: string | null,
+  isPending: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/timeslots/student/choose");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to choose time slot') : null
+  };
+}
+
+// POST /timeslots/teacher/remove-student
+export function useRemoveStudentFromTimeSlot(): {
+  mutateAsync: (variables:{body: {
+    courseId: string;
+    courseVersionId: string;
+    studentId: string;
+    timeSlot: { from: string; to: string };
+  }}) => Promise<any>;
+  isPending: boolean;
+  error: string | null;
+} {
+  const result = api.useMutation("post", "/timeslots/teacher/remove-student");
+  
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to remove student from time slot') : null
+  };
+}
+
 // GET /timeslots/course/{courseId}/version/{courseVersionId}
 export function useGetTimeSlots(
   courseId: string | undefined,

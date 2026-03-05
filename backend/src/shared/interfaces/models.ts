@@ -395,10 +395,10 @@ export interface IEnrollment {
   enrollmentDate: Date;
   percentCompleted: number;
   completedItemsCount?: number;
-  assignedTimeSlot?: {
+  assignedTimeSlots?: Array<{
     from: string; // HH:MM format in IST
     to: string;   // HH:MM format in IST
-  };
+  }>;
   isDeleted?: boolean;
   deletedAt?: Date;
   unenrolledAt?: Date;
@@ -526,6 +526,7 @@ export interface ITimeSlot {
   from: string; // HH:MM format in IST
   to: string;   // HH:MM format in IST
   studentIds: string[]; // Array of student user IDs
+  maxStudents?: number; // Maximum number of students allowed in this timeslot
 }
 
 export interface ISettings {
