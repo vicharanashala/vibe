@@ -45,6 +45,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
 
         const now = new Date();
 
+
         const doc = {
             ...input,
 
