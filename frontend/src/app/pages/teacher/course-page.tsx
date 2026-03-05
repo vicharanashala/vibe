@@ -734,25 +734,6 @@ function CourseCard({
                   <Megaphone className="h-3 w-3 mr-1" />
                   Announce
                 </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    if (!expandedCourse) toggleCourse()
-                    setShowDeleteCourseModal(true)
-                  }}
-                  className="h-9 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive dark:hover:text-destructive-foreground transition-all duration-300"
-                  disabled={deleteCourseMutation.isPending}
-                >
-                  {deleteCourseMutation.isPending ? (
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-3 w-3 mr-1" />
-                  )}
-                  Delete Course
-                </Button>
               </div>
             </div>
           </div>
@@ -913,6 +894,24 @@ function CourseCard({
                         <Plus className="h-3 w-3 mr-1" />
                       )}
                       Add Version
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (!expandedCourse) toggleCourse()
+                        setShowDeleteCourseModal(true)
+                      }}
+                      className="h-9 bg-background border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive dark:hover:text-destructive-foreground transition-all duration-300"
+                      disabled={deleteCourseMutation.isPending}
+                    >
+                      {deleteCourseMutation.isPending ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3 w-3 mr-1" />
+                      )}
+                      Delete Course
                     </Button>
                   </div>
                 </div>
