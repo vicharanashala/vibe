@@ -24,7 +24,7 @@ import { CreateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQuery
 })
 @injectable()
 @JsonController("/hp/activity-submissions")
-export class HpActivitySubmissionController {
+export class ActivitySubmissionsController {
   constructor(
     @inject(HP_SYSTEM_TYPES.activitySubmissionsService)
     private readonly submissionService: ActivitySubmissionsService
@@ -35,7 +35,7 @@ export class HpActivitySubmissionController {
   @Authorized()
   @HttpCode(201)
   @ResponseSchema(BadRequestErrorResponse, { description: "Bad Request Error", statusCode: 400 })
-  async submit(
+  async submit( 
     @CurrentUser() user: IUser,
     @Body({ required: true }) body: CreateHpActivitySubmissionBodyDto,
     @UploadedFiles("files", { required: false }) files?: Express.Multer.File[],
