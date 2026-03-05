@@ -76,7 +76,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
     };
 
     return (
-        <div className="space-y-6">
+        <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex flex-col sm:flex-row justify-between gap-4 items-center">
                 <div className="flex items-center gap-2 flex-1 w-full sm:w-auto">
                     <div className="relative flex-1 max-w-sm">
@@ -114,27 +114,51 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                     No activities found.
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
                     {activities.map((activity) => (
-                        <Card key={activity._id} className="flex flex-col relative overflow-hidden transition-all hover:shadow-md">
+                        <Card
+                                key={activity._id}
+                                className="flex flex-col relative overflow-hidden rounded-xl border bg-card shadow-sm hover:shadow-md transition-all"
+                            >
                             {/* Top decorative border based on status */}
-                            <div className={`h-1 w-full absolute top-0 left-0 ${activity.status === 'PUBLISHED' ? 'bg-green-500' : 'bg-orange-400'}`} />
+                           <div className={`h-1 w-full absolute top-0 left-0 ${
+                                            activity.status === 'PUBLISHED'
+                                                ? 'bg-emerald-500'
+                                                : 'bg-amber-400'
+                                            }`} />
 
-                            <CardHeader className="pb-3 pt-5">
+                            <CardHeader className="pb-4 pt-6">
                                 <div className="flex justify-between items-start">
                                     <div className="space-y-1">
-                                        <CardTitle className="text-lg line-clamp-1" title={activity.title}>
-                                            {activity.title}
-                                        </CardTitle>
-                                        <div className="flex gap-2 text-xs">
-                                            <Badge variant="outline" className="bg-muted/50 text-muted-foreground">{activity.activityType}</Badge>
-                                            <Badge variant={activity.status === 'PUBLISHED' ? 'default' : 'secondary'} className="text-[10px] uppercase tracking-wider font-semibold">
-                                                {activity.status}
-                                            </Badge>
-                                        </div>
+                                    <CardTitle
+                                        className="text-lg line-clamp-1"
+                                        title={activity.title}
+                                    >
+                                        {activity.title}
+                                    </CardTitle>
+
+                                    <div className="flex gap-2 text-xs">
+                                        <Badge
+                                        variant="outline"
+                                        className="bg-muted/50 text-muted-foreground"
+                                        >
+                                        {activity.activityType}
+                                        </Badge>
+
+                                        <Badge
+                                        variant={
+                                            activity.status === "PUBLISHED"
+                                            ? "default"
+                                            : "secondary"
+                                        }
+                                        className="text-[10px] uppercase tracking-wide font-medium"
+                                        >
+                                        {activity.status}
+                                        </Badge>
+                                    </div>
                                     </div>
                                 </div>
-                            </CardHeader>
+                                </CardHeader>
 
                             <CardContent className="flex-1 space-y-4">
                                 <p className="text-sm text-muted-foreground line-clamp-2">
@@ -176,7 +200,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                                 </div>
 
                                 {/* Stats block from backend */}
-                                <div className="bg-muted/30 p-2 rounded-md flex justify-between items-center mt-4 border text-xs">
+                                <div className="bg-muted/30 p-3 rounded-md flex justify-between items-center mt-4 border text-xs">
                                     <div className="text-center px-2">
                                         <div className="font-bold text-foreground">{activity.stats?.submittedCount ?? 0}/{activity.stats?.totalStudents ?? 0}</div>
                                         <div className="text-muted-foreground">Submitted</div>
@@ -194,24 +218,46 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                                 </div>
                             </CardContent>
 
-                            <CardFooter className="pt-4 border-t flex justify-between bg-muted/10 gap-2">
-                                <div className="flex gap-2 flex-wrap">
-                                    <Button variant="outline" size="sm" className="h-8 shadow-none" onClick={() => handleOpenEdit(activity)}>
-                                        <Edit className="mr-2 h-3.5 w-3.5" /> Edit
+                            <CardFooter className="pt-4 pb-4 border-t">
+                                <div className="flex flex-wrap sm:flex-nowrap justify-end gap-2 w-full">
+
+                                    <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-9 px-4"
+                                            onClick={() => handleOpenEdit(activity)}
+                                        >
+                                    <Edit className="mr-2 h-3.5 w-3.5" /> Edit
                                     </Button>
-                                    <Button variant="outline" size="sm" className="h-8 shadow-none text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(activity._id)}>
-                                        <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
+
+                                    <Button
+                                            variant="destructive"
+                                            size="sm"
+                                            className="h-9 px-4"
+                                            onClick={() => handleDelete(activity._id)}
+                                        >
+                                    <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
                                     </Button>
-                                </div>
-                                <div className="flex gap-2 ml-auto">
-                                    {activity.status !== 'PUBLISHED' && (
-                                        <Button size="sm" variant="secondary" className="h-8 bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800 border-green-200" onClick={() => handlePublish(activity._id)}>
-                                            <Send className="mr-2 h-3.5 w-3.5" /> Publish
-                                        </Button>
-                                    )}
-                                    <Button size="sm" variant="default" className="h-8" onClick={() => handleOpenSettings(activity)}>
-                                        <Settings className="mr-2 h-3.5 w-3.5" /> Rules
+
+                                   <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        className="h-9 px-4"
+                                        disabled={activity.status === 'PUBLISHED'}
+                                        onClick={() => handlePublish(activity._id)}
+                                        >
+                                        <Send className="mr-2 h-3.5 w-3.5" />
+                                        Publish
                                     </Button>
+
+                                    <Button
+                                            size="sm"
+                                            className="h-9 px-4"
+                                            onClick={() => handleOpenSettings(activity)}
+                                        >
+                                    <Settings className="mr-2 h-3.5 w-3.5" /> Rules
+                                    </Button>
+
                                 </div>
                             </CardFooter>
                         </Card>
