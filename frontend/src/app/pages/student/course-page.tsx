@@ -190,6 +190,14 @@ export default function CoursePage() {
   // State for sidebar visibility
   const [isDesktopSidebarVisible, setIsDesktopSidebarVisible] = useState(true);
 
+    // Separate state purely for pre-loading the next section in the background.
+// Must NOT share activeSectionInfo — that state drives useItemById for the current item.
+const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
+  moduleId: string;
+  sectionId: string;
+} | null>(null);
+  const [isGoingToNext, setIsGoingToNext] = useState(false);
+
 
   // State to track when we're waiting for next section items to load
   const [waitingForNextSection, setWaitingForNextSection] = useState<{
@@ -360,12 +368,22 @@ export default function CoursePage() {
         setSelectedSectionId(previousValidItem.sectionId);
         setSelectedItemId(previousValidItem.itemId);
 
+        // Ensure section items are loaded for the previous valid item
+        if (!sectionItems[previousValidItem.sectionId]) {
+          setActiveSectionInfo({
+            moduleId: previousValidItem.moduleId,
+            sectionId: previousValidItem.sectionId
+          });
+        }
+
         // Update course store navigation
         updateCourseNavigation(
           previousValidItem.moduleId,
           previousValidItem.sectionId,
           previousValidItem.itemId
         );
+      } else {
+        setIsNavigatingToNext(false);
       }
 
       // Always clear error after a delay, regardless of whether we reverted
@@ -520,6 +538,13 @@ export default function CoursePage() {
       setSelectedModuleId(moduleId);
       setSelectedSectionId(sectionId);
       setSelectedItemId(itemId);
+
+      // Initialize previous valid item to always have a fallback
+      setPreviousValidItem({
+        moduleId,
+        sectionId,
+        itemId
+      });
 
       // Auto-expand the module and section
       setExpandedModules(prev => ({ ...prev, [moduleId]: true }));
@@ -1063,7 +1088,7 @@ export default function CoursePage() {
 
         // 2️⃣ Determine next item
         const nextItem = findNextItem();
-
+       
         if (!nextItem) {
           console.log("🎉 Course complete");
           setIsNavigatingToNext(false);
@@ -1382,6 +1407,53 @@ export default function CoursePage() {
     // Navigate back to courses page
     window.history.back();
   };
+  
+const nextItemInfo = findNextItem();
+
+const isCurrentItemCompleted = Boolean((currentItem as any)?.isCompleted);
+
+const isNextItemAlreadyCompleted = (() => {
+  if (!nextItemInfo || (nextItemInfo as any).needsLoading) return false;
+  const { sectionId: nextSectionId, itemId: nextItemId } = nextItemInfo;
+  const nextSectionItems = sectionItems[nextSectionId] ?? [];
+  return nextSectionItems.some(
+    (item: any) => item._id === nextItemId && item.isCompleted,
+  );
+})();
+
+const showGoToNextButton =
+  isCurrentItemCompleted && !!nextItemInfo && isNextItemAlreadyCompleted && !isGoingToNext;
+
+const handleGoToNextItem = async () => {
+  if (isGoingToNext || !nextItemInfo) return; // guard against double-clicks
+
+  setIsGoingToNext(true);
+  try {
+    const { moduleId, sectionId: nextSectionId, itemId } = nextItemInfo as any;
+    if (!moduleId || !nextSectionId || !itemId) return;
+
+    handleSelectItem(moduleId, nextSectionId, itemId);
+  } finally {
+    // Re-enable after navigation state has been handed off
+    setTimeout(() => setIsGoingToNext(false), 800);
+  }
+};
+// Auto-redirect to dashboard when the learner lands on the last item
+// and it is already completed (no next item exists in the sequence).
+useEffect(() => {
+  if (!currentItem) return;
+  if (!(currentItem as any).isCompleted) return;
+
+  const next = findNextItem();
+  if (next) return; // not the last item
+  // Small delay so the learner briefly sees the item before redirect
+  const timer = setTimeout(() => {
+    router.navigate({ to: '/student' });
+  }, 2000);
+  return () => clearTimeout(timer);
+}, [currentItem, findNextItem, router]);
+
+
 
   // Autoscroll to selected sidebar item when selectedItemId changes
   useEffect(() => {
@@ -1977,19 +2049,38 @@ export default function CoursePage() {
                           <span className="max-sm:hidden">Submit Flag</span>
                         </Button>
                       }
-                      {currentItem?.isOptional && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-xs gap-1 border-amber-500 text-amber-500 hover:bg-amber-50 hover:text-amber-600"
-                          title="Skip this optional item"
-                          onClick={handleSkipItem}
-                          disabled={isSkippingItem || isSkipping}
-                        >
-                          <span className="max-sm:hidden">Skip</span>
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      )}
+               
+{(currentItem as any)?.isOptional && (
+  <Button
+    size="sm"
+    variant="outline"
+    className="text-xs gap-1 border-amber-500 text-amber-500 hover:bg-amber-50 hover:text-amber-600"
+    title="Skip this optional item"
+    onClick={handleSkipItem}
+    disabled={isSkippingItem || isSkipping}
+  >
+    <span className="max-sm:hidden">Skip</span>
+    <ChevronRight className="h-4 w-4" />
+  </Button>
+)}
+
+{showGoToNextButton && (
+  <Button
+    size="sm"
+    variant="outline"
+    className="text-xs gap-1 border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700"
+    title="Go to next item"
+    onClick={handleGoToNextItem}
+    disabled={isGoingToNext}
+  >
+    <CircleCheckIcon className="h-4 w-4" />
+    <span className="max-sm:hidden">Go to Next Item</span>
+    <ChevronRight className="h-4 w-4" />
+  </Button>
+)}
+
+
+
                     </div>
                     {currentItem?.type === 'PROJECT' ? (
                       <StudentProjectItem
