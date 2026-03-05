@@ -231,7 +231,7 @@ export interface HpLedger {
 
     courseId: ID;
     courseVersionId: ID;
-    cohortId: ID;
+    cohort: String;
 
     // Identity
     studentId: ID;

@@ -2,7 +2,7 @@ import { BaseService, MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { inject, injectable } from "inversify";
 import { HP_SYSTEM_TYPES } from "../types.js";
-import { ActivitySubmissionsRepository } from "../repositories/index.js";
+import { ActivitySubmissionsRepository, LedgerRepository } from "../repositories/index.js";
 import { CreateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto } from "../classes/validators/activitySubmissionValidators.js";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { appConfig } from "#root/config/app.js";
@@ -11,6 +11,7 @@ import path from "path";
 import { randomBytes } from "crypto";
 import { ActivityService } from "./activityService.js";
 import { RuleConfigService } from "./ruleConfigsService.js";
+import { HpLedger } from "../models.js";
 
 
 @injectable()
@@ -30,6 +31,10 @@ export class ActivitySubmissionsService extends BaseService {
 
         @inject(HP_SYSTEM_TYPES.ruleConfigsService)
         private readonly ruleConfigService: RuleConfigService,
+
+
+        @inject(HP_SYSTEM_TYPES.ledgerRepository)
+        private readonly ledgerRepository: LedgerRepository,
 
     ) {
         super(mongoDatabase);
@@ -174,26 +179,49 @@ export class ActivitySubmissionsService extends BaseService {
                 ],
             };
 
+            // const ruleType = activityRuleConfig.ty
+
+            // const ledgerEntry: Partial<HpLedger> = {
+            //     courseId: body.courseId,
+            //     courseVersionId: body.courseVersionId,
+            //     cohort: body.cohort,
+            //     activityId: body.activityId,
+            //     studentId: student.id,
+            //     studentEmail: student.email,
+            //     submissionSource: body.submissionSource ?? "IN_PLATFORM",
+            //     submissionId: "",
+            //     eventType: "CREDIT",
+            //     direction: "CREDIT",
+            //     amount: activity.points ?? 0,
+
+            //     calc: {
+
+            //     }
+            // }
+
+
+                // const isLedgerCreated = await this.ledgerRepository.create()
+
             const submissionId = await this.activitySubmissionsRepository.create(
-                {
-                    courseId: body.courseId,
-                    courseVersionId: body.courseVersionId,
-                    cohort: body.cohort,
-                    activityId: body.activityId,
-                    studentId: student.id,
-                    studentEmail: student.email,
-                    studentName: student.name,
-                    payload,
-                    submissionSource: body.submissionSource ?? "IN_PLATFORM",
-                    isLate,
+                    {
+                        courseId: body.courseId,
+                        courseVersionId: body.courseVersionId,
+                        cohort: body.cohort,
+                        activityId: body.activityId,
+                        studentId: student.id,
+                        studentEmail: student.email,
+                        studentName: student.name,
+                        payload,
+                        submissionSource: body.submissionSource ?? "IN_PLATFORM",
+                        isLate,
 
-                },
-                { session }
-            );
+                    },
+                    { session }
+                );
 
-            return { success: true, submissionId };
+                return { success: true, submissionId };
 
-        });
+            });
     }
 
     async getById(id: string): Promise<any> {
