@@ -6,6 +6,7 @@ test('frontend app loads and renders shell', async ({ page }) => {
   });
 
   await page.goto('/');
+  console.log('current URL :', page.url());
 
   await expect(page.locator('body')).toBeVisible();
 });
