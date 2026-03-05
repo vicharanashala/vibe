@@ -146,10 +146,10 @@ export class HpActivityTransformer {
   activityType: ActivityType;
 
   // Timing
-  @Expose()
-  @Type(() => Date)
-  @JSONSchema({ title: 'Deadline At', type: 'string', format: 'date-time' })
-  deadlineAt: Date;
+  // @Expose()
+  // @Type(() => Date)
+  // @JSONSchema({ title: 'Deadline At', type: 'string', format: 'date-time' })
+  // deadlineAt: Date;
 
   @Expose()
   @IsBoolean()

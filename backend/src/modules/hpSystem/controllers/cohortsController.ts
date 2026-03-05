@@ -1,10 +1,11 @@
 import { inject, injectable } from "inversify";
-import { Authorized, CurrentUser, Get, HttpCode, JsonController, Post, QueryParams } from "routing-controllers";
+import { Authorized, BadRequestError, CurrentUser, Get, HttpCode, JsonController, Param, Post, QueryParams } from "routing-controllers";
 import { OpenAPI, ResponseSchema } from "routing-controllers-openapi";
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { CohortsService } from "../services/cohortsService.js";
 import { BadRequestErrorResponse, IUser } from "#root/shared/index.js";
-import { CohortListQueryDto, CourseVersionListQueryDto } from "../classes/validators/courseAndCohorts.js";
+import { CohortListQueryDto, CohortStudentsListQueryDto, CohortStudentsResponseDto, CourseVersionListQueryDto } from "../classes/validators/courseAndCohorts.js";
+import { plainToInstance } from "class-transformer";
 
 @OpenAPI({
     tags: ['HP Activities'],
@@ -22,7 +23,7 @@ export class CohortsController {
     @OpenAPI({ summary: "List all enrolled course versions" })
     @Get("/courses/versions")
     @Authorized()
-    @HttpCode(201)
+    @HttpCode(200)
     @ResponseSchema(BadRequestErrorResponse, {
         description: 'Bad Request Error',
         statusCode: 400,
@@ -69,8 +70,8 @@ export class CohortsController {
 
     @OpenAPI({ summary: "List all enrolled cohorts" })
     @Get("/cohorts")
-    // @Authorized()
-    @HttpCode(201)
+    @Authorized()
+    @HttpCode(200)
     @ResponseSchema(BadRequestErrorResponse, {
         description: 'Bad Request Error',
         statusCode: 400,
@@ -115,6 +116,34 @@ export class CohortsController {
         };
 
         return response;
+    }
+
+
+    @OpenAPI({ summary: "List cohort students with HP and completion percentage" })
+    @Authorized()
+    @Get("/version/:versionId/cohort/:cohortName/students")
+    @ResponseSchema(CohortStudentsResponseDto)
+    @HttpCode(200)
+    @ResponseSchema(BadRequestErrorResponse, {
+        description: 'Bad Request Error',
+        statusCode: 400,
+    })
+    async listCohortStudents(@Param("versionId") versionId: string,
+        @Param("cohortName") cohortName: string,
+        @QueryParams() query: CohortStudentsListQueryDto): Promise<CohortStudentsResponseDto> {
+
+
+        if (!versionId?.trim()) throw new BadRequestError("versionId is required");
+        if (!cohortName?.trim()) throw new BadRequestError("cohortName is required");
+
+        const page = query.page ?? 1;
+        const limit = query.limit ?? 20;
+        const sortBy = query.sortBy ?? "name";
+        const sortOrder = query.sortOrder ?? "asc";
+        const search = query.search?.trim();
+
+        return await this.cohortsService.listCohortStudents({ versionId, cohortName, query: { page, limit, sortBy, sortOrder, search } });
+
     }
 
 }

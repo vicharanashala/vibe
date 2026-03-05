@@ -1,5 +1,5 @@
-import { IsArray, IsNumber, IsOptional, IsString, ValidateNested, IsBoolean, Min, IsIn } from "class-validator";
-import { Type } from "class-transformer";
+import { IsArray, IsNumber, IsOptional, IsString, ValidateNested, IsBoolean, Min, IsIn, IsEmail, IsInt } from "class-validator";
+import { Expose, Type } from "class-transformer";
 import { ToNumber } from "../../utils/toNumber.js";
 
 export class CourseVersionDto {
@@ -247,4 +247,71 @@ export class CohortListQueryDto {
     @IsOptional()
     @IsString()
     courseVersionId?: string;
+}
+
+
+
+export class CohortStudentItemDto {
+    @Expose()
+    @IsString()
+    _id!: string;
+
+    @Expose()
+    @IsString()
+    name!: string;
+
+    @Expose()
+    @IsEmail()
+    email!: string;
+
+    @Expose()
+    @IsInt()
+    @Min(0)
+    totalHp!: number;
+
+    @Expose()
+    @IsInt()
+    @Min(0)
+    completionPercentage!: number;
+}
+
+export class CohortStudentsResponseDto {
+    @Expose()
+    @IsBoolean()
+    success!: boolean;
+
+    @Expose()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => CohortStudentItemDto)
+    data!: CohortStudentItemDto[];
+}
+
+
+
+export class CohortStudentsListQueryDto {
+    @IsOptional()
+    @ToNumber()
+    @IsNumber()
+    @Min(1)
+    page?: number;
+
+    @IsOptional()
+    @ToNumber()
+    @IsNumber()
+    @Min(1)
+    limit?: number;
+
+    @IsOptional()
+    @IsString()
+    sortBy?: string;
+
+    @IsOptional()
+    @IsString()
+    @IsIn(["asc", "desc"])
+    sortOrder?: "asc" | "desc";
+
+    @IsOptional()
+    @IsString()
+    search?: string;
 }

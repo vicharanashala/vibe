@@ -105,7 +105,7 @@ export interface HpLedgerEntry {
     baseHp: number;
     currentHp: number;
     type: 'CREDIT' | 'DEBIT';
-    note?: string;
+    instructorFeedback?: string;
     submittedAt?: string;
     createdAt: string;
 }
@@ -121,6 +121,32 @@ export interface HpCohortOverviewStats {
         revertedCount: number;
         totalAssigned: number;
     }[];
+}
+
+export interface SubmissionAttachment {
+    _id: string;
+    name: string;
+    url: string;
+    type: 'image' | 'pdf' | 'document' | 'link' | 'other';
+}
+
+export interface HpStudentSubmission {
+    _id: string;
+    activityId: string;
+    activityTitle: string;
+    activityDescription?: string;
+    status: 'SUBMITTED' | 'PENDING' | 'REVERTED';
+    attachments: SubmissionAttachment[];
+    submissionLink?: string;
+    dueDate?: string;
+    submittedAt?: string;
+    lastUpdated?: string;
+    submissionCount: number;
+    isLate: boolean;
+    baseHp: number;
+    currentHp: number;
+    instructorFeedback?: string;
+    safetyStatus?: 'safe' | 'unsafe';
 }
 
 export interface HpRuleConfig {
@@ -365,6 +391,70 @@ export const hpApi = {
         return { success: true, data: mockStats };
     },
 
+    getStudentSubmissions: async (
+        _studentId: string,
+        _courseVersionId: string,
+        _cohort: string,
+    ): Promise<{ success: boolean; data: HpStudentSubmission[] }> => {
+        const submissions: HpStudentSubmission[] = [
+            {
+                _id: 'sub1', activityId: 'a1', activityTitle: 'Build REST API', status: 'SUBMITTED',
+                activityDescription: 'Design and build a RESTful API with Express.js. Must include CRUD operations, proper error handling, and middleware for authentication.',
+                submissionLink: 'https://github.com/student/rest-api',
+                attachments: [
+                    { _id: 'att1', name: 'api-architecture.png', url: 'https://picsum.photos/seed/arch/800/600', type: 'image' },
+                    { _id: 'att2', name: 'API-Documentation.pdf', url: 'https://example.com/docs/api-doc.pdf', type: 'pdf' },
+                ],
+                dueDate: '2025-11-22T23:59:00Z', submittedAt: '2025-11-20T14:30:00Z', lastUpdated: '2025-11-20T14:30:00Z',
+                submissionCount: 1, isLate: false, baseHp: 100, currentHp: 100,
+                instructorFeedback: 'Excellent REST API structure. Good use of middleware and error handling patterns.', safetyStatus: 'safe'
+            },
+            {
+                _id: 'sub2', activityId: 'a2', activityTitle: 'Week 1 Quiz', status: 'SUBMITTED',
+                activityDescription: 'Complete the quiz covering database fundamentals, normalization, and SQL queries.',
+                attachments: [
+                    { _id: 'att3', name: 'quiz-answers.pdf', url: 'https://example.com/docs/quiz.pdf', type: 'pdf' },
+                ],
+                dueDate: '2025-11-18T23:59:00Z', submittedAt: '2025-11-18T09:15:00Z', lastUpdated: '2025-11-18T09:15:00Z',
+                submissionCount: 1, isLate: false, baseHp: 50, currentHp: 45,
+                instructorFeedback: 'Good attempt. Review question 5 about normalization.', safetyStatus: 'safe'
+            },
+            {
+                _id: 'sub3', activityId: 'a3', activityTitle: 'Database Schema Design', status: 'PENDING',
+                activityDescription: 'Design a normalized database schema for an e-commerce platform. Include ER diagrams and SQL DDL scripts.',
+                attachments: [],
+                dueDate: '2025-12-05T23:59:00Z',
+                submissionCount: 0, isLate: false, baseHp: 150, currentHp: 0
+            },
+            {
+                _id: 'sub4', activityId: 'a4', activityTitle: 'Deploy to Cloud', status: 'REVERTED',
+                activityDescription: 'Deploy your REST API to a cloud provider (AWS/GCP/Azure). Must include a health check endpoint and CI/CD pipeline.',
+                submissionLink: 'https://github.com/student/cloud-deploy',
+                attachments: [
+                    { _id: 'att4', name: 'deployment-screenshot.png', url: 'https://picsum.photos/seed/deploy/800/600', type: 'image' },
+                    { _id: 'att5', name: 'error-logs.pdf', url: 'https://example.com/docs/error-logs.pdf', type: 'pdf' },
+                    { _id: 'att6', name: 'Live Demo', url: 'https://student-app.vercel.app', type: 'link' },
+                ],
+                dueDate: '2025-11-24T23:59:00Z', submittedAt: '2025-11-25T11:00:00Z', lastUpdated: '2025-11-26T10:00:00Z',
+                submissionCount: 2, isLate: true, baseHp: 120, currentHp: 0,
+                instructorFeedback: 'Deployment failed the health check endpoint. Resubmit once /health returns 200.', safetyStatus: 'unsafe'
+            },
+            {
+                _id: 'sub5', activityId: 'a5', activityTitle: 'Midterm Project', status: 'SUBMITTED',
+                activityDescription: 'Build a full-stack web application with authentication, database integration, and deployment. Include project report and demo video.',
+                submissionLink: 'https://github.com/student/midterm',
+                attachments: [
+                    { _id: 'att7', name: 'project-report.pdf', url: 'https://example.com/docs/midterm-report.pdf', type: 'pdf' },
+                    { _id: 'att8', name: 'demo-recording.mp4', url: 'https://example.com/videos/demo.mp4', type: 'other' },
+                    { _id: 'att9', name: 'wireframes.png', url: 'https://picsum.photos/seed/wire/800/600', type: 'image' },
+                ],
+                dueDate: '2025-12-01T23:59:00Z', submittedAt: '2025-12-01T16:45:00Z', lastUpdated: '2025-12-01T16:45:00Z',
+                submissionCount: 3, isLate: false, baseHp: 200, currentHp: 200, safetyStatus: 'safe'
+            },
+        ];
+        return { success: true, data: submissions };
+    },
+
     getStudentLedger: async (
         _studentId: string,
         _courseVersionId: string,
@@ -383,7 +473,7 @@ export const hpApi = {
                 activityTitle: 'Week 1 Quiz', status: 'SUBMITTED',
                 submissionLink: 'https://platform.example.com/quiz/submission/123',
                 baseHp: 40, currentHp: 30, type: 'CREDIT',
-                note: 'Partial credit — 3/4 correct',
+                instructorFeedback: 'Good attempt. Review question 5 about normalization.',
                 submittedAt: '2026-02-18T13:50:00Z', createdAt: '2026-02-18T14:00:00Z',
             },
             {
@@ -396,7 +486,7 @@ export const hpApi = {
                 _id: 'le4', studentId: _studentId, activityId: 'act1',
                 activityTitle: 'Late Submission Penalty', status: 'SUBMITTED',
                 baseHp: 0, currentHp: -10, type: 'DEBIT',
-                note: 'Late by 2 days',
+                instructorFeedback: 'Late by 2 days',
                 submittedAt: '2026-02-22T10:30:00Z', createdAt: '2026-02-22T11:00:00Z',
             },
             {
@@ -404,7 +494,7 @@ export const hpApi = {
                 activityTitle: 'Midterm Project', status: 'REVERTED',
                 submissionLink: 'https://github.com/student/midterm',
                 baseHp: 100, currentHp: 0, type: 'CREDIT',
-                note: 'Reverted due to plagiarism concern',
+                instructorFeedback: 'Reverted due to plagiarism concern',
                 submittedAt: '2026-02-25T15:00:00Z', createdAt: '2026-02-25T16:30:00Z',
             },
         ];
