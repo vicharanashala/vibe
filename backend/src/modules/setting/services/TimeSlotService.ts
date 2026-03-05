@@ -38,6 +38,22 @@ export class TimeSlotService extends BaseService {
   }
 
   /**
+   * Check if a timeslot is at maximum capacity
+   */
+  private isTimeslotFull(timeSlot: ITimeSlot): boolean {
+    if (!timeSlot.maxStudents) return false; // No limit set
+    return timeSlot.studentIds.length > timeSlot.maxStudents;
+  }
+
+  /**
+   * Check if adding students would exceed timeslot capacity
+   */
+  private wouldExceedCapacity(timeSlot: ITimeSlot, studentsToAdd: number): boolean {
+    if (!timeSlot.maxStudents) return false; // No limit set
+    return (timeSlot.studentIds.length + studentsToAdd) > timeSlot.maxStudents;
+  }
+
+  /**
    * Validates time format HH:MM in 24-hour format
    */
   private validateTimeFormat(time: string): boolean {
@@ -130,6 +146,11 @@ export class TimeSlotService extends BaseService {
             `Invalid time range: ${slot.from} to ${slot.to}. 'From' time must be before 'to' time.`,
           );
         }
+        if (slot.maxStudents && slot.maxStudents <= 0) {
+          throw new BadRequestError(
+            `Invalid maxStudents value: ${slot.maxStudents}. Must be greater than 0.`,
+          );
+        }
       }
 
       // Get existing timeslots settings
@@ -175,6 +196,15 @@ export class TimeSlotService extends BaseService {
 
       // Update enrollments for students in the time slots
       for (const slot of timeSlots) {
+        // Check if adding students would exceed capacity
+        if (this.wouldExceedCapacity(slot, slot.studentIds.length)) {
+          throw new BadRequestError(
+            `Cannot add ${slot.studentIds.length} students to timeslot ${slot.from}-${slot.to}. ` +
+            `Current: ${existingTimeslots.slots.find(s => s.from === slot.from && s.to === slot.to)?.studentIds.length || 0}, ` +
+            `Max: ${slot.maxStudents || 'unlimited'}`
+          );
+        }
+        
         for (const studentId of slot.studentIds) {
           await this.enrollmentService.updateStudentTimeSlot(
             studentId,
@@ -252,10 +282,11 @@ export class TimeSlotService extends BaseService {
             ? enrollment.userId 
             : enrollment.userId.toString();
           
-          await this.enrollmentService.removeStudentTimeSlot(
+          await this.enrollmentService.removeSpecificTimeSlotFromStudent(
             userId,
             courseId,
             courseVersionId,
+            slotToRemove,
             session,
           );
         }
@@ -316,18 +347,19 @@ export class TimeSlotService extends BaseService {
               ? enrollment.userId 
               : enrollment.userId.toString();
             
-            await this.enrollmentService.removeStudentTimeSlot(
+            await this.enrollmentService.removeSpecificTimeSlotFromStudent(
               studentUserId,
               courseId,
               courseVersionId,
+              { from: slot.from, to: slot.to },
               session,
             );
           }
-        }
       }
+    }
 
-      // Update existing timeslots with new isActive value and empty slots if toggling off
-      const updatedTimeslots = {
+    // Update existing timeslots with new isActive value and empty slots if toggling off
+    const updatedTimeslots = {
         isActive,
         slots: isActive ? (existingTimeslots.slots || []) : []
       };
@@ -349,8 +381,8 @@ export class TimeSlotService extends BaseService {
   async updateTimeSlot(
     courseId: string,
     courseVersionId: string,
-    oldTimeSlot: { from: string; to: string },
-    newTimeSlot: { from: string; to: string },
+    oldTimeSlot: { from: string; to: string; maxStudents?: number },
+    newTimeSlot: { from: string; to: string; maxStudents?: number },
     userId: string,
   ): Promise<boolean> {
     return this._withTransaction(async (session) => {
@@ -389,12 +421,27 @@ export class TimeSlotService extends BaseService {
           `Invalid time range: ${newTimeSlot.from} to ${newTimeSlot.to}. 'From' time must be before 'to' time.`,
         );
       }
+      if (newTimeSlot.maxStudents && newTimeSlot.maxStudents <= 0) {
+        throw new BadRequestError(
+          `Invalid maxStudents value: ${newTimeSlot.maxStudents}. Must be greater than 0.`,
+        );
+      }
+      
+      // Check if reducing maxStudents would violate current capacity
+      const currentSlot = existingTimeslots.slots[slotIndex];
+      if (newTimeSlot.maxStudents && currentSlot.studentIds.length > newTimeSlot.maxStudents) {
+        throw new BadRequestError(
+          `Cannot reduce maxStudents to ${newTimeSlot.maxStudents}. ` +
+          `Current enrollment: ${currentSlot.studentIds.length} students.`
+        );
+      }
 
       // Update the time slot
       existingTimeslots.slots[slotIndex] = {
         ...existingTimeslots.slots[slotIndex],
         from: newTimeSlot.from,
         to: newTimeSlot.to,
+        maxStudents: newTimeSlot.maxStudents,
       };
 
       // Update timeslots settings
@@ -416,6 +463,181 @@ export class TimeSlotService extends BaseService {
         oldTimeSlot,
         newTimeSlot,
         session,
+      );
+
+      return true;
+    });
+  }
+
+  /**
+   * Student chooses a time slot
+   */
+  async chooseTimeSlot(
+    courseId: string,
+    courseVersionId: string,
+    timeSlot: { from: string; to: string },
+    studentUserId: string,
+  ): Promise<boolean> {
+    return this._withTransaction(async (session) => {
+      // Check if student already has a timeslot assigned
+      const enrollment = await this.enrollmentService.findEnrollment(
+        studentUserId,
+        courseId,
+        courseVersionId
+      );
+
+      if (!enrollment) {
+        throw new NotFoundError('Enrollment not found for this student.');
+      }
+
+      // Check if student already has assigned timeslots (by instructor or self-chosen)
+      if (enrollment.assignedTimeSlots && enrollment.assignedTimeSlots.length > 0) {
+        throw new BadRequestError('You already have a time slot assigned. Contact your instructor if you need to change it.');
+      }
+
+      // Get timeslots settings
+      const timeslots = await this.settingsRepo.readTimeslotsSettings(
+        courseId,
+        courseVersionId,
+        session
+      );
+
+      if (!timeslots || !timeslots.isActive) {
+        throw new BadRequestError('Time slots are not enabled for this course.');
+      }
+
+      // Find the requested timeslot
+      const requestedSlot = timeslots.slots.find(
+        slot => slot.from === timeSlot.from && slot.to === timeSlot.to
+      );
+
+      if (!requestedSlot) {
+        throw new NotFoundError('Requested time slot not found.');
+      }
+
+      // Check if timeslot is at capacity
+      if (this.isTimeslotFull(requestedSlot)) {
+        throw new BadRequestError('This time slot is full. Please choose another time slot.');
+      }
+
+      // Add student to timeslot in course settings
+      const updatedSlots = timeslots.slots.map(slot => {
+        if (slot.from === timeSlot.from && slot.to === timeSlot.to) {
+          return {
+            ...slot,
+            studentIds: [...slot.studentIds, studentUserId]
+          };
+        }
+        return slot;
+      });
+
+      const updatedTimeslots = {
+        ...timeslots,
+        slots: updatedSlots
+      };
+
+      // Update course settings
+      const settingsResult = await this.settingsRepo.updateTimeslotsSettings(
+        courseId,
+        courseVersionId,
+        updatedTimeslots,
+        session
+      );
+
+      if (!settingsResult) {
+        throw new InternalServerError('Failed to update course settings.');
+      }
+
+      // Update student's enrollment with chosen timeslot
+      const enrollmentResult = await this.enrollmentService.addMultipleTimeSlotsToStudent(
+        studentUserId,
+        courseId,
+        courseVersionId,
+        [timeSlot],
+        session
+      );
+
+      if (!enrollmentResult) {
+        throw new InternalServerError('Failed to update enrollment.');
+      }
+
+      return true;
+    });
+  }
+
+  
+  /**
+   * Teacher removes a student from a specific time slot
+   */
+  async removeStudentFromTimeSlot(
+    courseId: string,
+    courseVersionId: string,
+    studentUserId: string,
+    timeSlot: { from: string; to: string },
+  ): Promise<boolean> {
+
+    return this._withTransaction(async (session) => {
+      // Get timeslots settings
+      const timeslots = await this.settingsRepo.readTimeslotsSettings(
+        courseId,
+        courseVersionId,
+        session
+      );
+
+
+      if (!timeslots) {
+        throw new NotFoundError(`Time slots not found for course ${courseId}, version ${courseVersionId}. Please ensure timeslots are set up for this course.`);
+      }
+
+      // Find the specific timeslot
+      const targetSlot = timeslots.slots.find(
+        slot => slot.from === timeSlot.from && slot.to === timeSlot.to
+      );
+
+      if (!targetSlot) {
+        throw new NotFoundError(`Time slot ${timeSlot.from}-${timeSlot.to} not found in this course.`);
+      }
+
+      // Check if student is in this timeslot
+      if (!targetSlot.studentIds.includes(studentUserId)) {
+        throw new BadRequestError('Student is not assigned to this time slot.');
+      }
+
+      // Remove student from the timeslot
+      const updatedSlots = timeslots.slots.map(slot => {
+        if (slot.from === timeSlot.from && slot.to === timeSlot.to) {
+          return {
+            ...slot,
+            studentIds: slot.studentIds.filter(id => id !== studentUserId)
+          };
+        }
+        return slot;
+      });
+
+      const updatedTimeslots = {
+        ...timeslots,
+        slots: updatedSlots
+      };
+
+      // Update course settings
+      const settingsResult = await this.settingsRepo.updateTimeslotsSettings(
+        courseId,
+        courseVersionId,
+        updatedTimeslots,
+        session
+      );
+
+      if (!settingsResult) {
+        throw new InternalServerError('Failed to update course settings.');
+      }
+
+      // Remove the specific timeslot from student's enrollment
+      await this.enrollmentService.removeSingleTimeSlotFromStudent(
+        studentUserId,
+        courseId,
+        courseVersionId,
+        timeSlot,
+        session
       );
 
       return true;
@@ -471,18 +693,23 @@ export class TimeSlotService extends BaseService {
         return { canAccess: false, message: 'Student not enrolled in this course.' };
       }
 
-      if (!enrollment.assignedTimeSlot) {
+      if (!enrollment.assignedTimeSlots || enrollment.assignedTimeSlots.length === 0) {
         return { canAccess: true, message: 'No time slot assigned to this student.' };
       }
 
-      // Check if current time is within assigned slot
-      const isInSlot = this.isCurrentTimeInSlot(enrollment.assignedTimeSlot);
+      // Check if current time is within any of the assigned slots
+      const currentTime = this.getCurrentISTTime();
+      const hasAccess = enrollment.assignedTimeSlots.some(timeSlot => 
+        this.isCurrentTimeInSlot(timeSlot)
+      );
       
-      if (!isInSlot) {
-        const currentTime = this.getCurrentISTTime();
+      if (!hasAccess) {
+        const timeSlotsStr = enrollment.assignedTimeSlots
+          .map(slot => `${slot.from} to ${slot.to}`)
+          .join(', ');
         return {
           canAccess: false,
-          message: `Course access is only allowed from ${enrollment.assignedTimeSlot.from} to ${enrollment.assignedTimeSlot.to} IST. Current time: ${currentTime}`,
+          message: `Course access is only allowed during these time slots: ${timeSlotsStr} IST. Current time: ${currentTime}`,
         };
       }
 

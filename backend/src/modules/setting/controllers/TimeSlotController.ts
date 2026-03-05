@@ -14,6 +14,7 @@ import {
   InternalServerError,
   NotFoundError,
   BadRequestError,
+  ForbiddenError,
   Authorized,
   HttpCode,
   CurrentUser,
@@ -22,6 +23,29 @@ import {
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { IUser } from '#root/shared/index.js';
 import { InternalServerErrorResponse } from '../../../shared/middleware/errorHandler.js';
+import { Ability } from '#root/shared/functions/AbilityDecorator.js';
+import { getItemAbility, ItemActions } from '#root/modules/courses/abilities/itemAbilities.js';
+import { subject } from '@casl/ability';
+
+// Response classes for student timeslot operations
+class StudentTimeSlotResponse {
+  success: boolean;
+  message?: string;
+}
+
+class ChooseTimeSlotRequestBody {
+  courseId: string;
+  courseVersionId: string;
+  timeSlot: { from: string; to: string };
+}
+
+// Request DTO for removing student from timeslot
+interface RemoveStudentFromTimeSlotRequest {
+  courseId: string;
+  courseVersionId: string;
+  studentId: string;
+  timeSlot: { from: string; to: string };
+}
 
 // Request body for adding time slots
 class AddTimeSlotsRequestBody {
@@ -311,6 +335,114 @@ class TimeSlotController {
         throw error;
       }
       throw new InternalServerError(`Failed to update time slot: ${error}`);
+    }
+  }
+
+  @OpenAPI({
+    summary: 'Student chooses a time slot',
+    description: 'Allows a student to choose a time slot for their course enrollment.',
+  })
+  @Authorized()
+  @Post('/student/choose')
+  @HttpCode(200)
+  @ResponseSchema(StudentTimeSlotResponse, {
+    description: 'Time slot chosen successfully',
+  })
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Failed to choose time slot',
+    statusCode: 500,
+  })
+  async chooseTimeSlot(
+    @Body() body: ChooseTimeSlotRequestBody,
+    @CurrentUser() user: IUser,
+  ): Promise<StudentTimeSlotResponse> {
+    try {
+      const result = await this.timeSlotService.chooseTimeSlot(
+        body.courseId,
+        body.courseVersionId,
+        body.timeSlot,
+        user._id.toString(),
+      );
+
+      return {
+        success: true,
+        message: 'Time slot chosen successfully'
+      };
+    } catch (error) {
+      if (error instanceof BadRequestError || error instanceof ForbiddenError || error instanceof NotFoundError) {
+        return {
+          success: false,
+          message: error.message
+        };
+      }
+      throw new InternalServerError(`Failed to choose time slot: ${error}`);
+    }
+  }
+
+  @OpenAPI({
+    summary: 'Teacher removes a student from a time slot',
+    description: 'Allows a teacher to remove a specific student from a time slot.',
+  })
+  @Authorized()
+  @Post('/teacher/remove-student')
+  @HttpCode(200)
+  @ResponseSchema(StudentTimeSlotResponse, {
+    description: 'Student removed from time slot successfully',
+  })
+  @ResponseSchema(InternalServerErrorResponse, {
+    description: 'Failed to remove student from time slot',
+    statusCode: 500,
+  })
+  async removeStudentFromTimeSlot(
+    @Body() body: RemoveStudentFromTimeSlotRequest,
+    @Ability(getItemAbility) { ability },
+  ): Promise<StudentTimeSlotResponse> {
+
+      // Create an item resource object for permission checking
+    const itemResource = subject('Item', { versionId:body.courseVersionId });
+
+    // Check permission using ability.can() with the actual item resource
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
+    }
+
+    // Manual validation as fallback
+    if (!body || !body.courseId || !body.courseVersionId || !body.studentId || !body.timeSlot) {
+      return {
+        success: false,
+        message: 'Invalid request body. All fields are required.'
+      };
+    }
+
+    if (!body.timeSlot.from || !body.timeSlot.to) {
+      return {
+        success: false,
+        message: 'Invalid time slot. Both from and to are required.'
+      };
+    }
+
+    try {
+      const result = await this.timeSlotService.removeStudentFromTimeSlot(
+        body.courseId,
+        body.courseVersionId,
+        body.studentId,
+        body.timeSlot
+      );
+
+      return {
+        success: true,
+        message: 'Student removed from time slot successfully'
+      };
+    } catch (error) {
+      if (error instanceof BadRequestError || error instanceof NotFoundError || error instanceof ForbiddenError) {
+        return {
+          success: false,
+          message: error.message
+        };
+      }
+      throw new InternalServerError(`Failed to remove student from time slot: ${error}`);
     }
   }
 }
