@@ -221,72 +221,13 @@ export const hpApi = {
         courseVersionId: string,
         cohort: string,
         status?: string,
-        _search?: string
+        search?: string
     ): Promise<{ success: boolean; data: HpActivity[] }> => {
-        // Return mock data for activities
-        let activities: HpActivity[] = [
-            {
-                _id: 'act1',
-                courseId: 'c1',
-                courseVersionId: courseVersionId,
-                cohort: cohort,
-                createdByTeacherId: 't1',
-                status: 'PUBLISHED',
-                title: 'Build REST API Project',
-                description: 'Create a Node.js REST API with authentication and deploy it. Submit the GitHub repository link.',
-                activityType: 'ASSIGNMENT',
-                submissionMode: 'IN_PLATFORM',
-                externalLink: '',
-                attachments: [
-                    { name: 'Reference Guide', url: 'https://docs.example.com/rest-api-guide', kind: 'LINK' },
-                ],
-                stats: {
-                    totalStudents: 120,
-                    submittedCount: 85,
-                    completedCount: 80,
-                    overdueCount: 15,
-                    lastRecomputedAt: new Date().toISOString()
-                },
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-            },
-            {
-                _id: 'act2',
-                courseId: 'c1',
-                courseVersionId: courseVersionId,
-                cohort: cohort,
-                createdByTeacherId: 't1',
-                status: 'DRAFT',
-                title: 'Week 1 Quiz',
-                description: 'Complete the multiple choice quiz covering week 1 topics.',
-                activityType: 'ASSIGNMENT',
-                submissionMode: 'IN_PLATFORM',
-                externalLink: '',
-                attachments: [],
-                stats: {
-                    totalStudents: 120,
-                    submittedCount: 0,
-                    completedCount: 0,
-                    overdueCount: 0,
-                    lastRecomputedAt: new Date().toISOString()
-                },
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-            }
-        ];
+        const params = new URLSearchParams({ courseVersionId, cohort });
+        if (status && status !== 'ALL') params.append('status', status);
+        if (search) params.append('search', search);
 
-        // Apply filters
-        if (status && status !== 'ALL') {
-            activities = activities.filter(a => a.status === status);
-        }
-
-        // Client-side search filtering
-        if (_search) {
-            const q = _search.toLowerCase();
-            activities = activities.filter(a => a.title.toLowerCase().includes(q) || a.description.toLowerCase().includes(q));
-        }
-
-        return { success: true, data: activities };
+        return apiFetch(`${BASE_URL}/activities?${params.toString()}`);
     },
 
     createActivity: async (payload: CreateHpActivityPayload): Promise<{ success: boolean; data: HpActivity }> => {

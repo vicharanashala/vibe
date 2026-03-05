@@ -46,7 +46,8 @@ export class ActivitySubmissionsController {
       email: user.email,
       name: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
     };
-    return this.submissionService.submit(student, body, { files, images });
+    const doc = await this.submissionService.submit(student, body, { files, images });
+    return { success: true, data: doc };
   }
 
   @OpenAPI({ summary: "Get submission by id" })
@@ -54,7 +55,8 @@ export class ActivitySubmissionsController {
   @Authorized()
   @HttpCode(200)
   async getById(@Param("id") id: string) {
-    return this.submissionService.getById(id);
+    const doc = await this.submissionService.getById(id);
+    return { success: true, data: doc };
   }
 
   @OpenAPI({ summary: "List submissions (teacher/admin)" })
@@ -62,7 +64,8 @@ export class ActivitySubmissionsController {
   @Authorized()
   @HttpCode(200)
   async list(@QueryParams() query: ListSubmissionsQueryDto) {
-    return this.submissionService.list(query);
+    const doc = await this.submissionService.list(query);
+    return { success: true, data: doc };
   }
 
   @OpenAPI({ summary: "List student wise submissions" })
@@ -75,9 +78,10 @@ export class ActivitySubmissionsController {
     @Param("studentId") studentId: string,
     @QueryParams() query: FilterQueryDto,
     @Body({ required: true }) body: ReviewHpActivitySubmissionBodyDto
-  ): Promise<StudentActivitySubmissionsResponseDto> {
+  ): Promise<any> {
     const teacherId = user._id.toString();
-    return this.submissionService.listStudentWiseSubmssions(teacherId, studentId, body, query);
+    const doc = await this.submissionService.listStudentWiseSubmssions(teacherId, studentId, body, query);
+    return { success: true, data: doc };
   }
 
   @OpenAPI({ summary: "Review submission (approve/reject/revert)" })
@@ -90,6 +94,7 @@ export class ActivitySubmissionsController {
     @Body({ required: true }) body: ReviewHpActivitySubmissionBodyDto
   ) {
     const teacherId = user._id.toString();
-    return this.submissionService.review(id, teacherId, body);
+    const doc = await this.submissionService.review(id, teacherId, body);
+    return { success: true, data: doc };
   }
 }

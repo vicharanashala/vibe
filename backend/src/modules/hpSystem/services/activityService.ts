@@ -200,7 +200,7 @@ export class ActivityService extends BaseService {
     async list(filters: {
         courseId?: string;
         courseVersionId?: string;
-        Cohort?: string;
+        cohort?: string;
         status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
         createdByTeacherId?: string;
     }) {

@@ -127,8 +127,8 @@ export class ListActivitiesQuery {
     courseVersionId?: string;
 
     @IsOptional()
-    @IsString({ message: "Cohort must be a string" })
-    Cohort?: string;
+    @IsString({ message: "cohort must be a string" })
+    cohort?: string;
 
     @IsOptional()
     @IsEnum(["DRAFT", "PUBLISHED", "ARCHIVED"], {
