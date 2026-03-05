@@ -1,11 +1,12 @@
 import { BaseService, MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { inject, injectable } from "inversify";
-import { CohortListItemDto, CohortListQueryDto, CohortListResponseDto, CourseVersionListQueryDto, CourseVersionListResponseDto, CourseWithVersionsDto } from "../classes/validators/courseAndCohorts.js";
+import { CohortListItemDto, CohortListQueryDto, CohortListResponseDto, CohortStudentItemDto, CohortStudentsListQueryDto, CohortStudentsResponseDto, CourseVersionListQueryDto, CourseVersionListResponseDto, CourseWithVersionsDto } from "../classes/validators/courseAndCohorts.js";
 import { ClientSession } from "mongodb";
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 import { ActivityRepository } from "../repositories/index.js";
+import { BadRequestError } from "routing-controllers";
 
 
 @injectable()
@@ -196,6 +197,65 @@ export class CohortsService extends BaseService {
             }
 
             // IMP: IMPLEMENT LOGIC FOR UPCOMING COURSES FROM ENROLLMENT COLLECTION    
+
+        })
+    }
+
+    private async _handleExisitingCohortStudents(
+        versionId: string,
+        cohortName: string,
+        query: CohortStudentsListQueryDto
+    ): Promise<CohortStudentItemDto[] | null> {
+        // Map: parentVersionId -> cohortName -> actualCourseVersionId
+        const EXISTING_COHORTS_MAP: Record<string, Record<string, string>> = {
+            "000000000000000000000001": {
+                euclideans: "6968e12cbf2860d6e39051af",
+                dijkstrians: "6970f87e30644cbc74b67150",
+                kruskalians: "697b4e262942654879011c57",
+            },
+            "000000000000000000000002": {
+                rsaians: "69903415e1930c015760a719",
+                aksians: "69942dc6d6d99b252e3a54ff",
+            },
+        };
+
+        const normalizedCohort = cohortName?.trim().toLowerCase();
+        if (!normalizedCohort) return null;
+
+        const cohortMapForVersion = EXISTING_COHORTS_MAP[versionId];
+        if (!cohortMapForVersion) return null;
+
+        const actualVersionId = cohortMapForVersion[normalizedCohort];
+        if (!actualVersionId) return null;
+
+        return this.cohortRepository.getStudentsForExistingCohortByVersionId(actualVersionId, query);
+    }
+
+
+    async listCohortStudents(input: {
+        versionId: string;
+        cohortName: string;
+        query?: CohortStudentsListQueryDto;
+    }): Promise<CohortStudentsResponseDto> {
+        return await this._withTransaction(async (session: ClientSession) => {
+            const { versionId, cohortName } = input;
+            const query = input.query ?? {};
+
+            if (!versionId?.trim()) throw new BadRequestError("versionId is required");
+            if (!cohortName?.trim()) throw new BadRequestError("cohortName is required");
+
+
+            const students = await this._handleExisitingCohortStudents(versionId, cohortName, query);
+
+            return {
+                success: true,
+                data: students ?? [],
+                meta: {
+                    totalRecords: students?.length ?? 0,
+                    totalPages: 1,
+                    ...query
+                },
+            }
 
         })
     }

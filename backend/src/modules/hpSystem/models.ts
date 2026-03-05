@@ -83,7 +83,7 @@ export type SubmissionSource =
 export type ReviewDecision = "APPROVED" | "REJECTED" | "REVERTED";
 
 export interface HpActivitySubmission {
-    _id: ID;
+    _id?: ID;
 
     courseId: ID;
     courseVersionId: ID;
@@ -125,14 +125,14 @@ export interface HpActivitySubmission {
         reviewedAt: Date;
         decision: ReviewDecision;
         note: string;
-    };
+    } | null;
 
     // Ledger linkage
     ledgerRefs: {
         rewardLedgerId: ID; // reference to the ledger entry that rewards the student for this submission, populated when status is APPROVED
         revertLedgerIds: ID[]; // reference to the ledger entries that revert the reward for this submission, populated when status is REVERTED
         penaltyLedgerId: ID; // reference to the ledger entry that penalizes the student for late submission, populated when status is APPROVED and submission is late and lateRewardPolicy is REWARD_ALLOWED
-    };
+    } | null;
 
     // Flags
     isLate: boolean; // populated when status is SUBMITTED, indicates whether the submission was submitted after the deadline
