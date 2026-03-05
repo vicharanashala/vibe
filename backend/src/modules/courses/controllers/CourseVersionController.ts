@@ -122,7 +122,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.COURSE_VERSION,
       action: AuditAction.COURSE_VERSION_CREATE,
-      actor: ObjectId.createFromHexString(userId),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context:{
         courseId: ObjectId.createFromHexString(courseId),
         courseVersionId: ObjectId.createFromHexString(createdCourseVersion._id.toString()),
@@ -227,7 +232,12 @@ Accessible to:
       setAuditTrail(req,{
       category: AuditCategory.COURSE_VERSION,
       action: AuditAction.COURSE_VERSION_UPDATE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context:{
         courseId: ObjectId.createFromHexString(courseId),
         courseVersionId: ObjectId.createFromHexString(versionId),
@@ -312,7 +322,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.COURSE_VERSION,
       action: AuditAction.COURSE_VERSION_DELETE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context:{
         courseId: ObjectId.createFromHexString(courseId),
         courseVersionId: ObjectId.createFromHexString(versionId),
@@ -389,7 +404,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.COURSE_VERSION,
       action: AuditAction.COURSE_VERSION_CLONE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context:{
         courseId: ObjectId.createFromHexString(courseId),
         courseVersionId: ObjectId.createFromHexString(versionId),

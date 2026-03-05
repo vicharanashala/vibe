@@ -106,7 +106,12 @@ export class AnnouncementController {
         setAuditTrail(req, {
             category: AuditCategory.ANNOUNCEMENT,
             action: AuditAction.ANNOUNCEMENT_CREATE,
-            actor: ObjectId.createFromHexString(user._id.toString()),
+            actor: {
+                id: ObjectId.createFromHexString(user._id.toString()),
+                name: instructorName,
+                email: user.email,
+                role: user.roles,
+            },
             context: {
                 announcementId: announcement._id ? ObjectId.createFromHexString(announcement._id.toString()) : undefined,
                 courseId: body.courseId ? ObjectId.createFromHexString(body.courseId) : undefined,
@@ -178,7 +183,12 @@ export class AnnouncementController {
         setAuditTrail(req, {
             category: AuditCategory.ANNOUNCEMENT,
             action: AuditAction.ANNOUNCEMENT_UPDATE,
-            actor: ObjectId.createFromHexString(user._id.toString()),
+            actor: {
+                id: ObjectId.createFromHexString(user._id.toString()),
+                name: `${user.firstName}${user.lastName ? ' ' + user.lastName : ''}`,
+                email: user.email,
+                role: user.roles,
+            },
             context: {
                 announcementId: ObjectId.createFromHexString(params.announcementId),
                 courseId: existing.courseId ? ObjectId.createFromHexString(existing.courseId.toString()) : undefined,
@@ -251,7 +261,12 @@ export class AnnouncementController {
         setAuditTrail(req, {
             category: AuditCategory.ANNOUNCEMENT,
             action: isHidden ? AuditAction.ANNOUNCEMENT_HIDE : AuditAction.ANNOUNCEMENT_UNHIDE,
-            actor: ObjectId.createFromHexString(user._id.toString()),
+            actor: {
+                id: ObjectId.createFromHexString(user._id.toString()),
+                name: `${user.firstName}${user.lastName ? ' ' + user.lastName : ''}`,
+                email: user.email,
+                role: user.roles,
+            },
             context: {
                 announcementId: ObjectId.createFromHexString(params.announcementId),
                 courseId: existing.courseId ? ObjectId.createFromHexString(existing.courseId.toString()) : undefined,
@@ -330,7 +345,12 @@ export class AnnouncementController {
         setAuditTrail(req, {
             category: AuditCategory.ANNOUNCEMENT,
             action: AuditAction.ANNOUNCEMENT_DELETE,
-            actor: ObjectId.createFromHexString(user._id.toString()),
+            actor: {
+                id: ObjectId.createFromHexString(user._id.toString()),
+                name: `${user.firstName}${user.lastName ? ' ' + user.lastName : ''}`,
+                email: user.email,
+                role: user.roles,
+            },
             context: {
                 announcementId: ObjectId.createFromHexString(params.announcementId),
                 courseId: existing.courseId ? ObjectId.createFromHexString(existing.courseId.toString()) : undefined,

@@ -498,6 +498,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     [currentCourse, stopItem, attemptId]
   );
 
+  useEffect(() => {
+    return () => {
+      if (emptyQuizNextTimerRef.current) {
+        clearTimeout(emptyQuizNextTimerRef.current);
+      }
+    };
+  }, []);
 
   // Handle empty quiz without attempting to start it
   const handleEmptyQuiz = useCallback(async () => {
@@ -697,6 +704,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       console.error('No attempt ID available for submission');
       return;
     }
+    
+    if (finshingQuiz || isSubmitting) {
+      console.warn('Submission already in progress, ignoring duplicate request');
+      return;
+    }
+    
     setFinshingQuiz(true);
     try {
       // For non-skipped quizzes, save all answers first, then submit
@@ -765,13 +778,21 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
       setQuizCompleted(true);
       setFinshingQuiz(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to submit quiz:', err);
-      // On submission error, don't mark as completed - let user try again
-      setQuizCompleted(false);
+      
+      const errorMessage = err?.message || err?.error?.message || String(err);
+      if (errorMessage.includes('already been submitted')) {
+        toast.info('This quiz has already been submitted. Showing your previous results.');
+        setQuizCompleted(true);
+      } else {
+        toast.error(`Failed to submit quiz: ${errorMessage}`);
+        setQuizCompleted(false);
+      }
+      
       setFinshingQuiz(false);
     }
-  }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem, saveQuiz]);
+  }, [attemptId, convertAnswersToSaveFormat, submitQuiz, processedQuizId, showScoreAfterSubmission, quizQuestions, answers, handleStopItem, saveQuiz, finshingQuiz, isSubmitting]);
 
   const handleNextQuestion = useCallback(async () => {
     setTimeLeft(0);
@@ -1480,7 +1501,12 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                 const userAnswer = answers[question.id];
                 const hasAnswer = userAnswer !== undefined && userAnswer !== null && userAnswer !== '';
                 const questionFeedback = submissionResults?.overallFeedback?.find(
-                  feedback => feedback.questionId === question.id
+                  feedback => {
+                    const fbId = typeof feedback.questionId === 'object' && feedback.questionId !== null && 'buffer' in feedback.questionId
+                      ? bufferToHex(feedback.questionId as any)
+                      : String(feedback.questionId);
+                    return fbId === question.id;
+                  }
                 );
 
                 return (

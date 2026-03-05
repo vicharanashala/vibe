@@ -1346,7 +1346,7 @@ class ProgressService extends BaseService {
       }
 
       const section = module.sections.find(
-        s => s.sectionId === currentSection.toString(),
+        s => s.sectionId.toString() === currentSection.toString(),
       );
 
       if (!section) {
@@ -2435,18 +2435,20 @@ class ProgressService extends BaseService {
         quizId,
       );
 
-      const previousProgress = {
-        currentModule: previousDetails.moduleId,
-        currentSection: previousDetails.sectionId,
-        currentItem: previousDetails.itemId,
-      };
+      if (previousDetails) {
+        const previousProgress = {
+          currentModule: previousDetails.moduleId,
+          currentSection: previousDetails.sectionId,
+          currentItem: previousDetails.itemId,
+        };
 
-      await this.progressRepository.updateProgress(
-        userId,
-        courseId,
-        courseVersionId,
-        previousProgress,
-      );
+        await this.progressRepository.updateProgress(
+          userId,
+          courseId,
+          courseVersionId,
+          previousProgress,
+        );
+      }
     }
     // if we refresh the quiz page after passing then the student will land on next item
     //  and as the stop item is not called for that quiz endtime will never be created

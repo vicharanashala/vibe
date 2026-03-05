@@ -39,12 +39,17 @@ export class AuditTrails implements InstructorAuditTrail {
     @JSONSchema({
         title: "User ID of the actor",
         description: "User ID of the actor who performed the action",
-        example: "60d5ec49b3f1c8e4a8f8b8c1",
-        type: "string",
+        example: {"id": "60d5ec49b3f1c8e4a8f8b8c1", "name": "John Doe", "email": "john.doe@example.com"},
+        type: "object",
     })
     @Transform(ObjectIdToString.transformer, { toPlainOnly: true }) // Convert ObjectId -> string when serializing
     @Transform(StringToObjectId.transformer, { toClassOnly: true }) // Convert string -> ObjectId when deserializing
-    actor: string | ObjectId;
+    actor: {
+        id: string | ObjectId;
+        name: string;
+        email: string;
+        role?: string;
+    };
 
     @Expose()
     @JSONSchema({
@@ -125,7 +130,12 @@ export class AuditTrails implements InstructorAuditTrail {
     constructor(userId?: string) {
         this.category = AuditCategory.COURSE;
         this.action = AuditAction.COURSE_CREATE;
-        this.actor = userId;
+        this.actor = {
+            id: userId,
+            name: "",
+            email: "",
+            role: ""
+        };
         this.context = {};
         this.changes = {};
         this.outcome = { status: OutComeStatus.PARTIAL };
