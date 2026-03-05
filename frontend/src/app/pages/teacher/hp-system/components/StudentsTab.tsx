@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Search, History, Mail, Zap, FileText } from "lucide-react";
 
 
+
 interface StudentsTabProps {
   courseVersionId: string;
   cohortName: string;
@@ -46,6 +47,7 @@ const paginatedStudents = filteredStudents.slice(
   }
 
   return (
+
     <div className="space-y-6">
       {/* Search */}
       <div className="relative max-w-md">

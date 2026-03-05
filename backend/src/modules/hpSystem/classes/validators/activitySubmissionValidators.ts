@@ -1,5 +1,5 @@
 import { Expose, Type } from "class-transformer";
-import { ArrayMaxSize, IsArray, IsEmail, IsEnum, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, Min, ValidateNested } from "class-validator";
+import { ArrayMaxSize, IsArray, IsBoolean, IsDateString, IsEmail, IsEnum, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, Min, ValidateNested } from "class-validator";
 import { ReviewDecision, SubmissionSource, SubmissionStatus } from "../../constants.js";
 import { ToNumber } from "../../utils/toNumber.js";
 
@@ -169,7 +169,7 @@ export class ListSubmissionsQueryDto {
     @Expose()
     @IsOptional()
     @IsString()
-    search?: string; 
+    search?: string;
 
     @Expose()
     @IsOptional()
@@ -202,4 +202,162 @@ export class ListSubmissionsQueryDto {
     @IsString()
     @IsIn(["asc", "desc"])
     sortOrder?: "asc" | "desc";
+}
+
+
+
+export class FilterQueryDto {
+    @Expose()
+    @IsOptional()
+    @ToNumber()
+    @IsNumber()
+    @Min(1)
+    page?: number;
+
+    @Expose()
+    @IsOptional()
+    @ToNumber()
+    @IsNumber()
+    @Min(1)
+    limit?: number;
+
+    @Expose()
+    @IsOptional()
+    @IsString()
+    search?: string;
+
+    @Expose()
+    @IsOptional()
+    @IsString()
+    sortBy?: string;
+
+    @Expose()
+    @IsOptional()
+    @IsString()
+    @IsIn(["asc", "desc"])
+    sortOrder?: "asc" | "desc";
+}
+
+
+
+export class StudentSubmissionActivityDto {
+    @Expose()
+    @IsString()
+    id!: string;
+
+    @Expose()
+    @IsString()
+    title!: string;
+
+    @Expose()
+    @IsString()
+    description!: string;
+
+    @Expose()
+    @IsString()
+    activityType!: string;
+}
+
+export class SubmissionAttachmentsDto {
+    @Expose()
+    @IsString()
+    textResponse!: string;
+
+    @Expose()
+    @Type(() => SubmissionLinkDto)
+    @IsArray()
+    links!: SubmissionLinkDto[];
+
+    @Expose()
+    @Type(() => SubmissionFileDto)
+    @IsArray()
+    files!: SubmissionFileDto[];
+
+    @Expose()
+    @Type(() => SubmissionFileDto)
+    @IsArray()
+    images!: SubmissionFileDto[];
+}
+
+export class StudentSubmissionDto {
+    @Expose()
+    @IsString()
+    status!: string;
+
+    @Expose()
+    @IsOptional()
+    @IsDateString()
+    submittedAt!: Date | null;
+
+    @Expose()
+    @IsBoolean()
+    isLate!: boolean;
+
+    @Expose()
+    @Type(() => SubmissionAttachmentsDto)
+    attachments!: SubmissionAttachmentsDto;
+}
+
+export class SubmissionHpDto {
+    @Expose()
+    @IsNumber()
+    baseHp!: number;
+
+    @Expose()
+    @IsNumber()
+    currentHp!: number;
+}
+
+export class InstructorFeedbackDto {
+    @Expose()
+    @IsString()
+    reviewedBy!: string;
+
+    @Expose()
+    @IsDateString()
+    reviewedAt!: Date;
+
+    @Expose()
+    @IsString()
+    decision!: string;
+
+    @Expose()
+    @IsString()
+    note!: string;
+}
+
+export class StudentActivitySubmissionsViewDto {
+
+    @Expose()
+    @Type(() => StudentSubmissionActivityDto)
+    activity!: StudentSubmissionActivityDto;
+
+    @Expose()
+    @IsDateString()
+    deadline!: Date;
+
+    @Expose()
+    @Type(() => StudentSubmissionDto)
+    submission!: StudentSubmissionDto;
+
+    @Expose()
+    @Type(() => SubmissionHpDto)
+    hp!: SubmissionHpDto;
+
+    @Expose()
+    @IsOptional()
+    @Type(() => InstructorFeedbackDto)
+    instructorFeedback!: InstructorFeedbackDto | null;
+}
+
+export class StudentActivitySubmissionsResponseDto {
+
+    @Expose()
+    @IsBoolean()
+    success!: boolean;
+
+    @Expose()
+    @Type(() => StudentActivitySubmissionsViewDto)
+    @IsArray()
+    data!: StudentActivitySubmissionsViewDto[];
 }
