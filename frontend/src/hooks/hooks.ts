@@ -1656,10 +1656,16 @@ export function useSkipOptionalItem(): {
   isError: boolean,
   isIdle: boolean,
 } {
-  const result = api.useMutation("post", "/users/items/{itemId}/skip");
+  const result = api.useMutation("post", "/users/items/{itemId}/skip") as any;
+  const rawError = result.error as { message?: string; response?: { data?: { message?: string } } } | null;
   return {
     ...result,
-    error: result.error ? (result.error.message || 'Failed to skip item') : null
+    // error: result.error ? (result.error.message || 'Failed to skip item') : null
+   error: rawError
+      ? rawError.message
+        ?? rawError.response?.data?.message
+        ?? "Failed to skip item"
+      : null,
   }
 }
 

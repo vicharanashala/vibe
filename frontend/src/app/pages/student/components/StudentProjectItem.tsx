@@ -28,6 +28,7 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
   const [link, setLink] = useState('');
   const [comment, setComment] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
 
   const { mutateAsync: submitProject, isPending: isSubmitting } = useSubmitProject();
   const startItem = useStartItem();
@@ -127,6 +128,11 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Prevent multiple submissions
+    if (isSubmittingLocal || isSubmitting || isProgressUpdating) {
+      return;
+    }
+
     try {
       if (!link.trim()) {
         toast.error('Please enter a link');
@@ -146,6 +152,9 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
         toast.error('Course item information not available');
         return;
       }
+
+      setIsSubmittingLocal(true);
+
       try {
         if(isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId)){
           await submitProject({
@@ -211,10 +220,15 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
     } catch (error) {
       console.error('Failed to submit form:', error);
       toast.error('Failed to submit form. Please try again.');
+    } finally {
+      setIsSubmittingLocal(false);
     }
   };
 
   const handleReset = () => {
+    if (isSubmittingLocal || isSubmitting || isProgressUpdating) {
+      return;
+    }
     setLink('');
     setComment('');
     setIsSubmitted(false);
@@ -229,8 +243,8 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
           <p className="text-muted-foreground mb-4">
             Your submission has been recorded. You can now proceed to the next item.
           </p>
-          <Button onClick={onNext} disabled={isProgressUpdating}>
-            {isProgressUpdating ? 'Updating Progress...' : 'Continue'}
+          <Button onClick={onNext} disabled={isProgressUpdating || isSubmittingLocal}>
+            {isProgressUpdating || isSubmittingLocal ? 'Updating Progress...' : 'Continue'}
           </Button>
         </div>
       </div>
@@ -283,15 +297,15 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
               <Button
                 type="submit"
                 className="flex-1"
-                disabled={isProgressUpdating || isSubmitting}
+                disabled={isProgressUpdating || isSubmitting || isSubmittingLocal}
               >
-                {isProgressUpdating || isSubmitting ? 'Submitting...' : 'Submit Form'}
+                {isProgressUpdating || isSubmitting || isSubmittingLocal ? 'Submitting...' : 'Submit Form'}
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleReset}
-                disabled={isProgressUpdating || isSubmitting}
+                disabled={isProgressUpdating || isSubmitting || isSubmittingLocal}
               >
                 Reset
               </Button>

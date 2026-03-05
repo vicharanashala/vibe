@@ -209,7 +209,8 @@ export class ItemService extends BaseService {
 
         const allowed = [ItemType.VIDEO, ItemType.QUIZ, ItemType.BLOG];
 
-        if (!allowed.includes(previousItem.type)) {
+        // Skip validation for copied items
+        if (!body.name.includes("copy") && !allowed.includes(previousItem.type)) {
           throw new BadRequestError(
             'Feedback can only be added after VIDEO, QUIZ, or BLOG items',
           );
