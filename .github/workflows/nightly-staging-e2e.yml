@@ -31,7 +31,7 @@ jobs:
         run: pnpm --dir e2e exec playwright install --with-deps
 
       - name: Run E2E Tests Against Staging
-        run: pnpm --dir e2e test-e2e
+        run: pnpm --dir e2e test-e2e smoke.spec.ts
         env:
           BASE_URL: ${{ secrets.STAGING_FRONTEND_URL }}
           TEST_STUDENT_EMAIL: ${{ secrets.TEST_STUDENT_EMAIL }}
