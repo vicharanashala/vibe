@@ -184,6 +184,30 @@ export interface HpRuleConfig {
     updatedAt?: string;
 }
 
+export interface HpStudentActivity {
+    _id: string;
+    courseVersionId: string;
+    courseId: string;
+    cohort: string;
+    title: string;
+    description: string;
+    activityType: "ASSIGNMENT" | "MILESTONE" | "EXTERNAL_IMPORT" | "VIBE_MILESTONE" | "OTHER";
+    submissionMode: "IN_PLATFORM" | "EXTERNAL_LINK";
+    externalLink?: string;
+    attachments?: {
+        name: string;
+        url: string;
+        kind: 'PDF' | 'LINK' | 'OTHER';
+    }[];
+    // Rule details embedded for student view
+    isMandatory: boolean;
+    deadlineAt?: string;
+    allowLateSubmission?: boolean;
+    rewardType?: "ABSOLUTE" | "PERCENTAGE";
+    rewardValue?: number;
+    studentStatus: "NOT_STARTED" | "SUBMITTED" | "GRADED" | "OVERDUE";
+}
+
 export interface CreateHpActivityPayload {
     courseId: string;
     courseVersionId: string;
@@ -213,6 +237,19 @@ export const hpApi = {
     getCohorts: async (courseVersionId: string): Promise<{ success: boolean; message: string; data: CohortStats[] }> => {
         const params = new URLSearchParams({ courseVersionId });
         return apiFetch(`${BASE_URL}/courses-cohorts/cohorts?${params.toString()}`);
+    },
+
+    getStudentCohorts: async (): Promise<{ success: boolean; message: string; data: any[] }> => {
+        return apiFetch(`${BASE_URL}/courses-cohorts/cohorts`);
+    },
+
+    getStudentActivities: async (
+        courseVersionId: string,
+        cohortName: string
+    ): Promise<{ success: boolean; data: HpActivity[] }> => {
+        // Use the existing activities endpoint, filtered to PUBLISHED only for students
+        const params = new URLSearchParams({ courseVersionId, cohort: cohortName, status: 'PUBLISHED' });
+        return apiFetch(`${BASE_URL}/activities?${params.toString()}`);
     },
 
     // ── Activities (real backend) ────────────────────────────
