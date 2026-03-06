@@ -7,7 +7,7 @@ import { MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { plainToInstance } from "class-transformer";
 import { inject, injectable } from "inversify";
-import { Collection, InsertOneResult } from "mongodb";
+import { ClientSession, Collection, InsertOneResult } from "mongodb";
 
 @injectable()
 export class LedgerRepository implements ILedgerRepository {
@@ -22,12 +22,13 @@ export class LedgerRepository implements ILedgerRepository {
         this.hpLedgerCollection = await this.db.getCollection<HpLedger>('hp_ledger');
     }
 
-    create(entry: Omit<HpLedger, "_id" | "createdAt">): Promise<InsertOneResult<HpLedger>> {
+    async create(entry: Omit<HpLedger, "_id" | "createdAt">, session?: ClientSession): Promise<InsertOneResult<HpLedger>> {
+        await this.init();
         const now = new Date();
-        return this.hpLedgerCollection.insertOne({
+        return await this.hpLedgerCollection.insertOne({
             ...entry,
             createdAt: now,
-        });
+        }, { session });
     }
 
     async listByStudentId(
