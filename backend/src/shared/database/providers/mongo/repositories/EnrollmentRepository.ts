@@ -606,7 +606,7 @@ export class EnrollmentRepository {
             {
               $project: {
                 totalItems: 1,
-                // itemCounts: 1,
+                itemCounts: 1,
                 supportLink: 1,
                 version: 1,
                 description: 1,

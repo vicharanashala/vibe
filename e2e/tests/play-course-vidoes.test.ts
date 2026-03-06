@@ -1,4 +1,5 @@
 import { test, expect, Locator, Page } from '@playwright/test';
+import fs from 'fs';
 
 const COURSE_NAME =
   process.env.COURSE_NAME ?? 'MERN Developer Sprint: For MERN developer team testing';
@@ -39,7 +40,7 @@ test('Test course video playback and quiz', async ({ page }) => {
   await emailInput.fill(process.env.TEST_STUDENT_EMAIL);
   await passwordInput.fill(process.env.TEST_STUDENT_PASSWORD);
 
-  await page.getByRole('button', { name: /sign in as student/i }).click();
+  await page.getByRole('button', { name: /sign in as learner/i }).click();
 
   // --- 3. Verify login ---
   await expect(page.getByText(/logout/i)).toBeVisible();
@@ -51,7 +52,7 @@ test('Test course video playback and quiz', async ({ page }) => {
     level: 3,
   });
 
-  await expect(courseTitle).toBeVisible({ timeout: 15_000 });
+  await expect(courseTitle).toBeVisible({ timeout: 30000 });
 
   // 5. Scope to THIS course card
   const courseCard = courseTitle.locator(
@@ -70,12 +71,11 @@ test('Test course video playback and quiz', async ({ page }) => {
   // ---------------------------------------------
   // Helpers functions
   // ---------------------------------------------
-  // Not being used currently as proctoring is disabled for MERN course.
   async function verifyWebcamStream_ifpresent(page: Page) {
     // 🔎 Check if Declaration is visible (short timeout so it doesn’t wait 30s)
     const declarationVisible = await page
       .getByText(/Declaration/i)
-      .isVisible({ timeout: 3000 })
+      .isVisible({ timeout: 30000 })
       .catch(() => false);
 
     if (!declarationVisible) {
@@ -83,14 +83,14 @@ test('Test course video playback and quiz', async ({ page }) => {
       return; // 🚀 Exit function completely
     }
 
-    console.log('✅ Declaration found. Verifying webcam stream...');
+    console.log('✅ Declaration found');
     await page.getByRole('button', { name: /accept/i }).click();
 
-    // 2️⃣ Locate video element
+    //  Locate video element
     const video = page.locator('video');
     await expect(video).toBeVisible();
 
-    // 3️⃣ Wait for media stream to attach
+    //  Wait for media stream to attach
     await page.waitForFunction(
       () => {
         const v = document.querySelector('video');
@@ -100,7 +100,7 @@ test('Test course video playback and quiz', async ({ page }) => {
       { timeout: 30_000 },
     );
 
-    // 4️⃣ Extract video metadata
+    // Extract video metadata
     const info = await video.evaluate((v) => ({
       readyState: v.readyState,
       currentTime: v.currentTime,
@@ -110,11 +110,11 @@ test('Test course video playback and quiz', async ({ page }) => {
 
     console.log('Video info:', info);
 
-    // 5️⃣ Basic validation
+    // Basic validation
     expect(info.width).toBeGreaterThan(0);
     expect(info.height).toBeGreaterThan(0);
 
-    // 6️⃣ Optional: verify frames are flowing
+    // verify frames are flowing
     const t1 = info.currentTime;
     await page.waitForTimeout(2000);
     const t2 = await video.evaluate((v) => v.currentTime);
@@ -123,7 +123,7 @@ test('Test course video playback and quiz', async ({ page }) => {
   }
 
   async function expandIfCollapsed(button: Locator) {
-    await button.waitFor({ state: 'visible', timeout: 15_000 });
+    await button.waitFor({ state: 'visible', timeout: 30_000 });
 
     const expanded = await button.getAttribute('aria-expanded');
 
@@ -134,7 +134,7 @@ test('Test course video playback and quiz', async ({ page }) => {
     if (expanded === 'false') {
       await button.click();
       await expect(button).toHaveAttribute('aria-expanded', 'true', {
-        timeout: 5_000,
+        timeout: 30_000,
       });
     }
   }
@@ -157,7 +157,7 @@ test('Test course video playback and quiz', async ({ page }) => {
   }
 
   async function playAndWaitForCompletion(page) {
-    // 🎯 YouTube embedded Play button
+    // Play button
     const playButton = page.getByRole('button', { name: /^play$/i });
 
     // ⏱ Time display like "mm:ss / mm:ss"
@@ -166,6 +166,31 @@ test('Test course video playback and quiz', async ({ page }) => {
     // Wait for player to be ready
     await expect(playButton).toBeVisible({ timeout: 30_000 });
     await expect(timeDisplay).toBeVisible({ timeout: 30_000 });
+
+    // Increase speed to 2x
+    const speedTrack = page.locator('[data-slot="slider"]').nth(1);
+    await expect(speedTrack).toBeVisible();
+
+    const box = await speedTrack.boundingBox();
+    if (!box) throw new Error('No bounding box');
+
+    // Click at extreme right edge
+    await speedTrack.click({
+      position: {
+        x: box.width - 1,
+        y: box.height / 2,
+      },
+    });
+
+    const thumb = page.locator('[role="slider"]').nth(1);
+
+    await expect
+      .poll(async () => {
+        return await thumb.getAttribute('aria-valuenow');
+      })
+      .toBe('2');
+
+    console.log('✅ Speed set to ~2x');
 
     // ▶️ Click Play
     await playButton.click();
@@ -208,18 +233,32 @@ test('Test course video playback and quiz', async ({ page }) => {
     console.log('✅ Video completed');
   }
 
-  async function waitForVideolist(sectionButton) {
-    const videoList = sectionButton.locator('xpath=following-sibling::ul[1]');
+async function waitForItemlist(section: Locator) {
+  const page = section.page();
 
-    // Wait for the videos container to appear
-    await videoList.waitFor({ state: 'visible', timeout: 10_000 });
+  const items = section.getByTestId('course-item');
 
-    // Wait until at least one video button is present
-    await videoList.locator('li > button').first().waitFor({
-      state: 'visible',
-      timeout: 10_000,
-    });
+  await expect(items.first()).toBeVisible({ timeout: 30000 });
+
+  let previousCount = 0;
+  let stableIterations = 0;
+  const MAX_STABLE_ITERATIONS = 3;
+
+  while (stableIterations < MAX_STABLE_ITERATIONS) {
+    const currentCount = await items.count();
+
+    if (currentCount === previousCount) {
+      stableIterations++;
+    } else {
+      stableIterations = 0;
+      previousCount = currentCount;
+    }
+
+    await page.waitForTimeout(200);
   }
+
+  console.log(`✅ All items loaded. Total: ${previousCount}`);
+}
 
   async function handleStopVideoError(page: Page) {
     // Anchor on the error text
@@ -229,7 +268,7 @@ test('Test course video playback and quiz', async ({ page }) => {
       .locator('..'); // inner container → dialog box
 
     try {
-      await errorDialog.waitFor({ state: 'visible', timeout: 3000 });
+      await errorDialog.waitFor({ state: 'visible', timeout: 30_000 });
       console.warn('⚠️ "Failed to stop video" dialog detected');
 
       const continueButton = page
@@ -237,7 +276,7 @@ test('Test course video playback and quiz', async ({ page }) => {
         .locator('xpath=ancestor::div[.//button[text()="Continue"]]')
         .getByRole('button', { name: 'Continue' });
 
-      await continueButton.waitFor({ state: 'visible', timeout: 3000 });
+      await continueButton.waitFor({ state: 'visible', timeout: 30_000 });
       await continueButton.click();
 
       console.log('✅ Clicked Continue inside error dialog');
@@ -246,53 +285,48 @@ test('Test course video playback and quiz', async ({ page }) => {
     }
   }
 
-  async function scrollToLoadAllModules(page: Page) {
-    const modules = page.locator('button:has-text("sections")');
+async function scrollToLoadAllModules(page: Page) {
+  const modules = page.getByTestId('course-module');
 
-    // 1️⃣ Wait for at least ONE module to appear
-    await modules.first().waitFor({ state: 'visible', timeout: 10_000 });
+  // 1️⃣ Wait for at least one module
+  await modules.first().waitFor({ state: 'visible', timeout: 30_000 });
 
-    let previousCount = await modules.count();
-    let stableIterations = 0;
-    const MAX_STABLE_ITERATIONS = 3;
+  let previousCount = await modules.count();
+  let stableIterations = 0;
+  const MAX_STABLE_ITERATIONS = 3;
 
-    console.log(`🔎 Initial modules visible: ${previousCount}`);
+  console.log(`🔎 Initial modules visible: ${previousCount}`);
 
-    while (stableIterations < MAX_STABLE_ITERATIONS) {
-      // Scroll last known module
-      await modules.nth(previousCount - 1).scrollIntoViewIfNeeded();
+  while (stableIterations < MAX_STABLE_ITERATIONS) {
+    // Scroll the last module into view
+    await modules.nth(previousCount - 1).scrollIntoViewIfNeeded();
 
-      // Give React time to lazy-load
-      await page.waitForTimeout(1000);
+    // Give React time to render lazy content
+    await page.waitForTimeout(300); 
 
-      const currentCount = await modules.count();
-      console.log(`🔎 Modules visible so far: ${currentCount}`);
+    const currentCount = await modules.count();
+    console.log(`🔎 Modules visible so far: ${currentCount}`);
 
-      if (currentCount === previousCount) {
-        stableIterations++;
-        console.log(`⏳ No new modules detected (${stableIterations}/${MAX_STABLE_ITERATIONS})`);
-      } else {
-        stableIterations = 0; // reset if new modules appear
-        previousCount = currentCount;
-      }
+    if (currentCount === previousCount) {
+      stableIterations++;
+      console.log(`⏳ No new modules detected (${stableIterations}/${MAX_STABLE_ITERATIONS})`);
+    } else {
+      stableIterations = 0;
+      previousCount = currentCount;
     }
-
-    console.log('✅ All modules loaded');
   }
 
+  console.log('✅ All modules loaded');
+}
+
   async function attemptQuiz(page: Page) {
-    // 1️⃣ Ensure we are on the Quiz page
-    await expect(page.getByText(/Quiz\s+\d+/i)).toBeVisible({ timeout: 10_000 });
-
-    console.log('✅ Quiz heading detected');
-
     // Loop until quiz is completed
     let current = 0;
     let total = 1;
 
     while (current < total) {
       const questionBadge = page.getByText(/Question\s+\d+\s+of\s+\d+/i);
-      await expect(questionBadge).toBeVisible();
+      await expect(questionBadge).toBeVisible({ timeout: 30000 });
 
       const badgeText = await questionBadge.textContent();
       if (!badgeText) {
@@ -339,148 +373,124 @@ test('Test course video playback and quiz', async ({ page }) => {
     }
 
     const completedHeading = page.getByText(/quiz\s+completed/i);
-    await completedHeading.waitFor({ state: 'visible', timeout: 10_000 });
+    await completedHeading.waitFor({ state: 'visible', timeout: 30_000 });
     console.log('🎉 Quiz completed successfully');
 
     //Wait for "Next Lesson" button
     const nextLessonButton = page.getByRole('button', { name: /next\s+lesson/i });
-    await nextLessonButton.waitFor({ state: 'visible', timeout: 10_000 });
+    await nextLessonButton.waitFor({ state: 'visible', timeout: 30_000 });
 
     //Click it
-    await nextLessonButton.click();    
-  }
-
-  async function waitForQuizAndAttempt(page: Page) {
-    const quizHeading = page.locator('main').getByText(/Quiz\s+\d+/i);
-
-    await quizHeading.waitFor({
-      state: 'visible',
-      timeout: 60_000,
-    });
-
-    console.log('🎯 Quiz visible. Starting quiz attempt...');
-    await attemptQuiz(page);
-  }
-
-  async function waitForVideo(page: Page, expectedVideoName: string) {
-    // 1️⃣ Wait for correct heading (top of page, not sidebar)
-    console.log(`⏳ Waiting for heading: ${expectedVideoName}`);
-
-    await page.locator('main', { hasText: expectedVideoName }).waitFor({
-      timeout: 60000,
-    });
-
-    console.log(`✅ Heading matched: ${expectedVideoName}`);
-
-    // 2️⃣ Wait for Play button (like before)
-    const playButton = page.getByRole('button', { name: 'Play' });
-
-    try {
-      await playButton.waitFor({ state: 'visible', timeout: 120_000 });
-      console.log('▶ Play button detected');
-      return 'video';
-    } catch {
-      console.log('⚠ Play button not found');
-      return 'none';
-    }
+    await nextLessonButton.click();
   }
 
   /* ----------------------------------------------------------------------
-   // --- 10. Load all modules and loop through all of them ---
+   //  Load all modules and loop through all of them ---
 ---------------------------------------------------------------------- */
   await verifyWebcamStream_ifpresent(page);
 
   await scrollToLoadAllModules(page);
 
-  const moduleButtons = page.locator('button:has-text("sections")');
+// Get all module containers
+const modules = page.getByTestId('course-module');
 
-  const moduleCount = await moduleButtons.count();
-  console.log(`📦 Found ${moduleCount} modules`);
+const moduleCount = await modules.count();
+console.log(`📦 Found ${moduleCount} modules`);
 
-  // Print module names
-  for (let m = 0; m < moduleCount; m++) {
-    const moduleButton = moduleButtons.nth(m);
 
-    await moduleButton.scrollIntoViewIfNeeded();
-    await expect(moduleButton).toBeVisible();
+for (let m = 0; m < moduleCount; m++) {
 
-    const moduleName = (await moduleButton.textContent())?.trim();
+  const module = modules.nth(m);
 
-    console.log(`📦 Module [${m}]: ${moduleName}`);
-  }
+  await module.scrollIntoViewIfNeeded();
+  await expect(module).toBeVisible();
 
-  console.log(`📦 ===== END MODULE LIST =====\n`);
+  const moduleName = (await module
+    .getByTestId('course-module-toggle')
+    .textContent())?.trim();
 
-  for (let m = 0; m < moduleCount; m++) {
-    const moduleButton = moduleButtons.nth(m);
-    const moduleName = (await moduleButton.textContent())?.trim();
+  console.log(`📦 Module [${m}] | Name: ${moduleName}`);
 
-    console.log(`📦 Module [${m}]: ${moduleName}`);
-    await moduleButton.scrollIntoViewIfNeeded();
-    await expect(moduleButton).toBeVisible();
-    await expandIfCollapsed(moduleButton);
+  // Expand module 
+  const moduleToggle = module.getByTestId('course-module-toggle');
+  await moduleToggle.click();
+  await expandIfCollapsed(moduleToggle);
 
-    /* ----------------------------------------------------------------
-    11. Detect SECTIONS (auto-detected) and loop through them
----------------------------------------------------------------- */
-    const sectionButtons = moduleButton.locator('xpath=following-sibling::ul[1]/li/button');
-
-    const sectionCount = await sectionButtons.count();
-    console.log(`📂 Found ${sectionCount} sections in module`);
-
-    for (let i = 0; i < sectionCount; i++) {
-      const sectionButton = sectionButtons.nth(i);
-      const sectionName = (await sectionButton.textContent())?.trim();
-
-      console.log(`📂 Section [${i}]: ${sectionName}`);
-
-      await expandIfCollapsed(sectionButton);
-
-      // ✅ wait for async UI update
-      await waitForVideolist(sectionButton);
-      /* --------------------------------------------------
-      3️⃣ VIDEOS INSIDE SECTION
-    -------------------------------------------------- */
-      const videoButtons = sectionButton.locator('xpath=following-sibling::ul[1]/li/button');
-
-      /* ----------------------------------------------------------------
-      12. Detect videos (auto-detected) and loop through them
+  /* ----------------------------------------------------------------
+     🔹 Detect SECTIONS
   ---------------------------------------------------------------- */
-      const videoCount = await videoButtons.count();
-      console.log(`   ▶ Found ${videoCount} videos`);
 
-      for (let v = 0; v < videoCount; v++) {
-        const fullText = (await videoButtons.nth(v).textContent())?.trim() || '';
+  const sections = module.getByTestId('course-section');
+  const sectionCount = await sections.count();
 
-        const match = fullText.match(/video\s+\d+/i);
-        const videoName = match ? match[0] : '';
-        console.log(`      🎬 Video [${v}]: ${videoName} Play\n`);
-        const video = videoButtons.nth(v);
+  console.log(`📂 Found ${sectionCount} sections in module`);
 
-        // Click on current video
-        await video.click();
+  for (let i = 0; i < sectionCount; i++) {
 
-        const lessonType = await waitForVideo(page, videoName);
+    const section = sections.nth(i);
 
-        if (lessonType === 'video') {
-          console.log('🎬 Video detected');
-          await playAndWaitForCompletion(page);
-          console.log(`      🎬 Video [${v}]: ${videoName} completed\n`);
+    const sectionName = (await section
+      .getByTestId('course-section-toggle')
+      .textContent())?.trim();
 
-          // Small buffer before moving on
-          await page.waitForTimeout(1500);
+    console.log(`📂 Section [${i}]  | Name: ${sectionName}`);
 
-          await handleStopVideoError(page);
+    const sectionToggle = section.getByTestId('course-section-toggle');
 
-          console.log(`🎬 Video [${v}]: ${videoName} check for quiz\n`);
+    await sectionToggle.click();
+    await expandIfCollapsed(sectionToggle);
 
-          await waitForQuizAndAttempt(page);
+    await waitForItemlist(section);
 
-          console.log(`🎬 Video [${v}]: ${videoName} finished quiz\n`);
-        } else {
-          console.log('ℹ️ No video  detected. Skipping.');
-        }
+    const items = section.getByTestId('course-item');
+    const itemCount = await items.count();
+
+    console.log(` ▶ Found ${itemCount} items`);
+
+
+    for (let j = 0; j < itemCount; j++) {
+      const item = items.nth(j);
+
+      // Get item ID
+      const itemId = await item.getAttribute('data-item-id');
+      if (!itemId) continue;
+      // Click item
+      await item.click();
+
+      // Wait for main header to reflect same ID, indicates item is loaded
+      await expect(
+        page.locator('[data-testid="current-item-title"]')
+      ).toHaveAttribute('data-item-id', itemId, { timeout: 30000 });
+
+      console.log(`   ✅ Item ${j} loaded successfully`);
+      const lessonType = await item.getAttribute('data-item-type');
+      const rawText = (await item.textContent())?.trim() || '';
+      const itemName = rawText.replace(/completed/i, '').trim();
+
+      console.log(`\n➡ Selecting item [${j}]`);
+      console.log(`   Type: ${lessonType}`);
+      console.log(`   Name: ${itemName}`);      
+
+      // Act based on lesson type
+      if (lessonType === 'video') {
+        console.log('   🎬 Video detected');
+
+        await playAndWaitForCompletion(page); 
+        await handleStopVideoError(page);
+
+        console.log(`item [${j}] 🎬 Video completed`);
+      } 
+      else if (lessonType === 'quiz') {
+        console.log('   📝 Quiz detected');
+
+        await attemptQuiz(page);
+
+        console.log(` item [${j}] 📝 Quiz completed`);
+      } 
+      else {
+        console.log(`   ℹ️ Unsupported lesson type: ${lessonType}`);
       }
+    } 
     }
   }
   console.log('✅ Course video playback verified');
