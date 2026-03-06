@@ -72,22 +72,6 @@ export class SubmissionPayloadDto {
     @Type(() => SubmissionLinkDto)
     @ArrayMaxSize(20)
     links?: SubmissionLinkDto[];
-
-    // @Expose()
-    // @IsOptional()
-    // @IsArray()
-    // @ValidateNested({ each: true })
-    // @Type(() => SubmissionFileDto)
-    // @ArrayMaxSize(20)
-    // files?: SubmissionFileDto[];
-
-    // @Expose()
-    // @IsOptional()
-    // @IsArray()
-    // @ValidateNested({ each: true })
-    // @Type(() => SubmissionImageDto)
-    // @ArrayMaxSize(20)
-    // images?: SubmissionImageDto[];
 }
 
 export class CreateHpActivitySubmissionBodyDto {
@@ -110,21 +94,6 @@ export class CreateHpActivitySubmissionBodyDto {
     @IsString()
     @IsNotEmpty()
     activityId!: string;
-
-    //   @Expose()
-    //   @IsOptional()
-    //   @IsString()
-    //   studentId?: string;
-
-    //   @Expose()
-    //   @IsOptional()
-    //   @IsEmail()
-    //   studentEmail?: string;
-
-    //   @Expose()
-    //   @IsOptional()
-    //   @IsString()
-    //   studentName?: string;
 
     @Expose()
     @ValidateNested()

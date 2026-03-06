@@ -207,7 +207,7 @@ export class ActivitySubmissionsService extends BaseService {
                 {
                     courseId: new ObjectId(body.courseId),
                     courseVersionId: new ObjectId(body.courseVersionId),
-                    cohort: new ObjectId(body.cohort),
+                    cohort: body.cohort,
                     activityId: new ObjectId(body.activityId),
 
                     studentId: new ObjectId(student.id),
