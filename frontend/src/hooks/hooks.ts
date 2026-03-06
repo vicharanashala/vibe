@@ -4820,6 +4820,33 @@ export function useHpStudentActivities(courseVersionId: string, cohortName: stri
   return { data, isLoading, error, refetch: fetchData };
 }
 
+export function useSubmitActivity() {
+  const [isPending, setIsPending] = useState(false);
+
+  const mutateAsync = useCallback(async (payload: {
+    courseId: string;
+    courseVersionId: string;
+    cohort: string;
+    activityId: string;
+    payload: {
+      textResponse?: string;
+      links?: { url: string; label: string }[];
+    };
+    submissionSource?: string;
+  }) => {
+    setIsPending(true);
+    try {
+      const res = await hpApi.submitActivity(payload);
+      if (!res.success) throw new Error('Failed to submit activity');
+      return res.data;
+    } finally {
+      setIsPending(false);
+    }
+  }, []);
+
+  return { mutateAsync, isPending };
+}
+
 export function useHpActivities(
   courseVersionId: string,
   cohort: string,

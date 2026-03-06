@@ -1,20 +1,41 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
-import { useHpStudentActivities } from "@/hooks/hooks";
+import { useHpStudentActivities, useSubmitActivity } from "@/hooks/hooks";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
     FileText,
     Link as LinkIcon,
     Clock,
     ArrowLeft,
     Paperclip,
+    Plus,
+    Trash2,
+    Loader2,
+    Send,
 } from "lucide-react";
 import { HpActivity } from "@/lib/api/hp-system";
 
 export default function StudentActivities() {
     const { courseVersionId, cohortName } = useParams({ strict: false });
     const navigate = useNavigate();
+
+    const { data: activities, isLoading, error, refetch } = useHpStudentActivities(
+        courseVersionId as string,
+        cohortName as string
+    );
+    const { mutateAsync: submitActivity, isPending: isSubmitting } = useSubmitActivity();
+
+    // Submit dialog state
+    const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
+    const [selectedActivity, setSelectedActivity] = useState<HpActivity | null>(null);
+    const [textResponse, setTextResponse] = useState("");
+    const [links, setLinks] = useState<{ url: string; label: string }[]>([]);
+    const [submitError, setSubmitError] = useState<string | null>(null);
 
     const formatDate = (dateString: string) => {
         try {
@@ -31,14 +52,69 @@ export default function StudentActivities() {
         }
     };
 
-    const { data: activities, isLoading, error } = useHpStudentActivities(
-        courseVersionId as string,
-        cohortName as string
-    );
+    const openSubmitDialog = (activity: HpActivity) => {
+        setSelectedActivity(activity);
+        setTextResponse("");
+        setLinks([]);
+        setSubmitError(null);
+        setSubmitDialogOpen(true);
+    };
+
+    const addLink = () => {
+        setLinks([...links, { url: "", label: "" }]);
+    };
+
+    const updateLink = (index: number, field: 'url' | 'label', value: string) => {
+        const updated = [...links];
+        updated[index][field] = value;
+        setLinks(updated);
+    };
+
+    const removeLink = (index: number) => {
+        setLinks(links.filter((_, i) => i !== index));
+    };
+
+    const handleSubmit = async () => {
+        if (!selectedActivity) return;
+        setSubmitError(null);
+
+        // Filter out empty links
+        const validLinks = links.filter(l => l.url.trim() !== "");
+
+        try {
+            await submitActivity({
+                courseId: selectedActivity.courseId,
+                courseVersionId: selectedActivity.courseVersionId,
+                cohort: selectedActivity.cohort,
+                activityId: selectedActivity._id!,
+                payload: {
+                    textResponse: textResponse.trim() || undefined,
+                    links: validLinks.length > 0 ? validLinks : undefined,
+                },
+                submissionSource: "IN_PLATFORM",
+            });
+            setSubmitDialogOpen(false);
+            refetch(); // Refresh the activities list
+        } catch (err: any) {
+            setSubmitError(err.message || "Failed to submit activity");
+        }
+    };
+
+    const getActivityTypeLabel = (type: string) => {
+        const labels: Record<string, string> = {
+            ASSIGNMENT: "Assignment",
+            MILESTONE: "Milestone",
+            EXTERNAL_IMPORT: "External Import",
+            VIBE_MILESTONE: "ViBe Milestone",
+            OTHER: "Other"
+        };
+        return labels[type] || type;
+    };
 
     if (isLoading) {
         return (
             <div className="p-8 text-center text-muted-foreground flex items-center justify-center min-h-[50vh]">
+                <Loader2 className="h-6 w-6 animate-spin mr-2" />
                 Loading activities...
             </div>
         );
@@ -51,17 +127,6 @@ export default function StudentActivities() {
             </div>
         );
     }
-
-    const getActivityTypeLabel = (type: string) => {
-        const labels: Record<string, string> = {
-            ASSIGNMENT: "Assignment",
-            MILESTONE: "Milestone",
-            EXTERNAL_IMPORT: "External Import",
-            VIBE_MILESTONE: "ViBe Milestone",
-            OTHER: "Other"
-        };
-        return labels[type] || type;
-    };
 
     return (
         <div className="container mx-auto p-6 max-w-5xl space-y-6">
@@ -150,11 +215,115 @@ export default function StudentActivities() {
                                         {activity.submissionMode === 'EXTERNAL_LINK' ? 'External Link' : 'In Platform'}
                                     </span>
                                 </div>
+                                <Button onClick={() => openSubmitDialog(activity)}>
+                                    <Send className="h-4 w-4 mr-2" />
+                                    Submit
+                                </Button>
                             </CardFooter>
                         </Card>
                     ))}
                 </div>
             )}
+
+            {/* Submit Activity Dialog */}
+            <Dialog open={submitDialogOpen} onOpenChange={setSubmitDialogOpen}>
+                <DialogContent className="sm:max-w-[600px]">
+                    <DialogHeader>
+                        <DialogTitle>Submit Activity</DialogTitle>
+                        <DialogDescription>
+                            {selectedActivity?.title}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-6 py-4">
+                        {/* Text Response */}
+                        <div className="space-y-2">
+                            <Label htmlFor="textResponse">Your Response</Label>
+                            <textarea
+                                id="textResponse"
+                                className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                placeholder="Write your response here..."
+                                value={textResponse}
+                                onChange={(e) => setTextResponse(e.target.value)}
+                                disabled={isSubmitting}
+                            />
+                        </div>
+
+                        {/* Links */}
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <Label>Links</Label>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={addLink}
+                                    disabled={isSubmitting}
+                                >
+                                    <Plus className="h-4 w-4 mr-1" />
+                                    Add Link
+                                </Button>
+                            </div>
+                            {links.map((link, index) => (
+                                <div key={index} className="flex gap-2 items-start">
+                                    <div className="flex-1 space-y-2">
+                                        <Input
+                                            placeholder="URL (e.g. https://github.com/...)"
+                                            value={link.url}
+                                            onChange={(e) => updateLink(index, 'url', e.target.value)}
+                                            disabled={isSubmitting}
+                                        />
+                                        <Input
+                                            placeholder="Label (e.g. GitHub Repository)"
+                                            value={link.label}
+                                            onChange={(e) => updateLink(index, 'label', e.target.value)}
+                                            disabled={isSubmitting}
+                                        />
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => removeLink(index)}
+                                        disabled={isSubmitting}
+                                        className="mt-1 text-destructive hover:text-destructive"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            ))}
+                            {links.length === 0 && (
+                                <p className="text-sm text-muted-foreground">No links added yet.</p>
+                            )}
+                        </div>
+
+                        {submitError && (
+                            <div className="text-sm text-red-500 bg-red-50 p-3 rounded-md">
+                                {submitError}
+                            </div>
+                        )}
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setSubmitDialogOpen(false)} disabled={isSubmitting}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleSubmit} disabled={isSubmitting}>
+                            {isSubmitting ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                    Submitting...
+                                </>
+                            ) : (
+                                <>
+                                    <Send className="h-4 w-4 mr-2" />
+                                    Submit
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

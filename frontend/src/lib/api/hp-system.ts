@@ -252,6 +252,23 @@ export const hpApi = {
         return apiFetch(`${BASE_URL}/activities?${params.toString()}`);
     },
 
+    submitActivity: async (payload: {
+        courseId: string;
+        courseVersionId: string;
+        cohort: string;
+        activityId: string;
+        payload: {
+            textResponse?: string;
+            links?: { url: string; label: string }[];
+        };
+        submissionSource?: string;
+    }): Promise<{ success: boolean; data: any }> => {
+        return apiFetch(`${BASE_URL}/activity-submissions`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
+    },
+
     // ── Activities (real backend) ────────────────────────────
 
     getActivities: async (

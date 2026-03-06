@@ -6,6 +6,7 @@ import { ActivityService } from "../services/activityService.js";
 import { CreateActivityBody, ListActivitiesQuery, UpdateActivityBody } from "../classes/validators/activityValidators.js";
 import { Ability } from "#root/shared/functions/AbilityDecorator.js";
 import { BadRequestErrorResponse, IUser } from "#root/shared/index.js";
+import { instanceToPlain } from "class-transformer";
 
 @OpenAPI({
   tags: ['HP Activities'],
@@ -34,7 +35,7 @@ export class ActivityController {
   ) {
     const teacherId = user._id.toString();
     const doc = await this.activityService.create(teacherId, body);
-    return { success: true, data: doc };
+    return { success: true, data: instanceToPlain(doc) };
   }
 
   @OpenAPI({ summary: "Update an activity (DRAFT/PUBLISHED only)" })

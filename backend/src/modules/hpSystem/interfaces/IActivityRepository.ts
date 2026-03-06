@@ -4,7 +4,7 @@ import { HpActivityTransformer } from "../classes/transformers/Activity.js";
 
 
 export interface IActivityRepository {
-    createActivity(payload: Partial<HpActivity>, session?: ClientSession): Promise<HpActivity>;
+    createActivity(payload: Partial<HpActivity>, session?: ClientSession): Promise<HpActivityTransformer>;
 
     updateActivityById(
         activityId: string,

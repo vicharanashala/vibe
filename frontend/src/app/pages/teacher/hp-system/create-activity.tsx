@@ -96,7 +96,6 @@ export default function CreateHpActivityPage() {
 
         if (!isHex24(courseId) || !isHex24(courseVersionId)) {
             console.error("Invalid ObjectId format discovered:", { courseId, courseVersionId });
-            // We'll still try but log it clearly
         }
 
         // 1. Prepare activity payload (including some fields from ruleConfig that Activity needs)
@@ -112,14 +111,18 @@ export default function CreateHpActivityPage() {
         };
 
         try {
-            console.log("Submitting Activity Payload:", activityPayload);
             // 2. Create the activity
             const response: any = await createActivity(activityPayload);
-            const createdActivityId = response?.data?._id;
+            // The backend might return _id as a string, or an object if it serialized an ObjectId directly
+            let createdActivityId = response?._id;
+            if (createdActivityId && typeof createdActivityId === "object") {
+                createdActivityId = createdActivityId.$oid || createdActivityId.id || createdActivityId.toString();
+                // If it's a buffer object, this might be tricky, but mostly $oid or id works
+            }
 
-            if (!createdActivityId) {
-                console.error("Activity creation returned no ID", response);
-                throw new Error("Missing activity ID from response");
+            if (!createdActivityId || typeof createdActivityId !== "string") {
+                console.error("Activity creation returned no valid string ID", response);
+                throw new Error("Missing valid activity ID from response");
             }
 
             // 3. Create the full Rule Config
@@ -128,17 +131,20 @@ export default function CreateHpActivityPage() {
                 courseVersionId: courseVersionId,
                 activityId: createdActivityId,
                 ...ruleConfig,
-                deadlineAt: ruleConfig.deadlineAt || new Date().toISOString(), // Fallback if not set
+                deadlineAt: ruleConfig.deadlineAt || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // Default: 1 week from now
             };
 
-            console.log("Submitting Rule Payload:", rulePayload);
-            await createRuleConfig(rulePayload);
+            try {
+                await createRuleConfig(rulePayload);
+            } catch (ruleError: any) {
+                console.error("Rule config creation failed:", ruleError);
+                // Don't block navigation – activity was created, rule config just failed
+            }
 
             // 4. Navigate back
             navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortName || '')}/activities` });
         } catch (error: any) {
-            console.error("Failed to create activity or rules", error);
-            // Error handling detail
+            console.error("Failed to create activity", error);
             if (error.response) {
                 try {
                     const detail = await error.response.json();
