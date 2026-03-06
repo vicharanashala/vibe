@@ -105,7 +105,7 @@ class TimeSlotController {
   constructor(
     @inject(SETTING_TYPES.TimeSlotService)
     private readonly timeSlotService: TimeSlotService,
-  ) {}
+  ) { }
 
   @OpenAPI({
     summary: 'Add time slots to a course',
@@ -125,7 +125,20 @@ class TimeSlotController {
   async addTimeSlots(
     @Body() body: AddTimeSlotsRequestBody,
     @CurrentUser() user: IUser,
+    @Ability(getItemAbility) { ability },
   ): Promise<TimeSlotResponse> {
+
+
+    // Create an item resource object for permission checking
+    const itemResource = subject('Item', { versionId: body.courseVersionId });
+
+    // Check permission using ability.can() with the actual item resource
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
+    }
+
     try {
       const result = await this.timeSlotService.addTimeSlots(
         body.courseId,
@@ -134,9 +147,9 @@ class TimeSlotController {
         user._id.toString(),
       );
 
-      return { 
-        success: result, 
-        message: result ? 'Time slots added successfully' : 'Failed to add time slots' 
+      return {
+        success: result,
+        message: result ? 'Time slots added successfully' : 'Failed to add time slots'
       };
     } catch (error) {
       if (error instanceof BadRequestError) {
@@ -164,7 +177,19 @@ class TimeSlotController {
   async removeTimeSlots(
     @Body() body: RemoveTimeSlotsRequestBody,
     @CurrentUser() user: IUser,
+    @Ability(getItemAbility) { ability },
   ): Promise<TimeSlotResponse> {
+
+    // Create an item resource object for permission checking
+    const itemResource = subject('Item', { versionId: body.courseVersionId });
+
+    // Check permission using ability.can() with the actual item resource
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
+    }
+
     try {
       const result = await this.timeSlotService.removeTimeSlots(
         body.courseId,
@@ -173,9 +198,9 @@ class TimeSlotController {
         user._id.toString(),
       );
 
-      return { 
-        success: result, 
-        message: result ? 'Time slots removed successfully' : 'Failed to remove time slots' 
+      return {
+        success: result,
+        message: result ? 'Time slots removed successfully' : 'Failed to remove time slots'
       };
     } catch (error) {
       if (error instanceof NotFoundError || error instanceof BadRequestError) {
@@ -203,7 +228,19 @@ class TimeSlotController {
   async toggleTimeSlots(
     @Body() body: ToggleTimeSlotsRequestBody,
     @CurrentUser() user: IUser,
+    @Ability(getItemAbility) { ability },
   ): Promise<TimeSlotResponse> {
+
+    // Create an item resource object for permission checking
+    const itemResource = subject('Item', { versionId: body.courseVersionId });
+
+    // Check permission using ability.can() with the actual item resource
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
+    }
+
     try {
       const result = await this.timeSlotService.toggleTimeSlots(
         body.courseId,
@@ -212,9 +249,9 @@ class TimeSlotController {
         user._id.toString(),
       );
 
-      return { 
-        success: result,  
-        message: result ? 'Time slots status updated successfully' : 'Failed to update time slots status' 
+      return {
+        success: result,
+        message: result ? 'Time slots status updated successfully' : 'Failed to update time slots status'
       };
     } catch (error) {
       if (error instanceof NotFoundError) {
@@ -243,55 +280,31 @@ class TimeSlotController {
     @Param('courseId') courseId: string,
     @Param('courseVersionId') courseVersionId: string,
     @CurrentUser() user: IUser,
+    @Ability(getItemAbility) { ability },
   ): Promise<GetTimeSlotsResponse> {
+
+    // Create an item resource object for permission checking
+    const itemResource = subject('Item', { versionId: courseVersionId });
+
+    // Check permission using ability.can() with the actual item resource
+    if (!ability.can(ItemActions.View, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to read this item',
+      );
+    }
+
     try {
       const timeSlots = await this.timeSlotService.getTimeSlots(
         courseId,
         courseVersionId,
       );
 
-      return { 
-        success: true, 
-        data: timeSlots 
+      return {
+        success: true,
+        data: timeSlots
       };
     } catch (error) {
       throw new InternalServerError(`Failed to get time slots: ${error}`);
-    }
-  }
-
-
-  @OpenAPI({
-    summary: 'Get students in time slots',
-    description:
-      'Retrieves all time slots with their assigned students for a course.',
-  })
-  @Authorized()
-  @Get('/students/:courseId/:courseVersionId')
-  @HttpCode(200)
-  @ResponseSchema(TimeSlotResponse, {
-    description: 'Students in time slots retrieved successfully',
-  })
-  @ResponseSchema(InternalServerErrorResponse, {
-    description: 'Failed to get students in time slots',
-    statusCode: 500,
-  })
-  async getStudentsInTimeSlots(
-    @Param('courseId') courseId: string,
-    @Param('courseVersionId') courseVersionId: string,
-    @CurrentUser() user: IUser,
-  ): Promise<TimeSlotResponse> {
-    try {
-      const timeSlots = await this.timeSlotService.getStudentsInTimeSlots(
-        courseId,
-        courseVersionId,
-      );
-
-      return { 
-        success: true, 
-        data: timeSlots 
-      };
-    } catch (error) {
-      throw new InternalServerError(`Failed to get students in time slots: ${error}`);
     }
   }
 
@@ -313,7 +326,19 @@ class TimeSlotController {
   async updateTimeSlot(
     @Body() body: UpdateTimeSlotRequestBody,
     @CurrentUser() user: IUser,
+    @Ability(getItemAbility) { ability },
   ): Promise<TimeSlotResponse> {
+
+    // Create an item resource object for permission checking
+    const itemResource = subject('Item', { versionId: body.courseVersionId });
+
+    // Check permission using ability.can() with the actual item resource
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to update this item',
+      );
+    }
+
     try {
       const result = await this.timeSlotService.updateTimeSlot(
         body.courseId,
@@ -323,7 +348,7 @@ class TimeSlotController {
         user._id.toString(),
       );
 
-      return { 
+      return {
         success: result,
         message: result ? 'Time slot updated successfully' : 'Failed to update time slot'
       };
@@ -398,8 +423,8 @@ class TimeSlotController {
     @Ability(getItemAbility) { ability },
   ): Promise<StudentTimeSlotResponse> {
 
-      // Create an item resource object for permission checking
-    const itemResource = subject('Item', { versionId:body.courseVersionId });
+    // Create an item resource object for permission checking
+    const itemResource = subject('Item', { versionId: body.courseVersionId });
 
     // Check permission using ability.can() with the actual item resource
     if (!ability.can(ItemActions.Modify, itemResource)) {

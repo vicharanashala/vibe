@@ -4620,40 +4620,6 @@ export function useGetTimeSlots(
   };
 }
 
-// GET /timeslots/students/{courseId}/{courseVersionId}
-export function useGetStudentsInTimeSlots(
-  courseId: string | undefined,
-  courseVersionId: string | undefined,
-  enabled: boolean = true
-): {
-  data: Array<{ from: string; to: string; studentIds: string[] }> | undefined,
-  isLoading: boolean,
-  error: string | null,
-  refetch: () => void
-} {
-  const result = api.useQuery(
-    "get",
-    "/timeslots/students/{courseId}/{courseVersionId}",
-    {
-      params: {
-        path: { courseId: courseId!, courseVersionId: courseVersionId! }
-      }
-    },
-    {
-      enabled: !!courseId && !!courseVersionId && enabled,
-      retry: 1,
-      refetchOnWindowFocus: false
-    }
-  );
-
-  return {
-    data: result.data?.data,
-    isLoading: result.isLoading,
-    error: result.error ? (result.error.message || 'Failed to fetch students in time slots') : null,
-    refetch: result.refetch
-  };
-}
-
 // GET /timeslots/check-access/{courseId}/{courseVersionId}
 export function useCheckTimeSlotAccess(
   courseId: string | undefined,
