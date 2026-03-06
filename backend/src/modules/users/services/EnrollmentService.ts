@@ -160,9 +160,7 @@ export class EnrollmentService extends BaseService {
             session,
           );
         } else {
-          console.log(
-            '=== ENROLLMENT: No progress data returned - course may have no valid items ===',
-          );
+          // No progress data returned - course may have no valid items
         }
       }
 
@@ -490,7 +488,7 @@ export class EnrollmentService extends BaseService {
             role: enr.role,
             status: enr.status,
             enrollmentDate: new Date(enr.enrollmentDate),
-            assignedTimeSlot: enr.assignedTimeSlot,
+            assignedTimeSlot: enr.assignedTimeSlots,
             course: this.filterCourseVersions(enr.course, enrolledVersionIds),
             percentCompleted: enr.percentCompleted || 0,
             moduleNumber: enr.moduleNumber,
@@ -528,7 +526,7 @@ export class EnrollmentService extends BaseService {
       role: enr.role,
       status: enr.status,
       enrollmentDate: new Date(enr.enrollmentDate),
-      assignedTimeSlot: enr.assignedTimeSlot,
+      assignedTimeSlot: enr.assignedTimeSlots,
       course: this.filterCourseVersions(enr.course, enrolledVersionIds),
     }));
   }
@@ -664,7 +662,7 @@ export class EnrollmentService extends BaseService {
             course: this.filterCourseVersions(enr.course, enrolledVersionIds),
             // courseVersion: enr.courseVersion,
             percentCompleted: enr.percentCompleted || 0,
-            assignedTimeSlot: enr.assignedTimeSlot,
+            assignedTimeSlot: enr.assignedTimeSlots,
             moduleNumber: enr.moduleNumber,
             sectionNumber: enr.sectionNumber,
             itemType: enr.itemType,
@@ -1192,10 +1190,7 @@ export class EnrollmentService extends BaseService {
                   session,
                 );
                 updatedCount += bulkOperations.length;
-                console.log(
-                  `✅ Batch ${++batchCount}: Updated ${bulkOperations.length
-                  } enrollments`,
-                );
+                // Batch ${++batchCount}: Updated ${bulkOperations.length} enrollments
                 bulkOperations.length = 0;
               });
             }
@@ -1513,7 +1508,6 @@ export class EnrollmentService extends BaseService {
       const results = await Promise.all(
         userIds.map(async (userId) => {
           try {
-            // Find enrollment with the old time slot
             const enrollment = await this.enrollmentRepo.findActiveEnrollment(
               userId,
               courseId,
@@ -1521,22 +1515,21 @@ export class EnrollmentService extends BaseService {
               session,
             );
 
-            if (!enrollment || !enrollment.assignedTimeSlot) {
+            if (!enrollment || !enrollment.assignedTimeSlots?.length) {
               return false;
             }
 
-            // Check if this enrollment has the old time slot
-            const hasOldTimeSlot =
-              enrollment.assignedTimeSlot.from === oldTimeSlot.from &&
-              enrollment.assignedTimeSlot.to === oldTimeSlot.to;
+            const hasOldTimeSlot = enrollment.assignedTimeSlots.some(
+              slot => slot.from === oldTimeSlot.from && slot.to === oldTimeSlot.to,
+            );
 
             if (!hasOldTimeSlot) {
               return false;
             }
 
-            // Update to new time slot
-            const result = await this.enrollmentRepo.updateEnrollmentTimeSlot(
+            const result = await this.enrollmentRepo.updateSpecificTimeSlot(
               enrollment._id?.toString(),
+              oldTimeSlot,
               newTimeSlot,
               session,
             );
@@ -1546,10 +1539,9 @@ export class EnrollmentService extends BaseService {
             console.error(`Failed to update time slot for user ${userId}:`, error);
             return false;
           }
-        })
+        }),
       );
 
-      // Return true if all updates succeeded
       return results.every(result => result);
     };
 
@@ -1604,11 +1596,13 @@ export class EnrollmentService extends BaseService {
         session,
       );
 
-      // Update each enrollment to the new time slot
+      // Update each enrollment - replace old slot with new slot in one operation
       const results = await Promise.all(
         enrollments.map(async (enrollment) => {
-          const result = await this.enrollmentRepo.updateEnrollmentTimeSlot(
+          // Update the specific timeslot in the array
+          const result = await this.enrollmentRepo.updateSpecificTimeSlot(
             enrollment._id?.toString(),
+            oldTimeSlot,
             newTimeSlot,
             session,
           );
@@ -1618,6 +1612,129 @@ export class EnrollmentService extends BaseService {
 
       // Return true if all updates succeeded
       return results.every(result => result);
+    };
+
+    return session ? execute(session) : this._withTransaction(execute);
+  }
+
+  /**
+   * Add multiple time slots to a student's enrollment
+   */
+  async addMultipleTimeSlotsToStudent(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    timeSlots: Array<{ from: string; to: string }>,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    const execute = async (session: ClientSession) => {
+      // Check if course version is archived
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(courseVersionId, session);
+      if (versionStatus === "archived") {
+        throw new ForbiddenError("Cannot add time slots. Because course version is archived.");
+      }
+
+      // Find enrollment and add time slots
+      const enrollment = await this.enrollmentRepo.findActiveEnrollment(
+        userId, courseId, courseVersionId, session
+      );
+
+      if (!enrollment) {
+        throw new NotFoundError('Enrollment not found for this student.');
+      }
+
+      return !!(await this.enrollmentRepo.addMultipleTimeSlots(
+        enrollment._id?.toString(), timeSlots, session
+      ));
+    };
+
+    return session ? execute(session) : this._withTransaction(execute);
+  }
+
+  /**
+   * Remove specific time slot from student's enrollment
+   */
+  async removeSpecificTimeSlotFromStudent(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    timeSlot: { from: string; to: string },
+    session?: ClientSession,
+  ): Promise<boolean> {
+    const execute = async (session: ClientSession) => {
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(courseVersionId, session);
+
+      if (versionStatus === "archived") {
+        throw new ForbiddenError("Cannot remove time slot. Because course version is archived.");
+      }
+      const enrollment = await this.enrollmentRepo.findActiveEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        session,
+      );
+
+      if (!enrollment) {
+        throw new NotFoundError('Enrollment not found for this student.');
+      }
+
+      const result = await this.enrollmentRepo.removeEnrollmentTimeSlot(
+        enrollment._id?.toString(),
+        timeSlot,
+        session,
+      );
+
+      return !!result;
+    };
+
+    return session ? execute(session) : this._withTransaction(execute);
+  }
+
+  /**
+   * Remove a single time slot from a student's enrollment
+   */
+  async removeSingleTimeSlotFromStudent(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    timeSlotToRemove: { from: string; to: string },
+    session?: ClientSession,
+  ): Promise<boolean> {
+    const execute = async (session: ClientSession) => {
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(courseVersionId, session);
+
+      if (versionStatus === "archived") {
+        throw new ForbiddenError("Cannot remove time slot. Because course version is archived.");
+      }
+
+      const enrollment = await this.enrollmentRepo.findActiveEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        session,
+      );
+
+      if (!enrollment) {
+        throw new NotFoundError('Enrollment not found for this student.');
+      }
+
+      if (!enrollment.assignedTimeSlots || enrollment.assignedTimeSlots.length === 0) {
+        throw new BadRequestError('Student does not have any assigned time slots.');
+      }
+
+      // Filter out the specific timeslot to remove
+      const updatedTimeSlots = enrollment.assignedTimeSlots.filter(
+        slot => !(slot.from === timeSlotToRemove.from && slot.to === timeSlotToRemove.to)
+      );
+
+      // Update enrollment with filtered timeslots
+      const result = await this.enrollmentRepo.replaceAllTimeSlots(
+        enrollment._id?.toString(),
+        updatedTimeSlots,
+        session,
+      );
+
+      return !!result;
     };
 
     return session ? execute(session) : this._withTransaction(execute);
