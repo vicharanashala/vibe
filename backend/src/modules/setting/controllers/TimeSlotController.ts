@@ -287,7 +287,7 @@ class TimeSlotController {
     const itemResource = subject('Item', { versionId: courseVersionId });
 
     // Check permission using ability.can() with the actual item resource
-    if (!ability.can(ItemActions.View, itemResource)) {
+    if (!ability.can(ItemActions.ViewAll, itemResource)) {
       throw new ForbiddenError(
         'You do not have permission to read this item',
       );
