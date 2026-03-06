@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import {
   BaseService,
   EntityType,
+  ICourseRepository,
   ID,
   IStatus,
   MongoDatabase,
@@ -10,7 +11,7 @@ import {
 import { GLOBAL_TYPES } from '#root/types.js';
 import { inject, injectable } from 'inversify';
 import { REPORT_TYPES } from '../types.js';
-import { NotFoundError } from 'routing-controllers';
+import { ForbiddenError, NotFoundError } from 'routing-controllers';
 import {
   IssueSortEnum,
   IssueStatusEnum,
@@ -26,16 +27,27 @@ import { plainToInstance } from 'class-transformer';
 @injectable()
 export class ReportService extends BaseService {
   constructor(
+
     @inject(REPORT_TYPES.ReportRepo)
     private reportsRepository: ReportRepository,
+
     @inject(GLOBAL_TYPES.Database)
     private readonly mongoDatabase: MongoDatabase,
+
+    @inject(GLOBAL_TYPES.CourseRepo)
+        private readonly courseRepo: ICourseRepository,
+
   ) {
     super(mongoDatabase);
   }
 
   async createReport(report: Report): Promise<void> {
     return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(report.versionId.toString());
+      
+      if(versionStatus==="archived"){
+        throw new ForbiddenError("This course version is inactive, you can't submit flags");
+      }
       // Flag the question with the reason and user ID
       await this.reportsRepository.create(report, session);
     });
@@ -47,10 +59,16 @@ export class ReportService extends BaseService {
     comment: string,
     createdBy: string
   ): Promise<void> {
+    
     return this._withTransaction(async session => {
       const report = await this.reportsRepository.getById(reportId, session);
       if (!report) {
         throw new NotFoundError('Report does not exist.');
+      }
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(report.versionId.toString());
+      
+      if(versionStatus==="archived"){
+        throw new ForbiddenError("This course version is inactive, you can't update flags");
       }
       const newStatus: IStatus = {
         status,

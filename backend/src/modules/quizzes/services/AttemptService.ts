@@ -34,7 +34,7 @@ import {
 } from '#shared/index.js';
 import { injectable, inject } from 'inversify';
 import { ClientSession, ObjectId } from 'mongodb';
-import { NotFoundError, BadRequestError } from 'routing-controllers';
+import { NotFoundError, BadRequestError, ForbiddenError } from 'routing-controllers';
 import { QuestionBankService } from './QuestionBankService.js';
 import { QuestionService } from './QuestionService.js';
 import { QUIZZES_TYPES } from '../types.js';
@@ -414,6 +414,15 @@ class AttemptService extends BaseService {
   ): Promise<Partial<IGradingResult> | null> {
     /* -------------------- READS OUTSIDE TRANSACTION -------------------- */
 
+    // Course version is active or not
+    if(courseVersionId){
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(courseVersionId);
+      
+      if(versionStatus==="archived"){
+          throw new ForbiddenError("This course version is inactive, you can't submit quizzes");
+      }
+    }
+
     // 1. Fetch quiz
     const quiz = await this.quizRepository.getById(quizId);
     if (!quiz) {
@@ -544,6 +553,13 @@ class AttemptService extends BaseService {
     details: Record<string, any>,
   ): Promise<string> {
     return this._withTransaction(async session => {
+      // Course version is active or not
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(courseVersionId);
+      
+      if(versionStatus==="archived"){
+        throw new ForbiddenError("This course version is inactive, you can't Submit feedback form");
+      }
+
       // 1. Validate Item Group
       const ItemsGroup = await this.itemRepo.findItemsGroupByItemId(
         feedbackFormId,
