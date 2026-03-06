@@ -705,6 +705,8 @@ export class SettingRepository implements ISettingRepository {
 
     // Use type assertion to access timeslots property
     const settings = courseSettings?.settings as any;
-    return settings?.timeslots || null;
+    const result = settings?.timeslots || null;
+
+    return result;
   }
 }

@@ -157,6 +157,13 @@ export class EnrollmentDataResponse {
   @ValidateNested()
   @Type(() => ContentCountsValidator)
   contentCounts?: ContentCountsValidator;
+
+  @JSONSchema({
+    description: 'Flag indicating new items were added after course completion',
+    type: 'boolean',
+  })
+  @IsOptional()
+  hasNewItemsAfterCompletion?: boolean;
 }
 
 class QuizScoresResponse {
