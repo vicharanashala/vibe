@@ -110,7 +110,7 @@ const paginatedStudents = sortedStudents.slice(
             <thead className="bg-muted/40 text-muted-foreground">
               <tr>
                 <th
-                  className="text-left px-4 py-3 cursor-pointer hover:text-primary"
+                  className="text-left px-4 py-3 cursor-pointer"
                   onClick={() => handleSort("name")}
                 >
                   <span className="flex items-center gap-1">
@@ -124,7 +124,7 @@ const paginatedStudents = sortedStudents.slice(
                   </span>
                 </th>
                 <th
-                  className="text-center px-4 py-3 cursor-pointer hover:text-primary"
+                  className="text-center px-4 py-3 cursor-pointer"
                   onClick={() => handleSort("completion")}
                 >
                   <span className="flex items-center justify-center gap-1">
@@ -138,7 +138,7 @@ const paginatedStudents = sortedStudents.slice(
                   </span>
                 </th>
                 <th
-                    className="text-center px-4 py-3 cursor-pointer hover:text-primary"
+                    className="text-center px-4 py-3 cursor-pointer"
                     onClick={() => handleSort("hp")}
                   >
                     <span className="flex items-center justify-center gap-1">
