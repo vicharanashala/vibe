@@ -64,6 +64,7 @@ export interface HpActivity {
     cohort: string;
     createdByTeacherId?: string;
     publishedByTeacherId?: string;
+    instructorName?: string;
     status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
     title: string;
     description: string;
@@ -81,6 +82,11 @@ export interface HpActivity {
         completedCount: number;
         overdueCount: number;
         lastRecomputedAt: string;
+    };
+    rules?: {
+        isMandatory: boolean;
+        deadlineAt: Date | string;
+        allowLateSubmission: boolean;
     };
     createdAt: string;
     updatedAt: string;

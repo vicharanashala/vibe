@@ -180,6 +180,26 @@ export default function StudentActivities() {
                                                     <span>Created: {formatDate(activity.createdAt)}</span>
                                                 </div>
                                             )}
+                                            {activity.instructorName && (
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="font-medium">Instructor:</span>
+                                                    <span>{activity.instructorName}</span>
+                                                </div>
+                                            )}
+                                            {activity.rules && (
+                                                <>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="font-medium">Mandatory:</span>
+                                                        <span>{activity.rules.isMandatory ? 'Yes' : 'No'}</span>
+                                                    </div>
+                                                    {activity.rules.deadlineAt && (
+                                                        <div className="flex items-center gap-1.5 text-orange-600/90 dark:text-orange-400">
+                                                            <span className="font-medium">Deadline:</span>
+                                                            <span>{formatDate(activity.rules.deadlineAt.toString())}</span>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -212,6 +232,24 @@ export default function StudentActivities() {
                                                 </a>
                                             ))}
                                         </div>
+                                    </div>
+                                )}
+
+                                {activity.submissionMode === 'EXTERNAL_LINK' && activity.externalLink && (
+                                    <div>
+                                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                            <LinkIcon className="h-4 w-4" />
+                                            External Link
+                                        </h4>
+                                        <a
+                                            href={activity.externalLink}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 text-sm border border-blue-200 dark:border-blue-800 transition-colors"
+                                        >
+                                            <LinkIcon className="h-4 w-4" />
+                                            {activity.externalLink}
+                                        </a>
                                     </div>
                                 )}
                             </CardContent>
