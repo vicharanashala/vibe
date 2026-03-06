@@ -10,14 +10,11 @@ import {
   MongoDatabase,
   ISettingRepository,
   ICourseRepository,
-  IEnrollment,
   ITimeSlot,
 } from '#shared/index.js';
-import { ObjectId } from 'mongodb';
 import { EnrollmentService } from '#users/services/EnrollmentService.js';
 import { USERS_TYPES } from '#users/types.js';
-import { AuditingDto } from '../classes/validators/CourseSettingValidators.js';
-import { getISTFormattedTimestamp } from '#root/utils/toISOFormat.js';
+
 
 @injectable()
 export class TimeSlotService extends BaseService {
@@ -714,28 +711,6 @@ export class TimeSlotService extends BaseService {
       }
 
       return { canAccess: true };
-    });
-  }
-
-  /**
-   * Get students assigned to specific time slots
-   */
-  async getStudentsInTimeSlots(
-    courseId: string,
-    courseVersionId: string,
-  ): Promise<ITimeSlot[]> {
-    return this._withTransaction(async (session) => {
-      const timeslots = await this.settingsRepo.readTimeslotsSettings(
-        courseId,
-        courseVersionId,
-        session,
-      );
-
-      if (!timeslots) {
-        return [];
-      }
-
-      return timeslots.slots;
     });
   }
 }
