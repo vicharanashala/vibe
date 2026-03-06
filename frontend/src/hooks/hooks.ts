@@ -5147,26 +5147,27 @@ export function useHpCohortOverviewStats(courseVersionId: string, cohort: string
   return { data, isLoading, error, refetch: fetchData };
 }
 
-export function useHpStudentSubmissions(studentId: string, courseVersionId: string, cohort: string) {
-  const [data, setData] = useState<HpStudentSubmission[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!studentId || !courseVersionId || !cohort) return;
-    setIsLoading(true);
-    try {
+export function useHpStudentSubmissions(studentId: string | undefined, courseVersionId: string, cohort: string) {
+  return useQuery({
+    queryKey: ['hpStudentSubmissions', studentId, courseVersionId, cohort],
+    queryFn: async () => {
+      if (!studentId) return [];
       const res = await hpApi.getStudentSubmissions(studentId, courseVersionId, cohort);
-      if (res.success) setData(res.data);
-      setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load student submissions');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [studentId, courseVersionId, cohort]);
+      if (!res.success) throw new Error("Failed to fetch student submissions");
+      return res.data;
+    },
+    enabled: !!studentId,
+  });
+}
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  return { data, isLoading, error, refetch: fetchData };
+export function useStudentMySubmissions(courseVersionId: string, cohort: string) {
+  return useQuery({
+    queryKey: ['studentMySubmissions', courseVersionId, cohort],
+    queryFn: async () => {
+      const res = await hpApi.getStudentMySubmissions(courseVersionId, cohort);
+      if (!res.success) throw new Error("Failed to fetch current student submissions");
+      return res.data;
+    },
+    enabled: !!courseVersionId && !!cohort,
+  });
 }
