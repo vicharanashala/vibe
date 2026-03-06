@@ -58,9 +58,8 @@ import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
 import { setAuditTrail } from '#root/utils/setAuditTrail.js';
 import { ObjectId } from 'mongodb';
-import { before } from 'node:test';
-import { get } from 'http';
-import { number } from 'mathjs';
+import { SETTING_TYPES } from '#root/modules/setting/types.js';
+import { TimeSlotService } from '#root/modules/setting/services/TimeSlotService.js';
 
 @OpenAPI({
   tags: ['Course Items'],
@@ -73,6 +72,8 @@ export class ItemController {
     private readonly itemService: ItemService,
     @inject(QUIZZES_TYPES.QuizService)
     private readonly quizService: QuizService,
+    @inject(SETTING_TYPES.TimeSlotService)
+    private readonly timeSlotService: TimeSlotService,
   ) { }
   @OpenAPI({
     summary: 'Create an item',
@@ -125,7 +126,12 @@ export class ItemController {
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
       action: AuditAction.ITEM_ADD,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseVersionId: ObjectId.createFromHexString(versionId),
         moduleId: ObjectId.createFromHexString(moduleId),
@@ -250,7 +256,7 @@ export class ItemController {
   - Instructors, managers, and teaching assistants of the course.`,
   })
   @Authorized()
-  @Put('/versions/:versionId/items/:itemId')
+  @Put('/:courseId/versions/:versionId/items/:itemId')
   @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(ItemDataResponse, {
     description: 'Item updated successfully',
@@ -269,7 +275,7 @@ export class ItemController {
     @Ability(getItemAbility) { ability, user },
     @Req() req: Request,
   ) {
-    const { versionId, itemId } = params;
+    const {courseId, versionId, itemId } = params;
 
     // Create an item resource object for permission checking
     const itemResource = subject('Item', { versionId });
@@ -280,8 +286,7 @@ export class ItemController {
         'You do not have permission to modify this item',
       );
     }
-
-    const getItemBeforeUpdate = await this.itemService.readItem(user._id.toString(), versionId, itemId);
+    const getItemBeforeUpdate = await this.itemService.readItem(user._id.toString(), versionId, itemId, courseId);
 
     const itemData = await this.itemService.updateItem(versionId, itemId, body)
 
@@ -289,7 +294,12 @@ export class ItemController {
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
       action: AuditAction.ITEM_UPDATE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseVersionId: ObjectId.createFromHexString(versionId),
         itemId: ObjectId.createFromHexString(itemId),
@@ -329,7 +339,7 @@ export class ItemController {
   - Instructors or managers of the course.`,
   })
   @Authorized()
-  @Delete('/itemGroups/:itemsGroupId/items/:itemId')
+  @Delete('/:courseId/itemGroups/:itemsGroupId/items/:itemId')
   @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(DeletedItemResponse, {
     description: 'Item deleted successfully',
@@ -347,7 +357,7 @@ export class ItemController {
     @Ability(getItemAbility) { ability, user },
     @Req() req: Request,
   ) {
-    const { itemsGroupId, itemId } = params;
+    const { itemsGroupId, itemId , courseId} = params;
     const version = await this.itemService.findVersion(itemsGroupId);
     // Create an item resource object for permission checking
     const itemResource = subject('Item', { versionId: version._id.toString() });
@@ -357,13 +367,17 @@ export class ItemController {
         'You do not have permission to delete this item',
       );
     }
-
-    const getItemBeforeDelete = await this.itemService.readItem(user._id.toString(), version._id.toString(), itemId);
+    const getItemBeforeDelete = await this.itemService.readItem(user._id.toString(), version._id.toString(), itemId, courseId);
 
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
       action: AuditAction.ITEM_DELETE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseVersionId: ObjectId.createFromHexString(version._id.toString()),
         itemId: ObjectId.createFromHexString(itemId),
@@ -450,7 +464,12 @@ Accessible to:
       setAuditTrail(req, {
         category: AuditCategory.ITEM,
         action: AuditAction.ITEM_REORDER,
-        actor: ObjectId.createFromHexString(user._id.toString()),
+        actor: {
+          id: ObjectId.createFromHexString(user._id.toString()),
+          name: `${user.firstName} ${user.lastName}`,
+          email: user.email,
+          role: user.roles,
+        },
         context: {
           courseVersionId: ObjectId.createFromHexString(versionId),
           moduleId: ObjectId.createFromHexString(moduleId),
@@ -486,7 +505,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
       action: AuditAction.ITEM_REORDER,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseVersionId: ObjectId.createFromHexString(versionId),
         moduleId: ObjectId.createFromHexString(moduleId),
@@ -593,7 +617,7 @@ Access control logic:
 - For instructors, managers, and teaching assistants: The item is accessible without this restriction.`,
   })
   @Authorized()
-  @Get('/:courseId/versions/:versionId/item/:itemId')
+  @Get('/:courseId/versions/:versionId/modules/:moduleId/sections/:sectionId/item/:itemId')
   @HttpCode(201)
   @ResponseSchema(ItemDataResponse, {
     description: 'Item retrieved successfully',
@@ -608,11 +632,36 @@ Access control logic:
   })
   async getItem(
     @Params() params: GetItemParams,
-    // @Ability(getItemAbility) { ability, user },
+    @Ability(getItemAbility) { ability },
     @CurrentUser() user: { _id: string },
   ) {
-    const { versionId, itemId, courseId } = params;
+    const { versionId, itemId, courseId, moduleId, sectionId } = params;
     const { _id: userId } = user;
+
+    // Check if user is instructor/manager/TA - they should bypass time slot validation
+    const sampleItemResource = subject('Item', { versionId });
+    const canManage = ability.can(ItemActions.Modify, sampleItemResource);
+
+    if (!canManage) {
+      // Only apply time slot validation for students
+      try {
+        const timeSlotAccess = await this.timeSlotService.canStudentAccessCourse(
+          userId.toString(),
+          courseId,
+          versionId
+        );
+
+        if (!timeSlotAccess.canAccess) {
+          throw new ForbiddenError(timeSlotAccess.message || 'Time slot access denied');
+        }
+      } catch (error) {
+        // If it's already a ForbiddenError, re-throw it
+        if (error.name === 'ForbiddenError') {
+          throw error;
+        }
+        throw new ForbiddenError('Time slot access check failed');
+      }
+    }
 
     // Create an item resource object for permission checking
     const itemResource = subject('Item', { courseId, versionId, itemId });
@@ -623,7 +672,7 @@ Access control logic:
     // }
 
     return {
-      item: await this.itemService.readItem(userId?.toString(), versionId, itemId, courseId),
+      item: await this.itemService.readItem(userId?.toString(), versionId, itemId, courseId, moduleId, sectionId),
     };
   }
 
@@ -740,11 +789,16 @@ Accessible to:
     }
 
     const getItemBeforeUpdate = await this.itemService.readItem(user._id.toString(), versionId, itemId);
-
+    console.log("getItemBeforeUpdate----",getItemBeforeUpdate);
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
       action: AuditAction.ITEM_MAKE_OPTIONAL,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseVersionId: ObjectId.createFromHexString(versionId),
         itemId: ObjectId.createFromHexString(itemId),
@@ -818,7 +872,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
       action: AuditAction.ITEM_HIDE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseVersionId: ObjectId.createFromHexString(versionId),
         itemId: ObjectId.createFromHexString(itemId),
@@ -887,7 +946,12 @@ Accessible to:
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
       action: AuditAction.ITEM_BULK_PROCESS,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context: {
         courseVersionId: ObjectId.createFromHexString(versionId),
         moduleId: ObjectId.createFromHexString(moduleId),

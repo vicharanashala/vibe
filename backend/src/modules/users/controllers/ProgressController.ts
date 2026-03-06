@@ -392,7 +392,12 @@ It returns an empty body with a 200 status code.
       setAuditTrail(req, {
         category: AuditCategory.PROGRESS,
         action: AuditAction.PROGRESS_RESET,
-        actor: ObjectId.createFromHexString(user._id.toString()),
+        actor:{
+          id: ObjectId.createFromHexString(user._id.toString()),
+          name: `${user.firstName} ${user.lastName}`,
+          email: user.email,
+          role: user.roles,
+        },
         context: {
           courseId: ObjectId.createFromHexString(courseId),
           courseVersionId: ObjectId.createFromHexString(versionId),
@@ -448,7 +453,13 @@ It returns an empty body with a 200 status code.
       setAuditTrail(req, {
         category: AuditCategory.PROGRESS,
         action: AuditAction.PROGRESS_RESET,
-        actor: ObjectId.createFromHexString(user._id.toString()),
+        actor: {
+          id: ObjectId.createFromHexString(user._id.toString()),
+          name: `${user.firstName} ${user.lastName}`,
+          email: user.email,
+          role: user.roles,
+        },
+
         context: {
           courseId: ObjectId.createFromHexString(courseId),
           courseVersionId: ObjectId.createFromHexString(versionId),
@@ -505,7 +516,12 @@ It returns an empty body with a 200 status code.
       setAuditTrail(req, {
         category: AuditCategory.PROGRESS,
         action: AuditAction.PROGRESS_RESET,
-        actor: ObjectId.createFromHexString(user._id.toString()),
+        actor: {
+          id: ObjectId.createFromHexString(user._id.toString()),
+          name: `${user.firstName} ${user.lastName}`,
+          email: user.email,
+          role: user.roles,
+        },
         context: {
           courseId: ObjectId.createFromHexString(courseId),
           courseVersionId: ObjectId.createFromHexString(versionId),
@@ -551,7 +567,12 @@ It returns an empty body with a 200 status code.
       setAuditTrail(req, {
         category: AuditCategory.PROGRESS,
         action: AuditAction.PROGRESS_RESET,
-        actor: ObjectId.createFromHexString(user._id.toString()),
+        actor: {
+          id: ObjectId.createFromHexString(user._id.toString()),
+          name: `${user.firstName} ${user.lastName}`,
+          email: user.email,
+          role: user.roles,
+        },
         context: {
           courseId: ObjectId.createFromHexString(courseId),
           courseVersionId: ObjectId.createFromHexString(versionId),
@@ -752,7 +773,7 @@ It returns an empty body with a 200 status code.
   async recalculateStudentProgress(
     @Body() body: CourseVersionQuery & { userId?: string },
     @CurrentUser() currentUser: IUser,
-    @Ability(getProgressAbility) { ability, actorUser },
+    @Ability(getProgressAbility) { ability, user: actorUser },
     @Req() req: Request,
   ): Promise<string> {
     const { courseId, courseVersionId, userId: requestedUserId } = body;
@@ -805,7 +826,12 @@ It returns an empty body with a 200 status code.
     setAuditTrail(req, {
       category: AuditCategory.PROGRESS,
       action: AuditAction.PROGRESS_RECALCULATE,
-      actor: ObjectId.createFromHexString(actorUser._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(actorUser._id.toString()),
+        name: `${actorUser.firstName} ${actorUser.lastName}`,
+        email: actorUser.email,
+        role: actorUser.roles,
+      },
       context: {
         courseId: ObjectId.createFromHexString(courseId),
         courseVersionId: ObjectId.createFromHexString(courseVersionId),

@@ -1,6 +1,7 @@
 import { GLOBAL_TYPES } from '#root/types.js';
 import { ICourseRepository } from '#shared/database/interfaces/ICourseRepository.js';
 import {
+  courseVersionStatus,
   ICourse,
   ICourseVersion,
   ID,
@@ -444,7 +445,11 @@ export class CourseRepository implements ICourseRepository {
       {
         $match: {
           _id: { $in: objectIdArray },
-        },
+          $or: [
+            { versionStatus: "active" },
+            { versionStatus: { $exists: false } }
+          ]
+        }
       },
       {
         $set: {
@@ -543,6 +548,19 @@ export class CourseRepository implements ICourseRepository {
   ): Promise<ICourseVersion | null> {
     await this.init();
     try {
+      courseVersion = {
+        ...courseVersion,
+        courseId: new ObjectId(courseVersion.courseId),
+        modules: (courseVersion.modules || []).map(module => ({
+          ...module,
+          moduleId: new ObjectId(module.moduleId),
+          sections: (module.sections || []).map(section => ({
+            ...section,
+            sectionId: new ObjectId(section.sectionId),
+            itemsGroupId: new ObjectId(section.itemsGroupId),
+          })),
+        })),
+      }
       const { _id: _, ...fields } = courseVersion;
 
       const isExistVersion = await this.courseVersionCollection.findOne({
@@ -1119,5 +1137,45 @@ export class CourseRepository implements ICourseRepository {
         'Failed to cascade delete versions.\n More Details: ' + error,
       );
     }
+  }
+
+  async updateCourseVersionStatus(versionId: string, versionStatus: courseVersionStatus, session?: ClientSession): Promise<ICourseVersion | null> {
+    await this.init();
+    try {
+      const isExistVersion = await this.courseVersionCollection.findOne({
+        _id: new ObjectId(versionId),
+      });
+
+      if (!isExistVersion)
+        throw new NotFoundError('Failed to update course version, version not founded!',);
+      const result = await this.courseVersionCollection.findOneAndUpdate(
+        { _id: new ObjectId(versionId) },
+        {
+          $set: {
+            versionStatus,
+            updatedAt: new Date()
+          }
+        },
+        {
+          returnDocument: "after",
+          session
+        }
+      )
+      return result;
+    } catch (error) {
+      throw new InternalServerError(
+        'Failed to update course version.\n More Details: ' + error,
+      );
+    }
+  }
+  async getCourseVersionStatus(versionId: string, session?: ClientSession): Promise<courseVersionStatus> {
+    await this.init();
+    const isExistVersion = await this.courseVersionCollection.findOne(
+      {_id: new ObjectId(versionId)},
+      {session}
+    );
+    if (!isExistVersion)
+      throw new NotFoundError('Course version not founded!',);
+    return isExistVersion.versionStatus;
   }
 }

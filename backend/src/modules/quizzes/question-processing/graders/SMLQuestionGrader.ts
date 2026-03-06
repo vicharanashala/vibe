@@ -33,10 +33,10 @@ class SMLQuestionGrader implements IGrader {
     if (quiz.details.allowPartialGrading) {
       // Partial grading logic
       const correctAnswers = answer.lotItemIds.filter(id =>
-        correctLotItemIds.includes(id),
+        correctLotItemIds.includes(id.toString()),
       );
       const incorrectAnswers = answer.lotItemIds.filter(
-        id => !correctLotItemIds.includes(id),
+        id => !correctLotItemIds.includes(id.toString()),
       );
 
       const score =
@@ -62,7 +62,7 @@ class SMLQuestionGrader implements IGrader {
       // Full grading logic
       const isCorrect =
         answer.lotItemIds.length === correctLotItemIds.length &&
-        answer.lotItemIds.every(id => correctLotItemIds.includes(id));
+        answer.lotItemIds.every(id => correctLotItemIds.includes(id.toString()));
 
       let feedbackText = isCorrect
         ? 'Correct answer!'

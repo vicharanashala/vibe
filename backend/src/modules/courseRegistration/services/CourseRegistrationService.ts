@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { inject, injectable } from 'inversify';
-import { InternalServerError, NotFoundError } from 'routing-controllers';
+import { ForbiddenError, InternalServerError, NotFoundError } from 'routing-controllers';
 import nodemailer from 'nodemailer';
 import {
   BaseService,
@@ -201,6 +201,11 @@ export class CourseRegistrationService extends BaseService {
   }
 
   async generateLink(courseId: string, versionId: string) {
+    const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId);
+                
+    if(versionStatus==="archived"){
+      throw new ForbiddenError("This enrollment is invalid. Because course version is archived.");
+    }
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const invite = new Invite({
       courseId: new ObjectId(courseId),
@@ -280,6 +285,11 @@ export class CourseRegistrationService extends BaseService {
         registrationData.versionId.toString(),
         session,
       );
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(registrationData.versionId.toString());
+                
+    if(versionStatus==="archived"){
+      throw new ForbiddenError("The course version you are trying to register is inactive");
+    }
 
       const courseSettings = await this.settingsRepo.readCourseSettings(
         courseVersion.courseId.toString(),
@@ -432,6 +442,11 @@ export class CourseRegistrationService extends BaseService {
             `Registration with id ${registrationId} not found`,
           );
         }
+        const versionStatus=await this.courseRepo.getCourseVersionStatus(data.versionId.toString(),session);
+                
+        if(versionStatus==="archived"){
+          throw new ForbiddenError("Can't process registrations. Because course version is archived.");
+        }
 
         await this.inviteService.courseContentLength(
           data.courseId.toString(),
@@ -502,6 +517,11 @@ export class CourseRegistrationService extends BaseService {
           throw new NotFoundError(
             `Registration with id ${registrationIds[0]} not found`,
           );
+        }
+        const versionStatus=await this.courseRepo.getCourseVersionStatus(first.versionId.toString(),session);
+                
+        if(versionStatus==="archived"){
+          throw new ForbiddenError("Cannot process registrations. Because course version is archived.");
         }
         await this.inviteService.courseContentLength(
           first.courseId.toString(),
@@ -638,6 +658,11 @@ export class CourseRegistrationService extends BaseService {
             `Course version with id ${versionId} not found`,
           );
         }
+        const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId);
+                
+        if(versionStatus==="archived"){
+          throw new ForbiddenError("Cannot update settings. Because course version is archived.");
+        }
         const courseId = version.courseId.toString();
         return await this.settingsRepo.updateRegistrationSettings(
           courseId,
@@ -723,6 +748,11 @@ export class CourseRegistrationService extends BaseService {
           throw new NotFoundError(
             `Course version with id ${versionId} not found`,
           );
+        }
+        const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId);
+                
+        if(versionStatus==="archived"){
+          throw new ForbiddenError("Can't toggle Regitration status. Because course version is archived.");
         }
         const courseId = version.courseId.toString();
 

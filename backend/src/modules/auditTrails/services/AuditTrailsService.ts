@@ -22,9 +22,10 @@ class AuditTrailsService extends BaseService{
         })
     }
 
-    async getAuditTrailsByCourseAndVersion(userId: string, courseId: string, versionId: string, page: number, limit: number, startDate?: string, endDate?: string){
+    async getAuditTrailsByCourseAndVersion(courseId: string, versionId: string, page: number, limit: number, startDate?: string, endDate?: string){
         return this._withTransaction(async (session)=>{
-            return this.auditTrailsRepository.getAuditTrailsByCourseAndVersion(userId, courseId, versionId, page, limit, startDate, endDate, session);
+            const data =  await this.auditTrailsRepository.getAuditTrailsByCourseAndVersion(courseId, versionId, page, limit, startDate, endDate, session);
+            return data;
         })
     }
 }

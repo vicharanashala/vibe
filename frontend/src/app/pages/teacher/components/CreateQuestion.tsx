@@ -27,7 +27,7 @@ interface LotItem {
 interface parameterItem {
     name: string;
     possibleValues: string;
-    type: string; 
+    type: string;
     id: string; // Add unique ID for better tracking
 }
 
@@ -58,7 +58,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
         upperLimit: 0,
         lowerLimit: 0,
         value: 0,
-        parameters:[] as parameterItem[],
+        parameters: [] as parameterItem[],
         expression: "",
         solutionText: ""
     });
@@ -122,7 +122,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
 
     const renderParameterControls = (fieldId: string) => {
         if (!questionForm.isParameterized) return null;
-        
+
         return (
             <div className="flex md:flex-row flex-col gap-2 mb-2">
                 <Button
@@ -149,7 +149,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
             </div>
         );
     };
-    
+
     const addParameter = () => {
         setQuestionForm(prev => ({
             ...prev,
@@ -169,32 +169,32 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
         }));
     };
 
-     const updateParameter = (
-  id: string,
-  field: 'name' | 'possibleValues' | 'type',
-  value: string
-) => {
-  setQuestionForm(prev => ({
-    ...prev,
-    parameters: prev.parameters.map(option =>
-      option.id === id
-        ? {
-            ...option,
-            [field]:
-              field === 'possibleValues'
-                ? value.split(',').map(v => v.trim()) // convert "1,2,3" → ["1","2","3"]
-                : value,
-          }
-        : option
-    ),
-  }));
-};
+    const updateParameter = (
+        id: string,
+        field: 'name' | 'possibleValues' | 'type',
+        value: string
+    ) => {
+        setQuestionForm(prev => ({
+            ...prev,
+            parameters: prev.parameters.map(option =>
+                option.id === id
+                    ? {
+                        ...option,
+                        [field]:
+                            field === 'possibleValues'
+                                ? value.split(',').map(v => v.trim()) // convert "1,2,3" → ["1","2","3"]
+                                : value,
+                    }
+                    : option
+            ),
+        }));
+    };
 
     const handleTypeChange = (newType: QuestionType) => {
         setQuestionForm(prev => {
             let updatedOptions = [...prev.options];
 
-            if ( newType == "DESCRIPTIVE" || newType=="NUMERIC_ANSWER_TYPE" ) {
+            if (newType == "DESCRIPTIVE" || newType == "NUMERIC_ANSWER_TYPE") {
                 return {
                     ...prev,
                     type: newType,
@@ -239,7 +239,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
             options: [],
             priority: 'LOW',
             decimalPrecision: 0,
-            parameters:[],
+            parameters: [],
             upperLimit: 0,
             lowerLimit: 0,
             value: 0,
@@ -250,71 +250,71 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
 
     /*Function to handle adding tags*/
 
-const insertTagAtCursor = (fieldId: string, tag: string) => {
-    const element = document.getElementById(fieldId) as HTMLInputElement | HTMLTextAreaElement | null;
-    if (!element) return;
+    const insertTagAtCursor = (fieldId: string, tag: string) => {
+        const element = document.getElementById(fieldId) as HTMLInputElement | HTMLTextAreaElement | null;
+        if (!element) return;
 
-    const start = element.selectionStart ?? 0;
-    const end = element.selectionEnd ?? 0;
+        const start = element.selectionStart ?? 0;
+        const end = element.selectionEnd ?? 0;
 
-  // If the tag has a closing part like <X></X>, place caret inside it.
-  // Otherwise place caret after the inserted text.
-  const caretOffsetInsideTag = (() => {
-    const closingIdx = tag.indexOf("</");
-    return closingIdx !== -1 ? closingIdx : tag.length;
-  })();
+        // If the tag has a closing part like <X></X>, place caret inside it.
+        // Otherwise place caret after the inserted text.
+        const caretOffsetInsideTag = (() => {
+            const closingIdx = tag.indexOf("</");
+            return closingIdx !== -1 ? closingIdx : tag.length;
+        })();
 
-  // 1) options array: id format "option-<optionId>"
-  if (fieldId.startsWith("option-")) {
-    const optionId = fieldId.replace("option-", "");
-    setQuestionForm((prev: any) => {
-      const updatedOptions = prev.options.map((opt: any) => {
-        if (opt.id !== optionId) return opt;
-        const cur = opt.text ?? "";
-        const newText = cur.slice(0, start) + tag + cur.slice(end);
-        return { ...opt, text: newText };
-      });
-      return { ...prev, options: updatedOptions };
-    });
+        // 1) options array: id format "option-<optionId>"
+        if (fieldId.startsWith("option-")) {
+            const optionId = fieldId.replace("option-", "");
+            setQuestionForm((prev: any) => {
+                const updatedOptions = prev.options.map((opt: any) => {
+                    if (opt.id !== optionId) return opt;
+                    const cur = opt.text ?? "";
+                    const newText = cur.slice(0, start) + tag + cur.slice(end);
+                    return { ...opt, text: newText };
+                });
+                return { ...prev, options: updatedOptions };
+            });
 
-    requestAnimationFrame(() => {
-      const el = document.getElementById(fieldId) as HTMLInputElement | HTMLTextAreaElement | null;
-      if (el) {
-        const pos = start + caretOffsetInsideTag;
-        el.selectionStart = el.selectionEnd = pos;
-        el.focus();
-      }
-    });
+            requestAnimationFrame(() => {
+                const el = document.getElementById(fieldId) as HTMLInputElement | HTMLTextAreaElement | null;
+                if (el) {
+                    const pos = start + caretOffsetInsideTag;
+                    el.selectionStart = el.selectionEnd = pos;
+                    el.focus();
+                }
+            });
 
-    return;
-  }
+            return;
+        }
 
-  // 2) top-level mapping: map element ids to state keys
-  const idToStateKey: Record<string, string> = {
-    questionText: "text", // <--- important mapping
-    hint: "hint",
-    solutionText: "solutionText",
-    // add more mappings if you use different ids
-  };
+        // 2) top-level mapping: map element ids to state keys
+        const idToStateKey: Record<string, string> = {
+            questionText: "text", // <--- important mapping
+            hint: "hint",
+            solutionText: "solutionText",
+            // add more mappings if you use different ids
+        };
 
-  const stateKey = idToStateKey[fieldId] ?? fieldId; // fallback to same name
+        const stateKey = idToStateKey[fieldId] ?? fieldId; // fallback to same name
 
-  setQuestionForm((prev: any) => {
-    const currentValue = (prev as any)[stateKey] ?? "";
-    const newValue = currentValue.slice(0, start) + tag + currentValue.slice(end);
-    return { ...prev, [stateKey]: newValue };
-  });
+        setQuestionForm((prev: any) => {
+            const currentValue = (prev as any)[stateKey] ?? "";
+            const newValue = currentValue.slice(0, start) + tag + currentValue.slice(end);
+            return { ...prev, [stateKey]: newValue };
+        });
 
-  // restore caret inside tag after render
-  requestAnimationFrame(() => {
-    const el = document.getElementById(fieldId) as HTMLInputElement | HTMLTextAreaElement | null;
-    if (el) {
-      const pos = start + caretOffsetInsideTag;
-      el.selectionStart = el.selectionEnd = pos;
-      el.focus();
-    }
-  });
-};
+        // restore caret inside tag after render
+        requestAnimationFrame(() => {
+            const el = document.getElementById(fieldId) as HTMLInputElement | HTMLTextAreaElement | null;
+            if (el) {
+                const pos = start + caretOffsetInsideTag;
+                el.selectionStart = el.selectionEnd = pos;
+                el.focus();
+            }
+        });
+    };
 
 
 
@@ -347,28 +347,28 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                 text: questionForm.text,
                 type: questionForm.type,
                 isParameterized: questionForm.isParameterized,
-                parameters: questionForm.isParameterized?questionForm.parameters:[],
+                parameters: questionForm.isParameterized ? questionForm.parameters : [],
                 hint: questionForm.hint || undefined,
                 timeLimitSeconds: questionForm.timeLimitSeconds,
                 points: questionForm.points,
                 priority: questionForm.priority,
-                incorrectLotItems: incorrectOptions.map(({ text, explaination }) => ({ 
-                    text, 
-                    explaination: explaination.trim() || "Nil" 
+                incorrectLotItems: incorrectOptions.map(({ text, explaination }) => ({
+                    text,
+                    explaination: explaination.trim() || "Nil"
                 })),
                 ...(questionForm.type === 'SELECT_ONE_IN_LOT'
                     ? { correctLotItem: { text: correctOptions[0].text, explaination: correctOptions[0].explaination.trim() || "Nil" } }
                     : { correctLotItems: correctOptions.map(({ text, explaination }) => ({ text, explaination: explaination.trim() || "Nil" })) }
                 ),
-                decimalPrecision: questionForm.decimalPrecision  || 0,
-                upperLimit: questionForm.upperLimit  || 0,
-                lowerLimit: questionForm.lowerLimit  || 0,
-                value: questionForm.value  || 0,
-                expression: questionForm.expression  || "",
-                solutionText: questionForm.solutionText  || "",
+                decimalPrecision: questionForm.decimalPrecision || 0,
+                upperLimit: questionForm.upperLimit || 0,
+                lowerLimit: questionForm.lowerLimit || 0,
+                value: questionForm.value || 0,
+                expression: questionForm.expression || "",
+                solutionText: questionForm.solutionText || "",
             };
 
-           if (questionData.type=="NUMERIC_ANSWER_TYPE" && questionData.lowerLimit >= questionData.upperLimit) {
+            if (questionData.type == "NUMERIC_ANSWER_TYPE" && questionData.lowerLimit >= questionData.upperLimit) {
                 toast.error("Lower limit cannot be greater than or equal to upper limit.");
                 return;
             }
@@ -398,7 +398,7 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
             }
             else if (questionData.type === "DESCRIPTIVE") {
                 solutionData = {
-                    solutionText: questionData.solutionText ,
+                    solutionText: questionData.solutionText,
                 };
             }
             const data = await createQuestion.mutateAsync({
@@ -436,7 +436,7 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
             setShowCreateQuestionDialog(false);
         } catch (error) {
             const err: any = error;
-            const serverMessage = err?.response?.data?.message || err?.response?.message ||err?.data?.message || err?.message;
+            const serverMessage = err?.response?.data?.message || err?.response?.message || err?.data?.message || err?.message;
             const friendlyMessage = serverMessage;
             toast.error(friendlyMessage);
             console.error('Failed to create question:', error);
@@ -466,16 +466,16 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                                 </CardHeader>
                                 <CardContent className="px-4 space-y-4">
                                     <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <Label htmlFor="isParameterized" className="mb-0">Is Parameterized?</Label>
-                                        <Switch
-                                            id="isParameterized"
-                                            checked={questionForm.isParameterized}
-                                            onCheckedChange={(checked) =>
-                                                setQuestionForm(prev => ({ ...prev, isParameterized: !!checked }))
-                                            }
-                                        />
-                                    </div>
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <Label htmlFor="isParameterized" className="mb-0">Is Parameterized?</Label>
+                                            <Switch
+                                                id="isParameterized"
+                                                checked={questionForm.isParameterized}
+                                                onCheckedChange={(checked) =>
+                                                    setQuestionForm(prev => ({ ...prev, isParameterized: !!checked }))
+                                                }
+                                            />
+                                        </div>
                                     </div>
 
                                     {/* <div>
@@ -489,152 +489,151 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                                             className="min-h-[80px]"
                                         />
                                     </div> */}
-                                  <div>
-                                    <Label htmlFor="questionText" className="mb-3">Question Text *</Label>
-                                    {renderParameterControls("questionText")}
-                                    
-                                    <Textarea
-                                        id="questionText"
-                                        placeholder={`Enter your question here...\\n will show as a new line`}
-                                        value={questionForm.text.replace(/\\n/g, '\n')}
-                                        onChange={(e) => {
-                                        // Convert actual newline to literal '\n' before storing
-                                        const updatedText = e.target.value.replace(/\n/g, '\\n');
-                                        setQuestionForm(prev => ({ ...prev, text: updatedText }));
-                                        }}
-                                        className="min-h-[120px] whitespace-pre-wrap"
-                                    />
+                                    <div>
+                                        <Label htmlFor="questionText" className="mb-3">Question Text *</Label>
+                                        {renderParameterControls("questionText")}
+
+                                        <Textarea
+                                            id="questionText"
+                                            placeholder={`Enter your question here...\\n will show as a new line`}
+                                            value={questionForm.text.replace(/\\n/g, '\n')}
+                                            onChange={(e) => {
+                                                // Convert actual newline to literal '\n' before storing
+                                                const updatedText = e.target.value.replace(/\n/g, '\\n');
+                                                setQuestionForm(prev => ({ ...prev, text: updatedText }));
+                                            }}
+                                            className="min-h-[120px] whitespace-pre-wrap"
+                                        />
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 </div>                       <div>
-                                            <Label className='mb-3'>Question Type</Label>
-                                            <RadioGroup
-                                                value={questionForm.type}
-                                                onValueChange={(value: QuestionType) => handleTypeChange(value)}
-                                                className="mt-2 grid md:grid-cols-2 grid-cols-1 gap-4"
-                                            >
-                                                <div className="flex items-center space-x-2">
-                                                    <RadioGroupItem value="SELECT_ONE_IN_LOT" id="single" />
-                                                    <Label htmlFor="single" className="cursor-pointer">Select One Answer</Label>
-                                                </div>
-                                                <div className="flex items-center space-x-2">
-                                                    <RadioGroupItem value="SELECT_MANY_IN_LOT" id="multiple" />
-                                                    <Label htmlFor="multiple" className="cursor-pointer">Select Multiple Answers</Label>
-                                                </div>
-                                                <div className="flex items-center space-x-2">
-                                                    <RadioGroupItem value="NUMERIC_ANSWER_TYPE" id="nat" />
-                                                    <Label htmlFor="nat" className="cursor-pointer">Numerical Answer</Label>
-                                                </div>
-                                                <div className="flex items-center space-x-2">
-                                                    <RadioGroupItem value="DESCRIPTIVE" id="das" />
-                                                    <Label htmlFor="das" className="cursor-pointer">Descriptive Answer</Label>
-                                                </div>
-                                            </RadioGroup>
+                                    </div>                       <div>
+                                        <Label className='mb-3'>Question Type</Label>
+                                        <RadioGroup
+                                            value={questionForm.type}
+                                            onValueChange={(value: QuestionType) => handleTypeChange(value)}
+                                            className="mt-2 grid md:grid-cols-2 grid-cols-1 gap-4"
+                                        >
+                                            <div className="flex items-center space-x-2">
+                                                <RadioGroupItem value="SELECT_ONE_IN_LOT" id="single" />
+                                                <Label htmlFor="single" className="cursor-pointer">Select One Answer</Label>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <RadioGroupItem value="SELECT_MANY_IN_LOT" id="multiple" />
+                                                <Label htmlFor="multiple" className="cursor-pointer">Select Multiple Answers</Label>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <RadioGroupItem value="NUMERIC_ANSWER_TYPE" id="nat" />
+                                                <Label htmlFor="nat" className="cursor-pointer">Numerical Answer</Label>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <RadioGroupItem value="DESCRIPTIVE" id="das" />
+                                                <Label htmlFor="das" className="cursor-pointer">Descriptive Answer</Label>
+                                            </div>
+                                        </RadioGroup>
+                                    </div>
+
+                                    <div>
+                                        <Label htmlFor="hint" className='mb-3'>Hint *</Label>
+                                        {renderParameterControls("hint")}
+                                        <Input
+                                            id="hint"
+                                            placeholder="Enter a hint for students..."
+                                            value={questionForm.hint}
+                                            onChange={(e) => setQuestionForm(prev => ({ ...prev, hint: e.target.value }))}
+                                        />
+                                    </div>
+
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <Label htmlFor="timeLimit" className='mb-3'>Time Limit (seconds) *</Label>
+                                            <Input
+                                                id="timeLimit"
+                                                type="number"
+                                                min="1"
+                                                value={questionForm.timeLimitSeconds}
+                                                onChange={(e) => setQuestionForm(prev => ({ ...prev, timeLimitSeconds: parseInt(e.target.value) || 60 }))}
+                                            />
                                         </div>
 
                                         <div>
-                                            <Label htmlFor="hint" className='mb-3'>Hint *</Label>
-                                            {renderParameterControls("hint")}
+                                            <Label htmlFor="points" className='mb-3'>Points *</Label>
                                             <Input
-                                                id="hint"
-                                                placeholder="Enter a hint for students..."
-                                                value={questionForm.hint}
-                                                onChange={(e) => setQuestionForm(prev => ({ ...prev, hint: e.target.value }))}
+                                                id="points"
+                                                type="number"
+                                                min="1"
+                                                value={questionForm.points}
+                                                onChange={(e) => setQuestionForm(prev => ({ ...prev, points: parseInt(e.target.value) || 1 }))}
                                             />
                                         </div>
-                                    
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <Label htmlFor="timeLimit" className='mb-3'>Time Limit (seconds) *</Label>
-                                        <Input
-                                        id="timeLimit"
-                                        type="number"
-                                        min="1"
-                                        value={questionForm.timeLimitSeconds}
-                                        onChange={(e) => setQuestionForm(prev => ({ ...prev, timeLimitSeconds: parseInt(e.target.value) || 60 }))}
-                                        />
                                     </div>
-
-                                    <div>
-                                        <Label htmlFor="points" className='mb-3'>Points *</Label>
-                                        <Input
-                                        id="points"
-                                        type="number"
-                                        min="1"
-                                        value={questionForm.points}
-                                        onChange={(e) => setQuestionForm(prev => ({ ...prev, points: parseInt(e.target.value) || 1 }))}
-                                        />
-                                    </div>
-</div>
                                     <div className="col-span-1 lg:col-span-2 overflow-hidden transition-all duration-300 ease-in-out transform flex flex-wrap gap-4 items-end mt-4"
-                                        >
+                                    >
                                         <div className="flex-1 xl:min-w-[150px] min-w-full">
                                             <Label htmlFor="priority" className="mb-3">Priority</Label>
                                             <Select
-                                            value={questionForm.priority}
-                                            
-                                            onValueChange={(value: PRIORITIES) => setQuestionForm(prev => ({ ...prev, priority: value }))}
+                                                value={questionForm.priority}
+
+                                                onValueChange={(value: PRIORITIES) => setQuestionForm(prev => ({ ...prev, priority: value }))}
                                             >
-                                            <SelectTrigger className={`${
-                                                questionForm.type === "NUMERIC_ANSWER_TYPE" || questionForm.type === "DESCRIPTIVE"
-                                                ? "w-full"
-                                                : "w-[25%]"
-                                            }`}>
-                                                <SelectValue placeholder="Select priority"  />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="LOW">Low</SelectItem>
-                                                <SelectItem value="MEDIUM">Medium</SelectItem>
-                                                <SelectItem value="HIGH">High</SelectItem>
-                                            </SelectContent>
+                                                <SelectTrigger className={`${questionForm.type === "NUMERIC_ANSWER_TYPE" || questionForm.type === "DESCRIPTIVE"
+                                                        ? "w-full"
+                                                        : "w-[25%]"
+                                                    }`}>
+                                                    <SelectValue placeholder="Select priority" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="LOW">Low</SelectItem>
+                                                    <SelectItem value="MEDIUM">Medium</SelectItem>
+                                                    <SelectItem value="HIGH">High</SelectItem>
+                                                </SelectContent>
                                             </Select>
                                         </div>
 
                                         {questionForm.type === "NUMERIC_ANSWER_TYPE" && (
                                             <>
-                                            <div className="flex-1 min-w-[120px]">
-                                                <Label htmlFor="decimalPrecision" className="mb-3">Decimal Precision</Label>
-                                                <Input
-                                                id="decimalPrecision"
-                                                type="number"
-                                                min="0"
-                                                value={questionForm.decimalPrecision}
-                                                onChange={(e) => setQuestionForm(prev => ({ ...prev, decimalPrecision: parseInt(e.target.value) || 0 }))}
-                                                />
-                                            </div>
+                                                <div className="flex-1 min-w-[120px]">
+                                                    <Label htmlFor="decimalPrecision" className="mb-3">Decimal Precision</Label>
+                                                    <Input
+                                                        id="decimalPrecision"
+                                                        type="number"
+                                                        min="0"
+                                                        value={questionForm.decimalPrecision}
+                                                        onChange={(e) => setQuestionForm(prev => ({ ...prev, decimalPrecision: parseInt(e.target.value) || 0 }))}
+                                                    />
+                                                </div>
 
-                                            <div className="flex-1 min-w-[120px]">
-                                                <Label htmlFor="lowerLimit" className="mb-3">Lower Limit</Label>
-                                                <Input
-                                                id="lowerLimit"
-                                                type="number"
-                                                value={questionForm.lowerLimit}
-                                                onChange={(e) => setQuestionForm(prev => ({ ...prev, lowerLimit: parseFloat(e.target.value) || 0 }))}
-                                                />
-                                            </div>
+                                                <div className="flex-1 min-w-[120px]">
+                                                    <Label htmlFor="lowerLimit" className="mb-3">Lower Limit</Label>
+                                                    <Input
+                                                        id="lowerLimit"
+                                                        type="number"
+                                                        value={questionForm.lowerLimit}
+                                                        onChange={(e) => setQuestionForm(prev => ({ ...prev, lowerLimit: parseFloat(e.target.value) || 0 }))}
+                                                    />
+                                                </div>
 
-                                            <div className="flex-1 min-w-[120px]">
-                                                <Label htmlFor="upperLimit" className="mb-3">Upper Limit</Label>
-                                                <Input
-                                                id="upperLimit"
-                                                type="number"
-                                                value={questionForm.upperLimit}
-                                                onChange={(e) => setQuestionForm(prev => ({ ...prev, upperLimit: parseFloat(e.target.value) || 100 }))}
-                                                />
-                                            </div>
-                                            
-                                            <div className="flex-1 min-w-[120px]">
-                                                <Label htmlFor="value" className="mb-3">Value *</Label>
-                                                <Input
-                                                id="value"
-                                                type="number"
-                                                value={questionForm.value}
-                                                onChange={(e) => setQuestionForm(prev => ({ ...prev, value: parseFloat(e.target.value) || 0 }))}
-                                                />
-                                            </div>
-                                            {/* <div className="flex-1 min-w-[120px]">
+                                                <div className="flex-1 min-w-[120px]">
+                                                    <Label htmlFor="upperLimit" className="mb-3">Upper Limit</Label>
+                                                    <Input
+                                                        id="upperLimit"
+                                                        type="number"
+                                                        value={questionForm.upperLimit}
+                                                        onChange={(e) => setQuestionForm(prev => ({ ...prev, upperLimit: parseFloat(e.target.value) || 100 }))}
+                                                    />
+                                                </div>
+
+                                                <div className="flex-1 min-w-[120px]">
+                                                    <Label htmlFor="value" className="mb-3">Value *</Label>
+                                                    <Input
+                                                        id="value"
+                                                        type="number"
+                                                        value={questionForm.value}
+                                                        onChange={(e) => setQuestionForm(prev => ({ ...prev, value: parseFloat(e.target.value) || 0 }))}
+                                                    />
+                                                </div>
+                                                {/* <div className="flex-1 min-w-[120px]">
                                                 <Label htmlFor="expression" className="mb-3">Expression</Label>
                                                 <Input
                                                 id="expression"
@@ -648,19 +647,19 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
 
                                         {questionForm.type === "DESCRIPTIVE" && (
                                             <div className="flex-1 min-w-[250px]">
-                                            <Label htmlFor="solutionText" className="mb-3">Solution Text *</Label>
-                                            {renderParameterControls("solutionText")}
-                                            <Input
-                                                id="solutionText"
-                                                type="text"
-                                                placeholder='Enter solution text...'
-                                                value={questionForm.solutionText}
-                                                onChange={(e) => setQuestionForm(prev => ({ ...prev, solutionText: e.target.value }))}
-                                            />
+                                                <Label htmlFor="solutionText" className="mb-3">Solution Text *</Label>
+                                                {renderParameterControls("solutionText")}
+                                                <Input
+                                                    id="solutionText"
+                                                    type="text"
+                                                    placeholder='Enter solution text...'
+                                                    value={questionForm.solutionText}
+                                                    onChange={(e) => setQuestionForm(prev => ({ ...prev, solutionText: e.target.value }))}
+                                                />
                                             </div>
                                         )}
-                                        </div>
-                                    
+                                    </div>
+
                                 </CardContent>
                             </Card>
 
@@ -677,11 +676,11 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                                             <div key={option.id} className={`border rounded-lg p-4 space-y-3`}>
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div className="flex items-center gap-3 flex-1">
-                                                       
+
                                                         <div className="flex-1 space-y-2">
                                                             <Label className="text-sm text-gray-600">
-                                                       Name:
-                                                    </Label>
+                                                                Name:
+                                                            </Label>
                                                             <Input
                                                                 placeholder="Name"
                                                                 value={option.name}
@@ -700,7 +699,7 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                                                 </div>
                                                 <div>
                                                     <Label className="text-sm text-gray-600">
-                                                       Value:
+                                                        Value:
                                                     </Label>
                                                     <Textarea
                                                         placeholder={'Enter comma separated values...'
@@ -710,22 +709,27 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                                                         className="mt-1"
                                                     />
                                                     <Label className="text-sm text-gray-600">
-                                                       Type:
+                                                        Type:
                                                     </Label>
-                                                    <Textarea
-                                                        placeholder={'string or number'
-                                                        }
-                                                        value={option.type}
-                                                        onChange={(e) => updateParameter(option.id, 'type', e.target.value)}
-                                                        className="mt-1"
-                                                    />
+                                                    <Select
+                                                        value={option.type || ''}
+                                                        onValueChange={(value) => updateParameter(option.id, 'type', value)}
+                                                    >
+                                                        <SelectTrigger className="mt-1">
+                                                            <SelectValue placeholder="Select type..." />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="number">number</SelectItem>
+                                                            <SelectItem value="string">string</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
                                                 </div>
                                             </div>
                                         ))}
 
                                         {questionForm.parameters?.length === 0 && (
                                             <div className="text-center py-8 text-muted-foreground text-sm md:text-base">
-                                               {` No parameters added yet. Click "Add Parameter" to get started.`}
+                                                {` No parameters added yet. Click "Add Parameter" to get started.`}
                                             </div>
                                         )}
 
@@ -770,11 +774,10 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                             )}
 
                             <div
-                             className={`transition-all duration-300 ease-in-out transform ${
-                                questionForm.type !== "DESCRIPTIVE" && questionForm.type !== "NUMERIC_ANSWER_TYPE"
-                                ? "translate-y-0 opacity-100 max-h-[2000px]"
-                                : "-translate-y-5 opacity-0 max-h-0"
-                            } overflow-hidden`}
+                                className={`transition-all duration-300 ease-in-out transform ${questionForm.type !== "DESCRIPTIVE" && questionForm.type !== "NUMERIC_ANSWER_TYPE"
+                                        ? "translate-y-0 opacity-100 max-h-[2000px]"
+                                        : "-translate-y-5 opacity-0 max-h-0"
+                                    } overflow-hidden`}
                             >
                                 <Card>
                                     <CardHeader>
@@ -788,7 +791,7 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                                     </CardHeader>
                                     <CardContent className="px-4 space-y-4">
                                         {questionForm.options.map((option) => (
-                                            <div key={option.id}  className={`border rounded-lg p-4 space-y-3 ${option.isCorrect ? 'bg-green-500/10 border-green-500/20' : 'border-gray-200'
+                                            <div key={option.id} className={`border rounded-lg p-4 space-y-3 ${option.isCorrect ? 'bg-green-500/10 border-green-500/20' : 'border-gray-200'
                                                 }`}>
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div className="flex items-center gap-3 flex-1">
@@ -812,7 +815,7 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                                                         <div className="flex-1 space-y-2">
                                                             {renderParameterControls(`option-${option.id}`)}
                                                             <Input
-                                                            id={`option-${option.id}`}
+                                                                id={`option-${option.id}`}
                                                                 placeholder="Enter answer option..."
                                                                 value={option.text}
                                                                 onChange={(e) => updateOption(option.id, 'text', e.target.value)}
@@ -897,31 +900,31 @@ const insertTagAtCursor = (fieldId: string, tag: string) => {
                                 Cancel
                             </Button>
                             <Button
-                            onClick={handleCreateQuestion}
-                            disabled={
-                                createQuestion.isPending ||
-                                !questionForm.text.trim() ||
-                                !questionForm.hint.trim() ||
-                                !questionForm.timeLimitSeconds ||
-                                !questionForm.points ||
-                                !questionForm.priority ||
+                                onClick={handleCreateQuestion}
+                                disabled={
+                                    createQuestion.isPending ||
+                                    !questionForm.text.trim() ||
+                                    !questionForm.hint.trim() ||
+                                    !questionForm.timeLimitSeconds ||
+                                    !questionForm.points ||
+                                    !questionForm.priority ||
 
-                                (questionForm.type === "DESCRIPTIVE" && !questionForm.solutionText.trim()) ||
+                                    (questionForm.type === "DESCRIPTIVE" && !questionForm.solutionText.trim()) ||
 
-                                (questionForm.type === "NUMERIC_ANSWER_TYPE" &&
-                                (
-                                questionForm.decimalPrecision === undefined ||
-                                questionForm.lowerLimit === undefined ||
-                                questionForm.upperLimit === undefined)
-                                ) ||
+                                    (questionForm.type === "NUMERIC_ANSWER_TYPE" &&
+                                        (
+                                            questionForm.decimalPrecision === undefined ||
+                                            questionForm.lowerLimit === undefined ||
+                                            questionForm.upperLimit === undefined)
+                                    ) ||
 
-                                (questionForm.type !== "DESCRIPTIVE" && questionForm.type !== "NUMERIC_ANSWER_TYPE" &&
-                                (questionForm.options.filter(o => o.isCorrect).length === 0 ||
-                                questionForm.options.filter(o => !o.isCorrect).length === 0)
-                                )
-                            }
+                                    (questionForm.type !== "DESCRIPTIVE" && questionForm.type !== "NUMERIC_ANSWER_TYPE" &&
+                                        (questionForm.options.filter(o => o.isCorrect).length === 0 ||
+                                            questionForm.options.filter(o => !o.isCorrect).length === 0)
+                                    )
+                                }
                             >
-                            {createQuestion.isPending ? "Creating Question...":"Create Question"}
+                                {createQuestion.isPending ? "Creating Question..." : "Create Question"}
                             </Button>
                         </div>
                     </DialogContent>

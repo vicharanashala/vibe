@@ -219,6 +219,12 @@ export class ItemRepository implements IItemRepository {
   ): Promise<ItemsGroup> {
     await this.init();
     const { _id, ...fields } = itemsGroup;
+    fields.items = (fields.items).map(item => ({
+      ...item,
+      _id: typeof item._id === "string"
+        ? new ObjectId(item._id)
+        : item._id,
+    }));
     const result = await this.itemsGroupCollection.updateOne(
       { _id: new ObjectId(itemsGroupId) },
       { $set: fields },

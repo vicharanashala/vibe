@@ -113,7 +113,12 @@ export class CourseSettingController {
     setAuditTrail(req, {
       category: AuditCategory.COURSE_SETTINGS,
       action: AuditAction.COURSE_SETTINGS_UPDATE,
-      actor: new ObjectId(userId),
+      actor: {
+        id: new ObjectId(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context:{
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(versionId),
