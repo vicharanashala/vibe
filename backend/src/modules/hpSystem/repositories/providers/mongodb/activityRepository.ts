@@ -89,12 +89,67 @@ export class ActivityRepository implements IActivityRepository {
         if (filters.status) q.status = filters.status;
         if (filters.createdByTeacherId) q.createdByTeacherId = new ObjectId(filters.createdByTeacherId);
 
-        const docs = await this.hpActivityCollection
-            .find(q)
-            .sort({ createdAt: -1 })
-            .toArray();
+        const docs = await this.hpActivityCollection.aggregate([
 
-        return docs.map(doc => plainToInstance(HpActivityTransformer, doc));
+            { $match: q },
+
+            {
+                $lookup: {
+                    from: "hp_activity_rules",
+                    let: { activityId: "$_id" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $eq: ["$activityId", "$$activityId"]
+                                }
+                            }
+                        },
+                        {
+                            $project: {
+                                _id: 0,
+                                isMandatory: 1,
+                                deadlineAt: 1,
+                                allowLateSubmission: 1
+                            }
+                        }
+                    ],
+                    as: "rules"
+                }
+            },
+
+            {
+                $unwind: {
+                    path: "$rules",
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+
+            { $sort: { createdAt: -1 } }
+
+        ]).toArray();
+
+        return docs.map(doc => {
+            const activity = new HpActivityTransformer();
+
+            activity._id = doc._id;
+            activity.courseId = doc.courseId;
+            activity.courseVersionId = doc.courseVersionId;
+            activity.cohort = doc.cohort;
+            activity.status = doc.status;
+            activity.createdByTeacherId = doc.createdByTeacherId;
+            activity.createdAt = doc.createdAt;
+
+            if (doc.rules) {
+                activity.rules = {
+                    isMandatory: doc.rules.isMandatory,
+                    deadlineAt: doc.rules.deadlineAt,
+                    allowLateSubmission: doc.rules.allowLateSubmission,
+                };
+            }
+
+            return activity;
+        });
     }
 
     async publishActivity(
