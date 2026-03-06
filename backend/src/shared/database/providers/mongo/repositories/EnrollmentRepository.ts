@@ -753,7 +753,7 @@ export class EnrollmentRepository {
           enrollmentDate: 1,
           course: 1,
           courseVersion: 1,
-          assignedTimeSlot: 1,
+          assignedTimeSlots: 1,
           //getting current course completion details(not actual details)
           moduleNumber: '$moduleNumber',
           sectionNumber: '$sectionNumber',
@@ -3275,7 +3275,7 @@ export class EnrollmentRepository {
           role: 1,
           status: 1,
           enrollmentDate: 1,
-          assignedTimeSlot: 1,
+          assignedTimeSlots: 1,
           course: 1,
           courseVersion: 1,
           //getting current course completion details(not actual details)
@@ -3349,7 +3349,7 @@ export class EnrollmentRepository {
   }
 
   /**
-   * Update enrollment time slot
+   * Add a time slot to enrollment's assigned time slots
    */
   async updateEnrollmentTimeSlot(
     enrollmentId: string,
@@ -3361,8 +3361,10 @@ export class EnrollmentRepository {
     const updateResult = await this.enrollmentCollection.updateOne(
       { _id: new ObjectId(enrollmentId) },
       {
+        $addToSet: {
+          assignedTimeSlots: timeSlot
+        },
         $set: {
-          assignedTimeSlot: timeSlot,
           updatedAt: new Date()
         }
       },
@@ -3373,24 +3375,39 @@ export class EnrollmentRepository {
   }
 
   /**
-   * Remove assigned time slot from enrollment
+   * Remove a specific time slot from enrollment's assigned time slots
    */
   async removeEnrollmentTimeSlot(
     enrollmentId: string,
+    timeSlot?: { from: string; to: string },
     session?: ClientSession,
   ): Promise<any> {
     await this.init();
 
+    const updateQuery: any = {
+      $set: {
+        updatedAt: new Date()
+      }
+    };
+
+    if (timeSlot) {
+      // Remove specific time slot
+      updateQuery.$pull = {
+        assignedTimeSlots: {
+          from: timeSlot.from,
+          to: timeSlot.to
+        }
+      };
+    } else {
+      // Remove all time slots
+      updateQuery.$unset = {
+        assignedTimeSlots: 1
+      };
+    }
+
     const updateResult = await this.enrollmentCollection.updateOne(
       { _id: new ObjectId(enrollmentId) },
-      {
-        $unset: {
-          assignedTimeSlot: 1
-        },
-        $set: {
-          updatedAt: new Date()
-        }
-      },
+      updateQuery,
       { session }
     );
 
@@ -3411,12 +3428,95 @@ export class EnrollmentRepository {
     const enrollments = await this.enrollmentCollection.find({
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
-      'assignedTimeSlot.from': timeSlot.from,
-      'assignedTimeSlot.to': timeSlot.to,
+      assignedTimeSlots: {
+        $elemMatch: {
+          from: timeSlot.from,
+          to: timeSlot.to
+        }
+      },
       status: 'ACTIVE',
       role: 'STUDENT'
     }).toArray();
 
     return enrollments;
+  }
+
+  /**
+   * Update a specific time slot in the assignedTimeSlots array
+   */
+  async updateSpecificTimeSlot(
+    enrollmentId: string,
+    oldTimeSlot: { from: string; to: string },
+    newTimeSlot: { from: string; to: string },
+    session?: ClientSession,
+  ): Promise<any> {
+    await this.init();
+
+    const updateResult = await this.enrollmentCollection.updateOne(
+      { 
+        _id: new ObjectId(enrollmentId),
+        assignedTimeSlots: { $elemMatch: { from: oldTimeSlot.from, to: oldTimeSlot.to } }
+      },
+      {
+        $set: {
+          'assignedTimeSlots.$.from': newTimeSlot.from,
+          'assignedTimeSlots.$.to': newTimeSlot.to,
+          updatedAt: new Date()
+        }
+      },
+      { session }
+    );
+
+    return updateResult;
+  }
+
+  /**
+   * Add multiple time slots to enrollment
+   */
+  async addMultipleTimeSlots(
+    enrollmentId: string,
+    timeSlots: Array<{ from: string; to: string }>,
+    session?: ClientSession,
+  ): Promise<any> {
+    await this.init();
+
+    const updateResult = await this.enrollmentCollection.updateOne(
+      { _id: new ObjectId(enrollmentId) },
+      {
+        $addToSet: {
+          assignedTimeSlots: { $each: timeSlots }
+        },
+        $set: {
+          updatedAt: new Date()
+        }
+      },
+      { session }
+    );
+
+    return updateResult;
+  }
+
+  /**
+   * Replace all time slots for enrollment
+   */
+  async replaceAllTimeSlots(
+    enrollmentId: string,
+    timeSlots: Array<{ from: string; to: string }>,
+    session?: ClientSession,
+  ): Promise<any> {
+    await this.init();
+
+    const updateResult = await this.enrollmentCollection.updateOne(
+      { _id: new ObjectId(enrollmentId) },
+      {
+        $set: {
+          assignedTimeSlots: timeSlots,
+          updatedAt: new Date()
+        }
+      },
+      { session }
+    );
+
+    return updateResult;
   }
 }

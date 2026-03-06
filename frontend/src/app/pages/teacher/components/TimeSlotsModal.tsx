@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,7 +14,8 @@ import {
   useRemoveTimeSlots,
   useToggleTimeSlots,
   useUpdateTimeSlot,
-  useCourseVersionEnrollments
+  useCourseVersionEnrollments,
+  useRemoveStudentFromTimeSlot
 } from "@/hooks/hooks";
 import { ClockTimePicker } from "./ClockTimePicker";
 
@@ -21,6 +23,7 @@ interface TimeSlot {
   from: string;
   to: string;
   studentIds: string[];
+  maxStudents?: number;
 }
 
 interface TimeSlotsModalProps {
@@ -108,6 +111,16 @@ const SelectionIndicator = ({
 };
 
 function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlotsModalProps) {
+
+
+  // Early return if courseId or courseVersionId are invalid
+  if (!courseId || !courseVersionId || courseId.length !== 24 || courseVersionId.length !== 24) {
+    if (isOpen) {
+      onClose();
+    }
+    return null;
+  }
+
   const [enableSlotAssignment, setEnableSlotAssignment] = useState(true);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [newTimeSlot, setNewTimeSlot] = useState<TimeSlot>({
@@ -139,6 +152,7 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
   const removeTimeSlotsMutation = useRemoveTimeSlots();
   const toggleTimeSlotsMutation = useToggleTimeSlots();
   const updateTimeSlotMutation = useUpdateTimeSlot();
+  const removeStudentFromTimeSlotMutation = useRemoveStudentFromTimeSlot();
 
   // Get enrolled students for selection
   const { data: enrollmentsData } = useCourseVersionEnrollments(
@@ -323,12 +337,13 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
           courseVersionId,
           timeSlots: [{
             ...newTimeSlot,
-            studentIds: Array.from(selectedStudents)
+            studentIds: Array.from(selectedStudents),
+            maxStudents: newTimeSlot.maxStudents || undefined
           }]
         }
       });
 
-      setNewTimeSlot({ from: "", to: "", studentIds: [] });
+      setNewTimeSlot({ from: "", to: "", studentIds: [], maxStudents: undefined });
       setSelectedStudents(new Set());
       setIsAddingTimeSlot(false);
       const studentCount = selectedStudents.size;
@@ -386,6 +401,50 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
     }
   };
 
+  // Handle remove individual student from time slot
+  const handleRemoveStudentFromTimeSlot = async (timeSlot: TimeSlot, studentId: string) => {
+ 
+    if (!courseId || courseId.length !== 24) {
+      toast.error('Invalid course ID. Please refresh the page and try again.');
+      return;
+    }
+
+    if (!courseVersionId || courseVersionId.length !== 24) {
+      toast.error('Invalid course version ID. Please refresh the page and try again.');
+      return;
+    }
+
+    const student = enrolledStudents.find((enrollment: any) =>
+      enrollment.user && enrollment.user._id === studentId
+    );
+    const studentName = student && student.user ? `${student.user?.firstName} ${student.user?.lastName}` : 'Unknown';
+
+
+    if (!window.confirm(`Are you sure you want to remove ${studentName} from this time slot?`)) {
+      return;
+    }
+
+    try {
+      await removeStudentFromTimeSlotMutation.mutateAsync({
+        body:{
+
+          courseId,
+        courseVersionId,
+        studentId,
+        timeSlot: {
+          from: timeSlot.from,
+          to: timeSlot.to
+        }
+      }
+      });
+
+      toast.success(`${studentName} removed from time slot successfully`);
+      refetchTimeSlots();
+    } catch (error) {
+      toast.error('Failed to remove student from time slot');
+    }
+  };
+
   // Handle edit slot
   const handleEditSlot = (slot: TimeSlot) => {
     setEditingSlotId(`${slot.from}-${slot.to}`);
@@ -405,11 +464,13 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
           courseVersionId,
           oldTimeSlot: {
             from: originalSlot.from,
-            to: originalSlot.to
+            to: originalSlot.to,
+            maxStudents: originalSlot.maxStudents
           },
           newTimeSlot: {
             from: editSlot.from,
-            to: editSlot.to
+            to: editSlot.to,
+            maxStudents: editSlot.maxStudents
           }
         }
       });
@@ -515,7 +576,7 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                                 variant="ghost"
                                 onClick={() => {
                                   setIsAddingTimeSlot(false);
-                                  setNewTimeSlot({ from: "", to: "", studentIds: [] });
+                                  setNewTimeSlot({ from: "", to: "", studentIds: [], maxStudents: undefined });
                                   setSelectedStudents(new Set());
                                 }}
                               >
@@ -540,6 +601,27 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                                   label="Select End Time"
                                 />
                               </div>
+                            </div>
+
+                            <div>
+                              <Label>Maximum Students (Optional)</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                placeholder="Leave empty for unlimited"
+                                value={newTimeSlot.maxStudents || ''}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                  const value = e.target.value;
+                                  setNewTimeSlot({ 
+                                    ...newTimeSlot, 
+                                    maxStudents: value ? parseInt(value) : undefined 
+                                  });
+                                }}
+                                className="mt-1"
+                              />
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Maximum number of students allowed in this timeslot
+                              </p>
                             </div>
 
                             <div>
@@ -574,7 +656,7 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                                 variant="outline"
                                 onClick={() => {
                                   setIsAddingTimeSlot(false);
-                                  setNewTimeSlot({ from: "", to: "", studentIds: [] });
+                                  setNewTimeSlot({ from: "", to: "", studentIds: [], maxStudents: undefined });
                                   setSelectedStudents(new Set());
                                 }}
                               >
@@ -621,6 +703,24 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                                   </div>
 
                                   <div>
+                                    <Label className="text-xs">Maximum Students</Label>
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      placeholder="Unlimited"
+                                      value={editSlot?.maxStudents || ''}
+                                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                        const value = e.target.value;
+                                        setEditSlot(prev => prev ? { 
+                                          ...prev, 
+                                          maxStudents: value ? parseInt(value) : undefined 
+                                        } : null);
+                                      }}
+                                      className="mt-1"
+                                    />
+                                  </div>
+
+                                  <div>
                                     <Label className="text-xs">Assign Students</Label>
                                     <Button
                                       variant="outline"
@@ -664,9 +764,26 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                                         {slot ? <TimeDisplay time={slot.from} /> : 'Time Slot'} - {slot ? <TimeDisplay time={slot.to} /> : ''}
                                       </span>
                                     </div>
-                                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                      <Users className="h-3 w-3" />
-                                      <span>{slot.studentIds.length} Students Assigned</span>
+                                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                      <div className="flex items-center gap-1">
+                                        <Users className="h-3 w-3" />
+                                        <span>{slot.studentIds.length} Students</span>
+                                      </div>
+                                      {slot.maxStudents && (
+                                        <div className={`flex items-center gap-1 px-2 py-1 rounded-full ${
+                                          slot.studentIds.length >= slot.maxStudents 
+                                            ? 'bg-red-100 text-red-700 border border-red-200' 
+                                            : slot.studentIds.length >= slot.maxStudents * 0.8
+                                            ? 'bg-yellow-100 text-yellow-700 border border-yellow-200'
+                                            : 'bg-green-100 text-green-700 border border-green-200'
+                                        }`}>
+                                          <span>
+                                            {slot.studentIds.length}/{slot.maxStudents} 
+                                            {slot.studentIds.length >= slot.maxStudents ? ' (Full)' : 
+                                             slot.studentIds.length >= slot.maxStudents * 0.8 ? ' (Almost Full)' : ''}
+                                          </span>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-1">
@@ -708,15 +825,30 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                                           enrollment.user && enrollment.user._id === studentId
                                         );
                                         return student && student.user ? (
-                                          <div key={studentId} className="flex items-center gap-3 text-sm text-card-foreground bg-muted/30 rounded-lg px-3 py-2 hover:bg-muted/50 transition-colors">
-                                            <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                                              <span className="text-primary text-sm font-semibold">
-                                                {student.user?.firstName?.[0] || student.user?.lastName?.[0] || 'U'}
+                                          <div key={studentId} className="flex items-center justify-between text-sm text-card-foreground bg-muted/30 rounded-lg px-3 py-2 hover:bg-muted/50 transition-colors">
+                                            <div className="flex items-center gap-3">
+                                              <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                                                <span className="text-primary text-sm font-semibold">
+                                                  {student.user?.firstName?.[0] || student.user?.lastName?.[0] || 'U'}
+                                                </span>
+                                              </div>
+                                              <span className="font-medium">
+                                                {student.user?.firstName} {student.user?.lastName}
                                               </span>
                                             </div>
-                                            <span className="font-medium">
-                                              {student.user?.firstName} {student.user?.lastName}
-                                            </span>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleRemoveStudentFromTimeSlot(slot, studentId);
+                                              }}
+                                              disabled={removeStudentFromTimeSlotMutation.isPending}
+                                              className="text-red-600 hover:text-red-700 hover:bg-red-50 h-6 w-6 p-0"
+                                              title={`Remove ${student.user?.firstName} ${student.user?.lastName} from this time slot`}
+                                            >
+                                              <X className="h-3 w-3" />
+                                            </Button>
                                           </div>
                                         ) : null;
                                       })}
