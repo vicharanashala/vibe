@@ -10,9 +10,12 @@ import {
   Post,
   QueryParams,
   UploadedFiles,
+  UseBefore,
+  Req,
 } from "routing-controllers";
 import { OpenAPI, ResponseSchema } from "routing-controllers-openapi";
 import { IUser, BadRequestErrorResponse } from "#root/shared/index.js";
+import multer from "multer";
 
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { ActivitySubmissionsService } from "../services/activitySubmissionsService.js";
@@ -34,13 +37,16 @@ export class ActivitySubmissionsController {
   @Post("/")
   @Authorized()
   @HttpCode(201)
+  @UseBefore(multer().any())
   @ResponseSchema(BadRequestErrorResponse, { description: "Bad Request Error", statusCode: 400 })
   async submit(
     @CurrentUser() user: IUser,
     @Body({ required: true }) body: CreateHpActivitySubmissionBodyDto,
-    @UploadedFiles("files", { required: false }) files?: Express.Multer.File[],
-    @UploadedFiles("images", { required: false }) images?: Express.Multer.File[],
+    @Req() req: any,
   ) {
+    const allFiles = req.files as Express.Multer.File[];
+    const files = allFiles?.filter(f => f.fieldname === "files");
+    const images = allFiles?.filter(f => f.fieldname === "images");
     const student = {
       id: user._id.toString(),
       email: user.email,
