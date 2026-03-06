@@ -679,14 +679,39 @@ function CourseCard({
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                  {/* <div className="flex flex-row sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2"> */}
+                  <div className="flex flex-row items-center gap-2 sm:gap-3 mb-2">
                     <CardTitle className="text-lg md:text-xl font-bold text-foreground sm:line-clamp-2 break-words">
-                      {course.name}
+                        {(() => {
+                          const MAX_TITLE_LENGTH = 60;
+                          const isLong = course.name.length > MAX_TITLE_LENGTH;
+                          const displayName = isLong ? course.name.slice(0, MAX_TITLE_LENGTH) + "..." : course.name;
+                          return (
+                            <span
+                              className="relative cursor-pointer"
+                              title={isLong ? course.name : undefined}
+                              style={{
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                maxWidth: "100%",
+                                display: "inline-block"
+                              }}
+                            >
+                              {displayName}
+                              {isLong && (
+                                <span className="absolute left-0 top-full z-10 mt-1 px-2 py-1 bg-background border border-border rounded shadow text-xs text-foreground whitespace-pre-line opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                                  {course.name}
+                                </span>
+                              )}
+                            </span>
+                          );
+                        })()}
                     </CardTitle>
-                    <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary w-fit shrink-0">
+                    {/* <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary w-fit shrink-0">
                       <FileText className="h-3 w-3 mr-1" />
                       {`${course.versions?.length || 0} version${course.versions?.length > 1 ? 's' : ''}`}
-                    </Badge>
+                    </Badge> */}
                   </div>
 
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
