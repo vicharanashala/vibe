@@ -12,6 +12,7 @@ import { randomBytes } from "crypto";
 import { ActivityService } from "./activityService.js";
 import { RuleConfigService } from "./ruleConfigsService.js";
 import { HpLedger } from "../models.js";
+import { ObjectId } from "mongodb";
 
 
 @injectable()
@@ -200,28 +201,29 @@ export class ActivitySubmissionsService extends BaseService {
             // }
 
 
-                // const isLedgerCreated = await this.ledgerRepository.create()
+            // const isLedgerCreated = await this.ledgerRepository.create()
 
             const submissionId = await this.activitySubmissionsRepository.create(
-                    {
-                        courseId: body.courseId,
-                        courseVersionId: body.courseVersionId,
-                        cohort: body.cohort,
-                        activityId: body.activityId,
-                        studentId: student.id,
-                        studentEmail: student.email,
-                        studentName: student.name,
-                        payload,
-                        submissionSource: body.submissionSource ?? "IN_PLATFORM",
-                        isLate,
+                {
+                    courseId: new ObjectId(body.courseId),
+                    courseVersionId: new ObjectId(body.courseVersionId),
+                    cohort: new ObjectId(body.cohort),
+                    activityId: new ObjectId(body.activityId),
 
-                    },
-                    { session }
-                );
+                    studentId: new ObjectId(student.id),
+                    studentEmail: student.email,
+                    studentName: student.name,
 
-                return { success: true, submissionId };
+                    payload,
+                    submissionSource: body.submissionSource ?? "IN_PLATFORM",
+                    isLate,
+                },
+                { session }
+            );
 
-            });
+            return { success: true, submissionId };
+
+        });
     }
 
     async getById(id: string): Promise<any> {
