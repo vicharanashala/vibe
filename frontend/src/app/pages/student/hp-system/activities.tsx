@@ -83,8 +83,14 @@ export default function StudentActivities() {
         if (!selectedActivity) return;
         setSubmitError(null);
 
-        // Filter out empty links
         const validLinks = links.filter(l => l.url.trim() !== "");
+        const hasAttachments = files.length > 0 || images.length > 0 || validLinks.length > 0;
+        const hasText = textResponse.trim() !== "";
+
+        if (!hasText || !hasAttachments) {
+            setSubmitError("Please provide a text response AND at least one attachment (file, image, or link).");
+            return;
+        }
 
         try {
             await submitActivity({
@@ -418,7 +424,10 @@ export default function StudentActivities() {
                         <Button variant="outline" onClick={() => setSubmitDialogOpen(false)} disabled={isSubmitting}>
                             Cancel
                         </Button>
-                        <Button onClick={handleSubmit} disabled={isSubmitting}>
+                        <Button
+                            onClick={handleSubmit}
+                            disabled={isSubmitting || !textResponse.trim() || (files.length === 0 && images.length === 0 && links.every(l => !l.url.trim()))}
+                        >
                             {isSubmitting ? (
                                 <>
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
