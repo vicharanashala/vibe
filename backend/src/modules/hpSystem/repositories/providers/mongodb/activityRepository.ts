@@ -21,7 +21,7 @@ export class ActivityRepository implements IActivityRepository {
         this.hpActivityCollection = await this.db.getCollection<HpActivity>('hp_activities');
     }
 
-    async createActivity(payload: Partial<HpActivity>, session?: ClientSession): Promise<HpActivity> {
+    async createActivity(payload: Partial<HpActivity>, session?: ClientSession): Promise<HpActivityTransformer> {
         await this.init();
         const now = new Date();
 
@@ -31,12 +31,21 @@ export class ActivityRepository implements IActivityRepository {
             updatedAt: (payload as HpActivity)?.updatedAt ?? now,
         };
 
-        await this.hpActivityCollection.insertOne(
+        const result = await this.hpActivityCollection.insertOne(
             docToInsert,
             session ? { session } : undefined,
         );
 
-        return docToInsert;
+        docToInsert._id = result.insertedId;
+
+        const transformed = plainToInstance(HpActivityTransformer, docToInsert as unknown as HpActivity, {
+            excludeExtraneousValues: true,
+            exposeDefaultValues: true,
+        });
+
+        transformed._id = result.insertedId;
+
+        return transformed;
     }
 
     async updateActivityById(

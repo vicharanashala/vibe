@@ -17,6 +17,7 @@ import {
     UpdateHpRuleConfigBody,
 } from "../classes/validators/ruleConfigValidators.js";
 import { BadRequestErrorResponse } from "#root/shared/index.js";
+import { instanceToPlain } from "class-transformer";
 
 @OpenAPI({
     tags: ["HP Rule Configs"],
@@ -43,7 +44,7 @@ export class RuleConfigsController {
         return {
             success: true,
             message: "Rule config created successfully",
-            data,
+            data: instanceToPlain(data),
         };
     }
 
@@ -58,7 +59,7 @@ export class RuleConfigsController {
         return {
             success: true,
             message: "Rule config updated successfully",
-            data,
+            data: instanceToPlain(data),
         };
     }
 
@@ -69,7 +70,7 @@ export class RuleConfigsController {
         const data = await this.ruleConfigService.getByActivityId(activityId);
         return {
             success: true,
-            data,
+            data: instanceToPlain(data),
         };
     }
 
@@ -80,7 +81,7 @@ export class RuleConfigsController {
         const data = await this.ruleConfigService.getById(ruleConfigId);
         return {
             success: true,
-            data,
+            data: instanceToPlain(data),
         };
     }
 }
