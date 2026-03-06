@@ -17,6 +17,7 @@ import {
     Trash2,
     Loader2,
     Send,
+    Image as ImageIcon
 } from "lucide-react";
 import { HpActivity } from "@/lib/api/hp-system";
 
@@ -35,6 +36,8 @@ export default function StudentActivities() {
     const [selectedActivity, setSelectedActivity] = useState<HpActivity | null>(null);
     const [textResponse, setTextResponse] = useState("");
     const [links, setLinks] = useState<{ url: string; label: string }[]>([]);
+    const [files, setFiles] = useState<File[]>([]);
+    const [images, setImages] = useState<File[]>([]);
     const [submitError, setSubmitError] = useState<string | null>(null);
 
     const formatDate = (dateString: string) => {
@@ -56,6 +59,8 @@ export default function StudentActivities() {
         setSelectedActivity(activity);
         setTextResponse("");
         setLinks([]);
+        setFiles([]);
+        setImages([]);
         setSubmitError(null);
         setSubmitDialogOpen(true);
     };
@@ -92,6 +97,8 @@ export default function StudentActivities() {
                     links: validLinks.length > 0 ? validLinks : undefined,
                 },
                 submissionSource: "IN_PLATFORM",
+                files: files.length > 0 ? files : undefined,
+                images: images.length > 0 ? images : undefined,
             });
             setSubmitDialogOpen(false);
             refetch(); // Refresh the activities list
@@ -247,6 +254,67 @@ export default function StudentActivities() {
                                 onChange={(e) => setTextResponse(e.target.value)}
                                 disabled={isSubmitting}
                             />
+                        </div>
+
+                        {/* File Uploads */}
+                        <div className="space-y-3">
+                            <Label>Files (PDF, DOCX, etc)</Label>
+                            <Input
+                                type="file"
+                                multiple
+                                onChange={(e) => {
+                                    if (e.target.files) {
+                                        setFiles((prev) => [...prev, ...Array.from(e.target.files as FileList)]);
+                                    }
+                                }}
+                                disabled={isSubmitting}
+                            />
+                            {files.length > 0 && (
+                                <div className="space-y-2 mt-2">
+                                    {files.map((file, idx) => (
+                                        <div key={idx} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded border">
+                                            <div className="flex items-center gap-2 truncate">
+                                                <FileText className="h-4 w-4 text-muted-foreground" />
+                                                <span className="truncate">{file.name}</span>
+                                            </div>
+                                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={() => setFiles(files.filter((_, i) => i !== idx))}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Image Uploads */}
+                        <div className="space-y-3">
+                            <Label>Images (JPG, PNG)</Label>
+                            <Input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={(e) => {
+                                    if (e.target.files) {
+                                        setImages((prev) => [...prev, ...Array.from(e.target.files as FileList)]);
+                                    }
+                                }}
+                                disabled={isSubmitting}
+                            />
+                            {images.length > 0 && (
+                                <div className="space-y-2 mt-2">
+                                    {images.map((img, idx) => (
+                                        <div key={idx} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded border">
+                                            <div className="flex items-center gap-2 truncate">
+                                                <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                                                <span className="truncate">{img.name}</span>
+                                            </div>
+                                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={() => setImages(images.filter((_, i) => i !== idx))}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* Links */}
