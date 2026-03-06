@@ -1479,6 +1479,7 @@ export class EnrollmentService extends BaseService {
 
       const result = await this.enrollmentRepo.removeEnrollmentTimeSlot(
         enrollment._id?.toString(),
+        undefined,
         session,
       );
 
