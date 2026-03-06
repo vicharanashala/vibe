@@ -71,11 +71,30 @@ export class HpActivityStats {
   lastRecomputedAt: Date;
 }
 
+export class HpActivityRules {
+  @Expose()
+  @IsBoolean()
+  @JSONSchema({ title: "Is Mandatory", type: "boolean", example: true })
+  isMandatory: boolean;
+
+  @Expose()
+  @Type(() => Date)
+  @JSONSchema({ title: "Deadline At", type: "string", format: "date-time" })
+  deadlineAt: Date;
+
+  @Expose()
+  @IsBoolean()
+  @JSONSchema({ title: "Allow Late Submission", type: "boolean", example: false })
+  allowLateSubmission: boolean;
+}
+
 /**
  * hp_activities data transformation.
  *
  * @category HP/Transformers
  */
+
+
 export class HpActivityTransformer {
   @Expose()
   @JSONSchema({ title: 'Activity ID', type: 'string' })
@@ -207,6 +226,15 @@ export class HpActivityTransformer {
   @Type(() => HpActivityStats)
   @JSONSchema({ title: 'Stats', type: 'object' })
   stats: HpActivityStats;
+
+  @Expose()
+  @ValidateNested()
+  @Type(() => HpActivityRules)
+  @JSONSchema({
+    title: "Rules",
+    type: "object",
+  })
+  rules?: HpActivityRules;
 
   @Expose()
   @Type(() => Date)
