@@ -23,7 +23,7 @@ import type { ProctoringSettings } from '@/types/video.types';
 import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.types';
 import { EntityType, IReport, ReportStatus } from '@/types/flag.types';
 import { PendingRegistrationNotification, ApprovedRegistrationNotification } from '@/types/notification.types';
-import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { useQueryClient, useQuery, useMutation } from '@tanstack/react-query';
 import { VersionWithCourse } from '@/app/pages/student/CourseRegistration';
 import { Registration, RegistrationStatus } from '@/app/pages/teacher/CourseRegistrationRequests';
 // import { Field } from '@/app/pages/teacher/components/course-registration-modal';
@@ -4715,136 +4715,106 @@ import {
 } from '../lib/api/hp-system';
 
 export function useHpCourseVersions() {
-  const [data, setData] = useState<CourseWithVersions[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    try {
+  const query = useQuery({
+    queryKey: ['hp-course-versions'],
+    queryFn: async () => {
       const res = await hpApi.getCourseVersions();
-      if (res.success) {
-        setData(res.data);
-      }
-      setError(null);
-    } catch (err: any) {
-      setError(err.message || "Failed to load course versions");
-      console.error('useHpCourseVersions error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      if (!res.success) throw new Error(res.message || 'Failed to load course versions');
+      return res.data;
+    },
+    refetchOnWindowFocus: false,
+  });
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  return { data, isLoading, error, refetch: fetchData };
+  return {
+    data: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
+  };
 }
 
 export function useHpCohorts(courseVersionId: string) {
-  const [data, setData] = useState<CohortStats[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!courseVersionId) return;
-    setIsLoading(true);
-    try {
+  const query = useQuery({
+    queryKey: ['hp-cohorts', courseVersionId],
+    queryFn: async () => {
       const res = await hpApi.getCohorts(courseVersionId);
-      if (res.success) {
-        setData(res.data);
-      }
-      setError(null);
-    } catch (err: any) {
-      setError(err.message || "Failed to load cohorts");
-      console.error('useHpCohorts error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [courseVersionId]);
+      if (!res.success) throw new Error(res.message || 'Failed to load cohorts');
+      return res.data;
+    },
+    enabled: !!courseVersionId,
+    refetchOnWindowFocus: false,
+  });
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  return { data, isLoading, error, refetch: fetchData };
+  return {
+    data: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
+  };
 }
 
 export function useHpStudentCohorts() {
-  const [data, setData] = useState<any[]>([]); // Using any[] here matching the mock data structure temporarily
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    try {
+  const query = useQuery({
+    queryKey: ['hp-student-cohorts'],
+    queryFn: async () => {
       const res = await hpApi.getStudentCohorts();
-      if (res.success) {
-        setData(res.data);
-      }
-      setError(null);
-    } catch (err: any) {
-      setError(err.message || "Failed to load your cohorts");
-      console.error('useHpStudentCohorts error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      if (!res.success) throw new Error(res.message || 'Failed to load your cohorts');
+      return res.data;
+    },
+    refetchOnWindowFocus: false,
+  });
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  return { data, isLoading, error, refetch: fetchData };
+  return {
+    data: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
+  };
 }
 
 export function useHpStudentActivities(courseVersionId: string, cohortName: string) {
-  const [data, setData] = useState<HpActivity[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!courseVersionId || !cohortName) return;
-    setIsLoading(true);
-    try {
+  const query = useQuery({
+    queryKey: ['hp-student-activities', courseVersionId, cohortName],
+    queryFn: async () => {
       const res = await hpApi.getStudentActivities(courseVersionId, cohortName);
-      if (res.success) {
-        setData(res.data);
-      }
-      setError(null);
-    } catch (err: any) {
-      setError(err.message || "Failed to load activities");
-      console.error('useHpStudentActivities error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [courseVersionId, cohortName]);
+      if (!res.success) throw new Error(res.message || 'Failed to load activities');
+      return res.data;
+    },
+    enabled: !!courseVersionId && !!cohortName,
+    refetchOnWindowFocus: false,
+  });
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  return { data, isLoading, error, refetch: fetchData };
+  return {
+    data: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
+  };
 }
 
 export function useSubmitActivity() {
-  const [isPending, setIsPending] = useState(false);
-
-  const mutateAsync = useCallback(async (payload: {
-    courseId: string;
-    courseVersionId: string;
-    cohort: string;
-    activityId: string;
-    payload: {
-      textResponse?: string;
-      links?: { url: string; label: string }[];
-    };
-    submissionSource?: string;
-  }) => {
-    setIsPending(true);
-    try {
+  const mutation = useMutation({
+    mutationFn: async (payload: {
+      courseId: string;
+      courseVersionId: string;
+      cohort: string;
+      activityId: string;
+      payload: {
+        textResponse?: string;
+        links?: { url: string; label: string }[];
+      };
+      submissionSource?: string;
+    }) => {
       const res = await hpApi.submitActivity(payload);
-      if (!res.success) throw new Error('Failed to submit activity');
+      if (!res.success) throw new Error(res.message || 'Failed to submit activity');
       return res.data;
-    } finally {
-      setIsPending(false);
-    }
-  }, []);
+    },
+  });
 
-  return { mutateAsync, isPending };
+  return {
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+  };
 }
 
 export function useHpActivities(
@@ -4853,320 +4823,251 @@ export function useHpActivities(
   status?: string,
   search?: string
 ) {
-  const [data, setData] = useState<HpActivity[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!courseVersionId || !cohort) {
-      return;
-    }
-    setIsLoading(true);
-    try {
+  const query = useQuery({
+    queryKey: ['hp-activities', courseVersionId, cohort, status, search],
+    queryFn: async () => {
       const res = await hpApi.getActivities(courseVersionId, cohort, status, search);
-      if (res.success) {
-        setData(res.data);
-      }
-      setError(null);
-    } catch (err: any) {
-      setError(err.message || "Failed to load activities");
-      console.error('useHpActivities error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [courseVersionId, cohort, status, search]);
+      if (!res.success) throw new Error(res.message || 'Failed to load activities');
+      return res.data;
+    },
+    enabled: !!courseVersionId && !!cohort,
+    refetchOnWindowFocus: false,
+  });
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  return { data, isLoading, error, refetch: fetchData };
+  return {
+    data: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
+  };
 }
 
 export function useCreateHpActivity() {
-  const [isPending, setIsPending] = useState(false);
-
-  const mutateAsync = async (payload: CreateHpActivityPayload) => {
-    setIsPending(true);
-    try {
+  const mutation = useMutation({
+    mutationFn: async (payload: CreateHpActivityPayload) => {
       const res = await hpApi.createActivity(payload);
-      if (!res.success) throw new Error("Failed to create activity");
+      if (!res.success) throw new Error(res.message || 'Failed to create activity');
       toast.success("Activity created successfully");
       return res.data;
-    } catch (err: any) {
-      toast.error(err.message || "Failed to create activity");
-      throw err;
-    } finally {
-      setIsPending(false);
-    }
-  };
+    },
+  });
 
-  return { mutateAsync, isPending };
+  return {
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+  };
 }
 
 export function useUpdateHpActivity() {
-  const [isPending, setIsPending] = useState(false);
-
-  const mutateAsync = async (activityId: string, updates: Partial<HpActivity>) => {
-    setIsPending(true);
-    try {
+  const mutation = useMutation({
+    mutationFn: async ({ activityId, updates }: { activityId: string, updates: Partial<HpActivity> }) => {
       const res = await hpApi.updateActivity(activityId, updates);
-      if (!res.success) throw new Error("Failed to update activity");
+      if (!res.success) throw new Error(res.message || 'Failed to update activity');
       toast.success("Activity updated successfully");
       return res.data;
-    } catch (err: any) {
-      toast.error(err.message || "Failed to update activity");
-      throw err;
-    } finally {
-      setIsPending(false);
-    }
-  };
+    },
+  });
 
-  return { mutateAsync, isPending };
+  return {
+    mutateAsync: (activityId: string, updates: Partial<HpActivity>) => mutation.mutateAsync({ activityId, updates }),
+    isPending: mutation.isPending,
+  };
 }
 
 export function usePublishHpActivity() {
-  const [isPending, setIsPending] = useState(false);
-
-  const mutateAsync = async (activityId: string) => {
-    setIsPending(true);
-    try {
+  const mutation = useMutation({
+    mutationFn: async (activityId: string) => {
       const res = await hpApi.publishActivity(activityId);
-      if (!res.success) throw new Error("Failed to publish activity");
+      if (!res.success) throw new Error(res.message || 'Failed to publish activity');
       toast.success("Activity published successfully");
       return res.data;
-    } catch (err: any) {
-      toast.error(err.message || "Failed to publish activity");
-      throw err;
-    } finally {
-      setIsPending(false);
-    }
-  };
+    },
+  });
 
-  return { mutateAsync, isPending };
+  return {
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+  };
 }
 
 export function useArchiveHpActivity() {
-  const [isPending, setIsPending] = useState(false);
-
-  const mutateAsync = async (activityId: string) => {
-    setIsPending(true);
-    try {
+  const mutation = useMutation({
+    mutationFn: async (activityId: string) => {
       const res = await hpApi.archiveActivity(activityId);
-      if (!res.success) throw new Error("Failed to archive activity");
+      if (!res.success) throw new Error(res.message || 'Failed to archive activity');
       toast.success("Activity archived successfully");
       return res.data;
-    } catch (err: any) {
-      toast.error(err.message || "Failed to archive activity");
-      throw err;
-    } finally {
-      setIsPending(false);
-    }
-  };
+    },
+  });
 
-  return { mutateAsync, isPending };
+  return {
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+  };
 }
 
 export function useHpRuleConfig(activityId: string | undefined) {
-  const [data, setData] = useState<HpRuleConfig | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!activityId) return;
-    setIsLoading(true);
-    try {
-      const res = await hpApi.getRuleConfigByActivityId(activityId);
-      if (res.success) {
-        setData(res.data);
+  const query = useQuery({
+    queryKey: ['hp-rule-config', activityId],
+    queryFn: async () => {
+      try {
+        const res = await hpApi.getRuleConfigByActivityId(activityId!);
+        if (!res.success) return null;
+        return res.data;
+      } catch (err) {
+        return null;
       }
-      setError(null);
-    } catch (err: any) {
-      // 404 is expected if no rule config exists yet
-      setData(null);
-      setError(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activityId]);
+    },
+    enabled: !!activityId,
+    refetchOnWindowFocus: false,
+  });
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  return { data, isLoading, error, refetch: fetchData };
+  return {
+    data: query.data || null,
+    isLoading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
+  };
 }
 
 export function useCreateHpRuleConfig() {
-  const [isPending, setIsPending] = useState(false);
-
-  const mutateAsync = async (payload: Partial<HpRuleConfig>) => {
-    setIsPending(true);
-    try {
+  const mutation = useMutation({
+    mutationFn: async (payload: Partial<HpRuleConfig>) => {
       const res = await hpApi.createRuleConfig(payload);
-      if (!res.success) throw new Error("Failed to create rule config");
+      if (!res.success) throw new Error(res.message || 'Failed to create rule config');
       toast.success("Rule configuration created");
       return res.data;
-    } catch (err: any) {
-      toast.error(err.message || "Failed to create rule config");
-      throw err;
-    } finally {
-      setIsPending(false);
-    }
-  };
+    },
+  });
 
-  return { mutateAsync, isPending };
+  return {
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+  };
 }
 
 export function useUpdateHpRuleConfig() {
-  const [isPending, setIsPending] = useState(false);
-
-  const mutateAsync = async (ruleConfigId: string, updates: Partial<HpRuleConfig>) => {
-    setIsPending(true);
-    try {
+  const mutation = useMutation({
+    mutationFn: async ({ ruleConfigId, updates }: { ruleConfigId: string, updates: Partial<HpRuleConfig> }) => {
       const res = await hpApi.updateRuleConfig(ruleConfigId, updates);
-      if (!res.success) throw new Error("Failed to update rule config");
+      if (!res.success) throw new Error(res.message || 'Failed to update rule config');
       toast.success("Rule configuration updated");
       return res.data;
-    } catch (err: any) {
-      toast.error(err.message || "Failed to update rule config");
-      throw err;
-    } finally {
-      setIsPending(false);
-    }
-  };
+    },
+  });
 
-  return { mutateAsync, isPending };
+  return {
+    mutateAsync: (ruleConfigId: string, updates: Partial<HpRuleConfig>) => mutation.mutateAsync({ ruleConfigId, updates }),
+    isPending: mutation.isPending,
+  };
 }
 
 export function useHpStudents(courseVersionId: string, cohort: string) {
-  const [data, setData] = useState<HpStudent[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!courseVersionId || !cohort) return;
-    setIsLoading(true);
-    try {
+  const query = useQuery({
+    queryKey: ['hp-students', courseVersionId, cohort],
+    queryFn: async () => {
       const res = await hpApi.getStudents(courseVersionId, cohort);
-      if (res.success) setData(res.data);
-      setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load students');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [courseVersionId, cohort]);
+      if (!res.success) throw new Error(res.message || 'Failed to load students');
+      return res.data;
+    },
+    enabled: !!courseVersionId && !!cohort,
+    refetchOnWindowFocus: false,
+  });
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  return { data, isLoading, error, refetch: fetchData };
+  return {
+    data: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
+  };
 }
 
 export function useHpStudentLedger(studentId: string, courseVersionId: string, cohort: string) {
-  const [data, setData] = useState<HpLedgerEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!studentId || !courseVersionId || !cohort) return;
-    setIsLoading(true);
-    try {
+  const query = useQuery({
+    queryKey: ['hp-student-ledger', studentId, courseVersionId, cohort],
+    queryFn: async () => {
       const res = await hpApi.getStudentLedger(studentId, courseVersionId, cohort);
-      if (res.success) setData(res.data);
-      setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load ledger');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [studentId, courseVersionId, cohort]);
+      if (!res.success) throw new Error(res.message || 'Failed to load ledger');
+      return res.data;
+    },
+    enabled: !!studentId && !!courseVersionId && !!cohort,
+    refetchOnWindowFocus: false,
+  });
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  return { data, isLoading, error, refetch: fetchData };
+  return {
+    data: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
+  };
 }
 
 export function useRevertHpEntry() {
-  const [isPending, setIsPending] = useState(false);
-
-  const mutateAsync = async (entryId: string) => {
-    setIsPending(true);
-    try {
+  const mutation = useMutation({
+    mutationFn: async (entryId: string) => {
       const res = await hpApi.revertLedgerEntry(entryId);
-      if (!res.success) throw new Error('Failed to revert entry');
+      if (!res.success) throw new Error(res.message || 'Failed to revert entry');
       toast.success('Entry reverted successfully');
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to revert entry');
-      throw err;
-    } finally {
-      setIsPending(false);
-    }
-  };
+    },
+  });
 
-  return { mutateAsync, isPending };
+  return {
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+  };
 }
 
 export function useRestoreHpEntry() {
-  const [isPending, setIsPending] = useState(false);
-
-  const mutateAsync = async (entryId: string) => {
-    setIsPending(true);
-    try {
+  const mutation = useMutation({
+    mutationFn: async (entryId: string) => {
       const res = await hpApi.restoreLedgerEntry(entryId);
-      if (!res.success) throw new Error('Failed to restore entry');
+      if (!res.success) throw new Error(res.message || 'Failed to restore entry');
       toast.success('Entry restored successfully');
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to restore entry');
-      throw err;
-    } finally {
-      setIsPending(false);
-    }
-  };
+    },
+  });
 
-  return { mutateAsync, isPending };
+  return {
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+  };
 }
 
 export function useHpCohortOverviewStats(courseVersionId: string, cohort: string) {
-  const [data, setData] = useState<HpCohortOverviewStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!courseVersionId || !cohort) return;
-    setIsLoading(true);
-    try {
+  const query = useQuery({
+    queryKey: ['hp-cohort-overview', courseVersionId, cohort],
+    queryFn: async () => {
       const res = await hpApi.getCohortOverviewStats(courseVersionId, cohort);
-      if (res.success) setData(res.data);
-      setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load cohort overview stats');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [courseVersionId, cohort]);
+      if (!res.success) throw new Error(res.message || 'Failed to load cohort overview stats');
+      return res.data;
+    },
+    enabled: !!courseVersionId && !!cohort,
+    refetchOnWindowFocus: false,
+  });
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  return { data, isLoading, error, refetch: fetchData };
+  return {
+    data: query.data || null,
+    isLoading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
+  };
 }
 
 export function useHpStudentSubmissions(studentId: string, courseVersionId: string, cohort: string) {
-  const [data, setData] = useState<HpStudentSubmission[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!studentId || !courseVersionId || !cohort) return;
-    setIsLoading(true);
-    try {
+  const query = useQuery({
+    queryKey: ['hp-student-submissions', studentId, courseVersionId, cohort],
+    queryFn: async () => {
       const res = await hpApi.getStudentSubmissions(studentId, courseVersionId, cohort);
-      if (res.success) setData(res.data);
-      setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load student submissions');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [studentId, courseVersionId, cohort]);
+      if (!res.success) throw new Error(res.message || 'Failed to load student submissions');
+      return res.data;
+    },
+    enabled: !!studentId && !!courseVersionId && !!cohort,
+    refetchOnWindowFocus: false,
+  });
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  return { data, isLoading, error, refetch: fetchData };
+  return {
+    data: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
+  };
 }
