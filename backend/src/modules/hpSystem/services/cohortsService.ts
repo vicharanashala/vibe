@@ -178,8 +178,20 @@ export class CohortsService extends BaseService {
 
     async listCohorts(userId: string, query: CohortListQueryDto): Promise<CohortListResponseDto> {
         return await this._withTransaction(async (session: ClientSession) => {
-            const cohorts = await this._handleExisitingCohorts(query.courseVersionId);
-            // if (cohorts)
+            let cohorts: CohortListItemDto[] = [];
+
+            if (query.courseVersionId) {
+                const fetched = await this._handleExisitingCohorts(query.courseVersionId);
+                if (fetched) cohorts = fetched;
+            } else {
+                // Return cohorts from all known versions if no specific version requested
+                const versions = ["000000000000000000000001", "000000000000000000000002"];
+                for (const v of versions) {
+                    const fetched = await this._handleExisitingCohorts(v);
+                    if (fetched) cohorts.push(...fetched);
+                }
+            }
+
             return {
                 success: true,
                 message: "Cohorts fetched successfully",

@@ -9,7 +9,7 @@ import {
   useNavigate
 } from '@tanstack/react-router'
 import { useAuthStore } from '@/store/auth-store'
-import { useEffect } from 'react'
+import React, { useEffect } from 'react'
 
 // Import pages and layouts
 import AuthPage from '@/app/pages/auth-page'
@@ -57,6 +57,7 @@ import HpSystemDashboard from '../pages/teacher/hp-system/CohortDetails'
 import CreateHpActivityPage from '../pages/teacher/hp-system/create-activity'
 import StudentLedgerPage from '../pages/teacher/hp-system/student-ledger'
 import StudentSubmissionsPage from '../pages/teacher/hp-system/student-submissions'
+import StudentCohorts from '@/app/pages/student/hp-system/cohorts'
 
 // Root route with error and notFound handling
 const rootRoute = new RootRoute({
@@ -470,6 +471,28 @@ const studentAnnouncementsRoute = new Route({
   component: StudentAnnouncements,
 });
 
+// Student cohorts route
+const studentHpSystemCohortsRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/hp-system/cohorts',
+  component: StudentCohorts,
+});
+
+// Student activities route
+const studentHpSystemActivitiesRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/hp-system/$courseVersionId/$cohortName/activities',
+  component: () => {
+    // For TanStack router, if using React.lazy, we wrap it
+    const Component = React.lazy(() => import('@/app/pages/student/hp-system/activities'));
+    return (
+      <React.Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading...</div>}>
+        <Component />
+      </React.Suspense>
+    )
+  },
+});
+
 // export const studentCourseInviteRegistration = new Route({
 //   getParentRoute: () => studentLayoutRoute,
 //   path: "/course-registration/$versionId",
@@ -612,7 +635,9 @@ const routeTree = rootRoute.addChildren([
     studentCourseInviteRegistration,
     studentIssuesRoute,
     studentLeaderboardRoute,
-    studentAnnouncementsRoute
+    studentAnnouncementsRoute,
+    studentHpSystemCohortsRoute,
+    studentHpSystemActivitiesRoute
   ]),
   coursePageRoute,
 ]);

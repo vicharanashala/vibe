@@ -1,34 +1,14 @@
-import React, { useState } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, ArrowLeft } from "lucide-react";
+import { Users, ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useHpCohorts } from "@/hooks/hooks";
 
 export default function HpSystemCohorts() {
     const { courseVersionId } = useParams({ strict: false });
     const navigate = useNavigate();
 
-    // TODO: Fetch from actual API
-    const cohorts = [
-        {
-            cohortName: "Cohort A",
-            courseVersionId: courseVersionId as string,
-            stats: {
-                totalStudents: 120,
-                publishedActivities: 12,
-                totalHpDistributed: 8500,
-            }
-        },
-        {
-            cohortName: "Cohort B",
-            courseVersionId: courseVersionId as string,
-            stats: {
-                totalStudents: 95,
-                publishedActivities: 10,
-                totalHpDistributed: 6200,
-            }
-        }
-    ];
+    const { data: cohorts, isLoading, error } = useHpCohorts(courseVersionId as string);
 
     return (
         <div className="space-y-6">
@@ -41,6 +21,23 @@ export default function HpSystemCohorts() {
                     <p className="text-muted-foreground">Select a cohort to manage its activities.</p>
                 </div>
             </div>
+
+            {isLoading && (
+                <div className="flex items-center justify-center py-12 text-muted-foreground">
+                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                    Loading cohorts...
+                </div>
+            )}
+
+            {error && (
+                <div className="text-red-500 py-4">Error: {error}</div>
+            )}
+
+            {!isLoading && !error && cohorts.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                    No cohorts found for this version.
+                </div>
+            )}
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {cohorts.map((c) => (
@@ -73,3 +70,5 @@ export default function HpSystemCohorts() {
         </div>
     );
 }
+
+

@@ -1662,10 +1662,10 @@ export function useSkipOptionalItem(): {
   return {
     ...result,
     // error: result.error ? (result.error.message || 'Failed to skip item') : null
-   error: rawError
+    error: rawError
       ? rawError.message
-        ?? rawError.response?.data?.message
-        ?? "Failed to skip item"
+      ?? rawError.response?.data?.message
+      ?? "Failed to skip item"
       : null,
   }
 }
@@ -4761,6 +4761,59 @@ export function useHpCohorts(courseVersionId: string) {
       setIsLoading(false);
     }
   }, [courseVersionId]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  return { data, isLoading, error, refetch: fetchData };
+}
+
+export function useHpStudentCohorts() {
+  const [data, setData] = useState<any[]>([]); // Using any[] here matching the mock data structure temporarily
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res = await hpApi.getStudentCohorts();
+      if (res.success) {
+        setData(res.data);
+      }
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || "Failed to load your cohorts");
+      console.error('useHpStudentCohorts error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  return { data, isLoading, error, refetch: fetchData };
+}
+
+export function useHpStudentActivities(courseVersionId: string, cohortName: string) {
+  const [data, setData] = useState<HpActivity[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    if (!courseVersionId || !cohortName) return;
+    setIsLoading(true);
+    try {
+      const res = await hpApi.getStudentActivities(courseVersionId, cohortName);
+      if (res.success) {
+        setData(res.data);
+      }
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || "Failed to load activities");
+      console.error('useHpStudentActivities error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [courseVersionId, cohortName]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
