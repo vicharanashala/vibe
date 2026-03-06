@@ -172,7 +172,7 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                                     </div>
                                     <div className="flex items-center text-muted-foreground">
                                         <span className="w-24 font-medium text-foreground">Submission:</span>
-                                        <span>{activity.submissionMode.replace('_', ' ')}</span>
+                                        <span>{(activity.submissionMode || "").replace('_', ' ')}</span>
                                     </div>
                                     <div className="flex items-start text-muted-foreground">
                                         <span className="w-24 font-medium text-foreground whitespace-nowrap mt-0.5">Attachments:</span>
