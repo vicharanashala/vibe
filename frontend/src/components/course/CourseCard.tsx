@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCourseById, useUserProgressPercentage, useLeaderboard, useCourseVersionById } from "@/hooks/hooks";
+import { useCourseById, useUserProgressPercentage, useLeaderboard, useCourseVersionById, useGetTimeSlots } from "@/hooks/hooks";
 import { useCourseStore } from "@/store/course-store";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
@@ -21,14 +21,20 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { lazy, Suspense } from "react";
 
 const EnrollmentDetailsDialog = lazy(() =>
-  import("./EnrollmentDetailsDialog").then(mod => ({
+  import("@/components/course/EnrollmentDetailsDialog").then(mod => ({
     default: mod.EnrollmentDetailsDialog
+  }))
+);
+
+const StudentTimeslotModal = lazy(() =>
+  import("@/components/course/StudentTimeslotModal").then(mod => ({
+    default: mod.default
   }))
 );
 
 // Helper function to check if current time is within assigned time slot
 const isCurrentTimeInTimeSlot = (timeSlot?: { from: string; to: string }) => {
-  if (!timeSlot) return true; // No time slot restriction
+  if (!timeSlot || !timeSlot.from || !timeSlot.to) return true; // No time slot restriction
   
   const now = new Date();
   const currentTime = now.getHours() * 60 + now.getMinutes(); // Convert to minutes since midnight
@@ -62,6 +68,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const { setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isTimeslotModalOpen, setIsTimeslotModalOpen] = useState(false);
   const [isForumOpen, setIsForumOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
@@ -74,6 +81,11 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
   // const progress = Math.round(enrollment.percentCompleted || 0) as number 
   const progress = Number(((enrollment.percentCompleted || 0)).toFixed(2));
+
+  // Check if student already has assigned timeslots
+  const hasAssignedTimeslot = enrollment.assignedTimeSlot && 
+    Array.isArray(enrollment.assignedTimeSlot) && 
+    enrollment.assignedTimeSlot.length > 0;
 
   const contentCounts = enrollment.contentCounts as { totalItems?: number; videos?: number; quizzes?: number; articles?: number; project?: number, totalQuizScore?: number, totalQuizMaxScore?: number, completedVideos?: number, completedQuizzes?: number, completedArticles?: number, completedProjects?: number } || {};
   const totalLessons = contentCounts.totalItems || 0;
@@ -159,6 +171,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
   if (variant === 'dashboard' || variant === 'available') {
     return (
+      <>
       <Card className={`dark:bg-[#4b341e4b] border border-border overflow-hidden flex flex-col sm:flex-row student-card-hover p-0 ${className || ''}`}>
         <div className="w-full h-40 sm:h-auto sm:w-32 flex-shrink-0 flex items-center justify-center">
           <ImageWithFallback
@@ -256,6 +269,22 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
             &nbsp;&nbsp;&nbsp;
             {isCompleted ? "" : (progress == 0) ? "" : <span>&bull; MOD {module_number} &bull; SEC {section_number} &bull; {item_type}</span>}
+          {variant !== 'available' && enrollment.assignedTimeSlot && (
+              <span className="ml-2 inline-flex items-center gap-1.5">
+               
+                <span className="font-bold">Time Slot:</span>
+                  {
+                    enrollment.assignedTimeSlot && enrollment.assignedTimeSlot.map((timeSlot, index) => (
+                <span className="inline-flex items-center gap-1 px-2 py-0 rounded-full text-xs font-medium text-primary bg-primary/10 border border-primary/20">
+                  <Clock className="h-3 w-3" />
+                      <span key={index}>
+                        {timeSlot.from} - {timeSlot.to} IST
+                      </span>
+                </span>
+                    ))
+                  }
+              </span>
+            )}
           </p>
           <div className="mt-auto flex flex-col sm:flex-row gap-2">
             <Button
@@ -294,7 +323,19 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 </Suspense>
               )
             }
-            {variant !== 'available' && enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && <Button onClick={() => setIsDetailsOpen(true)} variant="outline" className="w-full sm:w-auto">View Details</Button>}
+            {variant !== 'available' && enrollment.courseVersionId !== "6981df886e100cfe04f9c4ae" && (
+              <>
+                <Button 
+                  onClick={() => setIsTimeslotModalOpen(true)} 
+                  variant="outline" 
+                  className="w-full sm:w-auto mb-2"
+                  disabled={hasAssignedTimeslot}
+                >
+                  {hasAssignedTimeslot ? 'Timeslot Assigned' : 'Choose Timeslot'}
+                </Button>
+                <Button onClick={() => setIsDetailsOpen(true)} variant="outline" className="w-full sm:w-auto">View Details</Button>
+              </>
+            )}
             {/* {enrollment.courseVersionId!=="6981df886e100cfe04f9c4ae"&& <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full sm:w-auto">View Details</Button>
@@ -419,6 +460,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 </ScrollArea>
               </DialogContent>
             </Dialog>} */}
+            
 
             {variant !== 'available' && supportLink && (() => {
               const isEmail = supportLink.startsWith('mailto:') || (!supportLink.startsWith('http://') && !supportLink.startsWith('https://') && !supportLink.startsWith('//') && supportLink.includes('@'));
@@ -690,10 +732,22 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
 
 
-
           </div>
         </CardContent>
       </Card>
+
+      {/* Student Timeslot Modal */}
+      <Suspense fallback={null}>
+        <StudentTimeslotModal
+          isOpen={isTimeslotModalOpen}
+          onClose={() => setIsTimeslotModalOpen(false)}
+          courseId={courseId}
+          courseVersionId={versionId}
+          currentUserId={""} // TODO: Get current user ID
+          hasAssignedTimeslot={hasAssignedTimeslot}
+        />
+      </Suspense>
+      </>
     );
   }
 

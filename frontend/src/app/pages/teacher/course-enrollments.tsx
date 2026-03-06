@@ -20,6 +20,7 @@ import { useStudentCurrentProgressPath } from "@/hooks/hooks"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
 import { MoreVertical, Trash2 } from "lucide-react"
+import CourseBackButton from "./CourseBackButton";
 
 // Import hooks - including the new quiz hooks
 import {
@@ -214,6 +215,18 @@ export default function CourseEnrollments() {
       slot.studentIds?.forEach((id: string) => assignedIds.add(id));
     });
     return assignedIds;
+  };
+
+  // Get assigned timeslot for a student
+  const getStudentTimeSlot = (studentId: string) => {
+    if (!timeSlotsData?.slots) return null;
+    
+    for (const slot of timeSlotsData.slots) {
+      if (slot.studentIds?.includes(studentId)) {
+        return slot;
+      }
+    }
+    return null;
   };
 
   // Handle student selection completion for time slots
@@ -881,6 +894,7 @@ export default function CourseEnrollments() {
     <>
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-4 space-y-8">
+          <CourseBackButton />
           {/* Enhanced Header */}
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="space-y-4">
@@ -1041,6 +1055,8 @@ export default function CourseEnrollments() {
               toggleSelectionMode={toggleSelectionMode}
               handleBulkUnenroll={handleBulkUnenroll}
               setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
+              timeSlotsData={timeSlotsData}
+              getStudentTimeSlot={getStudentTimeSlot}
             />
           </TabsContent>
 
@@ -1072,6 +1088,8 @@ export default function CourseEnrollments() {
               toggleSelectionMode={toggleSelectionMode}
               handleBulkUnenroll={handleBulkUnenroll}
               setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
+              timeSlotsData={timeSlotsData}
+              getStudentTimeSlot={getStudentTimeSlot}
             />
           </TabsContent>
         </Tabs>
@@ -1839,12 +1857,14 @@ export default function CourseEnrollments() {
     </div>
     
     {/* Time Slots Modal */}
-    <TimeSlotsModal
-      isOpen={isTimeSlotsModalOpen}
-      onClose={() => setIsTimeSlotsModalOpen(false)}
-      courseId={courseId || ""}
-      courseVersionId={versionId || ""}
-    />
+    {courseId && versionId && (
+      <TimeSlotsModal
+        isOpen={isTimeSlotsModalOpen}
+        onClose={() => setIsTimeSlotsModalOpen(false)}
+        courseId={courseId}
+        courseVersionId={versionId}
+      />
+    )}
     </>
   )
 }
@@ -2034,6 +2054,8 @@ function EnrollmentsTable({
   toggleSelectionMode,
   handleBulkUnenroll,
   setIsTimeSlotsModalOpen,
+  timeSlotsData,
+  getStudentTimeSlot,
 }: any) {
   const isInactiveTab = enrollmentTab === "INACTIVE"
 
@@ -2138,9 +2160,10 @@ function EnrollmentsTable({
                       <Checkbox
                         checked={
                           studentEnrollments.length > 0 &&
-                          studentEnrollments.every((e: any) =>
-                            selectedUsers.has(e.user?._id || e.user?.id)
-                          )
+                          studentEnrollments.every((e: any) => {
+                            const studentId = e.user?._id || e.user?.id;
+                            return selectedUsers.has(studentId);
+                          })
                         }
                         onCheckedChange={onSelectAll}
                         aria-label="Select all"
@@ -2154,12 +2177,14 @@ function EnrollmentsTable({
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
                         { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                         { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
                       ]
                       : [
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                         { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
                       ];
                     return columns.map(({ key, label, className }) => (
@@ -2224,9 +2249,10 @@ function EnrollmentsTable({
                       <Checkbox
                         checked={
                           studentEnrollments.length > 0 &&
-                          studentEnrollments.every((e: any) =>
-                            selectedUsers.has(e.user?._id || e.user?.id)
-                          )
+                          studentEnrollments.every((e: any) => {
+                            const studentId = e.user?._id || e.user?.id;
+                            return selectedUsers.has(studentId);
+                          })
                         }
                         onCheckedChange={onSelectAll}
                         aria-label="Select all"
@@ -2240,12 +2266,14 @@ function EnrollmentsTable({
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
                         { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                         { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
                       ]
                       : [
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "progress", label: "Completion Percentage", className: "w-[200px]" },
+                        { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                         { key: "scoreObtained", label: "Score obtained", className: "w-[200px]" },
                       ];
                     return columns.map(({ key, label, className }) => (
@@ -2381,6 +2409,26 @@ function EnrollmentsTable({
                       {/* Progress */}
                       <TableCell className="py-6">
                         <EnrollmentProgress progress={enrollment.progress || 0} />
+                      </TableCell>
+
+                      {/* Assigned Time Slot */}
+                      <TableCell className="py-6">
+                        <div className="text-muted-foreground font-medium">
+                          {(() => {
+                            const timeSlot = getStudentTimeSlot(enrollment.user?._id || enrollment.user?.id);
+                            if (timeSlot && timeSlot.from && timeSlot.to) {
+                              const formatTime = (time: string) => {
+                                const [hour, minute] = time.split(':');
+                                const h = parseInt(hour);
+                                const suffix = h >= 12 ? 'PM' : 'AM';
+                                const displayHour = h > 12 ? h - 12 : h === 0 ? 12 : h;
+                                return `${displayHour}:${minute} ${suffix}`;
+                              };
+                              return `${formatTime(timeSlot.from)} - ${formatTime(timeSlot.to)}`;
+                            }
+                            return "Not Assigned";
+                          })()}
+                        </div>
                       </TableCell>
 
                       {/* Score obtained */}

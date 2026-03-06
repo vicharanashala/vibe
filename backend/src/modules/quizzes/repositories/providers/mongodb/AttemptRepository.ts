@@ -123,7 +123,7 @@ class AttemptRepository {
   }
 
   async countByQuestionId(
-    questionId: string,
+    questionId: string | ObjectId,
     session?: ClientSession,
   ): Promise<number> {
     await this.init();
@@ -139,7 +139,7 @@ class AttemptRepository {
   }
 
   async countDistinctUsersByQuestionId(
-    questionId: string,
+    questionId: string | ObjectId,
     session?: ClientSession,
   ): Promise<number> {
     await this.init();

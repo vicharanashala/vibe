@@ -14,7 +14,6 @@ export interface IAuditTrailsRepository{
     ): Promise<InstructorAuditTrail[]>;
 
     getAuditTrailsByCourseAndVersion(
-        userId: string,
         courseId: string,
         versionId: string,
         page: number,

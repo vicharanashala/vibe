@@ -18,6 +18,7 @@ import {
 } from 'routing-controllers';
 import { Course, Module } from '../classes/index.js';
 import {
+  courseVersionStatus,
   ICourse,
   ICourseVersion,
   IItemRepository,
@@ -91,7 +92,7 @@ export class CourseVersionService extends BaseService {
       newVersion.courseId = new ObjectId(courseId);
 
       const createdVersion = await this.courseRepo.createVersion(
-        newVersion,
+        {...newVersion, courseId: new ObjectId(newVersion.courseId)},
         txnSession,
       );
       if (!createdVersion) {
@@ -449,4 +450,14 @@ export class CourseVersionService extends BaseService {
     return response;
   }
 
+  async updateCourseVersionStatus(versionId:string,versionStatus:courseVersionStatus):Promise<ICourseVersion|null>{
+    return this._withTransaction(async session => {
+      const result = await this.courseRepo.updateCourseVersionStatus(
+        versionId,
+        versionStatus,
+        session
+      );
+      return result;
+    });
+  }
 }

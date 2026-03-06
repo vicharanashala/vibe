@@ -81,25 +81,24 @@ export class EnrollmentRepository {
 
   async findEnrollment(
     userId: string | ObjectId,
-    courseVersionId: string,
     courseId: string,
+    courseVersionId: string,
     session?: ClientSession,
   ): Promise<IEnrollment | null> {
     await this.init();
 
     const courseObjectId = new ObjectId(courseId);
     const courseVersionObjectId = new ObjectId(courseVersionId);
-
     const userObjectid = new ObjectId(userId);
 
     return await this.enrollmentCollection.findOne(
       {
-        userId: userObjectid,
-        courseId: courseObjectId,
-        courseVersionId: courseVersionObjectId,
+        userId: { $in: [userId, new ObjectId(userId)] },
+        courseId: { $in: [courseId, new ObjectId(courseId)] },
+        courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
         isDeleted: { $ne: true },
       },
-      { session },
+      { session }
     );
   }
 
@@ -117,13 +116,13 @@ export class EnrollmentRepository {
 
     return await this.enrollmentCollection.findOne(
       {
-        userId: userObjectid,
-        courseId: courseObjectId,
-        courseVersionId: courseVersionObjectId,
+        userId: { $in: [userObjectid, userId] },
+        courseId: { $in: [courseObjectId, courseId] },
+        courseVersionId: { $in: [courseVersionObjectId, courseVersionId] },
         status: 'ACTIVE',
         isDeleted: { $ne: true },
       },
-      { session },
+      { session }
     );
   }
 
@@ -137,8 +136,8 @@ export class EnrollmentRepository {
     const enrollments = await this.enrollmentCollection
       .find(
         {
-          courseId: new ObjectId(courseId),
-          courseVersionId: new ObjectId(versionId),
+          courseId: { $in: [new ObjectId(courseId), courseId] },
+          courseVersionId: { $in: [new ObjectId(versionId), versionId] },
           role: 'INSTRUCTOR',
           status: 'ACTIVE',
         },
@@ -326,6 +325,7 @@ export class EnrollmentRepository {
     role: EnrollmentRole,
     session?: ClientSession,
   ) {
+    console.log("Get enrollments in ")
     try {
       await this.init();
       const userObjectId = new ObjectId(userId);
@@ -333,7 +333,7 @@ export class EnrollmentRepository {
       const aggregationPipeline: any[] = [
         {
           $match: {
-            userId: userObjectId,
+            userId: { $in: [userObjectId, userId] },
             role,
             isDeleted: { $ne: true },
             status: 'ACTIVE',
@@ -518,12 +518,13 @@ export class EnrollmentRepository {
     role: EnrollmentRole,
     search: string,
   ) {
+    console.log("Basic enrollments");
     await this.init();
     const userObjectId = new ObjectId(userId);
     const pipeline: any[] = [
       {
         $match: {
-          userId: userObjectId,
+          userId: { $in: [userObjectId, userId] },
           role,
           isDeleted: { $ne: true },
           status: { $regex: /^active$/i },
@@ -600,7 +601,7 @@ export class EnrollmentRepository {
             {
               $project: {
                 totalItems: 1,
-                // itemCounts: 1,
+                itemCounts: 1,
                 supportLink: 1,
                 version: 1,
                 description: 1,
@@ -752,7 +753,7 @@ export class EnrollmentRepository {
           enrollmentDate: 1,
           course: 1,
           courseVersion: 1,
-          assignedTimeSlot: 1,
+          assignedTimeSlots: 1,
           //getting current course completion details(not actual details)
           moduleNumber: '$moduleNumber',
           sectionNumber: '$sectionNumber',
@@ -787,7 +788,7 @@ export class EnrollmentRepository {
       /* ---------- EARLY FILTER (INDEXED) ---------- */
       {
         $match: {
-          userId: new ObjectId(userId),
+          userId: { $in: [new ObjectId(userId), userId] },
           role,
           isDeleted: { $ne: true },
           status: { $regex: /^active$/i },
@@ -1344,8 +1345,8 @@ export class EnrollmentRepository {
     await this.init();
 
     const baseMatch: any = {
-      courseId: new ObjectId(courseId),
-      courseVersionId: new ObjectId(courseVersionId),
+      courseId: { $in: [courseId, new ObjectId(courseId)] },
+      courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] }
     };
 
     let matchStage: any = { ...baseMatch };
@@ -1508,8 +1509,12 @@ export class EnrollmentRepository {
         [
           {
             $match: {
-              courseId: new ObjectId(courseId),
-              courseVersionId: new ObjectId(courseVersionId),
+              courseId: {
+                $in: [courseId, new ObjectId(courseId)]
+              },
+              courseVersionId: {
+                $in: [courseVersionId, new ObjectId(courseVersionId)]
+              },
               role: 'STUDENT',
               status: { $regex: /^active$/i },
               isDeleted: { $ne: true }, // Exclude soft-deleted enrollments
@@ -1587,7 +1592,7 @@ export class EnrollmentRepository {
   ) {
     await this.init();
     const matchStage: any = {
-      userId: new ObjectId(userId),
+      userId: { $in: [new ObjectId(userId), userId] },
       role,
       isDeleted: { $ne: true },
       status: { $regex: /^active$/i },
@@ -1601,8 +1606,30 @@ export class EnrollmentRepository {
     const pipeline: any[] = [
       {
         $match: matchStage,
-      },
+      }];
+    if (role === 'STUDENT') {
+      pipeline.push(
+        {
+          $lookup: {
+            from: 'newCourseVersion',
+            localField: 'courseVersionId',
+            foreignField: '_id',
+            as: 'version',
+          },
+        },
+        {
+          $unwind: '$version',
+        },
+        {
+          $match: {
+            'version.versionStatus': { $ne: 'archived' },
+          },
+        }
+      );
+    }
 
+    //  Existing course lookup
+    pipeline.push(
       {
         $lookup: {
           from: 'newCourse',
@@ -1625,7 +1652,7 @@ export class EnrollmentRepository {
       { $unwind: '$course' },
 
       { $count: 'total' },
-    ];
+    );
 
     const result = await this.enrollmentCollection
       .aggregate(pipeline)
@@ -2604,6 +2631,28 @@ export class EnrollmentRepository {
     /* -------------------------------------------------------
      * 3️⃣ AGGREGATE SUBMISSIONS IN MONGO (🔥 FIX)
      * ----------------------------------------------------- */
+    const attemptsAggregation = await this.submissionCollection
+      .aggregate([
+        {
+          $match: {
+            userId: { $in: userIds },
+            quizId: { $in: quizIdsObj },
+          },
+        },
+        {
+          $group: {
+            _id: {
+              userId: '$userId',
+              quizId: '$quizId',
+            },
+            attempts: { $sum: 1 },
+            maxScore: { $max: '$gradingResult.totalScore' },
+          },
+        },
+      ])
+      .toArray();
+
+    // Aggregation for question scores
     const aggregatedSubmissions = await this.submissionCollection
       .aggregate([
         {
@@ -2625,10 +2674,6 @@ export class EnrollmentRepository {
             questionScore: {
               $max: '$gradingResult.overallFeedback.score',
             },
-            maxScore: {
-              $max: '$gradingResult.totalScore',
-            },
-            attempts: { $sum: 1 },
           },
         },
       ])
@@ -2641,24 +2686,27 @@ export class EnrollmentRepository {
     const maxScoreMap = new Map<string, Map<string, number>>();
     const attemptsMap = new Map<string, Map<string, number>>();
 
-    for (const row of aggregatedSubmissions) {
+    // Build attempts and max score maps from separate aggregation
+    for (const row of attemptsAggregation) {
       const userId = row._id.userId.toString();
       const quizId = row._id.quizId.toString();
-      const questionId = row._id.questionId.toString();
 
-      // attempts
       attemptsMap
         .set(userId, attemptsMap.get(userId) ?? new Map())
         .get(userId)!
         .set(quizId, row.attempts);
 
-      // max score
       maxScoreMap
         .set(userId, maxScoreMap.get(userId) ?? new Map())
         .get(userId)!
         .set(quizId, row.maxScore ?? 0);
+    }
 
-      // question score
+    for (const row of aggregatedSubmissions) {
+      const userId = row._id.userId.toString();
+      const quizId = row._id.quizId.toString();
+      const questionId = row._id.questionId.toString();
+
       scoreMap
         .set(userId, scoreMap.get(userId) ?? new Map())
         .get(userId)!
@@ -3227,7 +3275,7 @@ export class EnrollmentRepository {
           role: 1,
           status: 1,
           enrollmentDate: 1,
-          assignedTimeSlot: 1,
+          assignedTimeSlots: 1,
           course: 1,
           courseVersion: 1,
           //getting current course completion details(not actual details)
@@ -3301,7 +3349,7 @@ export class EnrollmentRepository {
   }
 
   /**
-   * Update enrollment time slot
+   * Add a time slot to enrollment's assigned time slots
    */
   async updateEnrollmentTimeSlot(
     enrollmentId: string,
@@ -3313,8 +3361,10 @@ export class EnrollmentRepository {
     const updateResult = await this.enrollmentCollection.updateOne(
       { _id: new ObjectId(enrollmentId) },
       {
+        $addToSet: {
+          assignedTimeSlots: timeSlot
+        },
         $set: {
-          assignedTimeSlot: timeSlot,
           updatedAt: new Date()
         }
       },
@@ -3325,24 +3375,39 @@ export class EnrollmentRepository {
   }
 
   /**
-   * Remove assigned time slot from enrollment
+   * Remove a specific time slot from enrollment's assigned time slots
    */
   async removeEnrollmentTimeSlot(
     enrollmentId: string,
+    timeSlot?: { from: string; to: string },
     session?: ClientSession,
   ): Promise<any> {
     await this.init();
 
+    const updateQuery: any = {
+      $set: {
+        updatedAt: new Date()
+      }
+    };
+
+    if (timeSlot) {
+      // Remove specific time slot
+      updateQuery.$pull = {
+        assignedTimeSlots: {
+          from: timeSlot.from,
+          to: timeSlot.to
+        }
+      };
+    } else {
+      // Remove all time slots
+      updateQuery.$unset = {
+        assignedTimeSlots: 1
+      };
+    }
+
     const updateResult = await this.enrollmentCollection.updateOne(
       { _id: new ObjectId(enrollmentId) },
-      {
-        $unset: {
-          assignedTimeSlot: 1
-        },
-        $set: {
-          updatedAt: new Date()
-        }
-      },
+      updateQuery,
       { session }
     );
 
@@ -3363,12 +3428,95 @@ export class EnrollmentRepository {
     const enrollments = await this.enrollmentCollection.find({
       courseId: new ObjectId(courseId),
       courseVersionId: new ObjectId(courseVersionId),
-      'assignedTimeSlot.from': timeSlot.from,
-      'assignedTimeSlot.to': timeSlot.to,
+      assignedTimeSlots: {
+        $elemMatch: {
+          from: timeSlot.from,
+          to: timeSlot.to
+        }
+      },
       status: 'ACTIVE',
       role: 'STUDENT'
     }).toArray();
 
     return enrollments;
+  }
+
+  /**
+   * Update a specific time slot in the assignedTimeSlots array
+   */
+  async updateSpecificTimeSlot(
+    enrollmentId: string,
+    oldTimeSlot: { from: string; to: string },
+    newTimeSlot: { from: string; to: string },
+    session?: ClientSession,
+  ): Promise<any> {
+    await this.init();
+
+    const updateResult = await this.enrollmentCollection.updateOne(
+      { 
+        _id: new ObjectId(enrollmentId),
+        assignedTimeSlots: { $elemMatch: { from: oldTimeSlot.from, to: oldTimeSlot.to } }
+      },
+      {
+        $set: {
+          'assignedTimeSlots.$.from': newTimeSlot.from,
+          'assignedTimeSlots.$.to': newTimeSlot.to,
+          updatedAt: new Date()
+        }
+      },
+      { session }
+    );
+
+    return updateResult;
+  }
+
+  /**
+   * Add multiple time slots to enrollment
+   */
+  async addMultipleTimeSlots(
+    enrollmentId: string,
+    timeSlots: Array<{ from: string; to: string }>,
+    session?: ClientSession,
+  ): Promise<any> {
+    await this.init();
+
+    const updateResult = await this.enrollmentCollection.updateOne(
+      { _id: new ObjectId(enrollmentId) },
+      {
+        $addToSet: {
+          assignedTimeSlots: { $each: timeSlots }
+        },
+        $set: {
+          updatedAt: new Date()
+        }
+      },
+      { session }
+    );
+
+    return updateResult;
+  }
+
+  /**
+   * Replace all time slots for enrollment
+   */
+  async replaceAllTimeSlots(
+    enrollmentId: string,
+    timeSlots: Array<{ from: string; to: string }>,
+    session?: ClientSession,
+  ): Promise<any> {
+    await this.init();
+
+    const updateResult = await this.enrollmentCollection.updateOne(
+      { _id: new ObjectId(enrollmentId) },
+      {
+        $set: {
+          assignedTimeSlots: timeSlots,
+          updatedAt: new Date()
+        }
+      },
+      { session }
+    );
+
+    return updateResult;
   }
 }

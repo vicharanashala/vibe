@@ -1,6 +1,6 @@
-import {ObjectId} from 'mongodb';
-import {ProctoringComponent} from '../database/index.js';
-import {Type} from 'class-transformer';
+import { ObjectId } from 'mongodb';
+import { ProctoringComponent } from '../database/index.js';
+import { Type } from 'class-transformer';
 import {
   IsOptional,
   IsInt,
@@ -10,7 +10,7 @@ import {
   isString,
   IsEnum,
 } from 'class-validator';
-import {Priority} from './quiz.js';
+import { Priority } from './quiz.js';
 
 export interface IUser {
   _id?: string | ObjectId | null;
@@ -37,11 +37,13 @@ export interface ICourse {
 }
 
 export type ID = string | ObjectId | null;
+export type courseVersionStatus="active" | "archived";
 export interface ICourseVersion {
   _id?: ID;
   courseId: ID;
   version: string;
   description: string;
+  versionStatus?:courseVersionStatus;
   supportLink?: string;
   modules: IModule[];
   totalItems?: number;
@@ -393,10 +395,10 @@ export interface IEnrollment {
   enrollmentDate: Date;
   percentCompleted: number;
   completedItemsCount?: number;
-  assignedTimeSlot?: {
+  assignedTimeSlots?: Array<{
     from: string; // HH:MM format in IST
     to: string;   // HH:MM format in IST
-  };
+  }>;
   isDeleted?: boolean;
   deletedAt?: Date;
   unenrolledAt?: Date;
@@ -415,9 +417,9 @@ export interface IProgress {
 }
 
 export interface ICurrentProgressPath {
-  module: {id: string; name: string} | null;
-  section: {id: string; name: string} | null;
-  item: {id: string; name: string; type: string} | null;
+  module: { id: string; name: string } | null;
+  section: { id: string; name: string } | null;
+  item: { id: string; name: string; type: string } | null;
   message?: string;
 }
 
@@ -507,14 +509,14 @@ export interface IRegistrationSettings {
   _id?: ID;
   label: string;
   type:
-    | 'TEXT'
-    | 'TEXTAREA'
-    | 'EMAIL'
-    | 'TEL'
-    | 'DATE'
-    | 'NUMBER'
-    | 'URL'
-    | 'SELECT';
+  | 'TEXT'
+  | 'TEXTAREA'
+  | 'EMAIL'
+  | 'TEL'
+  | 'DATE'
+  | 'NUMBER'
+  | 'URL'
+  | 'SELECT';
   isDefault: boolean;
   required: boolean;
   options?: string[];
@@ -524,6 +526,7 @@ export interface ITimeSlot {
   from: string; // HH:MM format in IST
   to: string;   // HH:MM format in IST
   studentIds: string[]; // Array of student user IDs
+  maxStudents?: number; // Maximum number of students allowed in this timeslot
 }
 
 export interface ISettings {
@@ -756,6 +759,37 @@ export interface TranscriptExplanations {
   D: string;
 }
 
+export enum AnnouncementType {
+  GENERAL = 'GENERAL',
+  VERSION_SPECIFIC = 'VERSION_SPECIFIC',
+  COURSE_SPECIFIC = 'COURSE_SPECIFIC',
+}
+
+export interface IAnnouncementAttachment {
+  fileName: string;
+  fileUrl: string;
+  fileType: string;
+}
+
+export interface IAnnouncement {
+  _id?: ID;
+  title: string;
+  content: string;
+  type: AnnouncementType;
+  courseId?: ID;
+  courseVersionId?: ID;
+  courseName?: string;
+  courseVersionName?: string;
+  instructorId: ID;
+  instructorName: string;
+  instructorFirebaseUid?: string;
+  attachments?: IAnnouncementAttachment[];
+  isHidden: boolean;
+  isDeleted?: boolean;
+  deletedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 // export type AuditCategory =
 //   | "COURSE"
@@ -773,39 +807,39 @@ export interface TranscriptExplanations {
 //   | "COURSE_SETTINGS"
 //   | "REPORT"
 //   | "PROGRESS";
- 
+
 // export type AuditAction =
 //   // course
 //   | "COURSE_CREATE"
 //   | "COURSE_UPDATE"
 //   | "COURSE_DELETE"
- 
+
 //   // course version
 //   | "COURSE_VERSION_CREATE"
 //   | "COURSE_VERSION_UPDATE"
 //   | "COURSE_VERSION_DELETE"
 //   | "COURSE_VERSION_CLONE"
- 
+
 //   // structure changes
 //   | "MODULE_ADD"
 //   | "MODULE_UPDATE"
 //   | "MODULE_DELETE"
 //   | "MODULE_HIDE"
 //   | "MODULE_REORDER"
- 
+
 //   | "SECTION_ADD"
 //   | "SECTION_UPDATE"
 //   | "SECTION_DELETE"
 //   | "SECTION_HIDE"
 //   | "SECTION_REORDER"
- 
+
 //   | "ITEM_ADD"
 //   | "ITEM_UPDATE"
 //   | "ITEM_DELETE"
 //   | "ITEM_HIDE"
 //   | "ITEM_REORDER"
 //   | "ITEM_MAKE_OPTIONAL"
- 
+
 //   // quiz/question/bank
 //   | "QUESTION_ADD"
 //   | "QUESTION_UPDATE"
@@ -813,83 +847,79 @@ export interface TranscriptExplanations {
 //   | "QUESTION_BANK_CREATE"
 //   | "QUESTION_BANK_UPDATE"
 //   | "QUESTION_BANK_DELETE"
- 
+
 //   // flags
 //   | "FLAG_STATUS_UPDATE"
- 
+
 //   // enrollment/progress
 //   | "ENROLLMENT_REMOVE"
 //   | "ENROLLMENT_REMOVE_INSTRUCTOR"
 //   | "ENROLLMENT_REMOVE_STUDENT"
 //   | "PROGRESS_RESET"
 //   | "PROGRESS_RECALCULATE"
- 
+
 //   // registration
 //   | "REGISTRATION_APPROVE"
 //   | "REGISTRATION_REJECT"
 //   | "REGISTRATION_FORM_UPDATE"
- 
+
 //   // invites
 //   | "INVITE_SEND_SINGLE"
 //   | "INVITE_SEND_BULK"
 //   | "INVITE_RESEND"
 //   | "INVITE_REMOVE"
- 
+
 //   // settings
 //   | "COURSE_SETTINGS_UPDATE"
- 
+
 //   // exports/reports/downloads
 //   | "DOWNLOAD_PROJECT_SUBMISSIONS"
 //   | "DOWNLOAD_QUIZ_SUBMISSIONS"
 //   | "DOWNLOAD_QUIZ_REPORT";
- 
- 
- 
- 
- 
+
 // export interface InstructorAuditTrail {
- 
+
 //   category: AuditCategory;
 //   action: AuditAction;
 //   actor: ObjectId;
 //   context: {
 //     courseId?: ObjectId;
 //     courseVersionId?: ObjectId;
- 
+
 //     moduleId?: ObjectId;
 //     sectionId?: ObjectId;
 //     itemId?: ObjectId;
- 
+
 //     // for quiz/question changes
 //     quizId?: ObjectId;
 //     questionId?: ObjectId;
 //     questionBankId?: ObjectId;
- 
+
 //     // for flags/enrollment/invite/registration
 //     flagId?: ObjectId;
 //     enrollmentId?: ObjectId;
 //     registrationId?: ObjectId;
 //     inviteId?: ObjectId;
- 
+
 //     // any additional identifiers
 //     relatedIds?: Record<string, ObjectId | string>;
 //   };
- 
+
 //     changes: {
-//     // “before” and “after” should be partial snapshots, not entire documents (avoid huge payloads)
+//     // "before" and "after" should be partial snapshots, not entire documents (avoid huge payloads)
 //     before?: Record<string, any>;
 //     after?: Record<string, any>;
 //      },
- 
+
 //     outcome: {
 //     status: "SUCCESS" | "FAILED" | "PARTIAL";
 //     errorCode?: string;
 //     errorMessage?: string;      // keep short- avoid stack traces
 //   };
-    
+
 //     source?: "DASHBOARD" | "COURSE"
 //   createdAt: Date;
- 
+
 // }
 
 
@@ -897,3 +927,4 @@ export interface TranscriptExplanations {
 //  itemId: string | ObjectId | null;
 //  action: string;
 // }
+

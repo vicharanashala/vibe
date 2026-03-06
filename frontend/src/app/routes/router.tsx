@@ -18,6 +18,7 @@ import StudentLayout from '@/layouts/student-layout'
 import StudentDashboard from "@/app/pages/student/dashboard";
 import StudentCourses from "@/app/pages/student/courses";
 import StudentProfile from "@/app/pages/student/profile";
+import StudentAnnouncements from "../pages/student/announcements/StudentAnnouncements";
 import AddCoursePage from '@/app/pages/teacher/AddCoursePage';
 import TeacherProfile from "@/app/pages/teacher/profile";
 import { AudioTranscripter } from '@/app/pages/teacher/AudioTranscripter'
@@ -41,6 +42,7 @@ import CourseRegistration from '../pages/student/CourseRegistration'
 import CourseIssueReports from '../pages/student/FlagResponse'
 // import LoginPage from '../pages/LoginPage'
 import FeedbackFormEditor from '../pages/teacher/FeedbackFormEditor'
+import TeacherAnnouncements from '../pages/teacher/announcements'
 import Leaderboard from '../pages/student/leaderboard'
 import ForgotPasswordPage from '../pages/ForgotPasswordPage'
 import ResetPasswordPage from '../pages/ResetPasswordPage'
@@ -349,6 +351,13 @@ const teacherFeedBackEditorRoute = new Route({
   component: FeedbackFormEditor
 })
 
+// Teacher Announcements route
+const teacherAnnouncementsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/announcements',
+  component: TeacherAnnouncements,
+})
+
 // Teacher generate section route
 const teacherGenerateSectionRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -410,6 +419,13 @@ const studentProfileRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
   path: '/profile',
   component: StudentProfile,
+});
+
+// Student announcements route
+const studentAnnouncementsRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/announcements',
+  component: StudentAnnouncements,
 });
 
 // export const studentCourseInviteRegistration = new Route({
@@ -538,6 +554,7 @@ const routeTree = rootRoute.addChildren([
     teacherCourseInstructorsRoute,
     teacherCourseRegistrationRequests,
     teacherFeedBackEditorRoute,
+    teacherAnnouncementsRoute,
     teacherAuditRoute
   ]),
   studentLayoutRoute.addChildren([
@@ -546,7 +563,8 @@ const routeTree = rootRoute.addChildren([
     studentProfileRoute,
     studentCourseInviteRegistration,
     studentIssuesRoute,
-    studentLeaderboardRoute
+    studentLeaderboardRoute,
+    studentAnnouncementsRoute
   ]),
   coursePageRoute,
 ]);

@@ -101,7 +101,12 @@ class QuestionController {
     setAuditTrail(req, {
       category: AuditCategory.QUESTION,
       action: AuditAction.QUESTION_ADD,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context:{
         questionId: ObjectId.createFromHexString(id.toString()),
       },
@@ -189,7 +194,12 @@ class QuestionController {
     setAuditTrail(req, {
       category: AuditCategory.QUESTION,
       action: AuditAction.QUESTION_UPDATE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context:{
         questionId: ObjectId.createFromHexString(questionId.toString()),
       },
@@ -259,7 +269,12 @@ class QuestionController {
     setAuditTrail(req, {
       category: AuditCategory.QUESTION,
       action: AuditAction.QUESTION_DELETE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context:{
         questionId: ObjectId.createFromHexString(questionId.toString()),
       },
@@ -361,7 +376,12 @@ class QuestionController {
     setAuditTrail(req,{
       category: AuditCategory.QUESTION,
       action: AuditAction.FLAG_STATUS_UPDATE,
-      actor: ObjectId.createFromHexString(user._id.toString()),
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
       context:{
         flagId: ObjectId.createFromHexString(flagId.toString()),
       },
