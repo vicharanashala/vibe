@@ -66,6 +66,20 @@ export class ActivitySubmissionsController {
     return { success: true, data: doc };
   }
 
+  @OpenAPI({ summary: "Get currently logged in student's submissions" })
+  @Get("/student/my-submissions")
+  @Authorized()
+  @HttpCode(200)
+  async getMySubmissions(
+    @CurrentUser() user: IUser,
+    @QueryParams() query: FilterQueryDto
+  ): Promise<any> {
+    const studentId = user._id.toString();
+    // Using the same repository method the teacher uses but bypassing the teacher check/body
+    const doc = await this.submissionService.listMySubmissions(studentId, query);
+    return { success: true, data: doc.data };
+  }
+
   @OpenAPI({ summary: "List submissions (teacher/admin)" })
   @Get("/")
   @Authorized()

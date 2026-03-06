@@ -319,6 +319,20 @@ export class StudentActivitySubmissionsViewDto {
     instructorFeedback!: InstructorFeedbackDto | null;
 }
 
+export class PaginationMetaDto {
+    @Expose()
+    @IsNumber()
+    total!: number;
+
+    @Expose()
+    @IsNumber()
+    page!: number;
+
+    @Expose()
+    @IsNumber()
+    limit!: number;
+}
+
 export class StudentActivitySubmissionsResponseDto {
 
     @Expose()
@@ -329,4 +343,9 @@ export class StudentActivitySubmissionsResponseDto {
     @Type(() => StudentActivitySubmissionsViewDto)
     @IsArray()
     data!: StudentActivitySubmissionsViewDto[];
+
+    @Expose()
+    @Type(() => PaginationMetaDto)
+    @IsOptional()
+    meta?: PaginationMetaDto;
 }

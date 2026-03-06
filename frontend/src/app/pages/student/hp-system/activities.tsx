@@ -141,12 +141,18 @@ export default function StudentActivities() {
                 <Button variant="ghost" size="icon" onClick={() => navigate({ to: '/student/hp-system/cohorts' })}>
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
-                <div>
+                <div className="flex-1">
                     <h1 className="text-3xl font-bold tracking-tight">Activities</h1>
                     <p className="text-muted-foreground">
                         {decodeURIComponent(cohortName as string)}
                     </p>
                 </div>
+                <Button
+                    variant="outline"
+                    onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/submissions` })}
+                >
+                    View My Submissions
+                </Button>
             </div>
 
             {(!activities || activities.length === 0) ? (
@@ -253,17 +259,15 @@ export default function StudentActivities() {
                                     </div>
                                 )}
                             </CardContent>
-                            <CardFooter className="bg-muted/10 border-t justify-between px-6 py-4">
-                                <div className="text-sm text-muted-foreground">
-                                    Submission:
-                                    <span className="font-medium text-foreground ml-1">
-                                        {activity.submissionMode === 'EXTERNAL_LINK' ? 'External Link' : 'In Platform'}
-                                    </span>
-                                </div>
+                            <CardFooter className="bg-muted/10 border-t justify-center gap-2  px-6 py-4">
+
+                                <Button>edit</Button>
+
                                 <Button onClick={() => openSubmitDialog(activity)}>
                                     <Send className="h-4 w-4 mr-2" />
                                     Submit
                                 </Button>
+
                             </CardFooter>
                         </Card>
                     ))}

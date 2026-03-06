@@ -58,6 +58,8 @@ import CreateHpActivityPage from '../pages/teacher/hp-system/create-activity'
 import StudentLedgerPage from '../pages/teacher/hp-system/student-ledger'
 import StudentSubmissionsPage from '../pages/teacher/hp-system/student-submissions'
 import StudentCohorts from '@/app/pages/student/hp-system/cohorts'
+import StudentActivities from '@/app/pages/student/hp-system/activities'
+import StudentSubmissions from '@/app/pages/student/hp-system/submissions'
 
 // Root route with error and notFound handling
 const rootRoute = new RootRoute({
@@ -482,15 +484,13 @@ const studentHpSystemCohortsRoute = new Route({
 const studentHpSystemActivitiesRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
   path: '/hp-system/$courseVersionId/$cohortName/activities',
-  component: () => {
-    // For TanStack router, if using React.lazy, we wrap it
-    const Component = React.lazy(() => import('@/app/pages/student/hp-system/activities'));
-    return (
-      <React.Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading...</div>}>
-        <Component />
-      </React.Suspense>
-    )
-  },
+  component: StudentActivities,
+});
+
+const studentHpSystemSubmissionsRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/hp-system/$courseVersionId/$cohortName/submissions',
+  component: StudentSubmissions,
 });
 
 // export const studentCourseInviteRegistration = new Route({
@@ -637,7 +637,8 @@ const routeTree = rootRoute.addChildren([
     studentLeaderboardRoute,
     studentAnnouncementsRoute,
     studentHpSystemCohortsRoute,
-    studentHpSystemActivitiesRoute
+    studentHpSystemActivitiesRoute,
+    studentHpSystemSubmissionsRoute
   ]),
   coursePageRoute,
 ]);
