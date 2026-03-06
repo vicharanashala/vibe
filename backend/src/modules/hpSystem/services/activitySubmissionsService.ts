@@ -13,6 +13,7 @@ import { ActivityService } from "./activityService.js";
 import { RuleConfigService } from "./ruleConfigsService.js";
 import { HpLedger } from "../models.js";
 import { ObjectId } from "mongodb";
+import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 
 
 @injectable()
@@ -37,6 +38,9 @@ export class ActivitySubmissionsService extends BaseService {
         @inject(HP_SYSTEM_TYPES.ledgerRepository)
         private readonly ledgerRepository: LedgerRepository,
 
+
+        @inject(HP_SYSTEM_TYPES.cohortRepository)
+        private readonly cohortRepository: CohortRepository,
     ) {
         super(mongoDatabase);
     }
@@ -63,6 +67,34 @@ export class ActivitySubmissionsService extends BaseService {
                 throw new BadRequestError("Activity rule config not found");
             }
 
+            const cohort = body.cohort;
+
+            // 1. Define the Cohort Override Map
+            const COHORT_OVERRIDES: Record<string, { courseId: string; versionId: string }> = {
+                Euclideans: { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af" },
+                Dijkstrians: { courseId: "6970f87e30644cbc74b6714f", versionId: "6970f87e30644cbc74b67150" },
+                Kruskalians: { courseId: "697b4e262942654879011c56", versionId: "697b4e262942654879011c57" },
+                RSAians: { courseId: "69903415e1930c015760a718", versionId: "69903415e1930c015760a719" },
+                AKSians: { courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff" },
+            };
+
+            // 2. Apply Overrides (Fall back to body values if cohort isn't in the map)
+            const finalCourseId = COHORT_OVERRIDES[cohort]?.courseId ?? body.courseId;
+            const finalVersionId = COHORT_OVERRIDES[cohort]?.versionId ?? body.courseVersionId;
+
+            // 3. Fetch Enrollment using the CORRECT (overridden) IDs
+            const enrollment = await this.cohortRepository.findEnrollment(
+                student.id,
+                finalCourseId,
+                finalVersionId,
+                session
+            );
+
+            // if (!enrollment) {
+            //     console.error(`Enrollment check failed for Student: ${student.id} in Course: ${finalCourseId}`);
+            //     throw new BadRequestError(`Student is not enrolled in the required course context for cohort: ${cohort}`);
+            // }
+
             // Determine if submission is late based on activity rule config deadline
             const deadline = activityRuleConfig?.deadlineAt
                 ? new Date(activityRuleConfig.deadlineAt)
@@ -71,6 +103,11 @@ export class ActivitySubmissionsService extends BaseService {
             const now = new Date();
 
             const isLate = deadline ? now.getTime() > deadline.getTime() : false;
+
+
+            if (isLate && activityRuleConfig.allowLateSubmission === false) {
+                throw new BadRequestError("Late submission is not allowed for this activity");
+            }
 
             const basePayload = {
                 textResponse: body.payload?.textResponse ?? "",
@@ -180,29 +217,8 @@ export class ActivitySubmissionsService extends BaseService {
                 ],
             };
 
-            // const ruleType = activityRuleConfig.ty
 
-            // const ledgerEntry: Partial<HpLedger> = {
-            //     courseId: body.courseId,
-            //     courseVersionId: body.courseVersionId,
-            //     cohort: body.cohort,
-            //     activityId: body.activityId,
-            //     studentId: student.id,
-            //     studentEmail: student.email,
-            //     submissionSource: body.submissionSource ?? "IN_PLATFORM",
-            //     submissionId: "",
-            //     eventType: "CREDIT",
-            //     direction: "CREDIT",
-            //     amount: activity.points ?? 0,
-
-            //     calc: {
-
-            //     }
-            // }
-
-
-            // const isLedgerCreated = await this.ledgerRepository.create()
-
+            // Create submission record, then calculate and apply rewards if applicable
             const submissionId = await this.activitySubmissionsRepository.create(
                 {
                     courseId: new ObjectId(body.courseId),
@@ -220,6 +236,79 @@ export class ActivitySubmissionsService extends BaseService {
                 },
                 { session }
             );
+
+            if (!submissionId) {
+                throw new Error("Failed to create submission");
+            }
+
+            const activityReward = activityRuleConfig.reward;
+            console.log(activityReward, "Activity Reward Config");
+
+            if (activityReward?.enabled && activityReward.applyWhen === "ON_SUBMISSION") {
+                const totalStudentHpPoints = enrollment?.hpPoints ?? 0;
+                const ruleType = activityReward.type;
+                const rewardValue = activityReward.value ?? 0;
+
+                let incrementAmount = 0;
+
+                // 1. Calculate the Reward
+                if (ruleType === "ABSOLUTE") {
+                    incrementAmount = rewardValue;
+                } else if (ruleType === "PERCENTAGE") {
+                    // Percentage based on current total
+                    incrementAmount = Math.round((totalStudentHpPoints * rewardValue) / 100);
+                }
+
+                // For transparency in the audit trail, we create a human-readable note about how the reward was calculated
+                const rewardDetail = ruleType === "PERCENTAGE"
+                    ? `${rewardValue}% of current HP`
+                    : `${rewardValue} fixed points`;
+                const statusDetail = isLate ? "Late Submission" : "On-time Submission";
+                const readableNote = `[${statusDetail}] Received ${incrementAmount} HP (${rewardDetail}) for submitting activity: "${activity.title}".`;
+
+                // 2. Prepare the Ledger Entry (Centralized)
+                const ledgerEntry: Omit<HpLedger, "_id" | "createdAt"> = {
+                    courseId: new ObjectId(body.courseId),
+                    courseVersionId: new ObjectId(body.courseVersionId),
+                    cohort: body.cohort,
+                    studentId: new ObjectId(student.id),
+                    studentEmail: student.email,
+                    activityId: new ObjectId(body.activityId),
+                    submissionId: new ObjectId(submissionId),
+                    eventType: "CREDIT",
+                    direction: "CREDIT",
+                    amount: incrementAmount,
+                    calc: {
+                        ruleType,
+                        percentage: ruleType === "PERCENTAGE" ? rewardValue : undefined,
+                        absolutePoints: ruleType === "ABSOLUTE" ? rewardValue : 0,
+                        baseHpAtTime: totalStudentHpPoints,
+                        computedAmount: totalStudentHpPoints + incrementAmount,
+                        deadlineAt: activityRuleConfig.deadlineAt ? new Date(activityRuleConfig.deadlineAt) : null,
+                        withinDeadline: !isLate,
+                        reasonCode: "SUBMISSION_REWARD"
+                    },
+                    links: null,
+                    meta: {
+                        triggeredBy: "SYSTEM",
+                        triggeredByUserId: new ObjectId(student.id),
+                        note: readableNote
+                    }
+                };
+
+                // 3. Atomic Database Operations
+                // We create the audit trail and update the current balance
+                await Promise.all([
+                    this.ledgerRepository.create(ledgerEntry, session),
+                    this.cohortRepository.setHPForEnrollment(
+                        student.id,
+                        body.courseId,
+                        body.courseVersionId,
+                        totalStudentHpPoints + incrementAmount,
+                        session
+                    )
+                ]);
+            }
 
             return { success: true, submissionId };
 

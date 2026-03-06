@@ -1,11 +1,12 @@
 import { Course, CourseVersion } from "#root/modules/courses/classes/index.js";
 import { CohortStudentItemDto, CohortStudentsListQueryDto } from "#root/modules/hpSystem/classes/validators/courseAndCohorts.js";
+import { ID } from "#root/modules/hpSystem/constants.js";
 import { ICohortRepository } from "#root/modules/hpSystem/interfaces/ICohortsRepository.js";
 import { IEnrollment, MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { plainToInstance } from "class-transformer";
 import { inject, injectable } from "inversify";
-import { Collection, ObjectId } from "mongodb";
+import { ClientSession, Collection, ObjectId } from "mongodb";
 
 @injectable()
 export class CohortRepository implements ICohortRepository {
@@ -213,6 +214,54 @@ export class CohortRepository implements ICohortRepository {
             excludeExtraneousValues: true,
             enableImplicitConversion: true,
         });
+    }
+
+
+    async findEnrollment(
+        userId: string | ObjectId,
+        courseId: string,
+        courseVersionId: string,
+        session?: ClientSession,
+    ): Promise<IEnrollment | null> {
+        await this.init();
+
+        return await this.enrollmentCollection.findOne(
+            {
+                userId: { $in: [userId, new ObjectId(userId)] },
+                courseId: { $in: [courseId, new ObjectId(courseId)] },
+                courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
+                isDeleted: { $ne: true },
+            },
+            { session }
+        );
+    }
+
+    async setHPForEnrollment(
+        userId: ID,
+        courseId: ID,
+        courseVersionId: ID,
+        amount: number,
+        session?: ClientSession,
+    ): Promise<boolean> {
+        await this.init();
+
+        const updateResult = await this.enrollmentCollection.updateOne(
+            {
+                userId: { $in: [userId, new ObjectId(userId)] },
+                courseId: { $in: [courseId, new ObjectId(courseId)] },
+                courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
+                isDeleted: { $ne: true },
+            },
+            {
+                $set: {
+                    hpPoints: amount,
+                    updatedAt: new Date()
+                }
+            },
+            { session }
+        );
+
+        return updateResult.modifiedCount > 0;
     }
 
 

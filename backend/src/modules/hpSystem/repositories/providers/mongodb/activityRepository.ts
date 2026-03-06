@@ -136,6 +136,8 @@ export class ActivityRepository implements IActivityRepository {
             activity.courseId = doc.courseId;
             activity.courseVersionId = doc.courseVersionId;
             activity.cohort = doc.cohort;
+            activity.title = doc.title;
+            activity.description = doc.description;
             activity.status = doc.status;
             activity.createdByTeacherId = doc.createdByTeacherId;
             activity.createdAt = doc.createdAt;

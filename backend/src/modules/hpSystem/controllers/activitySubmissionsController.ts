@@ -46,7 +46,7 @@ export class ActivitySubmissionsController {
       email: user.email,
       name: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
     };
-    console.log("Received submission from student:", student, "with body:", body, "and files:", files, "and images:", images);
+
     const doc = await this.submissionService.submit(student, body, { files, images });
     return { success: true, data: doc };
   }
