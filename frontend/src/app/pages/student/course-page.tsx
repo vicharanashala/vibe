@@ -1595,8 +1595,14 @@ useEffect(() => {
                         const isCurrentModule = moduleId === selectedModuleId;
 
                         return (
-                          <SidebarMenuItem key={moduleId}>
+                          <SidebarMenuItem 
+                          key={moduleId}
+                          data-testid="course-module"
+                          data-module-id={moduleId}
+                          >
                             <SidebarMenuButton
+                              data-testid="course-module-toggle"
+                              data-module-id={moduleId} 
                               onClick={() => toggleModule(moduleId)}
                               isActive={isCurrentModule}
                               aria-expanded={isModuleExpanded}
@@ -1643,12 +1649,20 @@ useEffect(() => {
                                   const isLoadingItems = activeSectionInfo?.sectionId === sectionId && itemsLoading;
 
                                   return (
-                                    <SidebarMenuSubItem key={sectionId}>
+                                    <SidebarMenuSubItem 
+                                      key={sectionId}
+                                      data-testid="course-section"
+                                      data-section-id={sectionId}
+                                      data-module-id={moduleId}
+                                    >
                                       <SidebarMenuSubButton
+                                        data-testid="course-section-toggle"
+                                        data-section-id={sectionId}
+                                        data-module-id={moduleId}
                                         onClick={() => toggleSection(moduleId, sectionId)}
                                         isActive={isCurrentSection}
-                                        aria-expanded={isModuleExpanded}
-                                        data-state={isModuleExpanded ? 'open' : 'closed'}
+                                        aria-expanded={isSectionExpanded}
+                                        data-state={isSectionExpanded ? 'open' : 'closed'}
                                         className="group relative h-8 px-3 w-full rounded-md text-xs transition-all duration-200 hover:bg-accent/10 hover:text-accent-foreground data-[state=active]:bg-accent/15 data-[state=active]:text-accent-foreground"
                                       >
                                         <ChevronRight
@@ -1668,7 +1682,6 @@ useEffect(() => {
                                           </Tooltip>
                                         </div>
                                       </SidebarMenuSubButton>
-
                                       {isSectionExpanded && (
                                         <SidebarMenuSub className="ml-0 mt-1 space-y-0.5">
                                           {isLoadingItems ? (
@@ -1682,7 +1695,14 @@ useEffect(() => {
                                               const isCurrentItem = itemId === selectedItemId;
 
                                               return (
-                                                <SidebarMenuSubItem key={itemId}>
+                                                <SidebarMenuSubItem 
+                                                key={itemId}
+                                                data-testid="course-item"
+                                                data-item-id={itemId}
+                                                data-section-id={sectionId}
+                                                data-module-id={moduleId}
+                                                data-item-type={item.type?.toLowerCase()}
+                                                >
                                                   <SidebarMenuSubButton
                                                     onClick={() => handleSelectItem(moduleId, sectionId, itemId)}
                                                     isActive={isCurrentItem}
@@ -1887,7 +1907,11 @@ useEffect(() => {
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <div className="text-xl font-medium text-foreground truncate" title={currentItem ? currentItem.name : 'Select content to begin learning'}>
+                  <div 
+                  data-testid="current-item-title"
+                  data-item-id={currentItem?._id ?? ""}
+                  className="text-xl font-medium text-foreground truncate"
+                  title={currentItem ? currentItem.name : 'Select content to begin learning'}>
                     <b>{currentItem ? currentItem.name : 'Select content to begin learning'}</b>
                   </div>
                 </div>
