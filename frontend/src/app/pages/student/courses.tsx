@@ -62,11 +62,16 @@ export default function StudentCourses() {
   const totalDocuments = enrollmentsData?.totalDocuments || 0;
   // Filter enrollments based on completion status
   const activeEnrollments = useMemo(() => {
-    return enrollments.filter(enrollment => enrollment.percentCompleted !== 100);
+    return enrollments.filter(enrollment => 
+      enrollment.percentCompleted !== 100  ||   
+      enrollment.hasNewItemsAfterCompletion === true)
+   ;
   }, [enrollments]);
 
   const completedEnrollments = useMemo(() => {
-    return enrollments.filter(enrollment => enrollment.percentCompleted === 100);
+    return enrollments.filter(enrollment => 
+      enrollment.percentCompleted === 100 && 
+      !enrollment.hasNewItemsAfterCompletion);
   }, [enrollments]);
 
   // Update current page when API response changes
