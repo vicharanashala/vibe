@@ -122,4 +122,21 @@ export class LedgerRepository implements ILedgerRepository {
             limit,
         };
     }
+
+    async findByStudentAndSubmissionId(
+        submissionId: string,
+        studentId: string
+    ): Promise<HpLedger | null> {
+        await this.init();
+
+        return await this.hpLedgerCollection.findOne(
+            {
+                submissionId: new ObjectId(submissionId),
+                studentId: new ObjectId(studentId),
+            },
+            {
+                sort: { createdAt: -1 },
+            }
+        );
+    }
 }

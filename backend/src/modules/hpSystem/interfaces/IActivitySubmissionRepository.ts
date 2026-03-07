@@ -1,6 +1,8 @@
 import { ClientSession } from "mongodb";
 import { FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsViewDto, SubmissionPayloadDto } from "../classes/validators/activitySubmissionValidators.js";
 import { ID, SubmissionSource } from "../constants.js";
+import { HpActivitySubmission } from "../models.js";
+
 
 
 export interface IActivitySubmissionRepository {
@@ -20,19 +22,15 @@ export interface IActivitySubmissionRepository {
         isLate: boolean;
     }, opts?: { session?: ClientSession }): Promise<string>;
 
-    findById(id: string, opts?: { session?: ClientSession }): Promise<any | null>;
+    findById(id: string, opts?: { session?: ClientSession }): Promise<HpActivitySubmission | null>;
 
     list(query: ListSubmissionsQueryDto, opts?: { session?: ClientSession }): Promise<any[]>;
 
-    updateStatusAndReview(id: string, update: {
-        status: "APPROVED" | "REJECTED" | "REVERTED";
-        review: {
-            reviewedByTeacherId: string;
-            reviewedAt: Date;
-            decision: "APPROVE" | "REJECT" | "REVERT";
-            note?: string;
-        };
-    }, opts?: { session?: ClientSession }): Promise<void>;
+    updateStatusAndReview(
+        id: string,
+        update: Partial<HpActivitySubmission>,
+        opts?: { session?: ClientSession }
+    ): Promise<void>
 
     getByStudentId(
         studentId: string,

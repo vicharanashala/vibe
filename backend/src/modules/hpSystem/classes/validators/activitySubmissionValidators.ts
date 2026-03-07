@@ -110,7 +110,7 @@ export class CreateHpActivitySubmissionBodyDto {
 export class ReviewHpActivitySubmissionBodyDto {
     @Expose()
     @IsString()
-    @IsIn(["APPROVE", "REJECT", "REVERT"])
+    @IsIn(["APPROVED", "REJECTED", "REVERTED"])
     decision!: ReviewDecision;
 
     @Expose()
@@ -118,6 +118,11 @@ export class ReviewHpActivitySubmissionBodyDto {
     @IsString()
     @MaxLength(1000)
     note?: string;
+
+    @Expose()
+    @IsOptional()
+    @IsNumber()
+    pointsToDeduct: number;
 }
 
 export class ListSubmissionsQueryDto {

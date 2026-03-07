@@ -213,14 +213,16 @@ export type HpLedgerEventType =
     | "DEBIT"
     | "REVERSAL"
     | "MANUAL_ADJUST"
-    | "MILESTONE";
+    | "MILESTONE"
+    | "REJECTION";
 
 export type HpLedgerDirection = "CREDIT" | "DEBIT";
 
 export type HpReasonCode =
     | "SUBMISSION_REWARD"
     | "MISSED_DEADLINE_PENALTY"
-    | "REVERT_INVALID"
+    | "REWARD_REVERSAL"
+    | "REJECTION_PENALTY"
     | "BASE_INIT"
     | "MANUAL";
 

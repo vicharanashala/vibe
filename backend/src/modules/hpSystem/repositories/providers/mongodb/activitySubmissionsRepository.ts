@@ -69,7 +69,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         return res.insertedId.toString();
     }
 
-    async findById(id: string, opts?: { session?: ClientSession }): Promise<any | null> {
+    async findById(id: string, opts?: { session?: ClientSession }): Promise<HpActivitySubmission | null> {
         await this.init();
         if (!ObjectId.isValid(id)) return null;
         return this.hpActivitySubmissionCollection.findOne(
@@ -326,10 +326,11 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
 
     async updateStatusAndReview(
         id: string,
-        update: any,
+        update: Partial<HpActivitySubmission>,
         opts?: { session?: ClientSession }
     ): Promise<void> {
         await this.init();
+
         if (!ObjectId.isValid(id)) return;
 
         await this.hpActivitySubmissionCollection.updateOne(
