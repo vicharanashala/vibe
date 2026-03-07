@@ -8,12 +8,12 @@ import {
   IUser,
   ID,
 } from '#shared/interfaces/models.js';
-import {injectable, inject} from 'inversify';
-import {ClientSession, Collection, ObjectId, OptionalId} from 'mongodb';
-import {InternalServerError, NotFoundError} from 'routing-controllers';
-import {MongoDatabase} from '../MongoDatabase.js';
-import {GLOBAL_TYPES} from '#root/types.js';
-import {EnrollmentStats} from '#root/modules/users/types.js';
+import { injectable, inject } from 'inversify';
+import { ClientSession, Collection, ObjectId, OptionalId } from 'mongodb';
+import { InternalServerError, NotFoundError } from 'routing-controllers';
+import { MongoDatabase } from '../MongoDatabase.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { EnrollmentStats } from '#root/modules/users/types.js';
 import {
   StudentQuizScoreDto,
   QuizScoresExportResponseDto,
@@ -22,10 +22,10 @@ import {
   IAttempt,
   ISubmission,
 } from '#root/modules/quizzes/interfaces/grading.js';
-import {ItemsGroup, QuizItem} from '#root/modules/courses/classes/index.js';
-import {AttemptRepository} from '#root/modules/quizzes/repositories/index.js';
-import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
-import {IQuestionBank} from '#root/shared/interfaces/quiz.js';
+import { ItemsGroup, QuizItem } from '#root/modules/courses/classes/index.js';
+import { AttemptRepository } from '#root/modules/quizzes/repositories/index.js';
+import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
+import { IQuestionBank } from '#root/shared/interfaces/quiz.js';
 
 @injectable()
 export class EnrollmentRepository {
@@ -43,7 +43,7 @@ export class EnrollmentRepository {
     @inject(QUIZZES_TYPES.AttemptRepo)
     private attemptRepository: AttemptRepository,
     @inject(GLOBAL_TYPES.Database) private db: MongoDatabase,
-  ) {}
+  ) { }
 
   private async init() {
     this.enrollmentCollection =
@@ -72,7 +72,7 @@ export class EnrollmentRepository {
   async findById(id: string): Promise<IEnrollment | null> {
     await this.init();
     try {
-      return await this.enrollmentCollection.findOne({_id: new ObjectId(id)});
+      return await this.enrollmentCollection.findOne({ _id: new ObjectId(id) });
     } catch (error) {
       console.error('Error finding enrollment by ID:', error);
       throw error;
@@ -93,14 +93,14 @@ export class EnrollmentRepository {
 
     return await this.enrollmentCollection.findOne(
       {
-        userId: {$in: [userId, new ObjectId(userId)]},
-        courseId: {$in: [courseId, new ObjectId(courseId)]},
+        userId: { $in: [userId, new ObjectId(userId)] },
+        courseId: { $in: [courseId, new ObjectId(courseId)] },
         courseVersionId: {
           $in: [courseVersionId, new ObjectId(courseVersionId)],
         },
-        isDeleted: {$ne: true},
+        isDeleted: { $ne: true },
       },
-      {session},
+      { session },
     );
   }
 
@@ -118,13 +118,13 @@ export class EnrollmentRepository {
 
     return await this.enrollmentCollection.findOne(
       {
-        userId: {$in: [userObjectid, userId]},
-        courseId: {$in: [courseObjectId, courseId]},
-        courseVersionId: {$in: [courseVersionObjectId, courseVersionId]},
+        userId: { $in: [userObjectid, userId] },
+        courseId: { $in: [courseObjectId, courseId] },
+        courseVersionId: { $in: [courseVersionObjectId, courseVersionId] },
         status: 'ACTIVE',
-        isDeleted: {$ne: true},
+        isDeleted: { $ne: true },
       },
-      {session},
+      { session },
     );
   }
 
@@ -138,12 +138,12 @@ export class EnrollmentRepository {
     const enrollments = await this.enrollmentCollection
       .find(
         {
-          courseId: {$in: [new ObjectId(courseId), courseId]},
-          courseVersionId: {$in: [new ObjectId(versionId), versionId]},
+          courseId: { $in: [new ObjectId(courseId), courseId] },
+          courseVersionId: { $in: [new ObjectId(versionId), versionId] },
           role: 'INSTRUCTOR',
           status: 'ACTIVE',
         },
-        {projection: {userId: 1, _id: 0}, session}, // only return userId
+        { projection: { userId: 1, _id: 0 }, session }, // only return userId
       )
       .toArray();
     return enrollments.map(enrollment => enrollment.userId);
@@ -157,7 +157,7 @@ export class EnrollmentRepository {
   ): Promise<void> {
     try {
       await this.init();
-      const update: any = {percentCompleted};
+      const update: any = { percentCompleted };
       if (typeof completedItemsCount === 'number') {
         update.completedItemsCount = completedItemsCount;
       }
@@ -166,9 +166,9 @@ export class EnrollmentRepository {
       }
 
       await this.enrollmentCollection.findOneAndUpdate(
-        {_id: new ObjectId(enrollmentId)},
-        {$set: update},
-        {session},
+        { _id: new ObjectId(enrollmentId) },
+        { $set: update },
+        { session },
       );
     } catch (error) {
       throw new InternalServerError(
@@ -185,9 +185,9 @@ export class EnrollmentRepository {
     try {
       await this.init();
       await this.enrollmentCollection.findOneAndUpdate(
-        {_id: new ObjectId(enrollmentId)},
-        {$set: {completedItemsCount, updatedAt: new Date()}},
-        {session},
+        { _id: new ObjectId(enrollmentId) },
+        { $set: { completedItemsCount, updatedAt: new Date() } },
+        { session },
       );
     } catch (error) {
       throw new InternalServerError(
@@ -215,7 +215,7 @@ export class EnrollmentRepository {
         {
           _id: result.insertedId,
         },
-        {session},
+        { session },
       );
 
       if (!newEnrollment) {
@@ -250,7 +250,7 @@ export class EnrollmentRepository {
     const result = await this.enrollmentCollection.updateOne(
       {
         _id: enrollmentObjectId,
-        userId: {$in: userFilter},
+        userId: { $in: userFilter },
         courseId: courseObjectId,
         courseVersionId: courseVersionObjectId,
       },
@@ -262,7 +262,7 @@ export class EnrollmentRepository {
           unenrolledAt: new Date(),
         },
       },
-      {session},
+      { session },
     );
     if (result.modifiedCount === 0) {
       throw new NotFoundError('Enrollment not found to delete');
@@ -289,7 +289,7 @@ export class EnrollmentRepository {
         {
           _id: result.insertedId,
         },
-        {session},
+        { session },
       );
 
       if (!newProgress) {
@@ -317,8 +317,8 @@ export class EnrollmentRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
       },
-      {$set: {isDeleted: true, deletedAt: new Date()}},
-      {session},
+      { $set: { isDeleted: true, deletedAt: new Date() } },
+      { session },
     );
   }
 
@@ -338,32 +338,32 @@ export class EnrollmentRepository {
       const aggregationPipeline: any[] = [
         {
           $match: {
-            userId: {$in: [userObjectId, userId]},
+            userId: { $in: [userObjectId, userId] },
             role,
-            isDeleted: {$ne: true},
+            isDeleted: { $ne: true },
             status: 'ACTIVE',
           },
         },
-        {$sort: {enrollmentDate: -1}},
-        {$skip: skip},
-        {$limit: limit},
+        { $sort: { enrollmentDate: -1 } },
+        { $skip: skip },
+        { $limit: limit },
         {
           $lookup: {
             from: 'newCourse',
             localField: 'courseId',
             foreignField: '_id',
             as: 'course',
-            pipeline: [{$project: {name: 1, versions: 1}}],
+            pipeline: [{ $project: { name: 1, versions: 1 } }],
           },
         },
-        {$unwind: {path: '$course', preserveNullAndEmptyArrays: true}},
+        { $unwind: { path: '$course', preserveNullAndEmptyArrays: true } },
         // Lookup content counts (optimized)
         {
           $lookup: {
             from: 'newCourseVersion',
-            let: {versionId: '$courseVersionId'},
+            let: { versionId: '$courseVersionId' },
             pipeline: [
-              {$match: {$expr: {$eq: ['$_id', '$$versionId']}}},
+              { $match: { $expr: { $eq: ['$_id', '$$versionId'] } } },
               {
                 $project: {
                   itemGroupIds: {
@@ -382,15 +382,15 @@ export class EnrollmentRepository {
                         },
                       },
                       initialValue: [],
-                      in: {$concatArrays: ['$$value', '$$this']},
+                      in: { $concatArrays: ['$$value', '$$this'] },
                     },
                   },
                 },
               },
-              {$unwind: '$itemGroupIds'},
+              { $unwind: '$itemGroupIds' },
               {
                 $addFields: {
-                  itemGroupObjId: {$toObjectId: '$itemGroupIds'},
+                  itemGroupObjId: { $toObjectId: '$itemGroupIds' },
                 },
               },
               {
@@ -401,26 +401,26 @@ export class EnrollmentRepository {
                   as: 'itemsGroup',
                 },
               },
-              {$unwind: '$itemsGroup'},
-              {$unwind: '$itemsGroup.items'},
+              { $unwind: '$itemsGroup' },
+              { $unwind: '$itemsGroup.items' },
               {
                 $group: {
                   _id: '$_id',
-                  totalItems: {$sum: 1},
+                  totalItems: { $sum: 1 },
                   videos: {
                     $sum: {
-                      $cond: [{$eq: ['$itemsGroup.items.type', 'VIDEO']}, 1, 0],
+                      $cond: [{ $eq: ['$itemsGroup.items.type', 'VIDEO'] }, 1, 0],
                     },
                   },
                   quizzes: {
                     $sum: {
-                      $cond: [{$eq: ['$itemsGroup.items.type', 'QUIZ']}, 1, 0],
+                      $cond: [{ $eq: ['$itemsGroup.items.type', 'QUIZ'] }, 1, 0],
                     },
                   },
                   articles: {
                     $sum: {
                       $cond: [
-                        {$eq: ['$itemsGroup.items.type', 'ARTICLE']},
+                        { $eq: ['$itemsGroup.items.type', 'ARTICLE'] },
                         1,
                         0,
                       ],
@@ -436,8 +436,8 @@ export class EnrollmentRepository {
           $set: {
             contentCounts: {
               $ifNull: [
-                {$arrayElemAt: ['$contentCounts', 0]},
-                {totalItems: 0, videos: 0, quizzes: 0, articles: 0},
+                { $arrayElemAt: ['$contentCounts', 0] },
+                { totalItems: 0, videos: 0, quizzes: 0, articles: 0 },
               ],
             },
           },
@@ -456,9 +456,9 @@ export class EnrollmentRepository {
                 $match: {
                   $expr: {
                     $and: [
-                      {$eq: ['$userId', '$$userId']},
-                      {$eq: ['$courseId', '$$courseId']},
-                      {$eq: ['$courseVersionId', '$$courseVersionId']},
+                      { $eq: ['$userId', '$$userId'] },
+                      { $eq: ['$courseId', '$$courseId'] },
+                      { $eq: ['$courseVersionId', '$$courseVersionId'] },
                     ],
                   },
                 },
@@ -466,7 +466,7 @@ export class EnrollmentRepository {
               {
                 $group: {
                   _id: null,
-                  distinctItemIds: {$addToSet: '$itemId'},
+                  distinctItemIds: { $addToSet: '$itemId' },
                 },
               },
             ],
@@ -478,29 +478,29 @@ export class EnrollmentRepository {
             watchedItemCount: {
               $size: {
                 $ifNull: [
-                  {$arrayElemAt: ['$watchedItems.distinctItemIds', 0]},
+                  { $arrayElemAt: ['$watchedItems.distinctItemIds', 0] },
                   [],
                 ],
               },
             },
           },
         },
-        {$unset: 'watchedItems'},
+        { $unset: 'watchedItems' },
         // Only add search filter if search is provided
         ...(search && search.trim()
-          ? [{$match: {'course.name': {$regex: search, $options: 'i'}}}]
+          ? [{ $match: { 'course.name': { $regex: search, $options: 'i' } } }]
           : []),
         // Project only required fields
         {
           $project: {
-            _id: {$toString: '$_id'},
-            courseId: {$toString: '$courseId'},
-            courseVersionId: {$toString: '$courseVersionId'},
+            _id: { $toString: '$_id' },
+            courseId: { $toString: '$courseId' },
+            courseVersionId: { $toString: '$courseVersionId' },
             role: 1,
             status: 1,
             enrollmentDate: 1,
             course: 1,
-            percentCompleted: {$ifNull: ['$percentCompleted', 0]},
+            percentCompleted: { $ifNull: ['$percentCompleted', 0] },
             contentCounts: 1,
             watchedItemCount: 1,
           },
@@ -508,7 +508,7 @@ export class EnrollmentRepository {
       ];
 
       return await this.enrollmentCollection
-        .aggregate(aggregationPipeline, {session})
+        .aggregate(aggregationPipeline, { session })
         .toArray();
     } catch (error) {
       console.error(error);
@@ -529,14 +529,14 @@ export class EnrollmentRepository {
     const pipeline: any[] = [
       {
         $match: {
-          userId: {$in: [userObjectId, userId]},
+          userId: { $in: [userObjectId, userId] },
           role,
-          isDeleted: {$ne: true},
-          status: {$regex: /^active$/i},
+          isDeleted: { $ne: true },
+          status: { $regex: /^active$/i },
         },
       },
 
-      {$sort: {enrollmentDate: -1}},
+      { $sort: { enrollmentDate: -1 } },
       //from progress
       {
         $lookup: {
@@ -551,10 +551,10 @@ export class EnrollmentRepository {
               $match: {
                 $expr: {
                   $and: [
-                    {$eq: ['$userId', '$$userId']},
-                    {$eq: ['$courseId', '$$courseId']},
-                    {$eq: ['$courseVersionId', '$$courseVersionId']},
-                    {$eq: ['$status', 'active']},
+                    { $eq: ['$userId', '$$userId'] },
+                    { $eq: ['$courseId', '$$courseId'] },
+                    { $eq: ['$courseVersionId', '$$courseVersionId'] },
+                    { $eq: ['$status', 'active'] },
                   ],
                 },
               },
@@ -572,7 +572,7 @@ export class EnrollmentRepository {
       },
       // {$unwind: '$progress'},
       {
-        $unwind: {path: '$progress', preserveNullAndEmptyArrays: true},
+        $unwind: { path: '$progress', preserveNullAndEmptyArrays: true },
       },
 
       /* ---------------- COURSE LOOKUP ---------------- */
@@ -593,7 +593,7 @@ export class EnrollmentRepository {
           ],
         },
       },
-      {$unwind: '$course'},
+      { $unwind: '$course' },
 
       /* ---------------- COURSE VERSION LOOKUP (NEW) ---------------- */
       {
@@ -617,19 +617,19 @@ export class EnrollmentRepository {
         },
       },
 
-      {$unwind: {path: '$courseVersion', preserveNullAndEmptyArrays: true}},
-      {$skip: skip},
-      {$limit: limit},
+      { $unwind: { path: '$courseVersion', preserveNullAndEmptyArrays: true } },
+      { $skip: skip },
+      { $limit: limit },
       /* ---------------- SEARCH ---------------- */
       ...(search?.trim()
-        ? [{$match: {'course.name': {$regex: search, $options: 'i'}}}]
+        ? [{ $match: { 'course.name': { $regex: search, $options: 'i' } } }]
         : []),
       //i have converted the id(object form right) to string
       {
         $addFields: {
-          currentModuleStr: {$toString: '$progress.currentModule'},
-          currentSectionStr: {$toString: '$progress.currentSection'},
-          currentItemStr: {$toString: '$progress.currentItem'},
+          currentModuleStr: { $toString: '$progress.currentModule' },
+          currentSectionStr: { $toString: '$progress.currentSection' },
+          currentItemStr: { $toString: '$progress.currentItem' },
         },
       },
       //getting items group for current section id
@@ -642,11 +642,11 @@ export class EnrollmentRepository {
           pipeline: [
             {
               $match: {
-                $expr: {$eq: ['$sectionId', '$$sectionId']},
+                $expr: { $eq: ['$sectionId', '$$sectionId'] },
               },
             },
             {
-              $project: {items: 1},
+              $project: { items: 1 },
             },
           ],
           as: 'itemsGroup',
@@ -662,11 +662,11 @@ export class EnrollmentRepository {
                   $reduce: {
                     input: '$itemsGroup',
                     initialValue: [],
-                    in: {$concatArrays: ['$$value', '$$this.items']},
+                    in: { $concatArrays: ['$$value', '$$this.items'] },
                   },
                 },
                 as: 'i',
-                cond: {$eq: [{$toString: '$$i._id'}, '$currentItemStr']},
+                cond: { $eq: [{ $toString: '$$i._id' }, '$currentItemStr'] },
               },
             },
           },
@@ -681,7 +681,7 @@ export class EnrollmentRepository {
               $filter: {
                 input: '$courseVersion.modules',
                 as: 'm',
-                cond: {$eq: [{$toString: '$$m.moduleId'}, '$currentModuleStr']},
+                cond: { $eq: [{ $toString: '$$m.moduleId' }, '$currentModuleStr'] },
               },
             },
           },
@@ -697,7 +697,7 @@ export class EnrollmentRepository {
                     $map: {
                       input: '$courseVersion.modules',
                       as: 'm',
-                      in: {$toString: '$$m.moduleId'},
+                      in: { $toString: '$$m.moduleId' },
                     },
                   },
                   '$currentModuleStr',
@@ -718,7 +718,7 @@ export class EnrollmentRepository {
                 input: '$currentModuleObj.sections',
                 as: 's',
                 cond: {
-                  $eq: [{$toString: '$$s.sectionId'}, '$currentSectionStr'],
+                  $eq: [{ $toString: '$$s.sectionId' }, '$currentSectionStr'],
                 },
               },
             },
@@ -735,7 +735,7 @@ export class EnrollmentRepository {
                     $map: {
                       input: '$currentModuleObj.sections',
                       as: 's',
-                      in: {$toString: '$$s.sectionId'},
+                      in: { $toString: '$$s.sectionId' },
                     },
                   },
                   '$currentSectionStr',
@@ -765,10 +765,10 @@ export class EnrollmentRepository {
           itemType: '$currentItemObj.type',
 
           // 🔥 pulled from courseVersion
-          totalItems: {$ifNull: ['$courseVersion.totalItems', 0]},
+          totalItems: { $ifNull: ['$courseVersion.totalItems', 0] },
           // itemCounts: { $ifNull: ['$courseVersion.itemCounts', {}] },
 
-          percentCompleted: {$ifNull: ['$percentCompleted', 0]},
+          percentCompleted: { $ifNull: ['$percentCompleted', 0] },
           hasNewItemsAfterCompletion: {
             $ifNull: ['$hasNewItemsAfterCompletion', false],
           },
@@ -796,14 +796,14 @@ export class EnrollmentRepository {
       /* ---------- EARLY FILTER (INDEXED) ---------- */
       {
         $match: {
-          userId: {$in: [new ObjectId(userId), userId]},
+          userId: { $in: [new ObjectId(userId), userId] },
           role,
-          isDeleted: {$ne: true},
-          status: {$regex: /^active$/i},
+          isDeleted: { $ne: true },
+          status: { $regex: /^active$/i },
         },
       },
 
-      {$sort: {enrollmentDate: -1}},
+      { $sort: { enrollmentDate: -1 } },
       // { $skip: skip },
       // { $limit: limit },
 
@@ -811,13 +811,13 @@ export class EnrollmentRepository {
       {
         $lookup: {
           from: 'newCourse',
-          let: {courseId: '$courseId'},
+          let: { courseId: '$courseId' },
           pipeline: [
             {
               $match: {
-                $expr: {$eq: ['$_id', '$$courseId']},
+                $expr: { $eq: ['$_id', '$$courseId'] },
                 ...(search?.trim()
-                  ? {name: {$regex: search, $options: 'i'}}
+                  ? { name: { $regex: search, $options: 'i' } }
                   : {}),
               },
             },
@@ -840,8 +840,8 @@ export class EnrollmentRepository {
                 foreignField: '_id',
                 as: 'versions',
                 pipeline: [
-                  {$match: {isDeleted: {$ne: true}}},
-                  {$project: {_id: 1}},
+                  { $match: { isDeleted: { $ne: true } } },
+                  { $project: { _id: 1 } },
                 ],
               },
             },
@@ -855,7 +855,7 @@ export class EnrollmentRepository {
                   $map: {
                     input: '$versions',
                     as: 'v',
-                    in: {$toString: '$$v._id'},
+                    in: { $toString: '$$v._id' },
                   },
                 },
               },
@@ -866,9 +866,9 @@ export class EnrollmentRepository {
       },
 
       /* ---------- REMOVE NON-MATCHED COURSES ---------- */
-      {$unwind: '$course'},
-      {$skip: skip},
-      {$limit: limit},
+      { $unwind: '$course' },
+      { $skip: skip },
+      { $limit: limit },
 
       /* ---------- FINAL SHAPE ---------- */
       {
@@ -892,7 +892,7 @@ export class EnrollmentRepository {
   ): Promise<Map<string, any>> {
     const results = await this.courseVersionCollection
       .aggregate([
-        {$match: {_id: {$in: versionIds}}},
+        { $match: { _id: { $in: versionIds } } },
         {
           $project: {
             _id: 1,
@@ -912,15 +912,15 @@ export class EnrollmentRepository {
                   },
                 },
                 initialValue: [],
-                in: {$concatArrays: ['$$value', '$$this']},
+                in: { $concatArrays: ['$$value', '$$this'] },
               },
             },
           },
         },
-        {$unwind: '$itemGroupIds'},
+        { $unwind: '$itemGroupIds' },
         {
           $addFields: {
-            itemGroupObjId: {$toObjectId: '$itemGroupIds'},
+            itemGroupObjId: { $toObjectId: '$itemGroupIds' },
           },
         },
         {
@@ -931,31 +931,31 @@ export class EnrollmentRepository {
             as: 'itemsGroup',
           },
         },
-        {$unwind: '$itemsGroup'},
-        {$match: {'itemsGroup.isHidden': {$ne: true}}},
+        { $unwind: '$itemsGroup' },
+        { $match: { 'itemsGroup.isHidden': { $ne: true } } },
 
-        {$unwind: '$itemsGroup.items'},
+        { $unwind: '$itemsGroup.items' },
         {
           $addFields: {
-            itemObjId: {$toObjectId: '$itemsGroup.items._id'},
+            itemObjId: { $toObjectId: '$itemsGroup.items._id' },
           },
         },
         {
           $lookup: {
             from: 'videos',
-            let: {itemId: '$itemObjId', itemType: '$itemsGroup.items.type'},
+            let: { itemId: '$itemObjId', itemType: '$itemsGroup.items.type' },
             pipeline: [
               {
                 $match: {
                   $expr: {
                     $and: [
-                      {$eq: ['$_id', '$$itemId']},
-                      {$eq: ['$$itemType', 'VIDEO']},
+                      { $eq: ['$_id', '$$itemId'] },
+                      { $eq: ['$$itemType', 'VIDEO'] },
                     ],
                   },
                 },
               },
-              {$project: {isDeleted: 1, isHidden: 1}},
+              { $project: { isDeleted: 1, isHidden: 1 } },
             ],
             as: 'videoDoc',
           },
@@ -963,19 +963,19 @@ export class EnrollmentRepository {
         {
           $lookup: {
             from: 'blogs',
-            let: {itemId: '$itemObjId', itemType: '$itemsGroup.items.type'},
+            let: { itemId: '$itemObjId', itemType: '$itemsGroup.items.type' },
             pipeline: [
               {
                 $match: {
                   $expr: {
                     $and: [
-                      {$eq: ['$_id', '$$itemId']},
-                      {$eq: ['$$itemType', 'BLOG']},
+                      { $eq: ['$_id', '$$itemId'] },
+                      { $eq: ['$$itemType', 'BLOG'] },
                     ],
                   },
                 },
               },
-              {$project: {isDeleted: 1, isHidden: 1}},
+              { $project: { isDeleted: 1, isHidden: 1 } },
             ],
             as: 'blogDoc',
           },
@@ -983,19 +983,19 @@ export class EnrollmentRepository {
         {
           $lookup: {
             from: 'quizzes',
-            let: {itemId: '$itemObjId', itemType: '$itemsGroup.items.type'},
+            let: { itemId: '$itemObjId', itemType: '$itemsGroup.items.type' },
             pipeline: [
               {
                 $match: {
                   $expr: {
                     $and: [
-                      {$eq: ['$_id', '$$itemId']},
-                      {$eq: ['$$itemType', 'QUIZ']},
+                      { $eq: ['$_id', '$$itemId'] },
+                      { $eq: ['$$itemType', 'QUIZ'] },
                     ],
                   },
                 },
               },
-              {$project: {isDeleted: 1, isHidden: 1}},
+              { $project: { isDeleted: 1, isHidden: 1 } },
             ],
             as: 'quizDoc',
           },
@@ -1003,19 +1003,19 @@ export class EnrollmentRepository {
         {
           $lookup: {
             from: 'projects',
-            let: {itemId: '$itemObjId', itemType: '$itemsGroup.items.type'},
+            let: { itemId: '$itemObjId', itemType: '$itemsGroup.items.type' },
             pipeline: [
               {
                 $match: {
                   $expr: {
                     $and: [
-                      {$eq: ['$_id', '$$itemId']},
-                      {$eq: ['$$itemType', 'PROJECT']},
+                      { $eq: ['$_id', '$$itemId'] },
+                      { $eq: ['$$itemType', 'PROJECT'] },
                     ],
                   },
                 },
               },
-              {$project: {isDeleted: 1, isHidden: 1}},
+              { $project: { isDeleted: 1, isHidden: 1 } },
             ],
             as: 'projectDoc',
           },
@@ -1026,37 +1026,37 @@ export class EnrollmentRepository {
               $switch: {
                 branches: [
                   {
-                    case: {$eq: ['$itemsGroup.items.type', 'VIDEO']},
+                    case: { $eq: ['$itemsGroup.items.type', 'VIDEO'] },
                     then: {
                       $ifNull: [
-                        {$arrayElemAt: ['$videoDoc.isDeleted', 0]},
+                        { $arrayElemAt: ['$videoDoc.isDeleted', 0] },
                         false,
                       ],
                     },
                   },
                   {
-                    case: {$eq: ['$itemsGroup.items.type', 'BLOG']},
+                    case: { $eq: ['$itemsGroup.items.type', 'BLOG'] },
                     then: {
                       $ifNull: [
-                        {$arrayElemAt: ['$blogDoc.isDeleted', 0]},
+                        { $arrayElemAt: ['$blogDoc.isDeleted', 0] },
                         false,
                       ],
                     },
                   },
                   {
-                    case: {$eq: ['$itemsGroup.items.type', 'QUIZ']},
+                    case: { $eq: ['$itemsGroup.items.type', 'QUIZ'] },
                     then: {
                       $ifNull: [
-                        {$arrayElemAt: ['$quizDoc.isDeleted', 0]},
+                        { $arrayElemAt: ['$quizDoc.isDeleted', 0] },
                         false,
                       ],
                     },
                   },
                   {
-                    case: {$eq: ['$itemsGroup.items.type', 'PROJECT']},
+                    case: { $eq: ['$itemsGroup.items.type', 'PROJECT'] },
                     then: {
                       $ifNull: [
-                        {$arrayElemAt: ['$projectDoc.isDeleted', 0]},
+                        { $arrayElemAt: ['$projectDoc.isDeleted', 0] },
                         false,
                       ],
                     },
@@ -1069,37 +1069,37 @@ export class EnrollmentRepository {
               $switch: {
                 branches: [
                   {
-                    case: {$eq: ['$itemsGroup.items.type', 'VIDEO']},
+                    case: { $eq: ['$itemsGroup.items.type', 'VIDEO'] },
                     then: {
                       $ifNull: [
-                        {$arrayElemAt: ['$videoDoc.isHidden', 0]},
+                        { $arrayElemAt: ['$videoDoc.isHidden', 0] },
                         false,
                       ],
                     },
                   },
                   {
-                    case: {$eq: ['$itemsGroup.items.type', 'BLOG']},
+                    case: { $eq: ['$itemsGroup.items.type', 'BLOG'] },
                     then: {
                       $ifNull: [
-                        {$arrayElemAt: ['$blogDoc.isHidden', 0]},
+                        { $arrayElemAt: ['$blogDoc.isHidden', 0] },
                         false,
                       ],
                     },
                   },
                   {
-                    case: {$eq: ['$itemsGroup.items.type', 'QUIZ']},
+                    case: { $eq: ['$itemsGroup.items.type', 'QUIZ'] },
                     then: {
                       $ifNull: [
-                        {$arrayElemAt: ['$quizDoc.isHidden', 0]},
+                        { $arrayElemAt: ['$quizDoc.isHidden', 0] },
                         false,
                       ],
                     },
                   },
                   {
-                    case: {$eq: ['$itemsGroup.items.type', 'PROJECT']},
+                    case: { $eq: ['$itemsGroup.items.type', 'PROJECT'] },
                     then: {
                       $ifNull: [
-                        {$arrayElemAt: ['$projectDoc.isHidden', 0]},
+                        { $arrayElemAt: ['$projectDoc.isHidden', 0] },
                         false,
                       ],
                     },
@@ -1110,30 +1110,30 @@ export class EnrollmentRepository {
             },
           },
         },
-        {$match: {isItemDeleted: {$ne: true}}},
-        {$match: {isItemHidden: {$ne: true}}},
+        { $match: { isItemDeleted: { $ne: true } } },
+        { $match: { isItemHidden: { $ne: true } } },
         {
           $group: {
             _id: '$_id',
-            totalItems: {$sum: 1},
+            totalItems: { $sum: 1 },
             videos: {
               $sum: {
-                $cond: [{$eq: ['$itemsGroup.items.type', 'VIDEO']}, 1, 0],
+                $cond: [{ $eq: ['$itemsGroup.items.type', 'VIDEO'] }, 1, 0],
               },
             },
             quizzes: {
               $sum: {
-                $cond: [{$eq: ['$itemsGroup.items.type', 'QUIZ']}, 1, 0],
+                $cond: [{ $eq: ['$itemsGroup.items.type', 'QUIZ'] }, 1, 0],
               },
             },
             articles: {
               $sum: {
-                $cond: [{$eq: ['$itemsGroup.items.type', 'BLOG']}, 1, 0],
+                $cond: [{ $eq: ['$itemsGroup.items.type', 'BLOG'] }, 1, 0],
               },
             },
             project: {
               $sum: {
-                $cond: [{$eq: ['$itemsGroup.items.type', 'PROJECT']}, 1, 0],
+                $cond: [{ $eq: ['$itemsGroup.items.type', 'PROJECT'] }, 1, 0],
               },
             },
           },
@@ -1165,13 +1165,13 @@ export class EnrollmentRepository {
       userId: e.userId,
       courseId: e.courseId,
       courseVersionId: e.courseVersionId,
-      isHidden: {$ne: true},
-      isDeleted: {$ne: true},
+      isHidden: { $ne: true },
+      isDeleted: { $ne: true },
     }));
 
     const results = await this.watchTimeCollection
       .aggregate([
-        {$match: {$or: matchConditions}},
+        { $match: { $or: matchConditions } },
         {
           $group: {
             _id: {
@@ -1179,13 +1179,13 @@ export class EnrollmentRepository {
               courseId: '$courseId',
               courseVersionId: '$courseVersionId',
             },
-            itemIds: {$addToSet: '$itemId'},
+            itemIds: { $addToSet: '$itemId' },
           },
         },
         {
           $project: {
             _id: 1,
-            count: {$size: '$itemIds'},
+            count: { $size: '$itemIds' },
           },
         },
       ])
@@ -1209,7 +1209,7 @@ export class EnrollmentRepository {
   ): Promise<
     Map<
       string,
-      {videos: number; quizzes: number; articles: number; projects: number}
+      { videos: number; quizzes: number; articles: number; projects: number }
     >
   > {
     if (entries.length === 0) {
@@ -1220,14 +1220,14 @@ export class EnrollmentRepository {
       userId: e.userId,
       courseId: e.courseId,
       courseVersionId: e.courseVersionId,
-      isHidden: {$ne: true},
-      isDeleted: {$ne: true},
-      endTime: {$exists: true, $ne: null},
+      isHidden: { $ne: true },
+      isDeleted: { $ne: true },
+      endTime: { $exists: true, $ne: null },
     }));
 
     const watchedItems = await this.watchTimeCollection
       .aggregate([
-        {$match: {$or: matchConditions}},
+        { $match: { $or: matchConditions } },
         {
           $group: {
             _id: {
@@ -1263,16 +1263,16 @@ export class EnrollmentRepository {
 
     const itemTypeResults = await itemsGroupCollection
       .aggregate([
-        {$unwind: '$items'},
+        { $unwind: '$items' },
         {
           $match: {
             $or: [
-              {'items._id': {$in: allItemIds}}, // ObjectId match
-              {'items._id': {$in: allItemIds.map(id => id.toString())}}, // String match
+              { 'items._id': { $in: allItemIds } }, // ObjectId match
+              { 'items._id': { $in: allItemIds.map(id => id.toString()) } }, // String match
             ],
           },
         },
-        {$project: {itemId: {$toString: '$items._id'}, type: '$items.type'}},
+        { $project: { itemId: { $toString: '$items._id' }, type: '$items.type' } },
       ])
       .toArray();
 
@@ -1283,14 +1283,14 @@ export class EnrollmentRepository {
 
     const map = new Map<
       string,
-      {videos: number; quizzes: number; articles: number; projects: number}
+      { videos: number; quizzes: number; articles: number; projects: number }
     >();
 
     for (const watched of watchedItems) {
       const key = `${watched._id.userId.toString()}-${watched._id.courseId.toString()}-${watched._id.courseVersionId.toString()}`;
 
       if (!map.has(key)) {
-        map.set(key, {videos: 0, quizzes: 0, articles: 0, projects: 0});
+        map.set(key, { videos: 0, quizzes: 0, articles: 0, projects: 0 });
       }
 
       const counts = map.get(key)!;
@@ -1328,14 +1328,14 @@ export class EnrollmentRepository {
     // const userObjectid = new ObjectId(userId)
 
     return await this.enrollmentCollection
-      .find({userId: {$in: userFilter}, isDeleted: {$ne: true}}, {session})
-      .sort({enrollmentDate: -1})
+      .find({ userId: { $in: userFilter }, isDeleted: { $ne: true } }, { session })
+      .sort({ enrollmentDate: -1 })
       .toArray();
   }
 
   async getAllExisitingEnrollments(session?: ClientSession) {
     await this.init();
-    return await this.enrollmentCollection.find({}, {session}).toArray();
+    return await this.enrollmentCollection.find({}, { session }).toArray();
   }
 
   async getCourseVersionEnrollments(
@@ -1353,18 +1353,18 @@ export class EnrollmentRepository {
     await this.init();
 
     const baseMatch: any = {
-      courseId: {$in: [courseId, new ObjectId(courseId)]},
-      courseVersionId: {$in: [courseVersionId, new ObjectId(courseVersionId)]},
+      courseId: { $in: [courseId, new ObjectId(courseId)] },
+      courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
     };
 
-    let matchStage: any = {...baseMatch};
+    let matchStage: any = { ...baseMatch };
 
     //  ACTIVE tab
     if (statusTab === 'ACTIVE') {
       matchStage = {
         ...baseMatch,
-        status: {$regex: /^active$/i},
-        isDeleted: {$ne: true},
+        status: { $regex: /^active$/i },
+        isDeleted: { $ne: true },
       };
     }
 
@@ -1372,7 +1372,7 @@ export class EnrollmentRepository {
     if (statusTab === 'INACTIVE') {
       matchStage = {
         ...baseMatch,
-        $or: [{status: {$regex: /^inactive$/i}}, {isDeleted: true}],
+        $or: [{ status: { $regex: /^inactive$/i } }, { isDeleted: true }],
       };
     }
 
@@ -1405,7 +1405,7 @@ export class EnrollmentRepository {
       if (filter === 'STUDENT') {
         matchStage.role = 'STUDENT';
       } else if (filter === 'OTHER') {
-        matchStage.role = {$ne: 'STUDENT'};
+        matchStage.role = { $ne: 'STUDENT' };
       }
     }
 
@@ -1418,18 +1418,18 @@ export class EnrollmentRepository {
         lastName: sortOrder === 'asc' ? 1 : -1,
       };
     } else if (sortBy === 'enrollmentDate') {
-      sortField = {enrollmentDate: sortOrder === 'asc' ? 1 : -1};
+      sortField = { enrollmentDate: sortOrder === 'asc' ? 1 : -1 };
     } else if (sortBy === 'progress') {
-      sortField = {percentCompleted: sortOrder === 'asc' ? 1 : -1};
+      sortField = { percentCompleted: sortOrder === 'asc' ? 1 : -1 };
     } else if (sortBy === 'unenrolledAt') {
-      sortField = {unenrolledAt: sortOrder === 'asc' ? 1 : -1};
+      sortField = { unenrolledAt: sortOrder === 'asc' ? 1 : -1 };
     }
 
     const aggregationPipeline: any[] = [
-      {$match: matchStage},
+      { $match: matchStage },
       {
         $addFields: {
-          userId: {$toObjectId: '$userId'},
+          userId: { $toObjectId: '$userId' },
         },
       },
       {
@@ -1440,17 +1440,17 @@ export class EnrollmentRepository {
           as: 'userInfo',
         },
       },
-      {$unwind: {path: '$userInfo', preserveNullAndEmptyArrays: true}},
+      { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
       {
         $addFields: {
-          userId: {$toString: '$userInfo._id'},
-          _id: {$toString: '$_id'},
-          courseId: {$toString: '$courseId'},
-          courseVersionId: {$toString: '$courseVersionId'},
+          userId: { $toString: '$userInfo._id' },
+          _id: { $toString: '$_id' },
+          courseId: { $toString: '$courseId' },
+          courseVersionId: { $toString: '$courseVersionId' },
           firstName: '$userInfo.firstName',
           lastName: '$userInfo.lastName',
           email: '$userInfo.email',
-          completedItemsCount: {$ifNull: ['$completedItemsCount', 0]},
+          completedItemsCount: { $ifNull: ['$completedItemsCount', 0] },
         },
       },
     ];
@@ -1461,28 +1461,28 @@ export class EnrollmentRepository {
       aggregationPipeline.push({
         $match: {
           $or: [
-            {'userInfo.firstName': {$regex: search, $options: 'i'}},
-            {'userInfo.email': {$regex: search, $options: 'i'}},
-            {firstName: {$regex: searchTerm, $options: 'i'}},
-            {lastName: {$regex: searchTerm, $options: 'i'}},
-            {email: {$regex: searchTerm, $options: 'i'}},
+            { 'userInfo.firstName': { $regex: search, $options: 'i' } },
+            { 'userInfo.email': { $regex: search, $options: 'i' } },
+            { firstName: { $regex: searchTerm, $options: 'i' } },
+            { lastName: { $regex: searchTerm, $options: 'i' } },
+            { email: { $regex: searchTerm, $options: 'i' } },
           ],
         },
       });
     }
 
     // Get the total count with search applied
-    const countPipeline = [...aggregationPipeline, {$count: 'total'}];
+    const countPipeline = [...aggregationPipeline, { $count: 'total' }];
     const countResult = await this.enrollmentCollection
-      .aggregate<{total: number}>(countPipeline, {session})
+      .aggregate<{ total: number }>(countPipeline, { session })
       .next();
     const totalDocuments = countResult?.total || 0;
 
     // sorting
-    aggregationPipeline.push({$sort: sortField});
+    aggregationPipeline.push({ $sort: sortField });
 
     // pagination
-    aggregationPipeline.push({$skip: skip}, {$limit: limit});
+    aggregationPipeline.push({ $skip: skip }, { $limit: limit });
 
     // count separately
     // const totalDocuments = await this.enrollmentCollection.countDocuments(
@@ -1490,7 +1490,7 @@ export class EnrollmentRepository {
     // );
 
     const enrollments = await this.enrollmentCollection
-      .aggregate(aggregationPipeline, {session})
+      .aggregate(aggregationPipeline, { session })
       .toArray();
 
     const totalPages = limit > 0 ? Math.ceil(totalDocuments / limit) : 1;
@@ -1524,22 +1524,22 @@ export class EnrollmentRepository {
                 $in: [courseVersionId, new ObjectId(courseVersionId)],
               },
               role: 'STUDENT',
-              status: {$regex: /^active$/i},
-              isDeleted: {$ne: true}, // Exclude soft-deleted enrollments
+              status: { $regex: /^active$/i },
+              isDeleted: { $ne: true }, // Exclude soft-deleted enrollments
             },
           },
           {
             $group: {
               _id: null,
-              totalEnrollments: {$sum: 1},
+              totalEnrollments: { $sum: 1 },
               completedCount: {
                 $sum: {
-                  $cond: [{$gte: ['$percentCompleted', 100]}, 1, 0],
+                  $cond: [{ $gte: ['$percentCompleted', 100] }, 1, 0],
                 },
               },
               totalProgress: {
                 $sum: {
-                  $multiply: [{$ifNull: ['$percentCompleted', 0]}, 1],
+                  $multiply: [{ $ifNull: ['$percentCompleted', 0] }, 1],
                 },
               },
             },
@@ -1551,10 +1551,10 @@ export class EnrollmentRepository {
               completedCount: 1,
               averageProgressPercent: {
                 $cond: [
-                  {$gt: ['$totalEnrollments', 0]},
+                  { $gt: ['$totalEnrollments', 0] },
                   {
                     $round: [
-                      {$divide: ['$totalProgress', '$totalEnrollments']},
+                      { $divide: ['$totalProgress', '$totalEnrollments'] },
                       2,
                     ],
                   },
@@ -1564,7 +1564,7 @@ export class EnrollmentRepository {
             },
           },
         ],
-        {session},
+        { session },
       )
       .toArray();
 
@@ -1600,10 +1600,10 @@ export class EnrollmentRepository {
   ) {
     await this.init();
     const matchStage: any = {
-      userId: {$in: [new ObjectId(userId), userId]},
+      userId: { $in: [new ObjectId(userId), userId] },
       role,
-      isDeleted: {$ne: true},
-      status: {$regex: /^active$/i},
+      isDeleted: { $ne: true },
+      status: { $regex: /^active$/i },
     };
 
     // Add courseVersionId filter if provided
@@ -1631,7 +1631,7 @@ export class EnrollmentRepository {
         },
         {
           $match: {
-            'version.versionStatus': {$ne: 'archived'},
+            'version.versionStatus': { $ne: 'archived' },
           },
         },
       );
@@ -1642,13 +1642,13 @@ export class EnrollmentRepository {
       {
         $lookup: {
           from: 'newCourse',
-          let: {courseId: '$courseId'},
+          let: { courseId: '$courseId' },
           pipeline: [
             {
               $match: {
-                $expr: {$eq: ['$_id', '$$courseId']},
+                $expr: { $eq: ['$_id', '$$courseId'] },
                 ...(search?.trim()
-                  ? {name: {$regex: search, $options: 'i'}}
+                  ? { name: { $regex: search, $options: 'i' } }
                   : {}),
               },
             },
@@ -1658,9 +1658,9 @@ export class EnrollmentRepository {
       },
 
       // remove enrollments whose course did not match search
-      {$unwind: '$course'},
+      { $unwind: '$course' },
 
-      {$count: 'total'},
+      { $count: 'total' },
     );
 
     const result = await this.enrollmentCollection
@@ -1696,10 +1696,10 @@ export class EnrollmentRepository {
     await this.init();
 
     const query: any = {
-      isDeleted: {$ne: true},
-      status: {$regex: /^active$/i},
+      isDeleted: { $ne: true },
+      status: { $regex: /^active$/i },
       role: 'STUDENT',
-      percentCompleted: {$exists: true, $gte: 99, $lt: 100},
+      percentCompleted: { $exists: true, $gte: 99, $lt: 100 },
     };
 
     if (filters.courseId) query.courseId = new ObjectId(filters.courseId);
@@ -1719,8 +1719,8 @@ export class EnrollmentRepository {
       await this.enrollmentCollection.dropIndex('enrollmentDate_-1');
 
       await this.enrollmentCollection.createIndex(
-        {courseId: 1, courseVersionId: 1},
-        {name: 'courseId_1_courseVersionId_1'},
+        { courseId: 1, courseVersionId: 1 },
+        { name: 'courseId_1_courseVersionId_1' },
       );
       // await this.enrollmentCollection.createIndex({ userId: 1, role: 1 });
       // await this.enrollmentCollection.createIndex({ courseId: 1 });
@@ -1754,30 +1754,31 @@ export class EnrollmentRepository {
           courseId: new ObjectId(courseId),
           courseVersionId: new ObjectId(courseVersionId),
         },
-        {session},
+        { session },
       )
       .toArray();
   }
 
   /* Update progress percentage for array of users */
   async bulkUpdateProgressPercents(
-    updates: {enrollmentId: string; percentCompleted: number}[],
+    updates: { enrollmentId: string; percentCompleted: number }[],
     session?: ClientSession,
   ): Promise<void> {
     if (!updates.length) return;
 
     const operations = updates.map(update => ({
       updateOne: {
-        filter: {_id: new ObjectId(update.enrollmentId)},
-        update: {$set: {progressPercent: update.percentCompleted}},
+        filter: { _id: new ObjectId(update.enrollmentId) },
+        update: { $set: { progressPercent: update.percentCompleted } },
       },
     }));
 
-    await this.enrollmentCollection.bulkWrite(operations, {session});
+    await this.enrollmentCollection.bulkWrite(operations, { session });
   }
 
   private async processCompletedItemsBatch(
     enrollments: any[],
+    totalItemsMap: Map<string, number>,
     session?: ClientSession,
   ): Promise<number> {
     if (enrollments.length === 0) return 0;
@@ -1787,17 +1788,17 @@ export class EnrollmentRepository {
     enrollments.forEach(e => {
       enrollmentMap.set(
         `${e.userId}_${e.courseId}_${e.courseVersionId}`,
-        e._id,
+        { id: e._id, courseVersionId: e.courseVersionId.toString() },
       );
     });
 
-    // 🔥 Single aggregation for entire batch
     const completedCounts = await this.watchTimeCollection
       .aggregate(
         [
           {
             $match: {
-              isDeleted: {$ne: true},
+              isDeleted: { $ne: true },
+              isHidden: { $ne: true },
               $or: enrollments.map(e => ({
                 userId: e.userId,
                 courseId: e.courseId,
@@ -1812,46 +1813,53 @@ export class EnrollmentRepository {
                 courseId: '$courseId',
                 courseVersionId: '$courseVersionId',
               },
-              completedItemsCount: {$addToSet: '$itemId'},
+              completedItemsCount: { $addToSet: '$itemId' },
             },
           },
           {
             $project: {
-              completedItemsCount: {$size: '$completedItemsCount'},
+              completedItemsCount: { $size: '$completedItemsCount' },
             },
           },
         ],
-        {session},
+        { session },
       )
       .toArray();
 
     const operations = completedCounts.map(c => {
       const key = `${c._id.userId}_${c._id.courseId}_${c._id.courseVersionId}`;
-      const enrollmentId = enrollmentMap.get(key);
+      const entry = enrollmentMap.get(key);
+      if (!entry) return null;
+
+      const totalItems = totalItemsMap.get(entry.courseVersionId) || 0;
+      const completedItemsCount = c.completedItemsCount;
+      const percentCompleted = totalItems > 0
+        ? Number(((completedItemsCount / totalItems) * 100).toFixed(2))
+        : 0;
 
       return {
         updateOne: {
-          filter: {_id: enrollmentId},
+          filter: { _id: entry.id },
           update: {
             $set: {
-              completedItemsCount: c.completedItemsCount,
+              completedItemsCount,
+              percentCompleted,
               updatedAt: new Date(),
             },
           },
         },
       };
-    });
+    }).filter(Boolean);
 
     if (operations.length === 0) return 0;
 
-    const result = await this.enrollmentCollection.bulkWrite(operations, {
+    const result = await this.enrollmentCollection.bulkWrite(operations as any[], {
       session,
     });
 
     return result.modifiedCount;
   }
 
-  /* Update completed items count for all enrollments in batches of 100 */
   async bulkUpdateCompletedItemsCountForCourseVersion(
     filters: {
       courseVersionId: string;
@@ -1859,15 +1867,22 @@ export class EnrollmentRepository {
       userId?: string;
     },
     session?: ClientSession,
-  ): Promise<{totalCount: number; updatedCount: number}> {
+  ): Promise<{ totalCount: number; updatedCount: number }> {
     await this.init();
 
     const BATCH_SIZE = 500;
     let totalCount = 0;
     let updatedCount = 0;
 
+    const courseVersion = await this.courseVersionCollection.findOne(
+      { _id: new ObjectId(filters.courseVersionId) },
+      { projection: { totalItems: 1 }, session },
+    );
+    const totalItems = courseVersion?.totalItems ?? 0;
+    const totalItemsMap = new Map<string, number>([[filters.courseVersionId, totalItems]]);
+
     const match: any = {
-      isDeleted: {$ne: true},
+      isDeleted: { $ne: true },
       courseVersionId: new ObjectId(filters.courseVersionId),
     };
 
@@ -1881,7 +1896,7 @@ export class EnrollmentRepository {
 
     const cursor = this.enrollmentCollection
       .find(match)
-      .project({userId: 1, courseId: 1, courseVersionId: 1})
+      .project({ userId: 1, courseId: 1, courseVersionId: 1 })
       .batchSize(BATCH_SIZE);
 
     let batch: any[] = [];
@@ -1891,20 +1906,16 @@ export class EnrollmentRepository {
       totalCount++;
 
       if (batch.length === BATCH_SIZE) {
-        updatedCount += await this.processCompletedItemsBatch(batch, session);
+        updatedCount += await this.processCompletedItemsBatch(batch, totalItemsMap, session);
         batch = [];
       }
     }
 
     if (batch.length > 0) {
-      updatedCount += await this.processCompletedItemsBatch(batch, session);
+      updatedCount += await this.processCompletedItemsBatch(batch, totalItemsMap, session);
     }
 
-    console.log(
-      `✅ CourseVersion ${filters.courseVersionId} → scanned=${totalCount}, updated=${updatedCount}`,
-    );
-
-    return {totalCount, updatedCount};
+    return { totalCount, updatedCount };
   }
 
   /**
@@ -1917,10 +1928,10 @@ export class EnrollmentRepository {
    */
   private async getQuizDetails(
     quizIds: ObjectId[],
-  ): Promise<Map<string, {name: string}>> {
+  ): Promise<Map<string, { name: string }>> {
     const quizzes = await this.quizCollection
       .find({
-        _id: {$in: quizIds},
+        _id: { $in: quizIds },
       })
       .project({
         _id: 1,
@@ -1928,7 +1939,7 @@ export class EnrollmentRepository {
       })
       .toArray();
 
-    const quizDetails = new Map<string, {name: string}>();
+    const quizDetails = new Map<string, { name: string }>();
     quizzes.forEach(quiz => {
       quizDetails.set(quiz._id.toString(), {
         name: quiz.name,
@@ -1991,18 +2002,18 @@ export class EnrollmentRepository {
               $and: [
                 {
                   $or: [
-                    {userId: {$in: ObjuserIds}},
-                    {userId: {$in: stringUserIds}},
+                    { userId: { $in: ObjuserIds } },
+                    { userId: { $in: stringUserIds } },
                   ],
                 },
                 {
                   $or: [
-                    {quizId: {$in: ObjquizIds}},
-                    {quizId: {$in: stringQuizIds}},
+                    { quizId: { $in: ObjquizIds } },
+                    { quizId: { $in: stringQuizIds } },
                   ],
                 },
-                {'gradingResult.totalMaxScore': {$exists: true}},
-                {'gradingResult.totalScore': {$exists: true}},
+                { 'gradingResult.totalMaxScore': { $exists: true } },
+                { 'gradingResult.totalScore': { $exists: true } },
               ],
             },
           },
@@ -2010,8 +2021,8 @@ export class EnrollmentRepository {
             $project: {
               userId: 1,
               quizId: 1,
-              score: {$ifNull: ['$gradingResult.totalScore', 0]},
-              maxPossibleScore: {$ifNull: ['$gradingResult.totalMaxScore', 0]},
+              score: { $ifNull: ['$gradingResult.totalScore', 0] },
+              maxPossibleScore: { $ifNull: ['$gradingResult.totalMaxScore', 0] },
             },
           },
           {
@@ -2020,15 +2031,15 @@ export class EnrollmentRepository {
                 userId: '$userId',
                 quizId: '$quizId',
               },
-              bestScore: {$max: '$score'},
-              maxPossibleScore: {$first: '$maxPossibleScore'},
+              bestScore: { $max: '$score' },
+              maxPossibleScore: { $first: '$maxPossibleScore' },
             },
           },
           {
             $project: {
               _id: 0,
-              userId: {$toString: '$_id.userId'},
-              quizId: {$toString: '$_id.quizId'},
+              userId: { $toString: '$_id.userId' },
+              quizId: { $toString: '$_id.quizId' },
               bestScore: 1,
               maxPossibleScore: 1,
               scorePercentage: {
@@ -2036,11 +2047,11 @@ export class EnrollmentRepository {
                   vars: {
                     percentage: {
                       $cond: [
-                        {$eq: ['$maxPossibleScore', 0]},
+                        { $eq: ['$maxPossibleScore', 0] },
                         0,
                         {
                           $multiply: [
-                            {$divide: ['$bestScore', '$maxPossibleScore']},
+                            { $divide: ['$bestScore', '$maxPossibleScore'] },
                             100,
                           ],
                         },
@@ -2049,9 +2060,9 @@ export class EnrollmentRepository {
                   },
                   in: {
                     $cond: [
-                      {$eq: [{$mod: ['$$percentage', 1]}, 0]},
+                      { $eq: [{ $mod: ['$$percentage', 1] }, 0] },
                       '$$percentage',
-                      {$round: ['$$percentage', 2]},
+                      { $round: ['$$percentage', 2] },
                     ],
                   },
                 },
@@ -2067,17 +2078,17 @@ export class EnrollmentRepository {
           $and: [
             {
               $or: [
-                {userId: {$in: ObjuserIds}},
-                {userId: {$in: stringUserIds}},
+                { userId: { $in: ObjuserIds } },
+                { userId: { $in: stringUserIds } },
               ],
             },
             {
               $or: [
-                {quizId: {$in: ObjquizIds}},
-                {quizId: {$in: stringQuizIds}},
+                { quizId: { $in: ObjquizIds } },
+                { quizId: { $in: stringQuizIds } },
               ],
             },
-            {'gradingResult.overallFeedback': {$exists: true, $ne: []}},
+            { 'gradingResult.overallFeedback': { $exists: true, $ne: [] } },
           ],
         })
         .project({
@@ -2096,7 +2107,7 @@ export class EnrollmentRepository {
 
       // Process max scores (now as percentages)
       maxScoreResults.forEach(result => {
-        const {userId, quizId, maxScorePercentage} = result;
+        const { userId, quizId, maxScorePercentage } = result;
         if (!maxScores.has(userId)) {
           maxScores.set(userId, new Map<string, number>());
         }
@@ -2138,7 +2149,7 @@ export class EnrollmentRepository {
         }
       });
 
-      return {maxScores, questionScores};
+      return { maxScores, questionScores };
     } catch (error) {
       console.error('Error in getMaxScoresForQuizzes:', error);
       return {
@@ -2168,21 +2179,21 @@ export class EnrollmentRepository {
         .aggregate([
           {
             $match: {
-              userId: {$in: ObjUserIds},
-              quizId: {$in: ObjQuizIds},
+              userId: { $in: ObjUserIds },
+              quizId: { $in: ObjQuizIds },
             },
           },
           {
             $group: {
-              _id: {userId: '$userId', quizId: '$quizId'},
-              attemptCount: {$sum: 1},
+              _id: { userId: '$userId', quizId: '$quizId' },
+              attemptCount: { $sum: 1 },
             },
           },
           {
             $project: {
               _id: 0,
-              userId: {$toString: '$_id.userId'},
-              quizId: {$toString: '$_id.quizId'},
+              userId: { $toString: '$_id.userId' },
+              quizId: { $toString: '$_id.quizId' },
               attemptCount: 1,
             },
           },
@@ -2190,7 +2201,7 @@ export class EnrollmentRepository {
         .toArray();
 
       const attemptMap = new Map<string, Map<string, number>>();
-      for (const {userId, quizId, attemptCount} of results) {
+      for (const { userId, quizId, attemptCount } of results) {
         if (!attemptMap.has(userId)) {
           attemptMap.set(userId, new Map());
         }
@@ -2233,8 +2244,8 @@ export class EnrollmentRepository {
        * ------------------------------------ */
       const quizzes = await this.quizCollection
         .find({
-          _id: {$in: quizIds.map(id => new ObjectId(id))},
-          'details.questionBankRefs': {$exists: true, $ne: []},
+          _id: { $in: quizIds.map(id => new ObjectId(id)) },
+          'details.questionBankRefs': { $exists: true, $ne: [] },
         })
         .project({
           _id: 1,
@@ -2264,9 +2275,9 @@ export class EnrollmentRepository {
        * ------------------------------------ */
       const questionBanks = await this.questionBankCollection
         .find({
-          _id: {$in: [...bankIds].map(id => new ObjectId(id))},
+          _id: { $in: [...bankIds].map(id => new ObjectId(id)) },
         })
-        .project({_id: 1, questions: 1})
+        .project({ _id: 1, questions: 1 })
         .toArray();
 
       /** ------------------------------------
@@ -2324,7 +2335,7 @@ export class EnrollmentRepository {
   private async getQuizQuestionIds(quizId: string): Promise<string[]> {
     await this.init();
 
-    const quiz = await this.quizCollection.findOne({_id: new ObjectId(quizId)});
+    const quiz = await this.quizCollection.findOne({ _id: new ObjectId(quizId) });
     if (!quiz || !quiz.details?.questionBankRefs?.length) {
       return [];
     }
@@ -2340,7 +2351,7 @@ export class EnrollmentRepository {
 
     // Get all questions from the question banks
     const questionBanks = await this.questionBankCollection
-      .find({_id: {$in: bankIds}})
+      .find({ _id: { $in: bankIds } })
       .toArray();
 
     // Extract all question IDs
@@ -2375,13 +2386,13 @@ export class EnrollmentRepository {
     }>
   > {
     // Define types for the data we're working with
-    type QuizDocument = {_id: ObjectId; itemsGroupId: string};
+    type QuizDocument = { _id: ObjectId; itemsGroupId: string };
     type ModuleSection = {
       sectionId: string;
       name: string;
       itemsGroupId: string;
     };
-    type Module = {moduleId: string; name: string; sections: ModuleSection[]};
+    type Module = { moduleId: string; name: string; sections: ModuleSection[] };
     await this.init();
 
     if (!ObjectId.isValid(versionId)) {
@@ -2391,7 +2402,7 @@ export class EnrollmentRepository {
     try {
       // 1. Get the course version with modules and sections
       const courseVersion = await this.courseVersionCollection.findOne(
-        {_id: new ObjectId(versionId)},
+        { _id: new ObjectId(versionId) },
         {
           projection: {
             'modules.moduleId': 1,
@@ -2426,7 +2437,7 @@ export class EnrollmentRepository {
       // 3. Get all items groups that contain quizzes
       const itemsGroups = await this.itemsGroupCollection
         .find({
-          _id: {$in: sectionItemsGroupIds.map(id => new ObjectId(id))},
+          _id: { $in: sectionItemsGroupIds.map(id => new ObjectId(id)) },
         })
         .toArray();
 
@@ -2484,7 +2495,7 @@ export class EnrollmentRepository {
         .map(module => {
           const moduleSections = (module.sections || [])
             .filter(
-              (section): section is ModuleSection & {itemsGroupId: string} => {
+              (section): section is ModuleSection & { itemsGroupId: string } => {
                 if (!section || !section.itemsGroupId) {
                   return false;
                 }
@@ -2551,12 +2562,12 @@ export class EnrollmentRepository {
 
     // Add status-specific filters
     if (statusTab === 'ACTIVE') {
-      studentFilter.status = {$regex: /^active$/i};
-      studentFilter.isDeleted = {$ne: true};
+      studentFilter.status = { $regex: /^active$/i };
+      studentFilter.isDeleted = { $ne: true };
     } else if (statusTab === 'INACTIVE') {
       studentFilter.$or = [
-        {status: {$regex: /^inactive$/i}},
-        {isDeleted: true},
+        { status: { $regex: /^inactive$/i } },
+        { isDeleted: true },
       ];
     }
 
@@ -2565,7 +2576,7 @@ export class EnrollmentRepository {
      * ----------------------------------------------------- */
     const enrollments = await this.enrollmentCollection
       .aggregate([
-        {$match: studentFilter},
+        { $match: studentFilter },
         {
           $lookup: {
             from: 'users',
@@ -2574,7 +2585,7 @@ export class EnrollmentRepository {
             as: 'user',
           },
         },
-        {$unwind: '$user'},
+        { $unwind: '$user' },
         {
           $project: {
             userId: 1,
@@ -2644,8 +2655,8 @@ export class EnrollmentRepository {
       .aggregate([
         {
           $match: {
-            userId: {$in: userIds},
-            quizId: {$in: quizIdsObj},
+            userId: { $in: userIds },
+            quizId: { $in: quizIdsObj },
           },
         },
         {
@@ -2654,8 +2665,8 @@ export class EnrollmentRepository {
               userId: '$userId',
               quizId: '$quizId',
             },
-            attempts: {$sum: 1},
-            maxScore: {$max: '$gradingResult.totalScore'},
+            attempts: { $sum: 1 },
+            maxScore: { $max: '$gradingResult.totalScore' },
           },
         },
       ])
@@ -2666,8 +2677,8 @@ export class EnrollmentRepository {
       .aggregate([
         {
           $match: {
-            userId: {$in: userIds},
-            quizId: {$in: quizIdsObj},
+            userId: { $in: userIds },
+            quizId: { $in: quizIdsObj },
           },
         },
         {
@@ -2758,9 +2769,8 @@ export class EnrollmentRepository {
       return {
         studentId: userId,
         name:
-          `${enrollment.user.firstName ?? ''} ${
-            enrollment.user.lastName ?? ''
-          }`.trim() || 'Unknown',
+          `${enrollment.user.firstName ?? ''} ${enrollment.user.lastName ?? ''
+            }`.trim() || 'Unknown',
         email: enrollment.user.email ?? '',
         quizScores,
       };
@@ -2792,7 +2802,7 @@ export class EnrollmentRepository {
         .find({
           courseId: courseObjectId,
           courseVersionId: versionObjectId,
-          role: {$ne: 'STUDENT'},
+          role: { $ne: 'STUDENT' },
         })
         .toArray();
 
@@ -2819,10 +2829,10 @@ export class EnrollmentRepository {
             courseId: courseObjectId,
             courseVersionId: versionObjectId,
             role: 'STUDENT',
-            status: {$regex: /^active$/i},
-            isDeleted: {$ne: true},
+            status: { $regex: /^active$/i },
+            isDeleted: { $ne: true },
           },
-          {session},
+          { session },
         )
         .toArray();
 
@@ -2846,8 +2856,8 @@ export class EnrollmentRepository {
         {
           courseVersionId: versionObjectId,
         },
-        {$set: {isDeleted: true, deletedAt: new Date()}},
-        {session},
+        { $set: { isDeleted: true, deletedAt: new Date() } },
+        { session },
       );
 
       return result.modifiedCount;
@@ -2876,9 +2886,9 @@ export class EnrollmentRepository {
 
     const result = await this.enrollmentCollection.deleteMany(
       {
-        courseVersionId: {$in: versionIds},
+        courseVersionId: { $in: versionIds },
       },
-      {session},
+      { session },
     );
     return result.acknowledged && result.deletedCount > 0;
   }
@@ -2897,7 +2907,7 @@ export class EnrollmentRepository {
           courseId: new ObjectId(courseId),
           courseVersionId: new ObjectId(courseVersionId),
         },
-        {session},
+        { session },
       )
       .next();
   }
@@ -2912,9 +2922,9 @@ export class EnrollmentRepository {
     const itemObjIds = itemIds.map(id => new ObjectId(id));
 
     const result = await this.watchTimeCollection.updateMany(
-      {itemId: {$in: itemObjIds}},
-      {$set: {isHidden: isHidden}},
-      {session},
+      { itemId: { $in: itemObjIds } },
+      { $set: { isHidden: isHidden } },
+      { session },
     );
 
     if (!result.acknowledged) {
@@ -2951,14 +2961,14 @@ export class EnrollmentRepository {
         [
           {
             $match: {
-              userId: {$in: userObjectIds},
-              quizId: {$in: quizObjectIds},
-              'gradingResult.totalScore': {$exists: true},
+              userId: { $in: userObjectIds },
+              quizId: { $in: quizObjectIds },
+              'gradingResult.totalScore': { $exists: true },
             },
           },
           // Sort by score descending to get best score first
           {
-            $sort: {'gradingResult.totalScore': -1},
+            $sort: { 'gradingResult.totalScore': -1 },
           },
           // Group by user and quiz, take the first (best) submission
           {
@@ -2967,12 +2977,12 @@ export class EnrollmentRepository {
                 userId: '$userId',
                 quizId: '$quizId',
               },
-              submission: {$first: '$$ROOT'},
+              submission: { $first: '$$ROOT' },
             },
           },
           // Replace root to get back the submission document
           {
-            $replaceRoot: {newRoot: '$submission'},
+            $replaceRoot: { newRoot: '$submission' },
           },
           // Project only needed fields
           {
@@ -2984,7 +2994,7 @@ export class EnrollmentRepository {
             },
           },
         ],
-        {session},
+        { session },
       )
       .toArray();
   }
@@ -3003,7 +3013,7 @@ export class EnrollmentRepository {
       .find(
         {
           userId: userObjectId,
-          quizId: {$in: quizObjectIds},
+          quizId: { $in: quizObjectIds },
         },
         {
           session,
@@ -3030,8 +3040,8 @@ export class EnrollmentRepository {
     const matchStage: any = {
       userId: userObjectId,
       role,
-      isDeleted: {$ne: true},
-      status: {$regex: /^active$/i},
+      isDeleted: { $ne: true },
+      status: { $regex: /^active$/i },
     };
 
     // ✅ Add courseVersionId filter if provided
@@ -3044,7 +3054,7 @@ export class EnrollmentRepository {
         $match: matchStage,
       },
 
-      {$sort: {enrollmentDate: -1}},
+      { $sort: { enrollmentDate: -1 } },
       //from progress
       {
         $lookup: {
@@ -3059,10 +3069,10 @@ export class EnrollmentRepository {
               $match: {
                 $expr: {
                   $and: [
-                    {$eq: ['$userId', '$$userId']},
-                    {$eq: ['$courseId', '$$courseId']},
-                    {$eq: ['$courseVersionId', '$$courseVersionId']},
-                    {$eq: ['$status', 'active']},
+                    { $eq: ['$userId', '$$userId'] },
+                    { $eq: ['$courseId', '$$courseId'] },
+                    { $eq: ['$courseVersionId', '$$courseVersionId'] },
+                    { $eq: ['$status', 'active'] },
                   ],
                 },
               },
@@ -3080,7 +3090,7 @@ export class EnrollmentRepository {
       },
       // {$unwind: '$progress'},
       {
-        $unwind: {path: '$progress', preserveNullAndEmptyArrays: true},
+        $unwind: { path: '$progress', preserveNullAndEmptyArrays: true },
       },
 
       /* ---------------- COURSE LOOKUP ---------------- */
@@ -3102,12 +3112,12 @@ export class EnrollmentRepository {
           ],
         },
       },
-      {$unwind: '$course'},
+      { $unwind: '$course' },
       /* ---------------- ADD NEW LOOKUP FOR VERSION DETAILS ---------------- */
       {
         $lookup: {
           from: 'newCourseVersion',
-          let: {versionIds: '$course.versions'},
+          let: { versionIds: '$course.versions' },
           pipeline: [
             {
               $match: {
@@ -3150,15 +3160,15 @@ export class EnrollmentRepository {
         },
       },
 
-      {$unwind: {path: '$courseVersion', preserveNullAndEmptyArrays: true}},
+      { $unwind: { path: '$courseVersion', preserveNullAndEmptyArrays: true } },
 
       /* ---------------- SEARCH ---------------- */
       //i have converted the id(object form right) to string
       {
         $addFields: {
-          currentModuleStr: {$toString: '$progress.currentModule'},
-          currentSectionStr: {$toString: '$progress.currentSection'},
-          currentItemStr: {$toString: '$progress.currentItem'},
+          currentModuleStr: { $toString: '$progress.currentModule' },
+          currentSectionStr: { $toString: '$progress.currentSection' },
+          currentItemStr: { $toString: '$progress.currentItem' },
         },
       },
       //getting items group for current section id
@@ -3171,11 +3181,11 @@ export class EnrollmentRepository {
           pipeline: [
             {
               $match: {
-                $expr: {$eq: ['$sectionId', '$$sectionId']},
+                $expr: { $eq: ['$sectionId', '$$sectionId'] },
               },
             },
             {
-              $project: {items: 1},
+              $project: { items: 1 },
             },
           ],
           as: 'itemsGroup',
@@ -3191,11 +3201,11 @@ export class EnrollmentRepository {
                   $reduce: {
                     input: '$itemsGroup',
                     initialValue: [],
-                    in: {$concatArrays: ['$$value', '$$this.items']},
+                    in: { $concatArrays: ['$$value', '$$this.items'] },
                   },
                 },
                 as: 'i',
-                cond: {$eq: [{$toString: '$$i._id'}, '$currentItemStr']},
+                cond: { $eq: [{ $toString: '$$i._id' }, '$currentItemStr'] },
               },
             },
           },
@@ -3210,7 +3220,7 @@ export class EnrollmentRepository {
               $filter: {
                 input: '$courseVersion.modules',
                 as: 'm',
-                cond: {$eq: [{$toString: '$$m.moduleId'}, '$currentModuleStr']},
+                cond: { $eq: [{ $toString: '$$m.moduleId' }, '$currentModuleStr'] },
               },
             },
           },
@@ -3226,7 +3236,7 @@ export class EnrollmentRepository {
                     $map: {
                       input: '$courseVersion.modules',
                       as: 'm',
-                      in: {$toString: '$$m.moduleId'},
+                      in: { $toString: '$$m.moduleId' },
                     },
                   },
                   '$currentModuleStr',
@@ -3247,7 +3257,7 @@ export class EnrollmentRepository {
                 input: '$currentModuleObj.sections',
                 as: 's',
                 cond: {
-                  $eq: [{$toString: '$$s.sectionId'}, '$currentSectionStr'],
+                  $eq: [{ $toString: '$$s.sectionId' }, '$currentSectionStr'],
                 },
               },
             },
@@ -3264,7 +3274,7 @@ export class EnrollmentRepository {
                     $map: {
                       input: '$currentModuleObj.sections',
                       as: 's',
-                      in: {$toString: '$$s.sectionId'},
+                      in: { $toString: '$$s.sectionId' },
                     },
                   },
                   '$currentSectionStr',
@@ -3294,10 +3304,10 @@ export class EnrollmentRepository {
           itemType: '$currentItemObj.type',
 
           // pulled from courseVersion
-          totalItems: {$ifNull: ['$courseVersion.totalItems', 0]},
-          itemCounts: {$ifNull: ['$courseVersion.itemCounts', {}]},
+          totalItems: { $ifNull: ['$courseVersion.totalItems', 0] },
+          itemCounts: { $ifNull: ['$courseVersion.itemCounts', {}] },
 
-          percentCompleted: {$ifNull: ['$percentCompleted', 0]},
+          percentCompleted: { $ifNull: ['$percentCompleted', 0] },
         },
       },
     ];
@@ -3316,8 +3326,8 @@ export class EnrollmentRepository {
     const matchStage: any = {
       userId: new ObjectId(userId),
       role,
-      isDeleted: {$ne: true},
-      status: {$regex: /^active$/i},
+      isDeleted: { $ne: true },
+      status: { $regex: /^active$/i },
     };
 
     // Add courseVersionId filter if provided
@@ -3333,11 +3343,11 @@ export class EnrollmentRepository {
       {
         $lookup: {
           from: 'newCourse',
-          let: {courseId: '$courseId'},
+          let: { courseId: '$courseId' },
           pipeline: [
             {
               $match: {
-                $expr: {$eq: ['$_id', '$$courseId']},
+                $expr: { $eq: ['$_id', '$$courseId'] },
               },
             },
           ],
@@ -3346,9 +3356,9 @@ export class EnrollmentRepository {
       },
 
       // remove enrollments whose course did not match search
-      {$unwind: '$course'},
+      { $unwind: '$course' },
 
-      {$count: 'total'},
+      { $count: 'total' },
     ];
 
     const result = await this.enrollmentCollection
@@ -3363,13 +3373,13 @@ export class EnrollmentRepository {
    */
   async updateEnrollmentTimeSlot(
     enrollmentId: string,
-    timeSlot: {from: string; to: string},
+    timeSlot: { from: string; to: string },
     session?: ClientSession,
   ): Promise<any> {
     await this.init();
 
     const updateResult = await this.enrollmentCollection.updateOne(
-      {_id: new ObjectId(enrollmentId)},
+      { _id: new ObjectId(enrollmentId) },
       {
         $addToSet: {
           assignedTimeSlots: timeSlot,
@@ -3378,7 +3388,7 @@ export class EnrollmentRepository {
           updatedAt: new Date(),
         },
       },
-      {session},
+      { session },
     );
 
     return updateResult;
@@ -3389,7 +3399,7 @@ export class EnrollmentRepository {
    */
   async removeEnrollmentTimeSlot(
     enrollmentId: string,
-    timeSlot?: {from: string; to: string},
+    timeSlot?: { from: string; to: string },
     session?: ClientSession,
   ): Promise<any> {
     await this.init();
@@ -3416,9 +3426,9 @@ export class EnrollmentRepository {
     }
 
     const updateResult = await this.enrollmentCollection.updateOne(
-      {_id: new ObjectId(enrollmentId)},
+      { _id: new ObjectId(enrollmentId) },
       updateQuery,
-      {session},
+      { session },
     );
 
     return updateResult;
@@ -3430,7 +3440,7 @@ export class EnrollmentRepository {
   async findEnrollmentsByTimeSlot(
     courseId: string,
     courseVersionId: string,
-    timeSlot: {from: string; to: string},
+    timeSlot: { from: string; to: string },
     session?: ClientSession,
   ): Promise<any[]> {
     await this.init();
@@ -3458,8 +3468,8 @@ export class EnrollmentRepository {
    */
   async updateSpecificTimeSlot(
     enrollmentId: string,
-    oldTimeSlot: {from: string; to: string},
-    newTimeSlot: {from: string; to: string},
+    oldTimeSlot: { from: string; to: string },
+    newTimeSlot: { from: string; to: string },
     session?: ClientSession,
   ): Promise<any> {
     await this.init();
@@ -3468,7 +3478,7 @@ export class EnrollmentRepository {
       {
         _id: new ObjectId(enrollmentId),
         assignedTimeSlots: {
-          $elemMatch: {from: oldTimeSlot.from, to: oldTimeSlot.to},
+          $elemMatch: { from: oldTimeSlot.from, to: oldTimeSlot.to },
         },
       },
       {
@@ -3478,7 +3488,7 @@ export class EnrollmentRepository {
           updatedAt: new Date(),
         },
       },
-      {session},
+      { session },
     );
 
     return updateResult;
@@ -3489,22 +3499,22 @@ export class EnrollmentRepository {
    */
   async addMultipleTimeSlots(
     enrollmentId: string,
-    timeSlots: Array<{from: string; to: string}>,
+    timeSlots: Array<{ from: string; to: string }>,
     session?: ClientSession,
   ): Promise<any> {
     await this.init();
 
     const updateResult = await this.enrollmentCollection.updateOne(
-      {_id: new ObjectId(enrollmentId)},
+      { _id: new ObjectId(enrollmentId) },
       {
         $addToSet: {
-          assignedTimeSlots: {$each: timeSlots},
+          assignedTimeSlots: { $each: timeSlots },
         },
         $set: {
           updatedAt: new Date(),
         },
       },
-      {session},
+      { session },
     );
 
     return updateResult;
@@ -3515,20 +3525,20 @@ export class EnrollmentRepository {
    */
   async replaceAllTimeSlots(
     enrollmentId: string,
-    timeSlots: Array<{from: string; to: string}>,
+    timeSlots: Array<{ from: string; to: string }>,
     session?: ClientSession,
   ): Promise<any> {
     await this.init();
 
     const updateResult = await this.enrollmentCollection.updateOne(
-      {_id: new ObjectId(enrollmentId)},
+      { _id: new ObjectId(enrollmentId) },
       {
         $set: {
           assignedTimeSlots: timeSlots,
           updatedAt: new Date(),
         },
       },
-      {session},
+      { session },
     );
 
     return updateResult;
@@ -3545,11 +3555,11 @@ export class EnrollmentRepository {
         },
         role: 'STUDENT',
         status: 'ACTIVE',
-        isDeleted: {$ne: true},
-        percentCompleted: {$gte: 100},
+        isDeleted: { $ne: true },
+        percentCompleted: { $gte: 100 },
       },
-      {$set: {hasNewItemsAfterCompletion: true}},
-      {session},
+      { $set: { hasNewItemsAfterCompletion: true } },
+      { session },
     );
   }
 }
