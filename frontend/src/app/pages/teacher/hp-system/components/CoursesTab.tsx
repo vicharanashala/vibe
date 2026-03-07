@@ -11,12 +11,7 @@ export default function CourseTab() {
     const { data: courses = [], isLoading: loading } = useHpCourseVersions();
     const [expandedCourseId, setExpandedCourseId] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (courses.length > 0 && !expandedCourseId) {
-            setExpandedCourseId(courses[0].courseId);
-        }
-    }, [courses]);
-
+    
     const toggleExpand = (courseId: string) => {
         setExpandedCourseId((prev) => (prev === courseId ? null : courseId));
     };

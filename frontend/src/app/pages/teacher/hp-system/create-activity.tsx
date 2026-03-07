@@ -468,8 +468,37 @@ export default function CreateHpActivityPage() {
 
                             {/* Penalty Settings */}
                             <div className="space-y-4">
-                                <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Penalty Configuration (Late)</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20 opacity-60 pointer-events-none">
+
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                                        Penalty Configuration (Late)
+                                    </h4>
+
+                                    <Switch
+                                        checked={ruleConfig.penalty?.enabled || false}
+                                        onCheckedChange={(c) =>
+                                            setRuleConfig(prev => ({
+                                                ...prev,
+                                                penalty: {
+                                                    ...(prev.penalty || {
+                                                        enabled: false,
+                                                        type: "ABSOLUTE",
+                                                        value: 5,
+                                                        applyWhen: "AFTER_DEADLINE",
+                                                        graceMinutes: 0,
+                                                        runOnce: true
+                                                    }),
+                                                    enabled: c
+                                                }
+                                            }))
+                                        }
+                                    />
+                                </div>
+
+                                <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20 ${
+                                    !ruleConfig.penalty?.enabled ? "opacity-60 pointer-events-none" : ""
+                                }`}>
+
                                     <div className="space-y-2">
                                         <Label>Penalty Type</Label>
                                         <Select defaultValue="PERCENTAGE">
@@ -482,15 +511,19 @@ export default function CreateHpActivityPage() {
                                             </SelectContent>
                                         </Select>
                                     </div>
+
                                     <div className="space-y-2">
                                         <Label>Penalty Value</Label>
                                         <Input type="number" defaultValue={5} />
                                     </div>
+
                                     <div className="space-y-2">
                                         <Label>Grace Period (Minutes)</Label>
                                         <Input type="number" defaultValue={0} />
                                     </div>
+
                                 </div>
+
                             </div>
                         </div>
                     </div>
