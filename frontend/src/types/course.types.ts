@@ -8,6 +8,7 @@ export interface itemref {
 
 export interface CourseCardProps {
   enrollment: {
+    hasNewItemsAfterCompletion:boolean;
     courseId: string | { buffer: { data: number[] } };
     courseVersionId: string | { buffer: { data: number[] } };
     percentCompleted?: number;

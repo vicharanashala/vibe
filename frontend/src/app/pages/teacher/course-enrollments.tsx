@@ -1857,12 +1857,14 @@ export default function CourseEnrollments() {
     </div>
     
     {/* Time Slots Modal */}
-    <TimeSlotsModal
-      isOpen={isTimeSlotsModalOpen}
-      onClose={() => setIsTimeSlotsModalOpen(false)}
-      courseId={courseId || ""}
-      courseVersionId={versionId || ""}
-    />
+    {courseId && versionId && (
+      <TimeSlotsModal
+        isOpen={isTimeSlotsModalOpen}
+        onClose={() => setIsTimeSlotsModalOpen(false)}
+        courseId={courseId}
+        courseVersionId={versionId}
+      />
+    )}
     </>
   )
 }
@@ -2057,15 +2059,6 @@ function EnrollmentsTable({
 }: any) {
   const isInactiveTab = enrollmentTab === "INACTIVE"
 
-  // Helper function to check if student is already assigned to any timeslot
-  const isStudentAlreadyAssigned = (studentId: string) => {
-    if (!timeSlotsData?.slots) return false;
-    
-    return timeSlotsData.slots.some((slot: any) => 
-      slot.studentIds?.includes(studentId)
-    );
-  };
-
   return (
     <Card className="border-0 shadow-lg overflow-hidden">
       <CardHeader className="pb-4 bg-gradient-to-r from-card to-muted/20 flex items-center justify-between lg:flex-nowrap flex-wrap">
@@ -2169,8 +2162,7 @@ function EnrollmentsTable({
                           studentEnrollments.length > 0 &&
                           studentEnrollments.every((e: any) => {
                             const studentId = e.user?._id || e.user?.id;
-                            const isAssigned = isStudentAlreadyAssigned(studentId);
-                            return isAssigned || selectedUsers.has(studentId);
+                            return selectedUsers.has(studentId);
                           })
                         }
                         onCheckedChange={onSelectAll}
@@ -2259,8 +2251,7 @@ function EnrollmentsTable({
                           studentEnrollments.length > 0 &&
                           studentEnrollments.every((e: any) => {
                             const studentId = e.user?._id || e.user?.id;
-                            const isAssigned = isStudentAlreadyAssigned(studentId);
-                            return isAssigned || selectedUsers.has(studentId);
+                            return selectedUsers.has(studentId);
                           })
                         }
                         onCheckedChange={onSelectAll}
@@ -2345,39 +2336,13 @@ function EnrollmentsTable({
                       {/* Selection Checkbox */}
                       {isSelectionMode && (
                         <TableCell className="pl-6 w-[50px]">
-                          <div className="relative">
-                            {isStudentAlreadyAssigned(enrollment.user?._id || enrollment.user?.id) ? (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div>
-                                    <Checkbox
-                                      checked={selectedUsers.has(enrollment.user?._id || enrollment.user?.id)}
-                                      onCheckedChange={(checked) =>
-                                        onSelectUser(enrollment.user?._id || enrollment.user?.id, checked === true)
-                                      }
-                                      disabled={isStudentAlreadyAssigned(enrollment.user?._id || enrollment.user?.id)}
-                                      aria-label={`Select ${enrollment.user?.name}`}
-                                      className="opacity-50 cursor-not-allowed"
-                                    />
-                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
-                                      <div className="w-2 h-2 bg-white rounded-full"></div>
-                                    </div>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Student already assigned to a time slot</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            ) : (
-                              <Checkbox
-                                checked={selectedUsers.has(enrollment.user?._id || enrollment.user?.id)}
-                                onCheckedChange={(checked) =>
-                                  onSelectUser(enrollment.user?._id || enrollment.user?.id, checked === true)
-                                }
-                                aria-label={`Select ${enrollment.user?.name}`}
-                              />
-                            )}
-                          </div>
+                          <Checkbox
+                            checked={selectedUsers.has(enrollment.user?._id || enrollment.user?.id)}
+                            onCheckedChange={(checked) =>
+                              onSelectUser(enrollment.user?._id || enrollment.user?.id, checked === true)
+                            }
+                            aria-label={`Select ${enrollment.user?.name}`}
+                          />
                         </TableCell>
                       )}
 

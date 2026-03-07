@@ -2058,6 +2058,8 @@ export interface components {
             totalPages: number;
             currentPage: number;
             enrollments: Record<string, never>[];
+            activeCount?: number;
+            archivedCount?: number;
         };
         EnrollmentNotFoundErrorResponse: {
             /**
