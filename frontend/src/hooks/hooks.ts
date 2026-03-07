@@ -4793,6 +4793,7 @@ export function useHpStudentActivities(courseVersionId: string, cohortName: stri
 }
 
 export function useSubmitActivity() {
+  const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: async (payload: {
       courseId: string;
@@ -4808,6 +4809,13 @@ export function useSubmitActivity() {
       const res = await hpApi.submitActivity(payload);
       if (!res.success) throw new Error(res.message || 'Failed to submit activity');
       return res.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['hp-student-activities', variables.courseVersionId, variables.cohort] });
+      queryClient.invalidateQueries({ queryKey: ['hp-student-ledger'] });
+      queryClient.invalidateQueries({ queryKey: ['hp-students'] });
+      queryClient.invalidateQueries({ queryKey: ['hp-cohort-overview'] });
+      toast.success("Activity submitted successfully");
     },
   });
 
@@ -4843,12 +4851,16 @@ export function useHpActivities(
 }
 
 export function useCreateHpActivity() {
+  const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: async (payload: CreateHpActivityPayload) => {
       const res = await hpApi.createActivity(payload);
       if (!res.success) throw new Error(res.message || 'Failed to create activity');
-      toast.success("Activity created successfully");
       return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hp-activities'] });
+      toast.success("Activity created successfully");
     },
   });
 
@@ -4859,12 +4871,16 @@ export function useCreateHpActivity() {
 }
 
 export function useUpdateHpActivity() {
+  const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: async ({ activityId, updates }: { activityId: string, updates: Partial<HpActivity> }) => {
       const res = await hpApi.updateActivity(activityId, updates);
       if (!res.success) throw new Error(res.message || 'Failed to update activity');
-      toast.success("Activity updated successfully");
       return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hp-activities'] });
+      toast.success("Activity updated successfully");
     },
   });
 
@@ -4875,12 +4891,16 @@ export function useUpdateHpActivity() {
 }
 
 export function usePublishHpActivity() {
+  const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: async (activityId: string) => {
       const res = await hpApi.publishActivity(activityId);
       if (!res.success) throw new Error(res.message || 'Failed to publish activity');
-      toast.success("Activity published successfully");
       return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hp-activities'] });
+      toast.success("Activity published successfully");
     },
   });
 
@@ -4891,12 +4911,16 @@ export function usePublishHpActivity() {
 }
 
 export function useArchiveHpActivity() {
+  const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: async (activityId: string) => {
       const res = await hpApi.archiveActivity(activityId);
       if (!res.success) throw new Error(res.message || 'Failed to archive activity');
-      toast.success("Activity archived successfully");
       return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hp-activities'] });
+      toast.success("Activity archived successfully");
     },
   });
 
@@ -4931,12 +4955,16 @@ export function useHpRuleConfig(activityId: string | undefined) {
 }
 
 export function useCreateHpRuleConfig() {
+  const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: async (payload: Partial<HpRuleConfig>) => {
       const res = await hpApi.createRuleConfig(payload);
       if (!res.success) throw new Error(res.message || 'Failed to create rule config');
-      toast.success("Rule configuration created");
       return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hp-rule-config'] });
+      toast.success("Rule configuration created");
     },
   });
 
@@ -4947,12 +4975,16 @@ export function useCreateHpRuleConfig() {
 }
 
 export function useUpdateHpRuleConfig() {
+  const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: async ({ ruleConfigId, updates }: { ruleConfigId: string, updates: Partial<HpRuleConfig> }) => {
       const res = await hpApi.updateRuleConfig(ruleConfigId, updates);
       if (!res.success) throw new Error(res.message || 'Failed to update rule config');
-      toast.success("Rule configuration updated");
       return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hp-rule-config'] });
+      toast.success("Rule configuration updated");
     },
   });
 
@@ -5003,10 +5035,16 @@ export function useHpStudentLedger(studentId: string, courseVersionId: string, c
 }
 
 export function useRevertHpEntry() {
+  const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: async (entryId: string) => {
       const res = await hpApi.revertLedgerEntry(entryId);
       if (!res.success) throw new Error(res.message || 'Failed to revert entry');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hp-student-ledger'] });
+      queryClient.invalidateQueries({ queryKey: ['hp-students'] });
+      queryClient.invalidateQueries({ queryKey: ['hp-cohort-overview'] });
       toast.success('Entry reverted successfully');
     },
   });
@@ -5018,10 +5056,16 @@ export function useRevertHpEntry() {
 }
 
 export function useRestoreHpEntry() {
+  const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: async (entryId: string) => {
       const res = await hpApi.restoreLedgerEntry(entryId);
       if (!res.success) throw new Error(res.message || 'Failed to restore entry');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hp-student-ledger'] });
+      queryClient.invalidateQueries({ queryKey: ['hp-students'] });
+      queryClient.invalidateQueries({ queryKey: ['hp-cohort-overview'] });
       toast.success('Entry restored successfully');
     },
   });
