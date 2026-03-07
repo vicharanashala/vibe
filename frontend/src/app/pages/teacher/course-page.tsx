@@ -122,16 +122,19 @@ export default function TeacherCoursesPage() {
   const role = "INSTRUCTOR"
   // Fetch user enrollments with pagination (use reasonable page size)
   const { token } = useAuthStore()
+  const [tab, setTab] = useState<'active' | 'archived'>('active');
   const {
     data: enrollmentsResponse,
     isLoading: enrollmentsLoading,
     error: enrollmentsError,
     refetch,
-  } = useUserEnrollments(currentPage, 10, !!token, debouncedSearchQuery, role) // Use pagination with 10 items per page
+  } = useUserEnrollments(currentPage, 10, !!token, debouncedSearchQuery, role, tab) // Use pagination with 10 items per page
   const enrollments = enrollmentsResponse?.enrollments || []
 
   const totalPages = enrollmentsResponse?.totalPages || 1
   const totalDocuments = enrollmentsResponse?.totalDocuments || 0
+  const activeCount = enrollmentsResponse?.activeCount || 0
+  const archivedCount = enrollmentsResponse?.archivedCount || 0
 
   // Get unique courses (in case user is enrolled in multiple versions of same course)
   // Since we're using pagination, we'll work with the current page data
@@ -246,8 +249,7 @@ export default function TeacherCoursesPage() {
       </div>
     )
   }
-
-  if (uniqueCourses.length === 0 && !searchQuery && !enrollmentsLoading) {
+  if ( activeCount === 0 && archivedCount === 0 && !enrollmentsLoading ) {
     return (
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-6xl mx-auto">
@@ -347,6 +349,36 @@ export default function TeacherCoursesPage() {
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-muted/20 to-muted/10 rounded-xl blur-sm"></div>
           <div className="relative bg-card/60 backdrop-blur-sm border border-border/50 rounded-xl p-4">
+            <Tabs
+              value={tab}
+              onValueChange={(v) => {
+                setTab(v as 'active' | 'archived')
+                setCurrentPage(1)
+              }}
+              className="w-full"
+            >
+              <TabsList className="grid w-full sm:w-[420px] grid-cols-2 h-11 bg-muted/40 backdrop-blur-sm border border-border/50 p-1 rounded-xl overflow-hidden mb-4">
+              <TabsTrigger
+                value="active"
+                className="rounded-lg text-sm font-semibold text-muted-foreground transition-all duration-200
+                data-[state=active]:bg-background/80
+                data-[state=active]:text-foreground
+                data-[state=active]:shadow-sm"
+              >
+                Active Versions({activeCount})
+              </TabsTrigger>
+
+              <TabsTrigger
+                value="archived"
+                className="rounded-lg text-sm font-semibold text-muted-foreground transition-all duration-200
+                data-[state=active]:bg-background/80
+                data-[state=active]:text-foreground
+                data-[state=active]:shadow-sm"
+              >
+                Archived Versions({archivedCount})
+              </TabsTrigger>
+              </TabsList>
+            </Tabs>
             <div className="md:flex flex-row items-center justify-between gap-4">
               <div className="relative flex-1 max-w-md">
                 <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg "></div>
@@ -382,9 +414,9 @@ export default function TeacherCoursesPage() {
                   Loading courses...
                 </span>
               </div> :
-              searchQuery && uniqueCourses.length === 0 ? (
+              uniqueCourses.length === 0 && !enrollmentsLoading ? (
                 <div className="flex items-center justify-center text-muted-foreground">
-                  No courses found.
+                  No {tab} courses found.
                 </div>
               ) :
                 filteredCourses.map((enrollment: any, index: number) => (
@@ -443,8 +475,6 @@ function CourseCard({
 
   const [creatingErrors, setCreatingErrors] = useState<{ name?: string; description?: string }>({});
   const [editingErrors, setEditingErrors] = useState<{ name?: string; description?: string }>({});
-  const [activeVersionTab, setActiveVersionTab] = useState<'active' | 'archived'>('active');
-
 
   const queryClient = useQueryClient()
 
@@ -1002,30 +1032,6 @@ function CourseCard({
                     </Card>
                   </div>
                 )}
-                <Tabs
-                  value={activeVersionTab}
-                  onValueChange={(v) =>
-                    setActiveVersionTab(v as "active" | "archived")
-                  }
-                  className="w-full" >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <TabsList className="grid w-full sm:w-[360px] grid-cols-2 h-11 bg-muted/30 p-1 rounded-xl">
-                      <TabsTrigger
-                        value="active"
-                        className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
-                      >
-                        Active
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="archived"
-                        className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm font-semibold"
-                      >
-                        Archived
-                      </TabsTrigger>
-                    </TabsList>
-                  </div>
-                </Tabs>
-
                 {/* Display All Versions */}
                 <div className="space-y-3">
                   {localCourseVersionDetails && localCourseVersionDetails.length > 0 ? (
@@ -1041,7 +1047,6 @@ function CourseCard({
                           onInvalidate={onInvalidate}
                           deleteVersionMutation={deleteVersionMutation}
                           versionCount={course?.versions?.length}
-                          activeVersionTab={activeVersionTab}
                           currentPage={currentPage}
                         />
                       </div>
@@ -1059,7 +1064,6 @@ function CourseCard({
                           onInvalidate={onInvalidate}
                           deleteVersionMutation={deleteVersionMutation}
                           versionCount={course?.versions?.length}
-                          activeVersionTab={activeVersionTab}
                           currentPage={currentPage}
                         />
                       </div>
@@ -1100,7 +1104,6 @@ function VersionCard({
   onInvalidate,
   deleteVersionMutation,
   versionCount,
-  activeVersionTab,
   currentPage,
 }: {
   versionData?: components['schemas']['CourseVersionDataResponse'];
@@ -1109,7 +1112,6 @@ function VersionCard({
   onInvalidate: () => void
   deleteVersionMutation: any
   versionCount: number
-  activeVersionTab?:'active'|'archived'
   currentPage: number
 }) {
   const queryClient = useQueryClient()
@@ -1174,17 +1176,12 @@ function VersionCard({
 
       toast.success(isArchived ? 'Version unarchived successfully' : 'Version archived successfully');
       onInvalidate();
-      queryClient.invalidateQueries({
-        queryKey: ['get', '/courses/versions/{id}'],
-      });
     } catch (error: any) {
       toast.error(error?.message || 'Failed to update version status');
     }
   };
 
   if (!version) return null;
-  if (activeVersionTab === 'active' && isArchived)  return null;
-  if (activeVersionTab === 'archived' && !isArchived) return null;
 
   const startEditingVersion = () => {
     setEditingVersion(true)

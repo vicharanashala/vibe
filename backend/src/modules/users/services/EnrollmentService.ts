@@ -6,6 +6,7 @@ import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.
 import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
+  courseVersionStatus,
   EnrollmentRole,
   EnrollmentStatus,
   ICourseVersion,
@@ -362,6 +363,7 @@ export class EnrollmentService extends BaseService {
     limit: number,
     role: EnrollmentRole,
     search: string,
+    tab?: courseVersionStatus,
   ): Promise<EnrollmentDataResponse[]> {
     let enrollments = [];
     if (role === 'INSTRUCTOR') {
@@ -371,6 +373,7 @@ export class EnrollmentService extends BaseService {
         limit,
         role,
         search,
+        tab,
       );
     } else {
       enrollments = await this.enrollmentRepo.getBasicEnrollments(
@@ -530,6 +533,26 @@ export class EnrollmentService extends BaseService {
       assignedTimeSlot: enr.assignedTimeSlots,
       course: this.filterCourseVersions(enr.course, enrolledVersionIds),
     }));
+  }
+
+  public async getActiveCount(
+    userId: string,
+    role: EnrollmentRole,
+  ): Promise<number>{
+    if (role === "STUDENT") {
+      return 0;
+    }
+    return await this.enrollmentRepo.getActiveCount(userId, role);
+  }
+
+  public async getArchiveCount(
+    userId: string,
+    role: EnrollmentRole,
+  ): Promise<number>{
+    if (role === "STUDENT") {
+      return 0;
+    }
+    return await this.enrollmentRepo.getArchiveCount(userId, role);
   }
 
   public async getDetailedEnrollment(
@@ -968,6 +991,7 @@ export class EnrollmentService extends BaseService {
   async countEnrollments(
     userId: string,
     role: EnrollmentRole,
+    tab: courseVersionStatus,
     search?: string,
     courseVersionId?: string,
   ) {
@@ -975,6 +999,7 @@ export class EnrollmentService extends BaseService {
       const result = await this.enrollmentRepo.countEnrollments(
         userId,
         role,
+        tab,
         search,
         courseVersionId,
       );

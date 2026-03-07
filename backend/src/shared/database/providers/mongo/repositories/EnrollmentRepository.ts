@@ -7,6 +7,7 @@ import {
   IWatchTime,
   IUser,
   ID,
+  courseVersionStatus,
 } from '#shared/interfaces/models.js';
 import {injectable, inject} from 'inversify';
 import {ClientSession, Collection, ObjectId, OptionalId} from 'mongodb';
@@ -330,7 +331,6 @@ export class EnrollmentRepository {
     role: EnrollmentRole,
     session?: ClientSession,
   ) {
-    console.log('Get enrollments in ');
     try {
       await this.init();
       const userObjectId = new ObjectId(userId);
@@ -523,7 +523,6 @@ export class EnrollmentRepository {
     role: EnrollmentRole,
     search: string,
   ) {
-    console.log('Basic enrollments');
     await this.init();
     const userObjectId = new ObjectId(userId);
     const pipeline: any[] = [
@@ -789,6 +788,7 @@ export class EnrollmentRepository {
     limit: number,
     role: EnrollmentRole,
     search?: string,
+    tab?: courseVersionStatus,
   ) {
     await this.init();
 
@@ -822,7 +822,6 @@ export class EnrollmentRepository {
               },
             },
 
-            /* keep only required fields */
             {
               $project: {
                 name: 1,
@@ -832,7 +831,6 @@ export class EnrollmentRepository {
               },
             },
 
-            /* filter non-deleted versions */
             {
               $lookup: {
                 from: 'newCourseVersion',
@@ -840,9 +838,29 @@ export class EnrollmentRepository {
                 foreignField: '_id',
                 as: 'versions',
                 pipeline: [
-                  {$match: {isDeleted: {$ne: true}}},
-                  {$project: {_id: 1}},
+                  {
+                    $match: {
+                      isDeleted: { $ne: true },
+                      ...(tab === 'active'
+                        ? {
+                            $or: [
+                              { versionStatus: 'active' },
+                              { versionStatus: { $exists: false } },    // active courses versions and versions don't have versionStatus fields
+                            ],
+                          }
+                        : {
+                            versionStatus: 'archived',                  // atchived courses
+                          }),
+                    }
+                  },
+                  { $project: { _id: 1 } },
                 ],
+              },
+            },
+
+            {
+              $match: {
+                versions: { $ne: [] }, // only keep courses with at least 1 version
               },
             },
 
@@ -1595,6 +1613,7 @@ export class EnrollmentRepository {
   async countEnrollments(
     userId: string,
     role: EnrollmentRole,
+    tab: courseVersionStatus,
     search?: string,
     courseVersionId?: string,
   ) {
@@ -1636,6 +1655,33 @@ export class EnrollmentRepository {
         },
       );
     }
+    else{
+      pipeline.push(
+        {
+          $lookup: {
+            from: 'newCourseVersion',
+            localField: 'courseVersionId',
+            foreignField: '_id',
+            as: 'version',
+          },
+        },
+        { $unwind: '$version' },
+        {
+          $match: {
+            ...(tab === 'active'
+              ? {
+                  $or: [
+                    { 'version.versionStatus': 'active' },
+                    { 'version.versionStatus': { $exists: false } },
+                  ],
+                }
+              : {
+                  'version.versionStatus': 'archived',
+                }),
+          },
+        }
+      );
+    }
 
     //  Existing course lookup
     pipeline.push(
@@ -1669,6 +1715,104 @@ export class EnrollmentRepository {
 
     return result[0]?.total || 0;
   }
+
+async getActiveCount(userId: string, role: EnrollmentRole) {
+  await this.init();
+
+  const matchStage: any = {
+    userId: { $in: [new ObjectId(userId), userId] },
+    role,
+    isDeleted: { $ne: true },
+    status: { $regex: /^active$/i },
+  };
+
+  const pipeline: any[] = [
+    { $match: matchStage },
+
+    {
+      $lookup: {
+        from: 'newCourseVersion',
+        localField: 'courseVersionId',
+        foreignField: '_id',
+        as: 'version',
+      },
+    },
+    { $unwind: '$version' },
+
+    {
+      $match: {
+        $or: [
+          { 'version.versionStatus': 'active' },
+          { 'version.versionStatus': { $exists: false } },
+        ],
+      },
+    },
+
+    {
+      $lookup: {
+        from: 'newCourse',
+        localField: 'courseId',
+        foreignField: '_id',
+        as: 'course',
+      },
+    },
+    { $unwind: '$course' },
+
+    { $count: 'total' },
+  ];
+
+  const result = await this.enrollmentCollection.aggregate(pipeline).toArray();
+
+  return result[0]?.total || 0;
+}
+
+async getArchiveCount(userId: string, role: EnrollmentRole) {
+  await this.init();
+
+  const matchStage: any = {
+    userId: { $in: [new ObjectId(userId), userId] },
+    role,
+    isDeleted: { $ne: true },
+    status: { $regex: /^active$/i },
+  };
+
+  const pipeline: any[] = [
+    { $match: matchStage },
+
+    {
+      $lookup: {
+        from: 'newCourseVersion',
+        localField: 'courseVersionId',
+        foreignField: '_id',
+        as: 'version',
+      },
+    },
+    { $unwind: '$version' },
+
+    {
+      $match: {
+        'version.versionStatus': 'archived',
+      },
+    },
+
+    {
+      $lookup: {
+        from: 'newCourse',
+        localField: 'courseId',
+        foreignField: '_id',
+        as: 'course',
+      },
+    },
+    { $unwind: '$course' },
+
+    { $count: 'total' },
+  ];
+
+  const result = await this.enrollmentCollection.aggregate(pipeline).toArray();
+
+  return result[0]?.total || 0;
+}
+
 
   /*Update enrollments for all records in db */
   async bulkUpdateEnrollments(
