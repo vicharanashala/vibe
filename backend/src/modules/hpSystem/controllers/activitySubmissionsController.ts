@@ -90,7 +90,7 @@ export class ActivitySubmissionsController {
   }
 
   @OpenAPI({ summary: "List student wise submissions" })
-  @Post("/student/:studentId")
+  @Get("/student/:studentId")
   @Authorized()
   @HttpCode(200)
   @ResponseSchema(StudentActivitySubmissionsResponseDto)
@@ -98,11 +98,9 @@ export class ActivitySubmissionsController {
     @CurrentUser() user: IUser,
     @Param("studentId") studentId: string,
     @QueryParams() query: FilterQueryDto,
-    @Body({ required: true }) body: ReviewHpActivitySubmissionBodyDto
-  ): Promise<any> {
+  ): Promise<StudentActivitySubmissionsResponseDto> {
     const teacherId = user._id.toString();
-    const doc = await this.submissionService.listStudentWiseSubmssions(teacherId, studentId, body, query);
-    return { success: true, data: doc };
+    return await this.submissionService.listStudentWiseSubmssions(teacherId, studentId, query);
   }
 
   @OpenAPI({ summary: "Review submission (approve/reject/revert)" })

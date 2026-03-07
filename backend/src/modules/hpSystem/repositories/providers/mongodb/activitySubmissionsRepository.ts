@@ -202,6 +202,18 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
                 $project: {
                     id: { $toString: "$_id" },
 
+                    isRequiredInstructorApproval: {
+                        $cond: {
+                            if: {
+                                $and: [
+                                    { $eq: ["$status", "SUBMITTED"] },
+                                    { $eq: ["$rule.reward.applyWhen", "ON_APPROVAL"] }
+                                ]
+                            },
+                            then: true,
+                            else: false
+                        }
+                    },
                     activity: {
                         id: { $toString: "$activity._id" },
                         title: { $ifNull: ["$activity.title", ""] },

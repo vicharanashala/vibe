@@ -317,6 +317,10 @@ export class StudentActivitySubmissionsViewDto {
     @IsOptional()
     @Type(() => InstructorFeedbackDto)
     instructorFeedback!: InstructorFeedbackDto | null;
+
+    @Expose()
+    @IsString()
+    isRequiredInstructorApproval!: boolean;
 }
 
 export class PaginationMetaDto {

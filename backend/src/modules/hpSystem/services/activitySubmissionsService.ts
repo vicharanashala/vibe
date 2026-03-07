@@ -3,7 +3,7 @@ import { GLOBAL_TYPES } from "#root/types.js";
 import { inject, injectable } from "inversify";
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { ActivitySubmissionsRepository, LedgerRepository } from "../repositories/index.js";
-import { CreateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto } from "../classes/validators/activitySubmissionValidators.js";
+import { CreateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionsViewDto } from "../classes/validators/activitySubmissionValidators.js";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { appConfig } from "#root/config/app.js";
 import { Bucket, Storage } from '@google-cloud/storage';
@@ -132,7 +132,7 @@ export class ActivitySubmissionsService extends BaseService {
             // GCP Storage setup
             const storage = new Storage({
                 keyFilename: appConfig.GOOGLE_APPLICATION_CREDENTIALS,
-            }); 
+            });
 
             const bucketName = appConfig.GCP_BACKUP_ACTIVITY_BUCKET;
             const bucket = storage.bucket(bucketName);
@@ -342,7 +342,7 @@ export class ActivitySubmissionsService extends BaseService {
         }));
     }
 
-    async listStudentWiseSubmssions(teacherId: string, studentId: string, body: ReviewHpActivitySubmissionBodyDto, query: FilterQueryDto): Promise<any> {
+    async listStudentWiseSubmssions(teacherId: string, studentId: string, query: FilterQueryDto): Promise<StudentActivitySubmissionsResponseDto> {
         const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query);
 
         return {
