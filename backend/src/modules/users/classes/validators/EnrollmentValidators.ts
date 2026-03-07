@@ -438,6 +438,24 @@ export class EnrollmentResponse {
   @IsString()
   @IsOptional()
   message?: string;
+
+  @JSONSchema({
+    description: 'Count of active courses',
+    example: 4,
+    type: 'integer',
+  })
+  @IsInt()
+  @IsOptional()
+  activeCount?: number;
+
+  @JSONSchema({
+    description: 'Count of archived courses',
+    example: 4,
+    type: 'integer',
+  })
+  @IsInt()
+  @IsOptional()
+  archivedCount?: number;
 }
 export class BulkUnenrollResponse {
   @JSONSchema({

@@ -506,6 +506,13 @@ export class ItemService extends BaseService {
         _id: item._id.toString(),
       };
     }
+    // Student should not see items it course Version is archived
+
+    const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId);
+      
+    if(versionStatus==="archived"){
+        throw new ForbiddenError("This course version is inactive, you can't access items");
+    }
 
     // Student-specific checks (parallelized)
     const [
