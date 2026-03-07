@@ -122,14 +122,13 @@ export class HpLedgerTransformer {
     @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
     @Transform(StringToObjectId.transformer, { toClassOnly: true })
     @JSONSchema({ title: 'Cohort ID', type: 'string' })
-    cohortId: ID;
+    cohort: string;
 
     // Identity
     @Expose()
-    @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-    @Transform(StringToObjectId.transformer, { toClassOnly: true })
+    @IsString()
     @JSONSchema({ title: 'Student ID', type: 'string' })
-    studentId: ID;
+    studentId: string;
 
     @Expose()
     @IsString()
