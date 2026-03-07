@@ -52,6 +52,7 @@ import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 import { setAuditTrail } from '#root/utils/setAuditTrail.js';
 import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
 import { ObjectId } from 'mongodb';
+import { ICourseVersion } from '#root/shared/index.js';
 
 @OpenAPI({
   tags: ['Course Versions'],
@@ -499,6 +500,7 @@ Accessible to:
   })
   @Authorized()
   @Patch('/versions/:versionId/archive', {transformResponse: true})
+  @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
     statusCode: 400,
@@ -510,8 +512,9 @@ Accessible to:
   async updateStatus(
   @Params() params: UpdateCourseVersionStatusParams,
   @Body() body: UpdateCourseVersionStatusBody,
-  @Ability(getCourseVersionAbility) { ability },
-  ) {
+  @Ability(getCourseVersionAbility) { ability, user },
+  @Req() req: Request,
+  ) : Promise<ICourseVersion> {
     const { versionId } = params;
 
     const courseVersionSubject = subject('CourseVersion', { versionId });
@@ -522,9 +525,35 @@ Accessible to:
       );
     }
 
-    return await this.courseVersionService.updateCourseVersionStatus(
-      versionId,
-      body.versionStatus,
-    );
+    const existingVersion = await this.courseVersionService.readCourseVersion(versionId, user._id);
+    const updatedVersion = await this.courseVersionService.updateCourseVersionStatus(versionId, body.versionStatus);
+    setAuditTrail(req, {
+      category: AuditCategory.COURSE_VERSION,
+      action: AuditAction.COURSE_VERSION_STATUS_UPDATE,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        courseId: ObjectId.createFromHexString(
+          existingVersion.courseId.toString(),
+        ),
+      },
+      changes: {
+        before: {
+          versionStatus: existingVersion.versionStatus,
+        },
+        after: {
+          versionStatus: updatedVersion.versionStatus,
+        },
+      },
+      outcome: {
+        status: OutComeStatus.SUCCESS,
+      },
+    });
+    return updatedVersion;
   }
 }
