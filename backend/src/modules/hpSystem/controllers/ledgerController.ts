@@ -19,7 +19,7 @@ export class LedgerController {
     ) { }
 
     @OpenAPI({ summary: "List ledger transactions by student" })
-    // @Authorized()
+    @Authorized()
     @Get("/student/:studentId")
     @ResponseSchema(LedgerListResponseDto)
     async listByStudentId(
