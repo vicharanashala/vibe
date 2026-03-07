@@ -199,8 +199,8 @@ export class HpLedgerTransformer {
 
     constructor(body?: Partial<HpLedgerTransformer>) {
         if (body) Object.assign(this, body);
-        this.calc = this.calc ?? ({} as any);
-        this.links = this.links ?? ({} as any);
-        this.meta = this.meta ?? ({} as any);
+        this.calc = this.calc ?? ({} as HpLedgerCalc);
+        this.links = this.links ?? ({} as HpLedgerLinks);
+        this.meta = this.meta ?? ({} as HpLedgerMeta);
     }
 }
