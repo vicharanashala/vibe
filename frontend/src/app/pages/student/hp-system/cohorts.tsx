@@ -1,7 +1,8 @@
 import { useHpStudentCohorts } from "@/hooks/hooks";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, ArrowRight } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { BookOpen, ArrowRight, Trophy, CheckCircle2, LayoutDashboard } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 
 export default function StudentCohorts() {
@@ -30,6 +31,46 @@ export default function StudentCohorts() {
                 </p>
             </div>
 
+            {/* Mock Analytics Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <Card className="bg-primary/5 border-primary/10">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Cohorts</CardTitle>
+                        <LayoutDashboard className="h-4 w-4 text-primary" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{cohorts?.length || 0}</div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Currently enrolled
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card className="bg-green-500/5 border-green-500/10">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Completed</CardTitle>
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">0</div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Cohorts fully finished
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card className="bg-amber-500/5 border-amber-500/10 dark:bg-amber-900/10 dark:border-amber-900/30">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total HP</CardTitle>
+                        <Trophy className="h-4 w-4 text-amber-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">0</div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            House Points earned
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+
             {(!cohorts || cohorts.length === 0) ? (
                 <Card className="flex flex-col items-center justify-center p-12 mt-8 text-center border-dashed">
                     <BookOpen className="h-12 w-12 text-muted-foreground/50 mb-4" />
@@ -54,7 +95,22 @@ export default function StudentCohorts() {
                             </CardHeader>
 
                             <CardContent className="flex-grow">
-
+                                <div className="space-y-4 pt-4 border-t">
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between items-center text-sm">
+                                            <span className="font-medium text-muted-foreground">Completion</span>
+                                            <span className="font-bold">10%</span>
+                                        </div>
+                                        <Progress value={10} className="h-2" />
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-muted-foreground">Your HP:</span>
+                                        <div className="flex items-center gap-1.5 font-bold text-amber-600 dark:text-amber-500">
+                                            <Trophy className="h-3.5 w-3.5" />
+                                            0
+                                        </div>
+                                    </div>
+                                </div>
                             </CardContent>
 
                             <CardFooter>

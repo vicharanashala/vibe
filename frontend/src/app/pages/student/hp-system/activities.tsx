@@ -83,8 +83,14 @@ export default function StudentActivities() {
         if (!selectedActivity) return;
         setSubmitError(null);
 
-        // Filter out empty links
         const validLinks = links.filter(l => l.url.trim() !== "");
+        const hasAttachments = files.length > 0 || images.length > 0 || validLinks.length > 0;
+        const hasText = textResponse.trim() !== "";
+
+        if (!hasText || !hasAttachments) {
+            setSubmitError("Please provide a text response AND at least one attachment (file, image, or link).");
+            return;
+        }
 
         try {
             await submitActivity({
@@ -141,12 +147,18 @@ export default function StudentActivities() {
                 <Button variant="ghost" size="icon" onClick={() => navigate({ to: '/student/hp-system/cohorts' })}>
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
-                <div>
+                <div className="flex-1">
                     <h1 className="text-3xl font-bold tracking-tight">Activities</h1>
                     <p className="text-muted-foreground">
                         {decodeURIComponent(cohortName as string)}
                     </p>
                 </div>
+                <Button
+                    variant="outline"
+                    onClick={() => navigate({ to: `/student/hp-system/${courseVersionId}/${cohortName}/submissions` })}
+                >
+                    View My Submissions
+                </Button>
             </div>
 
             {(!activities || activities.length === 0) ? (
@@ -179,6 +191,26 @@ export default function StudentActivities() {
                                                     <Clock className="h-4 w-4" />
                                                     <span>Created: {formatDate(activity.createdAt)}</span>
                                                 </div>
+                                            )}
+                                            {activity.instructorName && (
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="font-medium">Instructor:</span>
+                                                    <span>{activity.instructorName}</span>
+                                                </div>
+                                            )}
+                                            {activity.rules && (
+                                                <>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="font-medium">Mandatory:</span>
+                                                        <span>{activity.rules.isMandatory ? 'Yes' : 'No'}</span>
+                                                    </div>
+                                                    {activity.rules.deadlineAt && (
+                                                        <div className="flex items-center gap-1.5 text-orange-600/90 dark:text-orange-400">
+                                                            <span className="font-medium">Deadline:</span>
+                                                            <span>{formatDate(activity.rules.deadlineAt.toString())}</span>
+                                                        </div>
+                                                    )}
+                                                </>
                                             )}
                                         </div>
                                     </div>
@@ -214,18 +246,34 @@ export default function StudentActivities() {
                                         </div>
                                     </div>
                                 )}
+
+                                {activity.submissionMode === 'EXTERNAL_LINK' && activity.externalLink && (
+                                    <div>
+                                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                            <LinkIcon className="h-4 w-4" />
+                                            External Link
+                                        </h4>
+                                        <a
+                                            href={activity.externalLink}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 text-sm border border-blue-200 dark:border-blue-800 transition-colors"
+                                        >
+                                            <LinkIcon className="h-4 w-4" />
+                                            {activity.externalLink}
+                                        </a>
+                                    </div>
+                                )}
                             </CardContent>
-                            <CardFooter className="bg-muted/10 border-t justify-between px-6 py-4">
-                                <div className="text-sm text-muted-foreground">
-                                    Submission:
-                                    <span className="font-medium text-foreground ml-1">
-                                        {activity.submissionMode === 'EXTERNAL_LINK' ? 'External Link' : 'In Platform'}
-                                    </span>
-                                </div>
+                            <CardFooter className="bg-muted/10 border-t justify-center gap-2  px-6 py-4">
+
+                                <Button>edit</Button>
+
                                 <Button onClick={() => openSubmitDialog(activity)}>
                                     <Send className="h-4 w-4 mr-2" />
                                     Submit
                                 </Button>
+
                             </CardFooter>
                         </Card>
                     ))}
@@ -376,7 +424,10 @@ export default function StudentActivities() {
                         <Button variant="outline" onClick={() => setSubmitDialogOpen(false)} disabled={isSubmitting}>
                             Cancel
                         </Button>
-                        <Button onClick={handleSubmit} disabled={isSubmitting}>
+                        <Button
+                            onClick={handleSubmit}
+                            disabled={isSubmitting || !textResponse.trim() || (files.length === 0 && images.length === 0 && links.every(l => !l.url.trim()))}
+                        >
                             {isSubmitting ? (
                                 <>
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" />

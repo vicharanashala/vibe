@@ -134,6 +134,12 @@ export class HpActivityTransformer {
   publishedByTeacherId: ID;
 
   @Expose()
+  @IsString()
+  @IsOptional()
+  @JSONSchema({ title: 'Instructor Name', type: 'string' })
+  instructorName?: string;
+
+  @Expose()
   @IsEnum(ActivityStatus)
   @JSONSchema({
     title: 'Status',

@@ -200,7 +200,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             // 7) Shape into your response DTO
             {
                 $project: {
-                    _id: 0,
+                    id: { $toString: "$_id" },
 
                     activity: {
                         id: { $toString: "$activity._id" },

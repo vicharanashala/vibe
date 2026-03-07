@@ -64,6 +64,7 @@ export interface HpActivity {
     cohort: string;
     createdByTeacherId?: string;
     publishedByTeacherId?: string;
+    instructorName?: string;
     status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
     title: string;
     description: string;
@@ -81,6 +82,11 @@ export interface HpActivity {
         completedCount: number;
         overdueCount: number;
         lastRecomputedAt: string;
+    };
+    rules?: {
+        isMandatory: boolean;
+        deadlineAt: Date | string;
+        allowLateSubmission: boolean;
     };
     createdAt: string;
     updatedAt: string;
@@ -330,6 +336,17 @@ export const hpApi = {
         if (search) params.append('search', search);
 
         return apiFetch(`${BASE_URL}/activities?${params.toString()}`);
+    },
+
+    getStudentMySubmissions: async (
+        courseVersionId: string,
+        cohort: string
+    ): Promise<{ success: boolean; data: any[] }> => {
+        const params = new URLSearchParams({ courseVersionId, cohort });
+        // The teacher list endpoint returns the submissions according to the query.
+        // It relies on the token if we had a specific student endpoint, but we can reuse the generic list one 
+        // if the backend filters it by the token's user ID.
+        return apiFetch(`${BASE_URL}/activity-submissions/student/my-submissions?${params.toString()}`);
     },
 
     createActivity: async (payload: CreateHpActivityPayload): Promise<{ success: boolean; data: HpActivity }> => {

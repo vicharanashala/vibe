@@ -342,13 +342,32 @@ export class ActivitySubmissionsService extends BaseService {
         }));
     }
 
-    async listStudentWiseSubmssions(teacherId: string, studentId: string, body: ReviewHpActivitySubmissionBodyDto, query: FilterQueryDto): Promise<StudentActivitySubmissionsResponseDto> {
+    async listStudentWiseSubmssions(teacherId: string, studentId: string, body: ReviewHpActivitySubmissionBodyDto, query: FilterQueryDto): Promise<any> {
         const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query);
 
         return {
             success: true,
-            data: submissions
-        }
+            data: submissions,
+            meta: {
+                total: submissions.length,
+                page: query.page ?? 1,
+                limit: query.limit ?? 20,
+            },
+        };
+    }
+
+    async listMySubmissions(studentId: string, query: FilterQueryDto): Promise<any> {
+        const submissions = await this.activitySubmissionsRepository.getByStudentId(studentId, query);
+
+        return {
+            success: true,
+            data: submissions,
+            meta: {
+                total: submissions.length,
+                page: query.page ?? 1,
+                limit: query.limit ?? 20,
+            },
+        };
     }
 
     async review(submissionId: string, teacherId: string, body: ReviewHpActivitySubmissionBodyDto) {
