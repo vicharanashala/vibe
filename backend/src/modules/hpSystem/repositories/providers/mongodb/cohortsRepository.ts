@@ -43,9 +43,6 @@ export class CohortRepository implements ICohortRepository {
     ): Promise<CohortStudentItemDto[]> {
         await this.init();
 
-        // 6968e12cbf2860d6e39051af
-        console.log("CourseVersionId in Repo:", courseVersionId);
-
         const page = query.page ?? 1;
         const limit = query.limit ?? 20;
         const skip = (page - 1) * limit;
@@ -53,7 +50,6 @@ export class CohortRepository implements ICohortRepository {
         const search = query.search?.trim();
         const sortOrder = query.sortOrder === "desc" ? -1 : 1;
 
-        console.log("Query Params in Repo:", { page, limit, sortBy: query.sortBy, sortOrder: query.sortOrder, search });
 
         const sortByRaw = (query.sortBy ?? "name").trim();
         const SORT_MAP: Record<string, Record<string, 1 | -1>> = {
@@ -77,6 +73,7 @@ export class CohortRepository implements ICohortRepository {
                 $match: {
                     $or: orVersionMatch,
                     status: { $ne: "inactive" },
+                    role: "STUDENT",
                     isDeleted: { $ne: true },
                 },
             },
@@ -139,7 +136,6 @@ export class CohortRepository implements ICohortRepository {
 
         const docs = await this.enrollmentCollection.aggregate(pipeline).toArray();
 
-        console.log("Aggregated Cohort Students:", docs.length);
         return plainToInstance(CohortStudentItemDto, docs, {
             excludeExtraneousValues: true,
             enableImplicitConversion: true,
@@ -231,6 +227,7 @@ export class CohortRepository implements ICohortRepository {
                 courseId: { $in: [courseId, new ObjectId(courseId)] },
                 courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
                 isDeleted: { $ne: true },
+
             },
             { session }
         );

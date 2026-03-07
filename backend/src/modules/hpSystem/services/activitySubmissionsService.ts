@@ -132,7 +132,7 @@ export class ActivitySubmissionsService extends BaseService {
             // GCP Storage setup
             const storage = new Storage({
                 keyFilename: appConfig.GOOGLE_APPLICATION_CREDENTIALS,
-            });
+            }); 
 
             const bucketName = appConfig.GCP_BACKUP_ACTIVITY_BUCKET;
             const bucket = storage.bucket(bucketName);
