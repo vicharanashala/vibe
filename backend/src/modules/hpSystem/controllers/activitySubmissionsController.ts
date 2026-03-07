@@ -10,9 +10,12 @@ import {
   Post,
   QueryParams,
   UploadedFiles,
+  UseBefore,
+  Req,
 } from "routing-controllers";
 import { OpenAPI, ResponseSchema } from "routing-controllers-openapi";
 import { IUser, BadRequestErrorResponse } from "#root/shared/index.js";
+import multer from "multer";
 
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { ActivitySubmissionsService } from "../services/activitySubmissionsService.js";
@@ -34,13 +37,16 @@ export class ActivitySubmissionsController {
   @Post("/")
   @Authorized()
   @HttpCode(201)
+  @UseBefore(multer().any())
   @ResponseSchema(BadRequestErrorResponse, { description: "Bad Request Error", statusCode: 400 })
   async submit(
     @CurrentUser() user: IUser,
     @Body({ required: true }) body: CreateHpActivitySubmissionBodyDto,
-    @UploadedFiles("files", { required: false }) files?: Express.Multer.File[],
-    @UploadedFiles("images", { required: false }) images?: Express.Multer.File[],
+    @Req() req: any,
   ) {
+    const allFiles = req.files as Express.Multer.File[];
+    const files = allFiles?.filter(f => f.fieldname === "files");
+    const images = allFiles?.filter(f => f.fieldname === "images");
     const student = {
       id: user._id.toString(),
       email: user.email,
@@ -58,6 +64,20 @@ export class ActivitySubmissionsController {
   async getById(@Param("id") id: string) {
     const doc = await this.submissionService.getById(id);
     return { success: true, data: doc };
+  }
+
+  @OpenAPI({ summary: "Get currently logged in student's submissions" })
+  @Get("/student/my-submissions")
+  @Authorized()
+  @HttpCode(200)
+  async getMySubmissions(
+    @CurrentUser() user: IUser,
+    @QueryParams() query: FilterQueryDto
+  ): Promise<any> {
+    const studentId = user._id.toString();
+    // Using the same repository method the teacher uses but bypassing the teacher check/body
+    const doc = await this.submissionService.listMySubmissions(studentId, query);
+    return { success: true, data: doc.data };
   }
 
   @OpenAPI({ summary: "List submissions (teacher/admin)" })

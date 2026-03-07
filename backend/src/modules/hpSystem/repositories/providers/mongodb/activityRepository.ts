@@ -125,6 +125,22 @@ export class ActivityRepository implements IActivityRepository {
                 }
             },
 
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "publishedByTeacherId",
+                    foreignField: "_id",
+                    as: "instructor"
+                }
+            },
+
+            {
+                $unwind: {
+                    path: "$instructor",
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+
             { $sort: { createdAt: -1 } }
 
         ]).toArray();
@@ -140,6 +156,18 @@ export class ActivityRepository implements IActivityRepository {
             activity.description = doc.description;
             activity.status = doc.status;
             activity.createdByTeacherId = doc.createdByTeacherId;
+            activity.title = doc.title;
+            activity.description = doc.description;
+            activity.activityType = doc.activityType;
+            activity.submissionMode = doc.submissionMode;
+            activity.externalLink = doc.externalLink;
+            activity.attachments = doc.attachments;
+
+            if (doc.instructor) {
+                const firstName = doc.instructor.firstName || "";
+                const lastName = doc.instructor.lastName || "";
+                activity.instructorName = `${firstName} ${lastName}`.trim() || undefined;
+            }
             activity.createdAt = doc.createdAt;
 
             if (doc.rules) {
