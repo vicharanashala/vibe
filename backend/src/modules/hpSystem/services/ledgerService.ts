@@ -3,6 +3,8 @@ import { GLOBAL_TYPES } from "#root/types.js";
 import { inject, injectable } from "inversify";
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { LedgerRepository } from "../repositories/index.js";
+import { FilterQueryDto } from "../classes/validators/activitySubmissionValidators.js";
+import { LedgerListResponseDto } from "../classes/validators/ledgerValidators.js";
 
 
 
@@ -21,5 +23,10 @@ export class LedgerService extends BaseService {
     }
 
 
-
+    async listByStudentId(
+        studentId: string,
+        filter: FilterQueryDto
+    ): Promise<LedgerListResponseDto> {
+        return await this.ledgerRepository.listByStudentId(studentId, filter);
+    }
 }

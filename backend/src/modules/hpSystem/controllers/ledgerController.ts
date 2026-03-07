@@ -1,8 +1,10 @@
 import { inject, injectable } from "inversify";
-import { JsonController } from "routing-controllers";
-import { OpenAPI } from "routing-controllers-openapi";
+import { Authorized, Get, JsonController, Param, QueryParams } from "routing-controllers";
+import { OpenAPI, ResponseSchema } from "routing-controllers-openapi";
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { LedgerService } from "../services/ledgerService.js";
+import { LedgerListResponseDto } from "../classes/validators/ledgerValidators.js";
+import { FilterQueryDto } from "../classes/validators/activitySubmissionValidators.js";
 
 @OpenAPI({
     tags: ['HP Activities'],
@@ -16,5 +18,15 @@ export class LedgerController {
         private readonly ledgerService: LedgerService,
     ) { }
 
+    @OpenAPI({ summary: "List ledger transactions by student" })
+    // @Authorized()
+    @Get("/student/:studentId")
+    @ResponseSchema(LedgerListResponseDto)
+    async listByStudentId(
+        @Param("studentId") studentId: string,
+        @QueryParams() query: FilterQueryDto
+    ): Promise<LedgerListResponseDto> {
+        return this.ledgerService.listByStudentId(studentId, query);
+    }
 
 }
