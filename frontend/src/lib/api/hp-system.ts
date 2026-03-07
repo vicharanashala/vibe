@@ -419,17 +419,10 @@ export const hpApi = {
     // ── Students & Ledger (mock data) ────────────────────────
 
     getStudents: async (
-        _courseVersionId: string,
-        _cohort: string,
+        courseVersionId: string,
+        cohort: string,
     ): Promise<{ success: boolean; data: HpStudent[] }> => {
-        const students: HpStudent[] = [
-            { _id: 's1', name: 'Arjun Nair', email: 'arjun.nair@example.com', totalHp: 320, completionPercentage: 80 },
-            { _id: 's2', name: 'Priya Menon', email: 'priya.menon@example.com', totalHp: 275, completionPercentage: 65 },
-            { _id: 's3', name: 'Rahul Sharma', email: 'rahul.sharma@example.com', totalHp: 410, completionPercentage: 95 },
-            { _id: 's4', name: 'Sneha Iyer', email: 'sneha.iyer@example.com', totalHp: 190, completionPercentage: 40 },
-            { _id: 's5', name: 'Kiran Das', email: 'kiran.das@example.com', totalHp: 350, completionPercentage: 72 },
-        ];
-        return { success: true, data: students };
+        return apiFetch(`${BASE_URL}/courses-cohorts/version/${courseVersionId}/cohort/${cohort}/students`);
     },
 
     getCohortOverviewStats: async (
