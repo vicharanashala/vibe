@@ -432,14 +432,11 @@ export class EnrollmentService extends BaseService {
         quizSubmissionGrades,
       ]: [
           Map<string, number>,
-          // Map<
-          //   string,
-          //   {videos: number; quizzes: number; articles: number; projects: number}
-          // >,
+          Map<string, { videos: number; quizzes: number; articles: number; projects: number }>,
           ISubmission[],
         ] = await Promise.all([
           this.enrollmentRepo.getWatchedItemCountsBatch(watchedKeys),
-          // this.enrollmentRepo.getWatchedItemCountsByTypeBatch(watchedKeys),
+          this.enrollmentRepo.getWatchedItemCountsByTypeBatch(watchedKeys),
           allQuizIds.length > 0
             ? this.enrollmentRepo.getQuizSubmissionGrade(userId, allQuizIds)
             : Promise.resolve([]),
