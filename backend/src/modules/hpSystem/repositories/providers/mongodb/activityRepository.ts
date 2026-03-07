@@ -89,12 +89,97 @@ export class ActivityRepository implements IActivityRepository {
         if (filters.status) q.status = filters.status;
         if (filters.createdByTeacherId) q.createdByTeacherId = new ObjectId(filters.createdByTeacherId);
 
-        const docs = await this.hpActivityCollection
-            .find(q)
-            .sort({ createdAt: -1 })
-            .toArray();
+        const docs = await this.hpActivityCollection.aggregate([
 
-        return docs.map(doc => plainToInstance(HpActivityTransformer, doc));
+            { $match: q },
+
+            {
+                $lookup: {
+                    from: "hp_activity_rules",
+                    let: { activityId: "$_id" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $eq: ["$activityId", "$$activityId"]
+                                }
+                            }
+                        },
+                        {
+                            $project: {
+                                _id: 0,
+                                isMandatory: 1,
+                                deadlineAt: 1,
+                                allowLateSubmission: 1
+                            }
+                        }
+                    ],
+                    as: "rules"
+                }
+            },
+
+            {
+                $unwind: {
+                    path: "$rules",
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "publishedByTeacherId",
+                    foreignField: "_id",
+                    as: "instructor"
+                }
+            },
+
+            {
+                $unwind: {
+                    path: "$instructor",
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+
+            { $sort: { createdAt: -1 } }
+
+        ]).toArray();
+
+        return docs.map(doc => {
+            const activity = new HpActivityTransformer();
+
+            activity._id = doc._id;
+            activity.courseId = doc.courseId;
+            activity.courseVersionId = doc.courseVersionId;
+            activity.cohort = doc.cohort;
+            activity.title = doc.title;
+            activity.description = doc.description;
+            activity.status = doc.status;
+            activity.createdByTeacherId = doc.createdByTeacherId;
+            activity.title = doc.title;
+            activity.description = doc.description;
+            activity.activityType = doc.activityType;
+            activity.submissionMode = doc.submissionMode;
+            activity.externalLink = doc.externalLink;
+            activity.attachments = doc.attachments;
+
+            if (doc.instructor) {
+                const firstName = doc.instructor.firstName || "";
+                const lastName = doc.instructor.lastName || "";
+                activity.instructorName = `${firstName} ${lastName}`.trim() || undefined;
+            }
+            activity.createdAt = doc.createdAt;
+
+            if (doc.rules) {
+                activity.rules = {
+                    isMandatory: doc.rules.isMandatory,
+                    deadlineAt: doc.rules.deadlineAt,
+                    allowLateSubmission: doc.rules.allowLateSubmission,
+                };
+            }
+
+            return activity;
+        });
     }
 
     async publishActivity(

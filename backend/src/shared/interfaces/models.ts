@@ -402,6 +402,7 @@ export interface IEnrollment {
   isDeleted?: boolean;
   deletedAt?: Date;
   unenrolledAt?: Date;
+  hpPoints?:number;
 }
 
 export interface IProgress {

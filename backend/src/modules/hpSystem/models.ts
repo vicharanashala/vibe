@@ -249,8 +249,8 @@ export interface HpLedger {
     // Calculation snapshot
     calc: {
         ruleType: RuleType;
-        percentage: number;
-        absolutePoints: number;
+        percentage?: number;
+        absolutePoints?: number;
         baseHpAtTime: number;
         computedAmount: number;
         deadlineAt: Date;
@@ -262,7 +262,7 @@ export interface HpLedger {
     links: {
         reversedLedgerId: ID;
         relatedLedgerIds: ID[];
-    };
+    } | null;
 
     meta: {
         triggeredBy: TriggeredBy;

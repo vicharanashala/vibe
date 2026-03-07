@@ -168,11 +168,25 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                                 <div className="text-xs space-y-2 mt-4">
                                     <div className="flex items-center text-muted-foreground">
                                         <span className="w-24 font-medium text-foreground">Created By:</span>
-                                        <span>Teacher ID {activity.createdByTeacherId || "Unknown"}</span>
+                                        <span>{activity.instructorName || `Teacher ID ${activity.createdByTeacherId || "Unknown"}`}</span>
                                     </div>
+                                    {activity.rules && (
+                                        <>
+                                            <div className="flex items-center text-muted-foreground">
+                                                <span className="w-24 font-medium text-foreground">Mandatory:</span>
+                                                <span>{activity.rules.isMandatory ? 'Yes' : 'No'}</span>
+                                            </div>
+                                            {activity.rules.deadlineAt && (
+                                                <div className="flex items-center text-muted-foreground">
+                                                    <span className="w-24 font-medium text-foreground">Deadline:</span>
+                                                    <span>{new Date(activity.rules.deadlineAt).toLocaleDateString()}</span>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
                                     <div className="flex items-center text-muted-foreground">
                                         <span className="w-24 font-medium text-foreground">Submission:</span>
-                                        <span>{activity.submissionMode.replace('_', ' ')}</span>
+                                        <span>{(activity.submissionMode || "").replace('_', ' ')}</span>
                                     </div>
                                     <div className="flex items-start text-muted-foreground">
                                         <span className="w-24 font-medium text-foreground whitespace-nowrap mt-0.5">Attachments:</span>
@@ -197,6 +211,19 @@ export function ActivitiesTab({ courseVersionId, cohortName }: ActivitiesTabProp
                                             )}
                                         </div>
                                     </div>
+                                    {activity.submissionMode === 'EXTERNAL_LINK' && activity.externalLink && (
+                                        <div className="flex items-start text-muted-foreground">
+                                            <span className="w-24 font-medium text-foreground whitespace-nowrap mt-0.5">Ext. Link:</span>
+                                            <a
+                                                href={activity.externalLink}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-600 hover:underline hover:text-blue-800 text-xs truncate max-w-[200px]"
+                                            >
+                                                {activity.externalLink}
+                                            </a>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Stats block from backend */}
