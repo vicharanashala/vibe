@@ -1,5 +1,5 @@
 import {ParameterMap} from '#quizzes/question-processing/index.js';
-import {ILotItem, IQuestion, IUser} from '#root/shared/index.js';
+import {ID, ILotItem, IQuestion, IUser} from '#root/shared/index.js';
 import {ObjectId} from 'mongodb';
 
 interface ISOLAnswer {
@@ -124,6 +124,7 @@ interface ISubmission {
   attemptId: string | ObjectId;
   submittedAt: Date;
   gradingResult?: IGradingResult; // Result of the grading process
+  cohortId?: ID;
 }
 interface ISubmissionWithUser extends Omit<ISubmission, 'userId'> {
   userId: IUserInfo;
@@ -151,6 +152,7 @@ interface IUserQuizMetrics {
   remainingAttempts: number;
   skipCount: number;
   attempts: IAttemptDetails[];
+  cohortId?: ID;
 }
 
 export interface IGradingResult {

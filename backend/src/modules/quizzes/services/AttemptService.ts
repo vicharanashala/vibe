@@ -168,12 +168,14 @@ class AttemptService extends BaseService {
     attemptId: string,
     quizId: string,
     answers: IQuestionAnswer[],
+      cohort?: string,
     session?: ClientSession,
   ): Promise<IGradingResult> {
     //1. Fetch the attempt by ID
     const attempt = await this.attemptRepository.getById(
       attemptId,
       quizId,
+      cohort,
       session,
     );
     const quiz = await this.quizRepository.getById(
@@ -260,6 +262,7 @@ class AttemptService extends BaseService {
       quizId,
       undefined,
       undefined,
+      undefined,
       session,
     );
 
@@ -298,12 +301,16 @@ class AttemptService extends BaseService {
   async attempt(
     userId: string | ObjectId,
     quizId: string,
+    cohortId?: string
   ): Promise<{ attemptId: string; questionRenderViews: IQuestionRenderView[] }> {
     return this._withTransaction(async session => {
+
+
       //1. Check if UserQuizMetrics exists for the user and quiz
       let metrics = await this.userQuizMetricsRepository.get(
         userId,
         quizId,
+        cohortId,
         session,
       );
 
@@ -315,13 +322,15 @@ class AttemptService extends BaseService {
 
       const userObjecId = new ObjectId(userId);
       const quizObjecId = new ObjectId(quizId);
-
+      const cohortObjectId = cohortId ? new ObjectId(cohortId) : undefined;     
+      
       if (!metrics) {
         //1a If not, create a new UserQuizMetrics
         const newMetrics: UserQuizMetrics = new UserQuizMetrics(
           userObjecId,
           quizObjecId,
           quiz.details.maxAttempts,
+          cohortObjectId
         );
         //1b Create new UserQuizMetrics
         await this.userQuizMetricsRepository.create(newMetrics, session);
@@ -329,6 +338,7 @@ class AttemptService extends BaseService {
         metrics = await this.userQuizMetricsRepository.get(
           userId,
           quizId,
+          cohortId,
           session,
         );
         metrics = {...metrics,
@@ -341,7 +351,7 @@ class AttemptService extends BaseService {
             ...attempt,
             attemptId: new ObjectId(attempt.attemptId),
             submissionResultId: attempt.submissionResultId ? new ObjectId(attempt.submissionResultId): null,
-          }))
+          })),
         }
       }
 
@@ -372,7 +382,7 @@ class AttemptService extends BaseService {
 
       //5. Create a new attempt
 
-      const newAttempt = new Attempt(quizObjecId, userObjecId, questionDetails);
+      const newAttempt = new Attempt(quizObjecId, userObjecId, questionDetails, cohortObjectId);
 
       const attemptId = await this.attemptRepository.create(
         newAttempt,
@@ -410,7 +420,8 @@ class AttemptService extends BaseService {
     answers: IQuestionAnswer[],
     isSkipped?: boolean,
     courseId?: string,
-    courseVersionId?: string
+    courseVersionId?: string,
+    cohortId?: string
   ): Promise<Partial<IGradingResult> | null> {
     /* -------------------- READS OUTSIDE TRANSACTION -------------------- */
 
@@ -434,8 +445,9 @@ class AttemptService extends BaseService {
       quizId,
       userId,
       attemptId,
+      cohortId
     );
-
+// console.log("----existing submissio----", existingSubmission, cohortId)
     if (existingSubmission) {
       throw new BadRequestError(
         `Attempt with ID ${attemptId} has already been submitted`,
@@ -449,12 +461,13 @@ class AttemptService extends BaseService {
     let isFirst: Boolean;
     await this._withTransaction(async session => {
       // Save answers (this method should NOT start its own transaction anymore)
-      await this.save(userId, quizId, attemptId, answers, isSkipped);
+      await this.save(userId, quizId, attemptId, answers, cohortId, isSkipped);
 
       // Fetch metrics inside transaction (it is being updated)
       const metrics = await this.userQuizMetricsRepository.get(
         userId,
         quizId,
+        cohortId,
         session,
       );
 
@@ -493,8 +506,9 @@ class AttemptService extends BaseService {
         new ObjectId(quizId),
         new ObjectId(userId),
         new ObjectId(attemptId),
+        cohortId ? new ObjectId(cohortId) : undefined
       );
-
+// console.log("submission in submit----", submission);
       submissionId = await this.submissionRepository.create(
         submission,
         session,
@@ -537,7 +551,7 @@ class AttemptService extends BaseService {
     await this.submissionRepository.update(submissionId, { gradingResult });
     if (!isSkipped) {
       const isPassed = gradingResult.gradingStatus === "PASSED"
-      await this.progressService.handleQuizeProgressAfterSubmission(userId, quizId, courseId, courseVersionId, isPassed)
+      await this.progressService.handleQuizeProgressAfterSubmission(userId, quizId, courseId, courseVersionId, isPassed, cohortId);
     }
 
     /* -------------------- RETURN BASED ON QUIZ SETTINGS -------------------- */
@@ -551,6 +565,7 @@ class AttemptService extends BaseService {
     courseVersionId: string,
     feedbackFormId: string,
     details: Record<string, any>,
+    cohortId?: string
   ): Promise<string> {
     return this._withTransaction(async session => {
       // Course version is active or not
@@ -618,6 +633,7 @@ class AttemptService extends BaseService {
         await this.feedbackRepository.findByUserAndPreviousItem(
           userId.toString(),
           previousItemId.toString(),
+          cohortId,
           session,
         );
 
@@ -632,6 +648,7 @@ class AttemptService extends BaseService {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
         details,
         feedbackFormId: new ObjectId(feedbackFormId),
         previousItemId: new ObjectId(previousItemId),
@@ -706,6 +723,7 @@ class AttemptService extends BaseService {
     quizId: string,
     attemptId: string,
     answers: IQuestionAnswer[],
+    cohortId?: string,
     isSkipped?: boolean,
   ): Promise<{
     status: 'saved' | 'failed to save';
@@ -733,6 +751,7 @@ class AttemptService extends BaseService {
         const attempt = await this.attemptRepository.getById(
           attemptId,
           quizId,
+          cohortId,
           session,
         );
 
@@ -777,12 +796,14 @@ class AttemptService extends BaseService {
     userId: string | ObjectId,
     quizId: string,
     attemptId: string,
+    cohort?: string
   ): Promise<IAttempt> {
     //1. Fetch the attempt by ID
     return this._withTransaction(async session => {
       const attempt = await this.attemptRepository.getById(
         attemptId,
         quizId,
+        cohort,
         session,
       );
 

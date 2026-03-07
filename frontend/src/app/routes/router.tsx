@@ -436,7 +436,8 @@ const studentAnnouncementsRoute = new Route({
 
 export const studentCourseInviteRegistration = new Route({
   getParentRoute: () => rootRoute, // 👈 IMPORTANT: NOT studentLayoutRoute
-  path: "/student/course-registration/$versionId",
+  // path: "/student/course-registration/$versionId",
+  path: "/student/course-registration/$versionId/{-$cohort}",
   component: CourseRegistration,
   beforeLoad: () => {
     const { isAuthenticated, user } = useAuthStore.getState();
@@ -564,7 +565,7 @@ const routeTree = rootRoute.addChildren([
     studentCourseInviteRegistration,
     studentIssuesRoute,
     studentLeaderboardRoute,
-    studentAnnouncementsRoute
+    studentAnnouncementsRoute,
   ]),
   coursePageRoute,
 ]);

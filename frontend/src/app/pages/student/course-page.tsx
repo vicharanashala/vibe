@@ -97,6 +97,8 @@ export default function CoursePage() {
   const router = useRouter();
   const COURSE_ID = useCourseStore.getState().currentCourse?.courseId || "";
   const VERSION_ID = useCourseStore.getState().currentCourse?.versionId || "";
+  const COHORT_ID = useCourseStore.getState().currentCourse?.cohortId || "";
+  const COHORT_NAME = useCourseStore.getState().currentCourse?.cohortName || "";
   const { getSettings, settingLoading: proctoringLoading } = useGetProcotoringSettings();
 
   const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
@@ -111,7 +113,7 @@ export default function CoursePage() {
 
   const isMobile = useIsMobile();
 
-
+// console.log("cohort----in coursepage---",COHORT_ID, COHORT_NAME);
 
   // Check for microphone and camera access, otherwise redirect to dashboard
   useEffect(() => {
@@ -164,7 +166,9 @@ export default function CoursePage() {
         ...currentCourse,
         moduleId,
         sectionId,
-        itemId
+        itemId,
+        cohortId: COHORT_ID,
+        cohortName: COHORT_NAME
       });
     }
   }, [setCurrentCourse]);
@@ -221,9 +225,9 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
 
   // Fetch user progress
   const { data: progressData, isLoading: progressLoading, error: progressError } =
-    useUserProgress(COURSE_ID, VERSION_ID);
+    useUserProgress(COURSE_ID, VERSION_ID, COHORT_ID);
   const { data: moduleProgressData, isLoading: moduleProgressLoading } =
-    useModuleProgress(COURSE_ID, VERSION_ID);
+    useModuleProgress(COURSE_ID, VERSION_ID, COHORT_ID);
 
 
   // Fetch proctoring settings for the course (fetched once when component loads)
@@ -251,7 +255,8 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
   } = useItemsBySectionId(
     shouldFetchItems ? VERSION_ID : '',
     shouldFetchItems ? activeSectionInfo!.moduleId : '',
-    shouldFetchItems ? activeSectionInfo!.sectionId : ''
+    shouldFetchItems ? activeSectionInfo!.sectionId : '',
+    shouldFetchItems ? COHORT_ID : ''
   );
 
 
@@ -269,6 +274,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     shouldFetchItem ? selectedItemId! : '',
     shouldFetchItem ? activeSectionInfo!.moduleId : '',
     shouldFetchItem ? activeSectionInfo!.sectionId : '',
+    shouldFetchItem ? COHORT_ID : ''
   );
   // State to track previous valid item for reverting
   const [previousValidItem, setPreviousValidItem] = useState<{
@@ -478,6 +484,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
 
   // Effect to detect progress reset and clear cached data
   useEffect(() => {
+    // console.log('Progress data changed:', progressData, lastProgressData);
     if (progressData && lastProgressData) {
       // Check if progress has been reset (current position moved backward significantly)
       const currentModule = progressData.currentModule;
@@ -581,6 +588,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
         }
 
         setCurrentItem(item);
+        // console.log("------current item in course-page---", item);
         // Clear loading state when new item is successfully loaded
         setIsNavigatingToNext(false);
       }
@@ -1148,6 +1156,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
             body: {
               courseId: COURSE_ID,
               courseVersionId: VERSION_ID,
+              cohort: COHORT_ID
             },
           });
           return;
@@ -1397,7 +1406,8 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     sectionItems,
     updateCourseNavigation,
   ]);
-
+// console.log("Section items", sectionItems[selectedSectionId]);
+// console.log("Current item from progress", selectedItemId);
   // Handle going back to courses
   const handleGoBack = () => {
     // Stop current item before navigating away
@@ -2141,6 +2151,8 @@ useEffect(() => {
                         sectionId={sectionId}
                         completedItemIdsRef={completedItemIdsRef}
                         nextItem={findNextItem()}
+                        cohortId={COHORT_ID}
+                        cohortName={COHORT_NAME}
                       />
                     )}
 

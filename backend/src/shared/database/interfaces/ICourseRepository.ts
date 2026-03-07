@@ -1,6 +1,7 @@
 import { Module } from '#root/modules/courses/classes/index.js';
 import {
   courseVersionStatus,
+  ICohort,
   ICourse,
   ICourseVersion,
   ID,
@@ -29,8 +30,32 @@ export interface ICourseRepository {
 
   createVersion(
     courseVersion: ICourseVersion,
+    // cohorts?: string[],
     session?: ClientSession,
   ): Promise<ICourseVersion | null>;
+
+  getCohortsByIds(
+    cohortIds: ID[],
+    session?: ClientSession,
+  ): Promise<ICohort[]>;
+
+  createCohorts(
+    versionId: string,
+    cohorts: string[],
+    session?: ClientSession
+  ): Promise<ObjectId[]>;
+
+  addCohortsToVersion(
+    versionId: string,
+    cohortIds: ObjectId[],
+    session?: ClientSession
+  ): Promise<void>;
+
+  pushCohortsToVersion(
+    versionId: string,
+    cohortIds: ObjectId[],
+    session?: ClientSession
+  ): Promise<void>;
 
   addModulesToVersion(
     courseVersionId: string,

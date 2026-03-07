@@ -10,7 +10,8 @@ import {
   isString,
   IsEnum,
 } from 'class-validator';
-import {Priority} from './quiz.js';
+import { Priority } from './quiz.js';
+import { Cohort } from '#root/modules/courses/classes/index.js';
 
 export interface IUser {
   _id?: string | ObjectId | null;
@@ -45,6 +46,7 @@ export interface ICourseVersion {
   description: string;
   versionStatus?: courseVersionStatus;
   supportLink?: string;
+  cohorts?: ID[];
   modules: IModule[];
   totalItems?: number;
   itemCounts?: {
@@ -392,6 +394,7 @@ export interface IEnrollment {
   courseVersionId: string | ObjectId;
   role: EnrollmentRole;
   status: EnrollmentStatus;
+  cohort?: string;
   enrollmentDate: Date;
   percentCompleted: number;
   completedItemsCount?: number;
@@ -415,6 +418,7 @@ export interface IProgress {
   currentItem: string | ObjectId;
   completed: boolean;
   completedAt?: Date;
+  cohort?: string;
 }
 
 export interface ICurrentProgressPath {
@@ -432,6 +436,16 @@ export interface IWatchTime {
   itemId: string | ObjectId;
   startTime: Date;
   endTime?: Date;
+  cohortId?: ID;
+}
+
+export interface ICohort {
+  _id?: string | ObjectId | null;
+  courseVersionId: string | ObjectId;
+  name: string;
+  description?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface IUserActivityEvent {
@@ -664,6 +678,10 @@ export class EnrollmentsQuery {
   @IsOptional()
   @IsIn(['ACTIVE', 'INACTIVE'])
   statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE';
+
+  @IsOptional()
+  @IsString()
+  cohort?: string;
 }
 
 export class BulkEnrollmentsQuery {
@@ -723,6 +741,10 @@ export interface AuthenticatedUser {
 //   updatedAt?: Date;
 // }
 
+export interface ICohortResponse {
+  _id: ID,
+  name: string
+}
 export interface ICourseRegistration {
   _id?: string | ObjectId;
   courseId: ID;
@@ -730,6 +752,9 @@ export interface ICourseRegistration {
   userId: ID;
   detail: Record<string, any>;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  cohortId?: ID;
+  cohort?: ICohort;
+  cohortName?: string;
   read?: boolean;
   createdAt?: Date;
   updatedAt?: Date;

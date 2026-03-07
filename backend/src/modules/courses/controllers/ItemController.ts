@@ -16,6 +16,7 @@ import {
   UseInterceptor,
   Req,
   BadRequestError,
+  QueryParam,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {COURSES_TYPES} from '#courses/types.js';
@@ -192,9 +193,10 @@ export class ItemController {
     description: 'Item not found',
     statusCode: 404,
   })
-  async readAll(
+  async readAll( // change according to cohort
     @Params() params: VersionModuleSectionParams,
-    @Ability(getItemAbility) {ability, user},
+    @Ability(getItemAbility) { ability, user },
+    @QueryParam('cohortId') cohortId?: string,
   ) {
     const {versionId, moduleId, sectionId} = params;
 
@@ -207,12 +209,13 @@ export class ItemController {
         'You do not have permission to view items in this section',
       );
     }
-
+// console.log("----in readAllItems contr----", cohortId);
     const items = await this.itemService.readAllItems(
       versionId,
       moduleId,
       sectionId,
       user._id,
+      cohortId
     );
 
     // Filter out blank quizzes for students
@@ -700,8 +703,9 @@ Access control logic:
   })
   async getItem(
     @Params() params: GetItemParams,
-    @Ability(getItemAbility) {ability},
-    @CurrentUser() user: {_id: string},
+    @Ability(getItemAbility) { ability },
+    @CurrentUser() user: { _id: string },
+    @QueryParam('cohortId') cohortId?: string,
   ) {
     const {versionId, itemId, courseId, moduleId, sectionId} = params;
     const {_id: userId} = user;
@@ -743,14 +747,7 @@ Access control logic:
     // }
 
     return {
-      item: await this.itemService.readItem(
-        userId?.toString(),
-        versionId,
-        itemId,
-        courseId,
-        moduleId,
-        sectionId,
-      ),
+      item: await this.itemService.readItem(userId?.toString(), versionId, itemId, courseId, moduleId, sectionId, cohortId),
     };
   }
 
@@ -866,12 +863,7 @@ Accessible to:
       );
     }
 
-    const getItemBeforeUpdate = await this.itemService.readItem(
-      user._id.toString(),
-      versionId,
-      itemId,
-    );
-    console.log('getItemBeforeUpdate----', getItemBeforeUpdate);
+    const getItemBeforeUpdate = await this.itemService.readItem(user._id.toString(), versionId, itemId);
     setAuditTrail(req, {
       category: AuditCategory.ITEM,
       action: AuditAction.ITEM_MAKE_OPTIONAL,

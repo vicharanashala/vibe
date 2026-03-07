@@ -36,6 +36,7 @@ class UserQuizMetricsRepository {
   async get(
     userId: string | ObjectId,
     quizId: string | ObjectId,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<IUserQuizMetrics | null> {
     await this.init();
@@ -53,11 +54,13 @@ class UserQuizMetricsRepository {
     const filter: any = {
       userId: {$in: [userIdStr, ...(userIdObj ? [userIdObj] : [])]},
       quizId: {$in: [quizIdStr, ...(quizIdObj ? [quizIdObj] : [])]},
+      ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
     };
 
     const result = await this.userQuizMetricsCollection.findOne(filter, {
       session,
     });
+    // console.log('get metrics result----', result, cohort);
     if (!result) return null;
 
     return {

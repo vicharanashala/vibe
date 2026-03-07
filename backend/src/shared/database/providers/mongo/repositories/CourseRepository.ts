@@ -2,6 +2,7 @@ import { GLOBAL_TYPES } from '#root/types.js';
 import { ICourseRepository } from '#shared/database/interfaces/ICourseRepository.js';
 import {
   courseVersionStatus,
+  ICohort,
   ICourse,
   ICourseVersion,
   ID,
@@ -56,6 +57,7 @@ export class CourseRepository implements ICourseRepository {
   private enrollmentCollection: Collection<IEnrollment>;
   private inviteCollection: Collection<Invite>;
   private questionBankCollection: Collection<IQuestionBank>;
+  private cohortsCollection: Collection<ICohort>;
 
   constructor(
     @inject(GLOBAL_TYPES.Database)
@@ -100,6 +102,8 @@ export class CourseRepository implements ICourseRepository {
     this.itemsGroupCollection.createIndex({ 'items._id': 1 });
 
     this.itemsGroupCollection.createIndex({ 'items.type': 1 });
+
+    this.cohortsCollection = await this.db.getCollection<ICohort>('cohorts');
   }
 
   async getDBClient(): Promise<MongoClient> {
@@ -236,6 +240,75 @@ export class CourseRepository implements ICourseRepository {
       throw new InternalServerError('Failed to delete course');
     }
     return true;
+  }
+
+  async getCohortsByIds(
+    cohortIds: ID[],
+    session?: ClientSession,
+  ): Promise<ICohort[]> {
+
+    const objectIds = cohortIds.map(id => new ObjectId(id));
+
+    return await this.cohortsCollection
+      .find({ _id: { $in: objectIds } }, { session })
+      .toArray();
+  }
+
+  async createCohorts(
+    versionId: string,
+    cohorts: string[],
+    session?: ClientSession
+  ): Promise<ObjectId[]> {
+
+    await this.init();
+
+    if (!cohorts?.length) return [];
+
+    const unique = [...new Set(cohorts.map(c => c.trim()))];
+
+    const versionObjectId = new ObjectId(versionId);
+
+    const cohortsToInsert: ICohort[] = unique.map(name => ({
+      courseVersionId: versionObjectId,
+      name,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
+
+    const result = await this.cohortsCollection.insertMany(
+      cohortsToInsert,
+      { session }
+    );
+
+    return Object.values(result.insertedIds) as ObjectId[];
+  }
+
+  async addCohortsToVersion(
+    versionId: string,
+    cohortIds: ObjectId[],
+    session?: ClientSession
+  ) {
+    await this.courseVersionCollection.updateOne(
+      { _id: new ObjectId(versionId) },
+      { $set: { cohorts: cohortIds } },
+      { session }
+    );
+  }
+
+  async pushCohortsToVersion(
+    versionId: string,
+    cohortIds: ObjectId[],
+    session?: ClientSession
+  ) {
+    await this.courseVersionCollection.updateOne(
+      { _id: new ObjectId(versionId) },
+      {
+        $addToSet: {
+          cohorts: { $each: cohortIds }
+        }
+      },
+      { session }
+    );
   }
 
   async createVersion(
@@ -560,6 +633,7 @@ export class CourseRepository implements ICourseRepository {
             itemsGroupId: new ObjectId(section.itemsGroupId),
           })),
         })),
+        cohorts: (courseVersion.cohorts||[]).map(cohort=> new ObjectId(cohort))
       }
       const { _id: _, ...fields } = courseVersion;
 

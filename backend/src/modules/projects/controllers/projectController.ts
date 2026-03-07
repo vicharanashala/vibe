@@ -62,6 +62,7 @@ export class ProjectController {
     @Ability(projectAbility) {ability, user},
     @Body() body: SubmitProjectBody,
   ): Promise<SuccessResponse> {
+    // console.log('Received project submission:', body);
     const {
       projectId,
       courseId,
@@ -71,6 +72,7 @@ export class ProjectController {
       watchItemId,
       submissionURL,
       comment,
+      cohortId,
     } = body;
 
     const userId = user._id.toString();
@@ -93,6 +95,7 @@ export class ProjectController {
       versionId,
       submissionURL,
       comment,
+      cohortId,
     );
 
     // await this._progressService.stopItem(

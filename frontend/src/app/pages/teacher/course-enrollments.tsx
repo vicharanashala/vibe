@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useNavigate, useSearch } from "@tanstack/react-router"
-import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare, Check } from 'lucide-react'
+import { Search, Users, TrendingUp, CheckCircle, RotateCcw, UserX, BookOpen, FileText, List, Play, AlertTriangle, X, Loader2, Eye, Clock, ChevronRight, ChevronDown, ArrowUp, ArrowDown, BarChart3, Download, FileDown, CheckSquare, Check, Layers } from 'lucide-react'
 import { Pagination } from "@/components/ui/Pagination"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -44,6 +44,13 @@ import type { EnrolledUser } from "@/types/course.types"
 import { useAuthStore } from "@/store/auth-store"
 import { EnrollmentRole } from "@/types/invite.types"
 import { generateExcel } from "@/lib/excel-export"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "@/components/ui/dropdown-menu";
 
 // Types for quiz functionality
 
@@ -155,7 +162,7 @@ export default function CourseEnrollments() {
   // Fetch course and version data
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
-
+// console.log("----version-----", version);
   // Fetch course anomalies stats
   const { data: enrollmentStats, isLoading: statsLoading, error: statsError } = useCourseEnrollmentsStats(
     courseId,
@@ -270,9 +277,10 @@ export default function CourseEnrollments() {
   const { data: userModuleProgress, isLoading: moduleProgressLoading } = useUserModuleProgress(
     selectedUser?.id || "",
     courseId || "",
-    versionId || ""
+    versionId || "",
+    selectedUser?.cohortId,
   )
-
+// console.log("selectedUser cohort", selectedUser);
   const toggleSelectionMode = () => {
     setIsSelectionMode((prev) => {
       if (prev) {
@@ -307,11 +315,15 @@ export default function CourseEnrollments() {
       toast.error('Course or version information missing')
       return
     }
+    if(!cohort) {
+      toast.error('Please select a cohort for unenrollment')
+      return;
+    }
 
     try {
       const userIds = Array.from(selectedUsers)
 
-      await bulkUnenrollMutation.mutateAsync({
+      await bulkUnenrollMutation.mutateAsync({// need to be changed for cohort support
         params: {
           path: {
             courseId,
@@ -320,6 +332,7 @@ export default function CourseEnrollments() {
         },
         body: {
           userIds,
+          cohort: cohort,
         },
       })
 
@@ -408,7 +421,12 @@ export default function CourseEnrollments() {
       toast.warning('No quiz scores available');
       return;
     }
+    if (isLoadingQuizScores) {
+      toast.loading('Fetching quiz scores...');
+      return;
+    }
 
+    // console.log("---quizscores------", quizScores);
     try {
       // ⚡ FAST: single-pass formatting, no unused maps
       const formattedData = quizScores.data.map(
@@ -449,7 +467,7 @@ export default function CourseEnrollments() {
 
       // 🧠 Let UI breathe before heavy Excel generation
       await new Promise(resolve => setTimeout(resolve, 0));
-
+// console.log("JSON.stringify(formattedData,---",JSON.stringify(formattedData, null, 2));
       generateExcel(formattedData, filename);
       toast.success(`${enrollmentTab.toLowerCase()} quiz scores exported successfully`);
     } catch (error) {
@@ -482,6 +500,7 @@ export default function CourseEnrollments() {
   const statusTab: "ACTIVE" | "INACTIVE" = enrollmentTab
   const [activeCount, setActiveCount] = useState(0)
   const [inactiveCount, setInactiveCount] = useState(0)
+  const [cohort, setCohort] = useState<string | null>(null);
   const {
     data: quizScores,
     isLoading: isLoadingQuizScores,
@@ -489,7 +508,7 @@ export default function CourseEnrollments() {
     refetch: fetchQuizScores,
   } = useCourseQuizScores(courseId, versionId, isExporting, enrollmentTab);
 
-
+// console.log("quizscores-------", quizScores);
   // Fetch enrollments data
   const {
     data: enrollmentsData,
@@ -507,6 +526,7 @@ export default function CourseEnrollments() {
     !!(courseId && versionId),
     'STUDENT',
     statusTab,
+    cohort,
   );
 
   // Active / Inactive tab
@@ -517,7 +537,7 @@ export default function CourseEnrollments() {
 
   // const studentEnrollments = enrollmentsData?.enrollments || [];
   const studentEnrollments = enrollmentsData?.enrollments || []
-
+// console.log("----studentEnrollments---",studentEnrollments)
   // Filter out already assigned students if excludeAssigned is true
   const filteredStudentEnrollments = excludeAssigned 
     ? studentEnrollments.filter((enrollment: any) => {
@@ -566,7 +586,7 @@ export default function CourseEnrollments() {
     }
   }, [totalDocuments, enrollmentTab])
   const totalPages = enrollmentsData?.totalPages || 1
-
+// console.log("enrollmentsData--------------", enrollmentsData);
 
   // Sorting handler
   const handleSort = (column: 'name' | 'enrollmentDate' | 'progress' | "scoreObtained" | "unenrolledAt") => {
@@ -636,12 +656,13 @@ export default function CourseEnrollments() {
         totalQuizMaxScore: 0,
       },
     })
-
+console.log("----slecteduser-------", selectedUser);
     setIsViewProgressDialogOpen(true)
   }
 
 
   const handleRemoveStudent = (user: EnrolledUser) => {
+    // console.log("Preparing to remove student:", user);
     setUserToRemove(user)
     setIsRemoveDialogOpen(true)
   }
@@ -653,6 +674,7 @@ export default function CourseEnrollments() {
 
   const confirmRemoveStudent = async () => {
     if (userToRemove && courseId && versionId) {
+      // console.log("Attempting to remove student:", userToRemove);
       try {
         await unenrollMutation.mutateAsync({
           params: {
@@ -661,6 +683,9 @@ export default function CourseEnrollments() {
               courseId: courseId,
               courseVersionId: versionId,
             },
+          },
+          body: {
+            cohortId: userToRemove.cohortId,
           },
         })
         setIsRemoveDialogOpen(false)
@@ -681,7 +706,7 @@ export default function CourseEnrollments() {
             userId: userId,
             courseId: courseId,
             courseVersionId: versionId,
-
+            cohortId: selectedUser?.cohortId,
           },
         })
         setIsRecalculateProgressOpen(false)
@@ -711,6 +736,9 @@ export default function CourseEnrollments() {
         requestBody.moduleId = selectedModule
         requestBody.sectionId = selectedSection
         requestBody.itemId = selectedItem
+      }
+      if(selectedUser.cohortId) {
+        requestBody.cohortId = selectedUser.cohortId
       }
 
       await resetProgressMutation.mutateAsync({
@@ -847,7 +875,8 @@ export default function CourseEnrollments() {
     selectedUser?.id,
     courseId,
     versionId,
-    isViewProgressDialogOpen
+    isViewProgressDialogOpen,
+    selectedUser?.cohortId
   )
 
   // ===== Derived progress helpers =====
@@ -1057,6 +1086,9 @@ export default function CourseEnrollments() {
               setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
               timeSlotsData={timeSlotsData}
               getStudentTimeSlot={getStudentTimeSlot}
+              version={version}
+              cohort={cohort}
+              setCohort={setCohort}
             />
           </TabsContent>
 
@@ -1090,6 +1122,9 @@ export default function CourseEnrollments() {
               setIsTimeSlotsModalOpen={setIsTimeSlotsModalOpen}
               timeSlotsData={timeSlotsData}
               getStudentTimeSlot={getStudentTimeSlot}
+              version={version}
+              cohort={cohort}
+              setCohort={setCohort}
             />
           </TabsContent>
         </Tabs>
@@ -1133,9 +1168,9 @@ export default function CourseEnrollments() {
                 <div className="flex-1">
                   <p className="font-medium text-card-foreground truncate text-base md:text-lg">{selectedUser.name}</p>
                   <p className="text-muted-foreground truncate">{selectedUser.email}</p>
-
-
-
+                  {selectedUser.cohortName && (
+                    <p className="text-muted-foreground truncate">(Cohort-{selectedUser.cohortName})</p>
+                  )}
                 </div>
 
                 {/* Content Summary Dropdown */}
@@ -1286,6 +1321,8 @@ export default function CourseEnrollments() {
                                 email: selectedUser.email,
                                 enrolledDate: selectedUser.enrolledDate,
                                 progress: 0,
+                                cohortId: selectedUser.cohortId,
+                                cohortName: selectedUser.cohortName,
                               })
                             }
                             className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-200 cursor-pointer"
@@ -1318,6 +1355,8 @@ export default function CourseEnrollments() {
                                 email: selectedUser.email,
                                 enrolledDate: selectedUser.enrolledDate,
                                 progress: 0,
+                                cohortId: selectedUser.cohortId,
+                                cohortName: selectedUser.cohortName,
                               })
                             }
                             className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
@@ -1499,7 +1538,7 @@ export default function CourseEnrollments() {
                 <p className="text-lg text-card-foreground">
                   Want to remove <strong className="text-primary">{userToRemove?.name}</strong> from{" "}
                   <strong className="text-primary">
-                    {course.name} ({version.version})
+                    {course.name} ({version.version}) ({userToRemove?.cohortName})
                   </strong>
                   ?
                 </p>
@@ -1562,10 +1601,17 @@ export default function CourseEnrollments() {
 
               <div className="space-y-8">
                 <p className="text-lg text-card-foreground">
-                  Want to Recalculate progress of <strong className="text-primary">{userToRecalculate?.name}</strong>
-                  ?
+                  Want to Recalculate progress of{" "}
+                  <strong className="text-primary">{userToRecalculate?.name}</strong>?
+                  
+                  <span className="text-sm text-muted-foreground block mt-1">
+                    {userToRecalculate?.cohortName && (
+                      <>
+                        (Cohort: <span className="font-medium">{userToRecalculate.cohortName}</span>)
+                      </>
+                    )}
+                  </span>
                 </p>
-
                 {/* <div className="flex gap-4 p-6 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl">
                   <div><AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" /></div>
                   <div className="text-sm text-red-800 dark:text-red-200">
@@ -1637,6 +1683,7 @@ export default function CourseEnrollments() {
                   <div className="min-w-0 flex-1">
                     <p className="font-bold text-card-foreground truncate text-lg">{selectedUser.name}</p>
                     <p className="text-muted-foreground truncate">{selectedUser.email}</p>
+                    <p className="text-muted-foreground truncate">Cohort: {selectedUser.cohortName}</p>
                   </div>
                 </div>
               )}
@@ -2056,6 +2103,9 @@ function EnrollmentsTable({
   setIsTimeSlotsModalOpen,
   timeSlotsData,
   getStudentTimeSlot,
+  version,
+  cohort,
+  setCohort,
 }: any) {
   const isInactiveTab = enrollmentTab === "INACTIVE"
 
@@ -2119,6 +2169,37 @@ function EnrollmentsTable({
             </Button>
           )}
 
+          {version?.cohortDetails?.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                >
+                <Layers className="h-4 w-4 text-muted-foreground" />
+        {cohort ? version.cohortDetails.find(c => c.id === cohort)?.name : "Select Cohort"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuRadioGroup
+                  value={cohort ?? ""}
+                  onValueChange={(id) => {
+                    setCohort(id);
+                  }}
+                >
+                  {version?.cohortDetails.map((cohort) => (
+                    <DropdownMenuRadioItem
+                      key={cohort.id}
+                      value={cohort.id}
+                    >
+                      {cohort.name}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
           {/* Bulk Actions Bar */}
           {isSelectionMode && selectedUsers.size > 0 && (
             <Button
@@ -2128,7 +2209,8 @@ function EnrollmentsTable({
               className="flex items-center gap-2 animate-in fade-in zoom-in duration-200"
             >
               <Trash2 className="h-4 w-4" />
-              <span>Remove ({selectedUsers.size})</span>
+              {/* <span>Remove ({selectedUsers.size})</span> */}
+              <span>Remove</span>
             </Button>
           )}
 
@@ -2329,7 +2411,7 @@ function EnrollmentsTable({
                 ) : (
                   studentEnrollments.map((enrollment: any) => (
                     <TableRow
-                      key={enrollment._id || enrollment.user?._id || `enrollment-${Math.random()}`}
+                      key={enrollment._id || `enrollment-${Math.random()}`}
                       className={`border-border hover:bg-muted/20 transition-colors duration-200 group ${isInactiveTab ? "opacity-80" : ""
                         }`}
                     >
@@ -2374,6 +2456,11 @@ function EnrollmentsTable({
                             <p className="text-xs md:text-sm text-muted-foreground truncate">
                               {enrollment?.user?.email || ""}
                             </p>
+                            {enrollment?.cohortName && (
+                            <p className="text-xs md:text-sm text-muted-foreground truncate">
+                              (Cohort- {enrollment?.cohortName || ""})
+                            </p>
+                            )}
                           </div>
                         </div>
                       </TableCell>
@@ -2471,8 +2558,9 @@ function EnrollmentsTable({
                                   totalQuizScore: enrollment.contentCounts?.totalQuizScore || 0,
                                   totalQuizMaxScore: enrollment.contentCounts?.totalQuizMaxScore || 0,
                                 },
-
                                 isDeleted: enrollment.isDeleted,
+                                cohortId: enrollment.cohortId,
+                                cohortName: enrollment.cohortName
                               })
                             }
 
@@ -2490,6 +2578,7 @@ function EnrollmentsTable({
                             variant="ghost"
                             size="sm"
                             onClick={() =>
+                                {console.log("Remove student clicked:", enrollment);
                               handleRemoveStudent({
                                 id: enrollment.user?._id,
                                 name:
@@ -2498,7 +2587,9 @@ function EnrollmentsTable({
                                 email: enrollment.user?.email,
                                 enrolledDate: enrollment.enrollmentDate,
                                 progress: 0,
-                              })
+                                cohortId: enrollment.cohortId,
+                                cohortName: enrollment.cohortName
+                              })}
                             }
                             className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 cursor-pointer"
                             disabled={

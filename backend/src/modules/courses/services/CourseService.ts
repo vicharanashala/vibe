@@ -53,6 +53,7 @@ class CourseService extends BaseService {
     versionName: string,
     versionDescription: string,
     userId: string,
+    cohorts: string[]
   ): Promise<Course> {
     return this._withTransaction(async session => {
       const createdCourse = await this.courseRepo.create(course, session);
@@ -67,6 +68,7 @@ class CourseService extends BaseService {
         version: versionName,
         description: versionDescription,
       };
+
       const newVersion = await this.courseVersionService.createCourseVersion(
         courseId,
         versionPayload,
@@ -74,6 +76,19 @@ class CourseService extends BaseService {
       );
 
       const versionId = newVersion._id.toString();
+
+      const cohortIds = await this.courseRepo.createCohorts(
+        versionId,
+        cohorts,
+        session
+      );
+
+      await this.courseRepo.addCohortsToVersion(
+        versionId,
+        cohortIds,
+        session
+      );
+
       createdCourse.versions.push(new ObjectId(versionId));
 
       // Prepare independent tasks
@@ -83,6 +98,7 @@ class CourseService extends BaseService {
         versionId,
         'INSTRUCTOR',
         false,
+        undefined,
         session,
       );
 

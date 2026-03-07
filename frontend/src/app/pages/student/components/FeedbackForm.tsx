@@ -85,6 +85,7 @@ const FeedbackForm = ({
           itemId: currentCourse.itemId,
           moduleId: currentCourse.moduleId ?? '',
           sectionId: currentCourse.sectionId ?? '',
+          cohortId: currentCourse.cohortId ?? '',
         }
       });
     }
@@ -125,6 +126,7 @@ const FeedbackForm = ({
       courseId: currentCourse?.courseId || "",
       courseVersionId: currentCourse?.versionId || "",
       // isSkipped: false,
+      cohortId: currentCourse?.cohortId ?? '',
     };
 
 
@@ -147,6 +149,7 @@ const FeedbackForm = ({
             itemId: currentCourse!.itemId ?? "",
             moduleId: currentCourse!.moduleId ?? "",
             sectionId: currentCourse!.sectionId ?? "",
+            cohortId: currentCourse!.cohortId ?? '',
           },
         });
       }
@@ -176,6 +179,7 @@ const FeedbackForm = ({
         itemId: currentCourse!.itemId ?? '',
         moduleId: currentCourse!.moduleId ?? '',
         sectionId: currentCourse!.sectionId ?? '',
+        cohortId: currentCourse!.cohortId ?? '',
       }
     });
     onNext()

@@ -21,6 +21,7 @@ export class ProjectSubmissionRepository
     userId: string,
     versionId: string,
     courseId: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<IProjectSubmission | null> {
     await this.init();
@@ -29,6 +30,7 @@ export class ProjectSubmissionRepository
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(versionId),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       { session },
     );
@@ -130,6 +132,7 @@ export class ProjectSubmissionRepository
     userId: string,
     submissionURL: string,
     comment: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<ID> {
     await this.init();
@@ -142,6 +145,7 @@ export class ProjectSubmissionRepository
         submissionURL,
         comment,
         createdAt: new Date(),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}), 
       },
       { session },
     );
@@ -182,6 +186,7 @@ export class ProjectSubmissionRepository
   async deleteByUserAndVersion(
     userId: string,
     courseVersionId: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<boolean> {
     await this.init();
@@ -189,6 +194,7 @@ export class ProjectSubmissionRepository
       {
         userId: new ObjectId(userId),
         courseVersionId: new ObjectId(courseVersionId),
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       { session },
     );

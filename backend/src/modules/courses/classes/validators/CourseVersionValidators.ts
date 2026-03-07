@@ -11,8 +11,11 @@ import {
   MaxLength,
   IsNumber,
   IsIn,
+  IsArray,
+  ArrayUnique,
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
+import { Cohort } from '../index.js';
 
 class CreateCourseVersionBody implements Partial<ICourseVersion> {
   @JSONSchema({
@@ -47,6 +50,16 @@ class CreateCourseVersionBody implements Partial<ICourseVersion> {
   @IsOptional()
   @IsString()
   supportLink?: string;
+
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  @IsOptional() // allow the array to be empty
+  @JSONSchema({
+    description: 'Array of cohort names in a version',
+    example: ['cohort1', 'cohort2'],
+  })
+  cohorts?: string[];
 }
 
 class CreateCourseVersionParams {
@@ -157,6 +170,18 @@ class CourseVersionDataResponse {
     readOnly: true,
   })
   updatedAt: Date;
+
+  @IsOptional()
+  @IsArray()
+    @JSONSchema({
+    description: 'Array of cohort names in a course version',
+  })
+  cohorts: string[];
+
+  @IsOptional()
+  @IsArray()
+  @JSONSchema({ description: 'Array of cohort details in a course version' })
+  cohortDetails: Cohort[];
 }
 
 class CourseVersionNotFoundErrorResponse {
@@ -261,6 +286,16 @@ class UpdateCourseVersionBody implements Partial<ICourseVersion> {
   @IsOptional()
   @IsString()
   supportLink?: string;
+
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  @IsOptional() // allow the array to be empty
+  @JSONSchema({
+    description: 'Array of cohort names in a version',
+    example: ['cohort1', 'cohort2'],
+  })
+  cohorts?: string[];
 }
 class CopyCourseVersionParams {
   @IsString()

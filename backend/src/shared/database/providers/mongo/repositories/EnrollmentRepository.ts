@@ -84,22 +84,19 @@ export class EnrollmentRepository {
     userId: string | ObjectId,
     courseId: string,
     courseVersionId: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<IEnrollment | null> {
     await this.init();
-
-    const courseObjectId = new ObjectId(courseId);
-    const courseVersionObjectId = new ObjectId(courseVersionId);
-    const userObjectid = new ObjectId(userId);
-
+    // cohort = cohort ? new ObjectId(cohort).toString() : undefined; // Ensure cohort is a string if provided 
+    // console.log("cohort---in findEnrollment--", cohortId);
     return await this.enrollmentCollection.findOne(
       {
-        userId: {$in: [userId, new ObjectId(userId)]},
-        courseId: {$in: [courseId, new ObjectId(courseId)]},
-        courseVersionId: {
-          $in: [courseVersionId, new ObjectId(courseVersionId)],
-        },
-        isDeleted: {$ne: true},
+        userId: { $in: [userId, new ObjectId(userId)] },
+        courseId: { $in: [courseId, new ObjectId(courseId)] },
+        courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        isDeleted: { $ne: true },
       },
       {session},
     );
@@ -109,6 +106,7 @@ export class EnrollmentRepository {
     userId: string | ObjectId,
     courseId: string,
     courseVersionId: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<IEnrollment | null> {
     await this.init();
@@ -123,7 +121,8 @@ export class EnrollmentRepository {
         courseId: {$in: [courseObjectId, courseId]},
         courseVersionId: {$in: [courseVersionObjectId, courseVersionId]},
         status: 'ACTIVE',
-        isDeleted: {$ne: true},
+        isDeleted: { $ne: true },
+        ...(cohortId ? { cohortId :new ObjectId(cohortId) } : {}),
       },
       {session},
     );
@@ -153,8 +152,9 @@ export class EnrollmentRepository {
   async updateProgressPercentById(
     enrollmentId: string,
     percentCompleted: number,
-    session?: ClientSession,
     completedItemsCount?: number,
+    cohortId?: string,
+    session?: ClientSession,
   ): Promise<void> {
     try {
       await this.init();
@@ -235,6 +235,7 @@ export class EnrollmentRepository {
     courseId: string,
     courseVersionId: string,
     enrollmentId: string,
+    cohortId?: string,
     session?: any,
   ): Promise<void> {
     await this.init();
@@ -254,6 +255,7 @@ export class EnrollmentRepository {
         userId: {$in: userFilter},
         courseId: courseObjectId,
         courseVersionId: courseVersionObjectId,
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       {
         $set: {
@@ -516,7 +518,7 @@ export class EnrollmentRepository {
     }
   }
 
-  async getBasicEnrollments(
+  async getBasicEnrollments( 
     userId: string,
     skip: number,
     limit: number,
@@ -746,6 +748,31 @@ export class EnrollmentRepository {
         },
       },
 
+      /* ---------------- COHORT LOOKUP ---------------- */
+
+      {
+        $lookup: {
+          from: 'cohorts',
+          localField: 'cohortId',
+          foreignField: '_id',
+          as: 'cohort',
+          pipeline: [
+            {
+              $project: {
+                name: 1,
+              },
+            },
+          ],
+        },
+      },
+
+      {
+        $unwind: {
+          path: '$cohort',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
       /* ---------------- FINAL SHAPE ---------------- */
       {
         $project: {
@@ -771,6 +798,8 @@ export class EnrollmentRepository {
           hasNewItemsAfterCompletion: {
             $ifNull: ['$hasNewItemsAfterCompletion', false],
           },
+          cohortId: 1,
+          cohortName: '$cohort.name',
         },
       },
     ];
@@ -1177,14 +1206,17 @@ export class EnrollmentRepository {
       userId: ObjectId;
       courseId: ObjectId;
       courseVersionId: ObjectId;
+      cohortId?: ObjectId;
     }[],
   ): Promise<Map<string, number>> {
     const matchConditions = entries.map(e => ({
       userId: e.userId,
       courseId: e.courseId,
       courseVersionId: e.courseVersionId,
-      isHidden: {$ne: true},
-      isDeleted: {$ne: true},
+      ...(e.cohortId ? { cohortId: e.cohortId } : {}),
+      isHidden: { $ne: true },
+      isDeleted: { $ne: true },
+      endTime: { $exists: true, $ne: null }, // Confirm from Abram sir
     }));
 
     const results = await this.watchTimeCollection
@@ -1196,6 +1228,7 @@ export class EnrollmentRepository {
               userId: '$userId',
               courseId: '$courseId',
               courseVersionId: '$courseVersionId',
+              cohortId: { $ifNull: ['$cohortId', ''] },
             },
             itemIds: {$addToSet: '$itemId'},
           },
@@ -1211,10 +1244,10 @@ export class EnrollmentRepository {
 
     const map = new Map<string, number>();
     for (const doc of results) {
-      const key = `${doc._id.userId.toString()}-${doc._id.courseId.toString()}-${doc._id.courseVersionId.toString()}`;
+      const key = `${doc._id.userId.toString()}-${doc._id.courseId.toString()}-${doc._id.courseVersionId.toString()}-${doc._id.cohortId.toString() || ''}`;
       map.set(key, doc.count);
     }
-
+// console.log("Watched item counts batch map:", map);
     return map;
   }
 
@@ -1366,16 +1399,25 @@ export class EnrollmentRepository {
     sortOrder: 'asc' | 'desc',
     filter: string,
     statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
+    cohort?: string,
+    cohorts?: ID[],
     session?: ClientSession,
   ) {
     await this.init();
 
     const baseMatch: any = {
-      courseId: {$in: [courseId, new ObjectId(courseId)]},
-      courseVersionId: {$in: [courseVersionId, new ObjectId(courseVersionId)]},
+      courseId: { $in: [courseId, new ObjectId(courseId)] },
+      courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
     };
 
-    let matchStage: any = {...baseMatch};
+    if (cohort) {
+      baseMatch.cohortId = new ObjectId(cohort);
+    } else if (cohorts && cohorts.length > 0) {
+      baseMatch.cohortId = { $in: cohorts };
+    }
+
+    // console.log("Base match for enrollments:", baseMatch);
+    let matchStage: any = { ...baseMatch };
 
     //  ACTIVE tab
     if (statusTab === 'ACTIVE') {
@@ -1458,7 +1500,21 @@ export class EnrollmentRepository {
           as: 'userInfo',
         },
       },
-      {$unwind: {path: '$userInfo', preserveNullAndEmptyArrays: true}},
+      {
+        $lookup: {
+          from: "cohorts",
+          localField: "cohortId",
+          foreignField: "_id",
+          as: "cohort"
+        }
+      },
+      {
+        $unwind: {
+          path: "$cohort",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
       {
         $addFields: {
           userId: {$toString: '$userInfo._id'},
@@ -1468,7 +1524,15 @@ export class EnrollmentRepository {
           firstName: '$userInfo.firstName',
           lastName: '$userInfo.lastName',
           email: '$userInfo.email',
-          completedItemsCount: {$ifNull: ['$completedItemsCount', 0]},
+          completedItemsCount: { $ifNull: ['$completedItemsCount', 0] },
+          cohortId: {
+            $cond: [
+              { $ifNull: ["$cohort._id", false] },
+              { $toString: "$cohort._id" },
+              null
+            ]
+          },
+          cohortName: "$cohort.name"
         },
       },
     ];
@@ -1856,7 +1920,7 @@ async getArchiveCount(userId: string, role: EnrollmentRole) {
     return this.enrollmentCollection.find(query).toArray();
   }
 
-  async addEnrollmentIndexes(session?: ClientSession): Promise<void> {
+  async addEnrollmentIndexes(session?: ClientSession): Promise<void> { 
     try {
       await this.enrollmentCollection.dropIndex('courseVersionId_1');
       await this.enrollmentCollection.dropIndex('courseId_1');
@@ -2163,6 +2227,7 @@ async getArchiveCount(userId: string, role: EnrollmentRole) {
               _id: {
                 userId: '$userId',
                 quizId: '$quizId',
+                cohortId: "$cohortId",
               },
               bestScore: {$max: '$score'},
               maxPossibleScore: {$first: '$maxPossibleScore'},
@@ -2671,11 +2736,13 @@ async getArchiveCount(userId: string, role: EnrollmentRole) {
   async getQuizScoresForCourseVersion(
     courseId: string,
     versionId: string,
+    cohortIds?: string[],
+    cohortMap?: Map<any, any>,
     statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
   ): Promise<QuizScoresExportResponseDto> {
     const startTime = Date.now();
     await this.init();
-
+// console.log("cohortIds-------",cohortIds);
     if (!this.enrollmentCollection || !this.submissionCollection) {
       throw new Error('Database collections not properly initialized');
     }
@@ -2686,12 +2753,19 @@ async getArchiveCount(userId: string, role: EnrollmentRole) {
 
     const courseIdObj = new ObjectId(courseId);
     const versionIdObj = new ObjectId(versionId);
-
+    const cohortObjectIds = Array.isArray(cohortIds)
+      ? cohortIds.map(id => new ObjectId(id))
+      : [];
+// console.log("cohortObjectIds-------",cohortObjectIds);
     const studentFilter: any = {
       courseId: courseIdObj,
       courseVersionId: versionIdObj,
       role: 'STUDENT' as EnrollmentRole,
     };
+
+    if (cohortObjectIds?.length) {
+      studentFilter.cohortId = { $in: cohortObjectIds };
+    }
 
     // Add status-specific filters
     if (statusTab === 'ACTIVE') {
@@ -2722,6 +2796,7 @@ async getArchiveCount(userId: string, role: EnrollmentRole) {
         {
           $project: {
             userId: 1,
+            cohortId: 1,
             'user.firstName': 1,
             'user.lastName': 1,
             'user.email': 1,
@@ -2788,8 +2863,11 @@ async getArchiveCount(userId: string, role: EnrollmentRole) {
       .aggregate([
         {
           $match: {
-            userId: {$in: userIds},
-            quizId: {$in: quizIdsObj},
+            userId: { $in: userIds },
+            quizId: { $in: quizIdsObj },
+            ...(cohortObjectIds?.length
+            ? { cohortId: { $in: cohortObjectIds } }
+            : {}),
           },
         },
         {
@@ -2797,6 +2875,7 @@ async getArchiveCount(userId: string, role: EnrollmentRole) {
             _id: {
               userId: '$userId',
               quizId: '$quizId',
+              cohortId: "$cohortId",
             },
             attempts: {$sum: 1},
             maxScore: {$max: '$gradingResult.totalScore'},
@@ -2810,8 +2889,11 @@ async getArchiveCount(userId: string, role: EnrollmentRole) {
       .aggregate([
         {
           $match: {
-            userId: {$in: userIds},
-            quizId: {$in: quizIdsObj},
+            userId: { $in: userIds },
+            quizId: { $in: quizIdsObj },
+            ...(cohortObjectIds?.length
+            ? { cohortId: { $in: cohortObjectIds } }
+            : {}),
           },
         },
         {
@@ -2822,6 +2904,7 @@ async getArchiveCount(userId: string, role: EnrollmentRole) {
             _id: {
               userId: '$userId',
               quizId: '$quizId',
+              // cohortId: "$cohortId",
               questionId: '$gradingResult.overallFeedback.questionId',
             },
             questionScore: {
@@ -2897,10 +2980,13 @@ async getArchiveCount(userId: string, role: EnrollmentRole) {
             });
           }
         }
-      }
 
+      }
+        console.log("quizScores----cohort-",quizScores, cohortMap?.get(enrollment.cohortId?.toString()));
       return {
         studentId: userId,
+        // cohortId: enrollment.cohortId?.toString() ?? null,
+        cohortName: cohortMap?.get(enrollment.cohortId?.toString()) ?? null,
         name:
           `${enrollment.user.firstName ?? ''} ${
             enrollment.user.lastName ?? ''
@@ -3031,6 +3117,7 @@ async getArchiveCount(userId: string, role: EnrollmentRole) {
     userId: string,
     courseId: string,
     courseVersionId: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<IEnrollment> {
     await this.init();
@@ -3040,6 +3127,7 @@ async getArchiveCount(userId: string, role: EnrollmentRole) {
           userId: new ObjectId(userId),
           courseId: new ObjectId(courseId),
           courseVersionId: new ObjectId(courseVersionId),
+          ...(cohortId && { cohortId: new ObjectId(cohortId) }),
         },
         {session},
       )
@@ -3078,16 +3166,18 @@ async getArchiveCount(userId: string, role: EnrollmentRole) {
   async getBatchQuizSubmissionGrades(
     userIds: string[],
     quizIds: string[],
+    cohorts?: string[],
     session?: ClientSession,
   ): Promise<ISubmission[]> {
     await this.init();
-
+    // console.log("Fetching quiz submission grades for cohorts", cohorts);
     if (!userIds.length || !quizIds.length) {
       return [];
     }
 
     const userObjectIds = userIds.map(id => new ObjectId(id));
     const quizObjectIds = quizIds.map(id => new ObjectId(id));
+    const cohortObjectIds = cohorts?.map(id => new ObjectId(id));
 
     // Get the best (max score) submission for each user-quiz combination
     return await this.submissionCollection
@@ -3095,9 +3185,12 @@ async getArchiveCount(userId: string, role: EnrollmentRole) {
         [
           {
             $match: {
-              userId: {$in: userObjectIds},
-              quizId: {$in: quizObjectIds},
-              'gradingResult.totalScore': {$exists: true},
+              userId: { $in: userObjectIds },
+              quizId: { $in: quizObjectIds },
+              ...(cohortObjectIds?.length
+              ? { cohortId: { $in: cohortObjectIds } }
+              : {}),
+              'gradingResult.totalScore': { $exists: true },
             },
           },
           // Sort by score descending to get best score first
@@ -3110,6 +3203,7 @@ async getArchiveCount(userId: string, role: EnrollmentRole) {
               _id: {
                 userId: '$userId',
                 quizId: '$quizId',
+                cohortId: '$cohortId',
               },
               submission: {$first: '$$ROOT'},
             },
@@ -3123,6 +3217,7 @@ async getArchiveCount(userId: string, role: EnrollmentRole) {
             $project: {
               userId: 1,
               quizId: 1,
+              cohortId: 1,
               'gradingResult.totalScore': 1,
               'gradingResult.totalMaxScore': 1,
             },
@@ -3133,7 +3228,7 @@ async getArchiveCount(userId: string, role: EnrollmentRole) {
       .toArray();
   }
 
-  async getQuizSubmissionGrade(
+  async getQuizSubmissionGrade( // ?
     userId: string,
     quizIds: string[],
     session?: ClientSession,

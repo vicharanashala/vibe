@@ -53,7 +53,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
     console.error('Invalid enrollment data:', enrollment);
     return null;
   }
-
+// console.log("---enrollment----", enrollment);
   const courseId = bufferToHex(enrollment.courseId as string);
   const versionId = bufferToHex(enrollment.courseVersionId as string) || "";
   const module_number = enrollment.moduleNumber || "";
@@ -159,7 +159,9 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
       moduleId: null,
       sectionId: null,
       itemId: null,
-      watchItemId: null
+      watchItemId: null,
+      cohortName: enrollment.cohortName || null,
+      cohortId: enrollment.cohortId || null
     });
 
     navigate({ to: "/student/learn" });
@@ -267,7 +269,13 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           </div>
           <h3 className="font-medium text-lg mb-auto">
             {enrollment?.course?.name || `Course ${index + 1}`}
+            {enrollment?.cohortName && (
+              <span className="font-medium text-[80%] mb-auto ml-5">
+                (Cohort: {enrollment.cohortName})
+              </span>
+            )}
           </h3>
+
           <p className="text-xs text-muted-foreground mb-3">
             {isCompleted
               ? 'Course completed!'

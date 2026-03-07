@@ -225,7 +225,7 @@ Accessible to:
         'You do not have permission to update this course version',
       );
     }
-
+// console.log("Updating course version with data:", body);
     const existingVersion = await this.courseVersionService.readCourseVersion(versionId, user._id);
     const updatedCourseVersion =
       await this.courseVersionService.updateCourseVersion(versionId, body);

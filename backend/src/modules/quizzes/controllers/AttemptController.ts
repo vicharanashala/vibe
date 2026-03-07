@@ -80,6 +80,7 @@ class AttemptController {
   async attempt(
     @Params() params: CreateAttemptParams,
     @Ability(getAttemptAbility) {ability, user},
+    @Req() req: Request,
   ): Promise<CreateAttemptResponse> {
     const {quizId} = params;
     const userId = user._id.toString();
@@ -91,9 +92,25 @@ class AttemptController {
     //   throw new ForbiddenError(
     //     'You do not have permission to start this quiz attempt',
     //   );
-    // }
+    //Id
+    const { cohortId } = await new Promise<{ cohortId?: string }>((resolve, reject) => {
+      let data = '';
+      req.on('data', chunk => {
+        data += chunk;
+      });
+      req.on('end', () => {
+        try {
+          const parsed = JSON.parse(data || '{}');
+          resolve({ cohortId: parsed.cohortId });
+        } catch (err) {
+          reject(err);
+        }
+      });
+      req.on('error', err => reject(err));
+    });
 
-    const attempt = await this.attemptService.attempt(userId, quizId);
+    // console.log('cohort in attempt controller----', cohortId, user);
+    const attempt = await this.attemptService.attempt(userId, quizId, cohortId);
 
     return hideExplanationForStartAttempt(attempt) as CreateAttemptResponse;
     // return attempt as CreateAttemptResponse;
@@ -151,12 +168,13 @@ class AttemptController {
     //     'You do not have permission to save this quiz attempt',
     //   );
     // }
-
+// console.log('cohort in save controller----', body.cohortId, user);
     const result = await this.attemptService.save(
       userId,
       quizId,
       attemptId,
       body.answers,
+      body.cohortId,
     );
 
     return result;
@@ -206,11 +224,11 @@ class AttemptController {
         req.on('error', err => reject(err));
       },
     );
-    const {isSkipped, answers, courseId, courseVersionId} = body;
+    const {isSkipped, answers, courseId, courseVersionId, cohortId} = body;
     const userId = user._id.toString();
     // Build subject context first
     const attemptSubject = subject('Attempt', {quizId});
-
+// console.log('cohort in submit controller----', cohortId, user);
     // if (!ability.can(AttemptActions.Submit, attemptSubject)) {
     //   throw new ForbiddenError(
     //     'You do not have permission to submit this quiz attempt',
@@ -225,6 +243,7 @@ class AttemptController {
       isSkipped,
       courseId,
       courseVersionId,
+      cohortId,
     );
     return result as SubmitAttemptResponse;
   }
@@ -256,15 +275,16 @@ class AttemptController {
     @Ability(getCourseAbility) {ability, user},
   ): Promise<{message: string}> {
     const {itemId} = params;
-    const {details, courseId, courseVersionId, sectionId} = body;
+    const {details, courseId, courseVersionId, sectionId, cohortId } = body;
     const userId = user._id.toString();
-
+// console.log("feedback, ", cohortId);
     const message = await this.attemptService.submitFeedBackForm(
       userId,
       courseId,
       courseVersionId,
       itemId,
       details,
+      cohortId,
       // isSkipped,
     );
     return {message};

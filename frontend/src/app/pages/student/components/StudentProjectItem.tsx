@@ -56,7 +56,7 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
       console.error('Missing course item ID');
       return '';
     }
-    
+    // console.log("Starting item with data:-------", currentCourse);
     try {
       const response = await startItem.mutateAsync({
         params: {
@@ -69,6 +69,7 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
           itemId: currentCourse.itemId,
           moduleId: currentCourse.moduleId ?? '',
           sectionId: currentCourse.sectionId ?? '',
+          cohortId: currentCourse.cohortId ?? '',
         }
       });
 
@@ -97,7 +98,7 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
       });
       return false;
     }
-
+// console.log("Stopping item with data:-------", { ...currentCourse, stopWatchItemId });
     try {
       // Stop the watch item
       await stopItem.mutateAsync({
@@ -111,7 +112,8 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
           watchItemId: stopWatchItemId,
           itemId: currentCourse.itemId,
           sectionId: currentCourse.sectionId ?? '',
-          moduleId: currentCourse.moduleId ?? ''
+          moduleId: currentCourse.moduleId ?? '',
+          cohortId: currentCourse.cohortId ?? '',
         }
       });
       completedItemIdsRef.current.add(currentCourse.itemId);
@@ -154,7 +156,7 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
       }
 
       setIsSubmittingLocal(true);
-
+// console.log('Submitting project with data:--------',currentCourse);
       try {
         if(isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId)){
           await submitProject({
@@ -167,6 +169,7 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
               watchItemId: '', // No watchItemId since we're not tracking
               submissionURL: link.trim(),
               comment: comment.trim() || undefined,
+              cohortId: currentCourse.cohortId ?? '',
             }
           });
           toast.success('Form submitted successfully!');
@@ -199,6 +202,7 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
         watchItemId: newWatchItemId,
         submissionURL: link.trim(),
         comment: comment.trim() || undefined,
+        cohortId: currentCourse.cohortId ?? '',
       };
 
       // Submit the form with watchItemId

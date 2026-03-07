@@ -93,6 +93,7 @@ export class CourseVersionService extends BaseService {
 
       const createdVersion = await this.courseRepo.createVersion(
         {...newVersion, courseId: new ObjectId(newVersion.courseId)},
+        // body.cohorts,
         txnSession,
       );
       if (!createdVersion) {
@@ -148,7 +149,30 @@ export class CourseVersionService extends BaseService {
       if (!readVersion) {
         throw new InternalServerError('Failed to read course version.');
       }
+      if (readVersion.cohorts?.length) {
+        const cohorts = await this.courseRepo.getCohortsByIds(
+          readVersion.cohorts,
+          session,
+        );
+        if(cohorts.length !== readVersion.cohorts.length){
+          console.warn(`Mismatch in cohorts fetched for course version ${courseVersionId}. Expected ${readVersion.cohorts.length}, got ${cohorts.length}`);
+          throw new InternalServerError('Mismatch in cohorts fetched for course version.');
+        }
 
+        for (const cohort of cohorts) {
+          if (!readVersion.cohorts.some(id => id.toString() === cohort._id.toString())) {
+            throw new InternalServerError(
+              `Cohort ID ${cohort._id} not referenced in course version ${courseVersionId}`
+            );
+          }
+        }
+        (readVersion as any).cohortDetails  = cohorts.map(cohort => ({
+          id: cohort._id.toString(),
+          name: cohort.name,
+        }));
+      }
+
+      // console.log("Read course version:", readVersion);
       const courseId = readVersion.courseId.toString();
 
       const enrollment =
@@ -202,7 +226,25 @@ export class CourseVersionService extends BaseService {
       // Handle supportLink - allow setting, updating, or clearing
       if (body.supportLink !== undefined) existingVersion.supportLink = body.supportLink;
       existingVersion.updatedAt = new Date();
+      if(body.cohorts){
+        const cohortIds = await this.courseRepo.createCohorts(
+          courseVersionId,
+          body.cohorts,
+          session
+        );
+        // console.log("--cohortIds--",cohortIds);
+        if (!existingVersion.cohorts) {
+          existingVersion.cohorts = [];
+        }
+        const existing = new Set(existingVersion.cohorts.map(id => id.toString()));
+        for (const id of cohortIds) {
+          if (!existing.has(id.toString())) {
+            existingVersion.cohorts.push(id);
+          }
+        }
+      }
 
+// console.log("Updating course version with data:", existingVersion, body);
       const updatedVersion = await this.courseRepo.updateVersion(
         courseVersionId,
         existingVersion,

@@ -171,13 +171,17 @@ export class EnrollmentController {
   async unenrollUser(
     @Params() params: EnrollmentParams,
     @Ability(getEnrollmentAbility) {ability, user},
+    @Body() body: {cohortId?: string},
     @Req() req: Request,
   ): Promise<EnrollUserResponse> {
+
+    // console.log("---unenrollUser----", body.cohortId);
     const { userId, courseId, versionId } = params;
     const enrollmentData = await this.enrollmentService.findActiveEnrollment(
       userId,
       courseId,
       versionId,
+      body.cohortId
     );
     // Create an enrollment resource object for permission checking
     const enrollmentResource = subject('Enrollment', {
@@ -346,7 +350,7 @@ export class EnrollmentController {
     const { page, limit, search = '', role, tab = 'active' } = query;
     const userId = user._id.toString();
     const skip = (page - 1) * limit;
-
+// console.log("in enrollment @Get('/enrollments getUserEnrollments')", userId, search, role);
     // 🚀 Run DB queries in parallel
     const [enrollments, totalDocuments, activeCount, archivedCount] = await Promise.all([
       this.enrollmentService.getEnrollments(userId, skip, limit, role, search, tab),
@@ -366,7 +370,7 @@ export class EnrollmentController {
         archivedCount: archivedCount,
       };
     }
-
+// console.log("enrollments in controller-----getuserEnrollments", enrollments);
     return {
       totalDocuments,
       totalPages: Math.ceil(totalDocuments / limit),
@@ -398,7 +402,7 @@ export class EnrollmentController {
     @Ability(getEnrollmentAbility) { ability },
   ): Promise<EnrolledUserResponse> {
     const { userId, courseId, versionId } = params;
-
+// console.log("in enrollment controller getEnrollment", userId, courseId, versionId);
     // Create an enrollment resource object for permission checking
     const enrollmentResource = subject('Enrollment', {
       userId,
@@ -462,6 +466,7 @@ export class EnrollmentController {
       sortOrder = 'desc',
       filter,
       statusTab = 'ACTIVE',
+      cohort,
     } = query;
 
     if (page < 1 || limit < 1) {
@@ -483,8 +488,9 @@ export class EnrollmentController {
         sortOrder,
         filter,
         statusTab,
+        cohort
       );
-
+// console.log("enrollmentsData in getCourseVersionEnrollments---", enrollmentsData);
     if (
       !enrollmentsData ||
       !enrollmentsData.enrollments ||
@@ -522,6 +528,8 @@ export class EnrollmentController {
           totalQuizScore: enrollment.totalQuizScore || 0,
           totalQuizMaxScore: enrollment.totalQuizMaxScore || 0,
           contentCounts: enrollment.contentCounts,
+          cohortId: enrollment.cohortId,
+          cohortName: enrollment.cohortName
         }))
         .sort((a, b) => {
           // sort by isDeleted deleted should be at the bottom
@@ -685,7 +693,7 @@ export class EnrollmentController {
         'You do not have permission to view quiz scores for this course',
       );
     }
-
+// console.log("---in exportQuizScores-----")
     return this.enrollmentService.getQuizScoresForCourseVersion(
       courseId,
       versionId,
@@ -809,7 +817,7 @@ export class EnrollmentController {
     const { page, limit, search = '', role, courseVersionId } = query;
     const userId = user._id.toString();
     const skip = (page - 1) * limit;
-
+// console.log("in enrollment @Get('/enrollments/details')", userId, search, role, courseVersionId);
     // 🚀 Run DB queries in parallel
     const [enrollments, totalDocuments] = await Promise.all([
       this.enrollmentService.getDetailedEnrollment(
@@ -860,6 +868,7 @@ export class EnrollmentController {
   async getUserModuleProgress(
     @Params() params: EnrollmentParams,
     @Ability(getEnrollmentAbility) { ability }: any,
+    @QueryParam('cohortId') cohortId?: string,
   ): Promise<{
     modules: Array<{
       moduleId: string;
@@ -869,7 +878,8 @@ export class EnrollmentController {
     }>;
   }> {
     const { userId, courseId, versionId } = params;
-
+   // const { cohort } = query;
+// console.log("in enrollment @Get('/:userId/enrollme/courses/:courseId/versions/:versionId/modules/progress')", userId, courseId, versionId, cohortId);
     // Check permission
     const enrollmentResource = subject('Enrollment', {
       userId,
@@ -887,6 +897,7 @@ export class EnrollmentController {
       userId,
       courseId,
       versionId,
+      cohortId
     );
 
     return { modules: moduleProgress };

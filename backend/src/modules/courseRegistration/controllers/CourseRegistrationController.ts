@@ -91,6 +91,7 @@ class CourseRegistrationController {
     const result = await this.courseRegistrationService.getCourseDetails(
       versionId,
     );
+    // console.log("course details result---", result);
     return result;
   }
 
@@ -270,11 +271,12 @@ class CourseRegistrationController {
     @Req() req: Request,
   ) {
     const { registrationId } = params;
-    const { status } = body;
+    const { status, cohort } = body;
 
     const result = await this.courseRegistrationService.updateStatus(
       registrationId,
       status,
+      cohort
     );
 
     setAuditTrail(req, {
