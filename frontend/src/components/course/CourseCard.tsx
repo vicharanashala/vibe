@@ -182,8 +182,15 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           />
         </div>
         <CardContent className="p-3 sm:pl-0 flex flex-col flex-1">
+          {/* isCompleted && */}
+           {enrollment.hasNewItemsAfterCompletion && (
+            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300 text-xs my-1">
+              New content added
+            </Badge>
+          )}
           <div className="flex items-start justify-between xl:flex-row flex-col gap-2 mb-2">
             <div className="flex items-center">
+              
               <Badge className="bg-secondary/70 text-secondary-foreground border-0 font-normal">
                 Course
               </Badge>
@@ -192,6 +199,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   Completed
                 </Badge>
               )}
+              
             </div>
             <div className="text-sm text-muted-foreground">
               <div className="flex flex-col xl:flex-row gap-3 2xl:gap-8 xl:gap-4">
