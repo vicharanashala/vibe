@@ -343,14 +343,16 @@ export class EnrollmentController {
     @Ability(getEnrollmentAbility) { user },
     @Req() req: any,
   ): Promise<EnrollmentResponse> {
-    const { page, limit, search = '', role } = query;
+    const { page, limit, search = '', role, tab = 'active' } = query;
     const userId = user._id.toString();
     const skip = (page - 1) * limit;
 
     // 🚀 Run DB queries in parallel
-    const [enrollments, totalDocuments] = await Promise.all([
-      this.enrollmentService.getEnrollments(userId, skip, limit, role, search),
-      this.enrollmentService.countEnrollments(userId, role, search),
+    const [enrollments, totalDocuments, activeCount, archivedCount] = await Promise.all([
+      this.enrollmentService.getEnrollments(userId, skip, limit, role, search, tab),
+      this.enrollmentService.countEnrollments(userId, role, tab, search),
+      this.enrollmentService.getActiveCount(userId, role),
+      this.enrollmentService.getArchiveCount(userId, role)
     ]);
 
     if (!enrollments || enrollments.length === 0) {
@@ -360,6 +362,8 @@ export class EnrollmentController {
         currentPage: page,
         enrollments: [],
         message: 'No enrollments found for the user',
+        activeCount: activeCount,
+        archivedCount: archivedCount,
       };
     }
 
@@ -368,6 +372,8 @@ export class EnrollmentController {
       totalPages: Math.ceil(totalDocuments / limit),
       currentPage: page,
       enrollments,
+      activeCount: activeCount,
+      archivedCount: archivedCount,
     };
   }
 

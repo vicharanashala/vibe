@@ -1311,7 +1311,7 @@ export function useUnenrollUser(): {
 }
 
 // GET /users/enrollments
-export function useUserEnrollments(page?: number, limit?: number, enabled: boolean = true, search?: string, role = "STUDENT"): {
+export function useUserEnrollments(page?: number, limit?: number, enabled: boolean = true, search?: string, role = "STUDENT", tab: 'active'|'archived' = "active" ): {
   data: components['schemas']['EnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -1319,7 +1319,7 @@ export function useUserEnrollments(page?: number, limit?: number, enabled: boole
 } {
   const result = api.useQuery("get", "/users/enrollments", {
     params: {
-      query: { page, limit, search, role }
+      query: { page, limit, search, role, tab }
     },
     enabled: enabled
   });
@@ -1656,10 +1656,16 @@ export function useSkipOptionalItem(): {
   isError: boolean,
   isIdle: boolean,
 } {
-  const result = api.useMutation("post", "/users/items/{itemId}/skip");
+  const result = api.useMutation("post", "/users/items/{itemId}/skip") as any;
+  const rawError = result.error as { message?: string; response?: { data?: { message?: string } } } | null;
   return {
     ...result,
-    error: result.error ? (result.error.message || 'Failed to skip item') : null
+    // error: result.error ? (result.error.message || 'Failed to skip item') : null
+   error: rawError
+      ? rawError.message
+        ?? rawError.response?.data?.message
+        ?? "Failed to skip item"
+      : null,
   }
 }
 
@@ -4550,6 +4556,42 @@ export function useToggleTimeSlots(): {
   };
 }
 
+// POST /timeslots/student/choose
+export function useChooseTimeSlot(): {
+  mutate: (variables: { body: { courseId: string; courseVersionId: string; timeSlot: { from: string; to: string } } }) => void,
+  mutateAsync: (variables: { body: { courseId: string; courseVersionId: string; timeSlot: { from: string; to: string } } }) => Promise<{ success: boolean; message?: string }>,
+  data: { success: boolean; message?: string } | undefined,
+  error: string | null,
+  isPending: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/timeslots/student/choose");
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to choose time slot') : null
+  };
+}
+
+// POST /timeslots/teacher/remove-student
+export function useRemoveStudentFromTimeSlot(): {
+  mutateAsync: (variables:{body: {
+    courseId: string;
+    courseVersionId: string;
+    studentId: string;
+    timeSlot: { from: string; to: string };
+  }}) => Promise<any>;
+  isPending: boolean;
+  error: string | null;
+} {
+  const result = api.useMutation("post", "/timeslots/teacher/remove-student");
+  
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to remove student from time slot') : null
+  };
+}
+
 // GET /timeslots/course/{courseId}/version/{courseVersionId}
 export function useGetTimeSlots(
   courseId: string | undefined,
@@ -4580,40 +4622,6 @@ export function useGetTimeSlots(
     data: result.data?.data,
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch time slots') : null,
-    refetch: result.refetch
-  };
-}
-
-// GET /timeslots/students/{courseId}/{courseVersionId}
-export function useGetStudentsInTimeSlots(
-  courseId: string | undefined,
-  courseVersionId: string | undefined,
-  enabled: boolean = true
-): {
-  data: Array<{ from: string; to: string; studentIds: string[] }> | undefined,
-  isLoading: boolean,
-  error: string | null,
-  refetch: () => void
-} {
-  const result = api.useQuery(
-    "get",
-    "/timeslots/students/{courseId}/{courseVersionId}",
-    {
-      params: {
-        path: { courseId: courseId!, courseVersionId: courseVersionId! }
-      }
-    },
-    {
-      enabled: !!courseId && !!courseVersionId && enabled,
-      retry: 1,
-      refetchOnWindowFocus: false
-    }
-  );
-
-  return {
-    data: result.data?.data,
-    isLoading: result.isLoading,
-    error: result.error ? (result.error.message || 'Failed to fetch students in time slots') : null,
     refetch: result.refetch
   };
 }

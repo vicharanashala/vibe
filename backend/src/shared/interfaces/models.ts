@@ -1,6 +1,6 @@
-import { ObjectId } from 'mongodb';
-import { ProctoringComponent } from '../database/index.js';
-import { Type } from 'class-transformer';
+import {ObjectId} from 'mongodb';
+import {ProctoringComponent} from '../database/index.js';
+import {Type} from 'class-transformer';
 import {
   IsOptional,
   IsInt,
@@ -10,7 +10,7 @@ import {
   isString,
   IsEnum,
 } from 'class-validator';
-import { Priority } from './quiz.js';
+import {Priority} from './quiz.js';
 
 export interface IUser {
   _id?: string | ObjectId | null;
@@ -37,13 +37,13 @@ export interface ICourse {
 }
 
 export type ID = string | ObjectId | null;
-export type courseVersionStatus="active" | "archived";
+export type courseVersionStatus = 'active' | 'archived';
 export interface ICourseVersion {
   _id?: ID;
   courseId: ID;
   version: string;
   description: string;
-  versionStatus?:courseVersionStatus;
+  versionStatus?: courseVersionStatus;
   supportLink?: string;
   modules: IModule[];
   totalItems?: number;
@@ -395,13 +395,14 @@ export interface IEnrollment {
   enrollmentDate: Date;
   percentCompleted: number;
   completedItemsCount?: number;
-  assignedTimeSlot?: {
+  assignedTimeSlots?: Array<{
     from: string; // HH:MM format in IST
-    to: string;   // HH:MM format in IST
-  };
+    to: string; // HH:MM format in IST
+  }>;
   isDeleted?: boolean;
   deletedAt?: Date;
   unenrolledAt?: Date;
+  hasNewItemsAfterCompletion?: boolean;
 }
 
 export interface IProgress {
@@ -417,9 +418,9 @@ export interface IProgress {
 }
 
 export interface ICurrentProgressPath {
-  module: { id: string; name: string } | null;
-  section: { id: string; name: string } | null;
-  item: { id: string; name: string; type: string } | null;
+  module: {id: string; name: string} | null;
+  section: {id: string; name: string} | null;
+  item: {id: string; name: string; type: string} | null;
   message?: string;
 }
 
@@ -443,12 +444,12 @@ export interface IUserActivityEvent {
   fastForwards: number;
   rewindData: Array<{
     from: string; // HH:MM:SS format
-    to: string;   // HH:MM:SS format
+    to: string; // HH:MM:SS format
     createdAt: Date;
   }>;
   fastForwardData: Array<{
     from: string; // HH:MM:SS format
-    to: string;   // HH:MM:SS format
+    to: string; // HH:MM:SS format
     createdAt: Date;
   }>;
   createdAt: Date;
@@ -509,14 +510,14 @@ export interface IRegistrationSettings {
   _id?: ID;
   label: string;
   type:
-  | 'TEXT'
-  | 'TEXTAREA'
-  | 'EMAIL'
-  | 'TEL'
-  | 'DATE'
-  | 'NUMBER'
-  | 'URL'
-  | 'SELECT';
+    | 'TEXT'
+    | 'TEXTAREA'
+    | 'EMAIL'
+    | 'TEL'
+    | 'DATE'
+    | 'NUMBER'
+    | 'URL'
+    | 'SELECT';
   isDefault: boolean;
   required: boolean;
   options?: string[];
@@ -524,8 +525,9 @@ export interface IRegistrationSettings {
 
 export interface ITimeSlot {
   from: string; // HH:MM format in IST
-  to: string;   // HH:MM format in IST
+  to: string; // HH:MM format in IST
   studentIds: string[]; // Array of student user IDs
+  maxStudents?: number; // Maximum number of students allowed in this timeslot
 }
 
 export interface ISettings {
@@ -623,6 +625,10 @@ export class EnrollmentFilterQuery {
   @IsOptional()
   @IsString()
   courseVersionId?: string;
+
+  @IsOptional()
+  @IsIn(['active', 'archived'])
+  tab?: courseVersionStatus = 'active';
 }
 
 export class EnrollmentsQuery {
@@ -921,9 +927,7 @@ export interface IAnnouncement {
 
 // }
 
-
 // export interface IAuditTrail {
 //  itemId: string | ObjectId | null;
 //  action: string;
 // }
-
