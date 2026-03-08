@@ -125,7 +125,7 @@ export class CohortRepository implements ICohortRepository {
                     email: "$user.email",
                     name: "$fullName",
                     completionPercentage: { $ifNull: ["$percentCompleted", 0] },
-                    totalHp: { $literal: 0 },
+                    totalHp: { $ifNull: ["$hpPoints", 0] },
                 },
             },
 
