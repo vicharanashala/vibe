@@ -80,7 +80,9 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
 
     async getByStudentId(
         studentId: string,
-        query: FilterQueryDto
+        query: FilterQueryDto,
+        courseId?: string,
+        courseVersionId?: string
     ): Promise<StudentActivitySubmissionsViewDto[]> {
         await this.init();
 
@@ -110,12 +112,21 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         const studentIdOr: any[] = [{ studentId }];
         if (ObjectId.isValid(studentId)) studentIdOr.push({ studentId: new ObjectId(studentId) });
 
+        const matchStage: any = {
+            $or: studentIdOr,
+        };
+
+        if (courseId)
+            matchStage.courseId = new ObjectId(courseId);
+
+        if (courseVersionId)
+            matchStage.courseVersionId = new ObjectId(courseVersionId)
+
+
         const pipeline: any[] = [
             // 1) Submissions by student
             {
-                $match: {
-                    $or: studentIdOr,
-                },
+                $match: matchStage,
             },
 
             // 2) Lookup activity details
