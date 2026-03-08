@@ -47,6 +47,7 @@ export class ActivitySubmissionsService extends BaseService {
         private readonly activityRepository: ActivityRepository,
 
         @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
+        
     ) {
         super(mongoDatabase);
     }

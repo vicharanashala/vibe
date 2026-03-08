@@ -20,10 +20,13 @@ export class LedgerController {
 
     @OpenAPI({ summary: "List ledger transactions by student" })
     @Authorized()
-    @Get("/student/:studentId")
+    @Get("/student/:studentId/cohort/:cohortName/course/:courseId/courseVersion/:courseVersionId")
     @ResponseSchema(LedgerListResponseDto)
     async listByStudentId(
         @Param("studentId") studentId: string,
+        @Param("courseId") courseId: string,
+        @Param("courseVersionId") courseVersionId: string,
+        @Param("cohortName") cohortName: string,
         @QueryParams() query: FilterQueryDto
     ): Promise<LedgerListResponseDto> {
         return this.ledgerService.listByStudentId(studentId, query);
