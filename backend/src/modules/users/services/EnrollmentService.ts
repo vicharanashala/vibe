@@ -762,6 +762,7 @@ export class EnrollmentService extends BaseService {
           statusTab,
           session,
         );
+        // console.log("Enrollment Data from service is ", enrollmentsData.enrollments[0].contentCounts)
 
       // if (enrollmentsData.enrollments.length > 0 && filter === 'STUDENT') {
       //   await this.enrichEnrollmentsWithQuizScores(
@@ -796,7 +797,7 @@ export class EnrollmentService extends BaseService {
 
         // flatten
         const flattened = allStudentEnrollments.flat();
-
+        // console.log("Fetched detailed enrollments for students:", flattened);
         // build lookup map
         const contentCountsMap = new Map<string, any>();
 
@@ -806,12 +807,13 @@ export class EnrollmentService extends BaseService {
         });
 
         // attach to instructor enrollments
-        enrollmentsData.enrollments.forEach(enr => {
-          const key = `${enr.courseVersionId.toString()}-${enr._id.toString()}`;
-          enr.contentCounts = contentCountsMap.get(key);
-        });
+        // enrollmentsData.enrollments.forEach(enr => {
+        //   const key = `${enr.courseVersionId.toString()}-${enr._id.toString()}`;
+        //   enr.contentCounts = contentCountsMap.get(key);
+        // });
       }
-
+      // console.log("Enrollment data before return from service, " , enrollmentsData)
+      //       console.log("Enrollment data before return from service of enrollments, " , enrollmentsData.enrollments)
       return enrollmentsData;
     });
   }

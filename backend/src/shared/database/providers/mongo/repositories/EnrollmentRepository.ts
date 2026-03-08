@@ -1368,31 +1368,6 @@ export class EnrollmentRepository {
       };
     }
 
-    // const matchStage: any = {
-    //   courseId: new ObjectId(courseId),
-    //   courseVersionId: new ObjectId(courseVersionId),
-    //   status: {$regex: /^active$/i},
-    //   isDeleted: {$ne: true}, // Exclude soft-deleted enrollments
-    // };
-
-    // // ✅ ACTIVE tab
-    // if (statusTab === 'ACTIVE') {
-    //   matchStage.status = {$regex: /^active$/i};
-    //   matchStage.isDeleted = {$ne: true};
-    // }
-
-    // // ✅ INACTIVE tab
-    // if (statusTab === 'INACTIVE') {
-    //   matchStage.$or = [{status: {$regex: /^inactive$/i}}, {isDeleted: true}];
-    // }
-
-    // const matchStage: any = {
-    //   courseId: new ObjectId(courseId),
-    //   courseVersionId: new ObjectId(courseVersionId),
-    //   // status: {$regex: /^active$/i},
-    //   isDeleted: {$ne: true}, // Exclude soft-deleted enrollments
-    // };
-
     if (filter) {
       if (filter === 'STUDENT') {
         matchStage.role = 'STUDENT';
@@ -1434,6 +1409,115 @@ export class EnrollmentRepository {
       },
       { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
       {
+  $lookup: {
+    from: "newCourseVersion",
+    let: { versionId: { $toObjectId: "$courseVersionId" } },
+    pipeline: [
+      {
+        $match: {
+          $expr: {
+            $eq: [ "$_id" , "$$versionId"]
+          }
+        }
+      },
+      {
+        $project: {
+          totalItems: 1,
+          itemCounts: 1
+        },
+      }
+    ],
+    as: "courseVersionInfo"
+  }
+},
+
+{
+  $unwind: {
+    path: "$courseVersionInfo",
+    preserveNullAndEmptyArrays: true
+  }
+},
+
+{
+  $lookup: {
+    from: "watchTime",
+    let: {
+      userIdObj: { $toObjectId: "$userId" },
+      versionIdObj: { $toObjectId: "$courseVersionId" }
+    },
+    pipeline: [
+      {
+        $match: {
+          $expr: {
+            $and: [
+              { $eq: ["$userId", "$$userIdObj"] },
+              { $eq: ["$courseVersionId", "$$versionIdObj"] },
+              { $ne: ["$endTime", null] }   // means completed
+            ]
+          }
+        }
+      }
+    ],
+    as: "watchRecords"
+  }
+},
+
+
+{
+  $addFields: {
+    completedItemIds: "$watchRecords.itemId"
+  }
+},
+
+{
+  $lookup: {
+    from: "itemsGroup",
+    let: { completedItemIds: "$completedItemIds" },
+    pipeline: [
+      { $unwind: "$items" },
+      {
+        $match: {
+          $expr: {
+            $in: ["$items._id", "$$completedItemIds"]
+          }
+        }
+      },
+      {
+        $project: {
+          type: "$items.type"
+        }
+      }
+    ],
+    as: "completedItems"
+  }
+},
+
+{
+  $addFields: {
+    completedItemCounts: {
+      $arrayToObject: {
+        $map: {
+          input: { $setUnion: ["$completedItems.type"] },
+          as: "type",
+          in: {
+            k: "$$type",
+            v: {
+              $size: {
+                $filter: {
+                  input: "$completedItems",
+                  as: "item",
+                  cond: { $eq: ["$$item.type", "$$type"] }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+},
+
+      {
         $addFields: {
           userId: { $toString: '$userInfo._id' },
           _id: { $toString: '$_id' },
@@ -1443,6 +1527,13 @@ export class EnrollmentRepository {
           lastName: '$userInfo.lastName',
           email: '$userInfo.email',
           completedItemsCount: { $ifNull: ['$completedItemsCount', 0] },
+
+             contentCounts: {
+      total: { $ifNull: ["$courseVersionInfo.totalItems", 0] },
+      completed: { $ifNull: ["$completedItemsCount", 0] },
+      itemCounts: { $ifNull: ["$courseVersionInfo.itemCounts", {}] },
+      completedItemCounts: { $ifNull: ["$completedItemCounts", {}] }
+    }
         },
       },
     ];
@@ -1476,6 +1567,7 @@ export class EnrollmentRepository {
     // pagination
     aggregationPipeline.push({ $skip: skip }, { $limit: limit });
 
+
     // count separately
     // const totalDocuments = await this.enrollmentCollection.countDocuments(
     //   matchStage,
@@ -1485,8 +1577,9 @@ export class EnrollmentRepository {
       .aggregate(aggregationPipeline, { session })
       .toArray();
 
-    const totalPages = limit > 0 ? Math.ceil(totalDocuments / limit) : 1;
+      // console.log("Enrollments are like this, ", enrollments)
 
+    const totalPages = limit > 0 ? Math.ceil(totalDocuments / limit) : 1;
     return {
       totalDocuments,
       totalPages,
