@@ -339,4 +339,29 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             { session: opts?.session }
         );
     }
+
+    async getLatestByStudentId(studentId: string): Promise<HpActivitySubmission | null> {
+        await this.init()
+        return await this.hpActivitySubmissionCollection.findOne({ studentId: new ObjectId(studentId) }, { sort: { createdAt: -1 } })
+    }
+
+    async getCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number> {
+        await this.init();
+        return await this.hpActivitySubmissionCollection.countDocuments({
+            studentId: new ObjectId(studentId),
+            courseId: new ObjectId(courseId),
+            courseVersionId: new ObjectId(courseVersionId),
+        });
+    }
+
+    async getLateSubmissionCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number> {
+        await this.init();
+        return await this.hpActivitySubmissionCollection.countDocuments({
+            studentId: new ObjectId(studentId),
+            courseId: new ObjectId(courseId),
+            courseVersionId: new ObjectId(courseVersionId),
+            isLate: true
+        });
+    }
+
 }

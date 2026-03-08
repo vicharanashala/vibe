@@ -19,7 +19,7 @@ import multer from "multer";
 
 import { HP_SYSTEM_TYPES } from "../types.js";
 import { ActivitySubmissionsService } from "../services/activitySubmissionsService.js";
-import { CreateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto } from "../classes/validators/activitySubmissionValidators.js";
+import { CreateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto } from "../classes/validators/activitySubmissionValidators.js";
 
 @OpenAPI({
   tags: ["HP Activity Submissions"],
@@ -101,6 +101,20 @@ export class ActivitySubmissionsController {
   ): Promise<StudentActivitySubmissionsResponseDto> {
     const teacherId = user._id.toString();
     return await this.submissionService.listStudentWiseSubmssions(teacherId, studentId, query);
+  }
+
+  @OpenAPI({ summary: "List student wise submissions stats" })
+  @Get("/stats/student/:studentId/cohort/:cohortName")
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(StudentActivitySubmissionStatsResponseDto)
+  async listStatsByStudentId(
+    @CurrentUser() user: IUser,
+    @Param("studentId") studentId: string,
+    @Param("cohortName") cohortName: string,
+  ): Promise<StudentActivitySubmissionStatsResponseDto> {
+    const teacherId = user._id.toString();
+    return await this.submissionService.listStudentWiseSubmssionsStats(studentId, cohortName);
   }
 
   @OpenAPI({ summary: "Review submission (approve/reject/revert)" })
