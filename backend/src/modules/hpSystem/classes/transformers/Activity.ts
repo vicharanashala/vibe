@@ -182,6 +182,18 @@ export class HpActivityTransformer {
   allowLateSubmission: boolean;
 
   @Expose()
+  @IsBoolean()
+  @IsOptional()
+  @JSONSchema({ title: 'Is Submitted', type: 'boolean', example: false })
+  isSubmitted?: boolean;
+
+  @Expose()
+  @IsNumber()
+  @IsOptional()
+  @JSONSchema({ title: 'Submission count', type: 'number', example: 10 })
+  submissionCount?: boolean;
+
+  @Expose()
   @IsEnum(LateRewardPolicy)
   @JSONSchema({
     title: 'Late Reward Policy',

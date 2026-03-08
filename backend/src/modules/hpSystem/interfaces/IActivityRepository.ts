@@ -1,6 +1,7 @@
 import { ClientSession } from "mongodb";
 import { HpActivity } from "../models.js";
 import { HpActivityTransformer } from "../classes/transformers/Activity.js";
+import { EnrollmentRole } from "#root/shared/index.js";
 
 
 export interface IActivityRepository {
@@ -20,7 +21,7 @@ export interface IActivityRepository {
         cohort?: string;
         status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
         createdByTeacherId?: string;
-    }): Promise<HpActivityTransformer[]>;
+    }, role?: EnrollmentRole): Promise<HpActivityTransformer[]>;
 
     publishActivity(
         activityId: string,

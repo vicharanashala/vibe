@@ -163,6 +163,7 @@ export class ActivityRepository implements IActivityRepository {
             activity.externalLink = doc.externalLink;
             activity.attachments = doc.attachments;
 
+
             if (doc.instructor) {
                 const firstName = doc.instructor.firstName || "";
                 const lastName = doc.instructor.lastName || "";
