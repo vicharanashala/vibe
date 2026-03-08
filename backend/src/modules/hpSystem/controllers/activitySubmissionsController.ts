@@ -90,17 +90,18 @@ export class ActivitySubmissionsController {
   }
 
   @OpenAPI({ summary: "List student wise submissions" })
-  @Get("/student/:studentId")
+  @Get("/student/:studentId/cohort/:cohortName")
   @Authorized()
   @HttpCode(200)
   @ResponseSchema(StudentActivitySubmissionsResponseDto)
-  async listByStudentId(
+  async listStudentCohortWiseSubmssions(
     @CurrentUser() user: IUser,
     @Param("studentId") studentId: string,
+    @Param("cohortName") cohortName: string,
     @QueryParams() query: FilterQueryDto,
   ): Promise<StudentActivitySubmissionsResponseDto> {
     const teacherId = user._id.toString();
-    return await this.submissionService.listStudentWiseSubmssions(teacherId, studentId, query);
+    return await this.submissionService.listStudentCohortWiseSubmssions(teacherId, studentId, query, cohortName);
   }
 
   @OpenAPI({ summary: "List student wise submissions stats" })
@@ -114,7 +115,7 @@ export class ActivitySubmissionsController {
     @Param("cohortName") cohortName: string,
   ): Promise<StudentActivitySubmissionStatsResponseDto> {
     const teacherId = user._id.toString();
-    return await this.submissionService.listStudentWiseSubmssionsStats(studentId, cohortName);
+    return await this.submissionService.listStudentWiseSubmissionsStats(studentId, cohortName);
   }
 
   @OpenAPI({ summary: "Review submission (approve/reject/revert)" })
