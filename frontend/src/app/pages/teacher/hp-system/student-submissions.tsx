@@ -50,7 +50,7 @@ function AttachmentPreview({ attachment }: { attachment: SubmissionAttachment })
         return (
             <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="block group">
                 <div className="relative w-20 h-20 rounded-lg overflow-hidden border bg-muted">
-                    <img src={attachment.url} alt={attachment.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200" />
+                    <img src={attachment.url} alt={attachment.name || 'Image'} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200" />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1 truncate max-w-[80px]">{attachment.name}</p>
             </a>
@@ -62,7 +62,7 @@ function AttachmentPreview({ attachment }: { attachment: SubmissionAttachment })
         >
             <AttachmentIcon type={attachment.type} />
             <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{attachment.name}</p>
+                <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{attachment.name || attachment.url}</p>
             </div>
             <ExternalLink className="h-3 w-3 text-muted-foreground flex-shrink-0" />
         </a>
@@ -89,9 +89,9 @@ function FeedbackSection({ sub }: { sub: HpStudentSubmission }) {
                 <div className="rounded-lg bg-muted/50 p-3">
                     <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1.5">
                         <MessageSquare className="h-3.5 w-3.5" />
-                        Instructor Feedback
+                        Instructor Feedback: {sub.instructorFeedback?.decision}
                     </div>
-                    <p className="text-sm">{sub.instructorFeedback}</p>
+                    <p className="text-sm">{sub.instructorFeedback?.note}</p>
                 </div>
             )}
 
@@ -198,11 +198,11 @@ export default function StudentSubmissionsPage() {
     }
 
     const totalActivities = submissions.length;
-    const submitted = submissions.filter(s => s.status === "SUBMITTED").length;
-    const pending = submissions.filter(s => s.status === "PENDING").length;
-    const late = submissions.filter(s => s.isLate).length;
-    const totalCurrentHp = submissions.reduce((sum, s) => sum + s.currentHp, 0);
-    const totalBaseHp = submissions.reduce((sum, s) => sum + s.baseHp, 0);
+    const submitted = submissions.filter((s: any) => s.submission?.status === "SUBMITTED").length;
+    const pending = submissions.filter((s: any) => s.submission?.status === "PENDING").length;
+    const late = submissions.filter((s: any) => s.submission?.isLate).length;
+    const totalCurrentHp = submissions.reduce((sum: number, s: any) => sum + (s.hp?.currentHp || 0), 0);
+    const totalBaseHp = submissions.reduce((sum: number, s: any) => sum + (s.hp?.baseHp || 0), 0);
 
     return (
         <div className="space-y-6 w-full pb-12">
@@ -300,29 +300,30 @@ export default function StudentSubmissionsPage() {
             {/* Submission Cards */}
             <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Activity Submissions</h3>
-                {submissions.map(sub => {
-                    const cfg = statusConfig[sub.status];
+                {submissions.map((sub: any) => {
+                    const status = sub.submission?.status || 'PENDING';
+                    const cfg = statusConfig[status as keyof typeof statusConfig] || statusConfig.PENDING;
                     const StatusIcon = cfg.icon;
+                    const attachments = [
+                        ...(sub.submission?.attachments?.files || []).map((f: any) => ({ ...f, type: 'document' })),
+                        ...(sub.submission?.attachments?.images || []).map((i: any) => ({ ...i, type: 'image' }))
+                    ];
+                    const links = sub.submission?.attachments?.links || [];
+
                     return (
-                        <Card key={sub._id} className={`border-l-4 ${sub.status === 'SUBMITTED' ? 'border-l-green-500' : sub.status === 'REVERTED' ? 'border-l-red-500' : 'border-l-yellow-500'}`}>
+                        <Card key={sub.id || sub.activity?.id} className={`border-l-4 ${status === 'SUBMITTED' ? 'border-l-green-500' : status === 'REVERTED' ? 'border-l-red-500' : 'border-l-yellow-500'}`}>
                             <CardHeader className="pb-3">
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="flex-1 min-w-0">
-                                        <CardTitle className="text-base">{sub.activityTitle}</CardTitle>
-                                        {sub.activityDescription && (
-                                            <p className="text-sm text-muted-foreground mt-1">{sub.activityDescription}</p>
+                                        <CardTitle className="text-base">{sub.activity?.title || "Unknown Activity"}</CardTitle>
+                                        {sub.activity?.description && (
+                                            <p className="text-sm text-muted-foreground mt-1">{sub.activity.description}</p>
                                         )}
                                         <CardDescription className="flex flex-wrap items-center gap-3 mt-1.5">
-                                            {sub.dueDate && (
+                                            {sub.deadline && (
                                                 <span className="flex items-center gap-1 text-xs">
                                                     <CalendarClock className="h-3 w-3" />
-                                                    Due: {formatDate(sub.dueDate)}
-                                                </span>
-                                            )}
-                                            {sub.submissionCount > 0 && (
-                                                <span className="flex items-center gap-1 text-xs">
-                                                    <RotateCcw className="h-3 w-3" />
-                                                    {sub.submissionCount} submission{sub.submissionCount !== 1 ? 's' : ''}
+                                                    Due: {formatDate(sub.deadline)}
                                                 </span>
                                             )}
                                         </CardDescription>
@@ -331,31 +332,15 @@ export default function StudentSubmissionsPage() {
                                         {/* HP badges */}
                                         <Badge variant="outline" className="text-sm font-semibold text-green-600">
                                             <Zap className="h-3 w-3 mr-1 text-yellow-500" />
-                                            {sub.currentHp} HP
+                                            {sub.hp?.currentHp || 0} HP
                                         </Badge>
                                         <Badge variant="outline" className="text-sm text-muted-foreground">
-                                            Base: {sub.baseHp}
+                                            Base: {sub.hp?.baseHp || 0}
                                         </Badge>
-                                        {sub.isLate && (
+                                        {sub.submission?.isLate && (
                                             <Badge variant="outline" className="text-orange-600 border-orange-300 bg-orange-50 dark:bg-orange-950/20">
                                                 <Timer className="h-3 w-3 mr-1" />
                                                 Late
-                                            </Badge>
-                                        )}
-                                        {sub.safetyStatus && (
-                                            <Badge
-                                                variant="outline"
-                                                className={
-                                                    sub.safetyStatus === 'safe'
-                                                        ? 'text-green-700 border-green-300 bg-green-50 dark:bg-green-950/20'
-                                                        : 'text-red-700 border-red-300 bg-red-50 dark:bg-red-950/20'
-                                                }
-                                            >
-                                                {sub.safetyStatus === 'safe'
-                                                    ? <ShieldCheck className="h-3 w-3 mr-1" />
-                                                    : <ShieldAlert className="h-3 w-3 mr-1" />
-                                                }
-                                                {sub.safetyStatus === 'safe' ? 'Safe' : 'Unsafe'}
                                             </Badge>
                                         )}
                                         <Badge variant={cfg.variant} className="flex items-center gap-1">
@@ -367,55 +352,59 @@ export default function StudentSubmissionsPage() {
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {/* Submission Timestamps */}
-                                {(sub.submittedAt || sub.lastUpdated) && (
+                                {sub.submission?.submittedAt && (
                                     <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                                        {sub.submittedAt && (
-                                            <span className="flex items-center gap-1">
-                                                <Clock className="h-3.5 w-3.5" />
-                                                Submitted: {formatDate(sub.submittedAt)}
-                                            </span>
-                                        )}
-                                        {sub.lastUpdated && sub.lastUpdated !== sub.submittedAt && (
-                                            <span className="flex items-center gap-1">
-                                                <RotateCcw className="h-3.5 w-3.5" />
-                                                Last Updated: {formatDate(sub.lastUpdated)}
-                                            </span>
-                                        )}
+                                        <span className="flex items-center gap-1">
+                                            <Clock className="h-3.5 w-3.5" />
+                                            Submitted: {formatDate(sub.submission.submittedAt)}
+                                        </span>
                                     </div>
                                 )}
 
-                                {/* Submission Link */}
-                                {sub.submissionLink && (
+                                {/* Text response */}
+                                {sub.submission?.attachments?.textResponse && (
+                                    <div className="mt-2 p-3 bg-muted/30 rounded border text-sm whitespace-pre-wrap">
+                                        {sub.submission.attachments.textResponse}
+                                    </div>
+                                )}
+
+                                {/* Links */}
+                                {links.length > 0 && (
                                     <div>
-                                        <p className="text-xs font-medium text-muted-foreground mb-1.5">Link</p>
-                                        <a
-                                            href={sub.submissionLink}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-                                        >
-                                            <Link2 className="h-3.5 w-3.5" />
-                                            {sub.submissionLink}
-                                        </a>
+                                        <p className="text-xs font-medium text-muted-foreground mb-1.5">Links</p>
+                                        <div className="flex flex-col gap-1">
+                                            {links.map((link: any, idx: number) => (
+                                                <a
+                                                    key={idx}
+                                                    href={link.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                                                >
+                                                    <Link2 className="h-3.5 w-3.5" />
+                                                    {link.label || link.url}
+                                                </a>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
 
                                 {/* Attachments */}
-                                {sub.attachments.length > 0 && (
+                                {attachments.length > 0 && (
                                     <div>
                                         <p className="text-xs font-medium text-muted-foreground mb-2">
-                                            Attachments ({sub.attachments.length})
+                                            Attachments ({attachments.length})
                                         </p>
                                         <div className="flex flex-wrap gap-3">
-                                            {sub.attachments.map(att => (
-                                                <AttachmentPreview key={att._id} attachment={att} />
+                                            {attachments.map((att: any, idx: number) => (
+                                                <AttachmentPreview key={idx} attachment={att} />
                                             ))}
                                         </div>
                                     </div>
                                 )}
 
                                 {/* Instructor Feedback + Revert/Restore Actions */}
-                                {sub.status !== 'PENDING' && (
+                                {status !== 'PENDING' && (
                                     <>
                                         <Separator />
                                         <div className="flex items-start justify-between gap-4">
@@ -423,27 +412,27 @@ export default function StudentSubmissionsPage() {
                                                 <FeedbackSection sub={sub} />
                                             </div>
                                             <div className="flex-shrink-0 pt-1">
-                                                {sub.status === 'SUBMITTED' && (
+                                                {status === 'SUBMITTED' && (
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
                                                         className="text-destructive hover:text-destructive"
-                                                        disabled={isReverting && actionSubId === sub._id}
-                                                        onClick={() => openReasonDialog(sub._id, 'revert', sub.activityTitle)}
+                                                        disabled={isReverting && actionSubId === sub.id}
+                                                        onClick={() => openReasonDialog(sub.id, 'revert', sub.activity?.title)}
                                                     >
                                                         <Undo2 className="h-3.5 w-3.5 mr-1.5" />
-                                                        {isReverting && actionSubId === sub._id ? 'Reverting...' : 'Revert'}
+                                                        {isReverting && actionSubId === sub.id ? 'Reverting...' : 'Revert'}
                                                     </Button>
                                                 )}
-                                                {sub.status === 'REVERTED' && (
+                                                {status === 'REVERTED' && (
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
-                                                        disabled={isRestoring && actionSubId === sub._id}
-                                                        onClick={() => openReasonDialog(sub._id, 'restore', sub.activityTitle)}
+                                                        disabled={isRestoring && actionSubId === sub.id}
+                                                        onClick={() => openReasonDialog(sub.id, 'restore', sub.activity?.title)}
                                                     >
                                                         <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-                                                        {isRestoring && actionSubId === sub._id ? 'Restoring...' : 'Restore'}
+                                                        {isRestoring && actionSubId === sub.id ? 'Restoring...' : 'Restore'}
                                                     </Button>
                                                 )}
                                             </div>
@@ -452,7 +441,7 @@ export default function StudentSubmissionsPage() {
                                 )}
 
                                 {/* No submission yet */}
-                                {sub.status === 'PENDING' && sub.attachments.length === 0 && !sub.submissionLink && (
+                                {status === 'PENDING' && attachments.length === 0 && links.length === 0 && !sub.submission?.attachments?.textResponse && (
                                     <div className="text-center py-6 text-muted-foreground text-sm border border-dashed rounded-lg">
                                         No submission yet
                                     </div>
