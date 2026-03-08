@@ -1413,9 +1413,11 @@ export class EnrollmentRepository {
     if (cohort) {
       baseMatch.cohortId = new ObjectId(cohort);
     } else if (cohorts && cohorts.length > 0) {
-      baseMatch.cohortId = { $in: cohorts };
+      if(filter === "STUDENT"){
+        baseMatch.cohortId = { $in: cohorts };
+      }
     }
-
+// console.log("---basematch----", baseMatch, filter);
     // console.log("Base match for enrollments:", baseMatch);
     let matchStage: any = { ...baseMatch };
 
@@ -3790,5 +3792,18 @@ async getArchiveCount(userId: string, role: EnrollmentRole) {
       {$set: {hasNewItemsAfterCompletion: true}},
       {session},
     );
+  }
+
+  public async enrollmentExistsByCohortId(versionId: string, cohortId:string, session?: ClientSession): Promise<boolean>{
+    const enrollment = await this.enrollmentCollection.findOne(
+      {
+        courseVersionId: new ObjectId(versionId),
+        cohortId: new ObjectId(cohortId),
+        role: "STUDENT",
+      },
+      { session }
+    );
+    // console.log("---enrollment------", enrollment);
+    return !!enrollment;
   }
 }

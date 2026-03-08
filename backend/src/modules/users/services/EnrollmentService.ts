@@ -1778,4 +1778,8 @@ export class EnrollmentService extends BaseService {
       session,
     );
   }
+
+  async enrollmentExists(versionId : string, cohortId: string, session: ClientSession): Promise<boolean>{
+   return await this.enrollmentRepo.enrollmentExistsByCohortId(versionId, cohortId, session);
+  }
 }

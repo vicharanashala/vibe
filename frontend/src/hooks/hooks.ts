@@ -765,6 +765,148 @@ export function useUpdateCourseVersion(): {
   };
 }
 
+export interface CohortResponse {
+  id: string
+  name: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface CohortsResponse {
+  cohorts: CohortResponse[]
+  version: string
+}
+
+
+// GET /courses/{courseId}/versions/{versionId}/cohorts
+export function useCourseVersionCohorts(
+  courseId: string | undefined,
+  versionId: string | undefined,
+  page: number = 1,
+  limit: number = 10,
+  search: string = "",
+  sortBy: 'name' | 'createdAt' | 'updatedAt',
+  sortOrder: 'asc' | 'desc' = 'desc',
+  // enabled: boolean = true,
+  // filter: 'STUDENT' | 'OTHER',
+  // statusTab: 'ACTIVE' | "INACTIVE",
+  // cohort?: string
+): {
+  data: CohortsResponse | undefined,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+
+  const result = api.useQuery(
+    "get",
+    "/courses/{courseId}/versions/{versionId}/cohorts",
+    {
+      params: {
+        path: { courseId, versionId },
+        query: { page, limit, search, sortBy, sortOrder },
+      },
+      // enabled: enabled && !!courseId && !!courseVersionId,
+    }
+  );
+
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch course version enrollments') : null,
+    refetch: result.refetch,
+  };
+}
+
+  export function useCreateCohort():{
+  mutate: (variables: { params: { path: { courseId: string, versionId: string } }, body: {newCohortName: string} }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string } }, body: {newCohortName: string} }) => Promise<CohortsResponse>,
+  data: CohortsResponse | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/courses/{courseId}/versions/{versionId}/cohorts" as any);
+    return {
+    mutate: result.mutate,
+    mutateAsync: result.mutateAsync,
+    data: result.data,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+    error: result.error
+      ? result.error.message || "Create cohort failed"
+      : null
+  };
+}
+
+  export function useUpdateCohort():{
+  mutate: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: {newCohortName: string} }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: {newCohortName: string} }) => Promise<CohortsResponse>,
+  data: CohortsResponse | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("patch", "/courses/{courseId}/versions/{versionId}/cohorts/{cohortId}" as any);
+    return {
+    mutate: result.mutate,
+    mutateAsync: result.mutateAsync,
+    data: result.data,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+    error: result.error
+      ? result.error.message || "Create cohort failed"
+      : null
+  };
+}
+
+
+  export function useDeleteCohort():{
+  mutate: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } } }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } } }) => Promise<CohortsResponse>,
+  data: CohortsResponse | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("delete", "/courses/{courseId}/versions/{versionId}/cohorts/{cohortId}" as any);
+    return {
+    mutate: result.mutate,
+    mutateAsync: result.mutateAsync,
+    data: result.data,
+    isPending: result.isPending,
+    isSuccess: result.isSuccess,
+    isError: result.isError,
+    isIdle: result.isIdle,
+    reset: result.reset,
+    status: result.status,
+    error: result.error
+      ? result.error.message || "Create cohort failed"
+      : null
+  };
+}
+
+
 export function useCourseVersionArchive(): {
   mutate: (variables: { params: { path: { versionId: string } }, body: components['schemas']['UpdateCourseVersionStatusBody'] }) => void,
   mutateAsync: (variables: { params: { path: { courseId: string, versionId: string } }, body: components['schemas']['UpdateCourseVersionStatusBody'] }) => Promise<components['schemas']['CourseVersionDataResponse']>,

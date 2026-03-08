@@ -13,9 +13,11 @@ import {
   IsIn,
   IsArray,
   ArrayUnique,
+  Min,
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 import { Cohort } from '../index.js';
+import {Type} from 'class-transformer';
 
 class CreateCourseVersionBody implements Partial<ICourseVersion> {
   @JSONSchema({
@@ -102,6 +104,158 @@ class DeleteCourseVersionParams {
   @IsMongoId()
   @IsString()
   courseId: string;
+}
+
+class ReadCourseVersionCohortsParams {
+  @JSONSchema({
+    title: 'Version ID',
+    description: 'ID of the course version',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  versionId: string;
+
+  @JSONSchema({
+    title: 'Course ID',
+    description: 'ID of the course to which the version belongs',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  courseId: string;
+
+  @IsOptional()
+  @IsMongoId()
+  @IsString()
+  cohortId?: string;
+}
+
+class CohortsQuery {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit: number = 10;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
+  @IsIn(['name', 'createdAt', 'updatedAt'])
+  sortBy: 'name' | 'createdAt' | 'updatedAt' =
+    'createdAt';
+
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  sortOrder: 'asc' | 'desc' = 'desc';
+}
+
+class CohortResponse {
+  @JSONSchema({
+    description: "Unique identifier of the cohort",
+    example: "69ab1823a7aeadefb1476049",
+    type: "string",
+    readOnly: true,
+  })
+  @IsString()
+  id: string;
+
+  @JSONSchema({
+    description: "Name of the cohort",
+    example: "Frontend Batch A",
+    type: "string",
+  })
+  @IsString()
+  name: string;
+
+  @JSONSchema({
+    description: "Date when the cohort was created",
+    example: "2026-03-06T18:08:35.707Z",
+    type: "string",
+    format: "date-time",
+    readOnly: true,
+  })
+  createdAt: Date;
+
+  @JSONSchema({
+    description: "Date when the cohort was last updated",
+    example: "2026-03-06T18:08:35.707Z",
+    type: "string",
+    format: "date-time",
+    readOnly: true,
+  })
+  updatedAt: Date;
+}
+
+class CohortsResponse {
+  @JSONSchema({
+    description: "List of cohorts",
+    type: "array",
+    items: {
+      $ref: "#/definitions/CohortResponse",
+    },
+    example: [
+      {
+        id: "69ab1823a7aeadefb1476049",
+        name: "one",
+        createdAt: "2026-03-06T18:08:35.707Z",
+        updatedAt: "2026-03-06T18:08:35.707Z",
+      },
+      {
+        id: "69ab1844a7aeadefb147604c",
+        name: "two",
+        createdAt: "2026-03-06T18:09:08.594Z",
+        updatedAt: "2026-03-06T18:09:08.594Z",
+      },
+    ],
+    readOnly: true,
+  })
+  @IsArray()
+  cohorts?: CohortResponse[];
+
+  @IsString()
+  version: string
+}
+
+class NewCohortBody{
+
+  @IsString()
+  newCohortName: string
+}
+
+class CohortUpdatedMessage{
+  @IsString()
+  @JSONSchema({
+    description: 'Success message',
+    example: 'Cohort Updated successfully',
+  })
+  message!: string;
+}
+
+class CohortCreatedMessage{
+  @IsString()
+  @JSONSchema({
+    description: 'Success message',
+    example: 'Cohort Created successfully',
+  })
+  message!: string;
+}
+
+class CohortDeletedMessage{
+  @IsString()
+  @JSONSchema({
+    description: 'Success message',
+    example: 'Cohort Deleted successfully',
+  })
+  message!: string;
 }
 
 class CourseVersionDataResponse {
@@ -400,6 +554,14 @@ export {
   CreateCourseVersionResponse,
   UpdateCourseVersionStatusBody,
   UpdateCourseVersionStatusParams,
+  ReadCourseVersionCohortsParams,
+  CohortsQuery,
+  CohortResponse,
+  CohortsResponse,
+  NewCohortBody,
+  CohortUpdatedMessage,
+  CohortCreatedMessage,
+  CohortDeletedMessage
 };
 
 export const COURSEVERSION_VALIDATORS = [
@@ -416,4 +578,12 @@ export const COURSEVERSION_VALIDATORS = [
   CreateCourseVersionResponse,
   UpdateCourseVersionStatusBody,
   UpdateCourseVersionStatusParams,
+  ReadCourseVersionCohortsParams,
+  CohortsQuery,
+  CohortResponse,
+  CohortsResponse,
+  NewCohortBody,
+  CohortUpdatedMessage,
+  CohortCreatedMessage,
+  CohortDeletedMessage
 ];

@@ -1,5 +1,6 @@
 import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
 import {
+  CohortsResponse,
   CourseVersionWatchTimeResponse,
   CreateCourseVersionBody,
   UpdateCourseVersionBody,
@@ -152,12 +153,9 @@ export class CourseVersionService extends BaseService {
       if (readVersion.cohorts?.length) {
         const cohorts = await this.courseRepo.getCohortsByIds(
           readVersion.cohorts,
+          undefined,
           session,
         );
-        if(cohorts.length !== readVersion.cohorts.length){
-          console.warn(`Mismatch in cohorts fetched for course version ${courseVersionId}. Expected ${readVersion.cohorts.length}, got ${cohorts.length}`);
-          throw new InternalServerError('Mismatch in cohorts fetched for course version.');
-        }
 
         for (const cohort of cohorts) {
           if (!readVersion.cohorts.some(id => id.toString() === cohort._id.toString())) {
@@ -169,6 +167,8 @@ export class CourseVersionService extends BaseService {
         (readVersion as any).cohortDetails  = cohorts.map(cohort => ({
           id: cohort._id.toString(),
           name: cohort.name,
+          createdAt: cohort.createdAt,
+          updatedAt: cohort.updatedAt
         }));
       }
 
@@ -205,6 +205,107 @@ export class CourseVersionService extends BaseService {
       ) as CourseVersion;
 
       return version;
+    });
+  }
+
+  public async getCohortsByVersion(
+    courseVersionId: string,
+    skip?: number,
+    limit?: number,
+    search?: string,
+    sortBy?: "name" | "createdAt" | "updatedAt",
+    sortOrder?: "asc" | "desc"
+  ):Promise<CohortsResponse>{
+    const  courseVersion = await this.courseRepo.readVersion(
+      courseVersionId
+    );
+    if(!courseVersion.cohorts || courseVersion.cohorts.length == 0){
+        const cohortDetails: CohortsResponse = {
+        version: courseVersion.version,
+      };
+      return cohortDetails;
+    }
+    const cohorts = 
+    await this.courseRepo.getCohortsByIds(
+      courseVersion.cohorts,{ search, sortBy, sortOrder, skip, limit }
+    );
+
+
+    const cohortDetails: CohortsResponse = {
+      cohorts: cohorts.map(cohort => ({
+        id: cohort._id.toString(),
+        name: cohort.name,
+        createdAt: cohort.createdAt,
+        updatedAt: cohort.updatedAt
+      })),
+      version: courseVersion.version,
+    };
+
+    return cohortDetails;
+
+    // let filtered = cohorts;
+
+    // // search filter
+    // if (search && search.trim() !== "") {
+    //   const searchLower = search.toLowerCase();
+    //   filtered = filtered.filter(c =>
+    //     c.name.toLowerCase().includes(searchLower)
+    //   );
+    // }
+
+    // // sorting
+    // filtered.sort((a, b) => {
+    //   let aVal: any = a[sortBy];
+    //   let bVal: any = b[sortBy];
+    //   if (sortBy !== "name") {
+    //     aVal = new Date(aVal).getTime();
+    //     bVal = new Date(bVal).getTime();
+    //   }
+    //   if (sortOrder === "asc") {
+    //     return aVal > bVal ? 1 : -1;
+    //   }
+    //   return aVal < bVal ? 1 : -1;
+    // });
+
+    // // pagination
+    // const paginated = filtered.slice(skip, skip + limit);
+
+    // const cohortDetails: CohortsResponse = {
+    //   cohorts: paginated.map(cohort => ({
+    //     id: cohort._id.toString(),
+    //     name: cohort.name,
+    //     createdAt: cohort.createdAt,
+    //     updatedAt: cohort.updatedAt
+    //   })),
+    //   version: courseVersion.version,
+    // };
+
+    // return cohortDetails;
+  }
+
+
+  public async updateCohortInCourseVersion(cohortId: string, cohortName: string): Promise<boolean>{
+    return this._withTransaction(async session => {
+      const existingCohort = await this.courseRepo.getCohortsByIds(Array.of(new ObjectId(cohortId)),undefined, session);
+      if(!existingCohort){
+        throw new NotFoundError("Cohort Id doesn't exist");
+      }
+      return await this.courseRepo.modifyCohortById(new ObjectId(cohortId), cohortName, session);
+    });
+  }
+
+  public async deleteCohortInCourseVersion(versionId: string, cohortId: string):Promise<boolean>{
+    return this._withTransaction(async session => {
+      const existingCohort = await this.courseRepo.getCohortsByIds(Array.of(new ObjectId(cohortId)), undefined, session);
+      if(!existingCohort){
+        throw new NotFoundError("Cohort Id doesn't exist");
+      }
+      const enrollmentExists = await this.enrollmentService.enrollmentExists(versionId, cohortId, session);
+      if(enrollmentExists){
+        throw new BadRequestError("Students are already enrolled in this cohort, can't delete");
+      }
+      await this.courseRepo.deleteCohortById(cohortId, session);
+      return await this.courseRepo.removeCohortFromVersion(versionId, cohortId, session);
     });
   }
 

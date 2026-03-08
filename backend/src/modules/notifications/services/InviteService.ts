@@ -391,13 +391,6 @@ export class InviteService extends BaseService {
       throw new ForbiddenError("Can't invite users to archived course version");
     }
 
-    if(courseVersion.cohorts && courseVersion.cohorts.length > 0 && cohortId) {
-      const validCohort = courseVersion.cohorts.find(c => c.toString() === cohortId);
-      if(!validCohort) {
-        throw new BadRequestError("Invalid cohort. Cohort does not exist in course version.");
-      }
-    }
-
     // Validate course content only if any user is a STUDENT
     const hasStudent = inviteData.some(invite => invite.role === 'STUDENT');
     if (hasStudent) {
@@ -429,6 +422,16 @@ export class InviteService extends BaseService {
         throw new BadRequestError(
           `Section "${firstSection.name}" has no items. Add content before sending invites.`,
         );
+      }
+
+      if(courseVersion.cohorts && courseVersion.cohorts.length > 0) {
+        if(!cohortId){
+          throw new BadRequestError("Course version contains cohorts, student must choose a cohort");
+        }
+        const validCohort = courseVersion.cohorts.find(c => c.toString() === cohortId);
+        if(!validCohort) {
+          throw new BadRequestError("Invalid cohort. Cohort does not exist in course version.");
+        }
       }
     }
 
@@ -462,7 +465,7 @@ export class InviteService extends BaseService {
             cohortId,
             session,
           );
-
+console.log("---existingInvite--", existingInvite);
         if (existingInvite) {
           inviteIds.push(existingInvite._id.toString());
           continue;
@@ -487,7 +490,7 @@ export class InviteService extends BaseService {
           isNewUser: !user,
           expiresAt: oneWeekFromNow,
           type: InviteType.SINGLE,
-          cohortId: new ObjectId(cohortId),
+          cohortId: role === "STUDENT" ? new ObjectId(cohortId) : undefined,
         });
 
         const id = await this.inviteRepo.create(invite, session);
@@ -566,7 +569,7 @@ export class InviteService extends BaseService {
 
       throw new ForbiddenError("Can'not process invite. Because course version is archived.");
     }
-
+console.log("====invite----", invite);
     if (invite.type === InviteType.BULK) {
       return {
         message: 'Processing Your Invite...',
@@ -639,7 +642,7 @@ export class InviteService extends BaseService {
         invite.courseVersionId.toString(),
         invite.role,
         true,
-        invite.cohortId.toString()
+        invite.cohortId?.toString()
       );
       if (!result) {
         throw new InternalServerError('Failed to enroll user in course');

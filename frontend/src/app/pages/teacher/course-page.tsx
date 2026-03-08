@@ -36,6 +36,7 @@ import {
   CheckCheckIcon,
   Archive,
   ArchiveRestore,
+  Layers,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -1170,7 +1171,6 @@ function VersionCard({
     }
   }, [fetchedVersion]);
   const MAX_COHORTS = 10;
-  // setCohorts(fetchedVersion?.cohorts || [])
   const addCohort = (value: string) => {
     const trimmed = value.trim().toLowerCase()
     if (!trimmed) return
@@ -1400,6 +1400,19 @@ function VersionCard({
       watchItemId: null,
     })
     storePageAndNavigate("/teacher/courses/invite")
+  }
+
+  const configureCohorts = () => {
+    // Set course info in store and navigate to invite page
+    setCurrentCourse({
+      courseId: courseId,
+      versionId: selectedVersionId ? selectedVersionId : null,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: null,
+    })
+    storePageAndNavigate("/teacher/courses/cohorts")
   }
 
   const viewCourse = () => {
@@ -1757,7 +1770,7 @@ function VersionCard({
                         <p className="text-xs text-muted-foreground mt-1">
                           Students can use this link to get help or support
                         </p>
-                        <div className="mt-4">
+                        {/* <div className="mt-4">
                           <label className="block text-sm font-medium mb-2">
                             Version Cohorts
                           </label>
@@ -1795,9 +1808,9 @@ function VersionCard({
                             />
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {/* Press Enter or comma to add cohorts (max {MAX_COHORTS}) */}
+                            Press Enter or comma to add cohorts (max {MAX_COHORTS})
                           </p>
-                      </div>
+                      </div> */}
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
@@ -1917,6 +1930,16 @@ function VersionCard({
                 >
                   <Settings2 className="h-3 w-3 mr-1" />
                   Settings
+                </Button>
+
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={configureCohorts}
+                    className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                  >
+                    <Layers className="h-3 w-3 mr-1" />
+                    Configure Cohorts
                 </Button>
               </div>
             </div>

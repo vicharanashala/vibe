@@ -356,11 +356,13 @@ const addInviteRow = () => {
     }
 
     // console.log("cohort in ---handleSendInvites-- ", cohort);
-    if(courseVersion?.cohortDetails?.length > 0 && !cohort){  
-      toast.error("Please select a cohort before sending invites");
+    const hasStudentInvite = validInvites.some(i => i.role === "STUDENT");
+    if (hasStudentInvite && courseVersion?.cohortDetails?.length > 0 && !cohort) {
+      toast.error("Please select a cohort before sending invites for students");
       return;
     }
 
+    console.log("validInvites----",validInvites);
     try {
       await inviteUsers.mutateAsync({
         params: {
@@ -643,7 +645,7 @@ const hasInvalidEmail = inviteEmails.some(
                 className="ml-2 px-3 py-2 text-sm"
               >
                                 <Layers className="h-4 w-4 text-muted-foreground" />
-        {cohort ? courseVersion?.cohortDetails.find(c => c.id === cohort)?.name : "Select Cohort"}
+        {cohort ? courseVersion?.cohortDetails?.find(c => c.id === cohort)?.name : "Select Cohort"}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
@@ -653,7 +655,7 @@ const hasInvalidEmail = inviteEmails.some(
                   setCohort(value);
                 }}
               >
-                {courseVersion?.cohortDetails.map((cohort) => (
+                {courseVersion?.cohortDetails?.map((cohort) => (
                   <DropdownMenuRadioItem
                       key={cohort.id}
                       value={cohort.id}

@@ -84,7 +84,7 @@ export class InviteController {
   ) {
     const { courseId, versionId } = params;
     const { inviteData, cohortId } = body;
-// console.log("-----invite inviteUsers", cohortId);
+
     // Validate that the user can invite to each specific role
     // This ensures students can only invite students, TAs can invite students/TAs, etc.
     for (const invite of inviteData) {

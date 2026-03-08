@@ -36,6 +36,13 @@ export interface ICourseRepository {
 
   getCohortsByIds(
     cohortIds: ID[],
+    options?: {
+      search?: string
+      sortBy?: "name" | "createdAt" | "updatedAt"
+      sortOrder?: "asc" | "desc"
+      skip?: number
+      limit?: number
+    },
     session?: ClientSession,
   ): Promise<ICohort[]>;
 
@@ -49,14 +56,31 @@ export interface ICourseRepository {
     versionId: string,
     cohortIds: ObjectId[],
     session?: ClientSession
-  ): Promise<void>;
+  ):Promise<boolean>;
 
-  pushCohortsToVersion(
-    versionId: string,
-    cohortIds: ObjectId[],
+  // pushCohortsToVersion(
+  //   versionId: string,
+  //   cohortIds: ObjectId[],
+  //   session?: ClientSession
+  // ):Promise<boolean>;
+
+  modifyCohortById(
+    cohortId: ObjectId,
+    cohortName: string,
     session?: ClientSession
-  ): Promise<void>;
+  ): Promise<boolean>;
 
+  deleteCohortById(
+    cohortId: string,
+    session: ClientSession
+  ): Promise<boolean>;
+
+   removeCohortFromVersion(
+    versionId: string,
+    cohortId: string,
+    session?: ClientSession
+  ): Promise<boolean> 
+  
   addModulesToVersion(
     courseVersionId: string,
     newModules: Module[],

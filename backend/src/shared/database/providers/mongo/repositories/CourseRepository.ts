@@ -244,14 +244,46 @@ export class CourseRepository implements ICourseRepository {
 
   async getCohortsByIds(
     cohortIds: ID[],
+    options?: {
+      search?: string
+      sortBy?: "name" | "createdAt" | "updatedAt"
+      sortOrder?: "asc" | "desc"
+      skip?: number
+      limit?: number
+    },
     session?: ClientSession,
   ): Promise<ICohort[]> {
-
+    await this.init();
     const objectIds = cohortIds.map(id => new ObjectId(id));
+    const {
+      search = "",
+      sortBy = "createdAt",
+      sortOrder = "desc",
+      skip = 0,
+      limit = 10
+    } = options || {}
 
-    return await this.cohortsCollection
-      .find({ _id: { $in: objectIds } }, { session })
-      .toArray();
+    // return await this.cohortsCollection
+    //   .find({ _id: { $in: objectIds } }, { session })
+    //   .toArray();
+    const query: any = {
+    _id: { $in: objectIds }
+  }
+
+  if (search && search.trim() !== "") {
+    query.name = { $regex: search, $options: "i" }
+  }
+
+  const sort: any = {
+    [sortBy]: sortOrder === "asc" ? 1 : -1
+  }
+
+  return this.cohortsCollection
+    .find(query, { session })
+    .sort(sort)
+    .skip(skip)
+    .limit(limit)
+    .toArray()
   }
 
   async createCohorts(
@@ -287,29 +319,105 @@ export class CourseRepository implements ICourseRepository {
     versionId: string,
     cohortIds: ObjectId[],
     session?: ClientSession
-  ) {
-    await this.courseVersionCollection.updateOne(
-      { _id: new ObjectId(versionId) },
-      { $set: { cohorts: cohortIds } },
-      { session }
-    );
+  ):Promise<boolean> {
+    await this.init();
+    try{
+      await this.courseVersionCollection.updateOne(
+        { _id: new ObjectId(versionId) },
+        { $set: { cohorts: cohortIds } },
+        { session }
+      );
+      return true;
+    } catch(err){
+      throw new InternalServerError(
+        'Failed to add Cohorts To Version.\n More Details: ' + err,
+      );
+    }
   }
 
-  async pushCohortsToVersion(
-    versionId: string,
-    cohortIds: ObjectId[],
+  // async pushCohortsToVersion(
+  //   versionId: string,
+  //   cohortIds: ObjectId[],
+  //   session?: ClientSession
+  // ):Promise<boolean> {
+  //   await this.init();
+  //   try{
+  //     await this.courseVersionCollection.updateOne(
+  //       { _id: new ObjectId(versionId) },
+  //       {
+  //         $addToSet: {
+  //           cohorts: { $each: cohortIds }
+  //         }
+  //       },
+  //       { session }
+  //     );
+  //     return true;
+  //   } catch(err){
+  //     throw new InternalServerError(
+  //       'Failed to add Cohorts To Version.\n More Details: ' + err,
+  //     );
+  //   }
+  // }
+
+  async modifyCohortById(
+    cohortId: ObjectId,
+    cohortName: string,
     session?: ClientSession
-  ) {
-    await this.courseVersionCollection.updateOne(
+  ): Promise<boolean> {
+    try {
+      const result = await this.cohortsCollection.updateOne(
+        { _id: cohortId },
+        {
+          $set: {
+            name: cohortName
+          }
+        },
+        { session }
+      );
+
+      return result.modifiedCount === 1;
+    } catch (err) {
+      throw new InternalServerError(
+        "Failed to modify cohort.\nMore Details: " + err
+      );
+    }
+  }
+
+  async deleteCohortById(
+    cohortId: string,
+    session: ClientSession
+  ): Promise<boolean> {
+    try {
+      const result = await this.cohortsCollection.deleteOne(
+        { _id: new ObjectId(cohortId) },
+        { session }
+      );
+
+      return result.deletedCount === 1;
+    } catch (err) {
+      throw new InternalServerError(
+        "Failed to Delete cohort.\nMore Details: " + err
+      );
+    }
+  }
+
+  async removeCohortFromVersion(
+    versionId: string,
+    cohortId: string,
+    session?: ClientSession
+  ): Promise<boolean> {
+    const result = await this.courseVersionCollection.updateOne(
       { _id: new ObjectId(versionId) },
       {
-        $addToSet: {
-          cohorts: { $each: cohortIds }
+        $pull: {
+          cohorts: new ObjectId(cohortId)
         }
       },
       { session }
     );
-  }
+
+    return result.modifiedCount === 1;
+}
 
   async createVersion(
     courseVersion: CourseVersion,
