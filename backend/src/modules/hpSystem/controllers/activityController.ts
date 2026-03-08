@@ -110,9 +110,11 @@ export class ActivityController {
     statusCode: 400,
   })
   async list(
+    @CurrentUser() user:IUser,
     @QueryParams() query: ListActivitiesQuery
   ) {
-    const doc = await this.activityService.list(query);
+    const userId = user._id.toString()
+    const doc = await this.activityService.list(query, userId);
     return { success: true, data: doc };
   }
 
