@@ -358,3 +358,32 @@ export class StudentActivitySubmissionsResponseDto {
     @IsOptional()
     meta?: PaginationMetaDto;
 }
+
+
+export class StudentActivitySubmissionStatsViewDto {
+    @Expose()
+    @IsNumber()
+    totalActivities!: number;
+    @Expose()
+    @IsNumber()
+    totalSubmissions!: number;
+    @Expose()
+    @IsNumber()
+    totalPendings!: number;
+    @Expose()
+    @IsNumber()
+    totalLateSubmissions!: number;
+    @Expose()
+    @IsNumber()
+    currentHp!: number;
+}
+
+export class StudentActivitySubmissionStatsResponseDto {
+
+    @Expose()
+    @IsBoolean()
+    success!: boolean;
+
+    @Expose()
+    data!: StudentActivitySubmissionStatsViewDto
+}

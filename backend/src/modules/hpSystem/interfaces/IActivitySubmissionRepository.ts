@@ -36,4 +36,10 @@ export interface IActivitySubmissionRepository {
         studentId: string,
         query: FilterQueryDto
     ): Promise<StudentActivitySubmissionsViewDto[]>
+
+    getLatestByStudentId(studentId: string): Promise<HpActivitySubmission>
+
+    getCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number>
+
+    getLateSubmissionCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number>
 }

@@ -2,8 +2,8 @@ import { BaseService, IUser, IUserRepository, MongoDatabase } from "#root/shared
 import { GLOBAL_TYPES } from "#root/types.js";
 import { inject, injectable } from "inversify";
 import { HP_SYSTEM_TYPES } from "../types.js";
-import { ActivitySubmissionsRepository, LedgerRepository } from "../repositories/index.js";
-import { CreateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionsViewDto } from "../classes/validators/activitySubmissionValidators.js";
+import { ActivityRepository, ActivitySubmissionsRepository, LedgerRepository } from "../repositories/index.js";
+import { CreateHpActivitySubmissionBodyDto, FilterQueryDto, ListSubmissionsQueryDto, ReviewHpActivitySubmissionBodyDto, StudentActivitySubmissionsResponseDto, StudentActivitySubmissionStatsResponseDto, StudentActivitySubmissionStatsViewDto, StudentActivitySubmissionsViewDto } from "../classes/validators/activitySubmissionValidators.js";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { appConfig } from "#root/config/app.js";
 import { Bucket, Storage } from '@google-cloud/storage';
@@ -42,6 +42,10 @@ export class ActivitySubmissionsService extends BaseService {
         @inject(HP_SYSTEM_TYPES.cohortRepository)
         private readonly cohortRepository: CohortRepository,
 
+
+        @inject(HP_SYSTEM_TYPES.activityRepository)
+        private readonly activityRepository: ActivityRepository,
+
         @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
     ) {
         super(mongoDatabase);
@@ -68,6 +72,10 @@ export class ActivitySubmissionsService extends BaseService {
             if (!activityRuleConfig) {
                 throw new BadRequestError("Activity rule config not found");
             }
+
+            const latestSubmissions = await this.activitySubmissionsRepository.getLatestByStudentId(student.id)
+            if (latestSubmissions && latestSubmissions.status != "REVERTED")
+                throw new BadRequestError("You have already attended this activity.")
 
             const cohort = body.cohort;
 
@@ -354,6 +362,83 @@ export class ActivitySubmissionsService extends BaseService {
                 page: query.page ?? 1,
                 limit: query.limit ?? 20,
             },
+        };
+    }
+
+    async listStudentWiseSubmssionsStats(
+        studentId: string,
+        cohortName: string
+    ): Promise<StudentActivitySubmissionStatsResponseDto> {
+        if (!studentId) {
+            throw new BadRequestError("Student id not found");
+        }
+
+        const student = await this.userRepo.findById(studentId);
+        if (!student) {
+            throw new BadRequestError("Student not found");
+        }
+
+        const COHORT_OVERRIDES: Record<string, { courseId: string; versionId: string }> = {
+            Euclideans: { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af" },
+            Dijkstrians: { courseId: "6970f87e30644cbc74b6714f", versionId: "6970f87e30644cbc74b67150" },
+            Kruskalians: { courseId: "697b4e262942654879011c56", versionId: "697b4e262942654879011c57" },
+            RSAians: { courseId: "69903415e1930c015760a718", versionId: "69903415e1930c015760a719" },
+            AKSians: { courseId: "69942dc6d6d99b252e3a54fe", versionId: "69942dc6d6d99b252e3a54ff" },
+        };
+
+        let courseId: string;
+        let courseVersionId: string;
+
+        const override = COHORT_OVERRIDES[cohortName];
+
+        if (override) {
+            courseId = override.courseId;
+            courseVersionId = override.versionId;
+        } else {
+            const latestActivity = await this.activityRepository.getLatestActivityByCohortName(cohortName);
+
+            if (!latestActivity) {
+                return {
+                    success: true,
+                    data: {
+                        totalActivities: 0,
+                        totalSubmissions: 0,
+                        totalLateSubmissions: 0,
+                        totalPendings: 0,
+                        currentHp: 0,
+                    },
+                };
+            }
+
+            courseId = latestActivity.courseId.toString();
+            courseVersionId = latestActivity.courseVersionId.toString();
+        }
+
+        const [
+            totalActivities,
+            totalSubmissions,
+            totalLateSubmissions,
+            totalPendingActivites,
+            enrollment,
+        ] = await Promise.all([
+            this.activityRepository.getCountByCohortName(cohortName),
+            this.activitySubmissionsRepository.getCountByStudentId(studentId, courseId, courseVersionId),
+            this.activitySubmissionsRepository.getLateSubmissionCountByStudentId(studentId, courseId, courseVersionId),
+            this.activityRepository.getPendingActivitesCount(studentId, courseId, courseVersionId),
+            this.cohortRepository.findEnrollment(studentId, courseId, courseVersionId),
+        ]);
+
+        const data: StudentActivitySubmissionStatsViewDto = {
+            totalActivities,
+            totalSubmissions,
+            totalLateSubmissions,
+            totalPendings: totalPendingActivites,
+            currentHp: enrollment?.hpPoints ?? 0,
+        };
+
+        return {
+            success: true,
+            data,
         };
     }
 

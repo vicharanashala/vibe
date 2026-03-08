@@ -254,12 +254,12 @@ export class ActivityRepository implements IActivityRepository {
     }
 
 
-    async getCountByCohortName(cohortName: string): Promise<number> {
+
+    async getLatestActivityByCohortName(cohortName: string): Promise<HpActivity | null> {
         await this.init();
-        return await this.hpActivityCollection.countDocuments({
-            cohort: cohortName,
-            isDeleted: { $ne: true },
-        });
+        return await this.hpActivityCollection.findOne({
+            cohort: cohortName
+        }, { sort: { createdAt: -1 } })
     }
 
 
@@ -280,5 +280,59 @@ export class ActivityRepository implements IActivityRepository {
             isDeleted: { $ne: true },
         });
 
+    }
+    async getCountByCohortName(cohortName: string): Promise<number> {
+        await this.init();
+        return await this.hpActivityCollection.countDocuments({
+            cohort: cohortName,
+            isDeleted: { $ne: true },
+        });
+    }
+
+    async getPendingActivitesCount(
+        studentId: string,
+        courseId: string,
+        courseVersionId: string
+    ): Promise<number> {
+        await this.init();
+
+        const result = await this.hpActivityCollection.aggregate([
+            {
+                $match: {
+                    courseId: new ObjectId(courseId),
+                    courseVersionId: new ObjectId(courseVersionId),
+                    isDeleted: { $ne: true },
+                }
+            },
+            {
+                $lookup: {
+                    from: "hp_activity_submissions",
+                    let: { activityId: "$_id" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ["$activityId", "$$activityId"] },
+                                        { $eq: ["$studentId", new ObjectId(studentId)] }
+                                    ]
+                                }
+                            }
+                        }
+                    ],
+                    as: "submission"
+                }
+            },
+            {
+                $match: {
+                    submission: { $size: 0 }
+                }
+            },
+            {
+                $count: "pendingCount"
+            }
+        ]).toArray();
+
+        return result[0]?.pendingCount ?? 0;
     }
 }
