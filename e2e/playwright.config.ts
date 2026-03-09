@@ -17,9 +17,6 @@ export default defineConfig({
     // Required for CI
     permissions: ['camera', 'microphone'],
     headless: true,
-
-
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
     // Only capture artifacts on failure
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
