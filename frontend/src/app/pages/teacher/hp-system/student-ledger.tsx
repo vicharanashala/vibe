@@ -11,33 +11,36 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Zap, User, Mail, Clock, MessageSquare } from "lucide-react";
+import { ArrowLeft, Zap, User, Mail, TrendingUp, TrendingDown } from "lucide-react";
 
 export default function StudentLedgerPage() {
     const { courseVersionId, cohortName, studentId } = useParams({ strict: false });
     const navigate = useNavigate();
 
+    // Use students list to get basic student info
     const { data: students } = useHpStudents(courseVersionId || '', cohortName || '');
     const student = students.find(s => s._id === studentId);
 
-    const { data: ledger, isLoading } = useHpStudentLedger(
+    const { data: ledger, isLoading, error } = useHpStudentLedger(
         studentId || '', courseVersionId || '', cohortName || ''
     );
 
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case 'SUBMITTED':
-                return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Submitted</Badge>;
-            case 'PENDING':
-                return <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">Pending</Badge>;
-            case 'REVERTED':
-                return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">Reverted</Badge>;
-            default:
-                return <Badge variant="secondary">{status}</Badge>;
+    const getDirectionBadge = (direction: string) => {
+        if (direction === 'CREDIT') {
+            return (
+                <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 flex items-center gap-1 w-fit">
+                    <TrendingUp size={12} /> Credit
+                </Badge>
+            );
         }
+        return (
+            <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 flex items-center gap-1 w-fit">
+                <TrendingDown size={12} /> Debit
+            </Badge>
+        );
     };
 
-    const formatDateTime = (iso?: string) => {
+    const formatDateTime = (iso?: string | Date) => {
         if (!iso) return '—';
         return new Date(iso).toLocaleString('en-IN', {
             day: 'numeric', month: 'short', year: 'numeric',
@@ -45,7 +48,9 @@ export default function StudentLedgerPage() {
         });
     };
 
-    const totalHp = ledger.reduce((sum, e) => sum + e.currentHp, 0);
+    const totalHp = ledger.reduce((sum, e) => {
+        return e.direction === 'CREDIT' ? sum + (e.amount ?? 0) : sum - (e.amount ?? 0);
+    }, 0);
 
     return (
         <div className="space-y-6 w-full pb-12">
@@ -91,7 +96,7 @@ export default function StudentLedgerPage() {
                             <Zap className="h-7 w-7 text-yellow-500" />
                             {totalHp}
                         </div>
-                        <div className="text-sm text-muted-foreground">Current Total HP</div>
+                        <div className="text-sm text-muted-foreground">Net HP (from ledger)</div>
                     </div>
                 </CardContent>
             </Card>
@@ -101,6 +106,10 @@ export default function StudentLedgerPage() {
                 <div className="flex items-center justify-center py-12">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                 </div>
+            ) : error ? (
+                <div className="text-center py-12 border-2 border-dashed rounded-lg text-destructive">
+                    Failed to load ledger: {error}
+                </div>
             ) : ledger.length === 0 ? (
                 <div className="text-center py-12 border-2 border-dashed rounded-lg text-muted-foreground">
                     No HP transactions found for this student.
@@ -108,57 +117,45 @@ export default function StudentLedgerPage() {
             ) : (
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-lg">Transaction History</CardTitle>
+                        <CardTitle className="text-lg">Transaction History ({ledger.length})</CardTitle>
                     </CardHeader>
                     <CardContent className="p-0 overflow-x-auto">
                         <Table className="w-full">
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="min-w-[200px]">Activity</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Base HP</TableHead>
-                                    <TableHead className="text-right">Current HP</TableHead>
-                                    <TableHead className="min-w-[160px]">Submitted At</TableHead>
-                                    <TableHead className="min-w-[250px]">Instructor Feedback</TableHead>
+                                    <TableHead>Event</TableHead>
+                                    <TableHead>Direction</TableHead>
+                                    <TableHead className="text-right">Amount (HP)</TableHead>
+                                    <TableHead>Reason</TableHead>
+                                    <TableHead>Note</TableHead>
+                                    <TableHead className="min-w-[160px]">Date</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {ledger.map(entry => (
                                     <TableRow key={entry._id}>
                                         <TableCell>
-                                            <div className="font-medium">{entry.activityTitle}</div>
-                                            <div className="text-xs text-muted-foreground mt-0.5">
-                                                {formatDateTime(entry.createdAt)}
-                                            </div>
+                                            <div className="font-medium text-sm">{entry.eventType || '—'}</div>
+                                            {entry.calc?.reasonCode && (
+                                                <div className="text-xs text-muted-foreground mt-0.5">{entry.calc.reasonCode}</div>
+                                            )}
                                         </TableCell>
-                                        <TableCell>{getStatusBadge(entry.status)}</TableCell>
-                                        <TableCell className="text-right">
-                                            <span className="font-semibold text-muted-foreground">{entry.baseHp}</span>
+                                        <TableCell>
+                                            {getDirectionBadge(entry.direction)}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <span className={`font-semibold ${entry.currentHp > 0 ? 'text-green-600 dark:text-green-400' : entry.currentHp < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>
-                                                {entry.currentHp > 0 ? '+' : ''}{entry.currentHp}
+                                            <span className={`font-bold text-base ${entry.direction === 'CREDIT' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                {entry.direction === 'CREDIT' ? '+' : '-'}{entry.amount ?? 0}
                                             </span>
                                         </TableCell>
-                                        <TableCell>
-                                            {entry.submittedAt ? (
-                                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                                    <Clock className="h-3.5 w-3.5 flex-shrink-0" />
-                                                    <span>{formatDateTime(entry.submittedAt)}</span>
-                                                </div>
-                                            ) : (
-                                                <span className="text-sm text-muted-foreground">—</span>
-                                            )}
+                                        <TableCell className="text-sm text-muted-foreground">
+                                            {entry.calc?.reasonCode || '—'}
                                         </TableCell>
-                                        <TableCell>
-                                            {entry.instructorFeedback ? (
-                                                <div className="flex items-start gap-1.5 text-sm">
-                                                    <MessageSquare className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-muted-foreground" />
-                                                    <span>{entry.instructorFeedback}</span>
-                                                </div>
-                                            ) : (
-                                                <span className="text-sm text-muted-foreground">—</span>
-                                            )}
+                                        <TableCell className="text-sm text-muted-foreground max-w-[200px]">
+                                            {entry.meta?.note || '—'}
+                                        </TableCell>
+                                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                                            {formatDateTime(entry.createdAt)}
                                         </TableCell>
                                     </TableRow>
                                 ))}
