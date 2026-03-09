@@ -18,6 +18,7 @@ export interface IProjectSubmissionRepository {
   getAllSubmissions(
     courseId: string,
     courseVersionId: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<IProjectSubmissionWithUser>;
 

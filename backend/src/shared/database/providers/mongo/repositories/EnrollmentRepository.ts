@@ -2814,7 +2814,7 @@ export class EnrollmentRepository {
             .filter(section => section.quizIds.length > 0);
 
           const moduleResult = {
-            moduleId: module.moduleId,
+            moduleId: module.moduleId?.toString() ?? '',
             moduleName: module.name || 'Unnamed Module',
             sections: moduleSections,
           };
@@ -2962,7 +2962,8 @@ export class EnrollmentRepository {
           $match: {
             userId: { $in: userIds },
             quizId: { $in: quizIdsObj },
-            ...(cohortObjectIds?.length
+            // Only filter by cohort when specific cohort is selected
+            ...(cohortObjectIds?.length && cohortObjectIds.length > 0
             ? { cohortId: { $in: cohortObjectIds } }
             : {}),
           },
@@ -2972,7 +2973,7 @@ export class EnrollmentRepository {
             _id: {
               userId: '$userId',
               quizId: '$quizId',
-              cohortId: "$cohortId",
+              cohortId: '$cohortId', // Always include cohort to separate scores
             },
             attempts: { $sum: 1 },
             maxScore: { $max: '$gradingResult.totalScore' },
@@ -2988,7 +2989,8 @@ export class EnrollmentRepository {
           $match: {
             userId: { $in: userIds },
             quizId: { $in: quizIdsObj },
-            ...(cohortObjectIds?.length
+            // Only filter by cohort when specific cohort is selected
+            ...(cohortObjectIds?.length && cohortObjectIds.length > 0
             ? { cohortId: { $in: cohortObjectIds } }
             : {}),
           },
@@ -3001,7 +3003,7 @@ export class EnrollmentRepository {
             _id: {
               userId: '$userId',
               quizId: '$quizId',
-              // cohortId: "$cohortId",
+              cohortId: '$cohortId', // Always include cohort to separate scores
               questionId: '$gradingResult.overallFeedback.questionId',
             },
             questionScore: {
@@ -3015,35 +3017,43 @@ export class EnrollmentRepository {
     /* -------------------------------------------------------
      * 4️⃣ BUILD FAST LOOKUP MAPS
      * ----------------------------------------------------- */
-    const scoreMap = new Map<string, Map<string, Map<string, number>>>();
-    const maxScoreMap = new Map<string, Map<string, number>>();
-    const attemptsMap = new Map<string, Map<string, number>>();
+    const scoreMap = new Map<string, Map<string, Map<string, Map<string, number>>>>();
+    const maxScoreMap = new Map<string, Map<string, Map<string, number>>>();
+    const attemptsMap = new Map<string, Map<string, Map<string, number>>>();
 
     // Build attempts and max score maps from separate aggregation
     for (const row of attemptsAggregation) {
       const userId = row._id.userId.toString();
       const quizId = row._id.quizId.toString();
+      const cohortId = row._id.cohortId?.toString() ?? 'no-cohort';
 
       attemptsMap
         .set(userId, attemptsMap.get(userId) ?? new Map())
         .get(userId)!
+        .set(cohortId, attemptsMap.get(userId)?.get(cohortId) ?? new Map())
+        .get(cohortId)!
         .set(quizId, row.attempts);
 
       maxScoreMap
         .set(userId, maxScoreMap.get(userId) ?? new Map())
         .get(userId)!
+        .set(cohortId, maxScoreMap.get(userId)?.get(cohortId) ?? new Map())
+        .get(cohortId)!
         .set(quizId, row.maxScore ?? 0);
     }
 
     for (const row of aggregatedSubmissions) {
       const userId = row._id.userId.toString();
       const quizId = row._id.quizId.toString();
+      const cohortId = row._id.cohortId?.toString() ?? 'no-cohort';
       const questionId = row._id.questionId.toString();
 
       scoreMap
         .set(userId, scoreMap.get(userId) ?? new Map())
         .get(userId)!
-        .set(quizId, scoreMap.get(userId)?.get(quizId) ?? new Map())
+        .set(cohortId, scoreMap.get(userId)?.get(cohortId) ?? new Map())
+        .get(cohortId)!
+        .set(quizId, scoreMap.get(userId)?.get(cohortId)?.get(quizId) ?? new Map())
         .get(quizId)!
         .set(questionId, row.questionScore ?? 0);
     }
@@ -3053,6 +3063,7 @@ export class EnrollmentRepository {
      * ----------------------------------------------------- */
     const data: StudentQuizScoreDto[] = enrollments.map(enrollment => {
       const userId = enrollment.userId.toString();
+      const cohortId = enrollment.cohortId?.toString() ?? 'no-cohort';
       const quizScores: StudentQuizScoreDto['quizScores'] = [];
 
       for (const module of quizzesByModuleSection) {
@@ -3061,15 +3072,15 @@ export class EnrollmentRepository {
             if (!quizQuestionsMap.has(quizId)) continue;
 
             const questionIds = quizQuestionsMap.get(quizId)!;
-            const qScoreMap = scoreMap.get(userId)?.get(quizId) ?? new Map();
+            const qScoreMap = scoreMap.get(userId)?.get(cohortId)?.get(quizId) ?? new Map();
 
             quizScores.push({
-              moduleId: module.moduleId,
+              moduleId: module.moduleId?.toString() ?? '',
               sectionId: section.sectionId,
               quizId,
               quizName: quizDetails.get(quizId)?.name ?? 'Untitled Quiz',
-              maxScore: maxScoreMap.get(userId)?.get(quizId) ?? 0,
-              attempts: attemptsMap.get(userId)?.get(quizId) ?? 0,
+              maxScore: maxScoreMap.get(userId)?.get(cohortId)?.get(quizId) ?? 0,
+              attempts: attemptsMap.get(userId)?.get(cohortId)?.get(quizId) ?? 0,
               questionScores: questionIds.map(qid => ({
                 questionId: qid,
                 score: qScoreMap.get(qid) ?? 0,
@@ -3079,17 +3090,18 @@ export class EnrollmentRepository {
         }
 
       }
-        console.log("quizScores----cohort-",quizScores, cohortMap?.get(enrollment.cohortId?.toString()));
-      return {
-        studentId: userId,
-        // cohortId: enrollment.cohortId?.toString() ?? null,
-        cohortName: cohortMap?.get(enrollment.cohortId?.toString()) ?? null,
-        name:
-          `${enrollment.user.firstName ?? ''} ${enrollment.user.lastName ?? ''
-            }`.trim() || 'Unknown',
-        email: enrollment.user.email ?? '',
-        quizScores,
-      };
+        // Get cohort name for this specific enrollment
+        const cohortName = cohortMap?.get(enrollment.cohortId?.toString()) ?? null;
+        
+        return {
+          studentId: userId,
+          cohortName: cohortName,
+          name:
+            `${enrollment.user.firstName ?? ''} ${enrollment.user.lastName ?? ''
+              }`.trim() || 'Unknown',
+          email: enrollment.user.email ?? '',
+          quizScores,
+        };
     });
 
     return {

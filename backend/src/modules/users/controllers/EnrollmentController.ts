@@ -659,7 +659,7 @@ export class EnrollmentController {
   @OpenAPI({
     summary: 'Export quiz scores for all students in a course version',
     description:
-      'Returns quiz scores for all students in the specified course version',
+      'Returns quiz scores for all students in the specified course version. Can be filtered by cohort using the cohortId query parameter.',
   })
   //TODO:  We should update this Param to Params in both frontend and backend
   @ResponseSchema(QuizScoresExportResponseDto, {
@@ -679,6 +679,7 @@ export class EnrollmentController {
     @Param('versionId') versionId: string,
     @QueryParam('statusTab') statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
     @Ability(getEnrollmentAbility) { ability, user },
+    @QueryParam('cohortId') cohortId?: string,
   ): Promise<QuizScoresExportResponseDto> {
     // Check if user has instructor or manager role (can view course-level enrollments)
     const courseResource = subject('Enrollment', { courseId });
@@ -698,6 +699,7 @@ export class EnrollmentController {
       courseId,
       versionId,
       statusTab,
+      cohortId,
     );
   }
   @OpenAPI({

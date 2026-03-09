@@ -8,6 +8,7 @@ import {
   ForbiddenError,
   Body,
   Get,
+  QueryParam,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {PROJECTS_TYPES} from '../types.js';
@@ -141,6 +142,7 @@ export class ProjectController {
   async getSubmissions(
     @Params() params: CourseVersionParams,
     @Ability(projectAbility) {ability, user},
+    @QueryParam('cohortId') cohortId?: string,
   ): Promise<SubmissionResponse> {
     const {courseId, versionId} = params;
     const userId = user._id.toString();
@@ -159,6 +161,7 @@ export class ProjectController {
     const submissions = await this._projectService.getSubmissions(
       courseId,
       versionId,
+      cohortId,
     );
     return submissions;
   }

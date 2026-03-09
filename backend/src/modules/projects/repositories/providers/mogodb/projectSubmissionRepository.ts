@@ -38,18 +38,26 @@ export class ProjectSubmissionRepository
   async getAllSubmissions(
     courseId: string,
     courseVersionId: string,
+    cohortId?: string,
     session?: ClientSession,
   ): Promise<IProjectSubmissionWithUser> {
     await this.init();
+
+    const matchStage: any = {
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+    };
+
+    // Add cohort filter if cohortId is provided
+    if (cohortId) {
+      matchStage.cohortId = new ObjectId(cohortId);
+    }
 
     const submissions = await this._projectSubmissionCollection
       .aggregate(
         [
           {
-            $match: {
-              courseId: new ObjectId(courseId),
-              courseVersionId: new ObjectId(courseVersionId),
-            },
+            $match: matchStage,
           },
 
           {
