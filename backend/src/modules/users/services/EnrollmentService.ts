@@ -1553,6 +1553,7 @@ export class EnrollmentService extends BaseService {
         userId,
         courseId,
         courseVersionId,
+        undefined,
         session,
       );
 
@@ -1596,6 +1597,7 @@ export class EnrollmentService extends BaseService {
               userId,
               courseId,
               courseVersionId,
+              undefined,
               session,
             );
 

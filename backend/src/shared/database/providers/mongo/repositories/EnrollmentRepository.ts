@@ -1476,6 +1476,7 @@ export class EnrollmentRepository {
           as: 'userInfo',
         },
       },
+            { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
       {
         $lookup: {
           from: "cohorts",
@@ -1490,14 +1491,14 @@ export class EnrollmentRepository {
           preserveNullAndEmptyArrays: true
         }
       },
-      { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
-      {
-        $addFields: {
-          userId: {$toString: '$userInfo._id'},
-          _id: {$toString: '$_id'},
-          courseId: {$toString: '$courseId'},
-          courseVersionId: {$toString: '$courseVersionId'},
-      { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
+
+      // {
+      //   $addFields: {
+      //     userId: {$toString: '$userInfo._id'},
+      //     _id: {$toString: '$_id'},
+      //     courseId: {$toString: '$courseId'},
+      //     courseVersionId: {$toString: '$courseVersionId'},
+      // { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
       {
   $lookup: {
     from: "newCourseVersion",
@@ -1624,15 +1625,13 @@ export class EnrollmentRepository {
               null
             ]
           },
-          cohortName: "$cohort.name"
-          completedItemsCount: { $ifNull: ['$completedItemsCount', 0] },
-
-             contentCounts: {
-      total: { $ifNull: ["$courseVersionInfo.totalItems", 0] },
-      completed: { $ifNull: ["$completedItemsCount", 0] },
-      itemCounts: { $ifNull: ["$courseVersionInfo.itemCounts", {}] },
-      completedItemCounts: { $ifNull: ["$completedItemCounts", {}] }
-    }
+          cohortName: "$cohort.name",
+          contentCounts: {
+            total: { $ifNull: ["$courseVersionInfo.totalItems", 0] },
+            completed: { $ifNull: ["$completedItemsCount", 0] },
+            itemCounts: { $ifNull: ["$courseVersionInfo.itemCounts", {}] },
+            completedItemCounts: { $ifNull: ["$completedItemCounts", {}] }
+          }
         },
       },
     ];
@@ -3903,20 +3902,7 @@ export class EnrollmentRepository {
       { session },
     );
   }
-
-  public async enrollmentExistsByCohortId(versionId: string, cohortId:string, session?: ClientSession): Promise<boolean>{
-    const enrollment = await this.enrollmentCollection.findOne(
-      {
-        courseVersionId: new ObjectId(versionId),
-        cohortId: new ObjectId(cohortId),
-        role: "STUDENT",
-      },
-      { session }
-    );
-    // console.log("---enrollment------", enrollment);
-    return !!enrollment;
-  }
-
+  
   public async enrollmentExistsByCohortId(versionId: string, cohortId:string, session?: ClientSession): Promise<boolean>{
     const enrollment = await this.enrollmentCollection.findOne(
       {
