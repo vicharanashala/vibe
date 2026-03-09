@@ -40,7 +40,7 @@ import {
 } from "@/hooks/hooks"
 import { toast } from "sonner"
 import { useCourseStore } from "@/store/course-store"
-import type { EnrolledUser } from "@/types/course.types"
+import type { EnrolledUser, EnrollmentDetails } from "@/types/course.types"
 import { useAuthStore } from "@/store/auth-store"
 import { EnrollmentRole } from "@/types/invite.types"
 import { generateExcel } from "@/lib/excel-export"
@@ -170,7 +170,7 @@ export default function CourseEnrollments() {
     !!(courseId && versionId)
   )
 
-  const [selectedUser, setSelectedUser] = useState<EnrolledUser | null>(null)
+  const [selectedUser, setSelectedUser] = useState<EnrollmentDetails | null>(null)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false)
   const [isRecalculateProgressOpen, setIsRecalculateProgressOpen] = useState(false)
@@ -547,6 +547,8 @@ export default function CourseEnrollments() {
       })
     : studentEnrollments;
 
+    console.log("Filtered Enrollments:", filteredStudentEnrollments)
+
   const handleSelectAll = (checked: boolean) => {
     const visibleUserIds = filteredStudentEnrollments.map((e: any) => e.user?._id || e.user?.id).filter(Boolean)
 
@@ -639,24 +641,10 @@ export default function CourseEnrollments() {
     setIsResetDialogOpen(true)
   }
 
-  const handleViewProgress = (user: EnrolledUser) => {
-    setSelectedUser({
-      ...user,
-      contentCounts: user.contentCounts || {
-        totalItems: 0,
-        videos: 0,
-        quizzes: 0,
-        articles: 0,
-        project: 0,
-        completedVideos: 0,
-        completedQuizzes: 0,
-        completedArticles: 0,
-        completedProjects: 0,
-        totalQuizScore: 0,
-        totalQuizMaxScore: 0,
-      },
-    })
-console.log("----slecteduser-------", selectedUser);
+  const handleViewProgress = (user: EnrollmentDetails) => {
+    console.log("Selected user for progress view:", user)
+    setSelectedUser(user)
+
     setIsViewProgressDialogOpen(true)
   }
 
@@ -1218,7 +1206,7 @@ console.log("----slecteduser-------", selectedUser);
 
                           <SummaryRow
                             label="Projects"
-                            value={`${selectedUser.contentCounts.completedProjects} / ${selectedUser.contentCounts.project}`}
+                            value={`${selectedUser.contentCounts.completedProjects} / ${selectedUser.contentCounts.projects}`}
                           />
 
                           <SummaryRow
@@ -2546,17 +2534,17 @@ function EnrollmentsTable({
                                 completedItemsCount: enrollment.completedItemsCount || 0,
 
                                 contentCounts: {
-                                  totalItems: enrollment.contentCounts?.totalItems || 0,
-                                  videos: enrollment.contentCounts?.videos || 0,
-                                  quizzes: enrollment.contentCounts?.quizzes || 0,
-                                  articles: enrollment.contentCounts?.articles || 0,
-                                  project: enrollment.contentCounts?.project || 0,
-                                  completedVideos: enrollment.contentCounts?.completedVideos || 0,
-                                  completedQuizzes: enrollment.contentCounts?.completedQuizzes || 0,
-                                  completedArticles: enrollment.contentCounts?.completedArticles || 0,
-                                  completedProjects: enrollment.contentCounts?.completedProjects || 0,
-                                  totalQuizScore: enrollment.contentCounts?.totalQuizScore || 0,
-                                  totalQuizMaxScore: enrollment.contentCounts?.totalQuizMaxScore || 0,
+                                  totalItems: enrollment.contentCounts?.total || 0,
+                                  videos: enrollment.contentCounts?.itemCounts.VIDEO || 0,
+                                  quizzes: enrollment.contentCounts?.itemCounts.QUIZ || 0,
+                                  articles: enrollment.contentCounts?.itemCounts.BLOG || 0,
+                                  projects: enrollment.contentCounts?.itemCounts.PROJECT || 0,
+                                  completedVideos: enrollment.contentCounts?.completedItemCounts.VIDEO || 0,
+                                  completedQuizzes: enrollment.contentCounts?.completedItemCounts.QUIZ || 0,
+                                  completedArticles: enrollment.contentCounts?.completedItemCounts.BLOG || 0,
+                                  completedProjects: enrollment.contentCounts?.completedItemCounts.PROJECT || 0,
+                                  totalQuizScore: enrollment.totalQuizScore || 0,
+                                  totalQuizMaxScore: enrollment.totalQuizMaxScore || 0,
                                 },
                                 isDeleted: enrollment.isDeleted,
                                 cohortId: enrollment.cohortId,

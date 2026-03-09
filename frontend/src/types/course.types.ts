@@ -118,6 +118,28 @@ export interface EnrolledUser {
   cohortName?: string
 }
 
+export interface EnrollmentDetails {
+  id: string
+  name: string,
+  email: string,
+  enrolledDate: string
+  progress: number
+  completedItemsCount?: number
+  contentCounts?:{
+    totalItems?: number;
+    videos?: number;
+    quizzes?: number;
+    articles?: number;
+    projects?: number;
+    completedVideos?: number;
+    completedQuizzes?: number;
+    completedArticles?: number;
+    completedProjects?: number;
+    totalQuizScore?: number;
+    totalQuizMaxScore?: number;
+  }
+}
+
 export interface ResetProgressData {
   user: EnrolledUser
   scope: "course" | "module" | "section" | "item"
