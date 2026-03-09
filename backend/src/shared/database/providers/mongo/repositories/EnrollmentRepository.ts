@@ -1406,7 +1406,9 @@ export class EnrollmentRepository {
 
     const baseMatch: any = {
       courseId: { $in: [courseId, new ObjectId(courseId)] },
-      courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
+      courseVersionId: {
+        $in: [courseVersionId, new ObjectId(courseVersionId)],
+      },
     };
 
     if (cohort) {
@@ -1445,13 +1447,53 @@ export class EnrollmentRepository {
       }
     }
 
-    // decide sort field
+    // Initial pipeline for filtering and basic user data (required for sorting/searching)
+    const baseAggregation: any[] = [
+      { $match: matchStage },
+      {
+        $addFields: {
+          userIdObj: { $toObjectId: '$userId' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userIdObj',
+          foreignField: '_id',
+          as: 'userInfo',
+        },
+      },
+      { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
+    ];
+
+    // Search filter
+    if (search && search.trim() !== '') {
+      const searchTerm = search.trim();
+      const searchRegex = { $regex: searchTerm, $options: 'i' };
+      baseAggregation.push({
+        $match: {
+          $or: [
+            { 'userInfo.firstName': searchRegex },
+            { 'userInfo.lastName': searchRegex },
+            { 'userInfo.email': searchRegex },
+          ],
+        },
+      });
+    }
+
+    // 1. Get total count using simplified pipeline
+    const countPipeline = [...baseAggregation, { $count: 'total' }];
+    const countResult = await this.enrollmentCollection
+      .aggregate<{ total: number }>(countPipeline, { session })
+      .next();
+    const totalDocuments = countResult?.total || 0;
+
+    // 2. Decide sort field
     let sortField: any = {};
     if (sortBy === 'name') {
-      // sort by firstName + lastName
       sortField = {
-        firstName: sortOrder === 'asc' ? 1 : -1,
-        lastName: sortOrder === 'asc' ? 1 : -1,
+        'userInfo.firstName': sortOrder === 'asc' ? 1 : -1,
+        'userInfo.lastName': sortOrder === 'asc' ? 1 : -1,
       };
     } else if (sortBy === 'enrollmentDate') {
       sortField = { enrollmentDate: sortOrder === 'asc' ? 1 : -1 };
@@ -1459,24 +1501,20 @@ export class EnrollmentRepository {
       sortField = { percentCompleted: sortOrder === 'asc' ? 1 : -1 };
     } else if (sortBy === 'unenrolledAt') {
       sortField = { unenrolledAt: sortOrder === 'asc' ? 1 : -1 };
+    } else {
+      sortField = { enrollmentDate: -1 };
     }
 
-    const aggregationPipeline: any[] = [
-      { $match: matchStage },
-      {
-        $addFields: {
-          userId: { $toObjectId: '$userId' },
-        },
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'userId',
-          foreignField: '_id',
-          as: 'userInfo',
-        },
-      },
-            { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
+    // 3. Apply sorting and pagination
+    const paginatedPipeline = [
+      ...baseAggregation,
+      { $sort: sortField },
+      { $skip: skip },
+      { $limit: limit },
+    ];
+
+    // 4. Enrich only the current page records with expensive lookups
+    paginatedPipeline.push(
       {
         $lookup: {
           from: "cohorts",
@@ -1608,6 +1646,111 @@ export class EnrollmentRepository {
   }
 },
 
+        $lookup: {
+          from: 'newCourseVersion',
+          let: { versionId: { $toObjectId: '$courseVersionId' } },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ['$_id', '$$versionId'],
+                },
+              },
+            },
+            {
+              $project: {
+                totalItems: 1,
+                itemCounts: 1,
+              },
+            },
+          ],
+          as: 'courseVersionInfo',
+        },
+      },
+      {
+        $unwind: {
+          path: '$courseVersionInfo',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $lookup: {
+          from: 'watchTime',
+          let: {
+            userIdObj: '$userIdObj',
+            versionIdObj: { $toObjectId: '$courseVersionId' },
+            courseIdObj: { $toObjectId: '$courseId' },
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$userId', '$$userIdObj'] },
+                    { $eq: ['$courseVersionId', '$$versionIdObj'] },
+                    { $eq: ['$courseId', '$$courseIdObj'] },
+                    { $ne: [{ $ifNull: ['$endTime', null] }, null] },
+                    { $ne: ['$isDeleted', true] },
+                  ],
+                },
+              },
+            },
+            { $project: { itemId: 1 } },
+          ],
+          as: 'watchRecords',
+        },
+      },
+      {
+        $addFields: {
+          completedItemIds: '$watchRecords.itemId',
+        },
+      },
+      {
+        $lookup: {
+          from: 'itemsGroup',
+          let: { completedItemIds: '$completedItemIds' },
+          pipeline: [
+            { $unwind: '$items' },
+            {
+              $match: {
+                $expr: {
+                  $in: ['$items._id', '$$completedItemIds'],
+                },
+              },
+            },
+            {
+              $project: {
+                type: '$items.type',
+              },
+            },
+          ],
+          as: 'completedItems',
+        },
+      },
+      {
+        $addFields: {
+          completedItemCounts: {
+            $arrayToObject: {
+              $map: {
+                input: { $setUnion: ['$completedItems.type'] },
+                as: 'type',
+                in: {
+                  k: '$$type',
+                  v: {
+                    $size: {
+                      $filter: {
+                        input: '$completedItems',
+                        as: 'item',
+                        cond: { $eq: ['$$item.type', '$$type'] },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
       {
         $addFields: {
           userId: { $toString: '$userInfo._id' },
@@ -1672,10 +1815,8 @@ export class EnrollmentRepository {
     // );
 
     const enrollments = await this.enrollmentCollection
-      .aggregate(aggregationPipeline, { session })
+      .aggregate(paginatedPipeline, { session })
       .toArray();
-
-      // console.log("Enrollments are like this, ", enrollments)
 
     const totalPages = limit > 0 ? Math.ceil(totalDocuments / limit) : 1;
     return {
