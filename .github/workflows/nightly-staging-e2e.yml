@@ -19,27 +19,23 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 18
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Install Dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Install Playwright Browsers
         run: pnpm --dir e2e exec playwright install --with-deps
 
       - name: Run E2E Tests Against Staging
-        run: pnpm --dir e2e test-e2e
+        run: pnpm --dir e2e test-e2e play-course-vidoes.test.ts
         env:
           BASE_URL: ${{ secrets.STAGING_FRONTEND_URL }}
-          INSTRUCTOR_EMAIL: ${{ secrets.INSTRUCTOR_EMAIL }}
-          INSTRUCTOR_PASSWORD: ${{ secrets.INSTRUCTOR_PASSWORD }}
-          STUDENT_EMAIL: ${{ secrets.STUDENT_EMAIL }}
-          STUDENT_PASSWORD: ${{ secrets.STUDENT_PASSWORD }}
+          TEST_STUDENT_EMAIL: ${{ secrets.TEST_STUDENT_EMAIL }}
+          TEST_STUDENT_PASSWORD: ${{ secrets.TEST_STUDENT_PASSWORD }}
 
       - name: Upload Playwright Report
         if: always()

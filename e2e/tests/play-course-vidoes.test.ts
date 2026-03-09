@@ -28,6 +28,7 @@ test('Test course video playback and quiz', async ({ page }) => {
 
   // --- 1. Open landing page ---
   await page.goto('/');
+  console.log('current URL :', page.url());
   // --- 2. Login flow ---
   await page.getByRole('button', { name: /continue to login/i }).click();
 
