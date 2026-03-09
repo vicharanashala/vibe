@@ -660,7 +660,7 @@ Accessible to:
     }
 
     const existingVersion = await this.courseVersionService.readCourseVersion(versionId, user._id);
-    if(existingVersion.cohortDetails.some(cohort=> cohort.name === body.newCohortName)){
+    if(existingVersion?.cohortDetails?.some(cohort=> cohort.name === body.newCohortName)){
       throw new BadRequestError("The requested cohort name already exists in the course version");
     }
     const newVersionBody = {
