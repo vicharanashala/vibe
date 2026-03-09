@@ -974,6 +974,7 @@ export class EnrollmentService extends BaseService {
     courseId: string,
     versionId: string,
     statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
+    cohortId?: string,
   ): Promise<QuizScoresExportResponseDto> {
     try {
       // Verify course and version exist in a single transaction
@@ -991,8 +992,22 @@ export class EnrollmentService extends BaseService {
 
       let cohorts;
       let cohortMap;
+      let cohortIds: string[] = [];
+
       if(version.cohorts && version.cohorts.length > 0){
-        cohorts = await this.courseRepo.getCohortsByIds(version.cohorts)
+        // If a specific cohort is provided, only get that cohort
+        if (cohortId) {
+          // Validate that the cohort exists in this version
+          if (!version.cohorts.some(id => id.toString() === cohortId)) {
+            throw new NotFoundError('Cohort not found in this course version');
+          }
+          cohortIds = [cohortId];
+          cohorts = await this.courseRepo.getCohortsByIds(cohortIds);
+        } else {
+          // Get all cohorts for the version
+          cohortIds = version.cohorts.map(id => id.toString());
+          cohorts = await this.courseRepo.getCohortsByIds(cohortIds);
+        }
         cohortMap = new Map(cohorts.map(c => [c._id.toString(), c.name]));
       }
 
@@ -1001,7 +1016,7 @@ export class EnrollmentService extends BaseService {
       return await this.enrollmentRepo.getQuizScoresForCourseVersion(
         courseId,
         versionId,
-        (cohorts || []).map(cohort=> cohort._id.toString()),
+        cohortIds,
         cohortMap,
         statusTab,
       );

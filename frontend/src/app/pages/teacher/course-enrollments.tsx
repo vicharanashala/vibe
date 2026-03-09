@@ -417,8 +417,32 @@ export default function CourseEnrollments() {
       return;
     }
 
+    // Frontend validation: Check if cohort is selected and has students
+    if (cohort) {
+      const cohortName = (version as any)?.cohortDetails?.find((c: any) => c.id === cohort)?.name;
+      
+      const cohortStudents = filteredStudentEnrollments.filter((enrollment: any) => {
+        // The cohort ID is stored directly on the enrollment object
+        return enrollment.cohortId === cohort;
+      });
+      
+      if (!cohortName) {
+        toast.error('Selected cohort not found');
+        return;
+      }
+      
+      if (cohortStudents.length === 0) {
+        toast.warning(`No students found in cohort: ${cohortName}`);
+        return;
+      }
+    }
+
     if (!quizScores?.data?.length || isLoadingQuizScores) {
-      toast.warning('No quiz scores available');
+      const cohortName = cohort ? (version as any)?.cohortDetails?.find((c: any) => c.id === cohort)?.name : null;
+      const message = cohort 
+        ? `No quiz scores available for cohort: ${cohortName || 'selected cohort'}`
+        : 'No quiz scores available';
+      toast.warning(message);
       return;
     }
     if (isLoadingQuizScores) {
@@ -463,7 +487,9 @@ export default function CourseEnrollments() {
       // ⏱️ Stable filename (no locale overhead)
       const timestamp = new Date().toISOString().replace(/[:.]/g, '_');
       const statusLabel = enrollmentTab === 'ACTIVE' ? 'active' : 'inactive';
-      const filename = `quiz_scores_${statusLabel}_${timestamp}.xlsx`;
+      const cohortName = cohort ? (version as any)?.cohortDetails?.find((c: any) => c.id === cohort)?.name : null;
+      const cohortLabel = cohortName ? `cohort-${cohortName.toLowerCase().replace(/\s+/g, '_')}_` : '';
+      const filename = `quiz_scores_${cohortLabel}${statusLabel}_${timestamp}.xlsx`;
 
       // 🧠 Let UI breathe before heavy Excel generation
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -506,7 +532,7 @@ export default function CourseEnrollments() {
     isLoading: isLoadingQuizScores,
     error: quizScoresError,
     refetch: fetchQuizScores,
-  } = useCourseQuizScores(courseId, versionId, isExporting, enrollmentTab);
+  } = useCourseQuizScores(courseId, versionId, isExporting, enrollmentTab, cohort);
 
 // console.log("quizscores-------", quizScores);
   // Fetch enrollments data
@@ -2157,7 +2183,7 @@ function EnrollmentsTable({
             </Button>
           )}
 
-          {version?.cohortDetails?.length > 0 && (
+          {(version as any)?.cohortDetails?.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -2165,7 +2191,7 @@ function EnrollmentsTable({
                   size="sm"
                 >
                 <Layers className="h-4 w-4 text-muted-foreground" />
-        {cohort ? version.cohortDetails.find(c => c.id === cohort)?.name : "Select Cohort"}
+        {cohort ? (version as any).cohortDetails.find((c: any) => c.id === cohort)?.name : "Select Cohort"}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
@@ -2175,7 +2201,7 @@ function EnrollmentsTable({
                     setCohort(id);
                   }}
                 >
-                  {version?.cohortDetails.map((cohort) => (
+                  {(version as any)?.cohortDetails?.map((cohort: any) => (
                     <DropdownMenuRadioItem
                       key={cohort.id}
                       value={cohort.id}

@@ -1515,7 +1515,8 @@ export function useCourseQuizScores(
   courseId: string | undefined,
   versionId: string | undefined,
   enabled: boolean = true,
-  statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE'
+  statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
+  cohortId?: string | null
 ): {
   data: any | undefined,
   isLoading: boolean,
@@ -1528,7 +1529,7 @@ export function useCourseQuizScores(
     {
       params: {
         path: { courseId, versionId },
-        query: { statusTab }
+        query: { statusTab, ...(cohortId && { cohortId }) }
       }
     },
     {
@@ -3286,7 +3287,7 @@ export interface ProjectSubmissionsResponse {
   userInfo: ProjectSubmissionUserInfo[];
 }
 
-export function useProjectSubmissions(courseId: string, versionId: string): {
+export function useProjectSubmissions(courseId: string, versionId: string, cohortId?: string): {
   data: ProjectSubmissionsResponse | undefined,
   isLoading: boolean,
   error: string | null,
@@ -3296,7 +3297,10 @@ export function useProjectSubmissions(courseId: string, versionId: string): {
     "get",
     "/project/course/{courseId}/version/{versionId}/submissions",
     {
-      params: { path: { courseId, versionId } }
+      params: { 
+        path: { courseId, versionId },
+        ...(cohortId && { query: { cohortId } })
+      }
     },
     { enabled: !!courseId && !!versionId }
   );
