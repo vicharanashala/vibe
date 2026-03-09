@@ -630,6 +630,7 @@ Accessible to:
   @Authorized()
   @Post('/:courseId/versions/:versionId/cohorts')
   @HttpCode(200)
+  @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(CohortCreatedMessage, {
     description: 'Cohort created successfully',
   })
@@ -641,6 +642,7 @@ Accessible to:
     @Params() params: ReadCourseVersionCohortsParams,
     @Body() body: NewCohortBody,
     @Ability(getCourseVersionAbility) {ability, user},
+    @Req() req: Request,
   ): Promise<CohortCreatedMessage> {
     const { courseId, versionId } = params;
 
@@ -655,8 +657,12 @@ Accessible to:
       );
     }
 
+    if(!body.newCohortName){
+      throw new BadRequestError("Cohort name required for creating a cohort");
+    }
+
     const existingVersion = await this.courseVersionService.readCourseVersion(versionId, user._id);
-    if(existingVersion.cohortDetails && existingVersion.cohortDetails.some(cohort=> cohort.name === body.newCohortName)){
+    if(existingVersion.cohortDetails && existingVersion.cohortDetails?.some(cohort=> cohort.name === body.newCohortName)){
       throw new BadRequestError("The requested cohort name already exists in the course version");
     }
     const newVersionBody = {
@@ -665,6 +671,29 @@ Accessible to:
       cohorts: Array.of(body.newCohortName.toLowerCase())
     }
     await this.courseVersionService.updateCourseVersion(versionId, newVersionBody);
+
+    setAuditTrail(req, {
+      category: AuditCategory.COHORT,
+      action: AuditAction.COHORT_ADD,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context:{
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: ObjectId.createFromHexString(versionId),
+      },
+      changes:{
+        after:{
+          cohort: body.newCohortName,
+        }
+      },
+      outcome:{
+        status: OutComeStatus.SUCCESS, 
+      }
+    })
     return {
       message: `Cohort created successfully.`,
     };
@@ -680,6 +709,7 @@ Accessible to:
   @Authorized()
   @Patch('/:courseId/versions/:versionId/cohorts/:cohortId')
   @HttpCode(200)
+  @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(CohortUpdatedMessage, {
     description: 'Cohort updated for the course version',
   })
@@ -691,6 +721,7 @@ Accessible to:
     @Params() params: ReadCourseVersionCohortsParams,
     @Body() body: NewCohortBody,
     @Ability(getCourseVersionAbility) {ability, user},
+    @Req() req: Request,
   ): Promise<CohortUpdatedMessage> {
     const { courseId, versionId, cohortId } = params;
 
@@ -727,8 +758,32 @@ Accessible to:
           throw new BadRequestError("The requested cohort name already exists in the course version");
         }
     }
+    await this.courseVersionService.updateCohortInCourseVersion(cohortId, body?.newCohortName?.toLowerCase(), body?.isPublic );
 
-      await this.courseVersionService.updateCohortInCourseVersion(cohortId, body?.newCohortName?.toLowerCase(), body?.isPublic );
+    setAuditTrail(req, {
+      category: AuditCategory.COHORT,
+      action: AuditAction.COHORT_UPDATE,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context:{
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        cohortId: ObjectId.createFromHexString(cohortId),
+      },
+      changes:{
+        after:{
+          cohort: body.newCohortName,
+        }
+      },
+      outcome:{
+        status: OutComeStatus.SUCCESS, 
+      }
+    })
+
     return {
       message: `Cohort updated successfully.`,
     };
@@ -743,6 +798,7 @@ Accessible to:
   @Authorized()
   @Delete('/:courseId/versions/:versionId/cohorts/:cohortId')
   @HttpCode(200)
+  @UseInterceptor(AuditTrailsHandler)
   @ResponseSchema(CohortDeletedMessage, {
     description: 'Cohort deleted for the course version',
   })
@@ -752,8 +808,8 @@ Accessible to:
   })
   async DeleteCohortInCourseVersion(
     @Params() params: ReadCourseVersionCohortsParams,
-    // @Body() body: NewCohortBody,
     @Ability(getCourseVersionAbility) {ability, user},
+    @Req() req: Request,
   ): Promise<CohortDeletedMessage> {
     const { courseId, versionId, cohortId } = params;
 
@@ -782,8 +838,32 @@ Accessible to:
     if(!cohortExists){
       throw new BadRequestError("The requested cohort does not exists in the course version");
     }
+    
+    await this.courseVersionService.deleteCohortInCourseVersion(versionId, cohortId);
 
-      await this.courseVersionService.deleteCohortInCourseVersion(versionId, cohortId);
+    setAuditTrail(req, {
+      category: AuditCategory.COHORT,
+      action: AuditAction.COHORT_DELETE,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context:{
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        cohortId: ObjectId.createFromHexString(cohortId),
+      },
+      changes:{
+        before:{
+          cohort: existingVersion.cohorts.find(cohort=> cohort.toString() === cohortId),
+        }
+      },
+      outcome:{
+        status: OutComeStatus.SUCCESS, 
+      }
+    })
     return {
       message: `Cohort deleted successfully.`,
     };
