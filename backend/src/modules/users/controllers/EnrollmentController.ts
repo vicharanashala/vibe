@@ -485,6 +485,10 @@ export class EnrollmentController {
         statusTab,
       );
 
+      // console.log("Enrollments Data:", enrollmentsData)
+      // console.log("Enrollments Data:", enrollmentsData.enrollments.map(e => e.userInfo));
+      console.log("Enrollments Data:", enrollmentsData.enrollments.map(e => e.contentCounts));
+
     if (
       !enrollmentsData ||
       !enrollmentsData.enrollments ||
