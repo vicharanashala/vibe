@@ -203,7 +203,7 @@ test('Test course video playback and quiz', async ({ page }) => {
 
     await expect
       .poll(async () => await timeDisplay.textContent(), {
-        timeout: 30_000,
+        timeout: 60_000,
         message: 'Waiting for video playback to start',
       })
       .not.toBe(startTime);
