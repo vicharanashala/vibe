@@ -53,7 +53,6 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
     console.error('Invalid enrollment data:', enrollment);
     return null;
   }
-// console.log("---enrollment----", enrollment);
   const courseId = bufferToHex(enrollment.courseId as string);
   const versionId = bufferToHex(enrollment.courseVersionId as string) || "";
   const cohortId = enrollment?.cohortId || "";

@@ -259,7 +259,6 @@ export class CourseRegistrationService extends BaseService {
         instructorIds as string[],
         session,
       );
-// console.log("----couseversion----", courseVersion);
       let cohorts;
       if(courseVersion.cohorts && courseVersion.cohorts.length > 0){
         const cohortsDetails = await this.courseRepo.getCohortsByIds(courseVersion.cohorts)
@@ -269,7 +268,6 @@ export class CourseRegistrationService extends BaseService {
         }));
       }
 
-      // console.log("----cohort-----", cohorts);
       // Construct the final output (match your sample structure)
       return {
         id: 'v1', // Hardcode or generate dynamically, e.g., based on version string
@@ -544,7 +542,6 @@ export class CourseRegistrationService extends BaseService {
           status,
           fetchedCohort[0]?.name,
         );
-        // console.log("---emailmessage----", emailMessage);
         try {
           await this.mailService.sendMail(emailMessage);
         } catch (emailError) {

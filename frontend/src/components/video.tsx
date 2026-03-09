@@ -361,7 +361,6 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
   return new Promise((resolve) => {
     const executeStop = async () => {
       stopInFlightRef.current = true;
-      // console.log("currrentcourse in handleStopItem: ", currentCourse);
       try {
         if(watchItemId && !isAlreadyWatched && !(currentCourse!.itemId && completedItemIdsRef.current.has(currentCourse!.itemId))){
           await stopItem.mutateAsync({
@@ -571,7 +570,6 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
   function handleSendStartItem() {
 
     if (!currentCourse?.itemId) return;
-        // console.log("---handleSendStartItem----",isAlreadyWatched, completedItemIdsRef.current.has(currentCourse!.itemId))
     if(!isAlreadyWatched && !completedItemIdsRef.current.has(currentCourse!.itemId)){
       startItem.mutate({
         params: {
@@ -703,7 +701,6 @@ const handleStopItem = useCallback(async (watchItemId: string | null, debounceMs
     clearTimeout(stopTimeoutRef.current);
     stopTimeoutRef.current = null;
   }
-// console.log("stopitem.mutate called ,currentCourse: ", currentCourse);
     // Stop if started but not yet stopped (immediate on unmount, no debounce)
   if (!progressStoppedRef.current && !stopInFlightRef.current && watchItemIdRef.current && currentCourse) {
     stopInFlightRef.current = true;

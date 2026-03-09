@@ -172,7 +172,6 @@ export class CourseVersionService extends BaseService {
         }));
       }
 
-      // console.log("Read course version:", readVersion);
       const courseId = readVersion.courseId.toString();
 
       const enrollment =
@@ -298,7 +297,6 @@ export class CourseVersionService extends BaseService {
           body.cohorts,
           session
         );
-        // console.log("--cohortIds--",cohortIds);
         if (!existingVersion.cohorts) {
           existingVersion.cohorts = [];
         }

@@ -56,7 +56,6 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
       console.error('Missing course item ID');
       return '';
     }
-    // console.log("Starting item with data:-------", currentCourse);
     try {
       const response = await startItem.mutateAsync({
         params: {
@@ -98,7 +97,6 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
       });
       return false;
     }
-// console.log("Stopping item with data:-------", { ...currentCourse, stopWatchItemId });
     try {
       // Stop the watch item
       await stopItem.mutateAsync({
@@ -156,7 +154,6 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
       }
 
       setIsSubmittingLocal(true);
-// console.log('Submitting project with data:--------',currentCourse);
       try {
         if(isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId)){
           await submitProject({

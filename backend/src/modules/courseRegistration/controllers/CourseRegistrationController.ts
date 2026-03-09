@@ -91,7 +91,6 @@ class CourseRegistrationController {
     const result = await this.courseRegistrationService.getCourseDetails(
       versionId,
     );
-    // console.log("course details result---", result);
     return result;
   }
 

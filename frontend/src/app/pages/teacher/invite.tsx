@@ -340,7 +340,6 @@ const addInviteRow = () => {
     newInvites[index].role = role
     setInviteEmails(newInvites)
   }
-// console.log("----courseVersion----",courseVersion);
   // Handle sending invites
   const handleSendInvites = async () => {
     if (!courseId || !versionId) {
@@ -355,14 +354,12 @@ const addInviteRow = () => {
       return
     }
 
-    // console.log("cohort in ---handleSendInvites-- ", cohort);
     const hasStudentInvite = validInvites.some(i => i.role === "STUDENT");
     if (hasStudentInvite && courseVersion?.cohortDetails?.length > 0 && !cohort) {
       toast.error("Please select a cohort before sending invites for students");
       return;
     }
 
-    console.log("validInvites----",validInvites);
     try {
       await inviteUsers.mutateAsync({
         params: {
@@ -510,7 +507,6 @@ const addInviteRow = () => {
       toast.error("No emails to send")
       return
     }
-    // console.log("courseVersion?.cohortDetails?.length----- ", courseVersion?.cohortDetails?.length);
     if(courseVersion?.cohortDetails?.length > 0 && !cohort){  
       toast.error("Please select a cohort before sending invites");
       return;

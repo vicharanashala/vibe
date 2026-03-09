@@ -148,11 +148,9 @@ const CourseRegistration: React.FC = () => {
 
   const isRecaptchaEnabled: boolean = import.meta.env.VITE_IS_RECAPTCHA_ENABLED === "true";
   // const [showModules, setShowModules] = useState(false);
-// console.log("cohort-----", cohort);
   const { data: versionData, isLoading: isLoadingVersionData } = useGetCourseRegistration(versionId);
   const { mutateAsync: submitRegistration, isPending: isSubmitting } = useSubmitCourseRegistration();
   const { data: formFieldData, isLoading: isFormFieldsLoading } = useGetDynamicFields(versionId);
-// console.log("---versionData--",versionData);
   const jsonSchema = formFieldData?.jsonSchema as RJSFSchema | undefined;
   const uiSchema = formFieldData?.uiSchema as Record<string, any> | undefined;
 
@@ -163,7 +161,6 @@ const CourseRegistration: React.FC = () => {
     return d.toLocaleDateString();
   };
 
-// console.log("versionData---", versionData);
   const onSubmit = async (data: IChangeEvent<any>) => {
     try {
 

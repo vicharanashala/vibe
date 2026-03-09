@@ -222,7 +222,6 @@ class CourseRegistrationRepository implements ICourseRegistrationRepository {
 
     const totalDocuments =
       await this.courseRegistrationCollection.countDocuments(query, { session });
-// console.log("registrations---", registrations, "totalDocuments---", totalDocuments);
     return { registrations, totalDocuments };
   }
 

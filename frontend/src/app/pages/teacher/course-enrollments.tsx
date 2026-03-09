@@ -534,7 +534,6 @@ export default function CourseEnrollments() {
     refetch: fetchQuizScores,
   } = useCourseQuizScores(courseId, versionId, isExporting, enrollmentTab, cohort);
 
-// console.log("quizscores-------", quizScores);
   // Fetch enrollments data
   const {
     data: enrollmentsData,

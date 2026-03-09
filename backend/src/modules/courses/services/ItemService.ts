@@ -310,7 +310,6 @@ export class ItemService extends BaseService {
     userId: string,
     cohortId?: string
   ): Promise<ItemRef[]> {
-    // console.log("cohort in readAllItems:", cohortId);
     const { itemsGroup } = await this._getVersionModuleSectionAndItemsGroup(
       versionId,
       moduleId,
@@ -381,7 +380,6 @@ export class ItemService extends BaseService {
         // isCompleted: true,
         isCompleted: completionMap.get(item._id.toString()) ?? false
       }));
-      // console.log(`[ItemService] Completion map for user ${userId}, cohort ${cohortId}:`, itemsGroup.items);
       return itemsGroup.items;
 
       // // All items completed if module is before current module

@@ -564,7 +564,6 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       // if (itemStartedRef.current) {
       //   handleStopItem();
       // }
-// console.log('currentCourse?.cohort', currentCourse?.cohortId);
       // Create new quiz attempt
       const response = await attemptQuiz({
         params: { path: { quizId: processedQuizId } },

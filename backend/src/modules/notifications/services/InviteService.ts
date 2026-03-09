@@ -465,7 +465,6 @@ export class InviteService extends BaseService {
             cohortId,
             session,
           );
-console.log("---existingInvite--", existingInvite);
         if (existingInvite) {
           inviteIds.push(existingInvite._id.toString());
           continue;
@@ -558,7 +557,6 @@ console.log("---existingInvite--", existingInvite);
     if (!invite) {
       throw new NotFoundError('Invite not found');
     }
-    // console.log("invite-----",invite)
     const versionStatus=await this.courseRepo.getCourseVersionStatus(invite.courseVersionId.toString());
                 
     if(versionStatus==="archived"){

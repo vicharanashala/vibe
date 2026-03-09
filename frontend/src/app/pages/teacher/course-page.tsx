@@ -1168,7 +1168,6 @@ function VersionCard({
 
 
   const selectedVersionId = version?.id || versionId;
-  // console.log("Version data for version card:", fetchedVersion)
   const isArchived = (version as any)?.versionStatus === 'archived';
   const { mutateAsync: archiveMutateAsync, isPending: isArchivePending } = useCourseVersionArchive();
   // const [cohorts, setCohorts] = useState<string[]>([]);

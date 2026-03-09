@@ -63,7 +63,6 @@ export class ProjectController {
     @Ability(projectAbility) {ability, user},
     @Body() body: SubmitProjectBody,
   ): Promise<SuccessResponse> {
-    // console.log('Received project submission:', body);
     const {
       projectId,
       courseId,

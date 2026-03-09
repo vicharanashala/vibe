@@ -209,7 +209,6 @@ export class ItemController {
         'You do not have permission to view items in this section',
       );
     }
-// console.log("----in readAllItems contr----", cohortId);
     const items = await this.itemService.readAllItems(
       versionId,
       moduleId,

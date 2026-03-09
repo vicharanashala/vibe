@@ -447,7 +447,6 @@ class AttemptService extends BaseService {
       attemptId,
       cohortId
     );
-// console.log("----existing submissio----", existingSubmission, cohortId)
     if (existingSubmission) {
       throw new BadRequestError(
         `Attempt with ID ${attemptId} has already been submitted`,
@@ -508,7 +507,6 @@ class AttemptService extends BaseService {
         new ObjectId(attemptId),
         cohortId ? new ObjectId(cohortId) : undefined
       );
-// console.log("submission in submit----", submission);
       submissionId = await this.submissionRepository.create(
         submission,
         session,

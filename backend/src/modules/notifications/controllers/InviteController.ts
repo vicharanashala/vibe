@@ -166,7 +166,6 @@ export class InviteController {
   ) {
     const { courseId, versionId } = params;
     const { role, cohortId } = body;
-// console.log("---cohortId in -generateInviteLink-", cohortId);
     const roleSpecificSubject = subject('Invite', {
       courseId,
       versionId,

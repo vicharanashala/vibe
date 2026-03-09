@@ -107,7 +107,6 @@ export class EnrollmentService extends BaseService {
         cohort,
         session,
       );
-// console.log("existingEnrollment--------", existingEnrollment);
       // if (existingEnrollment && !throughInvite) {
       //   throw new BadRequestError(
       //     'User is already enrolled in this course version',
@@ -123,7 +122,6 @@ export class EnrollmentService extends BaseService {
           'User is already enrolled in this course version',
         );
       }
-      // console.log("cohort in enrolluser---", cohort);
       const enrollmentData = {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
@@ -140,7 +138,6 @@ export class EnrollmentService extends BaseService {
         enrollmentData,
         session,
       );
-      // console.log("createdEnrollment in enrollUser---", createdEnrollment);
       let initialProgress = null;
       if (createdEnrollment.role == 'STUDENT') {
         const progressData = await this.progressService.initializeProgress(
@@ -207,7 +204,6 @@ export class EnrollmentService extends BaseService {
           'Course version not found or does not belong to this course',
         );
       }
-      // console.log("cohort in enrollment----", cohort);
       const existingEnrollment = await this.enrollmentRepo.findEnrollment(
         userId,
         courseId,
@@ -397,7 +393,6 @@ export class EnrollmentService extends BaseService {
         search,
       );
     }
-// console.log("--enrollments---", enrollments);
     if (!enrollments.length) return [];
 
     const enrolledVersionIds: Set<string> = new Set(
@@ -495,7 +490,6 @@ export class EnrollmentService extends BaseService {
         //   projects: 0,
         // };
         const itemCounts = enr.courseVersion?.itemCounts || {};
-// console.log(`Enrollment ${enr._id.toString()} - completedCount: ${completedCount}, totalItems: ${enr.totalItems}, existing percentCompleted: ${enr.percentCompleted}`);
         const ratio = completedCount / (enr.totalItems || 1);
         const calculatedPercent = Number((ratio * 100).toFixed(2));
 
@@ -786,7 +780,6 @@ export class EnrollmentService extends BaseService {
           currentPage: 0,
         };
       }
-// console.log("courseVersion in getCourseVersionEnrollments---", courseVersion);
       const enrollmentsData =
         await this.enrollmentRepo.getCourseVersionEnrollments(
           courseId,
@@ -929,7 +922,6 @@ export class EnrollmentService extends BaseService {
         allQuizIds,
         enrollments.filter(e => e.cohortId).map(e => e.cohortId.toString())
       );
-// console.log("quizSubmissions in enrichEnrollmentsWithQuizScores---", quizSubmissions);
     // 5. Create a map: userId -> quiz grades
     const userQuizGradesMap = new Map<string, IGradingResult[]>();
 
@@ -1011,7 +1003,6 @@ export class EnrollmentService extends BaseService {
         cohortMap = new Map(cohorts.map(c => [c._id.toString(), c.name]));
       }
 
-// console.log("---cohorts in getQuizScoresForCourseVersion---", cohorts)
       // Get quiz scores from repository with batching
       return await this.enrollmentRepo.getQuizScoresForCourseVersion(
         courseId,

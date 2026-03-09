@@ -234,7 +234,6 @@ Accessible to:
         'You do not have permission to update this course version',
       );
     }
-// console.log("Updating course version with data:", body);
     const existingVersion = await this.courseVersionService.readCourseVersion(versionId, user._id);
     const updatedCourseVersion =
       await this.courseVersionService.updateCourseVersion(versionId, body);
@@ -586,7 +585,6 @@ Accessible to:
     @QueryParams() query: CohortsQuery,
     @Ability(getCourseVersionAbility) {ability, user},
   ): Promise<CohortsResponse> {
-    // console.log("-----received in cohort controller----", query,params);
     const { courseId, versionId } = params;
 
     const courseVersionSubject = subject('CourseVersion', {
@@ -608,7 +606,6 @@ Accessible to:
       sortOrder,
       // filter,
     } = query;
-// console.log("-----query------", query);
     if (page < 1 || limit < 1) {
       throw new BadRequestError('Page and limit must be positive integers.');
     }
@@ -645,7 +642,6 @@ Accessible to:
     @Body() body: NewCohortBody,
     @Ability(getCourseVersionAbility) {ability, user},
   ): Promise<CohortCreatedMessage> {
-    // console.log("-----received in cohort controller----", body,params);
     const { courseId, versionId } = params;
 
     const courseVersionSubject = subject('CourseVersion', {
@@ -669,7 +665,6 @@ Accessible to:
       cohorts: Array.of(body.newCohortName.toLowerCase())
     }
     await this.courseVersionService.updateCourseVersion(versionId, newVersionBody);
-    // console.log("---updatedCourseVersion--",updatedCourseVersion);
     return {
       message: `Cohort created successfully.`,
     };
@@ -697,7 +692,6 @@ Accessible to:
     @Body() body: NewCohortBody,
     @Ability(getCourseVersionAbility) {ability, user},
   ): Promise<CohortUpdatedMessage> {
-    // console.log("-----received in cohort controller----", body,params);
     const { courseId, versionId, cohortId } = params;
 
     if(!cohortId){
@@ -735,7 +729,6 @@ Accessible to:
     }
 
       await this.courseVersionService.updateCohortInCourseVersion(cohortId, body?.newCohortName?.toLowerCase(), body?.isPublic );
-    // console.log("---updatedCourseVersion--",updatedCourseVersion);
     return {
       message: `Cohort updated successfully.`,
     };
@@ -762,7 +755,6 @@ Accessible to:
     // @Body() body: NewCohortBody,
     @Ability(getCourseVersionAbility) {ability, user},
   ): Promise<CohortDeletedMessage> {
-    // console.log("-----received in cohort controller----",params);
     const { courseId, versionId, cohortId } = params;
 
     if(!cohortId){
@@ -792,7 +784,6 @@ Accessible to:
     }
 
       await this.courseVersionService.deleteCohortInCourseVersion(versionId, cohortId);
-    // console.log("---updatedCourseVersion--",updatedCourseVersion);
     return {
       message: `Cohort deleted successfully.`,
     };

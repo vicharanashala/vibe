@@ -60,7 +60,6 @@ class UserQuizMetricsRepository {
     const result = await this.userQuizMetricsCollection.findOne(filter, {
       session,
     });
-    // console.log('get metrics result----', result, cohort);
     if (!result) return null;
 
     return {

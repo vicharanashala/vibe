@@ -120,7 +120,6 @@ class ProgressController {
         'You do not have permission to view this progress',
       );
     }
-// console.log("---getUserProgress in controller--", cohortId);
     const progress = await this.progressService.getUserProgress(
       userId,
       courseId,
@@ -160,7 +159,6 @@ class ProgressController {
         message: 'Invalid user ID',
       };
     }
-// console.log("--getCurrentProgressPath---", cohortId)
     const result = await this.progressService.getCurrentProgressPath(
       userId,
       courseId,
@@ -311,7 +309,6 @@ class ProgressController {
         'You do not have permission to modify this progress',
       );
     }
-// console.log('STOP API HIT with cohort:', cohortId);
     await this.progressService.stopItem(
       userId,
       courseId,
@@ -361,7 +358,6 @@ It returns an empty body with a 200 status code.
     console.log('Body:', body);
     const { userId, courseId, versionId } = params;
     const { moduleId, sectionId, itemId, cohortId } = body;
-// console.log("cohort in resetProgress method", cohortId);
     // Create a progress resource object for permission checking
     const progressResource = subject('Progress', { userId, courseId, versionId });
 
@@ -383,7 +379,6 @@ It returns an empty body with a 200 status code.
           versionId,
           cohortId
         );
-      console.log('Module Progress before reset:', getmoduleProgress);
       await this.progressService.resetCourseProgressToModule( //
         userId,
         courseId,

@@ -113,7 +113,6 @@ export default function CoursePage() {
 
   const isMobile = useIsMobile();
 
-// console.log("cohort----in coursepage---",COHORT_ID, COHORT_NAME);
 
   // Check for microphone and camera access, otherwise redirect to dashboard
   useEffect(() => {
@@ -484,7 +483,6 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
 
   // Effect to detect progress reset and clear cached data
   useEffect(() => {
-    // console.log('Progress data changed:', progressData, lastProgressData);
     if (progressData && lastProgressData) {
       // Check if progress has been reset (current position moved backward significantly)
       const currentModule = progressData.currentModule;
@@ -588,7 +586,6 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
         }
 
         setCurrentItem(item);
-        // console.log("------current item in course-page---", item);
         // Clear loading state when new item is successfully loaded
         setIsNavigatingToNext(false);
       }
@@ -1406,8 +1403,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     sectionItems,
     updateCourseNavigation,
   ]);
-// console.log("Section items", sectionItems[selectedSectionId]);
-// console.log("Current item from progress", selectedItemId);
+
   // Handle going back to courses
   const handleGoBack = () => {
     // Stop current item before navigating away
