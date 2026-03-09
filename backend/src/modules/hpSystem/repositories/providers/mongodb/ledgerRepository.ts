@@ -5,9 +5,9 @@ import { ILedgerRepository } from "#root/modules/hpSystem/interfaces/ILedgerRepo
 import { HpLedger } from "#root/modules/hpSystem/models.js";
 import { MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
-import { plainToInstance } from "class-transformer";
+import { instanceToPlain, plainToInstance } from "class-transformer";
 import { inject, injectable } from "inversify";
-import { ClientSession, Collection, InsertOneResult } from "mongodb";
+import { ClientSession, Collection, InsertOneResult, ObjectId } from "mongodb";
 
 @injectable()
 export class LedgerRepository implements ILedgerRepository {
@@ -48,7 +48,7 @@ export class LedgerRepository implements ILedgerRepository {
         const skip = (page - 1) * limit;
 
         const query: any = {
-            studentId,
+            studentId: new ObjectId(studentId),
         };
 
         if (search) {
@@ -73,20 +73,69 @@ export class LedgerRepository implements ILedgerRepository {
             this.hpLedgerCollection.countDocuments(query),
         ]);
 
-        return plainToInstance(
-            LedgerListResponseDto,
+        const data = docs.map((doc) => ({
+            _id: doc._id?.toString(),
+            courseId: doc.courseId?.toString(),
+            courseVersionId: doc.courseVersionId?.toString(),
+            cohort: doc.cohort,
+            studentId: doc.studentId?.toString(),
+            studentEmail: doc.studentEmail,
+            activityId: doc.activityId?.toString(),
+            submissionId: doc.submissionId?.toString(),
+            eventType: doc.eventType,
+            direction: doc.direction,
+            amount: doc.amount,
+            calc: doc.calc
+                ? {
+                    ruleType: doc.calc.ruleType,
+                    percentage: doc.calc.percentage ?? null,
+                    absolutePoints: doc.calc.absolutePoints,
+                    baseHpAtTime: doc.calc.baseHpAtTime,
+                    computedAmount: doc.calc.computedAmount,
+                    deadlineAt: doc.calc.deadlineAt,
+                    withinDeadline: doc.calc.withinDeadline,
+                    reasonCode: doc.calc.reasonCode,
+                }
+                : null,
+            links: doc.links
+                ? {
+                    reversedLedgerId: doc.links.reversedLedgerId?.toString(),
+                    relatedLedgerIds: Array.isArray(doc.links.relatedLedgerIds)
+                        ? doc.links.relatedLedgerIds.map((id: any) => id?.toString())
+                        : [],
+                }
+                : null,
+            meta: doc.meta
+                ? {
+                    triggeredBy: doc.meta.triggeredBy,
+                    triggeredByUserId: doc.meta.triggeredByUserId?.toString(),
+                    note: doc.meta.note,
+                }
+                : null,
+            createdAt: doc.createdAt,
+        }));
+
+        return {
+            data: data as HpLedgerTransformer[],
+            total,
+            page,
+            limit,
+        };
+    }
+
+    async findByStudentAndSubmissionId(
+        submissionId: string,
+        studentId: string
+    ): Promise<HpLedger | null> {
+        await this.init();
+
+        return await this.hpLedgerCollection.findOne(
             {
-                data: plainToInstance(HpLedgerTransformer, docs, {
-                    excludeExtraneousValues: true,
-                    enableImplicitConversion: true,
-                }),
-                total,
-                page,
-                limit,
+                submissionId: new ObjectId(submissionId),
+                studentId: new ObjectId(studentId),
             },
             {
-                excludeExtraneousValues: true,
-                enableImplicitConversion: true,
+                sort: { createdAt: -1 },
             }
         );
     }

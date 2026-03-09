@@ -506,6 +506,13 @@ export class ItemService extends BaseService {
         _id: item._id.toString(),
       };
     }
+    // Student should not see items it course Version is archived
+
+    const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId);
+      
+    if(versionStatus==="archived"){
+        throw new ForbiddenError("This course version is inactive, you can't access items");
+    }
 
     // Student-specific checks (parallelized)
     const [
@@ -752,6 +759,37 @@ export class ItemService extends BaseService {
       
         if(versionStatus==="archived"){
           throw new ForbiddenError("This course version is archived and items cannot be deleted.");
+        }
+
+        const itemsGroup = await this.itemRepo.readItemsGroup(itemsGroupId, session);
+        const remainingItems = (itemsGroup?.items || []).filter((i: any) => !i.isDeleted);
+
+        if (remainingItems.length === 1) {
+          const activeModules = (version.modules || []).filter((m: any) => !m.isDeleted);
+
+          for (const [moduleIndex, module] of activeModules.entries()) {
+            const sections = (module.sections || []).filter((s: any) => !s.isDeleted);
+            const sectionIndex = sections.findIndex((s: any) => s.itemsGroupId?.toString() === itemsGroupId);
+
+            if (sectionIndex === -1) continue;
+
+            const isLastModule = moduleIndex === activeModules.length - 1;
+            const isLastSection = sectionIndex === sections.length - 1;
+
+            if (!isLastModule && isLastSection) {
+              throw new BadRequestError(
+                'Cannot delete this item. It is the last item in this section, and the section must remain non-empty because a subsequent module exists.',
+              );
+            }
+
+            if (!isLastSection) {
+              throw new BadRequestError(
+                'Cannot delete this item. It is the last item in this section, and the section must remain non-empty because subsequent sections exist in this module.',
+              );
+            }
+
+            break;
+          }
         }
 
         // Check item type

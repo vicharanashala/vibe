@@ -110,7 +110,7 @@ export class CreateHpActivitySubmissionBodyDto {
 export class ReviewHpActivitySubmissionBodyDto {
     @Expose()
     @IsString()
-    @IsIn(["APPROVE", "REJECT", "REVERT"])
+    @IsIn(["APPROVED", "REJECTED", "REVERTED"])
     decision!: ReviewDecision;
 
     @Expose()
@@ -118,6 +118,11 @@ export class ReviewHpActivitySubmissionBodyDto {
     @IsString()
     @MaxLength(1000)
     note?: string;
+
+    @Expose()
+    @IsOptional()
+    @IsNumber()
+    pointsToDeduct: number;
 }
 
 export class ListSubmissionsQueryDto {
@@ -317,6 +322,10 @@ export class StudentActivitySubmissionsViewDto {
     @IsOptional()
     @Type(() => InstructorFeedbackDto)
     instructorFeedback!: InstructorFeedbackDto | null;
+
+    @Expose()
+    @IsString()
+    isRequiredInstructorApproval!: boolean;
 }
 
 export class PaginationMetaDto {
@@ -348,4 +357,33 @@ export class StudentActivitySubmissionsResponseDto {
     @Type(() => PaginationMetaDto)
     @IsOptional()
     meta?: PaginationMetaDto;
+}
+
+
+export class StudentActivitySubmissionStatsViewDto {
+    @Expose()
+    @IsNumber()
+    totalActivities!: number;
+    @Expose()
+    @IsNumber()
+    totalSubmissions!: number;
+    @Expose()
+    @IsNumber()
+    totalPendings!: number;
+    @Expose()
+    @IsNumber()
+    totalLateSubmissions!: number;
+    @Expose()
+    @IsNumber()
+    currentHp!: number;
+}
+
+export class StudentActivitySubmissionStatsResponseDto {
+
+    @Expose()
+    @IsBoolean()
+    success!: boolean;
+
+    @Expose()
+    data!: StudentActivitySubmissionStatsViewDto
 }

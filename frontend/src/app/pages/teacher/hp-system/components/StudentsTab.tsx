@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Search, History, Mail, FileText } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card"
 import { ArrowUp, ArrowDown } from "lucide-react"
+import { Pagination } from "@/components/ui/Pagination";
 
-interface StudentsTabProps {
+export interface StudentsTabProps {
   courseVersionId: string;
   cohortName: string;
 }
@@ -32,41 +33,41 @@ export function StudentsTab({ courseVersionId, cohortName }: StudentsTabProps) {
     return s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q);
   });
   const handleSort = (key: typeof sortKey) => {
-  if (sortKey === key) {
-    setSortOrder(prev => prev === "asc" ? "desc" : "asc")
-  } else {
-    setSortKey(key)
-    setSortOrder("asc")
+    if (sortKey === key) {
+      setSortOrder(prev => prev === "asc" ? "desc" : "asc")
+    } else {
+      setSortKey(key)
+      setSortOrder("asc")
+    }
   }
-}
-  const sortedStudents = [...filteredStudents].sort((a,b) => {
+  const sortedStudents = [...filteredStudents].sort((a, b) => {
 
-      if (sortKey === "name") {
-        return sortOrder === "asc"
-          ? a.name.localeCompare(b.name)
-          : b.name.localeCompare(a.name)
-      }
+    if (sortKey === "name") {
+      return sortOrder === "asc"
+        ? a.name.localeCompare(b.name)
+        : b.name.localeCompare(a.name)
+    }
 
-      if (sortKey === "hp") {
-        return sortOrder === "asc"
-          ? a.totalHp - b.totalHp
-          : b.totalHp - a.totalHp
-      }
+    if (sortKey === "hp") {
+      return sortOrder === "asc"
+        ? a.totalHp - b.totalHp
+        : b.totalHp - a.totalHp
+    }
 
-      if (sortKey === "completion") {
-        return sortOrder === "asc"
-          ? a.completionPercentage - b.completionPercentage
-          : b.completionPercentage - a.completionPercentage
-      }
+    if (sortKey === "completion") {
+      return sortOrder === "asc"
+        ? a.completionPercentage - b.completionPercentage
+        : b.completionPercentage - a.completionPercentage
+    }
 
-  return 0
-})
+    return 0
+  })
 
-const totalPages = Math.ceil(sortedStudents.length / itemsPerPage)
-const paginatedStudents = sortedStudents.slice(
-      (currentPage - 1) * itemsPerPage,
-      currentPage * itemsPerPage
-    )
+  const totalPages = Math.ceil(sortedStudents.length / itemsPerPage)
+  const paginatedStudents = sortedStudents.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
 
   if (isLoading) {
     return (
@@ -138,19 +139,19 @@ const paginatedStudents = sortedStudents.slice(
                   </span>
                 </th>
                 <th
-                    className="text-center px-4 py-3 cursor-pointer"
-                    onClick={() => handleSort("hp")}
-                  >
-                    <span className="flex items-center justify-center gap-1">
-                      Total HP
-                      {sortKey === "hp" &&
-                        (sortOrder === "asc" ? (
-                          <ArrowUp size={14} />
-                        ) : (
-                          <ArrowDown size={14} />
-                        ))}
-                    </span>
-                  </th>
+                  className="text-center px-4 py-3 cursor-pointer"
+                  onClick={() => handleSort("hp")}
+                >
+                  <span className="flex items-center justify-center gap-1">
+                    Total HP
+                    {sortKey === "hp" &&
+                      (sortOrder === "asc" ? (
+                        <ArrowUp size={14} />
+                      ) : (
+                        <ArrowDown size={14} />
+                      ))}
+                  </span>
+                </th>
                 <th className="text-center px-4 py-3">Actions</th>
               </tr>
             </thead>
@@ -232,43 +233,13 @@ const paginatedStudents = sortedStudents.slice(
 
       {/* Pagination */}
       <Card>
-        <CardContent className="flex flex-col items-center gap-3 p-3">
-
-          <div className="text-sm text-muted-foreground">
-            Page {currentPage} of {totalPages} • {filteredStudents.length} total
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(currentPage - 1)}
-            >
-              {"<"}
-            </Button>
-
-            {Array.from({ length: totalPages }, (_, i) => (
-              <Button
-                key={i}
-                size="icon"
-                variant={currentPage === i + 1 ? "default" : "outline"}
-                onClick={() => setCurrentPage(i + 1)}
-              >
-                {i + 1}
-              </Button>
-            ))}
-
-            <Button
-              variant="outline"
-              size="icon"
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(currentPage + 1)}
-            >
-              {">"}
-            </Button>
-          </div>
-
+        <CardContent className="p-3">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalDocuments={filteredStudents.length}
+            onPageChange={setCurrentPage}
+          />
         </CardContent>
       </Card>
     </div>

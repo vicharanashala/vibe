@@ -69,7 +69,7 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         return res.insertedId.toString();
     }
 
-    async findById(id: string, opts?: { session?: ClientSession }): Promise<any | null> {
+    async findById(id: string, opts?: { session?: ClientSession }): Promise<HpActivitySubmission | null> {
         await this.init();
         if (!ObjectId.isValid(id)) return null;
         return this.hpActivitySubmissionCollection.findOne(
@@ -80,7 +80,9 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
 
     async getByStudentId(
         studentId: string,
-        query: FilterQueryDto
+        query: FilterQueryDto,
+        courseId?: string,
+        courseVersionId?: string
     ): Promise<StudentActivitySubmissionsViewDto[]> {
         await this.init();
 
@@ -110,12 +112,21 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
         const studentIdOr: any[] = [{ studentId }];
         if (ObjectId.isValid(studentId)) studentIdOr.push({ studentId: new ObjectId(studentId) });
 
+        const matchStage: any = {
+            $or: studentIdOr,
+        };
+
+        if (courseId)
+            matchStage.courseId = new ObjectId(courseId);
+
+        if (courseVersionId)
+            matchStage.courseVersionId = new ObjectId(courseVersionId)
+
+
         const pipeline: any[] = [
             // 1) Submissions by student
             {
-                $match: {
-                    $or: studentIdOr,
-                },
+                $match: matchStage,
             },
 
             // 2) Lookup activity details
@@ -202,6 +213,18 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
                 $project: {
                     id: { $toString: "$_id" },
 
+                    isRequiredInstructorApproval: {
+                        $cond: {
+                            if: {
+                                $and: [
+                                    { $eq: ["$status", "SUBMITTED"] },
+                                    { $eq: ["$rule.reward.applyWhen", "ON_APPROVAL"] }
+                                ]
+                            },
+                            then: true,
+                            else: false
+                        }
+                    },
                     activity: {
                         id: { $toString: "$activity._id" },
                         title: { $ifNull: ["$activity.title", ""] },
@@ -314,10 +337,11 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
 
     async updateStatusAndReview(
         id: string,
-        update: any,
+        update: Partial<HpActivitySubmission>,
         opts?: { session?: ClientSession }
     ): Promise<void> {
         await this.init();
+
         if (!ObjectId.isValid(id)) return;
 
         await this.hpActivitySubmissionCollection.updateOne(
@@ -326,4 +350,29 @@ export class ActivitySubmissionsRepository implements IActivitySubmissionReposit
             { session: opts?.session }
         );
     }
+
+    async getLatestByStudentId(studentId: string): Promise<HpActivitySubmission | null> {
+        await this.init()
+        return await this.hpActivitySubmissionCollection.findOne({ studentId: new ObjectId(studentId) }, { sort: { createdAt: -1 } })
+    }
+
+    async getCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number> {
+        await this.init();
+        return await this.hpActivitySubmissionCollection.countDocuments({
+            studentId: new ObjectId(studentId),
+            courseId: new ObjectId(courseId),
+            courseVersionId: new ObjectId(courseVersionId),
+        });
+    }
+
+    async getLateSubmissionCountByStudentId(studentId: string, courseId: string, courseVersionId: string): Promise<number> {
+        await this.init();
+        return await this.hpActivitySubmissionCollection.countDocuments({
+            studentId: new ObjectId(studentId),
+            courseId: new ObjectId(courseId),
+            courseVersionId: new ObjectId(courseVersionId),
+            isLate: true
+        });
+    }
+
 }

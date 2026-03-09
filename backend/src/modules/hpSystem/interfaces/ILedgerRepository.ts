@@ -10,4 +10,6 @@ export interface ILedgerRepository {
         studentId: string,
         filter: FilterQueryDto
     ): Promise<LedgerListResponseDto>
+
+    findByStudentAndSubmissionId(submissionId: string, studentId: string): Promise<HpLedger | null>
 }

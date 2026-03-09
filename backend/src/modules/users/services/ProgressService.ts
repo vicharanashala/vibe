@@ -23,6 +23,7 @@ import {
   NotFoundError,
   BadRequestError,
   InternalServerError,
+  ForbiddenError,
 } from 'routing-controllers';
 import {SubmissionRepository} from '#quizzes/repositories/providers/mongodb/SubmissionRepository.js';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
@@ -1483,6 +1484,12 @@ class ProgressService extends BaseService {
     itemId: string,
   ): Promise<string> {
     return this._withTransaction(async session => {
+
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(courseVersionId);
+      
+      if(versionStatus==="archived"){
+        throw new ForbiddenError("This course version is inactive, you can't start item");
+      }
       // Check if item is already completed before creating watchTime
       const isItemCompleted = await this.progressRepository.isItemCompleted(
         userId,
@@ -1845,6 +1852,12 @@ class ProgressService extends BaseService {
       throw new NotFoundError('Invalid course version');
     if (!progress) throw new NotFoundError('Progress not found');
     if (!item) throw new NotFoundError('Item not found');
+
+    const versionStatus=await this.courseRepo.getCourseVersionStatus(courseVersionId);
+      
+    if(versionStatus==="archived"){
+        throw new ForbiddenError("This course version is inactive, you can't stop item");
+    }
 
     /**
      * Quiz retry handling:

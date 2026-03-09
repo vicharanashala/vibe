@@ -122,14 +122,13 @@ export class HpLedgerTransformer {
     @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
     @Transform(StringToObjectId.transformer, { toClassOnly: true })
     @JSONSchema({ title: 'Cohort ID', type: 'string' })
-    cohortId: ID;
+    cohort: string;
 
     // Identity
     @Expose()
-    @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
-    @Transform(StringToObjectId.transformer, { toClassOnly: true })
+    @IsString()
     @JSONSchema({ title: 'Student ID', type: 'string' })
-    studentId: ID;
+    studentId: string;
 
     @Expose()
     @IsString()
@@ -200,8 +199,8 @@ export class HpLedgerTransformer {
 
     constructor(body?: Partial<HpLedgerTransformer>) {
         if (body) Object.assign(this, body);
-        this.calc = this.calc ?? ({} as any);
-        this.links = this.links ?? ({} as any);
-        this.meta = this.meta ?? ({} as any);
+        this.calc = this.calc ?? ({} as HpLedgerCalc);
+        this.links = this.links ?? ({} as HpLedgerLinks);
+        this.meta = this.meta ?? ({} as HpLedgerMeta);
     }
 }

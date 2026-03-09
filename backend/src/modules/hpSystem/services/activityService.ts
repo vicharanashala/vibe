@@ -6,6 +6,7 @@ import { ActivityRepository, RuleConfigsRepository } from "../repositories/index
 import { BadRequestError, ForbiddenError, NotFoundError } from "routing-controllers";
 import { CreateActivityBody, UpdateActivityBody } from "../classes/validators/activityValidators.js";
 import { ObjectId } from "mongodb";
+import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 
 
 
@@ -21,6 +22,10 @@ export class ActivityService extends BaseService {
 
         @inject(HP_SYSTEM_TYPES.ruleConfigsRepository)
         private readonly ruleConfigRepository: RuleConfigsRepository,
+
+        @inject(HP_SYSTEM_TYPES.cohortRepository)
+        private readonly cohortRepository: CohortRepository,
+
 
     ) {
         super(mongoDatabase);
@@ -203,7 +208,11 @@ export class ActivityService extends BaseService {
         cohort?: string;
         status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
         createdByTeacherId?: string;
-    }) {
+    }, userId: string) {
+        // const enrollment = await this.cohortRepository.findEnrollment(userId, filters.courseId, filters.courseVersionId)
+        // if (!enrollment) throw new BadRequestError("Enrollment not found!")
+        // const role = enrollment.role;
+
         return this.activityRepository.listActivities(filters);
     }
 }
