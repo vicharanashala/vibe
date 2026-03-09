@@ -285,10 +285,14 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     if (playing || isSkipping || isStopFailed || isStopping) {
       player.pauseVideo();
     } else {
+      // Prevent playing if current time is at or beyond endTime
+      if (endTimeSeconds > 0 && currentTime >= endTimeSeconds) {
+        return;
+      }
       player.playVideo();
       setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
     }
-  }, [playing, readyToDetect]);
+  }, [playing, endTimeSeconds, currentTime, isSkipping,isStopFailed, isStopping, playbackRate]);
 
   const handleBackward = () => {
     const player = playerRef.current;
