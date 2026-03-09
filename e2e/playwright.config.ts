@@ -18,6 +18,8 @@ export default defineConfig({
     permissions: ['camera', 'microphone'],
     headless: true,
 
+
+    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
     // Only capture artifacts on failure
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -34,6 +36,7 @@ export default defineConfig({
         '--use-file-for-fake-audio-capture=./assets/webcam-face.wav',
 
         '--disable-dev-shm-usage',
+        '--disable-blink-features=AutomationControlled',
       ],
     },
   },
