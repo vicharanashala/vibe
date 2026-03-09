@@ -422,7 +422,8 @@ export const hpApi = {
         courseVersionId: string,
         cohort: string,
     ): Promise<{ success: boolean; data: HpStudent[] }> => {
-        return apiFetch(`${BASE_URL}/courses-cohorts/version/${courseVersionId}/cohort/${cohort}/students`);
+        // Pass a large limit so we get all students for client-side pagination
+        return apiFetch(`${BASE_URL}/courses-cohorts/version/${courseVersionId}/cohort/${cohort}/students?limit=1000&page=1`);
     },
 
     getCohortOverviewStats: async (
