@@ -2200,6 +2200,11 @@ function EnrollmentsTable({
                     setCohort(id);
                   }}
                 >
+            <DropdownMenuRadioItem
+              value={""}
+              onClick={() => setCohort(undefined)}>
+              All Cohorts
+            </DropdownMenuRadioItem>
                   {(version as any)?.cohortDetails?.map((cohort: any) => (
                     <DropdownMenuRadioItem
                       key={cohort.id}
