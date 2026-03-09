@@ -215,7 +215,11 @@ export default function CreateHpActivityPage() {
                                 <label className="text-sm font-medium">Activity Title <span className="text-red-500">*</span></label>
                                 <Input
                                     placeholder="e.g. Midterm Essay Submission"
-                                    {...register("title", { required: "Title is required" })}
+                                    {...register("title", {
+                                        required: "Title is required",
+                                        validate: (value) =>
+                                            value.trim() !== "" || "Title cannot contain only spaces"
+                                    })}
                                     className={errors.title ? "border-red-500" : ""}
                                 />
                                 {errors.title && <p className="text-xs text-red-500">{errors.title.message as string}</p>}
@@ -226,8 +230,17 @@ export default function CreateHpActivityPage() {
                                 <Textarea
                                     placeholder="Describe the expectations for this activity..."
                                     className="min-h-[120px]"
-                                    {...register("description")}
+                                    {...register("description", {
+                                        required: "Description is required",
+                                        validate: (value) =>
+                                            value.trim() !== "" || "Description cannot contain only spaces"
+                                    })}
                                 />
+                                {errors.description && (
+                                    <p className="text-xs text-red-500">
+                                        {errors.description.message as string}
+                                    </p>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -236,6 +249,7 @@ export default function CreateHpActivityPage() {
                                     <Controller
                                         name="activityType"
                                         control={control}
+                                        rules={{ required: "Activity type is required" }}
                                         render={({ field }) => (
                                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                 <SelectTrigger>
@@ -258,6 +272,7 @@ export default function CreateHpActivityPage() {
                                     <Controller
                                         name="submissionMode"
                                         control={control}
+                                        rules={{required: "Submission mode is required" }}
                                         render={({ field }) => (
                                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                 <SelectTrigger>

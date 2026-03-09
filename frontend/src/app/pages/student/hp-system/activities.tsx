@@ -87,10 +87,15 @@ export default function StudentActivities() {
         const hasAttachments = files.length > 0 || images.length > 0 || validLinks.length > 0;
         const hasText = textResponse.trim() !== "";
 
-        if (!hasText || !hasAttachments) {
-            setSubmitError("Please provide a text response AND at least one attachment (file, image, or link).");
-            return;
-        }
+        if (!hasText) {
+                setSubmitError("Response cannot be empty or spaces.");
+                return;
+            }
+
+            if (!hasAttachments) {
+                setSubmitError("Please add at least one file, image, or link.");
+                return;
+            }
 
         try {
             await submitActivity({
@@ -426,7 +431,7 @@ export default function StudentActivities() {
                         </Button>
                         <Button
                             onClick={handleSubmit}
-                            disabled={isSubmitting || !textResponse.trim() || (files.length === 0 && images.length === 0 && links.every(l => !l.url.trim()))}
+                            disabled={isSubmitting}
                         >
                             {isSubmitting ? (
                                 <>

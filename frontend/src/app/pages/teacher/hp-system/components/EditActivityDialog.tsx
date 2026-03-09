@@ -104,7 +104,11 @@ export function EditActivityDialog({
                         <div className="space-y-2">
                             <Label>Title <span className="text-red-500">*</span></Label>
                             <Input
-                                {...register("title", { required: "Title is required" })}
+                                {...register("title", {
+                                    required: "Title is required",
+                                    validate: (value) =>
+                                        value.trim() !== "" || "Title cannot contain only spaces"
+                                })}
                                 className={errors.title ? "border-red-500" : ""}
                             />
                             {errors.title && <p className="text-xs text-red-500">{errors.title.message}</p>}
@@ -112,10 +116,17 @@ export function EditActivityDialog({
 
                         <div className="space-y-2">
                             <Label>Description</Label>
-                            <Textarea
-                                {...register("description")}
-                                className="min-h-[100px]"
-                            />
+                                <Textarea
+                                    {...register("description", {
+                                        required: "Description is required",
+                                        validate: (value) =>
+                                            value.trim() !== "" || "Description cannot contain only spaces"
+                                    })}
+                                    className="min-h-[100px]"
+                                />
+                                {errors.description && (
+                                    <p className="text-xs text-red-500">{errors.description.message}</p>
+                                )}
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -124,6 +135,7 @@ export function EditActivityDialog({
                                 <Controller
                                     name="activityType"
                                     control={control}
+                                    rules={{ required: "Activity type is required" }}
                                     render={({ field }) => (
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <SelectTrigger>
@@ -146,6 +158,7 @@ export function EditActivityDialog({
                                 <Controller
                                     name="submissionMode"
                                     control={control}
+                                    rules={{ required: "Submission mode is required" }}
                                     render={({ field }) => (
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <SelectTrigger>
