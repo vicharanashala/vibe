@@ -101,33 +101,19 @@ export interface HpStudent {
     avatar?: string;
 }
 
-export interface HpLedgerCalc {
-    baseHpAtTime: number;
-    computedAmount: number;
-    absolutePoints: number;
-    reasonCode: string;
-    withinDeadline: boolean;
-    deadlineAt?: string;
-}
-
 export interface HpLedgerEntry {
     _id: string;
     studentId: string;
-    activityId?: string;
-    submissionId?: string;
-    eventType: string;       // e.g. 'SUBMISSION', 'REVERT', etc.
-    direction: 'CREDIT' | 'DEBIT';
-    amount: number;          // the HP points awarded/deducted
-    calc?: HpLedgerCalc;
-    meta?: { triggeredBy?: string; note?: string };
-    createdAt: string;
-    // Following are kept for backward compatibility with existing UI
-    activityTitle?: string;
-    status?: string;
-    baseHp?: number;
-    currentHp?: number;
+    activityId: string;
+    activityTitle: string;
+    status: 'SUBMITTED' | 'PENDING' | 'REVERTED';
+    submissionLink?: string;
+    baseHp: number;
+    currentHp: number;
+    type: 'CREDIT' | 'DEBIT';
     instructorFeedback?: string;
     submittedAt?: string;
+    createdAt: string;
 }
 
 export interface HpCohortOverviewStats {
@@ -438,18 +424,6 @@ export const hpApi = {
     ): Promise<{ success: boolean; data: HpStudent[] }> => {
         // Pass a large limit so we get all students for client-side pagination
         return apiFetch(`${BASE_URL}/courses-cohorts/version/${courseVersionId}/cohort/${cohort}/students?limit=1000&page=1`);
-    },
-
-    getStudentLedger: async (
-        studentId: string,
-        courseVersionId: string,
-        cohortName: string,
-    ): Promise<{ success?: boolean; data: HpLedgerEntry[]; total: number; studentDetails?: { studentName: string; studentEmail: string; hpPoints: number } }> => {
-        // courseId is required in the URL but not used at query level, use courseVersionId as placeholder
-        const raw = await apiFetch<{ data: HpLedgerEntry[]; total: number; page: number; limit: number; studentDetails?: any }>(
-            `/api/hp/ledger/student/${studentId}/cohort/${encodeURIComponent(cohortName)}/course/${courseVersionId}/courseVersion/${courseVersionId}?limit=500&page=1`
-        );
-        return { ...raw, success: true };
     },
 
     getCohortOverviewStats: async (
