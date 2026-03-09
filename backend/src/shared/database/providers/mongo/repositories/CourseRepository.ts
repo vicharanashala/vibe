@@ -305,6 +305,7 @@ export class CourseRepository implements ICourseRepository {
       name,
       createdAt: new Date(),
       updatedAt: new Date(),
+      isPublic: false,
     }));
 
     const result = await this.cohortsCollection.insertMany(
@@ -361,25 +362,33 @@ export class CourseRepository implements ICourseRepository {
 
   async modifyCohortById(
     cohortId: ObjectId,
-    cohortName: string,
+    cohortName?: string,
+    isPublic?: boolean,
     session?: ClientSession
   ): Promise<boolean> {
     try {
+
+      const updateFields: any = {}
+      if (cohortName) {
+        updateFields.name = cohortName
+      }
+      if (!(isPublic === null || isPublic === undefined)) {
+        updateFields.isPublic = isPublic
+      }
+      if (Object.keys(updateFields).length === 0) {
+        return false
+      }
       const result = await this.cohortsCollection.updateOne(
         { _id: cohortId },
-        {
-          $set: {
-            name: cohortName
-          }
-        },
+        { $set: updateFields },
         { session }
-      );
+      )
+      return result.modifiedCount === 1
 
-      return result.modifiedCount === 1;
     } catch (err) {
       throw new InternalServerError(
         "Failed to modify cohort.\nMore Details: " + err
-      );
+      )
     }
   }
 

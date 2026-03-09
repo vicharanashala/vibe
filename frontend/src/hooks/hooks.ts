@@ -848,8 +848,8 @@ export function useCourseVersionCohorts(
 }
 
   export function useUpdateCohort():{
-  mutate: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: {newCohortName: string} }) => void,
-  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: {newCohortName: string} }) => Promise<CohortsResponse>,
+  mutate: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: {newCohortName?: string, isPublic?: boolean} }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } }, body: {newCohortName?: string, isPublic?: boolean} }) => Promise<CohortsResponse>,
   data: CohortsResponse | undefined,
   error: string | null,
   isPending: boolean,

@@ -715,6 +715,9 @@ Accessible to:
       );
     }
 
+    if (!body.newCohortName && (body.isPublic === null || body.isPublic === undefined)) {
+        throw new BadRequestError("No information provided in request body");
+    }
     const existingVersion = await this.courseVersionService.readCourseVersion(versionId, user._id);
 
     if(!existingVersion.cohorts || existingVersion.cohorts.length <= 0){
@@ -725,11 +728,13 @@ Accessible to:
     if(!cohortExists){
       throw new BadRequestError("The requested cohort does not exists in the course version");
     }
-    if(existingVersion.cohortDetails.some(cohort=> cohort.name === body.newCohortName)){
-      throw new BadRequestError("The requested cohort name already exists in the course version");
+    if(body.newCohortName){
+        if(existingVersion.cohortDetails.some(cohort=> cohort.name === body.newCohortName)){
+          throw new BadRequestError("The requested cohort name already exists in the course version");
+        }
     }
 
-      await this.courseVersionService.updateCohortInCourseVersion(cohortId, body.newCohortName.toLowerCase());
+      await this.courseVersionService.updateCohortInCourseVersion(cohortId, body?.newCohortName?.toLowerCase(), body?.isPublic );
     // console.log("---updatedCourseVersion--",updatedCourseVersion);
     return {
       message: `Cohort updated successfully.`,

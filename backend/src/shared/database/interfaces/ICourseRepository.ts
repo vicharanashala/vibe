@@ -66,7 +66,8 @@ export interface ICourseRepository {
 
   modifyCohortById(
     cohortId: ObjectId,
-    cohortName: string,
+    cohortName?: string,
+    isPublic?: boolean,
     session?: ClientSession
   ): Promise<boolean>;
 

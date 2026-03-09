@@ -236,61 +236,26 @@ export class CourseVersionService extends BaseService {
         id: cohort._id.toString(),
         name: cohort.name,
         createdAt: cohort.createdAt,
-        updatedAt: cohort.updatedAt
+        updatedAt: cohort.updatedAt,
+        isPublic: cohort.isPublic
       })),
       version: courseVersion.version,
     };
 
     return cohortDetails;
-
-    // let filtered = cohorts;
-
-    // // search filter
-    // if (search && search.trim() !== "") {
-    //   const searchLower = search.toLowerCase();
-    //   filtered = filtered.filter(c =>
-    //     c.name.toLowerCase().includes(searchLower)
-    //   );
-    // }
-
-    // // sorting
-    // filtered.sort((a, b) => {
-    //   let aVal: any = a[sortBy];
-    //   let bVal: any = b[sortBy];
-    //   if (sortBy !== "name") {
-    //     aVal = new Date(aVal).getTime();
-    //     bVal = new Date(bVal).getTime();
-    //   }
-    //   if (sortOrder === "asc") {
-    //     return aVal > bVal ? 1 : -1;
-    //   }
-    //   return aVal < bVal ? 1 : -1;
-    // });
-
-    // // pagination
-    // const paginated = filtered.slice(skip, skip + limit);
-
-    // const cohortDetails: CohortsResponse = {
-    //   cohorts: paginated.map(cohort => ({
-    //     id: cohort._id.toString(),
-    //     name: cohort.name,
-    //     createdAt: cohort.createdAt,
-    //     updatedAt: cohort.updatedAt
-    //   })),
-    //   version: courseVersion.version,
-    // };
-
-    // return cohortDetails;
   }
 
 
-  public async updateCohortInCourseVersion(cohortId: string, cohortName: string): Promise<boolean>{
+  public async updateCohortInCourseVersion(cohortId: string, cohortName: string, isPublic: boolean): Promise<boolean>{
     return this._withTransaction(async session => {
+      if (!cohortName && (isPublic === null || isPublic === undefined)) {
+        throw new BadRequestError("No information provided in request body");
+      }
       const existingCohort = await this.courseRepo.getCohortsByIds(Array.of(new ObjectId(cohortId)),undefined, session);
       if(!existingCohort){
         throw new NotFoundError("Cohort Id doesn't exist");
       }
-      return await this.courseRepo.modifyCohortById(new ObjectId(cohortId), cohortName, session);
+      return await this.courseRepo.modifyCohortById(new ObjectId(cohortId), cohortName, isPublic, session);
     });
   }
 

@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-
 import { useCourseStore } from "@/store/course-store"
 
 import {
@@ -17,6 +16,8 @@ import {
   useCourseVersionCohorts
 } from "@/hooks/hooks"
 import { toast } from "sonner"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 
 export default function ConfigureCohorts() {
 
@@ -40,6 +41,9 @@ export default function ConfigureCohorts() {
   const [currentPage, setCurrentPage] = useState(1)
   const [limit, setLimit] = useState(10)
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
+  const [isPublicDialogOpen, setIsPublicDialogOpen] = useState(false)
+  const [targetCohort, setTargetCohort] = useState<any>(null)
+  const [nextPublicState, setNextPublicState] = useState(false)
 
   useEffect(() => {
     setIsSearching(true);
@@ -101,12 +105,11 @@ export default function ConfigureCohorts() {
         setCohortName("")
         refetch()
     } catch(err: any){
-        toast.error(err?.message || "Failed to delete cohort");
+        toast.error(err?.message || "Failed to create cohort");
     }
   }
 
   const updateCohort = async () => {
-    console.log("---cohort in update---", selectedCohort);
     if (!cohortName.trim()) return
     if(cohortName.length >=50){
         toast.error("Keep cohort name length below 50");
@@ -128,7 +131,30 @@ export default function ConfigureCohorts() {
         setIsEditOpen(false)
         refetch()
     } catch(err: any){
-        toast.error(err?.message || "Failed to delete cohort");
+        toast.error(err?.message || "Failed to update cohort");
+    }
+  }
+
+    const updateCohortPublicStatus = async () => {
+
+    try{
+        await updateMutation.mutateAsync({
+        params: {
+            path: {
+            courseId : courseId??"",
+            versionId: versionId??"",
+            cohortId: selectedCohort.id
+            }
+        },
+        body: {
+            isPublic: nextPublicState
+        }
+        })
+        setIsEditOpen(false)
+        setIsPublicDialogOpen(false);
+        refetch()
+    } catch(err: any){
+        toast.error(err?.message || "Failed to update cohort");
     }
   }
 
@@ -180,15 +206,15 @@ export default function ConfigureCohorts() {
         <CardHeader>
           <CardTitle>Cohorts</CardTitle>
         </CardHeader>
-
-        <div className="flex items-center justify-between mx-6 gap-4">
+      {cohortsData?.cohorts?.length && cohortsData?.cohorts?.length > 0 ?
+       ( <div className="flex items-center justify-between mx-6 gap-4">
           <Input
             placeholder="Search cohort..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="max-w-sm"
           />
-        <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2">
             <span className="text-sm text-muted-foreground">Show</span>
             <select
               value={limit}
@@ -209,7 +235,7 @@ export default function ConfigureCohorts() {
               Refresh
             </Button>
           </div>
-        </div>
+        </div>):(<div></div>)}
 
         <CardContent>
           <Table>
@@ -241,6 +267,9 @@ export default function ConfigureCohorts() {
                 ))}
                 <TableHead>
                   Actions
+                </TableHead>
+                <TableHead>
+                  Change status
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -282,6 +311,22 @@ export default function ConfigureCohorts() {
                       >
                         <Trash className="w-4 h-4"/>
                       </Button>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center space-x-2">
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium">Is Public</Label>
+                      </div>
+                      <Switch
+                        checked={cohort.isPublic}
+                        onCheckedChange={(checked) => {
+                          setTargetCohort(cohort)
+                          setSelectedCohort(cohort)
+                          setNextPublicState(checked)
+                          setIsPublicDialogOpen(true)
+                        }}
+                      />
                     </div>
                   </TableCell>
                 </TableRow>
@@ -405,6 +450,44 @@ export default function ConfigureCohorts() {
               : null}
             Delete
           </Button>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isPublicDialogOpen}
+        onOpenChange={setIsPublicDialogOpen}
+      >
+        <DialogContent className="p-10">
+          <DialogHeader className="mb-4">
+            <DialogTitle>
+              {nextPublicState ? "Make Cohort Public" : "Make Cohort Private"}
+            </DialogTitle>
+          </DialogHeader>
+          <p>
+            Are you sure you want to{" "}
+            <strong>
+              {nextPublicState ? "make public" : "make private"}
+            </strong>{" "}
+            the cohort{" "}
+            <strong>{targetCohort?.name}</strong>?
+          </p>
+          <div className="flex gap-3 mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setIsPublicDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={updateCohortPublicStatus}
+              disabled={updateMutation.isPending}
+            >
+            {updateMutation.isPending
+              ? <Loader2 className="animate-spin mr-2"/>
+              : null}
+              Confirm
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

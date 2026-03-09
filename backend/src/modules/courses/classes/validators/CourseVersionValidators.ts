@@ -14,6 +14,7 @@ import {
   IsArray,
   ArrayUnique,
   Min,
+  IsBoolean,
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 import { Cohort } from '../index.js';
@@ -227,8 +228,13 @@ class CohortsResponse {
 
 class NewCohortBody{
 
+  @IsOptional()
   @IsString()
-  newCohortName: string
+  newCohortName?: string
+
+  @IsOptional()
+  @IsBoolean()
+  isPublic?: boolean
 }
 
 class CohortUpdatedMessage{

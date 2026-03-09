@@ -446,6 +446,7 @@ export interface ICohort {
   description?: string;
   createdAt: Date;
   updatedAt: Date;
+  isPublic: boolean;
 }
 
 export interface IUserActivityEvent {
