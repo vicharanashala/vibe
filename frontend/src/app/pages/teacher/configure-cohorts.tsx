@@ -268,9 +268,6 @@ export default function ConfigureCohorts() {
                 <TableHead>
                   Actions
                 </TableHead>
-                <TableHead>
-                  Change status
-                </TableHead>
               </TableRow>
             </TableHeader>
 
@@ -311,10 +308,7 @@ export default function ConfigureCohorts() {
                       >
                         <Trash className="w-4 h-4"/>
                       </Button>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
+                    <span className="flex items-center space-x-2 ml-4">
                       <div className="space-y-1">
                         <Label className="text-sm font-medium">Is Public</Label>
                       </div>
@@ -327,6 +321,7 @@ export default function ConfigureCohorts() {
                           setIsPublicDialogOpen(true)
                         }}
                       />
+                    </span>
                     </div>
                   </TableCell>
                 </TableRow>

@@ -542,7 +542,7 @@ export class CourseRegistrationService extends BaseService {
           data,
           course,
           status,
-          fetchedCohort[0].name,
+          fetchedCohort[0]?.name,
         );
         // console.log("---emailmessage----", emailMessage);
         try {
@@ -622,7 +622,7 @@ export class CourseRegistrationService extends BaseService {
             item,
             course,
             'APPROVED',
-            item.cohortId?.toString(),
+            item?.cohortId?.toString(),
           );
           try {
             await this.mailService.sendMail(emailMessage);

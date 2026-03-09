@@ -1406,20 +1406,15 @@ export class EnrollmentRepository {
 
     const baseMatch: any = {
       courseId: { $in: [courseId, new ObjectId(courseId)] },
-      courseVersionId: {
-        $in: [courseVersionId, new ObjectId(courseVersionId)],
-      },
+      courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
     };
 
     if (cohort) {
       baseMatch.cohortId = new ObjectId(cohort);
-    } else if (cohorts && cohorts.length > 0) {
-      if(filter === "STUDENT"){
-        baseMatch.cohortId = { $in: cohorts };
-      }
+    } else if (cohorts && cohorts.length > 0 && filter === 'STUDENT') {
+      baseMatch.cohortId = { $in: cohorts };
     }
-// console.log("---basematch----", baseMatch, filter);
-    // console.log("Base match for enrollments:", baseMatch);
+
     let matchStage: any = { ...baseMatch };
 
     //  ACTIVE tab
@@ -1464,6 +1459,20 @@ export class EnrollmentRepository {
         },
       },
       { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'cohorts',
+          localField: 'cohortId',
+          foreignField: '_id',
+          as: 'cohort',
+        },
+      },
+      {
+        $unwind: {
+          path: '$cohort',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
     ];
 
     // Search filter
@@ -1513,139 +1522,9 @@ export class EnrollmentRepository {
       { $limit: limit },
     ];
 
-    // 4. Enrich only the current page records with expensive lookups
+   // 4. Enrich only the current page records with expensive lookups
     paginatedPipeline.push(
       {
-        $lookup: {
-          from: "cohorts",
-          localField: "cohortId",
-          foreignField: "_id",
-          as: "cohort"
-        }
-      },
-      {
-        $unwind: {
-          path: "$cohort",
-          preserveNullAndEmptyArrays: true
-        }
-      },
-
-      // {
-      //   $addFields: {
-      //     userId: {$toString: '$userInfo._id'},
-      //     _id: {$toString: '$_id'},
-      //     courseId: {$toString: '$courseId'},
-      //     courseVersionId: {$toString: '$courseVersionId'},
-      // { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
-      {
-  $lookup: {
-    from: "newCourseVersion",
-    let: { versionId: { $toObjectId: "$courseVersionId" } },
-    pipeline: [
-      {
-        $match: {
-          $expr: {
-            $eq: [ "$_id" , "$$versionId"]
-          }
-        }
-      },
-      {
-        $project: {
-          totalItems: 1,
-          itemCounts: 1
-        },
-      }
-    ],
-    as: "courseVersionInfo"
-  }
-},
-
-{
-  $unwind: {
-    path: "$courseVersionInfo",
-    preserveNullAndEmptyArrays: true
-  }
-},
-
-{
-  $lookup: {
-    from: "watchTime",
-    let: {
-      userIdObj: { $toObjectId: "$userId" },
-      versionIdObj: { $toObjectId: "$courseVersionId" }
-    },
-    pipeline: [
-      {
-        $match: {
-          $expr: {
-            $and: [
-              { $eq: ["$userId", "$$userIdObj"] },
-              { $eq: ["$courseVersionId", "$$versionIdObj"] },
-              { $ne: ["$endTime", null] }   // means completed
-            ]
-          }
-        }
-      }
-    ],
-    as: "watchRecords"
-  }
-},
-
-
-{
-  $addFields: {
-    completedItemIds: "$watchRecords.itemId"
-  }
-},
-
-{
-  $lookup: {
-    from: "itemsGroup",
-    let: { completedItemIds: "$completedItemIds" },
-    pipeline: [
-      { $unwind: "$items" },
-      {
-        $match: {
-          $expr: {
-            $in: ["$items._id", "$$completedItemIds"]
-          }
-        }
-      },
-      {
-        $project: {
-          type: "$items.type"
-        }
-      }
-    ],
-    as: "completedItems"
-  }
-},
-
-{
-  $addFields: {
-    completedItemCounts: {
-      $arrayToObject: {
-        $map: {
-          input: { $setUnion: ["$completedItems.type"] },
-          as: "type",
-          in: {
-            k: "$$type",
-            v: {
-              $size: {
-                $filter: {
-                  input: "$completedItems",
-                  as: "item",
-                  cond: { $eq: ["$$item.type", "$$type"] }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-},
-
         $lookup: {
           from: 'newCourseVersion',
           let: { versionId: { $toObjectId: '$courseVersionId' } },
@@ -1770,49 +1649,14 @@ export class EnrollmentRepository {
           },
           cohortName: "$cohort.name",
           contentCounts: {
-            total: { $ifNull: ["$courseVersionInfo.totalItems", 0] },
-            completed: { $ifNull: ["$completedItemsCount", 0] },
-            itemCounts: { $ifNull: ["$courseVersionInfo.itemCounts", {}] },
-            completedItemCounts: { $ifNull: ["$completedItemCounts", {}] }
-          }
+            total: { $ifNull: ['$courseVersionInfo.totalItems', 0] },
+            completed: { $ifNull: ['$completedItemsCount', 0] },
+            itemCounts: { $ifNull: ['$courseVersionInfo.itemCounts', {}] },
+            completedItemCounts: { $ifNull: ['$completedItemCounts', {}] },
+          },
         },
       },
-    ];
-
-    // search
-    if (search && search.trim() !== '') {
-      const searchTerm = search.trim();
-      aggregationPipeline.push({
-        $match: {
-          $or: [
-            { 'userInfo.firstName': { $regex: search, $options: 'i' } },
-            { 'userInfo.email': { $regex: search, $options: 'i' } },
-            { firstName: { $regex: searchTerm, $options: 'i' } },
-            { lastName: { $regex: searchTerm, $options: 'i' } },
-            { email: { $regex: searchTerm, $options: 'i' } },
-          ],
-        },
-      });
-    }
-
-    // Get the total count with search applied
-    const countPipeline = [...aggregationPipeline, { $count: 'total' }];
-    const countResult = await this.enrollmentCollection
-      .aggregate<{ total: number }>(countPipeline, { session })
-      .next();
-    const totalDocuments = countResult?.total || 0;
-
-    // sorting
-    aggregationPipeline.push({ $sort: sortField });
-
-    // pagination
-    aggregationPipeline.push({ $skip: skip }, { $limit: limit });
-
-
-    // count separately
-    // const totalDocuments = await this.enrollmentCollection.countDocuments(
-    //   matchStage,
-    // );
+    );
 
     const enrollments = await this.enrollmentCollection
       .aggregate(paginatedPipeline, { session })

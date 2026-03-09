@@ -56,6 +56,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 // console.log("---enrollment----", enrollment);
   const courseId = bufferToHex(enrollment.courseId as string);
   const versionId = bufferToHex(enrollment.courseVersionId as string) || "";
+  const cohortId = enrollment?.cohortId || "";
   const module_number = enrollment.moduleNumber || "";
   const section_number = enrollment.sectionNumber || "";
   const item_type = enrollment.itemType || "VIDEO";
@@ -141,8 +142,8 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const handleContinue = () => {
     if (variant === 'available') {
       navigate({
-        to: "/student/course-registration/$versionId",
-        params: { versionId: versionId }
+        to: "/student/course-registration/$versionId/{-$cohortId}",
+        params: { versionId: versionId, cohortId: cohortId }
       });
       return;
     }

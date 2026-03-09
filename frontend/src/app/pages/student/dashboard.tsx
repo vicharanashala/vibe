@@ -203,7 +203,9 @@ function DashboardContent() {
                     name: course.courseName,
                     description: course.courseDescription,
                     instructors: course.instructors
-                  }
+                  },
+                  cohortId: course.cohortId,
+                  cohortName: course.cohortName,
                 })) || []}
                 isLoading={publicCoursesLoading}
                 showViewAll

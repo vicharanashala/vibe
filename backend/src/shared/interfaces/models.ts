@@ -406,6 +406,7 @@ export interface IEnrollment {
   deletedAt?: Date;
   unenrolledAt?: Date;
   hasNewItemsAfterCompletion?: boolean;
+  cohortId?: ID
 }
 
 export interface IProgress {
