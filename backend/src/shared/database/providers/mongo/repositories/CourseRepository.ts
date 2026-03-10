@@ -819,7 +819,7 @@ export class CourseRepository implements ICourseRepository {
       });
 
       if (version?.cohorts?.length > 0) {
-        await this.cohortsCollection.updateMany(
+        const cohortDeleteResult =  await this.cohortsCollection.updateMany(
           { courseVersionId: new ObjectId(versionId) },
           {
             $set: {
@@ -829,6 +829,9 @@ export class CourseRepository implements ICourseRepository {
           },
           { session }
         );
+        if (cohortDeleteResult.modifiedCount !== version?.cohorts?.length) {
+          throw new InternalServerError('Failed to delete cohorts');
+        }
       }
 
       const versionDeleteResult = await this.courseVersionCollection.updateOne(
