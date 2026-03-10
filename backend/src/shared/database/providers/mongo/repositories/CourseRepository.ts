@@ -818,6 +818,19 @@ export class CourseRepository implements ICourseRepository {
         };
       });
 
+      if (version?.cohorts?.length > 0) {
+        await this.cohortsCollection.updateMany(
+          { courseVersionId: new ObjectId(versionId) },
+          {
+            $set: {
+              isDeleted: true,
+              deletedAt: now
+            }
+          },
+          { session }
+        );
+      }
+
       const versionDeleteResult = await this.courseVersionCollection.updateOne(
         {
           _id: new ObjectId(versionId),
