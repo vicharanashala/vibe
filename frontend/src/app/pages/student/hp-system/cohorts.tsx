@@ -103,13 +103,6 @@ export default function StudentCohorts() {
                                         </div>
                                         <Progress value={10} className="h-2" />
                                     </div>
-                                    <div className="flex justify-between items-center text-sm">
-                                        <span className="text-muted-foreground">Your HP:</span>
-                                        <div className="flex items-center gap-1.5 font-bold text-amber-600 dark:text-amber-500">
-                                            <Trophy className="h-3.5 w-3.5" />
-                                            0
-                                        </div>
-                                    </div>
                                 </div>
                             </CardContent>
 
