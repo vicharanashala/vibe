@@ -609,6 +609,90 @@ export function useStudentCurrentProgressPath(
   };
 }
 
+// GET /:userId/enrollments/courses/:courseId/versions/:versionId/progress-detail (API 2)
+export function useStudentProgressDetail(
+  userId?: string,
+  courseId?: string,
+  versionId?: string,
+  enabled?: boolean
+) {
+  const result = api.useQuery(
+    'get',
+    `/users/${userId}/enrollments/courses/${courseId}/versions/${versionId}/progress-detail` as any,
+    {
+      params: {
+        path: { userId: userId!, courseId: courseId!, versionId: versionId! },
+      },
+    },
+    {
+      enabled: Boolean(enabled && userId && courseId && versionId),
+    }
+  );
+
+  return {
+    data: result.data as {
+      _id: string;
+      userId: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      avatar?: string;
+      enrollmentDate: string;
+      percentCompleted: number;
+      completedItemsCount: number;
+      assignedTimeSlots?: any[];
+      contentCounts: {
+        totalItems: number;
+        itemCounts: {
+          VIDEO?: number;
+          QUIZ?: number;
+          BLOG?: number;
+          PROJECT?: number;
+        };
+      };
+      totalQuizScore: number;
+      totalQuizMaxScore: number;
+    } | undefined,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to load student progress') : null,
+    refetch: result.refetch
+  };
+}
+
+// GET /:userId/enrollments/courses/:courseId/versions/:versionId/course-structure (API 3)
+export function useStudentCourseStructure(
+  userId?: string,
+  courseId?: string,
+  versionId?: string,
+  enabled?: boolean
+) {
+  const result = api.useQuery(
+    'get',
+    `/users/${userId}/enrollments/courses/${courseId}/versions/${versionId}/course-structure` as any,
+    {
+      params: {
+        path: { userId: userId!, courseId: courseId!, versionId: versionId! },
+      },
+    },
+    {
+      enabled: Boolean(enabled && userId && courseId && versionId),
+    }
+  );
+
+  return {
+    data: result.data as {
+      _id: string;
+      userId: string;
+      courseStructure: any[];
+      totalItems: number;
+      itemCounts: any;
+    } | undefined,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to load course structure') : null,
+    refetch: result.refetch
+  };
+}
+
 // PATCH /courses/{id}
 export function useUpdateCourse(): {
   mutate: (variables: { params: { path: { id: string } }, body: components['schemas']['UpdateCourseBody'] }) => void,
@@ -776,7 +860,7 @@ export function useCourseVersionArchive(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("patch", "/courses/versions/{versionId}/archive" as any );
+  const result = api.useMutation("patch", "/courses/versions/{versionId}/archive" as any);
   return {
     ...result,
     error: result.error
@@ -1229,9 +1313,9 @@ export function useUpdateItem(): {
 }
 
 // DELETE /courses/itemGroups/{itemsGroupId}/items/{itemId}
-export function useDeleteItem(): { 
+export function useDeleteItem(): {
   mutate: (variables: { params: { path: { courseId: string, itemsGroupId: string, itemId: string } } }) => void,
-  mutateAsync: (variables: { params: { path: { courseId : string, itemsGroupId: string, itemId: string } } }) => Promise<components['schemas']['DeletedItemResponse']>,
+  mutateAsync: (variables: { params: { path: { courseId: string, itemsGroupId: string, itemId: string } } }) => Promise<components['schemas']['DeletedItemResponse']>,
   data: components['schemas']['DeletedItemResponse'] | undefined,
   error: string | null,
   isPending: boolean,
@@ -1311,7 +1395,7 @@ export function useUnenrollUser(): {
 }
 
 // GET /users/enrollments
-export function useUserEnrollments(page?: number, limit?: number, enabled: boolean = true, search?: string, role = "STUDENT", tab: 'active'|'archived' = "active" ): {
+export function useUserEnrollments(page?: number, limit?: number, enabled: boolean = true, search?: string, role = "STUDENT", tab: 'active' | 'archived' = "active"): {
   data: components['schemas']['EnrollmentResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
@@ -1661,10 +1745,10 @@ export function useSkipOptionalItem(): {
   return {
     ...result,
     // error: result.error ? (result.error.message || 'Failed to skip item') : null
-   error: rawError
+    error: rawError
       ? rawError.message
-        ?? rawError.response?.data?.message
-        ?? "Failed to skip item"
+      ?? rawError.response?.data?.message
+      ?? "Failed to skip item"
       : null,
   }
 }
@@ -3685,7 +3769,7 @@ export const useAutoApprovalSettings = (
       enabled: !!versionId,
     }
   );
-  
+
   return {
     settings: result.data as { registrationsAutoApproved?: boolean; autoapproval_emails?: string[] } | undefined,
     isLoading: result.isLoading,
@@ -4575,17 +4659,19 @@ export function useChooseTimeSlot(): {
 
 // POST /timeslots/teacher/remove-student
 export function useRemoveStudentFromTimeSlot(): {
-  mutateAsync: (variables:{body: {
-    courseId: string;
-    courseVersionId: string;
-    studentId: string;
-    timeSlot: { from: string; to: string };
-  }}) => Promise<any>;
+  mutateAsync: (variables: {
+    body: {
+      courseId: string;
+      courseVersionId: string;
+      studentId: string;
+      timeSlot: { from: string; to: string };
+    }
+  }) => Promise<any>;
   isPending: boolean;
   error: string | null;
 } {
   const result = api.useMutation("post", "/timeslots/teacher/remove-student");
-  
+
   return {
     ...result,
     error: result.error ? (result.error.message || 'Failed to remove student from time slot') : null
