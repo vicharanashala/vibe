@@ -294,15 +294,34 @@ export class InviteRepository {
     );
   }
 
-  async cancelPendingInvitesByCourseId(
-    courseId: string,
+  // async cancelPendingInvitesByCourseId(
+  //   courseId: string,
+  //   session?: ClientSession,
+  // ): Promise<void> {
+  //   await this.inviteCollection.updateMany(
+  //     {
+  //       courseId: new ObjectId(courseId),
+  //       inviteStatus: {$in: ['PENDING', 'EMAIL_FAILED']},
+  //     },
+  //     {$set: {inviteStatus: 'CANCELLED'}},
+  //     {session},
+  //   );
+  // }
+
+  async cancelPendingInvites(
+    filter: {courseId?: string; courseVersionId?: string},
     session?: ClientSession,
   ): Promise<void> {
+    const query: Record<string, any> = {
+      inviteStatus: {$in: ['PENDING', 'EMAIL_FAILED']},
+    };
+
+    if (filter.courseId) query.courseId = new ObjectId(filter.courseId);
+    if (filter.courseVersionId)
+      query.courseVersionId = new ObjectId(filter.courseVersionId);
+
     await this.inviteCollection.updateMany(
-      {
-        courseId: new ObjectId(courseId),
-        inviteStatus: {$in: ['PENDING', 'EMAIL_FAILED']},
-      },
+      query,
       {$set: {inviteStatus: 'CANCELLED'}},
       {session},
     );

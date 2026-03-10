@@ -146,7 +146,7 @@ class CourseService extends BaseService {
   async deleteCourse(id: string): Promise<void> {
     return this._withTransaction(async session => {
       // Cancel all pending invites before soft-deleting
-      await this.inviteService.cancelAllPendingInvitesByCourse(id, session);
+      await this.inviteService.cancelPendingInvites({courseId: id}, session);
 
       const deleted = await this.courseRepo.delete(id, session);
       if (!deleted) {

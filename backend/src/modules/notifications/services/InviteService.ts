@@ -674,11 +674,11 @@ export class InviteService extends BaseService {
       };
     }
   }
-  async cancelAllPendingInvitesByCourse(
-    courseId: string,
+  async cancelPendingInvites(
+    filter: {courseId?: string; courseVersionId?: string},
     session?: ClientSession,
   ): Promise<void> {
-    await this.inviteRepo.cancelPendingInvitesByCourseId(courseId, session);
+    await this.inviteRepo.cancelPendingInvites(filter, session);
   }
 
   async cancelInvite(inviteId: string): Promise<{message: string}> {
