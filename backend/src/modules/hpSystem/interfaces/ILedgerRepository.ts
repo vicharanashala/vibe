@@ -9,7 +9,7 @@ export interface ILedgerRepository {
     listByStudentId(
         studentId: string,
         filter: FilterQueryDto
-    ): Promise<LedgerListResponseDto>
+    ): Promise<Omit<LedgerListResponseDto, "studentDetails">>
 
     findByStudentAndSubmissionId(submissionId: string, studentId: string): Promise<HpLedger | null>
 }
