@@ -456,6 +456,7 @@ export interface IUserActivityEvent {
   courseId: string | ObjectId;
   courseVersionId: string | ObjectId;
   videoId: ObjectId; // itemId from the system, stored as ObjectId
+  cohortId?: string | ObjectId; // Optional cohortId from enrollment
   rewinds: number;
   fastForwards: number;
   rewindData: Array<{

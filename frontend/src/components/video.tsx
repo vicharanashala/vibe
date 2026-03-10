@@ -108,6 +108,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     userId: '',
     courseId: '',
     versionId: '',
+    cohortId: undefined, // Will be set when currentCourse is available
     rewindData: [],
     fastForwardData: []
   });
@@ -135,6 +136,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         userId: userId,
         courseId: currentCourse?.courseId || '',
         versionId: currentCourse?.versionId || '',
+        cohortId: currentCourse?.cohortId || undefined,
         // Don't override videoId - use the tracked one
       };
       await storeWatchTimeTrack({ body: trackData });
@@ -147,6 +149,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         userId: '',
         courseId: '',
         versionId: '',
+        cohortId: undefined,
         rewindData: [],
         fastForwardData: []
       });
@@ -261,9 +264,10 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         videoId: currentCourse.itemId || '',
         courseId: currentCourse.courseId || '',
         versionId: currentCourse.versionId || '',
+        cohortId: currentCourse.cohortId || undefined,
       }));
     }
-  }, [videoId, startTimeSeconds, currentCourse?.itemId, currentCourse?.courseId, currentCourse?.versionId]);
+  }, [videoId, startTimeSeconds, currentCourse?.itemId, currentCourse?.courseId, currentCourse?.versionId, currentCourse?.cohortId]);
 
   // // Ensure video doesn't autoplay accidentally
   // useEffect(() => {
