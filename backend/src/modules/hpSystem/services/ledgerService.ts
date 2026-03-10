@@ -39,7 +39,16 @@ export class LedgerService extends BaseService {
         const student = await this.userRepo.findById(studentId);
         if (!student)
             throw new BadRequestError("Student not found");
-        const enrollment = await this.cohortRepository()
-        return await this.ledgerRepository.listByStudentId(studentId, filter);
+
+        const paginatedData = await this.ledgerRepository.listByStudentId(studentId, filter);
+
+        return {
+            ...paginatedData,
+            studentDetails: {
+                studentName: `${student.firstName} ${student.lastName}`.trim(),
+                studentEmail: student.email,
+                hpPoints: (student as any).hpPoints || 0
+            }
+        };
     }
 }
