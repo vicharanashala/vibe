@@ -652,6 +652,7 @@ export function useStudentProgressDetail(
       };
       totalQuizScore: number;
       totalQuizMaxScore: number;
+      watchHours?: number; // total watch hours for this student in the course
     } | undefined,
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to load student progress') : null,
@@ -1417,12 +1418,19 @@ export function useUserEnrollments(page?: number, limit?: number, enabled: boole
 }
 
 // GET /users/enrollments/courses/{courseId}/versions/{versionId}/statistics
+export interface CourseEnrollmentStats {
+  totalEnrollments: number;
+  completedCount: number;
+  averageProgressPercent: number;
+  averageWatchHoursPerUser?: number;
+}
+
 export function useCourseEnrollmentsStats(
   courseId: string | undefined,
   versionId: string | undefined,
   enabled: boolean = true
 ): {
-  data: any | undefined,
+  data: CourseEnrollmentStats | undefined,
   isLoading: boolean,
   error: string | null,
   refetch: () => void

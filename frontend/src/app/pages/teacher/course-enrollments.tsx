@@ -179,6 +179,12 @@ export default function CourseEnrollments() {
     !!(courseId && versionId)
   )
 
+  useEffect(() => {
+    if (enrollmentStats) {
+      console.debug('Enrollment stats received:', enrollmentStats);
+    }
+  }, [enrollmentStats]);
+
   const [selectedUser, setSelectedUser] = useState<EnrollmentDetails | null>(null)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false)
@@ -824,6 +830,18 @@ export default function CourseEnrollments() {
       color: "text-purple-600",
       bgColor: "bg-purple-50",
     },
+    {
+      title: "Avg Watch Hours",
+      value: (() => {
+        const v = enrollmentStats?.averageWatchHoursPerUser ?? 0;
+        if (v <= 0) return `0h`;
+        if (v < 0.005) return `<0.01h`;
+        return `${v.toFixed(2)}h`;
+      })(),
+      icon: Clock,
+      color: "text-orange-600",
+      bgColor: "bg-orange-50",
+    },
   ]
   const {
     data: currentPath,
@@ -846,6 +864,12 @@ export default function CourseEnrollments() {
     versionId,
     isViewProgressDialogOpen
   )
+
+  useEffect(() => {
+    if (progressDetail) {
+      console.debug('Progress detail fetched:', progressDetail);
+    }
+  }, [progressDetail]);
 
   // API 3: Course structure — fetched lazily when View Course Structure is clicked
   const {
@@ -1162,6 +1186,10 @@ export default function CourseEnrollments() {
                           <SummaryRow
                             label="Items Completed"
                             value={`${progressDetail.completedItemsCount ?? 0} / ${progressDetail.contentCounts?.totalItems ?? 0}`}
+                          />
+                          <SummaryRow
+                            label="Watch Hours"
+                            value={`${(progressDetail.watchHours ?? 0).toFixed(2)}h`}
                           />
                         </div>
                       </>
